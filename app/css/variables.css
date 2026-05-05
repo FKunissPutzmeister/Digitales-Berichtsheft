@@ -1,0 +1,260 @@
+/* ===================================================================
+   PUTZMEISTER – Digitales Berichtsheft
+   Design Tokens & CSS Custom Properties
+   =================================================================== */
+
+@font-face {
+  font-family: 'Libre Franklin';
+  src: url('../../Corporate Design/Fonts/librefranklin-bold.ttf') format('truetype');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Libre Franklin';
+  src: url('../../Corporate Design/Fonts/librefranklin-light.ttf') format('truetype');
+  font-weight: 300;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Open Sans';
+  src: url('../../Corporate Design/Fonts/OpenSans-Bold.ttf') format('truetype');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Open Sans';
+  src: url('../../Corporate Design/Fonts/OpenSans-Light.ttf') format('truetype');
+  font-weight: 300;
+  font-style: normal;
+  font-display: swap;
+}
+
+:root {
+  /* ── Putzmeister Markenfarben ── */
+  --pm-yellow:          #FFC300;
+  --pm-yellow-dark:     #E6AF00;
+  --pm-yellow-darker:   #B38A00;
+  --pm-yellow-light:    #FFD84D;
+  --pm-yellow-pale:     #FFF8DC;
+  --pm-yellow-bg:       #FFFAEB;
+
+  --pm-grey-900:        #1A1A1A;
+  --pm-grey-800:        #2C2C2C;
+  --pm-grey-700:        #3D3D3D;
+  --pm-grey-600:        #4A4A4A;
+  --pm-grey-500:        #6B6B6B;
+  --pm-grey-400:        #767676;  /* WCAG AA auf Weiß (~4.6:1) – nutzbar für sekundären Text */
+  --pm-grey-300:        #B0B0B0;  /* nur für Borders/Icons, nicht für Text */
+  --pm-grey-200:        #E0E0E0;
+  --pm-grey-100:        #F0F0F0;
+  --pm-grey-50:         #F7F7F7;
+  --pm-white:           #FFFFFF;
+
+  /* ── Semantische Farben ── */
+  --color-success:      #1B7E35;
+  --color-success-mid:  #43A856;
+  --color-success-light:#E8F5EB;
+
+  --color-warning:      #D84315;
+  --color-warning-mid:  #F4511E;
+  --color-warning-light:#FBE9E7;
+
+  --color-error:        #B71C1C;
+  --color-error-mid:    #E53935;
+  --color-error-light:  #FFEBEE;
+
+  --color-info:         #1565C0;
+  --color-info-mid:     #1976D2;
+  --color-info-light:   #E3F2FD;
+
+  /* ── Berichtsheft-Status ── */
+  --status-offen:        #6B6B6B;
+  --status-offen-bg:     #F0F0F0;
+  --status-freigegeben:  #1565C0;
+  --status-freigegeben-bg: #DDEEFF;
+  --status-genehmigt:    #1B7E35;
+  --status-genehmigt-bg: #E8F5EB;
+  --status-abgelehnt:    #B71C1C;
+  --status-abgelehnt-bg: #FFEBEE;
+
+  /* ── Typografie ── */
+  --font-heading: 'Libre Franklin', 'Segoe UI', Arial, sans-serif;
+  --font-body:    'Open Sans', 'Segoe UI', Arial, sans-serif;
+
+  --text-xs:    0.6875rem;  /* 11px */
+  --text-sm:    0.8125rem;  /* 13px */
+  --text-base:  0.9375rem;  /* 15px */
+  --text-md:    1rem;       /* 16px */
+  --text-lg:    1.125rem;   /* 18px */
+  --text-xl:    1.25rem;    /* 20px */
+  --text-2xl:   1.5rem;     /* 24px */
+  --text-3xl:   1.875rem;   /* 30px */
+  --text-4xl:   2.25rem;    /* 36px */
+
+  --fw-light:   300;
+  --fw-regular: 400;
+  --fw-medium:  500;
+  --fw-bold:    700;
+
+  --lh-tight:   1.2;
+  --lh-snug:    1.35;
+  --lh-normal:  1.5;
+  --lh-relaxed: 1.65;
+
+  /* ── Abstände ── */
+  --sp-1:   4px;
+  --sp-2:   8px;
+  --sp-3:   12px;
+  --sp-4:   16px;
+  --sp-5:   20px;
+  --sp-6:   24px;
+  --sp-8:   32px;
+  --sp-10:  40px;
+  --sp-12:  48px;
+  --sp-16:  64px;
+  --sp-20:  80px;
+
+  /* ── Schatten ── */
+  --shadow-xs:  0 1px 2px rgba(15, 23, 42, 0.04);
+  --shadow-sm:  0 1px 2px rgba(15, 23, 42, 0.04), 0 1px 3px rgba(15, 23, 42, 0.06);
+  --shadow-md:  0 2px 4px rgba(15, 23, 42, 0.04), 0 4px 12px rgba(15, 23, 42, 0.08);
+  --shadow-lg:  0 4px 8px rgba(15, 23, 42, 0.05), 0 12px 28px rgba(15, 23, 42, 0.10);
+  --shadow-xl:  0 8px 16px rgba(15, 23, 42, 0.06), 0 24px 48px rgba(15, 23, 42, 0.14);
+  --shadow-yellow: 0 4px 16px rgba(255,195,0,0.30);
+  --shadow-yellow-lg: 0 8px 32px rgba(255,195,0,0.40);
+
+  /* ── Elevation – semantische Tiefen­abstufung ── */
+  --elev-rest:   var(--shadow-sm);
+  --elev-hover:  var(--shadow-md);
+  --elev-active: var(--shadow-lg);
+  --elev-pop:    var(--shadow-xl);
+
+  /* ── Ring-Schatten für Fokus & Highlight ── */
+  --ring-yellow:    0 0 0 3px rgba(255, 195, 0, 0.22);
+  --ring-yellow-sm: 0 0 0 2px rgba(255, 195, 0, 0.18);
+  --ring-error:     0 0 0 3px rgba(183, 28, 28, 0.18);
+  --ring-info:      0 0 0 3px rgba(21, 101, 192, 0.16);
+
+  /* ── Radien ── */
+  --r-xs:   2px;
+  --r-sm:   4px;
+  --r-md:   8px;
+  --r-lg:   12px;
+  --r-xl:   16px;
+  --r-2xl:  20px;
+  --r-full: 9999px;
+
+  /* ── Easing-Kurven (modern, „behördlich ruhig" ohne Bouncen) ── */
+  --ease-standard:  cubic-bezier(0.4, 0, 0.2, 1);     /* Material Standard */
+  --ease-out-expo:  cubic-bezier(0.16, 1, 0.3, 1);    /* sehr weiches Auslaufen */
+  --ease-out-quart: cubic-bezier(0.25, 1, 0.5, 1);    /* präzise, ruhig */
+  --ease-spring:    cubic-bezier(0.34, 1.56, 0.64, 1);/* zurückhaltender Spring */
+
+  /* ── Übergänge ── */
+  --t-fast:   140ms var(--ease-out-quart);
+  --t-normal: 220ms var(--ease-out-quart);
+  --t-slow:   380ms var(--ease-out-expo);
+  --t-spring: 320ms var(--ease-spring);
+
+  /* ── Layout ── */
+  --sidebar-w:      256px;
+  --sidebar-icon-w: 68px;
+  --topbar-h:       60px;
+  --content-max:    1200px;
+
+  /* ── Z-Ebenen ── */
+  --z-base:    1;
+  --z-sticky:  10;
+  --z-sidebar: 100;
+  --z-overlay: 90;
+  --z-modal:   200;
+  --z-toast:   300;
+
+  /* ── Theme-spezifische Tokens (Light-Mode-Defaults; im Dark-Mode überschrieben) ──
+     "Inverse"-Oberflächen sind in *beiden* Themes dunkel (Sidebar, Toast,
+     Welcome-Banner). Das verhindert weiße-auf-weiß-Bugs nach dem Theme-Switch. */
+  --sidebar-bg:           var(--pm-grey-800);
+  --inverse-surface:      var(--pm-grey-900);
+  --inverse-surface-soft: var(--pm-grey-800);
+  --inverse-surface-mid:  var(--pm-grey-700);
+  --topbar-bg-glass:      rgba(255, 255, 255, 0.85);
+  --surface-overlay:      rgba(15, 23, 42, 0.42);
+
+  /* Theme-invariant: Text auf gelben Surfaces bleibt immer dunkel,
+     unabhängig vom Theme. */
+  --on-yellow-text:       #1A1A1A;
+  --on-inverse-text:      #FFFFFF;
+}
+
+/* ===================================================================
+   DARK MODE
+   Aktiviert via [data-theme="dark"] auf <html>. js/theme.js setzt das
+   Attribut bereits im <head> (vor dem ersten Paint), damit kein FOUC
+   entsteht. Toggle in der Topbar.
+   =================================================================== */
+[data-theme="dark"] {
+  /* Greys werden invertiert – Surfaces dunkel, Text hell.
+     Mid-Greys (300–500) bleiben "neutral" und sind in beiden Themes
+     vergleichbar lesbar. */
+  --pm-white:           #18181B;  /* Karten / Modal / Form-Control */
+  --pm-grey-50:         #0F0F11;  /* Body-Hintergrund */
+  --pm-grey-100:        #1F1F23;  /* sub-surface, dezente Hover-BG */
+  --pm-grey-200:        #2A2A2F;  /* Default-Borders */
+  --pm-grey-300:        #3A3A40;  /* stärkere Borders / Icons */
+  --pm-grey-400:        #767680;  /* Mute */
+  --pm-grey-500:        #9A9AA4;  /* Sekundär-Text */
+  --pm-grey-600:        #B8B8C0;  /* Sekundär-Text (emphasized) */
+  --pm-grey-700:        #D4D4DA;  /* Body-Text */
+  --pm-grey-800:        #E4E4E8;  /* Strong-Text */
+  --pm-grey-900:        #F4F4F5;  /* Headings */
+
+  /* Yellow bleibt Marken-Yellow, aber Hintergrund-Tints werden
+     transparente Overlays statt Pastell-Pals.
+     "Darker"-Varianten kehren ihre Helligkeit um: was im Light-Mode
+     dunkelgelb auf hellem Pastell war, wird hier hellgelb auf
+     dunklem Tint – für lesbare Yellow-Tinted-Texte. */
+  --pm-yellow-bg:       rgba(255, 195, 0, 0.12);
+  --pm-yellow-pale:     rgba(255, 195, 0, 0.18);
+  --pm-yellow-dark:     #FFD84D;  /* heller in Dark – Hover-State */
+  --pm-yellow-darker:   #FFE066;  /* heller in Dark – Text auf yellow-bg-Tint */
+
+  /* Status-Hintergründe als getintete Overlays (statt Pastell-Pal) */
+  --color-success-light: rgba(67, 168, 86, 0.16);
+  --color-error-light:   rgba(229, 57, 53, 0.18);
+  --color-info-light:    rgba(25, 118, 210, 0.20);
+  --color-warning-light: rgba(244, 81, 30, 0.18);
+
+  /* Berichtsheft-Status */
+  --status-offen-bg:        rgba(154, 154, 164, 0.18);
+  --status-freigegeben-bg:  rgba(25, 118, 210, 0.22);
+  --status-genehmigt-bg:    rgba(67, 168, 86, 0.18);
+  --status-abgelehnt-bg:    rgba(229, 57, 53, 0.22);
+
+  /* Schatten – auf dunklem Untergrund deutlich tiefer / opaker.
+     Sonst sind sie unsichtbar. */
+  --shadow-xs:  0 1px 2px rgba(0, 0, 0, 0.45);
+  --shadow-sm:  0 1px 2px rgba(0, 0, 0, 0.40), 0 1px 3px rgba(0, 0, 0, 0.55);
+  --shadow-md:  0 2px 4px rgba(0, 0, 0, 0.45), 0 6px 14px rgba(0, 0, 0, 0.55);
+  --shadow-lg:  0 4px 10px rgba(0, 0, 0, 0.50), 0 14px 28px rgba(0, 0, 0, 0.55);
+  --shadow-xl:  0 8px 16px rgba(0, 0, 0, 0.55), 0 24px 48px rgba(0, 0, 0, 0.65);
+  --shadow-yellow:    0 4px 16px rgba(255, 195, 0, 0.22);
+  --shadow-yellow-lg: 0 8px 32px rgba(255, 195, 0, 0.30);
+
+  /* Fokus-Ringe – etwas heller, damit auf dunklem Body sichtbar */
+  --ring-yellow:    0 0 0 3px rgba(255, 195, 0, 0.32);
+  --ring-yellow-sm: 0 0 0 2px rgba(255, 195, 0, 0.28);
+  --ring-error:     0 0 0 3px rgba(229, 57, 53, 0.32);
+  --ring-info:      0 0 0 3px rgba(25, 118, 210, 0.30);
+
+  /* "Inverse"-Oberflächen werden im Dark-Mode noch tiefer als der
+     Body, damit die Hierarchie Body < Karte < Sidebar erhalten bleibt. */
+  --sidebar-bg:           #08080A;
+  --inverse-surface:      #0A0A0D;
+  --inverse-surface-soft: #1A1A1E;
+  --inverse-surface-mid:  #232328;
+  --topbar-bg-glass:      rgba(15, 15, 17, 0.78);
+  --surface-overlay:      rgba(0, 0, 0, 0.62);
+}

@@ -1,0 +1,283 @@
+/* ===================================================================
+   BERICHTSHEFTVERWALTUNG
+   =================================================================== */
+
+.verwaltung-grid {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-5);
+}
+
+/* Verwaltungs-Panel kann ein <div> oder ein <details>-Element sein.
+   Als <details>: kollabierbar mit Chevron + Höhen-Animation. */
+.verwaltung-panel {
+  background: var(--pm-white);
+  border: 1px solid var(--pm-grey-200);
+  border-radius: var(--r-xl);
+  overflow: hidden;
+  box-shadow: var(--elev-rest);
+  transition: box-shadow var(--t-normal), border-color var(--t-normal);
+}
+.verwaltung-panel:hover { border-color: var(--pm-grey-300); }
+details.verwaltung-panel[open] {
+  box-shadow: var(--elev-hover);
+  border-color: var(--pm-grey-300);
+}
+.verwaltung-panel__header {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-4);
+  padding: var(--sp-5) var(--sp-6);
+  border-bottom: 1px solid var(--pm-grey-100);
+  transition: background var(--t-fast);
+}
+summary.verwaltung-panel__header {
+  cursor: pointer;
+  list-style: none;
+  user-select: none;
+  position: relative;
+  padding-right: calc(var(--sp-6) + 28px);
+}
+summary.verwaltung-panel__header::-webkit-details-marker { display: none; }
+summary.verwaltung-panel__header:hover { background: var(--pm-grey-50); }
+summary.verwaltung-panel__header:focus-visible {
+  outline: none;
+  box-shadow: inset var(--ring-yellow-sm);
+}
+summary.verwaltung-panel__header::after {
+  content: '';
+  position: absolute;
+  right: var(--sp-6);
+  top: 50%;
+  width: 9px;
+  height: 9px;
+  border-right: 2px solid var(--pm-grey-500);
+  border-bottom: 2px solid var(--pm-grey-500);
+  transform: translateY(-65%) rotate(45deg);
+  transition: transform var(--t-normal), border-color var(--t-normal);
+}
+details.verwaltung-panel[open] > summary.verwaltung-panel__header::after {
+  transform: translateY(-35%) rotate(225deg);
+  border-color: var(--pm-yellow-darker);
+}
+details.verwaltung-panel:not([open]) > summary.verwaltung-panel__header {
+  border-bottom-color: transparent;
+}
+
+.verwaltung-panel__icon {
+  width: 40px;
+  height: 40px;
+  background: var(--pm-yellow-bg);
+  border-radius: var(--r-md);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: background var(--t-fast);
+}
+.verwaltung-panel__icon svg { width: 20px; height: 20px; color: var(--pm-yellow-darker); }
+summary.verwaltung-panel__header:hover .verwaltung-panel__icon {
+  background: var(--pm-yellow-pale);
+}
+.verwaltung-panel__header-text { flex: 1; min-width: 0; }
+.verwaltung-panel__title {
+  font-family: var(--font-heading);
+  font-size: var(--text-md);
+  font-weight: var(--fw-bold);
+  color: var(--pm-grey-900);
+}
+.verwaltung-panel__desc {
+  font-size: var(--text-sm);
+  color: var(--pm-grey-500);
+  margin-top: 2px;
+}
+.verwaltung-panel__body {
+  padding: var(--sp-6);
+}
+/* Accordion-Mechanik (siehe profil.css) */
+details.verwaltung-panel .verwaltung-panel__body-wrap {
+  display: grid;
+  grid-template-rows: 1fr;
+  transition: grid-template-rows var(--t-slow), opacity var(--t-normal);
+}
+details.verwaltung-panel:not([open]) .verwaltung-panel__body-wrap {
+  grid-template-rows: 0fr;
+  opacity: 0;
+}
+details.verwaltung-panel .verwaltung-panel__body-wrap > .verwaltung-panel__body {
+  overflow: hidden;
+  min-height: 0;
+}
+@supports not (grid-template-rows: 0fr) {
+  details.verwaltung-panel .verwaltung-panel__body-wrap { display: block; }
+  details.verwaltung-panel:not([open]) .verwaltung-panel__body-wrap { display: none; }
+}
+
+/* ── Datumsbereich-Picker ── */
+.date-range-row {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--sp-4);
+  flex-wrap: wrap;
+  margin-bottom: var(--sp-5);
+}
+.date-range-row .form-group { flex: 1; min-width: 140px; }
+.date-range-row .btn { flex-shrink: 0; align-self: flex-end; }
+
+/* ── Anhänge-Export-Zeile (Zeitraum + ZIP-Button) ── */
+.anhaenge-export-row {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--sp-4);
+  flex-wrap: wrap;
+  margin-bottom: var(--sp-5);
+}
+.anhaenge-zeitraum { flex: 1; min-width: 280px; }
+.anhaenge-zeitraum__inputs {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+}
+.anhaenge-zeitraum__inputs .form-control { flex: 1; min-width: 0; }
+.anhaenge-zeitraum__sep {
+  color: var(--pm-grey-400);
+  font-weight: var(--fw-bold);
+  flex-shrink: 0;
+}
+.anhaenge-export-row .btn { flex-shrink: 0; align-self: flex-end; }
+
+/* ── Export-Buttons ── */
+.export-btns {
+  display: flex;
+  gap: var(--sp-3);
+  flex-wrap: wrap;
+}
+.export-btn {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  padding: var(--sp-4) var(--sp-5);
+  background: var(--pm-grey-50);
+  border: 1.5px solid var(--pm-grey-200);
+  border-radius: var(--r-lg);
+  cursor: pointer;
+  transition: all var(--t-fast);
+  font-family: var(--font-body);
+  text-align: left;
+  flex: 1;
+  min-width: 180px;
+}
+.export-btn:hover {
+  background: var(--pm-yellow-pale);
+  border-color: var(--pm-yellow);
+  box-shadow: var(--shadow-yellow);
+}
+.export-btn__icon {
+  width: 40px;
+  height: 40px;
+  background: var(--pm-grey-200);
+  border-radius: var(--r-md);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: background var(--t-fast);
+}
+.export-btn__icon svg { width: 20px; height: 20px; color: var(--pm-grey-600); }
+.export-btn:hover .export-btn__icon { background: var(--pm-yellow); }
+.export-btn:hover .export-btn__icon svg { color: var(--pm-grey-900); }
+.export-btn__text { flex: 1; }
+.export-btn__label {
+  font-size: var(--text-sm);
+  font-weight: var(--fw-bold);
+  color: var(--pm-grey-800);
+  display: block;
+}
+.export-btn__desc {
+  font-size: var(--text-xs);
+  color: var(--pm-grey-500);
+}
+
+/* ── Anhänge-Upload ── */
+.upload-zone {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  border: 2px dashed var(--pm-grey-300);
+  border-radius: var(--r-lg);
+  padding: var(--sp-8) var(--sp-6);
+  text-align: center;
+  cursor: pointer;
+  transition: border-color var(--t-fast), background var(--t-fast);
+  background: var(--pm-grey-50);
+  width: 100%;
+  box-sizing: border-box;
+}
+.upload-zone:hover,
+.upload-zone.drag-over {
+  border-color: var(--pm-yellow);
+  background: var(--pm-yellow-pale);
+}
+.upload-zone__icon {
+  width: 48px;
+  height: 48px;
+  color: var(--pm-grey-300);
+  margin: 0 auto var(--sp-3);
+}
+.upload-zone__icon svg { width: 48px; height: 48px; }
+.upload-zone__text {
+  font-size: var(--text-sm);
+  font-weight: var(--fw-bold);
+  color: var(--pm-grey-600);
+  margin-bottom: var(--sp-1);
+}
+.upload-zone__hint {
+  font-size: var(--text-xs);
+  color: var(--pm-grey-400);
+}
+.upload-zone input[type="file"] { display: none; }
+
+.attachment-list {
+  margin-top: var(--sp-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+}
+.attachment-item {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  padding: var(--sp-3) var(--sp-4);
+  background: var(--pm-grey-50);
+  border: 1px solid var(--pm-grey-200);
+  border-radius: var(--r-md);
+}
+.attachment-item__icon { width: 32px; height: 32px; background: var(--color-info-light); border-radius: var(--r-sm); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.attachment-item__icon svg { width: 16px; height: 16px; color: var(--color-info); }
+.attachment-item__name { flex: 1; font-size: var(--text-sm); font-weight: var(--fw-bold); color: var(--pm-grey-800); }
+.attachment-item__size { font-size: var(--text-xs); color: var(--pm-grey-400); }
+.attachment-item__delete { color: var(--pm-grey-400); width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; border-radius: var(--r-sm); cursor: pointer; transition: background var(--t-fast), color var(--t-fast); }
+.attachment-item__delete:hover { background: var(--color-error-light); color: var(--color-error); }
+.attachment-item__delete svg { width: 16px; height: 16px; }
+
+/* ── Reparatur-Panel ── */
+.repair-status {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-4);
+  padding: var(--sp-4);
+  background: var(--pm-grey-50);
+  border-radius: var(--r-md);
+  margin-bottom: var(--sp-4);
+}
+.repair-status svg { width: 20px; height: 20px; }
+.repair-status--ok { color: var(--color-success); }
+.repair-status--warning { color: var(--color-warning); }
+
+@media (max-width: 768px) {
+  .date-range-row { flex-direction: column; }
+  .date-range-row .form-group { min-width: 0; }
+  .export-btns { flex-direction: column; }
+  .export-btn { min-width: 0; }
+}

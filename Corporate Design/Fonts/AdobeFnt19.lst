@@ -1,0 +1,301 @@
+%!Adobe-FontList 1.19
+%Locale:0x409
+
+%BeginFont
+Handler:DirectoryHandler
+FontType:TrueType
+FontName:Webdings
+FamilyName:Webdings
+StyleName:Regular
+MenuName:Webdings
+StyleBits:0
+WeightClass:400
+WidthClass:5
+AngleClass:0
+FullName:Webdings
+WritingScript:Roman
+OutlineFileName:\Webdings.ttf
+DataFormat:sfntData
+hasSVG:no
+VariableFontType:NonVariableFont
+FileLength:124308
+FileModTime:1507891743
+NameArray:0,Mac,4,Webdings
+NameArray:0,Win,1,Webdings
+%EndFont
+
+%BeginFont
+Handler:DirectoryHandler
+FontType:TrueType
+FontName:Arial-BoldMT
+FamilyName:Arial
+StyleName:Bold
+MenuName:Arial
+StyleBits:2
+WeightClass:700
+WidthClass:5
+AngleClass:0
+FullName:Arial Bold
+WritingScript:Roman
+OutlineFileName:\arialbd.ttf
+DataFormat:sfntData
+hasSVG:no
+VariableFontType:NonVariableFont
+FileLength:866652
+FileModTime:1489890500
+NameArray:0,Mac,4,Arial Bold
+NameArray:0,Win,1,Arial
+%EndFont
+
+%BeginFont
+Handler:DirectoryHandler
+FontType:TrueType
+FontName:LibreFranklin-Light
+FamilyName:Libre Franklin
+StyleName:Light
+MenuName:Libre Franklin Light
+StyleBits:0
+WeightClass:300
+WidthClass:5
+AngleClass:0
+FullName:LibreFranklin-Light
+WritingScript:Roman
+OutlineFileName:\librefranklin-light.ttf
+DataFormat:sfntData
+hasSVG:no
+VariableFontType:NonVariableFont
+FileLength:76968
+FileModTime:1494828192
+NameArray:0,Mac,4,Libre Franklin Light
+NameArray:0,Win,1,Libre Franklin Light
+NameArray:0,Win,16,Libre Franklin
+%EndFont
+
+%BeginFont
+Handler:DirectoryHandler
+FontType:Type1
+FontName:HelveticaNeueLTPro-Cn
+FamilyName:Helvetica Neue LT Pro
+StyleName:57 Condensed
+MenuName:HelveticaNeueLT Pro 57 Cn
+StyleBits:0
+WeightClass:400
+WidthClass:5
+AngleClass:0
+FullName:Helvetica Neue LT Pro 57 Condensed
+WritingScript:Roman
+OutlineFileName:\HelveticaNeueLTPro-Cn.otf
+DataFormat:sfntData
+UsesStandardEncoding:yes
+isCFF:yes
+hasSVG:no
+VariableFontType:NonVariableFont
+FileLength:45312
+FileModTime:1495626992
+NameArray:0,Mac,18,HelveticaNeueLT Pro 57 Cn
+NameArray:0,Mac,4,Helvetica Neue LT Pro 57 Condensed
+NameArray:0,Win,1,HelveticaNeueLT Pro 57 Cn
+NameArray:0,Win,16,Helvetica Neue LT Pro
+%EndFont
+
+%BeginFont
+Handler:DirectoryHandler
+FontType:TrueType
+FontName:LibreFranklin-Bold
+FamilyName:Libre Franklin
+StyleName:Bold
+MenuName:Libre Franklin
+StyleBits:2
+WeightClass:700
+WidthClass:5
+AngleClass:0
+FullName:Libre Franklin Bold
+WritingScript:Roman
+OutlineFileName:\librefranklin-bold.ttf
+DataFormat:sfntData
+hasSVG:no
+VariableFontType:NonVariableFont
+FileLength:81244
+FileModTime:1494828192
+NameArray:0,Mac,4,Libre Franklin Bold
+NameArray:0,Win,1,Libre Franklin
+%EndFont
+
+%BeginFont
+Handler:DirectoryHandler
+FontType:TrueType
+FontName:OpenSans-Light
+FamilyName:Open Sans
+StyleName:Light
+MenuName:Open Sans Light
+StyleBits:0
+WeightClass:300
+WidthClass:5
+AngleClass:0
+FullName:Open Sans Light
+WritingScript:Roman
+OutlineFileName:\OpenSans-Light.ttf
+DataFormat:sfntData
+hasSVG:no
+VariableFontType:NonVariableFont
+FileLength:222236
+FileModTime:1522643544
+NameArray:0,Mac,4,Open Sans Light
+NameArray:0,Win,1,Open Sans Light
+NameArray:0,Win,16,Open Sans
+%EndFont
+
+%BeginFont
+Handler:DirectoryHandler
+FontType:Type1
+FontName:HelveticaNeueLTPro-BdCn
+FamilyName:Helvetica Neue LT Pro
+StyleName:77 Bold Condensed
+MenuName:HelveticaNeueLT Pro 57 Cn
+StyleBits:2
+WeightClass:700
+WidthClass:3
+AngleClass:0
+FullName:Helvetica Neue LT Pro 77 Bold Condensed
+WritingScript:Roman
+OutlineFileName:\HelveticaNeueLTPro BdCn.otf
+DataFormat:sfntData
+UsesStandardEncoding:yes
+isCFF:yes
+hasSVG:no
+VariableFontType:NonVariableFont
+FileLength:46672
+FileModTime:1122646510
+NameArray:0,Mac,18,HelveticaNeueLT Pro 77 BdCn
+NameArray:0,Mac,4,Helvetica Neue LT Pro 77 Bold Condensed
+NameArray:0,Win,1,HelveticaNeueLT Pro 57 Cn
+NameArray:0,Win,16,Helvetica Neue LT Pro
+%EndFont
+
+%BeginFont
+Handler:DirectoryHandler
+FontType:Type1
+FontName:HelveticaNeueLTPro-Lt
+FamilyName:Helvetica Neue LT Pro
+StyleName:45 Light
+MenuName:HelveticaNeueLT Pro 45 Lt
+StyleBits:0
+WeightClass:300
+WidthClass:5
+AngleClass:0
+FullName:Helvetica Neue LT Pro 45 Light
+WritingScript:Roman
+OutlineFileName:\HelveticaNeueLTPro Lt.otf
+DataFormat:sfntData
+UsesStandardEncoding:yes
+isCFF:yes
+hasSVG:no
+VariableFontType:NonVariableFont
+FileLength:43036
+FileModTime:1122646506
+NameArray:0,Mac,18,HelveticaNeueLT Pro 45 Lt
+NameArray:0,Mac,4,Helvetica Neue LT Pro 45 Light
+NameArray:0,Win,1,HelveticaNeueLT Pro 45 Lt
+NameArray:0,Win,16,Helvetica Neue LT Pro
+%EndFont
+
+%BeginFont
+Handler:DirectoryHandler
+FontType:TrueType
+FontName:ArialMT
+FamilyName:Arial
+StyleName:Regular
+MenuName:Arial
+StyleBits:0
+WeightClass:400
+WidthClass:5
+AngleClass:0
+FullName:Arial
+WritingScript:Roman
+OutlineFileName:\Arial.ttf
+DataFormat:sfntData
+hasSVG:no
+VariableFontType:NonVariableFont
+FileLength:773236
+FileModTime:1472747212
+NameArray:0,Mac,4,Arial
+NameArray:0,Win,1,Arial
+%EndFont
+
+%BeginFont
+Handler:DirectoryHandler
+FontType:TrueType
+FontName:OpenSans-Bold
+FamilyName:Open Sans
+StyleName:Bold
+MenuName:Open Sans
+StyleBits:2
+WeightClass:700
+WidthClass:5
+AngleClass:0
+FullName:Open Sans Bold
+WritingScript:Roman
+OutlineFileName:\OpenSans-Bold.ttf
+DataFormat:sfntData
+hasSVG:no
+VariableFontType:NonVariableFont
+FileLength:224452
+FileModTime:1522643544
+NameArray:0,Mac,4,Open Sans Bold
+NameArray:0,Win,1,Open Sans
+%EndFont
+
+%BeginFont
+Handler:DirectoryHandler
+FontType:Type1
+FontName:HelveticaNeueLTPro-LtCn
+FamilyName:Helvetica Neue LT Pro
+StyleName:47 Light Condensed
+MenuName:HelveticaNeueLT Pro 47 LtCn
+StyleBits:0
+WeightClass:300
+WidthClass:3
+AngleClass:0
+FullName:Helvetica Neue LT Pro 47 Light Condensed
+WritingScript:Roman
+OutlineFileName:\HelveticaNeueLTPro LtCn.otf
+DataFormat:sfntData
+UsesStandardEncoding:yes
+isCFF:yes
+hasSVG:no
+VariableFontType:NonVariableFont
+FileLength:44044
+FileModTime:1122646510
+NameArray:0,Mac,18,HelveticaNeueLT Pro 47 LtCn
+NameArray:0,Mac,4,Helvetica Neue LT Pro 47 Light Condensed
+NameArray:0,Win,1,HelveticaNeueLT Pro 47 LtCn
+NameArray:0,Win,16,Helvetica Neue LT Pro
+%EndFont
+
+%BeginFont
+Handler:DirectoryHandler
+FontType:Type1
+FontName:HelveticaNeueLTPro-MdCn
+FamilyName:Helvetica Neue LT Pro
+StyleName:67 Medium Condensed
+MenuName:HelveticaNeueLT Pro 67 MdCn
+StyleBits:0
+WeightClass:500
+WidthClass:3
+AngleClass:0
+FullName:Helvetica Neue LT Pro 67 Medium Condensed
+WritingScript:Roman
+OutlineFileName:\HelveticaNeueLTPro MdCn.otf
+DataFormat:sfntData
+UsesStandardEncoding:yes
+isCFF:yes
+hasSVG:no
+VariableFontType:NonVariableFont
+FileLength:46396
+FileModTime:1122646510
+NameArray:0,Mac,18,HelveticaNeueLT Pro 67 MdCn
+NameArray:0,Mac,4,Helvetica Neue LT Pro 67 Medium Condensed
+NameArray:0,Win,1,HelveticaNeueLT Pro 67 MdCn
+NameArray:0,Win,16,Helvetica Neue LT Pro
+%EndFont
+

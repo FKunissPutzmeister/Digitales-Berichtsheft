@@ -1,0 +1,344 @@
+/* ===================================================================
+   QUILL RICH TEXT EDITOR – Putzmeister Berichtsheft
+   =================================================================== */
+
+/* ── Wrapper: kein eigener Rahmen – Toolbar und Editor werden separat gestylt ── */
+.ql-editor-wrap {
+  background: transparent;
+}
+
+/* ── Toolbar: schwebende Steuerzeile ohne eigene Box ── */
+.ql-editor-wrap .ql-toolbar.ql-snow {
+  border: none;
+  background: transparent;
+  padding: 0 0 var(--sp-2) 0;
+  font-family: var(--font-body);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px;
+}
+
+.ql-editor-wrap .ql-toolbar.ql-snow .ql-formats {
+  display: inline-flex;
+  align-items: center;
+  gap: 1px;
+  margin-right: 0;
+}
+
+/* Dezente Trennlinie zwischen Formatgruppen */
+.ql-editor-wrap .ql-toolbar.ql-snow .ql-formats + .ql-formats::before {
+  content: '';
+  display: inline-block;
+  width: 1px;
+  height: 16px;
+  background: var(--pm-grey-200);
+  margin: 0 var(--sp-1);
+  flex-shrink: 0;
+}
+
+/* ── Toolbar: Buttons ── */
+.ql-editor-wrap .ql-snow.ql-toolbar button {
+  width: 28px;
+  height: 28px;
+  padding: 4px;
+  border-radius: var(--r-sm);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: background var(--t-fast);
+}
+
+.ql-editor-wrap .ql-snow.ql-toolbar button:hover {
+  background: var(--pm-grey-100);
+}
+
+.ql-editor-wrap .ql-snow.ql-toolbar button.ql-active {
+  background: var(--pm-yellow-pale);
+}
+
+/* ── SVG-Icon-Farben ── */
+.ql-editor-wrap .ql-snow .ql-stroke {
+  stroke: var(--pm-grey-500);
+}
+.ql-editor-wrap .ql-snow .ql-fill,
+.ql-editor-wrap .ql-snow .ql-stroke.ql-fill {
+  fill: var(--pm-grey-500);
+}
+.ql-editor-wrap .ql-snow.ql-toolbar button:hover .ql-stroke,
+.ql-editor-wrap .ql-snow.ql-toolbar button.ql-active .ql-stroke {
+  stroke: var(--pm-grey-900);
+}
+.ql-editor-wrap .ql-snow.ql-toolbar button:hover .ql-fill,
+.ql-editor-wrap .ql-snow.ql-toolbar button.ql-active .ql-fill {
+  fill: var(--pm-grey-900);
+}
+
+/* ── Undo / Redo ── */
+.ql-editor-wrap .ql-undo::before {
+  content: '↩';
+  font-size: 13px;
+  line-height: 1;
+  color: var(--pm-grey-500);
+}
+.ql-editor-wrap .ql-redo::before {
+  content: '↪';
+  font-size: 13px;
+  line-height: 1;
+  color: var(--pm-grey-500);
+}
+.ql-editor-wrap button.ql-undo:hover::before,
+.ql-editor-wrap button.ql-redo:hover::before {
+  color: var(--pm-grey-900);
+}
+
+/* ── Header-Picker (Normal / Überschriften) ── */
+.ql-editor-wrap .ql-snow .ql-picker.ql-header {
+  font-family: var(--font-body);
+  font-size: var(--text-sm);
+  font-weight: var(--fw-bold);
+  color: var(--pm-grey-700);
+  width: 96px;
+  height: 28px;
+}
+
+.ql-editor-wrap .ql-snow .ql-picker.ql-header .ql-picker-label {
+  border: 1.5px solid var(--pm-grey-200);
+  border-radius: var(--r-md);
+  padding: 0 var(--sp-2);
+  height: 28px;
+  display: flex;
+  align-items: center;
+  background: var(--pm-grey-50);
+  transition: border-color var(--t-fast), background var(--t-fast);
+  font-size: var(--text-sm);
+  font-weight: var(--fw-bold);
+  color: var(--pm-grey-700);
+}
+
+.ql-editor-wrap .ql-snow .ql-picker.ql-header .ql-picker-label:hover {
+  border-color: var(--pm-grey-400);
+  background: var(--pm-grey-100);
+}
+
+/* Quill-SVG-Chevron ersetzen durch Pfeil passend zu .day-card__select */
+.ql-editor-wrap .ql-snow .ql-picker.ql-header .ql-picker-label svg {
+  display: none;
+}
+.ql-editor-wrap .ql-snow .ql-picker.ql-header .ql-picker-label::after {
+  content: '';
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 24 24' fill='none' stroke='%236B6B6B' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: center;
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
+.ql-editor-wrap .ql-snow .ql-picker.ql-header .ql-picker-label::before,
+.ql-editor-wrap .ql-snow .ql-picker.ql-header .ql-picker-item::before {
+  content: 'Normal';
+}
+.ql-editor-wrap .ql-snow .ql-picker.ql-header .ql-picker-label[data-value="1"]::before,
+.ql-editor-wrap .ql-snow .ql-picker.ql-header .ql-picker-item[data-value="1"]::before {
+  content: 'Überschrift 1';
+}
+.ql-editor-wrap .ql-snow .ql-picker.ql-header .ql-picker-label[data-value="2"]::before,
+.ql-editor-wrap .ql-snow .ql-picker.ql-header .ql-picker-item[data-value="2"]::before {
+  content: 'Überschrift 2';
+}
+.ql-editor-wrap .ql-snow .ql-picker.ql-header .ql-picker-label[data-value="3"]::before,
+.ql-editor-wrap .ql-snow .ql-picker.ql-header .ql-picker-item[data-value="3"]::before {
+  content: 'Überschrift 3';
+}
+
+/* ── Align-Picker ── */
+.ql-editor-wrap .ql-snow .ql-picker.ql-align {
+  width: 28px;
+  height: 28px;
+}
+.ql-editor-wrap .ql-snow .ql-picker.ql-align .ql-picker-label {
+  padding: 0;
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--r-sm);
+  transition: background var(--t-fast);
+}
+.ql-editor-wrap .ql-snow .ql-picker.ql-align .ql-picker-label:hover {
+  background: var(--pm-grey-100);
+}
+.ql-editor-wrap .ql-snow .ql-picker.ql-align .ql-picker-label.ql-active {
+  background: var(--pm-yellow-pale);
+}
+
+/* ── Dropdown-Menüs ── */
+.ql-editor-wrap .ql-snow .ql-picker-options {
+  background: var(--pm-white);
+  border: 1px solid var(--pm-grey-200);
+  border-radius: var(--r-md);
+  box-shadow: var(--shadow-md);
+  padding: var(--sp-1);
+  min-width: 150px;
+}
+.ql-editor-wrap .ql-snow .ql-picker-item {
+  padding: var(--sp-1) var(--sp-3);
+  border-radius: var(--r-sm);
+  font-size: var(--text-sm);
+  color: var(--pm-grey-700);
+  transition: background var(--t-fast);
+}
+.ql-editor-wrap .ql-snow .ql-picker-item:hover {
+  background: var(--pm-grey-100);
+  color: var(--pm-grey-900);
+}
+.ql-editor-wrap .ql-snow .ql-picker-item.ql-selected {
+  background: var(--pm-yellow-pale);
+  color: var(--pm-grey-900);
+  font-weight: var(--fw-bold);
+}
+
+/* ── Editor-Container: der eigentliche Textbereich als saubere Eingabebox ── */
+.ql-editor-wrap .ql-container.ql-snow {
+  border: 1.5px solid var(--pm-grey-200);
+  border-radius: var(--r-lg);
+  overflow: hidden;
+  font-family: var(--font-body);
+  background: var(--pm-grey-50);
+  transition: border-color var(--t-fast), box-shadow var(--t-fast), background var(--t-fast);
+}
+
+.ql-editor-wrap:focus-within .ql-container.ql-snow {
+  border-color: var(--pm-yellow);
+  box-shadow: 0 0 0 3px rgba(255, 195, 0, 0.12);
+  background: var(--pm-white);
+}
+
+.ql-editor-wrap .ql-editor {
+  min-height: 120px;
+  max-height: 300px;
+  overflow-y: auto;
+  padding: var(--sp-4);
+  font-family: var(--font-body);
+  font-size: var(--text-sm);
+  line-height: var(--lh-relaxed);
+  color: var(--pm-grey-800);
+  background: transparent;
+}
+
+.ql-editor-wrap .ql-editor.ql-blank::before {
+  color: var(--pm-grey-400);
+  font-style: normal;
+  font-size: var(--text-sm);
+  left: var(--sp-4);
+  right: var(--sp-4);
+}
+
+.ql-editor-wrap .ql-editor[contenteditable="false"] {
+  cursor: default;
+}
+.ql-editor-wrap:has(.ql-editor[contenteditable="false"]) .ql-container.ql-snow {
+  background: var(--pm-grey-50);
+}
+
+/* ── Formatierter Inhalt ── */
+.ql-editor h1 {
+  font-family: var(--font-heading);
+  font-size: var(--text-xl);
+  font-weight: var(--fw-bold);
+  margin: var(--sp-2) 0 var(--sp-1);
+}
+.ql-editor h2 {
+  font-family: var(--font-heading);
+  font-size: var(--text-lg);
+  font-weight: var(--fw-bold);
+  margin: var(--sp-2) 0 var(--sp-1);
+}
+.ql-editor h3 {
+  font-family: var(--font-heading);
+  font-size: var(--text-base);
+  font-weight: var(--fw-bold);
+  margin: var(--sp-2) 0 var(--sp-1);
+}
+.ql-editor ul, .ql-editor ol {
+  padding-left: var(--sp-6);
+  margin: var(--sp-1) 0;
+}
+.ql-editor li { margin: 1px 0; line-height: var(--lh-relaxed); }
+.ql-editor blockquote {
+  border-left: 3px solid var(--pm-yellow);
+  padding-left: var(--sp-4);
+  color: var(--pm-grey-600);
+  margin: var(--sp-2) 0;
+  font-style: italic;
+}
+.ql-editor a { color: var(--color-info); text-decoration: underline; }
+.ql-editor p { margin: 0 0 2px; }
+
+/* ── Link-Tooltip ── */
+.ql-snow .ql-tooltip {
+  border-radius: var(--r-md);
+  border: 1px solid var(--pm-grey-200);
+  box-shadow: var(--shadow-md);
+  font-family: var(--font-body);
+  font-size: var(--text-sm);
+  z-index: var(--z-modal);
+}
+.ql-snow .ql-tooltip input[type=text] {
+  border: 1.5px solid var(--pm-grey-300);
+  border-radius: var(--r-sm);
+  font-family: var(--font-body);
+  font-size: var(--text-sm);
+  outline: none;
+  padding: var(--sp-1) var(--sp-2);
+}
+.ql-snow .ql-tooltip input[type=text]:focus {
+  border-color: var(--pm-yellow);
+}
+.ql-snow .ql-tooltip a.ql-action::after { content: 'Speichern'; }
+.ql-snow .ql-tooltip a.ql-remove::before { content: 'Entfernen'; }
+.ql-snow .ql-tooltip[data-mode=link]::before { content: 'Link eingeben:'; }
+
+/* ── Wöchentliche Kacheln: Editor direkt in Kachel-Body, ohne Toolbar-Padding ── */
+.wochen-kachel .ql-editor-wrap {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+.wochen-kachel .ql-editor-wrap .ql-toolbar.ql-snow {
+  padding: var(--sp-2) var(--sp-4);
+  border-bottom: 1px solid var(--pm-grey-100);
+  background: var(--pm-grey-50);
+}
+.wochen-kachel .ql-editor-wrap .ql-container.ql-snow {
+  flex: 1;
+  border: none;
+  border-radius: 0;
+  background: var(--pm-white);
+  transition: none;
+}
+.wochen-kachel .ql-editor-wrap:focus-within .ql-container.ql-snow {
+  box-shadow: none;
+  border-color: transparent;
+}
+.wochen-kachel .ql-editor-wrap .ql-editor {
+  min-height: 150px;
+  max-height: 500px;
+  background: var(--pm-white);
+}
+
+/* ── Responsive ── */
+@media (max-width: 768px) {
+  .ql-editor-wrap .ql-snow.ql-toolbar button {
+    width: 26px;
+    height: 26px;
+  }
+  .ql-editor-wrap .ql-snow .ql-picker.ql-header {
+    width: 82px;
+  }
+}
