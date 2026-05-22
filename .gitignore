@@ -26,3 +26,16 @@ node_modules/
 .cache/
 dist/
 build/
+
+# Design-System-Experimente (gehören nicht in das Haupt-Repo)
+app-NEW-DESIGN-SYSTEM/
+Putzmeister Design System Package/
+
+# Spezifikationen & Notizen (gehören in SharePoint, nicht ins Code-Repo)
+*.docx
+Fragen die vorab*.txt
+temp prompt.txt
+Prompt.txt
+
+# DB-Doc-Generator (alte DB-Struktur, wird nach Azure-AD-Integration neu gemacht)
+generate-db-doc.ps1

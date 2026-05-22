@@ -5,6 +5,10 @@ document.addEventListener('DOMContentLoaded', () => {
   const user = initPage('nav-jahresansicht', [{ label: 'Jahresansicht', href: 'jahresansicht.html' }]);
   if (!user) return;
 
+  // Gleicher Layout-Marker wie in der Wochenansicht: erlaubt der Seite
+  // volle Breite und greift auf die geteilten View-Tab-Styles zu.
+  document.body.dataset.page = 'wochenansicht';
+
   let currentYear = new Date().getFullYear();
   let viewAzubiId = user.role === 'azubi' ? user.id : null;
 
@@ -47,6 +51,10 @@ document.addEventListener('DOMContentLoaded', () => {
             <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
           </button>
         </div>
+        <button class="year-today-btn" id="yearTodayBtn" title="Zur aktuellen Kalenderwoche springen">
+          <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><circle cx="12" cy="12" r="3"/><circle cx="12" cy="12" r="10"/></svg>
+          Heutige Woche
+        </button>
       </div>
 
       <div class="year-legend">
@@ -64,6 +72,19 @@ document.addEventListener('DOMContentLoaded', () => {
 
     document.getElementById('prevYearBtn')?.addEventListener('click', () => { currentYear--; render(); });
     document.getElementById('nextYearBtn')?.addEventListener('click', () => { currentYear++; render(); });
+
+    document.getElementById('yearTodayBtn')?.addEventListener('click', () => {
+      const today = new Date();
+      const realYear = today.getFullYear();
+      if (currentYear !== realYear) {
+        currentYear = realYear;
+        render();
+        // Nach dem Re-Render hat das DOM die neuen Elemente
+        requestAnimationFrame(() => scrollToCurrentWeek());
+      } else {
+        scrollToCurrentWeek();
+      }
+    });
 
     document.querySelectorAll('.ausbilder-chip[data-azubi-id]').forEach(btn => {
       btn.addEventListener('click', () => { viewAzubiId = parseInt(btn.dataset.azubiId); render(); });
@@ -174,7 +195,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }).join('');
 
     return `
-      <div class="week-row week-row--clickable" data-kw="${kw}" data-year="${kwYear}" title="KW ${kw} öffnen">
+      <div class="week-row week-row--clickable${isCurrentKW ? ' week-row--current' : ''}" data-kw="${kw}" data-year="${kwYear}" title="KW ${kw} öffnen">
         <div class="week-row__kw${isCurrentKW ? ' current-kw' : ''}">
           ${kw}
           <div class="week-status-dot week-status-dot--${weekStatus}"></div>
@@ -191,6 +212,17 @@ document.addEventListener('DOMContentLoaded', () => {
     const woche = wochen.find(w => w.kw === kw && w.year === year);
     if (!woche) return 'offen';
     return woche.status;
+  }
+
+  function scrollToCurrentWeek() {
+    const row = document.querySelector('.week-row--current');
+    if (!row) return;
+    row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    // Kurzer Pulse-Highlight, damit Auge die Zeile findet
+    row.classList.remove('week-row--pulse');
+    void row.offsetWidth;
+    row.classList.add('week-row--pulse');
+    setTimeout(() => row.classList.remove('week-row--pulse'), 2400);
   }
 
   render();

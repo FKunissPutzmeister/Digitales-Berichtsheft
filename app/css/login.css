@@ -16,7 +16,10 @@ body.login-page {
 .login-shell {
   display: flex;
   width: 100%;
-  max-width: 960px;
+  /* Etwas breiter, damit sich das durch die fünf Demo-Buttons gestreckte
+     Form-Panel weniger schmal anfühlt und Brand- + Form-Panel optisch
+     ausgeglichen wirken. */
+  max-width: 1120px;
   min-height: 560px;
   border-radius: var(--r-2xl);
   overflow: hidden;
@@ -30,7 +33,9 @@ body.login-page {
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  padding: var(--sp-10);
+  /* Kein top-Padding: das Putzmeister-Logo sitzt bündig an der Oberkante.
+     Seitliches und unteres Padding bleiben für Inhalt + Features. */
+  padding: 0 var(--sp-10) var(--sp-10);
   position: relative;
   overflow: hidden;
 }
@@ -60,7 +65,7 @@ body.login-page {
   z-index: 1;
 }
 .login-brand__logo img {
-  height: 80px;
+  height: 110px;
   width: auto;
 }
 
@@ -113,7 +118,7 @@ body.login-page {
 
 /* ── Rechte Seite (Form) ── */
 .login-form-panel {
-  width: 420px;
+  width: 480px;
   background: var(--pm-white);
   display: flex;
   flex-direction: column;
@@ -256,9 +261,9 @@ body.login-page {
 /* ── Responsiv ── */
 @media (max-width: 800px) {
   .login-brand { display: none; }
-  .login-form-panel { width: 100%; max-width: 420px; }
+  .login-form-panel { width: 100%; max-width: 480px; }
   body.login-page { background: var(--pm-white); }
-  .login-shell { border-radius: var(--r-xl); max-width: 420px; }
+  .login-shell { border-radius: var(--r-xl); max-width: 480px; }
 }
 @media (max-width: 480px) {
   body.login-page { padding: 0; }

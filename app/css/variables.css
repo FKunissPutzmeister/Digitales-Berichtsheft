@@ -196,30 +196,29 @@
    entsteht. Toggle in der Topbar.
    =================================================================== */
 [data-theme="dark"] {
-  /* Greys werden invertiert – Surfaces dunkel, Text hell.
-     Mid-Greys (300–500) bleiben "neutral" und sind in beiden Themes
-     vergleichbar lesbar. */
-  --pm-white:           #18181B;  /* Karten / Modal / Form-Control */
-  --pm-grey-50:         #0F0F11;  /* Body-Hintergrund */
-  --pm-grey-100:        #1F1F23;  /* sub-surface, dezente Hover-BG */
-  --pm-grey-200:        #2A2A2F;  /* Default-Borders */
-  --pm-grey-300:        #3A3A40;  /* stärkere Borders / Icons */
-  --pm-grey-400:        #767680;  /* Mute */
-  --pm-grey-500:        #9A9AA4;  /* Sekundär-Text */
-  --pm-grey-600:        #B8B8C0;  /* Sekundär-Text (emphasized) */
-  --pm-grey-700:        #D4D4DA;  /* Body-Text */
-  --pm-grey-800:        #E4E4E8;  /* Strong-Text */
+  /* Surfaces basieren jetzt auf den Putzmeister-Corporate-Design-
+     Grauwerten (pm-grey-700/800/900), statt der bisherigen Near-Black-
+     Werte. Hierarchie: Sidebar (#1A1A1A) < Body (#2C2C2C) < Karte (#3D3D3D). */
+  --pm-white:           #3D3D3D;  /* Karten / Modal / Form-Control = corp pm-grey-700 */
+  --pm-grey-50:         #2C2C2C;  /* Body-Hintergrund = corp pm-grey-800 */
+  --pm-grey-100:        #424246;  /* sub-surface, dezente Hover-BG */
+  --pm-grey-200:        #4A4A4A;  /* Default-Borders = corp pm-grey-600 */
+  --pm-grey-300:        #6B6B6B;  /* stärkere Borders / Icons = corp pm-grey-500 */
+  --pm-grey-400:        #909096;  /* Mute */
+  --pm-grey-500:        #B0B0B0;  /* Sekundär-Text */
+  --pm-grey-600:        #C8C8CC;  /* Sekundär-Text (emphasized) */
+  --pm-grey-700:        #D8D8DC;  /* Body-Text */
+  --pm-grey-800:        #E8E8EC;  /* Strong-Text */
   --pm-grey-900:        #F4F4F5;  /* Headings */
 
-  /* Yellow bleibt Marken-Yellow, aber Hintergrund-Tints werden
-     transparente Overlays statt Pastell-Pals.
-     "Darker"-Varianten kehren ihre Helligkeit um: was im Light-Mode
-     dunkelgelb auf hellem Pastell war, wird hier hellgelb auf
-     dunklem Tint – für lesbare Yellow-Tinted-Texte. */
-  --pm-yellow-bg:       rgba(255, 195, 0, 0.12);
-  --pm-yellow-pale:     rgba(255, 195, 0, 0.18);
+  /* Yellow-Tints: Brand-Yellow bleibt erhalten. "darker" zeigt jetzt
+     das echte Brand-Yellow statt eines pastelligen Gold-Tons – sorgt
+     dafür, dass "Betrieb"/"Schule"-Beschriftungen im Dark-Mode in der
+     gleichen Marken-Farbe wie die anderen Yellow-Elemente erscheinen. */
+  --pm-yellow-bg:       rgba(255, 195, 0, 0.14);
+  --pm-yellow-pale:     rgba(255, 195, 0, 0.22);
   --pm-yellow-dark:     #FFD84D;  /* heller in Dark – Hover-State */
-  --pm-yellow-darker:   #FFE066;  /* heller in Dark – Text auf yellow-bg-Tint */
+  --pm-yellow-darker:   #FFC300;  /* Brand-Yellow konsistent (statt #FFE066) */
 
   /* Status-Hintergründe als getintete Overlays (statt Pastell-Pal) */
   --color-success-light: rgba(67, 168, 86, 0.16);
@@ -249,12 +248,13 @@
   --ring-error:     0 0 0 3px rgba(229, 57, 53, 0.32);
   --ring-info:      0 0 0 3px rgba(25, 118, 210, 0.30);
 
-  /* "Inverse"-Oberflächen werden im Dark-Mode noch tiefer als der
-     Body, damit die Hierarchie Body < Karte < Sidebar erhalten bleibt. */
-  --sidebar-bg:           #08080A;
-  --inverse-surface:      #0A0A0D;
-  --inverse-surface-soft: #1A1A1E;
-  --inverse-surface-mid:  #232328;
-  --topbar-bg-glass:      rgba(15, 15, 17, 0.78);
-  --surface-overlay:      rgba(0, 0, 0, 0.62);
+  /* "Inverse"-Oberflächen verwenden corporate pm-grey-900/800 – tief,
+     aber kein reines Schwarz. Hierarchie bleibt: Sidebar dunkler als
+     Body, Karten heller als Body. */
+  --sidebar-bg:           #1A1A1A;  /* corp pm-grey-900 */
+  --inverse-surface:      #1A1A1A;
+  --inverse-surface-soft: #2C2C2C;
+  --inverse-surface-mid:  #3D3D3D;
+  --topbar-bg-glass:      rgba(44, 44, 44, 0.82);
+  --surface-overlay:      rgba(0, 0, 0, 0.55);
 }

@@ -26,11 +26,11 @@ const DEFAULT_DATA = {
     },
     {
       id: 2,
-      name: 'Matthias Fauser',
+      name: 'Matthias Lengerer',
       email: 'matthias.fauser@putzmeister.com',
       password: 'ausbilder123',
       role: 'ausbilder',
-      initials: 'MF',
+      initials: 'ML',
       beruf: null,
       unternehmen: 'Putzmeister Holding GmbH',
       abteilung: 'Software Entwicklung',
@@ -227,10 +227,18 @@ const DB = {
     } catch {
       this._data = JSON.parse(JSON.stringify(DEFAULT_DATA));
     }
-    // Migration: neue Felder aus DEFAULT_DATA in bestehende User-Einträge übernehmen
+    // Migration:
+    //  – Fehlende Seed-User (z.B. Demo-Accounts, die später dazukamen)
+    //    in eine bestehende localStorage-DB nachziehen
+    //  – Neue Felder (berichtTyp etc.) auf bestehenden Usern ergänzen
+    if (!Array.isArray(this._data.users)) this._data.users = [];
     DEFAULT_DATA.users.forEach(def => {
-      const u = this._data.users?.find(u => u.id === def.id);
-      if (u && u.berichtTyp === undefined && def.berichtTyp) u.berichtTyp = def.berichtTyp;
+      const existing = this._data.users.find(u => u.id === def.id);
+      if (!existing) {
+        this._data.users.push({ ...def });
+      } else if (existing.berichtTyp === undefined && def.berichtTyp) {
+        existing.berichtTyp = def.berichtTyp;
+      }
     });
     // Migration: Benachrichtigungs-Liste anlegen, falls altes Storage-Format
     if (!Array.isArray(this._data.benachrichtigungen)) {

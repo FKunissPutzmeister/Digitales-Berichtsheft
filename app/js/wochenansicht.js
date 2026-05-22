@@ -6,7 +6,7 @@ const quillInstances = {};
 
 const QUILL_TOOLBAR = [
   [{ header: [1, 2, 3, false] }],
-  [{ align: [] }],
+  [{ align: '' }, { align: 'center' }, { align: 'right' }, { align: 'justify' }],
   ['bold', 'italic', 'underline'],
   ['link'],
   [{ list: 'bullet' }, { list: 'ordered' }],
@@ -25,6 +25,10 @@ const QUILL_HANDLERS = {
 document.addEventListener('DOMContentLoaded', () => {
   const user = initPage('nav-wochenansicht', [{ label: 'Wochenansicht', href: 'wochenansicht.html' }]);
   if (!user) return;
+
+  // Layout-Marker: erlaubt der Wochenansicht volle Seitenbreite, ohne
+  // die globale --content-max-Beschränkung für andere Seiten aufzuheben.
+  document.body.dataset.page = 'wochenansicht';
 
   const today = new Date();
   let currentKW = DateUtil.getKW(today);
@@ -67,7 +71,7 @@ document.addEventListener('DOMContentLoaded', () => {
     return `${Math.floor(mins / 60)}:${String(mins % 60).padStart(2, '0')}`;
   }
 
-  function renderTimeSpinner(dateStr, stunden, readonly) {
+  function renderTimeSpinner(dateStr, stunden, readonly, needsInput) {
     const mins = Math.round((stunden || 0) * 60);
     const h    = Math.floor(mins / 60);
     const m    = mins % 60;
@@ -75,22 +79,28 @@ document.addEventListener('DOMContentLoaded', () => {
     const mStr = String(m).padStart(2, '0');
     const dis  = readonly ? 'disabled' : '';
     const ro   = readonly ? 'readonly' : '';
-    const cls  = readonly ? ' time-spinner--readonly' : '';
+    const cls  = (readonly ? ' time-spinner--readonly' : '')
+               + (needsInput && !readonly ? ' time-spinner--needs-input' : '');
     const oc   = readonly ? '' : 'onclick="handleSpinnerClick(this)"';
     const onchg = readonly ? '' : 'onchange="handleSpinnerInput(this)"';
-    const up   = `<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="width:10px;height:10px;pointer-events:none"><polyline points="18 15 12 9 6 15"/></svg>`;
-    const dn   = `<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="width:10px;height:10px;pointer-events:none"><polyline points="6 9 12 15 18 9"/></svg>`;
+    // Klare ▲▼-Glyphen mit kräftigerem Stroke und größerer Fläche – ersetzt
+    // die alten dünnen Chevron-Pfeile. Pointer-events:none, damit der Klick
+    // den Button trifft, nicht das innere SVG.
+    const up = `<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;pointer-events:none"><polyline points="18 15 12 9 6 15"/></svg>`;
+    const dn = `<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;pointer-events:none"><polyline points="6 9 12 15 18 9"/></svg>`;
     return `<div class="time-spinner${cls}" data-field="stunden" data-date="${dateStr}">
       <div class="time-spinner__unit">
-        <button type="button" class="time-spinner__btn" data-action="up" data-part="h" ${dis} ${oc} tabindex="-1">${up}</button>
-        <input class="time-spinner__input" type="text" inputmode="numeric" data-part="h" value="${hStr}" maxlength="2" ${ro} ${onchg} onfocus="this.select()">
-        <button type="button" class="time-spinner__btn" data-action="down" data-part="h" ${dis} ${oc} tabindex="-1">${dn}</button>
+        <button type="button" class="time-spinner__btn" data-action="up" data-part="h" aria-label="Stunde erhöhen" ${dis} ${oc} tabindex="-1">${up}</button>
+        <input class="time-spinner__input" type="text" inputmode="numeric" data-part="h" value="${hStr}" maxlength="2" aria-label="Stunden" ${ro} ${onchg} onfocus="this.select()">
+        <button type="button" class="time-spinner__btn" data-action="down" data-part="h" aria-label="Stunde verringern" ${dis} ${oc} tabindex="-1">${dn}</button>
+        <span class="time-spinner__unit-label" aria-hidden="true">Std</span>
       </div>
-      <span class="time-spinner__sep">:</span>
+      <span class="time-spinner__sep" aria-hidden="true">:</span>
       <div class="time-spinner__unit">
-        <button type="button" class="time-spinner__btn" data-action="up" data-part="m" ${dis} ${oc} tabindex="-1">${up}</button>
-        <input class="time-spinner__input" type="text" inputmode="numeric" data-part="m" value="${mStr}" maxlength="2" ${ro} ${onchg} onfocus="this.select()">
-        <button type="button" class="time-spinner__btn" data-action="down" data-part="m" ${dis} ${oc} tabindex="-1">${dn}</button>
+        <button type="button" class="time-spinner__btn" data-action="up" data-part="m" aria-label="Minuten erhöhen (5er-Schritte)" ${dis} ${oc} tabindex="-1">${up}</button>
+        <input class="time-spinner__input" type="text" inputmode="numeric" data-part="m" value="${mStr}" maxlength="2" aria-label="Minuten" ${ro} ${onchg} onfocus="this.select()">
+        <button type="button" class="time-spinner__btn" data-action="down" data-part="m" aria-label="Minuten verringern (5er-Schritte)" ${dis} ${oc} tabindex="-1">${dn}</button>
+        <span class="time-spinner__unit-label" aria-hidden="true">Min</span>
       </div>
     </div>`;
   }
@@ -132,6 +142,15 @@ document.addEventListener('DOMContentLoaded', () => {
     const azubiAusbilder = azubiZuw ? DB.getUser(azubiZuw.ausbilderId) : null;
     const ausbildungsjahr = calcAusbildungsjahr(azubiUser?.ausbildungsBeginn);
 
+    const lastSavedStr = (() => {
+      const ts = woche?.lastSavedAt;
+      if (ts) {
+        const d = new Date(ts);
+        return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}:${String(d.getSeconds()).padStart(2, '0')}`;
+      }
+      return null;
+    })();
+
     const main = document.getElementById('mainContent');
     main.innerHTML = `
       ${isAusbilder ? renderAzubiSelector(azubiId) : ''}
@@ -140,52 +159,65 @@ document.addEventListener('DOMContentLoaded', () => {
 
       ${renderStatusBanner(woche, azubiAusbilder, user)}
 
-      <div class="week-header">
-        <div class="week-nav">
-          <button class="week-nav__btn" id="prevWeekBtn" aria-label="Vorherige Woche">
-            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg>
-          </button>
-          <div class="week-nav__current">
-            <div>${DateUtil.formatDateShort(DateUtil.toISODate(monday))} – ${DateUtil.formatDateShort(DateUtil.toISODate(sunday))}&nbsp;&nbsp;<span class="week-nav__kw">KW ${currentKW}</span></div>
-          </div>
-          <button class="week-nav__btn" id="nextWeekBtn" aria-label="Nächste Woche">
-            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
-          </button>
-        </div>
-        <div class="week-actions">
-          ${woche ? `<span class="badge badge--${woche.status}">${getStatusLabel(woche.status)}</span>` : '<span class="badge badge--offen">Offen</span>'}
-          ${canRelease ? `<button class="btn btn-primary" id="releaseBtn">Zur Abnahme freigeben</button>` : ''}
-          ${canApprove ? `
-            <button class="btn btn-success" id="approveBtn">Genehmigen</button>
-            <button class="btn btn-danger" id="rejectBtn">Zurückgeben</button>
-          ` : ''}
-          ${woche ? `
-            <button class="btn btn-outline" id="exportBtn">
-              <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" style="width:16px;height:16px"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
-              PDF
+      <div class="week-toolbar">
+        <div class="week-toolbar__left">
+          ${canRelease ? `
+            <button class="lg-btn lg-btn--yellow-solid lg-btn--lg" id="releaseBtn">
+              <span class="btn__glass"></span>
+              Zur Abnahme freigeben
+              <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M5 15l7-7 7 7"/></svg>
             </button>
           ` : ''}
+          ${canApprove ? `
+            <button class="btn btn-success btn-lg" id="approveBtn">Genehmigen</button>
+            <button class="btn btn-danger" id="rejectBtn">Zurückgeben</button>
+          ` : ''}
+          ${!canRelease && !canApprove && woche ? `<span class="badge badge--${woche.status}">${getStatusLabel(woche.status)}</span>` : ''}
+          ${!isReadonly && user.role === 'azubi' ? `
+            <span class="week-toolbar__autosave" title="Letzte Speicherung: ${lastSavedStr || 'noch keine'}">
+              <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/><path stroke-linecap="round" stroke-linejoin="round" d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>
+              <span>Automatische Speicherung aktiv${lastSavedStr ? ` · letzte Speicherung: <strong>${lastSavedStr} Uhr</strong>` : ''}</span>
+            </span>
+          ` : ''}
+          ${isReadonly ? `
+            <span class="week-toolbar__autosave week-toolbar__autosave--lock">
+              <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
+              <span>Schreibgeschützt</span>
+            </span>
+          ` : ''}
+        </div>
+        <div class="week-toolbar__right">
+          <div class="week-kw-block" role="group" aria-label="Kalenderwoche">
+            <button class="week-kw-block__nav" id="prevWeekBtn" aria-label="Vorherige Woche">
+              <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg>
+            </button>
+            <div class="week-kw-block__core">
+              <div class="week-kw-block__kw">KW ${currentKW}</div>
+              <div class="week-kw-block__range">${DateUtil.formatDateShort(DateUtil.toISODate(monday))} – ${DateUtil.formatDateShort(DateUtil.toISODate(sunday))}</div>
+            </div>
+            <button class="week-kw-block__nav" id="nextWeekBtn" aria-label="Nächste Woche">
+              <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
+            </button>
+          </div>
         </div>
       </div>
 
-      <div class="week-status-bar">
-        <div class="week-status-bar__item">
-          <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" style="width:16px;height:16px"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-          <span>Gesamtstunden: <strong id="statusTotalHours">${decimalToTimeStr(gesamtstundenDisplay)}</strong></span>
+      <div class="erfassung-mode" role="status" aria-label="Erfassungs-Modus">
+        <span class="erfassung-mode__label">Erfassungs-Modus:</span>
+        <div class="erfassung-mode__group" aria-hidden="true">
+          <span class="erfassung-mode__option${berichtTyp === 'täglich' ? ' erfassung-mode__option--active' : ''}">
+            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><line x1="8" y1="14" x2="8" y2="14"/><line x1="12" y1="14" x2="12" y2="14"/><line x1="16" y1="14" x2="16" y2="14"/></svg>
+            Tagesbasis
+          </span>
+          <span class="erfassung-mode__option${berichtTyp === 'wöchentlich' ? ' erfassung-mode__option--active' : ''}">
+            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><line x1="3" y1="16" x2="21" y2="16"/></svg>
+            Wochenbasis
+          </span>
         </div>
-        ${!isReadonly && user.role === 'azubi' ? `
-        <div class="week-status-bar__sep"></div>
-        <div class="week-status-bar__autosave">
-          <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-          Automatisch gespeichert
-        </div>
-        ` : ''}
-        ${isReadonly ? `
-        <div class="week-status-bar__item week-status-bar__readonly" style="color:var(--pm-grey-500)">
-          <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" style="width:16px;height:16px"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
-          Schreibgeschützt
-        </div>
-        ` : ''}
+        <span class="erfassung-mode__hint" title="Den Erfassungs-Modus kann der Ausbilder im Profil des Azubis ändern.">
+          <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+          Im Profil festgelegt
+        </span>
       </div>
 
       ${berichtTyp === 'wöchentlich'
@@ -193,14 +225,31 @@ document.addEventListener('DOMContentLoaded', () => {
         : renderDayCards(woche, monday, isReadonly, isAusbilder)
       }
 
-      <div class="week-total-bar">
-        <span class="week-total-bar__label">Gesamtstunden diese Woche:</span>
-        <span class="week-total-bar__value" id="totalHours">${decimalToTimeStr(gesamtstundenDisplay)}</span>
-        <span class="week-total-bar__target">/ 40:00 Std.</span>
+      <div class="week-bottom-bar">
+        <div class="week-bottom-bar__sum">
+          <span class="week-bottom-bar__sum-label">Wochensumme:</span>
+          <span class="week-bottom-bar__sum-value" id="totalHours">${decimalToTimeStr(gesamtstundenDisplay)}</span>
+        </div>
+        <div class="week-bottom-bar__actions">
+          ${!isReadonly ? `
+            <button class="lg-btn lg-btn--dark-glass" id="saveBtn">
+              <span class="btn__glass"></span>
+              <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/><path stroke-linecap="round" stroke-linejoin="round" d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>
+              Speichern
+            </button>
+          ` : ''}
+          ${canRelease ? `
+            <button class="lg-btn lg-btn--yellow-solid" id="releaseBtnBottom">
+              <span class="btn__glass"></span>
+              Zur Abnahme freigeben
+              <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M5 15l7-7 7 7"/></svg>
+            </button>
+          ` : ''}
+        </div>
       </div>
 
       ${woche && woche.kommentare && woche.kommentare.length ? `
-      <div class="card" style="margin-top:var(--sp-4)">
+      <div class="card" style="margin-top:var(--sp-5)">
         <div class="card__header"><span class="card__title">Kommentare</span></div>
         <div class="card__body" style="display:flex;flex-direction:column;gap:var(--sp-3)">
           ${woche.kommentare.map(k => renderComment(k)).join('')}
@@ -211,7 +260,7 @@ document.addEventListener('DOMContentLoaded', () => {
         </div>
       </div>
       ` : (isAusbilder && woche ? `
-      <div style="margin-top:var(--sp-4)">
+      <div style="margin-top:var(--sp-5)">
         <button class="btn btn-outline" id="addCommentBtn">
           <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="width:16px;height:16px"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
           Kommentar hinzufügen
@@ -254,19 +303,15 @@ document.addEventListener('DOMContentLoaded', () => {
       azubi.abteilung,
     ].filter(Boolean).join(' · ');
 
+    // Im Wochenansicht-Kontext nur die für die Erfassung relevanten Stammdaten.
+    // Detail-Felder (IHK, Berufsbildnummer, Azubi-Nr.) finden sich im Profil.
     const fields = [
-      { label: 'Auszubildende/r',   value: azubi.name },
-      { label: 'Beruf',             value: azubi.beruf || '–' },
-      { label: 'Ausbildungsjahr',   value: ausbildungsjahr ? `${ausbildungsjahr}. Jahr` : '–' },
-      { label: 'Ausbildungszeitraum', value: (azubi.ausbildungsBeginn && azubi.ausbildungsEnde)
-          ? `${DateUtil.formatDate(azubi.ausbildungsBeginn)} – ${DateUtil.formatDate(azubi.ausbildungsEnde)}`
-          : '–' },
-      { label: 'Aktuelle Abteilung', value: zuw?.abteilung || azubi.abteilung || '–' },
+      { label: 'Auszubildende/r',         value: azubi.name },
+      { label: 'Beruf',                   value: azubi.beruf || '–' },
+      { label: 'Ausbildungsjahr',         value: ausbildungsjahr ? `${ausbildungsjahr}. Jahr` : '–' },
+      { label: 'Aktuelle Abteilung',      value: zuw?.abteilung || azubi.abteilung || '–' },
       { label: 'Aktuelle/r Ausbilder/in', value: ausbilder ? ausbilder.name : '–' },
-      { label: 'Berufsbildnummer',  value: azubi.berufsbildnummer || '–' },
-      { label: 'Azubi-Nr.',         value: azubi.azubiNr || '–' },
-      { label: 'IHK',               value: azubi.ihkName || '–' },
-      { label: 'Ausbildungsbetrieb', value: azubi.unternehmen || '–' },
+      { label: 'Ausbildungsbetrieb',      value: azubi.unternehmen || '–' },
     ];
 
     return `
@@ -301,9 +346,15 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function renderDayCards(woche, monday, readonly, isAusbilder) {
     const days = [
-      { short: 'Mo' }, { short: 'Di' }, { short: 'Mi' },
-      { short: 'Do' }, { short: 'Fr' }, { short: 'Sa' }, { short: 'So' },
+      { short: 'Mo', long: 'Montag' },
+      { short: 'Di', long: 'Dienstag' },
+      { short: 'Mi', long: 'Mittwoch' },
+      { short: 'Do', long: 'Donnerstag' },
+      { short: 'Fr', long: 'Freitag' },
+      { short: 'Sa', long: 'Samstag' },
+      { short: 'So', long: 'Sonntag' },
     ];
+    const monthsShort = ['Jan', 'Feb', 'Mrz', 'Apr', 'Mai', 'Jun', 'Jul', 'Aug', 'Sep', 'Okt', 'Nov', 'Dez'];
 
     const rows = days.map((d, i) => {
       const date = new Date(monday);
@@ -326,7 +377,10 @@ document.addEventListener('DOMContentLoaded', () => {
       const hasSchule       = schuleContent && schuleContent.replace(/<[^>]+>/g, '').trim().length > 0;
       const hasUnterweisung = unterweisungContent && unterweisungContent.replace(/<[^>]+>/g, '').trim().length > 0;
       const hasEntry        = hasBetrieb || hasSchule || hasUnterweisung;
-      const schuleExpanded  = hasSchule || tag.ort === 'Schule';
+      const visibleSections = getVisibleDaySections(tag.ort);
+      const showBetrieb = visibleSections.has('betrieb');
+      const showSchule  = visibleSections.has('schule');
+      const schuleExpanded  = hasSchule || showSchule;
       const unterweisungExpanded = hasUnterweisung;
 
       const completion = getDayCompletion(tag, isWE);
@@ -338,58 +392,87 @@ document.addEventListener('DOMContentLoaded', () => {
         we:       'Wochenende',
       }[completion];
 
-      const dayNumHtml = isToday
-        ? `<span class="day-card__day-num--today">${date.getDate()}</span>`
-        : `<span class="wochen-tage-row__dn">${date.getDate()}.</span>`;
+      // Pille rechts oben: zeigt den gewählten Ort an (BETRIEB, SCHULE, …).
+      // Bei Abwesenheit der Abwesenheits-Grund, an Wochenenden gar nichts.
+      const pillText = isWE
+        ? ''
+        : isAbwesend
+          ? (tag.anwesenheit || '').toUpperCase()
+          : (tag.ort || '').toUpperCase();
+      const pillKind = isAbwesend ? 'absent' : (tag.ort ? 'ort' : 'empty');
 
       return `
         <div class="tag-row${isWE ? ' tag-row--weekend' : ''}${isToday ? ' tag-row--today' : ''}${hasEntry ? ' tag-row--has-entry' : ''}${woche ? ' status-' + woche.status : ''}"
              id="dayCard_${dateStr}" data-date="${dateStr}" data-completion="${completion}">
           <div class="tag-row__summary">
-            <div class="wochen-tage-row__tag">
-              <span class="wochen-tage-row__wt">${d.short}</span>
-              ${dayNumHtml}
+            <div class="tag-row__datebox${isWE ? ' tag-row__datebox--we' : ''}${isToday ? ' tag-row__datebox--today' : ''}">
+              <span class="tag-row__day-num">${date.getDate()}</span>
+              <span class="tag-row__month">${monthsShort[date.getMonth()]}</span>
+              <span class="tag-row__weekday">${d.long}</span>
               ${!isWE ? `<span class="tag-row__completion-dot tag-row__completion-dot--${completion}"
                               title="${completionTitle}" aria-label="${completionTitle}"></span>` : ''}
             </div>
-            <div>
-              <select class="day-card__select" data-field="anwesenheit" data-date="${dateStr}"
+
+            <div class="tag-row__field">
+              <label class="tag-row__field-label">Anwesenheit</label>
+              <select class="tag-row__select day-card__select${(!isWE && !readonly && !tag.anwesenheit) ? ' tag-row__select--needs-input' : ''}" data-field="anwesenheit" data-date="${dateStr}"
                       ${isWE || readonly ? 'disabled' : ''}>
                 ${ANWESENHEIT_OPTS.map(o =>
-                  `<option value="${o}" ${tag.anwesenheit === o ? 'selected' : ''}>${o}</option>`
+                  `<option value="${o}" ${tag.anwesenheit === o ? 'selected' : ''}>${o || '– bitte wählen –'}</option>`
                 ).join('')}
               </select>
             </div>
-            <div>
+
+            <div class="tag-row__field">
               ${!isWE ? `
-              <select class="day-card__select" data-field="ort" data-date="${dateStr}"
-                      ${readonly || isAbwesend ? 'disabled' : ''}>
-                ${ORT_OPTS.map(o =>
-                  `<option value="${o}" ${tag.ort === o ? 'selected' : ''}>${o || '– Ort –'}</option>`
-                ).join('')}
-              </select>
+                <label class="tag-row__field-label">Ort</label>
+                <select class="tag-row__select day-card__select${(!readonly && !isAbwesend && !tag.ort) ? ' tag-row__select--needs-input' : ''}" data-field="ort" data-date="${dateStr}"
+                        ${readonly || isAbwesend ? 'disabled' : ''}>
+                  ${ORT_OPTS.map(o =>
+                    `<option value="${o}" ${tag.ort === o ? 'selected' : ''}>${o || '– bitte wählen –'}</option>`
+                  ).join('')}
+                </select>
               ` : ''}
             </div>
-            <div style="display:flex;justify-content:flex-end">
-              ${!isWE
-                ? renderTimeSpinner(dateStr, isAbwesend ? 0 : tag.stunden, isAbwesend || readonly)
-                : `<span style="font-size:var(--text-xs);color:var(--pm-grey-500);font-weight:700">WE</span>`}
+
+            <div class="tag-row__field tag-row__field--qualif" aria-hidden="true">
+              ${!isWE ? `
+                <label class="tag-row__field-label">Qualifikationen</label>
+                <button type="button" class="tag-row__qualif-btn" title="Qualifikationen anzeigen" tabindex="-1">
+                  <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+                </button>
+              ` : ''}
             </div>
+
+            <div class="tag-row__field tag-row__field--time">
+              ${!isWE ? `<label class="tag-row__field-label tag-row__field-label--centered">Std.</label>` : ''}
+              ${!isWE
+                ? renderTimeSpinner(
+                    dateStr,
+                    isAbwesend ? 0 : tag.stunden,
+                    isAbwesend || readonly,
+                    !isAbwesend && !readonly && !(tag.stunden > 0)
+                  )
+                : `<span class="tag-row__we-marker">WE</span>`}
+            </div>
+
+            ${pillText ? `<span class="tag-row__pill tag-row__pill--${pillKind}">${escapeHtml(pillText)}</span>` : ''}
+
             ${!isWE
-              ? `<div class="tag-row__chevron"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="width:16px;height:16px"><polyline points="6 9 12 15 18 9"/></svg></div>`
-              : `<div></div>`}
+              ? `<button type="button" class="tag-row__chevron" aria-label="Tag aufklappen"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg></button>`
+              : ''}
           </div>
 
           ${!isWE ? `
           <div class="tag-row__body" id="dayBody_${dateStr}">
             <div class="tag-row__validation" id="validationMsg_${dateStr}" role="alert" hidden></div>
             <div id="editorSection_${dateStr}" class="day-sections" style="${isAbwesend ? 'display:none' : ''}">
-              ${renderDaySection('betrieb', dateStr, true, true, readonly)}
-              ${renderDaySection('schule', dateStr, true, schuleExpanded, readonly)}
-              ${renderDaySection('unterweisung', dateStr, true, unterweisungExpanded, readonly)}
+              ${renderDaySection('betrieb',     dateStr, true, true, readonly, showBetrieb)}
+              ${renderDaySection('schule',      dateStr, true, schuleExpanded, readonly, showSchule)}
+              ${renderDaySection('unterweisung', dateStr, true, unterweisungExpanded, readonly, !!tag.ort || hasUnterweisung)}
               <div class="day-card__footer">
                 <span class="day-card__char-count" id="charCount_${dateStr}">0 Zeichen</span>
-                ${!readonly ? `<button class="btn btn-sm btn-ghost" onclick="clearDayEntry('${dateStr}')">Tag leeren</button>` : ''}
+                ${!readonly ? `<button class="btn btn-sm btn-ghost" onclick="clearDayEntry('${dateStr}')">Eintrag leeren</button>` : ''}
               </div>
             </div>
             <div class="tag-row__absence-section" id="absenceSection_${dateStr}" style="${isAbwesend ? '' : 'display:none'}">
@@ -408,21 +491,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     return `
-      <div class="tag-tabelle__legend">
-        <span class="legend-item"><span class="legend-dot legend-dot--complete"></span> vollständig</span>
-        <span class="legend-item"><span class="legend-dot legend-dot--partial"></span> teilweise</span>
-        <span class="legend-item"><span class="legend-dot legend-dot--empty"></span> leer</span>
-        <span class="legend-item"><span class="legend-dot legend-dot--absent"></span> Abwesenheit</span>
-        <span class="legend-required">* Pflichtfeld bei Anwesenheit</span>
-      </div>
-      <div class="tag-tabelle">
-        <div class="tag-tabelle__header">
-          <div>Tag</div>
-          <div>Anwesenheit <span class="legend-required-mark">*</span></div>
-          <div>Ort</div>
-          <div style="text-align:right">Std. <span class="legend-required-mark">*</span></div>
-          <div></div>
-        </div>
+      <div class="tag-cards">
         ${rows.join('')}
       </div>
     `;
@@ -502,18 +571,34 @@ document.addEventListener('DOMContentLoaded', () => {
     if (isAbwesend) return 'absent';
 
     const hasStunden = (tag.stunden || 0) > 0;
-    const hasEintrag = !htmlIsEmpty(tag.betriebEintrag || tag.eintrag || '')
-                    || !htmlIsEmpty(tag.schuleEintrag || '')
-                    || !htmlIsEmpty(tag.unterweisungEintrag || '');
+    // Eintrag muss zur Ort-Wahl passen: bei Ort=Schule reicht Schul-Eintrag,
+    // bei Ort=Betrieb/Schule müssen BEIDE befüllt sein, etc.
+    const visible = getVisibleDaySections(tag.ort);
+    let hasRequiredEintrag = visible.size > 0;
+    if (visible.has('betrieb')) {
+      hasRequiredEintrag = hasRequiredEintrag
+        && !htmlIsEmpty(tag.betriebEintrag || tag.eintrag || '');
+    }
+    if (visible.has('schule')) {
+      hasRequiredEintrag = hasRequiredEintrag
+        && !htmlIsEmpty(tag.schuleEintrag || '');
+    }
+    // Irgendein Eintrag (auch nur Unterweisung) zählt als „angefangen"
+    const hasAnyEintrag = !htmlIsEmpty(tag.betriebEintrag || tag.eintrag || '')
+                       || !htmlIsEmpty(tag.schuleEintrag || '')
+                       || !htmlIsEmpty(tag.unterweisungEintrag || '');
 
-    if (hasStunden && hasEintrag) return 'complete';
-    if (hasStunden || hasEintrag) return 'partial';
+    if (hasStunden && tag.ort && hasRequiredEintrag) return 'complete';
+    if (hasStunden || hasAnyEintrag || tag.ort) return 'partial';
     return 'empty';
   }
 
   /**
-   * Tägliche Validierung – pro Tag wird Anwesenheit, Stunden UND ein
-   * Eintrag (Betrieb/Schule/Unterweisung) verlangt.
+   * Tägliche Validierung – pro Tag wird Anwesenheit + Stunden + Ort verlangt,
+   * sowie der Eintrag in der/den durch den Ort sichtbaren Kachel(n):
+   *  – Ort = Betrieb / Zuhause / Dienstreise → Betriebs-Eintrag Pflicht
+   *  – Ort = Schule                          → Schul-Eintrag Pflicht
+   *  – Ort = Betrieb/Schule                  → BEIDE Pflicht
    * Errors tragen `dateStr`, damit showValidationErrors die zugehörige
    * Tageskarte aufklappen und markieren kann.
    */
@@ -535,11 +620,18 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!(tag.stunden > 0)) {
           errors.push({ scope: 'tag', dateStr, day: dayLabel, msg: 'Keine Arbeitsstunden erfasst' });
         }
-        const hasEintrag = !htmlIsEmpty(tag.betriebEintrag || tag.eintrag || '')
-                        || !htmlIsEmpty(tag.schuleEintrag || '')
-                        || !htmlIsEmpty(tag.unterweisungEintrag || '');
-        if (!hasEintrag) {
-          errors.push({ scope: 'tag', dateStr, day: dayLabel, msg: 'Kein Eintrag (Betrieb/Schule/Unterweisung)' });
+        if (!tag.ort) {
+          errors.push({ scope: 'tag', dateStr, day: dayLabel, msg: 'Ort nicht gewählt' });
+        } else {
+          const visible = getVisibleDaySections(tag.ort);
+          if (visible.has('betrieb')
+              && htmlIsEmpty(tag.betriebEintrag || tag.eintrag || '')) {
+            errors.push({ scope: 'tag', dateStr, day: dayLabel, msg: 'Kein Eintrag „Betrieb"' });
+          }
+          if (visible.has('schule')
+              && htmlIsEmpty(tag.schuleEintrag || '')) {
+            errors.push({ scope: 'tag', dateStr, day: dayLabel, msg: 'Kein Eintrag „Schule"' });
+          }
         }
       }
     }
@@ -655,8 +747,8 @@ document.addEventListener('DOMContentLoaded', () => {
       } else {
         // Wöchentlich-Format: keine Tageskarte vorhanden – stattdessen
         // die kompakte Stunden-Tabelle markieren
-        const wochenRow = document.querySelector(`.wochen-tage-row[data-date="${dateStr}"]`);
-        wochenRow?.classList.add('wochen-tage-row--error');
+        const wochenRow = document.querySelector(`.tag-row--compact[data-date="${dateStr}"]`);
+        wochenRow?.classList.add('tag-row--has-error');
       }
     });
 
@@ -671,7 +763,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const firstErrorDate = Object.keys(byDate)[0];
     if (firstErrorDate) {
       (document.getElementById('dayCard_' + firstErrorDate)
-        || document.querySelector(`.wochen-tage-row[data-date="${firstErrorDate}"]`))
+        || document.querySelector(`.tag-row--compact[data-date="${firstErrorDate}"]`))
         ?.scrollIntoView({ behavior: 'smooth', block: 'center' });
     } else if (kachelErrors[0]) {
       const wrap = document.getElementById('wochenEditorWrap_' + kachelErrors[0].kachelId);
@@ -713,11 +805,28 @@ document.addEventListener('DOMContentLoaded', () => {
     },
   };
 
-  function renderDaySection(kind, dateStr, hasContent, expanded, readonly) {
+  /**
+   * Welche Tages-Kacheln sind für einen gegebenen Ort sichtbar?
+   *  – ohne Ort: keine
+   *  – Schule:           nur Schule
+   *  – Betrieb/Schule:   Betrieb + Schule
+   *  – Betrieb (oder Zuhause / Dienstreise = Betriebs-Kontexte): nur Betrieb
+   * Unterweisung wird separat behandelt: erscheint ab dem Moment, in dem
+   * ein Ort gewählt wurde (oder wenn bereits Inhalt vorhanden ist).
+   */
+  function getVisibleDaySections(ort) {
+    if (!ort) return new Set();
+    if (ort === 'Schule') return new Set(['schule']);
+    if (ort === 'Betrieb/Schule') return new Set(['betrieb', 'schule']);
+    return new Set(['betrieb']);
+  }
+
+  function renderDaySection(kind, dateStr, hasContent, expanded, readonly, visible = true) {
     const meta = DAY_SECTION_META[kind];
     const id = `${kind}_${dateStr}`;
     const expandedClass = expanded ? ' day-section--expanded' : '';
     const collapsibleClass = meta.collapsible ? ' day-section--collapsible' : '';
+    const hiddenClass = visible ? '' : ' day-section--hidden';
 
     const headerInner = `
       <span class="day-section__icon" aria-hidden="true">${meta.icon}</span>
@@ -747,7 +856,7 @@ document.addEventListener('DOMContentLoaded', () => {
       : `<div class="day-section__header">${headerInner}</div>`;
 
     return `
-      <div class="day-section day-section--${kind}${expandedClass}${collapsibleClass}"
+      <div class="day-section day-section--${kind}${expandedClass}${collapsibleClass}${hiddenClass}"
            data-date="${dateStr}" data-section="${kind}">
         ${header}
         <div class="day-section__body">
@@ -816,51 +925,58 @@ document.addEventListener('DOMContentLoaded', () => {
     return `
       <div class="wochen-wrap">
         <div class="wochen-options">
-          <div class="wochen-options__left">
-            <span class="wochen-options__label">Lernort:</span>
-            <div class="wochen-ort-group">
-              <label class="wochen-radio-opt${ort === 'betrieb' ? ' active' : ''}">
-                <input type="radio" name="wochenOrt" value="betrieb"
-                       ${ort === 'betrieb' ? 'checked' : ''} ${readonly ? 'disabled' : ''}>
-                <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" style="width:13px;height:13px"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
-                Betrieb
-              </label>
-              <label class="wochen-radio-opt${ort === 'betrieb_schule' ? ' active' : ''}">
-                <input type="radio" name="wochenOrt" value="betrieb_schule"
-                       ${ort === 'betrieb_schule' ? 'checked' : ''} ${readonly ? 'disabled' : ''}>
-                <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" style="width:13px;height:13px"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
-                Betrieb + Schule
-              </label>
-            </div>
+          <div class="wochen-options__title">Einträge auf Wochenbasis</div>
+          <div class="wochen-options__group">
+            <label class="wochen-options__field-label" for="wochenOrtSelect">Ort</label>
+            <select id="wochenOrtSelect" class="tag-row__select wochen-options__select"
+                    ${readonly ? 'disabled' : ''}>
+              <option value="betrieb"        ${ort === 'betrieb' ? 'selected' : ''}>Betrieb</option>
+              <option value="betrieb_schule" ${ort === 'betrieb_schule' ? 'selected' : ''}>Schule/Betrieb</option>
+            </select>
           </div>
-          <div class="wochen-options__right">
-            <label class="wochen-checkbox-opt">
-              <input type="checkbox" id="unterweisungCheck"
-                     ${unterweisung ? 'checked' : ''} ${readonly ? 'disabled' : ''}>
-              <span class="wochen-checkbox-opt__box">
-                <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
-              </span>
-              Unterweisung
-            </label>
+          <label class="wochen-options__check">
+            <input type="checkbox" id="unterweisungCheck"
+                   ${unterweisung ? 'checked' : ''} ${readonly ? 'disabled' : ''}>
+            <span class="wochen-options__check-box">
+              <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
+            </span>
+            <span>mit Unterweisung</span>
+          </label>
+          <div class="wochen-options__actions">
+            <button type="button" class="wochen-options__icon-btn" title="Anhang hinzufügen" tabindex="-1" aria-label="Anhang">
+              <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"/></svg>
+            </button>
+            <button type="button" class="wochen-options__icon-btn" id="wochenResetBtn" title="Eingaben zurücksetzen" aria-label="Zurücksetzen">
+              <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v6h6M20 20v-6h-6M5.07 9A8 8 0 0119 12M19 15a8 8 0 01-13.93 3"/></svg>
+            </button>
           </div>
-        </div>
-
-        <div class="wochen-tage-tabelle">
-          ${buildWochenTageTabelle(woche, monday, readonly)}
         </div>
 
         <div class="wochen-kacheln" id="wochenKacheln">
           ${buildWochenKacheln(ort, unterweisung, woche, readonly)}
+        </div>
+
+        <div class="wochen-tage-tabelle">
+          ${buildWochenTageTabelle(woche, monday, readonly)}
         </div>
       </div>
     `;
   }
 
   function buildWochenTageTabelle(woche, monday, readonly) {
+    // Im Wochen-Modus erscheinen die Tageszeilen visuell wie die Tag-Karten
+    // im Tages-Modus, nur ohne Editor-Body. Klick-Toggle entfällt, Anwesenheit/
+    // Ort/Stunden bleiben editierbar – Quills sind oben in den Wochenkacheln.
     const days = [
-      { short: 'Mo' }, { short: 'Di' }, { short: 'Mi' },
-      { short: 'Do' }, { short: 'Fr' }, { short: 'Sa' }, { short: 'So' },
+      { short: 'Mo', long: 'Montag' },
+      { short: 'Di', long: 'Dienstag' },
+      { short: 'Mi', long: 'Mittwoch' },
+      { short: 'Do', long: 'Donnerstag' },
+      { short: 'Fr', long: 'Freitag' },
+      { short: 'Sa', long: 'Samstag' },
+      { short: 'So', long: 'Sonntag' },
     ];
+    const monthsShort = ['Jan', 'Feb', 'Mrz', 'Apr', 'Mai', 'Jun', 'Jul', 'Aug', 'Sep', 'Okt', 'Nov', 'Dez'];
 
     const rows = days.map((d, i) => {
       const date = new Date(monday);
@@ -870,38 +986,71 @@ document.addEventListener('DOMContentLoaded', () => {
       const isToday = DateUtil.isToday(dateStr);
 
       const tag = woche?.tage?.find(t => t.datum === dateStr) || {
-        datum: dateStr, anwesenheit: isWE ? 'Wochenende' : '', ort: '', stunden: 0
+        datum: dateStr, anwesenheit: isWE ? 'Wochenende' : '', ort: '', stunden: 0,
       };
       const isAbwesend = tag.anwesenheit && tag.anwesenheit !== 'anwesend' && tag.anwesenheit !== '';
 
+      const pillText = isWE
+        ? ''
+        : isAbwesend
+          ? (tag.anwesenheit || '').toUpperCase()
+          : (tag.ort || '').toUpperCase();
+      const pillKind = isAbwesend ? 'absent' : (tag.ort ? 'ort' : 'empty');
+
       return `
-        <div class="wochen-tage-row${isWE ? ' wochen-tage-row--weekend' : ''}${isToday ? ' wochen-tage-row--today' : ''}"
+        <div class="tag-row tag-row--compact${isWE ? ' tag-row--weekend' : ''}${isToday ? ' tag-row--today' : ''}"
              data-date="${dateStr}">
-          <div class="wochen-tage-row__tag">
-            <span class="wochen-tage-row__wt">${d.short}</span>
-            <span class="wochen-tage-row__dn">${date.getDate()}.</span>
-          </div>
-          <div>
-            <select class="day-card__select" data-field="anwesenheit" data-date="${dateStr}"
-                    style="width:100%" ${isWE || readonly ? 'disabled' : ''}>
-              ${ANWESENHEIT_OPTS.map(o =>
-                `<option value="${o}" ${tag.anwesenheit === o ? 'selected' : ''}>${o || '– Anwesenheit –'}</option>`
-              ).join('')}
-            </select>
-          </div>
-          <div>
-            ${!isWE ? `
-            <select class="day-card__select" data-field="ort" data-date="${dateStr}"
-                    style="width:100%" ${isAbwesend || readonly ? 'disabled' : ''}>
-              ${ORT_OPTS.map(o =>
-                `<option value="${o}" ${tag.ort === o ? 'selected' : ''}>${o || '– Ort –'}</option>`
-              ).join('')}
-            </select>
-            ` : ''}
-          </div>
-          <div style="display:flex;justify-content:flex-end">
-            ${!isWE ? renderTimeSpinner(dateStr, isAbwesend ? 0 : tag.stunden, isAbwesend || readonly)
-                    : `<span style="font-size:var(--text-xs);color:var(--pm-grey-500);font-weight:700">WE</span>`}
+          <div class="tag-row__summary tag-row__summary--no-toggle">
+            <div class="tag-row__datebox${isWE ? ' tag-row__datebox--we' : ''}${isToday ? ' tag-row__datebox--today' : ''}">
+              <span class="tag-row__day-num">${date.getDate()}</span>
+              <span class="tag-row__month">${monthsShort[date.getMonth()]}</span>
+              <span class="tag-row__weekday">${d.long}</span>
+            </div>
+
+            <div class="tag-row__field">
+              <label class="tag-row__field-label">Anwesenheit</label>
+              <select class="tag-row__select day-card__select${(!isWE && !readonly && !tag.anwesenheit) ? ' tag-row__select--needs-input' : ''}" data-field="anwesenheit" data-date="${dateStr}"
+                      ${isWE || readonly ? 'disabled' : ''}>
+                ${ANWESENHEIT_OPTS.map(o =>
+                  `<option value="${o}" ${tag.anwesenheit === o ? 'selected' : ''}>${o || '– bitte wählen –'}</option>`
+                ).join('')}
+              </select>
+            </div>
+
+            <div class="tag-row__field">
+              ${!isWE ? `
+                <label class="tag-row__field-label">Ort</label>
+                <select class="tag-row__select day-card__select${(!readonly && !isAbwesend && !tag.ort) ? ' tag-row__select--needs-input' : ''}" data-field="ort" data-date="${dateStr}"
+                        ${isAbwesend || readonly ? 'disabled' : ''}>
+                  ${ORT_OPTS.map(o =>
+                    `<option value="${o}" ${tag.ort === o ? 'selected' : ''}>${o || '– bitte wählen –'}</option>`
+                  ).join('')}
+                </select>
+              ` : ''}
+            </div>
+
+            <div class="tag-row__field tag-row__field--qualif" aria-hidden="true">
+              ${!isWE ? `
+                <label class="tag-row__field-label">Qualifikationen</label>
+                <button type="button" class="tag-row__qualif-btn" title="Qualifikationen anzeigen" tabindex="-1">
+                  <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+                </button>
+              ` : ''}
+            </div>
+
+            <div class="tag-row__field tag-row__field--time">
+              ${!isWE ? `<label class="tag-row__field-label tag-row__field-label--centered">Std.</label>` : ''}
+              ${!isWE
+                ? renderTimeSpinner(
+                    dateStr,
+                    isAbwesend ? 0 : tag.stunden,
+                    isAbwesend || readonly,
+                    !isAbwesend && !readonly && !(tag.stunden > 0)
+                  )
+                : `<span class="tag-row__we-marker">WE</span>`}
+            </div>
+
+            ${pillText ? `<span class="tag-row__pill tag-row__pill--${pillKind}">${escapeHtml(pillText)}</span>` : ''}
           </div>
         </div>
       `;
@@ -910,20 +1059,12 @@ document.addEventListener('DOMContentLoaded', () => {
     const gesamt = (woche?.tage || []).reduce((s, t) => s + (t.stunden || 0), 0);
 
     return `
-      <div class="wochen-tage-row wochen-tage-row--header">
-        <div>Tag</div>
-        <div>Anwesenheit</div>
-        <div>Ort</div>
-        <div style="text-align:right">Std.</div>
+      <div class="tag-cards">
+        ${rows.join('')}
       </div>
-      ${rows.join('')}
-      <div class="wochen-tage-row wochen-tage-row--total">
-        <div class="wochen-tage-row__total-label">Gesamt</div>
-        <div></div>
-        <div></div>
-        <div style="text-align:right">
-          <span id="wochenTageGesamt" class="wochen-tage-row__total-val">${decimalToTimeStr(gesamt)}</span>
-        </div>
+      <div class="wochen-tage-total">
+        <span class="wochen-tage-total__label">Gesamt</span>
+        <span id="wochenTageGesamt" class="wochen-tage-total__val">${decimalToTimeStr(gesamt)}</span>
       </div>
     `;
   }
@@ -974,7 +1115,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function refreshWochenKacheln(woche) {
-    const ort = document.querySelector('input[name="wochenOrt"]:checked')?.value || 'betrieb';
+    const ort = document.getElementById('wochenOrtSelect')?.value || 'betrieb';
     const unterweisung = document.getElementById('unterweisungCheck')?.checked || false;
     const isReadonly = woche && (woche.status === 'freigegeben' || woche.status === 'genehmigt');
 
@@ -1074,7 +1215,7 @@ document.addEventListener('DOMContentLoaded', () => {
       };
     }
 
-    const ortEl = document.querySelector('input[name="wochenOrt"]:checked');
+    const ortEl = document.getElementById('wochenOrtSelect');
     const unterweisungEl = document.getElementById('unterweisungCheck');
 
     if (ortEl) woche.wochenOrt = ortEl.value;
@@ -1088,6 +1229,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (unterweisungQ) woche.unterweisungEintrag  = unterweisungQ.root.innerHTML;
 
     woche.gesamtstunden = (woche.tage || []).reduce((s, t) => s + (t.stunden || 0), 0);
+    woche.lastSavedAt = new Date().toISOString();
     DB.saveWoche(woche);
   }
 
@@ -1134,10 +1276,20 @@ document.addEventListener('DOMContentLoaded', () => {
     else woche.tage.push(tagData);
 
     woche.gesamtstunden = woche.tage.reduce((s, t) => s + (t.stunden || 0), 0);
+    woche.lastSavedAt = new Date().toISOString();
     DB.saveWoche(woche);
+    updateAutosaveTimestamp();
     updateStundenDisplay();
     updateDayCompletion(dateStr);
     clearDayError(dateStr);
+  }
+
+  function updateAutosaveTimestamp() {
+    const el = document.querySelector('.week-toolbar__autosave strong');
+    if (!el) return;
+    const now = new Date();
+    const ts = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')}`;
+    el.textContent = `${ts} Uhr`;
   }
 
   function updateDayCompletion(dateStr) {
@@ -1244,6 +1396,30 @@ document.addEventListener('DOMContentLoaded', () => {
       bindWochenEvents(woche, monday);
     }
 
+    // Manuelles „Speichern" – flusht Auto-Save Timer und stößt ein Save an.
+    document.getElementById('saveBtn')?.addEventListener('click', () => {
+      for (let i = 0; i < 5; i++) {
+        const d = new Date(monday);
+        d.setDate(monday.getDate() + i);
+        const ds = DateUtil.toISODate(d);
+        if (saveTimers[ds]) {
+          clearTimeout(saveTimers[ds]);
+          delete saveTimers[ds];
+        }
+        autoSave(ds);
+      }
+      if (berichtTyp === 'wöchentlich' && typeof flushWochenAutoSave === 'function') {
+        flushWochenAutoSave();
+      }
+      Toast.success('Gespeichert', 'Alle Änderungen wurden gespeichert.');
+      render();
+    });
+
+    // Bottom-Button „Zur Abnahme freigeben" delegiert auf den oberen Handler.
+    document.getElementById('releaseBtnBottom')?.addEventListener('click', () => {
+      document.getElementById('releaseBtn')?.click();
+    });
+
     // Freigabe – mit Pflichtfeld-Validierung
     document.getElementById('releaseBtn')?.addEventListener('click', () => {
       // Pending Auto-Saves flushen, damit Validierung den aktuellsten Stand sieht.
@@ -1335,28 +1511,12 @@ document.addEventListener('DOMContentLoaded', () => {
       render();
     });
 
-    document.getElementById('exportBtn')?.addEventListener('click', () => {
-      // Stammdaten zum Drucken aufklappen, damit alles sichtbar ist
-      const stammdaten = document.getElementById('stammdatenBlock');
-      const wasOpen = stammdaten?.hasAttribute('open');
-      if (stammdaten) stammdaten.setAttribute('open', '');
-      window.print();
-      if (stammdaten && !wasOpen) stammdaten.removeAttribute('open');
-    });
-
     Modal.init();
   }
 
   function bindDayCardEvents() {
-    // Klick auf Zeile → ausklappen (nicht auf interaktive Elemente)
-    document.querySelectorAll('.tag-row__summary').forEach(summary => {
-      summary.addEventListener('click', (e) => {
-        if (e.target.closest('select, input, button')) return;
-        const row = summary.closest('.tag-row');
-        if (!row || row.classList.contains('tag-row--weekend')) return;
-        toggleDayCard(row.dataset.date);
-      });
-    });
+    // Editor ist in jeder Tageskarte permanent sichtbar (kein Toggle).
+    // Daher kein Klick-Handler auf .tag-row__summary mehr nötig.
 
     // Anwesenheit live-toggle
     document.querySelectorAll('select[data-field="anwesenheit"]').forEach(sel => {
@@ -1394,16 +1554,37 @@ document.addEventListener('DOMContentLoaded', () => {
       });
     });
 
-    // Übrige Felder (Ort, Textareas) – Schule-Sektion auto-expandieren wenn Ort=Schule
+    // Übrige Felder (Ort, Textareas) – Sichtbarkeit der Betrieb-/Schule-Kacheln
+    // richtet sich nach dem gewählten Ort.
     document.querySelectorAll('select[data-field="ort"], textarea[data-field]').forEach(el => {
       el.addEventListener('change', () => {
-        if (el.dataset.field === 'ort' && el.value === 'Schule') {
+        if (el.dataset.field === 'ort') {
           const dateStr = el.dataset.date;
-          const schuleSection = document.querySelector(`.day-section--schule[data-date="${dateStr}"]`);
-          if (schuleSection && !schuleSection.classList.contains('day-section--expanded')) {
-            schuleSection.classList.add('day-section--expanded');
-            const header = schuleSection.querySelector('.day-section__header--toggle');
-            if (header) header.setAttribute('aria-expanded', 'true');
+          const visible = getVisibleDaySections(el.value);
+          ['betrieb', 'schule'].forEach(kind => {
+            const section = document.querySelector(`.day-section--${kind}[data-date="${dateStr}"]`);
+            if (!section) return;
+            const isVisible = visible.has(kind);
+            section.classList.toggle('day-section--hidden', !isVisible);
+            // Sobald eine kollabierbare Kachel (Schule) durch den Ort sichtbar
+            // wird, gleich aufklappen – sonst muss der Nutzer noch manuell
+            // klicken, was bei einer gerade gewählten Option überflüssig ist.
+            if (isVisible && DAY_SECTION_META[kind].collapsible) {
+              section.classList.add('day-section--expanded');
+              const header = section.querySelector('.day-section__header--toggle');
+              if (header) header.setAttribute('aria-expanded', 'true');
+            }
+          });
+
+          // Unterweisung erscheint erst, wenn ein Ort gewählt wurde.
+          // Bestehender Inhalt schützt davor, dass die Sektion wieder
+          // verschwindet, wenn der Ort später zurückgesetzt wird.
+          const uSection = document.querySelector(`.day-section--unterweisung[data-date="${dateStr}"]`);
+          if (uSection) {
+            const qU = quillInstances['day_unterweisung_' + dateStr];
+            const hasUnterweisungContent = qU && !htmlIsEmpty(qU.root.innerHTML);
+            const uVisible = !!el.value || hasUnterweisungContent;
+            uSection.classList.toggle('day-section--hidden', !uVisible);
           }
         }
         autoSave(el.dataset.date);
@@ -1421,11 +1602,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const isReadonly = woche && (woche.status === 'freigegeben' || woche.status === 'genehmigt');
 
     // Lernort-Umschalter → Kacheln neu rendern
-    document.querySelectorAll('input[name="wochenOrt"]').forEach(radio => {
-      radio.addEventListener('change', () => {
-        autoSaveWoche();
-        refreshWochenKacheln(DB.getWoche(viewAzubiId || user.id, currentKW, currentYear));
-      });
+    document.getElementById('wochenOrtSelect')?.addEventListener('change', () => {
+      autoSaveWoche();
+      refreshWochenKacheln(DB.getWoche(viewAzubiId || user.id, currentKW, currentYear));
     });
 
     // Unterweisung-Checkbox → Kacheln neu rendern
@@ -1437,7 +1616,7 @@ document.addEventListener('DOMContentLoaded', () => {
     initWochenQuillEditors(woche, isReadonly);
 
     // Per-Tag Zeilen: Anwesenheit, Ort, Stunden
-    document.querySelectorAll('.wochen-tage-row[data-date]').forEach(row => {
+    document.querySelectorAll('.tag-row--compact[data-date]').forEach(row => {
       const dateStr = row.dataset.date;
       const anwesenheitSel = row.querySelector(`select[data-field="anwesenheit"]`);
       const ortSel         = row.querySelector(`select[data-field="ort"]`);
@@ -1555,3 +1734,4 @@ function handleSpinnerInput(inp) {
   inp.value = String(v).padStart(2, '0');
   window._spinnerCallback?.(dateStr);
 }
+

@@ -76,7 +76,11 @@ function initLayout(activeNavId) {
   const topbarInitials = document.getElementById('topbarUserInitials');
 
   if (userName) userName.textContent = user.name;
-  if (userRole) userRole.textContent = ROLE_LABELS[user.role] || user.role;
+  if (userRole) {
+    // Rollen-Badge: kleine farbige Pill, Farb-Variante per data-role
+    const label = ROLE_LABELS[user.role] || user.role;
+    userRole.innerHTML = `<span class="role-badge" data-role="${user.role}">${label}</span>`;
+  }
   if (userInitials) userInitials.textContent = user.initials || user.name.split(' ').map(n => n[0]).join('');
   if (topbarName) topbarName.textContent = user.name;
   if (topbarInitials) topbarInitials.textContent = user.initials || user.name.split(' ').map(n => n[0]).join('');
@@ -130,8 +134,9 @@ function initLayout(activeNavId) {
     onScroll();
   }
 
-  // Theme-Toggle in Topbar einsetzen (vor den anderen Action-Buttons)
-  initThemeToggle();
+  // Theme-Toggle wandert in die DS-Topbar (js/topbar-ds.js) — alter
+  // Button neben dem Mitteilungssymbol entfällt damit.
+  // initThemeToggle();
 
   return user;
 }
@@ -426,7 +431,7 @@ const ANWESENHEIT_OPTS = [
   'sonstige Abwesenheit',
 ];
 
-const ORT_OPTS = ['', 'Betrieb', 'Schule', 'Zuhause', 'Dienstreise'];
+const ORT_OPTS = ['', 'Betrieb', 'Schule', 'Betrieb/Schule', 'Zuhause', 'Dienstreise'];
 
 /* ── Format-Hilfsfunktionen ── */
 function formatHours(minuten) {

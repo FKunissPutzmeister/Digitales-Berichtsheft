@@ -22,6 +22,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const today = new Date();
   const planYear = today.getFullYear();
   let searchText = '';
+  let pendingDeleteZuweisungId = null;
 
   const ausbilder = DB.getAusbilder();
   const azubis = DB.getAzubis();
@@ -40,7 +41,8 @@ document.addEventListener('DOMContentLoaded', () => {
           <p class="page-subtitle">Zuweisungen von Auszubildenden zu Ausbilder/innen verwalten.</p>
         </div>
         <div class="page-header__actions">
-          <button class="btn btn-primary" id="newZuweisungBtn">
+          <button class="lg-btn lg-btn--yellow-solid" id="newZuweisungBtn">
+            <span class="btn__glass"></span>
             <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="width:16px;height:16px"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
             Neue Zuweisung
           </button>
@@ -89,7 +91,7 @@ document.addEventListener('DOMContentLoaded', () => {
         <div class="card__header">
           <span class="card__title">Bestehende Zuweisungen</span>
         </div>
-        <div class="card__body" style="padding:0">
+        <div class="card__body" style="padding:0 var(--sp-5) 0 0">
           ${buildZuweisungTable()}
         </div>
       </div>
@@ -141,9 +143,9 @@ document.addEventListener('DOMContentLoaded', () => {
         <div class="gantt-row">
           <div class="gantt-row__info">
             <div class="avatar avatar--sm">${azubi.initials}</div>
-            <div>
-              <div class="gantt-row__name">${azubi.name}</div>
-              <div class="gantt-row__beruf">${azubi.beruf || ''}</div>
+            <div class="gantt-row__info-text">
+              <div class="gantt-row__name" title="${azubi.name}">${azubi.name}</div>
+              <div class="gantt-row__beruf" title="${azubi.beruf || ''}">${azubi.beruf || ''}</div>
             </div>
           </div>
           <div class="gantt-row__timeline" style="--months:${MONTHS}">
@@ -212,7 +214,15 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     return `
-      <table class="qual-table">
+      <table class="qual-table zuweisung-table">
+        <colgroup>
+          <col style="width: 32%">
+          <col style="width: 20%">
+          <col style="width: 22%">
+          <col style="width: 11%">
+          <col style="width: 11%">
+          <col style="width: 4%">
+        </colgroup>
         <thead>
           <tr>
             <th>Azubi</th>
@@ -220,7 +230,7 @@ document.addEventListener('DOMContentLoaded', () => {
             <th>Abteilung</th>
             <th>Von</th>
             <th>Bis</th>
-            <th style="width:60px"></th>
+            <th aria-label="Aktionen"></th>
           </tr>
         </thead>
         <tbody>
@@ -229,19 +239,19 @@ document.addEventListener('DOMContentLoaded', () => {
             const ausb = DB.getUser(z.ausbilderId);
             const isCurrent = z.von <= DateUtil.toISODate(today) && z.bis >= DateUtil.toISODate(today);
             return `
-              <tr>
+              <tr${isCurrent ? ' class="zuweisung-row--current"' : ''}>
                 <td>
-                  <div style="display:flex;align-items:center;gap:var(--sp-2)">
+                  <div class="zuweisung-azubi-cell">
                     <div class="avatar avatar--sm">${azubi?.initials || '?'}</div>
-                    <span>${azubi?.name || '–'}</span>
+                    <span class="zuweisung-azubi-name">${azubi?.name || '–'}</span>
                     ${isCurrent ? '<span class="badge badge--genehmigt">Aktuell</span>' : ''}
                   </div>
                 </td>
                 <td>${ausb?.name || '–'}</td>
                 <td>${z.abteilung || '–'}</td>
-                <td>${DateUtil.formatDate(z.von)}</td>
-                <td>${DateUtil.formatDate(z.bis)}</td>
-                <td>
+                <td class="zuweisung-date">${DateUtil.formatDate(z.von)}</td>
+                <td class="zuweisung-date">${DateUtil.formatDate(z.bis)}</td>
+                <td class="zuweisung-action-cell">
                   <button class="btn btn-sm btn-ghost delete-zuweisung-btn" data-id="${z.id}" aria-label="Löschen">
                     <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" style="width:16px;height:16px"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
                   </button>
@@ -257,10 +267,34 @@ document.addEventListener('DOMContentLoaded', () => {
   function bindZuweisungTableEvents() {
     document.querySelectorAll('.delete-zuweisung-btn').forEach(btn => {
       btn.addEventListener('click', () => {
-        DB.deleteZuweisung(parseInt(btn.dataset.id));
-        Toast.success('Gelöscht', 'Zuweisung wurde entfernt.');
-        render();
+        const id = parseInt(btn.dataset.id);
+        pendingDeleteZuweisungId = id;
+
+        // Modal-Text personalisieren, damit klar ist, was gleich gelöscht wird.
+        const z = DB.data.zuweisungen.find(x => x.id === id);
+        const azubi = z ? DB.getUser(z.azubiId) : null;
+        const textEl = document.getElementById('zuweisungDeleteText');
+        if (textEl) {
+          textEl.textContent = azubi
+            ? `Die Zuweisung von „${azubi.name}" wird unwiderruflich entfernt. Möchtest du fortfahren?`
+            : 'Diese Zuweisung wird unwiderruflich entfernt. Möchtest du fortfahren?';
+        }
+
+        Modal.open('zuweisungDeleteModal');
       });
+    });
+  }
+
+  function initZuweisungDeleteModal() {
+    // Bindung erfolgt einmalig beim ersten Render – das Modal selbst bleibt
+    // im DOM stehen, nur pendingDeleteZuweisungId wird pro Klick neu gesetzt.
+    document.getElementById('zuweisungDeleteConfirmBtn')?.addEventListener('click', () => {
+      if (pendingDeleteZuweisungId == null) return;
+      DB.deleteZuweisung(pendingDeleteZuweisungId);
+      pendingDeleteZuweisungId = null;
+      Modal.closeAll();
+      Toast.success('Gelöscht', 'Zuweisung wurde entfernt.');
+      render();
     });
   }
 
@@ -294,6 +328,11 @@ document.addEventListener('DOMContentLoaded', () => {
     const colors = ['#FFC300', '#4A90D9', '#56C271', '#E87040', '#9B59B6'];
     return colors[idx % colors.length];
   }
+
+  // Bestätigungs-Modal für Löschen einmalig binden (Modal-Markup ist statisch
+  // in azubi-planer.html). Innerhalb von render() würden Listener mehrfach
+  // angehängt, was zu Mehrfach-Löschungen führen könnte.
+  initZuweisungDeleteModal();
 
   render();
 });

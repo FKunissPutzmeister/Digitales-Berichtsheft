@@ -261,6 +261,121 @@ details.verwaltung-panel .verwaltung-panel__body-wrap > .verwaltung-panel__body 
 .attachment-item__delete:hover { background: var(--color-error-light); color: var(--color-error); }
 .attachment-item__delete svg { width: 16px; height: 16px; }
 
+/* Frisch hochgeladen: kurzes Slide-In + Grün-Glow für ~500ms */
+@keyframes attachmentFresh {
+  0%   { opacity: 0; transform: translateY(-4px); box-shadow: 0 0 0 0 rgba(67,168,86,0.0); }
+  20%  { opacity: 1; transform: translateY(0);    box-shadow: 0 0 0 4px rgba(67,168,86,0.18); }
+  100% { opacity: 1; transform: translateY(0);    box-shadow: 0 0 0 0 rgba(67,168,86,0.0); }
+}
+.attachment-item--fresh {
+  animation: attachmentFresh 700ms var(--ease-out-expo) both;
+}
+
+/* ───── Upload-Progress-Overlay ─────
+   Schwebt zentriert auf dem Body. Während des "Uploads" rotiert/füllt
+   sich der Ring; bei Erfolg fadet die Zahl raus und ein grüner
+   Checkmark scaled in. */
+.upload-progress {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-modal);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(15, 23, 42, 0.32);
+  backdrop-filter: blur(6px) saturate(140%);
+  -webkit-backdrop-filter: blur(6px) saturate(140%);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--t-normal);
+}
+.upload-progress--visible {
+  opacity: 1;
+  pointer-events: auto;
+}
+.upload-progress__card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--sp-3);
+  padding: var(--sp-6) var(--sp-8);
+  background: var(--pm-white);
+  border-radius: var(--r-xl);
+  box-shadow: var(--shadow-xl);
+  min-width: 220px;
+  transform: scale(0.94);
+  transition: transform var(--t-spring);
+}
+.upload-progress--visible .upload-progress__card {
+  transform: scale(1);
+}
+.upload-progress__ring-wrap {
+  position: relative;
+  width: 88px;
+  height: 88px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.upload-progress__ring {
+  width: 88px;
+  height: 88px;
+  transform: rotate(-90deg);
+}
+.upload-progress__ring-track,
+.upload-progress__ring-fill {
+  fill: none;
+  stroke-width: 6;
+  stroke-linecap: round;
+}
+.upload-progress__ring-track {
+  stroke: var(--pm-grey-100);
+}
+.upload-progress__ring-fill {
+  stroke: var(--pm-yellow);
+  /* circumference = 2*PI*32 ≈ 201 */
+  stroke-dasharray: 201;
+  stroke-dashoffset: 201;
+  transition: stroke 220ms;
+}
+.upload-progress--done .upload-progress__ring-fill {
+  stroke: var(--color-success-mid);
+}
+.upload-progress__num {
+  position: absolute;
+  font-family: var(--font-heading);
+  font-size: var(--text-lg);
+  font-weight: var(--fw-bold);
+  color: var(--pm-grey-900);
+  transition: opacity var(--t-fast);
+}
+.upload-progress--done .upload-progress__num { opacity: 0; }
+.upload-progress__check {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: var(--color-success-mid);
+  color: #fff;
+  opacity: 0;
+  transform: scale(0.4);
+  transition: opacity var(--t-normal), transform var(--t-spring);
+}
+.upload-progress__check svg { width: 22px; height: 22px; }
+.upload-progress--done .upload-progress__check {
+  opacity: 1;
+  transform: scale(1);
+}
+.upload-progress__label {
+  font-size: var(--text-sm);
+  font-weight: var(--fw-bold);
+  color: var(--pm-grey-800);
+  text-align: center;
+}
+
 /* ── Reparatur-Panel ── */
 .repair-status {
   display: flex;

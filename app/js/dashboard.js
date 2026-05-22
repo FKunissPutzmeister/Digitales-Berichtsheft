@@ -56,7 +56,9 @@ function renderAzubiDashboard(user) {
       </div>
     </div>
 
-    <div class="stats-grid">
+    ${renderAzubiPrimaryCta(user, aktuelleWoche, alleWochen, kw, kwYear)}
+
+    <div class="stats-grid stats-grid--3">
       <div class="stat-card animate-fade-in" style="animation-delay:0ms">
         <div class="stat-card__icon stat-card__icon--yellow">
           <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
@@ -87,50 +89,10 @@ function renderAzubiDashboard(user) {
           <div class="stat-card__sub">Wochen noch offen</div>
         </div>
       </div>
-      <div class="stat-card animate-fade-in" style="animation-delay:180ms">
-        <div class="stat-card__icon stat-card__icon--info">
-          <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-        </div>
-        <div class="stat-card__content">
-          <div class="stat-card__label">Ausbildungsfortschritt</div>
-          <div class="stat-card__value">${fortschritt}%</div>
-          <div class="stat-card__sub">bis ${user.ausbildungsEnde ? DateUtil.formatDate(user.ausbildungsEnde) : '–'}</div>
-        </div>
-      </div>
     </div>
 
     <div class="dashboard-grid">
       <div>
-        <div class="card" style="margin-bottom:var(--sp-5)">
-          <div class="card__header">
-            <span class="card__title">Schnellzugriff</span>
-          </div>
-          <div class="card__body">
-            <div class="quick-access">
-              <a href="wochenansicht.html" class="quick-access-tile" style="animation-delay:0ms">
-                <div class="quick-access-tile__icon">${Icons.book}</div>
-                <div class="quick-access-tile__label">Wochenbericht</div>
-                <div class="quick-access-tile__desc">KW ${kw} bearbeiten</div>
-              </a>
-              <a href="jahresansicht.html" class="quick-access-tile" style="animation-delay:40ms">
-                <div class="quick-access-tile__icon">${Icons.calendar}</div>
-                <div class="quick-access-tile__label">Jahresansicht</div>
-                <div class="quick-access-tile__desc">Alle Wochen ${kwYear}</div>
-              </a>
-              <a href="ausbildungsstand.html" class="quick-access-tile" style="animation-delay:80ms">
-                <div class="quick-access-tile__icon">${Icons.chart}</div>
-                <div class="quick-access-tile__label">Ausbildungsstand</div>
-                <div class="quick-access-tile__desc">Qualifikationen ansehen</div>
-              </a>
-              <a href="profil.html" class="quick-access-tile" style="animation-delay:120ms">
-                <div class="quick-access-tile__icon">${Icons.user}</div>
-                <div class="quick-access-tile__label">Mein Profil</div>
-                <div class="quick-access-tile__desc">Profildaten einsehen</div>
-              </a>
-            </div>
-          </div>
-        </div>
-
         ${user.ausbildungsBeginn && user.ausbildungsEnde ? `
         <div class="ausbildung-progress animate-fade-in">
           <div class="ausbildung-progress__header">
@@ -176,78 +138,228 @@ function renderAzubiDashboard(user) {
       </div>
     </div>
 
-    <!-- Hilfe & Tipps – FAQ-Accordion -->
-    <section class="dashboard-faq" aria-labelledby="faqHeading">
-      <div class="dashboard-faq__head">
-        <h2 id="faqHeading" class="dashboard-faq__title">Hilfe &amp; Tipps</h2>
-        <p class="dashboard-faq__sub">Antworten auf häufige Fragen rund um dein digitales Berichtsheft.</p>
-      </div>
-      <div class="accordion accordion--flush">
-        <details class="accordion__item">
-          <summary class="accordion__trigger">Wann muss ich mein Berichtsheft eintragen?</summary>
-          <div class="accordion__panel"><div class="accordion__content">
-            Trage deine Tätigkeiten möglichst täglich ein – spätestens jedoch am Ende der Woche.
-            Eine zeitnahe Pflege ist Pflichtbestandteil deiner Ausbildung gemäß §&nbsp;13 BBiG und
-            erleichtert dir die Freigabe in der <a href="wochenansicht.html" style="color:var(--pm-yellow-darker);font-weight:700;text-decoration:underline">Wochenansicht</a>.
-          </div></div>
-        </details>
-
-        <details class="accordion__item">
-          <summary class="accordion__trigger">Was passiert nach der Freigabe einer Woche?</summary>
-          <div class="accordion__panel"><div class="accordion__content">
-            Sobald du eine Woche freigibst, wechselt der Status auf
-            <span class="badge badge--freigegeben" style="vertical-align:1px">Freigegeben</span>
-            und dein/e Ausbildungsbeauftragte/r erhält die Woche zur Prüfung.
-            Anschließend wird sie entweder
-            <span class="badge badge--genehmigt" style="vertical-align:1px">Genehmigt</span>
-            oder
-            <span class="badge badge--abgelehnt" style="vertical-align:1px">Zurückgegeben</span> –
-            zurückgegebene Wochen kannst du erneut bearbeiten und freigeben.
-          </div></div>
-        </details>
-
-        <details class="accordion__item">
-          <summary class="accordion__trigger">Wie überarbeite ich eine zurückgegebene Woche?</summary>
-          <div class="accordion__panel"><div class="accordion__content">
-            Öffne die betreffende Woche in der <a href="wochenansicht.html" style="color:var(--pm-yellow-darker);font-weight:700;text-decoration:underline">Wochenansicht</a>.
-            Der Kommentar deines/r Ausbildungsbeauftragten erklärt, welche Anpassungen erforderlich
-            sind. Nach der Korrektur gibst du die Woche einfach erneut frei – ein neuer Eintrag muss
-            nicht angelegt werden.
-          </div></div>
-        </details>
-
-        <details class="accordion__item">
-          <summary class="accordion__trigger">Was bedeuten die Status-Farben?</summary>
-          <div class="accordion__panel"><div class="accordion__content">
-            <div style="display:grid;grid-template-columns:max-content 1fr;gap:var(--sp-2) var(--sp-4);align-items:center">
-              <span class="badge badge--offen">Offen</span>
-              <span>Eintrag begonnen oder leer – noch nicht zur Prüfung freigegeben.</span>
-              <span class="badge badge--freigegeben">Freigegeben</span>
-              <span>Wartet auf Prüfung durch den/die Ausbildungsbeauftragte/n.</span>
-              <span class="badge badge--genehmigt">Genehmigt</span>
-              <span>Geprüft und akzeptiert – diese Woche ist abgeschlossen.</span>
-              <span class="badge badge--abgelehnt">Zurückgegeben</span>
-              <span>Korrektur erforderlich – siehe Kommentar im Bericht.</span>
-            </div>
-          </div></div>
-        </details>
-
-        <details class="accordion__item">
-          <summary class="accordion__trigger">Wo finde ich meinen Ausbildungsstand?</summary>
-          <div class="accordion__panel"><div class="accordion__content">
-            Unter <a href="ausbildungsstand.html" style="color:var(--pm-yellow-darker);font-weight:700;text-decoration:underline">Ausbildungsstand</a>
-            siehst du Soll- und Ist-Stunden je Qualifikation, getrennt nach Betrieb und Berufsschule.
-            Die Daten werden automatisch aus deinen freigegebenen Wochen ermittelt.
-          </div></div>
-        </details>
-      </div>
-    </section>
   `;
 
   setTimeout(() => {
     const bar = document.getElementById('ausbildungProgressBar');
     if (bar) bar.style.width = fortschritt + '%';
   }, 300);
+
+  bindPrimaryCtaNav();
+}
+
+/* ── Primärer CTA: Azubi-Sicht ────────────────────────────────
+   Bestimmt den „Was muss ich jetzt tun?"-Block basierend auf dem
+   Status der aktuellen und vergangener Wochen. Priorität:
+     1) Zurückgegebene Wochen (abgelehnt) → URGENT
+     2) Aktuelle Woche offen / leer       → ACTION
+     3) Aktuelle Woche freigegeben        → WAITING (info)
+     4) Aktuelle Woche genehmigt          → DONE
+*/
+function renderAzubiPrimaryCta(user, aktuelleWoche, alleWochen, kw, kwYear) {
+  const abgelehnt = alleWochen.filter(w => w.status === 'abgelehnt');
+
+  // Priorität 1: Zurückgegebene Wochen
+  if (abgelehnt.length > 0) {
+    // Älteste zurückgegebene Woche zuerst öffnen
+    const aelteste = abgelehnt
+      .slice()
+      .sort((a, b) => (a.year - b.year) || (a.kw - b.kw))[0];
+    const count = abgelehnt.length;
+    const title = count === 1
+      ? `KW ${aelteste.kw} überarbeiten`
+      : `${count} Wochen überarbeiten`;
+    const sub = count === 1
+      ? 'Eine Woche wurde zur Korrektur zurückgegeben. Kommentar des Ausbilders prüfen.'
+      : `${count} Wochen wurden zur Korrektur zurückgegeben – jetzt überarbeiten.`;
+    return ctaTemplate({
+      variant: 'urgent',
+      eyebrow: 'Handlung erforderlich',
+      title,
+      sub,
+      icon: iconAlert(),
+      gotoKW: aelteste.kw,
+      gotoYear: aelteste.year,
+    });
+  }
+
+  // Status der aktuellen Woche bestimmen
+  const aktStatus = aktuelleWoche ? aktuelleWoche.status : 'offen';
+  const tageCount = aktuelleWoche && Array.isArray(aktuelleWoche.tage)
+    ? aktuelleWoche.tage.filter(t => t.anwesenheit || t.stunden).length
+    : 0;
+
+  // Priorität 4: Genehmigt → DONE
+  if (aktStatus === 'genehmigt') {
+    return ctaTemplate({
+      variant: 'done',
+      eyebrow: 'Alles erledigt',
+      title: `KW ${kw} ist abgeschlossen`,
+      sub: 'Diese Woche wurde genehmigt. Sehr gut – weiter so!',
+      icon: iconCheck(),
+    });
+  }
+
+  // Priorität 3: Freigegeben → WAITING
+  if (aktStatus === 'freigegeben') {
+    return ctaTemplate({
+      variant: 'waiting',
+      eyebrow: 'Wartet auf Prüfung',
+      title: `KW ${kw} freigegeben`,
+      sub: 'Dein Eintrag liegt zur Prüfung bei deinem Ausbilder. Du wirst informiert.',
+      icon: iconHourglass(),
+      gotoKW: kw,
+      gotoYear: kwYear,
+    });
+  }
+
+  // Priorität 2: Offen / leer → ACTION
+  const restTage = restlicheArbeitstage(kw, kwYear);
+  let sub;
+  if (tageCount === 0) {
+    sub = restTage > 0
+      ? `Noch keine Einträge in dieser Woche. ${restTage} ${restTage === 1 ? 'Werktag verbleibt' : 'Werktage verbleiben'}.`
+      : 'Noch keine Einträge in dieser Woche – jetzt nachtragen.';
+  } else {
+    sub = `${tageCount} von 5 Werktagen erfasst. Jetzt die fehlenden Tage ergänzen und freigeben.`;
+  }
+  return ctaTemplate({
+    variant: 'action',
+    eyebrow: 'Nächster Schritt',
+    title: `KW ${kw} jetzt eintragen`,
+    sub,
+    icon: iconPen(),
+    gotoKW: kw,
+    gotoYear: kwYear,
+  });
+}
+
+/* ── Primärer CTA: Ausbilder-Sicht ──────────────────────────── */
+function renderAusbilderPrimaryCta(queue, azubiCount) {
+  if (queue.length === 0) {
+    return ctaTemplate({
+      variant: 'done',
+      eyebrow: 'Posteingang leer',
+      title: 'Alles geprüft',
+      sub: azubiCount === 1
+        ? 'Für deinen Azubi liegen aktuell keine Berichte zur Abnahme vor.'
+        : `Für deine ${azubiCount} Azubis liegen aktuell keine Berichte zur Abnahme vor.`,
+      icon: iconCheck(),
+    });
+  }
+
+  // Ältester wartender Bericht
+  const aelteste = queue[0];
+  const monday = DateUtil.getMondayOfKW(aelteste.kw, aelteste.year);
+  const sunday = new Date(monday);
+  sunday.setDate(monday.getDate() + 6);
+  const today = new Date();
+  const wochenSeitEnde = Math.max(0, Math.floor((today - sunday) / (1000 * 60 * 60 * 24 * 7)));
+
+  let warteText;
+  if (wochenSeitEnde === 0)      warteText = 'Ältester Bericht wurde diese Woche freigegeben.';
+  else if (wochenSeitEnde === 1) warteText = 'Ältester Bericht wartet seit 1 Woche.';
+  else                           warteText = `Ältester Bericht wartet seit ${wochenSeitEnde} Wochen.`;
+
+  const variant = wochenSeitEnde >= 2 ? 'urgent' : 'action';
+  const title = queue.length === 1
+    ? `1 Bericht zur Abnahme prüfen`
+    : `${queue.length} Berichte zur Abnahme prüfen`;
+
+  return ctaTemplate({
+    variant,
+    eyebrow: 'Posteingang',
+    title,
+    sub: warteText + ' Klicken, um den ältesten zuerst zu öffnen.',
+    icon: variant === 'urgent' ? iconAlert() : iconInbox(),
+    gotoAzubiId: aelteste.azubi.id,
+    gotoKW: aelteste.kw,
+    gotoYear: aelteste.year,
+  });
+}
+
+/* CTA-Markup-Builder. Variants ohne goto* sind nicht klickbar. */
+function ctaTemplate({ variant, eyebrow, title, sub, icon, gotoKW, gotoYear, gotoAzubiId }) {
+  const clickable = (variant === 'action' || variant === 'urgent' || variant === 'waiting')
+                    && (gotoKW || gotoAzubiId);
+  const tag = clickable ? 'a' : 'div';
+  const attrs = clickable
+    ? `class="primary-cta primary-cta--${variant}" href="wochenansicht.html"`
+      + ` data-cta-goto="1"`
+      + (gotoKW      ? ` data-goto-kw="${gotoKW}"`           : '')
+      + (gotoYear    ? ` data-goto-year="${gotoYear}"`       : '')
+      + (gotoAzubiId ? ` data-goto-azubi="${gotoAzubiId}"`   : '')
+    : `class="primary-cta primary-cta--${variant}" role="status"`;
+
+  const arrow = clickable
+    ? `<div class="primary-cta__arrow" aria-hidden="true">
+         <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+           <line x1="5" y1="12" x2="19" y2="12"/>
+           <polyline points="12 5 19 12 12 19"/>
+         </svg>
+       </div>`
+    : '';
+
+  return `
+    <${tag} ${attrs}>
+      <div class="primary-cta__icon" aria-hidden="true">${icon}</div>
+      <div class="primary-cta__body">
+        <div class="primary-cta__eyebrow">${eyebrow}</div>
+        <div class="primary-cta__title">${title}</div>
+        <div class="primary-cta__sub">${sub}</div>
+      </div>
+      ${arrow}
+    </${tag}>
+  `;
+}
+
+/* Klick auf CTA → vor Navigation Goto-Werte in sessionStorage spiegeln,
+   damit die Wochenansicht direkt die richtige Woche / den richtigen
+   Azubi öffnet. */
+function bindPrimaryCtaNav() {
+  const el = document.querySelector('.primary-cta[data-cta-goto]');
+  if (!el) return;
+  el.addEventListener('click', (e) => {
+    const kw      = el.dataset.gotoKw;
+    const year    = el.dataset.gotoYear;
+    const azubiId = el.dataset.gotoAzubi;
+    if (kw)      sessionStorage.setItem('gotoKW', kw);
+    if (year)    sessionStorage.setItem('gotoYear', year);
+    if (azubiId) sessionStorage.setItem('gotoAzubiId', azubiId);
+    // <a href="wochenansicht.html"> übernimmt die Navigation
+  });
+}
+
+/* Wie viele Werktage (Mo–Fr) der aktuellen KW liegen heute noch in
+   der Zukunft (heute eingeschlossen)? */
+function restlicheArbeitstage(kw, year) {
+  const monday = DateUtil.getMondayOfKW(kw, year);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  let rest = 0;
+  for (let i = 0; i < 5; i++) {
+    const d = new Date(monday);
+    d.setDate(monday.getDate() + i);
+    if (d >= today) rest++;
+  }
+  return rest;
+}
+
+/* ── Inline-SVG-Icons für den CTA ─────────────────────────── */
+function iconPen() {
+  return `<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 0 0-2 2v11a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2v-5"/><path stroke-linecap="round" stroke-linejoin="round" d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>`;
+}
+function iconAlert() {
+  return `<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v4m0 4h.01M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/></svg>`;
+}
+function iconCheck() {
+  return `<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.4"><polyline stroke-linecap="round" stroke-linejoin="round" points="20 6 9 17 4 12"/></svg>`;
+}
+function iconHourglass() {
+  return `<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 2h12M6 22h12M6 2v4a6 6 0 0 0 12 0V2M6 22v-4a6 6 0 0 1 12 0v4"/></svg>`;
+}
+function iconInbox() {
+  return `<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M22 12h-6l-2 3h-4l-2-3H2"/><path stroke-linecap="round" stroke-linejoin="round" d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></svg>`;
 }
 
 /* ── Ausbilder-Cockpit ────────────────────────────────────────── */
@@ -305,18 +417,10 @@ function renderAusbilderDashboard(user) {
       </div>
     </div>
 
-    <div class="stats-grid">
-      <div class="stat-card stat-card--accent animate-fade-in" style="animation-delay:0ms">
-        <div class="stat-card__icon stat-card__icon--yellow">
-          <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
-        </div>
-        <div class="stat-card__content">
-          <div class="stat-card__label">Zur Abnahme</div>
-          <div class="stat-card__value">${queue.length}</div>
-          <div class="stat-card__sub">${queue.length === 0 ? 'Alles geprüft' : (queue.length === 1 ? 'Wartet auf dich' : 'Warten auf dich')}</div>
-        </div>
-      </div>
-      <div class="stat-card animate-fade-in" style="animation-delay:60ms">
+    ${renderAusbilderPrimaryCta(queue, meineAzubis.length)}
+
+    <div class="stats-grid stats-grid--3">
+      <div class="stat-card animate-fade-in" style="animation-delay:0ms">
         <div class="stat-card__icon stat-card__icon--info">
           <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
         </div>
@@ -326,7 +430,7 @@ function renderAusbilderDashboard(user) {
           <div class="stat-card__sub">${user.role === 'admin' ? 'im System' : 'aktuell zugewiesen'}</div>
         </div>
       </div>
-      <div class="stat-card animate-fade-in" style="animation-delay:120ms">
+      <div class="stat-card animate-fade-in" style="animation-delay:60ms">
         <div class="stat-card__icon stat-card__icon--success">
           <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
         </div>
@@ -336,7 +440,7 @@ function renderAusbilderDashboard(user) {
           <div class="stat-card__sub">in KW ${kw}</div>
         </div>
       </div>
-      <div class="stat-card animate-fade-in" style="animation-delay:180ms">
+      <div class="stat-card animate-fade-in" style="animation-delay:120ms">
         <div class="stat-card__icon stat-card__icon--${zurueckgegeben > 0 ? 'error' : 'success'}">
           <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
         </div>
@@ -351,15 +455,16 @@ function renderAusbilderDashboard(user) {
     <div class="dashboard-grid">
       <!-- Posteingang: Prüfungen -->
       <div>
-        <div class="card review-inbox animate-fade-in">
+        <div class="card review-inbox animate-fade-in" id="reviewInboxCard">
           <div class="card__header review-inbox__header">
             <div>
               <span class="card__title">Posteingang – Zu prüfende Berichtshefte</span>
-              <p class="review-inbox__subtitle">Sortiert nach Wartedauer · älteste zuerst</p>
+              <p class="review-inbox__subtitle" id="reviewInboxSubtitle">Sortiert nach Wartedauer · älteste zuerst</p>
             </div>
-            ${queue.length > 0 ? `<span class="badge badge--freigegeben">${queue.length} ${queue.length === 1 ? 'offen' : 'offen'}</span>` : ''}
+            ${queue.length > 0 ? `<span class="badge badge--freigegeben" id="reviewInboxCount">${queue.length} ${queue.length === 1 ? 'offen' : 'offen'}</span>` : ''}
           </div>
-          <div class="review-list">
+          ${queue.length > 0 ? renderReviewFilterBar(queue, meineAzubis) : ''}
+          <div class="review-list" id="reviewList">
             ${queue.length > 0 ? queue.map((w, i) => renderReviewItem(w, i)).join('') : `
               <div class="review-empty">
                 <div class="review-empty__icon">
@@ -404,14 +509,19 @@ function renderAusbilderDashboard(user) {
   `;
 
   // Klick auf Review-Item: Direkt zur Wochenansicht des Azubis springen
+  // (Checkbox-Klick wird per stopPropagation am Label aufgehalten)
   document.querySelectorAll('.review-item[data-azubi-id][data-kw]').forEach(item => {
-    item.addEventListener('click', () => {
+    item.addEventListener('click', (e) => {
+      if (e.target.closest('.review-item__check')) return;
       sessionStorage.setItem('gotoAzubiId', item.dataset.azubiId);
       sessionStorage.setItem('gotoKW',      item.dataset.kw);
       sessionStorage.setItem('gotoYear',    item.dataset.year);
       window.location.href = 'wochenansicht.html';
     });
   });
+
+  // Bulk-Action-System aufsetzen
+  initBulkActions(queue, user);
 
   // Klick auf Azubi-Übersicht-Item: Zur aktuellen KW dieses Azubis
   document.querySelectorAll('.azubi-overview-item[data-azubi-id]').forEach(item => {
@@ -421,6 +531,183 @@ function renderAusbilderDashboard(user) {
       window.location.href = 'wochenansicht.html';
     });
   });
+
+  bindPrimaryCtaNav();
+  bindReviewFilterBar(queue);
+}
+
+/* ── Filter-Bar: Suche, Status, Sortierung über der Review-Inbox ────
+   Lokale Filterung (kein Netzwerk-Roundtrip), damit Ausbilder bei
+   wachsender Liste schnell finden was sie brauchen. */
+function renderReviewFilterBar(queue, azubis) {
+  if (!queue.length) return '';
+  return `
+    <div class="review-filter-bar" id="reviewFilterBar">
+      <div class="review-filter-bar__field review-filter-bar__field--search">
+        <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input type="search" id="reviewSearchInput" class="review-filter-bar__search"
+               placeholder="Suche: Name oder KW…"
+               autocomplete="off" spellcheck="false">
+        <button type="button" class="review-filter-bar__clear" id="reviewSearchClear" aria-label="Suche leeren" hidden>
+          <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+
+      <label class="review-filter-bar__field" title="Nach Wartedauer filtern">
+        <span class="review-filter-bar__field-label">Wartet seit</span>
+        <select class="review-filter-bar__select" id="reviewWaitFilter">
+          <option value="all">Beliebig</option>
+          <option value="urgent">2+ Wochen (dringend)</option>
+          <option value="week1">1 Woche</option>
+          <option value="fresh">Diese Woche</option>
+        </select>
+      </label>
+
+      <label class="review-filter-bar__field" title="Sortier-Reihenfolge">
+        <span class="review-filter-bar__field-label">Sortierung</span>
+        <select class="review-filter-bar__select" id="reviewSortSelect">
+          <option value="oldest">Älteste zuerst</option>
+          <option value="newest">Neueste zuerst</option>
+          <option value="name">Name (A → Z)</option>
+        </select>
+      </label>
+
+      <label class="review-filter-bar__select-all" title="Alle sichtbaren Berichte markieren">
+        <input type="checkbox" id="reviewSelectAll">
+        <span class="review-filter-bar__select-all-box" aria-hidden="true">
+          <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
+        </span>
+        <span class="review-filter-bar__select-all-text">Alle</span>
+      </label>
+
+      <div class="review-filter-bar__count">
+        <span id="reviewFilterCount">${queue.length}</span> von ${queue.length}
+      </div>
+    </div>
+  `;
+}
+
+function bindReviewFilterBar(queue) {
+  const bar = document.getElementById('reviewFilterBar');
+  if (!bar) return;
+  const searchInp = document.getElementById('reviewSearchInput');
+  const clearBtn  = document.getElementById('reviewSearchClear');
+  const waitSel   = document.getElementById('reviewWaitFilter');
+  const sortSel   = document.getElementById('reviewSortSelect');
+  const list      = document.getElementById('reviewList');
+  const countEl   = document.getElementById('reviewFilterCount');
+  const subtitle  = document.getElementById('reviewInboxSubtitle');
+  const countBadge = document.getElementById('reviewInboxCount');
+
+  const subtitleByWait = {
+    all:    'Sortiert nach Wartedauer · älteste zuerst',
+    urgent: 'Nur dringende: 2+ Wochen wartend',
+    week1:  'Wartet seit ca. 1 Woche',
+    fresh:  'Diese Woche freigegeben',
+  };
+  const subtitleBySort = {
+    oldest: 'Sortiert nach Wartedauer · älteste zuerst',
+    newest: 'Sortiert nach Wartedauer · neueste zuerst',
+    name:   'Sortiert nach Name · A → Z',
+  };
+
+  function applyFilters() {
+    const q       = (searchInp?.value || '').trim().toLowerCase();
+    const wait    = waitSel?.value || 'all';
+    const sort    = sortSel?.value || 'oldest';
+    const today   = new Date();
+
+    let filtered = queue.slice();
+
+    // Such-Filter
+    if (q) {
+      filtered = filtered.filter(w => {
+        const name = (w.azubi.name || '').toLowerCase();
+        const kwStr = `kw ${w.kw}`;
+        return name.includes(q)
+            || String(w.kw).includes(q)
+            || kwStr.includes(q)
+            || String(w.year).includes(q);
+      });
+    }
+
+    // Wartedauer-Filter
+    if (wait !== 'all') {
+      filtered = filtered.filter(w => {
+        const monday = DateUtil.getMondayOfKW(w.kw, w.year);
+        const sunday = new Date(monday);
+        sunday.setDate(monday.getDate() + 6);
+        const wochenSeitEnde = Math.max(0, Math.floor((today - sunday) / (1000 * 60 * 60 * 24 * 7)));
+        if (wait === 'urgent') return wochenSeitEnde >= 2;
+        if (wait === 'week1')  return wochenSeitEnde === 1;
+        if (wait === 'fresh')  return wochenSeitEnde === 0;
+        return true;
+      });
+    }
+
+    // Sortierung
+    if (sort === 'oldest') {
+      filtered.sort((a, b) => (a.year - b.year) || (a.kw - b.kw));
+    } else if (sort === 'newest') {
+      filtered.sort((a, b) => (b.year - a.year) || (b.kw - a.kw));
+    } else if (sort === 'name') {
+      filtered.sort((a, b) => a.azubi.name.localeCompare(b.azubi.name, 'de'));
+    }
+
+    // Re-Render
+    if (filtered.length === 0) {
+      list.innerHTML = `
+        <div class="review-empty">
+          <div class="review-empty__icon" style="background:var(--pm-grey-100);color:var(--pm-grey-500)">
+            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          </div>
+          <h3 class="review-empty__title">Keine Treffer</h3>
+          <p class="review-empty__text">Mit den aktuellen Filtern wurde nichts gefunden. Filter zurücksetzen, um alle ${queue.length} Einträge zu zeigen.</p>
+        </div>
+      `;
+    } else {
+      list.innerHTML = filtered.map((w, i) => renderReviewItem(w, i)).join('');
+      // Klick-Handler neu binden – Items wurden neu gerendert
+      list.querySelectorAll('.review-item[data-azubi-id][data-kw]').forEach(item => {
+        item.addEventListener('click', () => {
+          sessionStorage.setItem('gotoAzubiId', item.dataset.azubiId);
+          sessionStorage.setItem('gotoKW',      item.dataset.kw);
+          sessionStorage.setItem('gotoYear',    item.dataset.year);
+          window.location.href = 'wochenansicht.html';
+        });
+      });
+    }
+
+    // Zähler + Untertitel aktualisieren
+    if (countEl) countEl.textContent = filtered.length;
+    if (countBadge) {
+      // Solange kein Filter aktiv ist, lieber "X offen" zeigen statt "X von X"
+      countBadge.textContent = (filtered.length === queue.length)
+        ? `${queue.length} offen`
+        : `${filtered.length} von ${queue.length}`;
+    }
+    if (subtitle) {
+      // Untertitel-Logik: Filter dominiert, sonst Sortierung
+      subtitle.textContent = wait !== 'all'
+        ? subtitleByWait[wait]
+        : subtitleBySort[sort];
+    }
+    if (clearBtn) clearBtn.hidden = !q;
+  }
+
+  // Debounce für Suche
+  let searchTimer;
+  searchInp?.addEventListener('input', () => {
+    clearTimeout(searchTimer);
+    searchTimer = setTimeout(applyFilters, 120);
+  });
+  clearBtn?.addEventListener('click', () => {
+    if (searchInp) searchInp.value = '';
+    applyFilters();
+    searchInp?.focus();
+  });
+  waitSel?.addEventListener('change', applyFilters);
+  sortSel?.addEventListener('change', applyFilters);
 }
 
 /* ── Hilfsfunktionen für Ausbilder-Dashboard ──────────────────── */
@@ -455,10 +742,16 @@ function renderReviewItem(w, idx) {
 
   return `
     <div class="review-item${wartendKlasse}"
-         data-azubi-id="${a.id}" data-kw="${w.kw}" data-year="${w.year}"
+         data-woche-id="${w.id}" data-azubi-id="${a.id}" data-kw="${w.kw}" data-year="${w.year}"
          style="animation-delay:${idx * 50}ms"
          tabindex="0" role="button"
          aria-label="Berichtsheft KW ${w.kw} von ${a.name} prüfen">
+      <label class="review-item__check" aria-label="Auswählen" onclick="event.stopPropagation()">
+        <input type="checkbox" class="review-item__checkbox" data-woche-id="${w.id}">
+        <span class="review-item__check-box" aria-hidden="true">
+          <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
+        </span>
+      </label>
       <div class="review-item__avatar avatar">${a.initials}</div>
       <div class="review-item__main">
         <div class="review-item__name">${a.name}</div>
@@ -504,6 +797,151 @@ function renderAzubiOverviewItem(s) {
       </div>
     </div>
   `;
+}
+
+/* ── Bulk-Actions in der Review-Inbox ────────────────────────────
+   Checkbox-Pattern mit sticky Action-Toolbar – Genehmigung oder
+   Rückgabe mehrerer Berichte in einem Schritt. Auswahl überlebt
+   Re-Renders durch den Filter (MutationObserver synchronisiert
+   neu eingehängte Items mit dem Selection-Set). */
+function initBulkActions(queue, currentUser) {
+  if (!queue || queue.length === 0) return;
+  const list = document.getElementById('reviewList');
+  if (!list) return;
+  const selectedIds = new Set();
+  const queueById = new Map(queue.map(w => [w.id, w]));
+  const toolbar = ensureBulkToolbar();
+  const selectAll = document.getElementById('reviewSelectAll');
+
+  function syncCheckboxesToState() {
+    list.querySelectorAll('.review-item__checkbox').forEach(cb => {
+      const id = parseInt(cb.dataset.wocheId);
+      const sel = selectedIds.has(id);
+      cb.checked = sel;
+      cb.closest('.review-item')?.classList.toggle('review-item--selected', sel);
+    });
+    updateToolbar();
+    updateSelectAllState();
+  }
+
+  function updateToolbar() {
+    const count = selectedIds.size;
+    toolbar.querySelector('[data-bulk-count]').textContent = count;
+    toolbar.classList.toggle('bulk-actions-toolbar--visible', count > 0);
+    toolbar.querySelector('[data-bulk-label]').textContent =
+      count === 1 ? 'Bericht ausgewählt' : 'Berichte ausgewählt';
+  }
+
+  function updateSelectAllState() {
+    if (!selectAll) return;
+    const visibleCbs = Array.from(list.querySelectorAll('.review-item__checkbox'));
+    if (visibleCbs.length === 0) {
+      selectAll.checked = false;
+      selectAll.indeterminate = false;
+      return;
+    }
+    const visibleSelected = visibleCbs.filter(cb => selectedIds.has(+cb.dataset.wocheId)).length;
+    selectAll.checked       = visibleSelected === visibleCbs.length;
+    selectAll.indeterminate = visibleSelected > 0 && visibleSelected < visibleCbs.length;
+  }
+
+  // Klick auf einzelne Checkbox
+  list.addEventListener('change', (e) => {
+    const cb = e.target.closest('.review-item__checkbox');
+    if (!cb) return;
+    const id = parseInt(cb.dataset.wocheId);
+    if (cb.checked) selectedIds.add(id);
+    else            selectedIds.delete(id);
+    cb.closest('.review-item')?.classList.toggle('review-item--selected', cb.checked);
+    updateToolbar();
+    updateSelectAllState();
+  });
+
+  // "Alle" – nur sichtbare Items
+  selectAll?.addEventListener('change', () => {
+    const visibleCbs = list.querySelectorAll('.review-item__checkbox');
+    visibleCbs.forEach(cb => {
+      const id = parseInt(cb.dataset.wocheId);
+      if (selectAll.checked) selectedIds.add(id);
+      else                   selectedIds.delete(id);
+    });
+    syncCheckboxesToState();
+  });
+
+  // Re-Sync nach Filter-Re-Render
+  new MutationObserver(syncCheckboxesToState)
+    .observe(list, { childList: true });
+
+  // Auswahl aufheben
+  toolbar.querySelector('[data-bulk-clear]').addEventListener('click', () => {
+    selectedIds.clear();
+    syncCheckboxesToState();
+  });
+
+  // Bulk-Genehmigen
+  toolbar.querySelector('[data-bulk-approve]').addEventListener('click', () => {
+    const ids = Array.from(selectedIds);
+    if (ids.length === 0) return;
+    if (!confirm(`${ids.length} Berichtshefte gemeinsam genehmigen?`)) return;
+    ids.forEach(wocheId => {
+      const w = queueById.get(wocheId);
+      DB.setWocheStatus(wocheId, 'genehmigt');
+      if (w) DB.addBenachrichtigung({
+        userId: w.azubiId, type: 'genehmigt',
+        wocheId, azubiId: w.azubiId, kw: w.kw, year: w.year,
+        fromUserId: currentUser.id,
+      });
+    });
+    Toast.success('Genehmigt', `${ids.length} ${ids.length === 1 ? 'Bericht' : 'Berichte'} genehmigt.`);
+    setTimeout(() => window.location.reload(), 700);
+  });
+
+  // Bulk-Zurückgeben (mit einer gemeinsamen Begründung)
+  toolbar.querySelector('[data-bulk-reject]').addEventListener('click', () => {
+    const ids = Array.from(selectedIds);
+    if (ids.length === 0) return;
+    const reason = prompt(`Begründung für die Rückgabe von ${ids.length} ${ids.length === 1 ? 'Bericht' : 'Berichten'}:`);
+    if (!reason || !reason.trim()) return;
+    const reasonTrim = reason.trim();
+    ids.forEach(wocheId => {
+      const w = queueById.get(wocheId);
+      DB.addKommentar(wocheId, {
+        userId: currentUser.id, text: reasonTrim,
+        datum: new Date().toLocaleDateString('de-DE'), typ: 'abgelehnt',
+      });
+      DB.setWocheStatus(wocheId, 'abgelehnt');
+      if (w) DB.addBenachrichtigung({
+        userId: w.azubiId, type: 'abgelehnt',
+        wocheId, azubiId: w.azubiId, kw: w.kw, year: w.year,
+        fromUserId: currentUser.id, kommentar: reasonTrim,
+      });
+    });
+    Toast.warning('Zurückgegeben', `${ids.length} ${ids.length === 1 ? 'Bericht' : 'Berichte'} zurückgegeben.`);
+    setTimeout(() => window.location.reload(), 700);
+  });
+}
+
+function ensureBulkToolbar() {
+  let toolbar = document.getElementById('bulkActionsToolbar');
+  if (toolbar) return toolbar;
+  toolbar = document.createElement('div');
+  toolbar.id = 'bulkActionsToolbar';
+  toolbar.className = 'bulk-actions-toolbar';
+  toolbar.setAttribute('role', 'toolbar');
+  toolbar.setAttribute('aria-label', 'Bulk-Aktionen für ausgewählte Berichte');
+  toolbar.innerHTML = `
+    <div class="bulk-actions-toolbar__info">
+      <span class="bulk-actions-toolbar__count-pill"><span data-bulk-count>0</span></span>
+      <span data-bulk-label>Berichte ausgewählt</span>
+    </div>
+    <div class="bulk-actions-toolbar__actions">
+      <button type="button" class="btn btn-ghost btn-sm" data-bulk-clear>Auswahl aufheben</button>
+      <button type="button" class="btn btn-danger btn-sm" data-bulk-reject>Zurückgeben</button>
+      <button type="button" class="btn btn-success btn-sm" data-bulk-approve>Genehmigen</button>
+    </div>
+  `;
+  document.body.appendChild(toolbar);
+  return toolbar;
 }
 
 function renderAusbilderActivities(allWochen) {

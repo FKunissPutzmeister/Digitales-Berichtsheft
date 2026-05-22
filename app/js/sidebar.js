@@ -73,6 +73,75 @@ function buildSidebar(activeNavId) {
   `;
 
   document.getElementById(activeNavId)?.classList.add('active');
+
+  // Tooltips für Collapsed-State: Label-Text als data-tooltip pflegen.
+  sidebar.querySelectorAll('.sidebar__link').forEach(link => {
+    const label = link.querySelector('.sidebar__link-label')?.textContent.trim();
+    if (label) link.setAttribute('data-tooltip', label);
+  });
+
+  setupSidebarTooltips(sidebar);
+}
+
+/* Zeigt ein floating Tooltip rechts neben dem Icon, sobald die Sidebar
+   eingeklappt ist und der Cursor über einem Link verweilt (250 ms Delay).
+   Tooltip-Element hängt am <body>, damit overflow-x:hidden des Navs es
+   nicht abschneidet. */
+function setupSidebarTooltips(sidebar) {
+  let tooltip = document.querySelector('.sidebar-tooltip');
+  if (!tooltip) {
+    tooltip = document.createElement('div');
+    tooltip.className = 'sidebar-tooltip';
+    tooltip.setAttribute('role', 'tooltip');
+    document.body.appendChild(tooltip);
+  }
+  let hideTimer = null;
+  let showTimer = null;
+
+  function isCollapsed() {
+    return sidebar.classList.contains('collapsed');
+  }
+
+  function hide() {
+    clearTimeout(showTimer);
+    tooltip.classList.remove('visible');
+  }
+
+  function show(link) {
+    if (!isCollapsed()) return;
+    const text = link.getAttribute('data-tooltip');
+    if (!text) return;
+    const rect = link.getBoundingClientRect();
+    tooltip.textContent = text;
+    tooltip.style.top  = `${rect.top + rect.height / 2}px`;
+    tooltip.style.left = `${rect.right + 12}px`;
+    tooltip.style.transform = 'translateY(-50%) translateX(0)';
+    requestAnimationFrame(() => tooltip.classList.add('visible'));
+  }
+
+  sidebar.addEventListener('mouseover', (e) => {
+    const link = e.target.closest('.sidebar__link[data-tooltip]');
+    if (!link || !isCollapsed()) return;
+    clearTimeout(hideTimer);
+    clearTimeout(showTimer);
+    showTimer = setTimeout(() => show(link), 250);
+  });
+  sidebar.addEventListener('mouseout', (e) => {
+    const link = e.target.closest('.sidebar__link[data-tooltip]');
+    if (!link) return;
+    clearTimeout(showTimer);
+    hideTimer = setTimeout(hide, 80);
+  });
+  sidebar.addEventListener('focusin', (e) => {
+    const link = e.target.closest('.sidebar__link[data-tooltip]');
+    if (link) show(link);
+  });
+  sidebar.addEventListener('focusout', hide);
+  // Beim Toggle ein-/auszuklappen direkt verstecken
+  document.addEventListener('click', (e) => {
+    if (e.target.closest('#sidebarToggle')) hide();
+  });
+  window.addEventListener('scroll', hide, true);
 }
 
 function buildTopbar(breadcrumbs) {

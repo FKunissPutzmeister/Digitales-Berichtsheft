@@ -10,6 +10,8 @@
   <link rel="stylesheet" href="css/base.css">
   <link rel="stylesheet" href="css/components.css">
   <link rel="stylesheet" href="css/login.css">
+  <link rel="stylesheet" href="css/glass.css">
+  <link rel="stylesheet" href="css/topbar-ds.css">
 </head>
 <body class="login-page">
 
@@ -88,7 +90,8 @@
           <span class="login-form__forgot">Passwort vergessen?</span>
         </div>
 
-        <button type="submit" class="btn btn-primary" id="loginBtn">
+        <button type="submit" class="lg-btn lg-btn--yellow-solid lg-btn--lg" id="loginBtn">
+          <span class="btn__glass"></span>
           Anmelden
         </button>
       </form>
@@ -101,13 +104,27 @@
             <div class="avatar avatar--sm">FK</div>
             <div class="demo-login-btn__info">
               <span class="demo-login-btn__name">Florian Kuniß</span>
-              <span class="demo-login-btn__role">Auszubildender</span>
+              <span class="demo-login-btn__role">Auszubildender · Wöchentliche Ansicht</span>
+            </div>
+          </button>
+          <button class="demo-login-btn" data-email="jonas.becker@putzmeister.com" data-password="azubi123">
+            <div class="avatar avatar--sm">JB</div>
+            <div class="demo-login-btn__info">
+              <span class="demo-login-btn__name">Jonas Becker</span>
+              <span class="demo-login-btn__role">Auszubildender · Tägliche Ansicht</span>
+            </div>
+          </button>
+          <button class="demo-login-btn" data-email="lena.mueller@putzmeister.com" data-password="azubi123">
+            <div class="avatar avatar--sm">LM</div>
+            <div class="demo-login-btn__info">
+              <span class="demo-login-btn__name">Lena Müller</span>
+              <span class="demo-login-btn__role">Auszubildende · Wöchentliche Ansicht</span>
             </div>
           </button>
           <button class="demo-login-btn" data-email="matthias.fauser@putzmeister.com" data-password="ausbilder123">
-            <div class="avatar avatar--sm" style="background:var(--pm-grey-700);color:white;">MF</div>
+            <div class="avatar avatar--sm" style="background:var(--pm-grey-700);color:white;">ML</div>
             <div class="demo-login-btn__info">
-              <span class="demo-login-btn__name">Matthias Fauser</span>
+              <span class="demo-login-btn__name">Matthias Lengerer</span>
               <span class="demo-login-btn__role">Ausbilder</span>
             </div>
           </button>
@@ -124,6 +141,7 @@
   </div>
 
   <script src="js/data.js"></script>
+<script src="js/topbar-ds.js"></script>
   <script src="js/login.js"></script>
 </body>
 </html>

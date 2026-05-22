@@ -1,0 +1,618 @@
+/* ===================================================================
+   GLASS LAYER – Liquid-Glass / Glassmorphism-Modernisierung
+   -------------------------------------------------------------------
+   Additiver Layer. Bewusst NACH allen anderen Stylesheets geladen,
+   so dass:
+   • Bestehende Regeln NICHT überschrieben werden (wir verwenden neue
+     Selektoren bzw. zusätzliche Pseudo-Elemente),
+   • Die Modernisierung sich ohne Risiko deaktivieren lässt, indem die
+     <link>-Zeile entfernt wird.
+   -------------------------------------------------------------------
+   Designprinzipien
+   • CI-konform: ausschließlich aus --pm-yellow + --pm-grey-* abgeleitete
+     rgba-Tönungen. Keine neuen Markenfarben.
+   • Tiefe vor Effekt: Glas wirkt nur, wenn unter ihm etwas zu „filtern"
+     ist. Wir erzeugen daher einen ruhigen, statischen Ambient-Backdrop
+     auf dem Body (zwei weiche Lichtquellen in Brand-Gelb + Neutralton).
+   • Lesbarkeit > Look: alle Glass-Surfaces nutzen genug Sättigung und
+     Border-Kontrast, damit Text auf ihnen WCAG-AA-tauglich bleibt.
+   • Performance: backdrop-filter nur dort, wo es sich lohnt (Topbar,
+     Sidebar, Dropdowns, Modal). Karten bekommen NUR Gradient-Sheen
+     ohne Filter – Filter auf vielen kleinen Surfaces kostet GPU-Zeit.
+   =================================================================== */
+
+/* ── Glas-Tokens (CI-abgeleitet) ─────────────────────────────────── */
+:root {
+  /* Light-Mode-Defaults */
+  --glass-bg:           rgba(255, 255, 255, 0.62);
+  --glass-bg-strong:    rgba(255, 255, 255, 0.78);
+  --glass-bg-tint:      rgba(255, 250, 235, 0.55);  /* leicht gelb getintet */
+  --glass-border:       rgba(255, 255, 255, 0.55);
+  --glass-border-soft:  rgba(15, 23, 42, 0.06);
+  --glass-highlight:    rgba(255, 255, 255, 0.70);  /* obere Lichtkante */
+  --glass-shadow:       0 1px 0 rgba(255,255,255,0.55) inset,
+                        0 -1px 0 rgba(15,23,42,0.04) inset,
+                        0 10px 30px rgba(15,23,42,0.06),
+                        0 2px 6px rgba(15,23,42,0.04);
+  --glass-blur:         16px;
+  --glass-blur-strong:  22px;
+
+  /* Ambient-Backdrop-Tints für Light-Mode */
+  --ambient-yellow:     rgba(255, 195, 0, 0.10);
+  --ambient-yellow-2:   rgba(255, 195, 0, 0.05);
+  --ambient-neutral:    rgba(15, 23, 42, 0.04);
+}
+
+[data-theme="dark"] {
+  --glass-bg:           rgba(60, 60, 64, 0.55);
+  --glass-bg-strong:    rgba(60, 60, 64, 0.72);
+  --glass-bg-tint:      rgba(80, 70, 30, 0.40);    /* warm angereichertes Dunkelgrau */
+  --glass-border:       rgba(255, 255, 255, 0.08);
+  --glass-border-soft:  rgba(255, 255, 255, 0.05);
+  --glass-highlight:    rgba(255, 255, 255, 0.10);
+  --glass-shadow:       0 1px 0 rgba(255,255,255,0.06) inset,
+                        0 -1px 0 rgba(0,0,0,0.30) inset,
+                        0 14px 36px rgba(0,0,0,0.45),
+                        0 2px 8px rgba(0,0,0,0.35);
+
+  --ambient-yellow:     rgba(255, 195, 0, 0.07);
+  --ambient-yellow-2:   rgba(255, 195, 0, 0.03);
+  --ambient-neutral:    rgba(255, 255, 255, 0.03);
+}
+
+/* ===================================================================
+   AMBIENT BACKDROP
+   -------------------------------------------------------------------
+   Zwei weiche Lichtquellen (Brand-Gelb + Neutral) hinter dem gesamten
+   Body. Sie liegen FIXED hinter dem Inhalt und sorgen dafür, dass die
+   Glass-Surfaces darüber tatsächlich etwas zu „filtern" haben –
+   ohne Tiefe wirkt jedes Frost-Glass wie ein grauer Kasten.
+   Performance: pointer-events:none, will-change leer (statisch).
+   =================================================================== */
+body::before,
+body::after {
+  content: '';
+  position: fixed;
+  pointer-events: none;
+  z-index: 0;
+  border-radius: 50%;
+  filter: blur(80px);
+  /* opacity wird über die rgba-Werte der ambient-Tokens gesteuert */
+}
+body::before {
+  /* Lichtquelle oben rechts – Markengelb */
+  top: -180px;
+  right: -160px;
+  width: 520px;
+  height: 520px;
+  background: radial-gradient(circle, var(--ambient-yellow) 0%, var(--ambient-yellow-2) 45%, transparent 70%);
+}
+body::after {
+  /* Sekundäre Lichtquelle unten links – neutral, sehr leise */
+  bottom: -220px;
+  left: -180px;
+  width: 600px;
+  height: 600px;
+  background: radial-gradient(circle, var(--ambient-neutral) 0%, transparent 70%);
+}
+/* Login-Page hat eigenes dunkles Setup – Ambient stört dort, deshalb aus. */
+body.login-page::before,
+body.login-page::after {
+  display: none;
+}
+/* Wer „transparente Bewegung" reduzieren will (macOS-Setting), bekommt
+   den Backdrop nicht. */
+@media (prefers-reduced-transparency: reduce) {
+  body::before,
+  body::after { display: none; }
+}
+
+/* ===================================================================
+   TOPBAR – Liquid-Glass-Verstärkung
+   -------------------------------------------------------------------
+   UX-Mehrwert: Die Topbar bleibt sticky, hebt sich aber durch eine
+   feine Lichtkante oben und eine etwas stärkere Frost-Wirkung klarer
+   vom Inhalt ab. Beim Scrollen entsteht spürbare Tiefe, ohne dass die
+   Aufmerksamkeit vom Inhalt weggezogen wird.
+   =================================================================== */
+.topbar {
+  /* Stärkerer Blur + leichte Saturation – wirkt premiumiger */
+  backdrop-filter: blur(var(--glass-blur)) saturate(160%);
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(160%);
+  /* Hauchdünne Lichtkante an der Oberseite */
+  box-shadow: inset 0 1px 0 var(--glass-highlight);
+}
+.topbar.is-scrolled {
+  /* Im gescrollten Zustand bestehende „is-scrolled"-Schatten erhalten,
+     aber den oberen Lichtreflex zusätzlich behalten. */
+  box-shadow: inset 0 1px 0 var(--glass-highlight),
+              0 1px 0 var(--pm-grey-200),
+              0 8px 24px rgba(15, 23, 42, 0.06);
+}
+[data-theme="dark"] .topbar.is-scrolled {
+  box-shadow: inset 0 1px 0 var(--glass-highlight),
+              0 1px 0 rgba(255,255,255,0.06),
+              0 10px 28px rgba(0, 0, 0, 0.5);
+}
+
+/* ===================================================================
+   SIDEBAR – Tiefe + Lichtreflex
+   -------------------------------------------------------------------
+   UX-Mehrwert: Die Sidebar bleibt eine dunkle, fokussierte Navigations-
+   Fläche – bekommt aber durch einen schwebenden Gelb-Glow oben und eine
+   inwendige Lichtkante an der rechten Außenkante mehr Tiefe.
+   =================================================================== */
+.sidebar {
+  /* Subtiler vertikaler Verlauf, der oben einen Hauch Brand-Gelb in den
+     Inverse-Hintergrund mischt. So fühlt sich der Logo-Bereich „warm" an,
+     ohne dass die restliche Navi-Optik verändert wird. */
+  background-image:
+    radial-gradient(120% 80% at 0% 0%, rgba(255, 195, 0, 0.08), transparent 55%),
+    linear-gradient(180deg, rgba(255,255,255,0.04) 0%, transparent 25%);
+  /* Lichtreflex rechte Innenkante – simuliert eine Glaskante */
+  box-shadow: inset -1px 0 0 rgba(255,255,255,0.04);
+}
+.sidebar__header {
+  /* Logo-Zeile bekommt einen feinen unteren Trenn-Lichtreflex */
+  position: relative;
+}
+.sidebar__header::after {
+  content: '';
+  position: absolute;
+  left: var(--sp-4);
+  right: var(--sp-4);
+  bottom: 0;
+  height: 1px;
+  background: linear-gradient(90deg,
+    transparent 0%,
+    rgba(255, 195, 0, 0.35) 30%,
+    rgba(255, 195, 0, 0.05) 100%);
+  pointer-events: none;
+}
+/* Aktiver Sidebar-Eintrag bekommt einen subtilen Innen-Glow,
+   passt zur bestehenden Yellow-Tint. */
+.sidebar__link.active {
+  background-image:
+    linear-gradient(90deg, rgba(255,195,0,0.18) 0%, rgba(255,195,0,0.08) 100%);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.04);
+}
+
+/* ===================================================================
+   CARDS – Light-Sheen / Glas-Schein
+   -------------------------------------------------------------------
+   UX-Mehrwert: Karten wirken im Inhalt „aufgesetzt" und nicht flach.
+   Wir nutzen ABSICHTLICH kein backdrop-filter (zu teuer auf vielen
+   Karten), sondern nur einen feinen Gradient-Sheen und einen 1px-
+   Highlight-Inset oben.
+   =================================================================== */
+.card,
+.stat-card,
+.accordion__item {
+  background-image: linear-gradient(180deg,
+    rgba(255, 255, 255, 0.55) 0%,
+    rgba(255, 255, 255, 0) 35%);
+  /* Innenhighlight oben = simulierter Lichtreflex auf Glas */
+  box-shadow: var(--elev-rest),
+              inset 0 1px 0 rgba(255, 255, 255, 0.70);
+}
+[data-theme="dark"] .card,
+[data-theme="dark"] .stat-card,
+[data-theme="dark"] .accordion__item {
+  background-image: linear-gradient(180deg,
+    rgba(255, 255, 255, 0.04) 0%,
+    rgba(255, 255, 255, 0) 35%);
+  box-shadow: var(--elev-rest),
+              inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+.card:hover,
+.stat-card:hover,
+.accordion__item:hover {
+  box-shadow: var(--elev-hover),
+              inset 0 1px 0 rgba(255, 255, 255, 0.75);
+}
+[data-theme="dark"] .card:hover,
+[data-theme="dark"] .stat-card:hover,
+[data-theme="dark"] .accordion__item:hover {
+  box-shadow: var(--elev-hover),
+              inset 0 1px 0 rgba(255, 255, 255, 0.07);
+}
+
+/* Stat-Card: zusätzlich ein wanderndes Sheen-Highlight bei Hover.
+   Reines Pseudo-Element, kein Layout, GPU-beschleunigt. */
+.stat-card {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+}
+.stat-card::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(115deg,
+    transparent 30%,
+    rgba(255, 255, 255, 0.35) 50%,
+    transparent 70%);
+  transform: translateX(-120%);
+  transition: transform 700ms var(--ease-out-expo);
+  pointer-events: none;
+  z-index: 0;
+}
+.stat-card:hover::after { transform: translateX(120%); }
+[data-theme="dark"] .stat-card::after {
+  background: linear-gradient(115deg,
+    transparent 30%,
+    rgba(255, 255, 255, 0.06) 50%,
+    transparent 70%);
+}
+.stat-card > * { position: relative; z-index: 1; }
+
+/* ===================================================================
+   WELCOME-BANNER – schwebender Lichtreflex
+   -------------------------------------------------------------------
+   UX-Mehrwert: Der bestehende dunkle Banner wirkt durch zwei zusätzliche
+   Glaskanten (oben Highlight, unten Schatten-Innen) deutlich plastischer
+   und premiumiger – ohne die Markenwirkung zu verändern.
+   =================================================================== */
+.welcome-banner {
+  /* Diagonales Sheen-Overlay – sehr dezent, KEIN Filter */
+  background-image:
+    linear-gradient(135deg,
+      rgba(255, 255, 255, 0.06) 0%,
+      rgba(255, 255, 255, 0) 35%,
+      rgba(0, 0, 0, 0.10) 100%),
+    linear-gradient(135deg, var(--inverse-surface-soft) 0%, var(--inverse-surface-mid) 100%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06),
+              inset 0 -1px 0 rgba(0, 0, 0, 0.30),
+              0 12px 32px rgba(15, 23, 42, 0.18);
+}
+
+/* ===================================================================
+   PRIMARY CTA – feiner Glas-Saum
+   -------------------------------------------------------------------
+   Bestehende Gelb-/Rot-/Grün-Varianten unverändert; nur ein zusätzlicher
+   oberer Lichtreflex, damit der CTA-Block sich vom Untergrund hebt.
+   =================================================================== */
+.primary-cta {
+  box-shadow: var(--elev-rest),
+              inset 0 1px 0 rgba(255, 255, 255, 0.55);
+}
+.primary-cta:hover {
+  box-shadow: var(--shadow-lg),
+              inset 0 1px 0 rgba(255, 255, 255, 0.65);
+}
+[data-theme="dark"] .primary-cta {
+  box-shadow: var(--elev-rest),
+              inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+
+/* ===================================================================
+   MODAL – „echtes" Glas-Panel
+   -------------------------------------------------------------------
+   UX-Mehrwert: Bestehender Backdrop-Blur (12px) bleibt. Wir ergänzen das
+   Modal selbst um eine glasige Anmutung – Tiefe, ohne Lesbarkeit zu
+   verlieren. Hintergrund bleibt deckend genug für Text-Kontrast (AA).
+   =================================================================== */
+.modal {
+  background-image:
+    linear-gradient(180deg,
+      rgba(255, 255, 255, 0.45) 0%,
+      rgba(255, 255, 255, 0) 30%);
+  /* Bestehender Schatten + Glas-Highlight + Glas-Border */
+  box-shadow: var(--shadow-xl),
+              inset 0 1px 0 var(--glass-highlight),
+              inset 0 0 0 1px var(--glass-border-soft);
+}
+[data-theme="dark"] .modal {
+  background-image:
+    linear-gradient(180deg,
+      rgba(255, 255, 255, 0.05) 0%,
+      rgba(255, 255, 255, 0) 30%);
+  box-shadow: var(--shadow-xl),
+              inset 0 1px 0 rgba(255,255,255,0.06),
+              inset 0 0 0 1px rgba(255,255,255,0.04);
+}
+
+/* ===================================================================
+   DROPDOWNS / NOTIFICATION-MENÜ / PM-SELECT-MENÜ
+   -------------------------------------------------------------------
+   UX-Mehrwert: Schwebende Menüs werden zu echten Glas-Layern – sie
+   stehen sichtbar „über" dem Inhalt, und der Inhalt darunter ist
+   noch schwach erkennbar. Das wirkt modern und reduziert die wahr-
+   genommene Schwere des UI.
+   =================================================================== */
+.dropdown__menu,
+.pm-select__menu {
+  background: var(--glass-bg-strong);
+  backdrop-filter: blur(var(--glass-blur)) saturate(160%);
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(160%);
+  border-color: var(--glass-border-soft);
+  box-shadow: var(--elev-active),
+              inset 0 1px 0 var(--glass-highlight);
+}
+[data-theme="dark"] .dropdown__menu,
+[data-theme="dark"] .pm-select__menu {
+  background: var(--glass-bg-strong);
+  border-color: rgba(255,255,255,0.08);
+}
+
+/* Notification-Dropdown: zusätzlich Brand-Gelb-Hauch oben */
+.dropdown__menu--notif {
+  background-image:
+    radial-gradient(120% 60% at 0% 0%, rgba(255, 195, 0, 0.10), transparent 70%);
+}
+[data-theme="dark"] .dropdown__menu--notif {
+  background-image:
+    radial-gradient(120% 60% at 0% 0%, rgba(255, 195, 0, 0.08), transparent 70%);
+}
+
+/* Sidebar-Tooltip: kleines Glas-Capsule */
+.sidebar-tooltip {
+  backdrop-filter: blur(12px) saturate(160%);
+  -webkit-backdrop-filter: blur(12px) saturate(160%);
+  background: rgba(26, 26, 26, 0.78);
+  box-shadow: var(--shadow-md),
+              inset 0 1px 0 rgba(255,255,255,0.08);
+}
+.sidebar-tooltip::before {
+  background: rgba(26, 26, 26, 0.78);
+}
+
+/* ===================================================================
+   BUTTONS – feines Glas-Highlight
+   -------------------------------------------------------------------
+   1px-Lichtkante oben auf primären Buttons → simuliert „glänzendes"
+   Kunststoff-/Glas-Material. Sehr dezent.
+   =================================================================== */
+.btn-primary {
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.45);
+}
+.btn-primary:hover:not(:disabled) {
+  box-shadow: var(--shadow-yellow),
+              inset 0 1px 0 rgba(255, 255, 255, 0.55);
+}
+.btn-secondary {
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.10);
+}
+.btn-secondary:hover:not(:disabled) {
+  box-shadow: var(--shadow-md),
+              inset 0 1px 0 rgba(255, 255, 255, 0.14);
+}
+
+/* ===================================================================
+   LOGIN – Brand-Panel-Glas-Akzente + Demo-Buttons als Mini-Glass-Cards
+   -------------------------------------------------------------------
+   UX-Mehrwert: Login bleibt klar und seriös. Wir geben der gelben
+   Brand-Spalte einen zusätzlichen, fein verlaufenden Lichtreflex und
+   den Feature-Icons sowie Demo-Logins eine glasige Anmutung – das
+   wirkt einladend ohne reißerisch zu sein.
+   =================================================================== */
+.login-brand {
+  background-image:
+    radial-gradient(80% 60% at 100% 0%, rgba(255, 255, 255, 0.18), transparent 70%),
+    radial-gradient(60% 50% at 0% 100%, rgba(0, 0, 0, 0.06), transparent 70%),
+    linear-gradient(135deg, var(--pm-yellow) 0%, var(--pm-yellow-dark) 100%);
+}
+.login-brand__feature-icon {
+  background: rgba(255, 255, 255, 0.55);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.70),
+              0 1px 2px rgba(0, 0, 0, 0.05);
+}
+.login-form-panel {
+  /* Subtiles vertikales Highlight, damit das Panel sich vom Brand-Block
+     wirklich abhebt und nicht „flach" daneben sitzt. */
+  background-image: linear-gradient(180deg,
+    rgba(255, 255, 255, 0.50) 0%,
+    rgba(255, 255, 255, 0) 25%);
+}
+/* Bewusst KEIN Glas-Highlight / Gradient mehr – die Demo-Login-Karten
+   sollen die ruhige, matte Anmutung des Sidebar-Profil-Chips
+   (.sidebar__user) übernehmen. Grundfläche kommt aus login.css. */
+.demo-login-btn {
+  background-image: none;
+  box-shadow: none;
+  transition: background var(--t-fast),
+              border-color var(--t-fast);
+}
+.demo-login-btn:hover {
+  box-shadow: none;
+}
+
+/* ===================================================================
+   FOCUS-STATE-VERFEINERUNG
+   -------------------------------------------------------------------
+   Beibehalten der bestehenden ring-yellow-Fokusringe, aber für
+   interaktive Karten/Buttons mit Glas-Look noch zusätzlich eine
+   schwache Lichtkante oben – verstärkt die haptische Anmutung.
+   =================================================================== */
+.card--interactive:focus-visible {
+  outline: none;
+  box-shadow: var(--ring-yellow),
+              inset 0 1px 0 rgba(255, 255, 255, 0.65);
+}
+/* Demo-Login-Buttons sind bewusst flach gehalten – nur Ring, kein
+   Glas-Highlight im Fokus. */
+.demo-login-btn:focus-visible {
+  outline: none;
+  box-shadow: var(--ring-yellow);
+}
+
+/* ===================================================================
+   PRINT – Glas-Effekte deaktivieren
+   -------------------------------------------------------------------
+   Backdrop-Filter und Halbtransparenzen drucken sich schlecht.
+   Im Print fallen wir auf deckende Surfaces zurück.
+   =================================================================== */
+@media print {
+  body::before,
+  body::after { display: none; }
+  .topbar,
+  .dropdown__menu,
+  .pm-select__menu,
+  .sidebar-tooltip {
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    background: var(--pm-white) !important;
+  }
+  .card,
+  .stat-card,
+  .modal,
+  .accordion__item {
+    background-image: none !important;
+    box-shadow: none !important;
+  }
+}
+
+/* ===================================================================
+   FALLBACK – Browser ohne backdrop-filter
+   -------------------------------------------------------------------
+   Auf Firefox <103 oder älteren Browsern wirkt das Glas sonst grau.
+   Wir geben in dem Fall etwas mehr Sättigung auf die Glas-Surfaces.
+   =================================================================== */
+@supports not ((backdrop-filter: blur(10px)) or (-webkit-backdrop-filter: blur(10px))) {
+  .topbar,
+  .dropdown__menu,
+  .pm-select__menu,
+  .sidebar-tooltip {
+    background: var(--pm-white);
+  }
+  [data-theme="dark"] .topbar,
+  [data-theme="dark"] .dropdown__menu,
+  [data-theme="dark"] .pm-select__menu,
+  [data-theme="dark"] .sidebar-tooltip {
+    background: var(--inverse-surface-soft);
+  }
+}
+
+/* ===================================================================
+   WOCHENANSICHT – Pflichtfeld-Marker neutralisieren
+   -------------------------------------------------------------------
+   Die gelbe Umrandung (border + background) auf leeren Pflichtfeldern
+   (Anwesenheit, Ort, Stunden/Minuten) wird entfernt. Das "PFLICHT"-
+   Badge bleibt als diskreter Hinweis erhalten. Der kursive Schriftstil
+   bleibt ebenfalls, damit leere Felder noch erkennbar sind.
+   =================================================================== */
+
+/* Natives <select> Pflichtfeld */
+.tag-row__select--needs-input:not(:disabled) {
+  border-color: var(--pm-grey-300) !important;
+  background-color: var(--pm-white) !important;
+}
+.tag-row__select--needs-input:not(:disabled):hover {
+  background-color: var(--pm-grey-50) !important;
+  border-color: var(--pm-grey-400) !important;
+}
+[data-theme="dark"] .tag-row__select--needs-input:not(:disabled) {
+  border-color: rgba(255,255,255,0.12) !important;
+  background-color: transparent !important;
+}
+
+/* PM-Select Custom-Dropdown Trigger */
+.pm-select.tag-row__select--needs-input .pm-select__trigger {
+  border-color: var(--pm-grey-300) !important;
+  background: var(--pm-white) !important;
+}
+.pm-select.tag-row__select--needs-input .pm-select__trigger:hover {
+  border-color: var(--pm-grey-400) !important;
+  background: var(--pm-grey-50) !important;
+}
+[data-theme="dark"] .pm-select.tag-row__select--needs-input .pm-select__trigger {
+  border-color: rgba(255,255,255,0.12) !important;
+  background: transparent !important;
+}
+
+/* Time-Spinner (Stunden / Minuten) */
+.time-spinner--needs-input:not(.time-spinner--readonly) .time-spinner__unit {
+  border-color: var(--pm-grey-300) !important;
+  background: var(--pm-white) !important;
+}
+.time-spinner--needs-input:not(.time-spinner--readonly) .time-spinner__unit-label {
+  border-top-color: var(--pm-grey-200) !important;
+}
+[data-theme="dark"] .time-spinner--needs-input:not(.time-spinner--readonly) .time-spinner__unit {
+  border-color: rgba(255,255,255,0.12) !important;
+  background: transparent !important;
+}
+
+/* ===================================================================
+   WOCHENANSICHT – Sticky-Toolbar deaktivieren
+   -------------------------------------------------------------------
+   Die .week-toolbar war per position:sticky im Scroll-Bereich
+   fixiert ("Zur Abnahme freigeben" + KW-Wechsel). Entfernt auf
+   Nutzerwunsch: störendes Sticky-Verhalten durch position:static
+   überschrieben. Layout und Optik bleiben sonst erhalten.
+   =================================================================== */
+.week-toolbar {
+  position: static !important;
+  top: auto !important;
+  /* Visuell weiterhin als strukturierter Block erkennbar,
+     aber ohne Frost-Glass-Overhead beim Scrollen. */
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  background: var(--pm-white);
+  border: 1px solid var(--pm-grey-200);
+  box-shadow: var(--elev-rest),
+              inset 0 1px 0 rgba(255, 255, 255, 0.70);
+}
+[data-theme="dark"] .week-toolbar {
+  background: var(--pm-white);    /* pm-white ist im Dark-Mode die Karten-Surface */
+  border-color: rgba(255, 255, 255, 0.06);
+  box-shadow: var(--elev-rest),
+              inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+/* ===================================================================
+   SIDEBAR – User-Bereich als dezente Glass-Kapsel
+   -------------------------------------------------------------------
+   UX-Mehrwert: Der User-Block im Sidebar-Footer bekommt einen
+   sanften Glas-Rahmen – setzt ihn als interaktives Element klar
+   ab vom Rest der Sidebar, ohne die dunkle Seitenleiste zu
+   destabilisieren. Nur Farb- und Glas-Properties, kein Layout.
+   =================================================================== */
+.sidebar__footer {
+  /* Sehr heller Gradient von oben – als würde Licht von der
+     Topbar in die Sidebar-Fußzeile fallen. */
+  background-image: linear-gradient(180deg,
+    rgba(255, 255, 255, 0.04) 0%,
+    rgba(255, 255, 255, 0) 60%);
+}
+.sidebar__user {
+  padding: var(--sp-2) var(--sp-3);
+  border-radius: var(--r-lg);
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  /* kein inset-Highlight mehr → kein glänzender Effekt */
+  transition: background var(--t-fast), border-color var(--t-fast);
+}
+.sidebar__user:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.10);
+}
+/* Collapsed: kein sichtbarer Rahmen, da nur Avatar zu sehen ist */
+.sidebar.collapsed .sidebar__user {
+  background: transparent;
+  border-color: transparent;
+  padding: 0;
+}
+.sidebar.collapsed .sidebar__user:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: var(--r-md);
+}
+
+/* ===================================================================
+   DARK MODE – Abmelden-Button besser erkennbar
+   -------------------------------------------------------------------
+   Im Light Mode ist --color-error (#B71C1C) auf weißem Dropdown-
+   Hintergrund gut lesbar. Im Dark Mode liegt das Dropdown auf einem
+   dunklen Glas-Surface – das dunkle Rot wird fast unsichtbar.
+   Lösung: im Dark Mode helleres Rot (--color-error-mid) + dezente
+   rote Hover-Fläche als eindeutiger Hinweis auf die Destruktiv-Aktion.
+   =================================================================== */
+[data-theme="dark"] .dropdown__item--danger {
+  color: var(--color-error-mid);   /* #E53935 – deutlich heller als #B71C1C */
+}
+[data-theme="dark"] .dropdown__item--danger:hover {
+  background: rgba(229, 57, 53, 0.14);
+  color: #F18581;                  /* noch etwas aufgehellt im Hover */
+}

@@ -1,0 +1,549 @@
+/* ===================================================================
+   PUTZMEISTER DS-TOPBAR (übernommen aus dem offiziellen Design System)
+   -------------------------------------------------------------------
+   • 32 px dunkelgraue Topbar ganz oben (Anthrazit #54585A)
+   • Links: "Member of SANY Group" (SANY in Putzmeister-Akzent-Rot)
+   • Rechts: Dark / Light Mode-Toggle
+   • Darunter: 3 px gelbes Bandakzent (Design-System-Signatur)
+   =================================================================== */
+
+:root {
+  --sc-topbar-h:        32px;
+  --sc-topbar-stripe-h: 3px;
+  --sc-topbar-bg:       #54585A;
+  --sc-topbar-fg:       #FFFFFF;
+  --sc-topbar-fg-dim:   rgba(255, 255, 255, 0.65);
+  --sc-topbar-divider:  rgba(255, 255, 255, 0.18);
+  --sc-pm-red:          #C8102E;  /* offizielles Putzmeister-Akzent-Rot */
+  --sc-pm-yellow:       #FFCD00;  /* offizielles Putzmeister-Yellow (DS v2) */
+}
+
+/* Body bekommt Padding-top, damit die fixed Topbar (32 px Strip +
+   3 px gelbe Linie) nichts überdeckt. */
+body.has-ds-topbar {
+  padding-top: calc(var(--sc-topbar-h) + var(--sc-topbar-stripe-h));
+}
+/* Sidebar und Hauptbereich um die Topbar-Höhe nach unten verschieben. */
+body.has-ds-topbar .sidebar {
+  top: calc(var(--sc-topbar-h) + var(--sc-topbar-stripe-h));
+  height: calc(100vh - var(--sc-topbar-h) - var(--sc-topbar-stripe-h));
+}
+body.has-ds-topbar .main-wrapper {
+  min-height: calc(100vh - var(--sc-topbar-h) - var(--sc-topbar-stripe-h));
+}
+
+/* ── Site-Chrome-Topbar ──────────────────────────────────────────── */
+.sc-topbar {
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  z-index: 1000;
+  height: var(--sc-topbar-h);
+  display: flex;
+  align-items: center;
+  padding: 0 1.25rem;
+  background: var(--sc-topbar-bg);
+  color: var(--sc-topbar-fg);
+  font-family: 'Libre Franklin', 'Helvetica Neue', 'Segoe UI', Arial, sans-serif;
+  font-size: 12px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.25);
+}
+/* Das gelbe 3-px-Band sitzt unmittelbar unter der Topbar.
+   Als ::after pseudo-Element der Topbar selbst — bewegt sich
+   damit immer korrekt unter dem dunklen Strip. */
+.sc-topbar::after {
+  content: '';
+  position: absolute;
+  left: 0; right: 0;
+  top: 100%;
+  height: var(--sc-topbar-stripe-h);
+  background: var(--sc-pm-yellow);
+  pointer-events: none;
+  box-shadow: 0 1px 2px rgba(31, 34, 36, 0.10);
+}
+
+.sc-topbar__inner {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1.5rem;
+  max-width: 100%;
+}
+
+.sc-topbar__left,
+.sc-topbar__right {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+/* "Member of SANY Group" — SANY in PM-Rot */
+.sc-topbar__brand {
+  color: var(--sc-topbar-fg-dim);
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+.sc-topbar__brand strong {
+  color: var(--sc-pm-red);
+  font-weight: 700;
+  letter-spacing: 0.03em;
+}
+
+/* ── Theme-Toggle (Sun / Moon Pill) ─────────────────────────────── */
+.sc-topbar__theme {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 2px;
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: 999px;
+}
+.sc-topbar__theme-btn {
+  width: 22px; height: 22px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: 0;
+  color: var(--sc-topbar-fg-dim);
+  border-radius: 50%;
+  padding: 0;
+  cursor: pointer;
+  transition: color 200ms cubic-bezier(0.2, 0, 0, 1),
+              background 200ms cubic-bezier(0.2, 0, 0, 1);
+}
+.sc-topbar__theme-btn svg { width: 12px; height: 12px; }
+.sc-topbar__theme-btn:hover { color: #fff; }
+.sc-topbar__theme-btn.is-active {
+  background: var(--sc-pm-yellow);
+  color: #1A1A1A;
+  box-shadow: 0 0 8px rgba(255, 205, 0, 0.4);
+}
+.sc-topbar__theme-btn:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--sc-topbar-bg), 0 0 0 4px var(--sc-pm-yellow);
+}
+
+/* ── Divider zwischen Theme-Toggle und Profil ───────────────────── */
+.sc-topbar__divider {
+  width: 1px;
+  height: 16px;
+  background: var(--sc-topbar-divider);
+}
+
+/* ── Profil-Icon + Dropdown ─────────────────────────────────────── */
+.sc-topbar__profile {
+  position: relative;
+}
+.sc-topbar__profile-btn {
+  width: 26px; height: 26px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.12);
+  border: 0;
+  padding: 0;
+  color: var(--sc-topbar-fg);
+  cursor: pointer;
+  transition: background 200ms cubic-bezier(0.2, 0, 0, 1),
+              transform 200ms cubic-bezier(0.2, 0, 0, 1);
+}
+.sc-topbar__profile-btn:hover {
+  background: rgba(255, 255, 255, 0.20);
+  transform: translateY(-1px);
+}
+.sc-topbar__profile-btn:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--sc-topbar-bg), 0 0 0 4px var(--sc-pm-yellow);
+}
+.sc-topbar__profile-btn svg { width: 14px; height: 14px; }
+.sc-topbar__profile.is-open .sc-topbar__profile-btn {
+  background: var(--sc-pm-yellow);
+  color: #1A1A1A;
+}
+
+.sc-topbar__profile-menu {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  min-width: 240px;
+  background: #FFFFFF;
+  color: #1A1A1A;
+  border-radius: 10px;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  box-shadow:
+    0 1px 2px rgba(31, 34, 36, 0.06),
+    0 18px 40px rgba(31, 34, 36, 0.14);
+  padding: 6px;
+  font-family: 'Open Sans', 'Helvetica Neue', Arial, sans-serif;
+  font-size: 13px;
+  opacity: 0;
+  transform: translateY(-6px) scale(0.98);
+  transform-origin: top right;
+  pointer-events: none;
+  transition: opacity 200ms cubic-bezier(0.2, 0, 0, 1),
+              transform 220ms cubic-bezier(0.2, 0, 0, 1);
+  z-index: 1001;
+}
+.sc-topbar__profile.is-open .sc-topbar__profile-menu {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+  pointer-events: auto;
+}
+
+.sc-topbar__profile-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 10px 12px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+  margin-bottom: 4px;
+}
+.sc-topbar__profile-avatar {
+  width: 36px; height: 36px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: var(--sc-pm-yellow);
+  color: #1A1A1A;
+  display: grid;
+  place-items: center;
+  font-family: 'Libre Franklin', sans-serif;
+  font-weight: 700;
+  font-size: 13px;
+  letter-spacing: 0.02em;
+}
+.sc-topbar__profile-info {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  line-height: 1.25;
+}
+.sc-topbar__profile-name {
+  font-family: 'Libre Franklin', sans-serif;
+  font-weight: 700;
+  font-size: 13px;
+  color: #1A1A1A;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.sc-topbar__profile-role {
+  font-size: 11px;
+  color: rgba(26, 26, 26, 0.55);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  letter-spacing: 0.04em;
+}
+
+.sc-topbar__profile-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 8px 10px;
+  border: 0;
+  background: none;
+  text-align: left;
+  font-family: inherit;
+  font-size: 13px;
+  color: #1A1A1A;
+  text-decoration: none;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 140ms ease;
+}
+.sc-topbar__profile-item svg {
+  width: 16px; height: 16px;
+  flex-shrink: 0;
+  color: rgba(26, 26, 26, 0.6);
+}
+.sc-topbar__profile-item:hover {
+  background: rgba(0, 0, 0, 0.05);
+}
+.sc-topbar__profile-item--danger {
+  color: var(--color-error, #B71C1C);
+}
+.sc-topbar__profile-item--danger svg { color: var(--color-error, #B71C1C); }
+.sc-topbar__profile-item--danger:hover {
+  background: rgba(198, 40, 40, 0.08);
+}
+.sc-topbar__profile-item:focus-visible {
+  outline: none;
+  background: rgba(255, 205, 0, 0.15);
+  box-shadow: inset 0 0 0 2px rgba(255, 205, 0, 0.6);
+}
+
+/* Dark-Mode Profil-Dropdown */
+[data-theme="dark"] .sc-topbar__profile-menu {
+  background: #2E3235;
+  color: #F4F5F5;
+  border-color: rgba(255, 255, 255, 0.08);
+  box-shadow:
+    0 1px 2px rgba(0, 0, 0, 0.5),
+    0 18px 40px rgba(0, 0, 0, 0.6);
+}
+[data-theme="dark"] .sc-topbar__profile-header { border-bottom-color: rgba(255, 255, 255, 0.08); }
+[data-theme="dark"] .sc-topbar__profile-name   { color: #F4F5F5; }
+[data-theme="dark"] .sc-topbar__profile-role   { color: rgba(244, 245, 245, 0.55); }
+[data-theme="dark"] .sc-topbar__profile-item   { color: #F4F5F5; }
+[data-theme="dark"] .sc-topbar__profile-item svg { color: rgba(244, 245, 245, 0.6); }
+[data-theme="dark"] .sc-topbar__profile-item:hover { background: rgba(255, 255, 255, 0.06); }
+[data-theme="dark"] .sc-topbar__profile-item--danger { color: #F18581; }
+[data-theme="dark"] .sc-topbar__profile-item--danger svg { color: #F18581; }
+[data-theme="dark"] .sc-topbar__profile-item--danger:hover { background: rgba(229, 57, 53, 0.14); }
+
+/* ── Mobile: Marken-Label dezent kürzen ─────────────────────────── */
+@media (max-width: 540px) {
+  .sc-topbar { padding: 0 0.8rem; }
+  .sc-topbar__brand { font-size: 11px; }
+}
+@media (max-width: 400px) {
+  /* "Member of" weglassen, nur noch "SANY Group" */
+  .sc-topbar__brand .sc-topbar__brand-prefix { display: none; }
+}
+
+/* ── Dark Mode ──────────────────────────────────────────────────── */
+[data-theme="dark"] .sc-topbar {
+  background: #1F2224;
+  border-bottom-color: rgba(0, 0, 0, 0.5);
+}
+
+/* ── Print: Topbar verstecken ───────────────────────────────────── */
+@media print {
+  .sc-topbar { display: none; }
+  body.has-ds-topbar { padding-top: 0; }
+  body.has-ds-topbar .sidebar { top: 0; height: 100vh; }
+}
+
+/* ── Alten Theme-Toggle-Button verstecken ───────────────────────── */
+/* Falls js/app.js den alten Button noch einsetzt (z. B. wegen Cache),
+   wird er hier hart ausgeblendet, da der Toggle jetzt in der Topbar
+   wohnt. */
+#themeToggleBtn,
+.topbar__action-btn.theme-toggle {
+  display: none !important;
+}
+
+/* ===================================================================
+   LIQUID-GLASS-BUTTONS (übernommen aus app-NEW-DESIGN-SYSTEM)
+   -------------------------------------------------------------------
+   Im LIGHT-MODE sehen die Buttons aus wie zuvor (solid yellow bzw.
+   solid dark). Im DARK-MODE schalten sie automatisch auf den
+   Liquid-Glass-Look des DS um:
+   • .lg-btn--yellow-solid → translucentes Gelb mit gelbem Text
+   • .lg-btn--dark-glass  → dunkle Glaspille mit weißem Text
+
+   Mouse-Tracking-Shine wird in js/topbar-ds.js verkabelt.
+   =================================================================== */
+
+/* Base-Struktur — gemeinsamer Container für die Glas-Layer */
+.lg-btn {
+  --mouse-x: 50%;
+  --mouse-y: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.6rem;
+  padding: 0.7rem 1.6rem;
+  font-family: 'Open Sans', 'Helvetica Neue', Arial, sans-serif;
+  font-size: 0.85rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  border-radius: 8px;
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+  text-decoration: none;
+  border: none;
+  line-height: 1;
+  outline: none;
+  -webkit-tap-highlight-color: transparent;
+  transition: transform 0.5s cubic-bezier(0.2, 0, 0, 1),
+              background 0.5s cubic-bezier(0.2, 0, 0, 1),
+              box-shadow 0.5s cubic-bezier(0.2, 0, 0, 1),
+              color 0.5s cubic-bezier(0.2, 0, 0, 1);
+}
+.lg-btn:focus, .lg-btn:focus-visible, .lg-btn:active { outline: none; }
+
+/* Glas-Layer (Inner-Span) */
+.lg-btn .btn__glass {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  z-index: -1;
+  overflow: hidden;
+  background: transparent;
+  transition: background 0.5s cubic-bezier(0.2, 0, 0, 1);
+}
+.lg-btn .btn__glass::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  transition: box-shadow 0.5s cubic-bezier(0.2, 0, 0, 1),
+              border-color 0.5s cubic-bezier(0.2, 0, 0, 1);
+}
+.lg-btn .btn__glass::after {
+  content: '';
+  position: absolute;
+  inset: -1px;
+  border-radius: inherit;
+  pointer-events: none;
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.14) 0%, transparent 20%, transparent 80%, rgba(255, 255, 255, 0.10) 100%),
+    linear-gradient(315deg, rgba(255, 255, 255, 0.08) 0%, transparent 15%, transparent 85%, rgba(255, 255, 255, 0.12) 100%);
+  filter: blur(0.5px);
+}
+
+/* Specular-Streak oben (1 px Lichtkante) */
+.lg-btn::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 10%; right: 10%;
+  height: 1px;
+  z-index: 3;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.45) 30%, rgba(255, 255, 255, 0.65) 50%, rgba(255, 255, 255, 0.45) 70%, transparent);
+  pointer-events: none;
+}
+
+/* Mouse-Tracking-Shine */
+.lg-btn::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  border-radius: inherit;
+  pointer-events: none;
+  background: radial-gradient(ellipse 120px 120px at var(--mouse-x) var(--mouse-y), rgba(255, 255, 255, 0.10) 0%, transparent 70%);
+  opacity: 0;
+  transition: opacity 0.3s;
+}
+.lg-btn:hover::after { opacity: 1; }
+
+/* SVG-Icons über dem Shine-Layer halten */
+.lg-btn > svg {
+  position: relative;
+  z-index: 3;
+  width: 16px; height: 16px;
+  flex-shrink: 0;
+}
+
+/* Size-Modifier */
+.lg-btn--lg { padding: 1rem 2.2rem; font-size: 0.95rem; }
+.lg-btn--sm { padding: 0.5rem 1.2rem; font-size: 0.75rem; gap: 0.4rem; }
+
+/* === YELLOW SOLID — Light Mode: solide gelb, Dark Mode: Liquid Glass === */
+.lg-btn--yellow-solid {
+  background: var(--pm-yellow, #FFCD00);
+  color: var(--pm-grey-900, #1A1A1A);
+  box-shadow:
+    0 2px 4px rgba(31, 34, 36, 0.08),
+    0 1px 2px rgba(31, 34, 36, 0.04);
+}
+.lg-btn--yellow-solid .btn__glass { background: transparent; }
+.lg-btn--yellow-solid .btn__glass::before { box-shadow: none; border: 0; }
+.lg-btn--yellow-solid .btn__glass::after { display: none; }
+.lg-btn--yellow-solid::after { display: none; }
+.lg-btn--yellow-solid:hover {
+  background: var(--pm-yellow-dark, #E6B900);
+  color: var(--pm-grey-900, #1A1A1A);
+  transform: translateY(-1px);
+  box-shadow:
+    0 4px 12px rgba(255, 205, 0, 0.30),
+    0 2px 4px rgba(31, 34, 36, 0.08);
+}
+.lg-btn--yellow-solid:active { transform: translateY(0) scale(0.98); }
+.lg-btn--yellow-solid:disabled {
+  opacity: 0.45; cursor: not-allowed; transform: none;
+  box-shadow: 0 1px 2px rgba(31, 34, 36, 0.04);
+}
+
+/* Dark-Mode-Override: Liquid Glass */
+[data-theme="dark"] .lg-btn--yellow-solid {
+  background: rgba(255, 205, 0, 0.06);
+  color: #FFCD00;
+  box-shadow: none;
+}
+[data-theme="dark"] .lg-btn--yellow-solid .btn__glass {
+  background: rgba(255, 205, 0, 0.08);
+  backdrop-filter: blur(2px) brightness(1.02);
+  -webkit-backdrop-filter: blur(2px) brightness(1.02);
+}
+[data-theme="dark"] .lg-btn--yellow-solid .btn__glass::before {
+  box-shadow:
+    inset 0 1px 0 rgba(255, 205, 0, 0.20),
+    inset 0 -1px 0 rgba(255, 205, 0, 0.04),
+    inset 0 0 20px -5px rgba(255, 205, 0, 0.10);
+  border: 1px solid rgba(255, 205, 0, 0.12);
+}
+[data-theme="dark"] .lg-btn--yellow-solid .btn__glass::after { display: block; }
+[data-theme="dark"] .lg-btn--yellow-solid::after { display: block; }
+[data-theme="dark"] .lg-btn--yellow-solid:hover {
+  background: rgba(255, 205, 0, 0.10);
+  color: #FFCD00;
+  transform: translateY(-2px);
+  box-shadow:
+    0 6px 20px rgba(0, 0, 0, 0.16),
+    0 2px 6px rgba(0, 0, 0, 0.12),
+    0 0 28px rgba(255, 205, 0, 0.06);
+}
+
+/* === DARK GLASS — Light Mode: solide dunkel, Dark Mode: noch transparenter === */
+.lg-btn--dark-glass {
+  background: var(--pm-grey-800, #2E3235);
+  color: #FFFFFF;
+  box-shadow:
+    0 2px 4px rgba(31, 34, 36, 0.10),
+    0 1px 2px rgba(31, 34, 36, 0.06);
+}
+.lg-btn--dark-glass .btn__glass { background: transparent; }
+.lg-btn--dark-glass .btn__glass::before { box-shadow: none; border: 0; }
+.lg-btn--dark-glass .btn__glass::after { display: none; }
+.lg-btn--dark-glass::after { display: none; }
+.lg-btn--dark-glass svg { color: #FFFFFF; }
+.lg-btn--dark-glass:hover {
+  background: var(--pm-grey-900, #1F2224);
+  color: #FFFFFF;
+  transform: translateY(-1px);
+  box-shadow:
+    0 6px 16px rgba(31, 34, 36, 0.22),
+    0 2px 6px rgba(31, 34, 36, 0.12);
+}
+.lg-btn--dark-glass:active { transform: translateY(0) scale(0.98); }
+.lg-btn--dark-glass:disabled { opacity: 0.45; cursor: not-allowed; transform: none; }
+
+/* Dark-Mode-Override: echtes Liquid Glass */
+[data-theme="dark"] .lg-btn--dark-glass {
+  background: rgba(255, 255, 255, 0.04);
+  color: #FFFFFF;
+  box-shadow: none;
+}
+[data-theme="dark"] .lg-btn--dark-glass .btn__glass {
+  background: rgba(255, 255, 255, 0.06);
+  backdrop-filter: blur(10px) saturate(160%);
+  -webkit-backdrop-filter: blur(10px) saturate(160%);
+}
+[data-theme="dark"] .lg-btn--dark-glass .btn__glass::before {
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.20),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.20),
+    inset 0 0 20px -5px rgba(255, 255, 255, 0.10);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+}
+[data-theme="dark"] .lg-btn--dark-glass .btn__glass::after { display: block; }
+[data-theme="dark"] .lg-btn--dark-glass::after {
+  display: block;
+  background: radial-gradient(ellipse 140px 140px at var(--mouse-x) var(--mouse-y), rgba(255, 255, 255, 0.18) 0%, rgba(255, 255, 255, 0.06) 35%, transparent 70%);
+}
+[data-theme="dark"] .lg-btn--dark-glass:hover {
+  background: rgba(255, 255, 255, 0.10);
+  color: #FFFFFF;
+  transform: translateY(-2px);
+  box-shadow:
+    0 8px 24px rgba(0, 0, 0, 0.30),
+    0 2px 6px rgba(0, 0, 0, 0.18);
+}

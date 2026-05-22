@@ -21,7 +21,19 @@ document.addEventListener('DOMContentLoaded', () => {
     const fortschrittPct = gesamtSoll > 0
       ? Math.min(Math.round((gesamtIst / gesamtSoll) * 100), 100)
       : 0;
-    const fehltageProzent = 35;
+
+    // Fehltage dynamisch aus den Berichtswochen ableiten:
+    // Krank- + sonstige Abwesenheits-Tage werden als Fehltage gezählt.
+    // Urlaub und Feiertag sind keine Fehltage. Schwellwert für den
+    // Ring-Fill: 30 Tage entsprechen 100%.
+    const wochen = DB.getWochenFuerAzubi(viewAzubiId);
+    const fehltage = wochen.reduce((sum, w) => {
+      return sum + (w.tage || []).filter(t =>
+        t.anwesenheit === 'krank' || t.anwesenheit === 'sonstige Abwesenheit'
+      ).length;
+    }, 0);
+    const FEHLTAGE_SCHWELLE = 30;
+    const fehltageProzent = Math.min(Math.round((fehltage / FEHLTAGE_SCHWELLE) * 100), 100);
 
     const main = document.getElementById('mainContent');
     main.innerHTML = `
@@ -48,15 +60,16 @@ document.addEventListener('DOMContentLoaded', () => {
           <div class="circle-stat__ring">
             <svg viewBox="0 0 80 80">
               <circle class="track" cx="40" cy="40" r="34"/>
-              <circle class="fill fill--error" cx="40" cy="40" r="34"
-                      data-pct="${Math.min(fehltageProzent / 50 * 100, 100)}"/>
+              <circle class="fill ${fehltage >= 20 ? 'fill--error' : fehltage >= 10 ? 'fill--warning' : 'fill--success'}" cx="40" cy="40" r="34"
+                      data-pct="${fehltageProzent}"/>
             </svg>
             <div class="circle-stat__value">
-              <span class="circle-stat__num">35</span>
-              <span class="circle-stat__unit">Tage</span>
+              <span class="circle-stat__num" data-len="${String(fehltage).length}">${fehltage}</span>
+              <span class="circle-stat__unit">${fehltage === 1 ? 'Tag' : 'Tage'}</span>
             </div>
           </div>
-          <span class="circle-stat__label">Fehltage Betrieb</span>
+          <span class="circle-stat__label">Fehltage</span>
+          <span class="circle-stat__sub">krank + sonstige Abwesenheit</span>
         </div>
         <div class="circle-stat animate-fade-in" style="animation-delay:60ms">
           <div class="circle-stat__ring">
@@ -66,7 +79,7 @@ document.addEventListener('DOMContentLoaded', () => {
                       data-pct="${fortschrittPct}"/>
             </svg>
             <div class="circle-stat__value">
-              <span class="circle-stat__num">${Math.round(gesamtIst)}</span>
+              <span class="circle-stat__num" data-len="${String(Math.round(gesamtIst)).length}">${Math.round(gesamtIst)}</span>
               <span class="circle-stat__unit">Std.</span>
             </div>
           </div>
@@ -81,7 +94,7 @@ document.addEventListener('DOMContentLoaded', () => {
                       data-pct="${fortschrittPct}"/>
             </svg>
             <div class="circle-stat__value">
-              <span class="circle-stat__num">${fortschrittPct}</span>
+              <span class="circle-stat__num" data-len="${String(fortschrittPct).length}">${fortschrittPct}</span>
               <span class="circle-stat__unit">%</span>
             </div>
           </div>

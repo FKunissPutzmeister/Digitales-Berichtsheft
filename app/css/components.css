@@ -46,7 +46,7 @@
 }
 .btn-primary:focus-visible {
   outline: none;
-  box-shadow: var(--ring-yellow);
+  box-shadow: 0 0 0 2px var(--pm-white), 0 0 0 5px var(--pm-yellow);
 }
 
 .btn-secondary {
@@ -345,8 +345,7 @@
   letter-spacing: 0.02em;
 }
 .form-label .required {
-  color: var(--color-error);
-  margin-left: 2px;
+  display: none;
 }
 .form-control {
   width: 100%;
@@ -497,8 +496,10 @@ select.form-control {
   position: fixed;
   inset: 0;
   background: var(--surface-overlay);
-  backdrop-filter: blur(4px) saturate(120%);
-  -webkit-backdrop-filter: blur(4px) saturate(120%);
+  /* Stärkeres Frost-Glass für mehr Tiefe; CSS-Filter sind GPU-beschleunigt
+     auf modernen Browsern und kosten ~0.5ms pro Frame bei 1080p. */
+  backdrop-filter: blur(12px) saturate(140%);
+  -webkit-backdrop-filter: blur(12px) saturate(140%);
   z-index: var(--z-modal);
   display: flex;
   align-items: center;
@@ -1061,8 +1062,12 @@ select.form-control {
   background: var(--pm-white);
 }
 
-/* Kompatibilitäts-Stile, falls noch native `.day-card__select`-Styles greifen */
+/* Kompatibilitäts-Stile: PMSelect kopiert beim Wrapping alle Klassen vom
+   nativen <select> auf den Wrapper-Div. Damit dort keine nativen Select-
+   Styles (eigener Chevron, Border, Background) durchschlagen und mit
+   .pm-select__trigger doppelt erscheinen, nullen wir hier alles aus. */
 .pm-select.day-card__select,
+.pm-select.tag-row__select,
 .pm-select.form-control {
   background: none !important;
   border: none !important;
@@ -1071,6 +1076,27 @@ select.form-control {
   appearance: auto;
   background-image: none !important;
   min-width: 0;
+  box-shadow: none !important;
+}
+/* Auch die --needs-input-Variante darf nicht auf den Wrapper durchschlagen */
+.pm-select.tag-row__select--needs-input {
+  background: none !important;
+  background-image: none !important;
+  border: none !important;
+}
+/* Statt dessen wird der Trigger selbst gelb hervorgehoben, damit der
+   Empty-State des Pflichtfeldes sichtbar bleibt. */
+.pm-select.tag-row__select--needs-input .pm-select__trigger {
+  border-color: var(--pm-yellow);
+  background: var(--pm-yellow-bg);
+}
+.pm-select.tag-row__select--needs-input .pm-select__trigger:hover {
+  background: var(--pm-yellow-pale);
+}
+.pm-select.tag-row__select--needs-input .pm-select__label {
+  color: var(--pm-grey-700);
+  font-weight: var(--fw-regular);
+  font-style: italic;
 }
 
 /* Im Druck native Selects zeigen, eigenes Menü unterdrücken */

@@ -220,6 +220,41 @@
   font-size: var(--text-xs);
   color: rgba(255,255,255,0.45);
   white-space: nowrap;
+  margin-top: 2px;
+}
+
+/* Rollen-Badge: kleine Pill, farblich je Rolle differenziert.
+   – Azubi:     blau-getintet (Info)
+   – Ausbilder: gelb (Marken-Akzent)
+   – Admin:     grau (neutral, übergeordnet) */
+.role-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: var(--r-full);
+  font-size: 9px;
+  font-weight: var(--fw-bold);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  line-height: 1.4;
+  background: rgba(255,255,255,0.10);
+  color: rgba(255,255,255,0.85);
+  border: 1px solid transparent;
+}
+.role-badge[data-role="azubi"] {
+  background: rgba(111, 177, 242, 0.22);
+  color: #B4D7F7;
+  border-color: rgba(111, 177, 242, 0.30);
+}
+.role-badge[data-role="ausbilder"] {
+  background: rgba(255, 195, 0, 0.22);
+  color: var(--pm-yellow);
+  border-color: rgba(255, 195, 0, 0.40);
+}
+.role-badge[data-role="admin"] {
+  background: rgba(255, 255, 255, 0.12);
+  color: #E4E4E8;
+  border-color: rgba(255, 255, 255, 0.18);
 }
 
 /* ── Collapsed Sidebar ── */
@@ -248,6 +283,41 @@
 }
 .sidebar.collapsed .sidebar__footer { padding: var(--sp-3) var(--sp-2); }
 .sidebar.collapsed .sidebar__user { justify-content: center; }
+
+/* ── Sidebar-Tooltip (positioniert per JS) ──────────────────────
+   Schwebt rechts neben dem Icon. Wird nur im Collapsed-Modus
+   eingeblendet (Aktivierung läuft über JS, das .visible togglet). */
+.sidebar-tooltip {
+  position: fixed;
+  z-index: calc(var(--z-sidebar) + 1);
+  background: var(--inverse-surface);
+  color: var(--on-inverse-text);
+  font-size: var(--text-xs);
+  font-weight: var(--fw-bold);
+  letter-spacing: 0.02em;
+  padding: 6px 10px;
+  border-radius: var(--r-md);
+  box-shadow: var(--shadow-md);
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  transform: translateX(-6px);
+  transition: opacity var(--t-fast), transform var(--t-fast);
+}
+.sidebar-tooltip::before {
+  content: '';
+  position: absolute;
+  left: -3px;
+  top: 50%;
+  transform: translateY(-50%) rotate(45deg);
+  width: 8px;
+  height: 8px;
+  background: var(--inverse-surface);
+}
+.sidebar-tooltip.visible {
+  opacity: 1;
+  transform: translateX(0);
+}
 
 /* ── Initial-Render mit eingeklappter Sidebar ──────────────────────
    Marker html.sidebar-init-collapsed wird synchron im <head>

@@ -49,6 +49,7 @@
 }
 .circle-stat__ring .fill--success { stroke: var(--color-success-mid); }
 .circle-stat__ring .fill--info    { stroke: var(--color-info-mid); }
+.circle-stat__ring .fill--warning { stroke: var(--color-warning-mid); }
 .circle-stat__ring .fill--error   { stroke: var(--color-error-mid); }
 
 .circle-stat__value {
@@ -65,7 +66,16 @@
   font-weight: var(--fw-bold);
   color: var(--pm-grey-900);
   line-height: 1;
+  /* Tabellen-Ziffern: gleich breite Glyphen, damit der Wert optisch
+     mittig im Kreis sitzt, egal ob "37" oder "2037". */
+  font-variant-numeric: tabular-nums;
 }
+/* Bei 4-stelligen Werten (z.B. Soll-/Ist-Stunden) würde --text-xl den
+   Innenraum des Kreises sprengen – Schriftgröße responsiv anpassen,
+   sodass die Zahl weiterhin zentriert und innerhalb des Rings bleibt. */
+.circle-stat__num[data-len="4"] { font-size: var(--text-lg); }
+.circle-stat__num[data-len="5"],
+.circle-stat__num[data-len="6"] { font-size: var(--text-base); }
 .circle-stat__unit {
   font-size: var(--text-xs);
   color: var(--pm-grey-500);

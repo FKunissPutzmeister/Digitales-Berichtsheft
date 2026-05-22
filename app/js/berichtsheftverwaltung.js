@@ -124,50 +124,6 @@ document.addEventListener('DOMContentLoaded', () => {
           </div></div>
         </details>
 
-        <!-- Berichtsheftexport defekt -->
-        <details class="verwaltung-panel">
-          <summary class="verwaltung-panel__header">
-            <div class="verwaltung-panel__icon">
-              <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
-            </div>
-            <div class="verwaltung-panel__header-text">
-              <div class="verwaltung-panel__title">Berichtsheftexport defekt?</div>
-              <div class="verwaltung-panel__desc">Behebe Fehler im Berichtsheft-Export.</div>
-            </div>
-          </summary>
-          <div class="verwaltung-panel__body-wrap"><div class="verwaltung-panel__body">
-            <div class="repair-status repair-status--ok">
-              <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-              <span style="font-size:var(--text-sm)">Keine bekannten Probleme gefunden.</span>
-            </div>
-            <button class="btn btn-outline" id="repairBtn">
-              <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" style="width:16px;height:16px"><path stroke-linecap="round" stroke-linejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><circle cx="12" cy="12" r="3"/></svg>
-              Berichtsheftexport reparieren
-            </button>
-          </div></div>
-        </details>
-
-        <!-- Unabhängige Anhänge -->
-        <details class="verwaltung-panel">
-          <summary class="verwaltung-panel__header">
-            <div class="verwaltung-panel__icon">
-              <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-            </div>
-            <div class="verwaltung-panel__header-text">
-              <div class="verwaltung-panel__title">Unabhängige Berichtsheftanhänge</div>
-              <div class="verwaltung-panel__desc">Anhänge, die keiner Berichtswoche zugeordnet sind.</div>
-            </div>
-          </summary>
-          <div class="verwaltung-panel__body-wrap"><div class="verwaltung-panel__body">
-            <p style="font-size:var(--text-sm);color:var(--pm-grey-500);margin-bottom:var(--sp-4)">
-              Hier kannst du Anhänge zu deinem Berichtsheft hinzufügen, die keiner bestimmten Berichtswoche zugeordnet sind (z.B. Zertifikate, Bescheinigungen).
-            </p>
-            <button class="btn btn-outline" id="addIndepAnhangBtn">
-              <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" style="width:16px;height:16px"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-              Anhänge hinzufügen
-            </button>
-          </div></div>
-        </details>
       </div>
     `;
 
@@ -183,35 +139,31 @@ document.addEventListener('DOMContentLoaded', () => {
       });
     });
 
-    document.getElementById('repairBtn')?.addEventListener('click', () => {
-      Toast.success('Reparatur', 'Keine Fehler gefunden. Export ist in Ordnung.');
-    });
-
-    document.getElementById('addIndepAnhangBtn')?.addEventListener('click', () => {
-      document.getElementById('fileInput').click();
-    });
-
     // Datei-Upload
     const fileInput = document.getElementById('fileInput');
     const uploadZone = document.getElementById('uploadZone');
 
-    fileInput?.addEventListener('change', (e) => {
-      Array.from(e.target.files).forEach(f => {
-        attachments.push({ name: f.name, size: formatFileSize(f.size), type: f.type });
+    function handleFiles(files) {
+      const arr = Array.from(files);
+      if (!arr.length) return;
+      runUploadProgress(arr.length, () => {
+        arr.forEach(f => attachments.push({
+          name: f.name, size: formatFileSize(f.size), type: f.type, fresh: true,
+        }));
+        document.getElementById('attachmentList').innerHTML = renderAttachments();
+        // "fresh"-Flag nach der Einblend-Animation entfernen, damit der
+        // Effekt nicht beim nächsten Re-Render erneut feuert.
+        setTimeout(() => attachments.forEach(a => delete a.fresh), 600);
       });
-      document.getElementById('attachmentList').innerHTML = renderAttachments();
-      Toast.success('Hochgeladen', `${e.target.files.length} Datei(en) hinzugefügt.`);
-    });
+    }
 
+    fileInput?.addEventListener('change', (e) => handleFiles(e.target.files));
     uploadZone?.addEventListener('dragover', (e) => { e.preventDefault(); uploadZone.classList.add('drag-over'); });
     uploadZone?.addEventListener('dragleave', () => uploadZone.classList.remove('drag-over'));
     uploadZone?.addEventListener('drop', (e) => {
       e.preventDefault();
       uploadZone.classList.remove('drag-over');
-      Array.from(e.dataTransfer.files).forEach(f => {
-        attachments.push({ name: f.name, size: formatFileSize(f.size), type: f.type });
-      });
-      document.getElementById('attachmentList').innerHTML = renderAttachments();
+      handleFiles(e.dataTransfer.files);
     });
 
     // Delete Anhang
@@ -239,7 +191,7 @@ document.addEventListener('DOMContentLoaded', () => {
   function renderAttachments() {
     if (!attachments.length) return '';
     return attachments.map((a, i) => `
-      <div class="attachment-item">
+      <div class="attachment-item${a.fresh ? ' attachment-item--fresh' : ''}">
         <div class="attachment-item__icon">
           <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" style="width:16px;height:16px">
             <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/>
@@ -252,6 +204,77 @@ document.addEventListener('DOMContentLoaded', () => {
         </button>
       </div>
     `).join('');
+  }
+
+  /* Simuliertes Upload-Feedback: Progress-Ring → Checkmark → Toast.
+     Da der Prototyp keine echte Backend-Verbindung hat, animieren wir
+     eine plausible 900-ms-Sequenz. Echte Implementierung würde den
+     Fortschritt aus XHR/fetch-Events ziehen, die UI bleibt gleich. */
+  function runUploadProgress(fileCount, onComplete) {
+    const overlay = ensureUploadOverlay();
+    const ring   = overlay.querySelector('.upload-progress__ring-fill');
+    const num    = overlay.querySelector('.upload-progress__num');
+    const label  = overlay.querySelector('.upload-progress__label');
+    const check  = overlay.querySelector('.upload-progress__check');
+
+    overlay.classList.remove('upload-progress--done');
+    overlay.classList.add('upload-progress--visible');
+    label.textContent = fileCount === 1
+      ? '1 Datei wird hochgeladen…'
+      : `${fileCount} Dateien werden hochgeladen…`;
+
+    const total = 900; // ms
+    const start = performance.now();
+    function step(now) {
+      const t = Math.min(1, (now - start) / total);
+      const eased = 1 - Math.pow(1 - t, 3); // ease-out-cubic
+      const pct = Math.round(eased * 100);
+      num.textContent = pct + '%';
+      // SVG-Kreis: circumference = 2πr = 2π*32 ≈ 201
+      const circ = 201;
+      ring.style.strokeDashoffset = String(circ * (1 - eased));
+      if (t < 1) {
+        requestAnimationFrame(step);
+      } else {
+        // Erfolgs-State: Checkmark einblenden, Ring kurz pulsen, dann fade-out
+        overlay.classList.add('upload-progress--done');
+        label.textContent = fileCount === 1
+          ? 'Datei hinzugefügt'
+          : `${fileCount} Dateien hinzugefügt`;
+        onComplete?.();
+        setTimeout(() => {
+          overlay.classList.remove('upload-progress--visible');
+        }, 700);
+      }
+    }
+    requestAnimationFrame(step);
+  }
+
+  function ensureUploadOverlay() {
+    let overlay = document.getElementById('uploadProgressOverlay');
+    if (overlay) return overlay;
+    overlay = document.createElement('div');
+    overlay.id = 'uploadProgressOverlay';
+    overlay.className = 'upload-progress';
+    overlay.setAttribute('role', 'status');
+    overlay.setAttribute('aria-live', 'polite');
+    overlay.innerHTML = `
+      <div class="upload-progress__card">
+        <div class="upload-progress__ring-wrap">
+          <svg class="upload-progress__ring" viewBox="0 0 72 72" aria-hidden="true">
+            <circle class="upload-progress__ring-track" cx="36" cy="36" r="32"></circle>
+            <circle class="upload-progress__ring-fill"  cx="36" cy="36" r="32"></circle>
+          </svg>
+          <span class="upload-progress__num">0%</span>
+          <span class="upload-progress__check" aria-hidden="true">
+            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3.2"><polyline stroke-linecap="round" stroke-linejoin="round" points="20 6 9 17 4 12"/></svg>
+          </span>
+        </div>
+        <div class="upload-progress__label">Wird hochgeladen…</div>
+      </div>
+    `;
+    document.body.appendChild(overlay);
+    return overlay;
   }
 
   function formatFileSize(bytes) {
