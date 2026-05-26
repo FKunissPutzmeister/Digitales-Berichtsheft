@@ -96,11 +96,20 @@ function initLayout(activeNavId) {
     el.style.display = (['admin', 'ausbilder'].includes(user.role)) ? '' : 'none';
   });
 
-  // Abmelden-Button
-  document.getElementById('logoutBtn')?.addEventListener('click', () => {
-    DB.logout();
-    window.location.href = 'index.html';
-  });
+  // Abmelden-Button via Event-Delegation an document.body. Der Button
+  // wird je nach Seite zu unterschiedlichen Zeitpunkten in den DOM
+  // gehängt (auf der Profil-Seite z.B. erst nach render(), also NACH
+  // initLayout). Direktes addEventListener auf getElementById('logoutBtn')
+  // greift dort ins Leere — daher Delegation.
+  if (!document.body.dataset.logoutBound) {
+    document.body.dataset.logoutBound = '1';
+    document.body.addEventListener('click', (e) => {
+      if (e.target.closest('#logoutBtn')) {
+        DB.logout();
+        window.location.href = 'index.html';
+      }
+    });
+  }
 
   // Nutzer-Dropdown
   const userBtn = document.getElementById('topbarUserBtn');
