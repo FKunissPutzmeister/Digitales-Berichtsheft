@@ -1461,6 +1461,75 @@ body[data-page="wochenansicht"] .main-content {
   letter-spacing: 0.02em;
 }
 
+/* ── KW-Wechsel-Animation ─────────────────────────────────────────
+   Beim Klick auf prev/next-Pfeil bekommt der Pane unter der Toolbar
+   ein data-anim="next|prev" Attribut. Inhalt fadet leicht ein und
+   gleitet aus der Richtung herein, in die navigiert wurde; das KW-
+   Label im Toolbar-Kern macht eine subtilere Variante derselben
+   Bewegung. Bewusst kurz (260–340 ms) und mit ease-out, damit der
+   Wechsel spürbar ist, aber das Arbeiten nicht ausbremst. */
+@keyframes week-pane-in-next {
+  0%   { opacity: 0; transform: translate3d(28px, 0, 0); }
+  60%  { opacity: 1; }
+  100% { opacity: 1; transform: translate3d(0, 0, 0); }
+}
+@keyframes week-pane-in-prev {
+  0%   { opacity: 0; transform: translate3d(-28px, 0, 0); }
+  60%  { opacity: 1; }
+  100% { opacity: 1; transform: translate3d(0, 0, 0); }
+}
+@keyframes week-kw-in-next {
+  0%   { opacity: 0; transform: translate3d(10px, 0, 0); filter: blur(2px); }
+  60%  { opacity: 1; filter: blur(0); }
+  100% { opacity: 1; transform: translate3d(0, 0, 0); filter: blur(0); }
+}
+@keyframes week-kw-in-prev {
+  0%   { opacity: 0; transform: translate3d(-10px, 0, 0); filter: blur(2px); }
+  60%  { opacity: 1; filter: blur(0); }
+  100% { opacity: 1; transform: translate3d(0, 0, 0); filter: blur(0); }
+}
+
+.week-pane[data-anim="next"] {
+  animation: week-pane-in-next 340ms cubic-bezier(.22, .8, .26, 1) both;
+  will-change: transform, opacity;
+}
+.week-pane[data-anim="prev"] {
+  animation: week-pane-in-prev 340ms cubic-bezier(.22, .8, .26, 1) both;
+  will-change: transform, opacity;
+}
+
+.week-kw-block__core[data-anim="next"] {
+  animation: week-kw-in-next 320ms cubic-bezier(.22, .8, .26, 1) both;
+}
+.week-kw-block__core[data-anim="prev"] {
+  animation: week-kw-in-prev 320ms cubic-bezier(.22, .8, .26, 1) both;
+}
+
+/* Subtiles "Press"-Feedback der Pfeil-Buttons, damit der Klick
+   physisch wirkt (statt nur Hover-Tint). */
+.week-kw-block__nav {
+  transition: background-color 140ms ease, border-color 140ms ease,
+              color 140ms ease, transform 120ms cubic-bezier(.22, .8, .26, 1);
+}
+.week-kw-block__nav:active {
+  transform: scale(0.92);
+}
+
+/* Wer reduzierte Bewegung will, bekommt nur den Fade — keine Slide-Translation
+   und keinen Blur. */
+@media (prefers-reduced-motion: reduce) {
+  .week-pane[data-anim="next"],
+  .week-pane[data-anim="prev"],
+  .week-kw-block__core[data-anim="next"],
+  .week-kw-block__core[data-anim="prev"] {
+    animation: none;
+    opacity: 1;
+    transform: none;
+    filter: none;
+  }
+  .week-kw-block__nav:active { transform: none; }
+}
+
 /* ── Pflichtfeld-Hinweis (eigene Zeile unter Toolbar) ──
    Dezenter Yellow-Tint-Banner statt grauer Fußnote – signalisiert direkt,
    dass die markierten Felder ausgefüllt werden müssen. */

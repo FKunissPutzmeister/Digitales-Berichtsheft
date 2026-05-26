@@ -45,6 +45,10 @@ document.addEventListener('DOMContentLoaded', () => {
     sessionStorage.removeItem('gotoYear');
   }
 
+  // Richtung der letzten KW-Navigation ('next' | 'prev' | null) — wird einmalig
+  // beim nächsten render() ans Markup gehängt, um die Slide-Animation zu triggern.
+  let weekAnimDirection = null;
+
   let viewAzubiId = user.role === 'azubi' ? user.id : null;
   if (savedAzubiId && user.role !== 'azubi') {
     viewAzubiId = parseInt(savedAzubiId);
@@ -191,7 +195,7 @@ document.addEventListener('DOMContentLoaded', () => {
             <button class="week-kw-block__nav" id="prevWeekBtn" aria-label="Vorherige Woche">
               <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg>
             </button>
-            <div class="week-kw-block__core">
+            <div class="week-kw-block__core" data-anim="${weekAnimDirection || ''}">
               <div class="week-kw-block__kw">KW ${currentKW}</div>
               <div class="week-kw-block__range">${DateUtil.formatDateShort(DateUtil.toISODate(monday))} – ${DateUtil.formatDateShort(DateUtil.toISODate(sunday))}</div>
             </div>
@@ -202,6 +206,7 @@ document.addEventListener('DOMContentLoaded', () => {
         </div>
       </div>
 
+      <div class="week-pane" data-anim="${weekAnimDirection || ''}">
       <div class="erfassung-mode" role="status" aria-label="Erfassungs-Modus">
         <span class="erfassung-mode__label">Erfassungs-Modus:</span>
         <div class="erfassung-mode__group" aria-hidden="true">
@@ -267,7 +272,12 @@ document.addEventListener('DOMContentLoaded', () => {
         </button>
       </div>
       ` : '')}
+      </div>
     `;
+
+    // Animation-Direction nur fürs aktuelle Render setzen, danach zurücksetzen,
+    // damit Re-Renders (Speichern, Autosave, Kommentare …) keine Slide-Animation auslösen.
+    weekAnimDirection = null;
 
     bindEvents(woche, azubiId, berichtTyp, monday);
   }
@@ -1364,6 +1374,7 @@ document.addEventListener('DOMContentLoaded', () => {
       prev.setDate(prev.getDate() - 7);
       currentKW = DateUtil.getKW(prev);
       currentYear = DateUtil.getKWYear(prev);
+      weekAnimDirection = 'prev';
       render();
     });
     document.getElementById('nextWeekBtn')?.addEventListener('click', () => {
@@ -1371,6 +1382,7 @@ document.addEventListener('DOMContentLoaded', () => {
       next.setDate(next.getDate() + 7);
       currentKW = DateUtil.getKW(next);
       currentYear = DateUtil.getKWYear(next);
+      weekAnimDirection = 'next';
       render();
     });
 

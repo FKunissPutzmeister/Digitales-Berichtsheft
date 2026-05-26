@@ -41,6 +41,13 @@
   --ambient-yellow:     rgba(255, 195, 0, 0.10);
   --ambient-yellow-2:   rgba(255, 195, 0, 0.05);
   --ambient-neutral:    rgba(15, 23, 42, 0.04);
+
+  /* Minimalistische App-Hintergründe: 16:9, kantenlastige Motive.
+     background-size: cover hält sie verzerrungsfrei; die Overlays sichern
+     Lesbarkeit unter Karten und Tabellen. */
+  --app-bg-image:        url('../assets/backgrounds/abstract-app-light.png');
+  --app-bg-overlay:      linear-gradient(180deg, rgba(247, 247, 247, 0.78), rgba(247, 247, 247, 0.90));
+  --app-bg-vignette:     radial-gradient(100% 80% at 50% 20%, rgba(255, 255, 255, 0.30), rgba(247, 247, 247, 0.82) 70%);
 }
 
 [data-theme="dark"] {
@@ -58,6 +65,10 @@
   --ambient-yellow:     rgba(255, 195, 0, 0.07);
   --ambient-yellow-2:   rgba(255, 195, 0, 0.03);
   --ambient-neutral:    rgba(255, 255, 255, 0.03);
+
+  --app-bg-image:        url('../assets/backgrounds/abstract-app-dark.png');
+  --app-bg-overlay:      linear-gradient(180deg, rgba(44, 44, 44, 0.62), rgba(44, 44, 44, 0.80));
+  --app-bg-vignette:     radial-gradient(90% 80% at 50% 20%, rgba(255, 195, 0, 0.055), rgba(26, 26, 26, 0.68) 72%);
 }
 
 /* ===================================================================
@@ -79,6 +90,23 @@ body::after {
   filter: blur(80px);
   /* opacity wird über die rgba-Werte der ambient-Tokens gesteuert */
 }
+
+body:not(.login-page) {
+  background-image:
+    var(--app-bg-overlay),
+    var(--app-bg-vignette),
+    var(--app-bg-image);
+  background-size: cover, cover, cover;
+  background-position: center, center, center;
+  background-repeat: no-repeat;
+  background-attachment: fixed;
+}
+
+body:not(.login-page) .app-shell {
+  position: relative;
+  z-index: 1;
+}
+
 body::before {
   /* Lichtquelle oben rechts – Markengelb */
   top: -180px;
@@ -105,6 +133,13 @@ body.login-page::after {
 @media (prefers-reduced-transparency: reduce) {
   body::before,
   body::after { display: none; }
+}
+
+@media (max-width: 768px) {
+  body:not(.login-page) {
+    background-attachment: scroll;
+    background-position: center top, center top, center top;
+  }
 }
 
 /* ===================================================================
