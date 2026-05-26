@@ -3,26 +3,39 @@
    =================================================================== */
 
 const DB_KEY = 'pm_berichtsheft';
+/* Schema-Version für Demo-Daten. Bei jeder Erhöhung wird die in
+   localStorage abgelegte DB beim nächsten Load einmalig komplett neu
+   geseedet — sonst überleben veraltete Demo-Identitäten (Name, Email,
+   Beruf) Code-Änderungen, weil die alte Migration-Logik bestehende
+   Seed-User nicht überschrieben hat.
+   ──
+   Bump-Historie:
+   • 1 (implizit): Erst-Stand mit "Florian Kuniß"
+   • 2: Azubi-Demo umbenannt zu "Florian Kern" (Fachinformatiker für
+     Systemintegration, 1. Lehrjahr, 2025–2028). Zweiter Ausbilder-
+     "Florian Kern" zu "Markus Berger" umbenannt, um Login-Kollision
+     auf florian.kern@putzmeister.com zu vermeiden. */
+const SCHEMA_VERSION = 2;
 
 const DEFAULT_DATA = {
   users: [
     {
       id: 1,
-      name: 'Florian Kuniß',
-      email: 'florian.kuniss@putzmeister.com',
+      name: 'Florian Kern',
+      email: 'florian.kern@putzmeister.com',
       password: 'azubi123',
       role: 'azubi',
       initials: 'FK',
       berichtTyp: 'täglich',
-      beruf: 'Fachinformatiker Anwendungsentwicklung',
-      berufsbildnummer: '701701000000',
+      beruf: 'Fachinformatiker für Systemintegration',
+      berufsbildnummer: '701702000000',
       azubiNr: '2468103',
       ihkNr: '175',
       ihkName: 'Industrie- und Handelskammer Region Stuttgart',
-      ausbildungsBeginn: '2023-09-01',
-      ausbildungsEnde: '2026-08-31',
+      ausbildungsBeginn: '2025-09-01',
+      ausbildungsEnde: '2028-08-31',
       unternehmen: 'Putzmeister Holding GmbH',
-      abteilung: 'Software Entwicklung',
+      abteilung: 'IT Infrastruktur',
     },
     {
       id: 2,
@@ -37,11 +50,14 @@ const DEFAULT_DATA = {
     },
     {
       id: 3,
-      name: 'Florian Kern',
-      email: 'florian.kern@putzmeister.com',
+      // Zweiter Ausbilder-Account. Frühere Email kollidiert mit dem Azubi-
+      // Demo (id 1, Florian Kern) → daher hier auf einen anderen Namen
+      // ausgewichen, damit beide Demos eigenständig einloggbar bleiben.
+      name: 'Markus Berger',
+      email: 'markus.berger@putzmeister.com',
       password: 'ausbilder123',
       role: 'ausbilder',
-      initials: 'FK2',
+      initials: 'MB',
       unternehmen: 'Putzmeister Holding GmbH',
       abteilung: 'IT Infrastruktur',
     },
@@ -221,16 +237,30 @@ const DB = {
   _data: null,
 
   load() {
+    let stored = null;
     try {
       const raw = localStorage.getItem(DB_KEY);
-      this._data = raw ? JSON.parse(raw) : JSON.parse(JSON.stringify(DEFAULT_DATA));
-    } catch {
+      stored = raw ? JSON.parse(raw) : null;
+    } catch { /* gleich Re-Seed */ }
+
+    // Wenn keine Daten ODER veraltetes Schema → komplett neu seeden.
+    // Verhindert, dass alte Demo-Identitäten (z.B. "Florian Kuniß")
+    // den Login der neuen Demo-User blockieren. Wenn die App produktiv
+    // genutzt wird, sollten User-Daten serverseitig gehalten werden —
+    // localStorage ist hier nur Mock-Persistenz.
+    const storedVersion = stored && typeof stored.schemaVersion === 'number'
+      ? stored.schemaVersion
+      : 0;
+    if (!stored || storedVersion < SCHEMA_VERSION) {
       this._data = JSON.parse(JSON.stringify(DEFAULT_DATA));
+      this._data.schemaVersion = SCHEMA_VERSION;
+      try { localStorage.setItem(DB_KEY, JSON.stringify(this._data)); } catch {}
+      return this._data;
     }
-    // Migration:
-    //  – Fehlende Seed-User (z.B. Demo-Accounts, die später dazukamen)
-    //    in eine bestehende localStorage-DB nachziehen
-    //  – Neue Felder (berichtTyp etc.) auf bestehenden Usern ergänzen
+    this._data = stored;
+
+    // Zusatz-Migrationen für Daten innerhalb derselben Schema-Version
+    // (neue optionale Felder, fehlende Hilfslisten etc.).
     if (!Array.isArray(this._data.users)) this._data.users = [];
     DEFAULT_DATA.users.forEach(def => {
       const existing = this._data.users.find(u => u.id === def.id);
@@ -240,7 +270,6 @@ const DB = {
         existing.berichtTyp = def.berichtTyp;
       }
     });
-    // Migration: Benachrichtigungs-Liste anlegen, falls altes Storage-Format
     if (!Array.isArray(this._data.benachrichtigungen)) {
       this._data.benachrichtigungen = [];
     }
@@ -253,6 +282,7 @@ const DB = {
 
   reset() {
     this._data = JSON.parse(JSON.stringify(DEFAULT_DATA));
+    this._data.schemaVersion = SCHEMA_VERSION;
     this.save();
   },
 

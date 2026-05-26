@@ -5,9 +5,9 @@ document.addEventListener('DOMContentLoaded', () => {
   const user = initPage('nav-jahresansicht', [{ label: 'Jahresansicht', href: 'jahresansicht.html' }]);
   if (!user) return;
 
-  // Gleicher Layout-Marker wie in der Wochenansicht: erlaubt der Seite
-  // volle Breite und greift auf die geteilten View-Tab-Styles zu.
-  document.body.dataset.page = 'wochenansicht';
+  // Layout-Marker: Jahresansicht braucht die volle Breite, damit die
+  // 12-Monats-Kalenderkacheln nebeneinander Platz finden.
+  document.body.dataset.page = 'jahresansicht';
 
   let currentYear = new Date().getFullYear();
   let viewAzubiId = user.role === 'azubi' ? user.id : null;

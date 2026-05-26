@@ -5,6 +5,9 @@ document.addEventListener('DOMContentLoaded', () => {
   const user = initPage('nav-ausbildungsstand', [{ label: 'Ausbildungsstand', href: 'ausbildungsstand.html' }]);
   if (!user) return;
 
+  // Layout-Marker: erlaubt der Ausbildungsstand-Tabelle die volle Breite.
+  document.body.dataset.page = 'ausbildungsstand';
+
   let currentBereich = 'betrieb';
   let sortField = 'name';
   let sortAsc = true;

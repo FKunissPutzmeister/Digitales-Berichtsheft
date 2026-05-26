@@ -376,6 +376,32 @@ document.addEventListener('DOMContentLoaded', () => {
     `;
   }
 
+  /* Abmelde-Block am Ende der Profil-Seite. Der bestehende
+     app.js-Handler greift via id="logoutBtn" automatisch. */
+  function buildLogoutBlock() {
+    return `
+      <div class="profil-logout">
+        <div class="profil-logout__icon" aria-hidden="true">
+          <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round"
+                  d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/>
+          </svg>
+        </div>
+        <div class="profil-logout__text">
+          <div class="profil-logout__title">Abmelden</div>
+          <div class="profil-logout__sub">Beendet deine aktuelle Sitzung und führt dich zurück zur Anmeldeseite.</div>
+        </div>
+        <button class="btn btn-danger" id="logoutBtn" type="button">
+          <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" style="width:16px;height:16px">
+            <path stroke-linecap="round" stroke-linejoin="round"
+                  d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/>
+          </svg>
+          Jetzt abmelden
+        </button>
+      </div>
+    `;
+  }
+
   function buildPasswordModal() {
     return `
       <div class="modal-overlay" id="passwordModal" role="dialog" aria-modal="true" aria-label="Passwort ändern">
@@ -429,6 +455,7 @@ document.addEventListener('DOMContentLoaded', () => {
           ${buildUnternehmensDaten()}
           ${buildAusbilderTimeline()}
           ${buildAzubiListe()}
+          ${buildLogoutBlock()}
         </div>
       </div>
 

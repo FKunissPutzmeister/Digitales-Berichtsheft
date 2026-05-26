@@ -2,6 +2,10 @@
    DASHBOARD
    =================================================================== */
 
+/* Volle-Seitenbreite-Override (max-width: min(2200px, 100%)) sitzt
+   zentral in layout.css und gilt für dashboard, wochenansicht,
+   jahresansicht und ausbildungsstand. */
+
 /* ── Begrüßungs-Banner ── */
 .welcome-banner {
   /* Welcome-Banner ist immer dunkel – verwendet die "Inverse"-Tokens.
@@ -319,12 +323,36 @@
   grid-template-columns: repeat(3, 1fr);
 }
 
-/* ── Inhalts-Raster ── */
+/* ── Inhalts-Raster (Bento-Cockpit) ──
+   Asymmetrisches 2-Spalten-Layout: links die Haupt-Karte (KW-Wochen-
+   status fürs Azubi-Dashboard / Posteingang fürs Ausbilder-Cockpit),
+   rechts die zwei Sekundär-Karten gestapelt. Verhältnis ~1.6 : 1
+   füllt den Bildschirm sauber aus, ohne dass rechts ein schmaler
+   Streifen entsteht.
+
+   align-items: start → die KW-Karte links bleibt kompakt (nur die
+   Höhe, die sie wirklich braucht). Die rechte Spalte darf länger
+   sein, wenn die Aktivitäten-Liste das hergibt. Stretchen würde
+   nur Whitespace im Card-Inneren erzeugen. */
 .dashboard-grid {
   display: grid;
-  grid-template-columns: 1fr 340px;
+  grid-template-columns: minmax(0, 1.6fr) minmax(320px, 1fr);
   gap: var(--sp-6);
   align-items: start;
+}
+.dashboard-grid > * { min-width: 0; }
+.dashboard-grid__col {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-5);
+  min-width: 0;
+}
+/* Für das Ausbilder-Cockpit darf der Posteingang weiterhin die
+   Spaltenhöhe füllen, weil die Liste mit Filter und vielen Zeilen
+   gut "ihr eigenes Ding" sein darf. Nur die schlankere Azubi-
+   KW-Karte bleibt kompakt. */
+.dashboard-grid__col--hero > .review-inbox {
+  width: 100%;
 }
 
 /* ── Schnellzugriff ── */
@@ -452,55 +480,76 @@
   letter-spacing: 0.06em;
   color: var(--pm-grey-500);
 }
+/* Wochen-Status: 7 Tage als kompakte vertikale Mini-Säulen nebeneinander.
+   Vorher waren das 7 Zeilen untereinander → die Karte wurde zu hoch und
+   die letzten Tage rutschten unter den Viewport. Mit der Säulen-Form
+   passt die komplette KW in eine flache, ~140 px hohe Karte und das
+   Mini-Histogramm zeigt direkt, an welchen Tagen wie viel los war. */
 .week-status-list {
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  padding: var(--sp-3) var(--sp-2);
 }
 .week-status-day {
   display: flex;
+  flex-direction: column;
   align-items: center;
-  gap: var(--sp-3);
-  padding: var(--sp-3) var(--sp-5);
-  border-bottom: 1px solid var(--pm-grey-100);
+  gap: 6px;
+  padding: 8px 2px;
+  position: relative;
 }
-.week-status-day:last-child { border-bottom: none; }
+.week-status-day + .week-status-day::before {
+  content: '';
+  position: absolute;
+  left: 0; top: 18%; bottom: 18%;
+  width: 1px;
+  background: var(--pm-grey-100);
+}
 .week-status-day__name {
-  width: 36px;
-  font-size: var(--text-xs);
+  font-size: 10px;
   font-weight: var(--fw-bold);
   text-transform: uppercase;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.06em;
   color: var(--pm-grey-500);
-  flex-shrink: 0;
 }
 .week-status-day__date {
   font-size: var(--text-sm);
   font-weight: var(--fw-bold);
   color: var(--pm-grey-700);
-  width: 28px;
-  flex-shrink: 0;
+  width: 22px; height: 22px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  line-height: 1;
 }
+.week-status-day--today .week-status-day__date {
+  background: var(--pm-yellow);
+  color: var(--pm-grey-900);
+}
+/* Vertikale Säule: füllt von unten nach oben; die Höhe steuert der
+   inline-Style auf __bar-fill (0–100 %). */
 .week-status-day__bar {
-  flex: 1;
-  height: 6px;
+  width: 8px;
+  height: 56px;
   background: var(--pm-grey-100);
   border-radius: var(--r-full);
   overflow: hidden;
+  display: flex;
+  align-items: flex-end;
+  margin: 2px 0 0;
 }
 .week-status-day__bar-fill {
-  height: 100%;
+  width: 100%;
   border-radius: var(--r-full);
   background: var(--pm-yellow);
-  transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1);
-  /* Beim Laden Mo→So nacheinander einlaufen lassen. Skaliert per
-     transform (GPU) statt width, dann fließt es geschmeidig auch
-     auf älteren Geräten. */
-  transform: scaleX(0);
-  transform-origin: left;
+  transition: height 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+  transform: scaleY(0);
+  transform-origin: bottom;
   animation: weekBarGrow 560ms var(--ease-out-quart) forwards;
 }
 @keyframes weekBarGrow {
-  to { transform: scaleX(1); }
+  to { transform: scaleY(1); }
 }
 .week-status-day:nth-child(1) .week-status-day__bar-fill { animation-delay:   0ms; }
 .week-status-day:nth-child(2) .week-status-day__bar-fill { animation-delay:  80ms; }
@@ -510,17 +559,17 @@
 .week-status-day:nth-child(6) .week-status-day__bar-fill { animation-delay: 400ms; }
 .week-status-day:nth-child(7) .week-status-day__bar-fill { animation-delay: 480ms; }
 .week-status-day__bar-fill--full { background: var(--color-success-mid); }
-.week-status-day__bar-fill--none { width: 0 !important; }
 .week-status-day__hours {
-  font-size: var(--text-xs);
+  font-size: 10px;
   font-weight: var(--fw-bold);
   color: var(--pm-grey-500);
-  width: 36px;
-  text-align: right;
-  flex-shrink: 0;
+  letter-spacing: 0.02em;
+  font-variant-numeric: tabular-nums;
 }
-.week-status-day--weekend .week-status-day__name { color: var(--pm-grey-300); }
-.week-status-day--weekend .week-status-day__date { color: var(--pm-grey-300); }
+.week-status-day--weekend .week-status-day__name,
+.week-status-day--weekend .week-status-day__date,
+.week-status-day--weekend .week-status-day__hours { color: var(--pm-grey-300); }
+.week-status-day--weekend .week-status-day__bar { opacity: 0.5; }
 
 /* ── Ausbildungsfortschritt ── */
 .ausbildung-progress {
@@ -528,7 +577,6 @@
   border: 1px solid var(--pm-grey-200);
   border-radius: var(--r-lg);
   padding: var(--sp-5);
-  margin-top: var(--sp-4);
   box-shadow: var(--shadow-sm);
 }
 .ausbildung-progress__header {

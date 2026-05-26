@@ -207,24 +207,6 @@ document.addEventListener('DOMContentLoaded', () => {
       </div>
 
       <div class="week-pane" data-anim="${weekAnimDirection || ''}">
-      <div class="erfassung-mode" role="status" aria-label="Erfassungs-Modus">
-        <span class="erfassung-mode__label">Erfassungs-Modus:</span>
-        <div class="erfassung-mode__group" aria-hidden="true">
-          <span class="erfassung-mode__option${berichtTyp === 'täglich' ? ' erfassung-mode__option--active' : ''}">
-            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><line x1="8" y1="14" x2="8" y2="14"/><line x1="12" y1="14" x2="12" y2="14"/><line x1="16" y1="14" x2="16" y2="14"/></svg>
-            Tagesbasis
-          </span>
-          <span class="erfassung-mode__option${berichtTyp === 'wöchentlich' ? ' erfassung-mode__option--active' : ''}">
-            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><line x1="3" y1="16" x2="21" y2="16"/></svg>
-            Wochenbasis
-          </span>
-        </div>
-        <span class="erfassung-mode__hint" title="Den Erfassungs-Modus kann der Ausbilder im Profil des Azubis ändern.">
-          <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
-          Im Profil festgelegt
-        </span>
-      </div>
-
       ${berichtTyp === 'wöchentlich'
         ? renderWochenKacheln(woche, isReadonly, monday)
         : renderDayCards(woche, monday, isReadonly, isAusbilder)
@@ -442,15 +424,6 @@ document.addEventListener('DOMContentLoaded', () => {
                     `<option value="${o}" ${tag.ort === o ? 'selected' : ''}>${o || '– bitte wählen –'}</option>`
                   ).join('')}
                 </select>
-              ` : ''}
-            </div>
-
-            <div class="tag-row__field tag-row__field--qualif" aria-hidden="true">
-              ${!isWE ? `
-                <label class="tag-row__field-label">Qualifikationen</label>
-                <button type="button" class="tag-row__qualif-btn" title="Qualifikationen anzeigen" tabindex="-1">
-                  <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
-                </button>
               ` : ''}
             </div>
 
@@ -1036,15 +1009,6 @@ document.addEventListener('DOMContentLoaded', () => {
                     `<option value="${o}" ${tag.ort === o ? 'selected' : ''}>${o || '– bitte wählen –'}</option>`
                   ).join('')}
                 </select>
-              ` : ''}
-            </div>
-
-            <div class="tag-row__field tag-row__field--qualif" aria-hidden="true">
-              ${!isWE ? `
-                <label class="tag-row__field-label">Qualifikationen</label>
-                <button type="button" class="tag-row__qualif-btn" title="Qualifikationen anzeigen" tabindex="-1">
-                  <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
-                </button>
               ` : ''}
             </div>
 

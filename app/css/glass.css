@@ -46,8 +46,14 @@
      background-size: cover hält sie verzerrungsfrei; die Overlays sichern
      Lesbarkeit unter Karten und Tabellen. */
   --app-bg-image:        url('../assets/backgrounds/abstract-app-light.png');
-  --app-bg-overlay:      linear-gradient(180deg, rgba(247, 247, 247, 0.78), rgba(247, 247, 247, 0.90));
-  --app-bg-vignette:     radial-gradient(100% 80% at 50% 20%, rgba(255, 255, 255, 0.30), rgba(247, 247, 247, 0.82) 70%);
+  --app-bg-overlay:      linear-gradient(180deg, rgba(247, 247, 247, 0.18), rgba(247, 247, 247, 0.32));
+  --app-bg-vignette:     radial-gradient(100% 80% at 50% 20%, rgba(255, 255, 255, 0.04), rgba(247, 247, 247, 0.18) 70%);
+}
+
+[data-theme="light"] {
+  --app-bg-image:        url('../assets/backgrounds/abstract-app-light.png');
+  --app-bg-overlay:      linear-gradient(180deg, rgba(247, 247, 247, 0.18), rgba(247, 247, 247, 0.32));
+  --app-bg-vignette:     radial-gradient(100% 80% at 50% 20%, rgba(255, 255, 255, 0.04), rgba(247, 247, 247, 0.18) 70%);
 }
 
 [data-theme="dark"] {

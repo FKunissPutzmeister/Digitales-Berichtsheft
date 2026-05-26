@@ -1302,12 +1302,9 @@
    bleiben bestehen, damit Validierung & Print weiter funktionieren.
    =================================================================== */
 
-/* Volle Seitenbreite nur für die Wochenansicht. Andere Seiten behalten
-   ihre lesefreundliche 1200px-Grenze. Der Marker wird in
-   wochenansicht.js gesetzt. */
-body[data-page="wochenansicht"] .main-content {
-  max-width: 1600px;
-}
+/* Volle-Seitenbreite-Override für Daten-/Grid-Seiten ist nach
+   layout.css gewandert (greift dann auch für jahresansicht.html und
+   ausbildungsstand.html, die wochenansicht.css gar nicht laden). */
 
 /* ── View-Tabs (Wochenansicht / Jahresansicht) – zentriert oben im Content ── */
 .view-tabs {

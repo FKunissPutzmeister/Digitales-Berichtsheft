@@ -288,6 +288,63 @@ details.profil-section .profil-section__body-wrap > .profil-section__body {
 }
 .ausbilder-tl-item .badge { margin-top: var(--sp-1); }
 
+/* ── Abmelde-Block (am Ende der Profil-Seite) ──
+   Eigenständige Karte mit dezentem roten Akzent. Inhalt links
+   (Icon + Erklärung), Button rechts. Auf schmalen Viewports
+   stapelt der Button unter den Text. */
+.profil-logout {
+  margin-top: var(--sp-6);
+  display: flex;
+  align-items: center;
+  gap: var(--sp-4);
+  padding: var(--sp-5);
+  background: var(--pm-white);
+  border: 1px solid var(--pm-grey-200);
+  border-left: 4px solid var(--color-error, #E53935);
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow-sm);
+}
+.profil-logout__icon {
+  width: 44px;
+  height: 44px;
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: rgba(229, 57, 53, 0.10);
+  color: var(--color-error, #E53935);
+}
+.profil-logout__icon svg { width: 22px; height: 22px; }
+.profil-logout__text {
+  flex: 1;
+  min-width: 0;
+}
+.profil-logout__title {
+  font-family: var(--font-heading);
+  font-size: var(--text-lg);
+  font-weight: var(--fw-bold);
+  color: var(--pm-grey-900);
+  line-height: 1.2;
+}
+.profil-logout__sub {
+  font-size: var(--text-sm);
+  color: var(--pm-grey-600);
+  margin-top: 2px;
+}
+.profil-logout .btn-danger {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+}
+
+/* Dark-Mode */
+[data-theme="dark"] .profil-logout {
+  background: rgba(255,255,255,0.03);
+  border-color: rgba(255,255,255,0.08);
+  border-left-color: var(--color-error, #E53935);
+}
+
 /* ── Responsiv ── */
 @media (max-width: 900px) {
   .profil-layout { grid-template-columns: 1fr; }
@@ -295,4 +352,9 @@ details.profil-section .profil-section__body-wrap > .profil-section__body {
 }
 @media (max-width: 600px) {
   .profil-data-grid { grid-template-columns: 1fr; }
+  .profil-logout {
+    flex-wrap: wrap;
+    gap: var(--sp-3);
+  }
+  .profil-logout .btn-danger { width: 100%; justify-content: center; }
 }

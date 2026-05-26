@@ -195,17 +195,42 @@
   padding: var(--sp-4);
   border-top: 1px solid rgba(255,255,255,0.06);
   flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3);
 }
-.sidebar__user {
+/* Profil-Link im Footer: Avatar + Name in einer Pille. Klick öffnet
+   die Mein-Profil-Seite. Auf dieser Seite (active) bekommt das Avatar
+   einen gelben Ring als Indikator. Abmelden ist nicht mehr hier,
+   sondern als prominenter Button am Ende der Profil-Seite. */
+.sidebar__user-link {
   display: flex;
   align-items: center;
   gap: var(--sp-3);
+  padding: 4px;
+  border-radius: var(--r-md);
+  text-decoration: none;
+  flex: 1;
+  min-width: 0;
   overflow: hidden;
+  transition: background var(--t-fast),
+              box-shadow var(--t-fast);
 }
-.sidebar__user-info {
-  overflow: hidden;
-  transition: opacity var(--t-normal);
+.sidebar__user-link:hover {
+  background: rgba(255,255,255,0.06);
 }
+.sidebar__user-link:hover .avatar {
+  box-shadow: 0 0 0 2px rgba(255,255,255,0.18);
+}
+.sidebar__user-link:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--sidebar-bg), 0 0 0 4px var(--pm-yellow);
+}
+.sidebar__user-link.active .avatar {
+  box-shadow: 0 0 0 2px var(--pm-yellow);
+}
+.sidebar__user-link .avatar { flex-shrink: 0; }
 .sidebar__user-name {
   display: block;
   font-size: var(--text-sm);
@@ -214,14 +239,67 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  min-width: 0;
+  transition: opacity var(--t-normal), max-width var(--t-normal);
 }
-.sidebar__user-role {
-  display: block;
-  font-size: var(--text-xs);
-  color: rgba(255,255,255,0.45);
-  white-space: nowrap;
-  margin-top: 2px;
+
+/* Im eingeklappten Zustand nur das Avatar zeigen, Name ausblenden.
+   Pendant für den FOUC-Schutz-Marker html.sidebar-init-collapsed
+   liegt unten zusammen mit den anderen pre-paint-Regeln. */
+.sidebar.collapsed .sidebar__user-name {
+  opacity: 0;
+  max-width: 0;
+  overflow: hidden;
 }
+.sidebar.collapsed .sidebar__user-link {
+  flex: none;
+  justify-content: center;
+  padding: 2px;
+  gap: 0;
+}
+
+/* Basis für runde Icon-Buttons im Sidebar-Footer. Aktuell nur vom
+   Theme-Toggle genutzt — der Logout-Button ist nach „Mein Profil"
+   am Seitenende gewandert. */
+.sidebar__icon-btn {
+  flex-shrink: 0;
+  width: 36px;
+  height: 36px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255,255,255,0.06);
+  color: rgba(255,255,255,0.75);
+  border: 1px solid rgba(255,255,255,0.10);
+  border-radius: 50%;
+  padding: 0;
+  cursor: pointer;
+  transition: background var(--t-fast),
+              color var(--t-fast),
+              border-color var(--t-fast),
+              transform var(--t-fast);
+}
+.sidebar__icon-btn:hover {
+  background: rgba(255,255,255,0.12);
+  border-color: rgba(255,255,255,0.20);
+  transform: scale(1.05);
+}
+.sidebar__icon-btn:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--sidebar-bg), 0 0 0 4px var(--pm-yellow);
+}
+.sidebar__icon-btn svg { width: 16px; height: 16px; }
+
+/* Variant: Theme-Toggle (Sonne/Mond) – gelber Akzent beim Hover */
+.sidebar__theme-toggle:hover { color: var(--pm-yellow); }
+.sidebar__theme-icon { width: 16px; height: 16px; }
+/* Default (light) — Sonne sichtbar, Mond versteckt */
+.sidebar__theme-icon--moon { display: none; }
+.sidebar__theme-icon--sun  { display: block; }
+/* Dark Mode — Mond sichtbar, Sonne versteckt */
+[data-theme="dark"] .sidebar__theme-icon--sun  { display: none; }
+[data-theme="dark"] .sidebar__theme-icon--moon { display: block; }
+
 
 /* Rollen-Badge: kleine Pill, farblich je Rolle differenziert.
    – Azubi:     blau-getintet (Info)
@@ -281,8 +359,13 @@
 .sidebar.collapsed .sidebar__toggle svg {
   transform: rotate(180deg);
 }
-.sidebar.collapsed .sidebar__footer { padding: var(--sp-3) var(--sp-2); }
-.sidebar.collapsed .sidebar__user { justify-content: center; }
+.sidebar.collapsed .sidebar__footer {
+  padding: var(--sp-3) var(--sp-2);
+  flex-direction: column;
+  gap: var(--sp-2);
+}
+.sidebar.collapsed .sidebar__user { justify-content: center; flex: none; }
+.sidebar.collapsed .sidebar__footer-actions { flex-direction: column; gap: 6px; }
 
 /* ── Sidebar-Tooltip (positioniert per JS) ──────────────────────
    Schwebt rechts neben dem Icon. Wird nur im Collapsed-Modus
@@ -336,8 +419,9 @@ html.sidebar-init-collapsed .sidebar__user-info    { opacity: 0; max-width: 0; o
 html.sidebar-init-collapsed .sidebar__link        { justify-content: center; padding: 0; }
 html.sidebar-init-collapsed .sidebar__link::before { display: none; }
 html.sidebar-init-collapsed .sidebar__toggle svg   { transform: rotate(180deg); }
-html.sidebar-init-collapsed .sidebar__footer      { padding: var(--sp-3) var(--sp-2); }
-html.sidebar-init-collapsed .sidebar__user        { justify-content: center; }
+html.sidebar-init-collapsed .sidebar__footer      { padding: var(--sp-3) var(--sp-2); flex-direction: column; gap: var(--sp-2); }
+html.sidebar-init-collapsed .sidebar__user-name   { opacity: 0; max-width: 0; overflow: hidden; }
+html.sidebar-init-collapsed .sidebar__user-link   { flex: none; justify-content: center; padding: 2px; gap: 0; }
 html.sidebar-init-collapsed .main-wrapper         { margin-left: var(--sidebar-icon-w); }
 
 /* ── Mobile Overlay ── */
@@ -478,6 +562,23 @@ html.sidebar-init-collapsed .main-wrapper         { margin-left: var(--sidebar-i
   animation: fadeIn var(--t-normal) both;
 }
 
+/* Volle Seitenbreite für daten-/grid-orientierte Seiten. Diese nutzen
+   den ganzen Viewport bis zu einem Ultra-Wide-Cap (2200 px), damit
+   Cockpit-Layouts, Kalender-Grids und breite Datentabellen nicht in
+   die 1200-px-Lesegrenze gezwängt werden. "Klassische" Lese-Seiten
+   (Profil, Verwaltung, Azubi-Planer) behalten ihren --content-max
+   für angenehme Zeilenlängen.
+
+   Liegt in layout.css statt in wochenansicht.css, weil jahresansicht/
+   ausbildungsstand/dashboard ihre eigene Page-CSS laden und sonst der
+   Override nicht greifen würde. */
+body[data-page="dashboard"] .main-content,
+body[data-page="wochenansicht"] .main-content,
+body[data-page="jahresansicht"] .main-content,
+body[data-page="ausbildungsstand"] .main-content {
+  max-width: min(2200px, 100%);
+}
+
 .page-header {
   display: flex;
   align-items: flex-start;
@@ -537,9 +638,9 @@ html.sidebar-init-collapsed .main-wrapper         { margin-left: var(--sidebar-i
   .sidebar.mobile-open .sidebar__section-label { opacity: 1; }
   .sidebar.mobile-open .sidebar__link-label { opacity: 1; }
   .sidebar.mobile-open .sidebar__link { justify-content: flex-start; padding: 0 var(--sp-4); }
-  .sidebar.mobile-open .sidebar__user-info { opacity: 1; }
-  .sidebar.mobile-open .sidebar__footer { padding: var(--sp-4); }
-  .sidebar.mobile-open .sidebar__user { justify-content: flex-start; }
+  .sidebar.mobile-open .sidebar__user-name { opacity: 1; max-width: none; }
+  .sidebar.mobile-open .sidebar__user-link { flex: 1; justify-content: flex-start; padding: 4px; gap: var(--sp-3); }
+  .sidebar.mobile-open .sidebar__footer { padding: var(--sp-4); flex-direction: row; gap: var(--sp-3); }
   .main-wrapper {
     margin-left: 0 !important;
   }

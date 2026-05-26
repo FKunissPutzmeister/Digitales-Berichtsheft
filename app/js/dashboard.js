@@ -2,7 +2,15 @@
    DASHBOARD.JS – Rollen-spezifisches Dashboard
    =================================================================== */
 document.addEventListener('DOMContentLoaded', () => {
-  const user = initLayout('nav-dashboard');
+  /* Layout-Marker: erlaubt dem Dashboard volle Seitenbreite (Override
+     der globalen --content-max-Beschränkung von 1200 px in layout.css). */
+  document.body.dataset.page = 'dashboard';
+
+  /* initPage statt initLayout: ruft buildSidebar() auf, das die komplette
+     Sidebar inkl. Theme-Toggle im Footer aufbaut. (initLayout alleine
+     würde nur die hardcoded sidebar in dashboard.html anbinden, in der
+     der Theme-Toggle nicht enthalten ist.) */
+  const user = initPage('nav-dashboard', []);
   if (!user) return;
 
   if (user.role === 'azubi') {
@@ -92,7 +100,25 @@ function renderAzubiDashboard(user) {
     </div>
 
     <div class="dashboard-grid">
-      <div>
+      <!-- LINKS (Hero): KW-Wochenstatus, kompakt — nur so hoch wie nötig -->
+      <div class="dashboard-grid__col dashboard-grid__col--hero">
+        <div class="week-status-card animate-fade-in">
+          <div class="week-status-card__header">
+            <span class="week-status-card__kw">KW ${kw} – Aktuelle Woche</span>
+            <a href="wochenansicht.html" class="btn btn-sm btn-outline-yellow">Öffnen</a>
+          </div>
+          <div class="week-status-list" id="weekStatusList">
+            ${renderWeekStatusDays(aktuelleWoche, kw, kwYear)}
+          </div>
+          <div style="padding:var(--sp-3) var(--sp-5);border-top:1px solid var(--pm-grey-100);display:flex;justify-content:flex-end;align-items:center;gap:var(--sp-3)">
+            <span style="font-size:var(--text-xs);color:var(--pm-grey-500)">Gesamtstunden:</span>
+            <span style="font-family:var(--font-heading);font-size:var(--text-lg);font-weight:700;color:var(--pm-grey-900)">${aktuelleWoche ? aktuelleWoche.gesamtstunden : 0}:00</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- RECHTS (gestapelt): Ausbildungsfortschritt (wenn Daten) + Aktivitäten -->
+      <div class="dashboard-grid__col">
         ${user.ausbildungsBeginn && user.ausbildungsEnde ? `
         <div class="ausbildung-progress animate-fade-in">
           <div class="ausbildung-progress__header">
@@ -108,22 +134,6 @@ function renderAzubiDashboard(user) {
           </div>
         </div>
         ` : ''}
-      </div>
-
-      <div style="display:flex;flex-direction:column;gap:var(--sp-5)">
-        <div class="week-status-card animate-fade-in">
-          <div class="week-status-card__header">
-            <span class="week-status-card__kw">KW ${kw} – Aktuelle Woche</span>
-            <a href="wochenansicht.html" class="btn btn-sm btn-outline-yellow">Öffnen</a>
-          </div>
-          <div class="week-status-list" id="weekStatusList">
-            ${renderWeekStatusDays(aktuelleWoche, kw, kwYear)}
-          </div>
-          <div style="padding:var(--sp-3) var(--sp-5);border-top:1px solid var(--pm-grey-100);display:flex;justify-content:flex-end;align-items:center;gap:var(--sp-3)">
-            <span style="font-size:var(--text-xs);color:var(--pm-grey-500)">Gesamtstunden:</span>
-            <span style="font-family:var(--font-heading);font-size:var(--text-lg);font-weight:700;color:var(--pm-grey-900)">${aktuelleWoche ? aktuelleWoche.gesamtstunden : 0}:00</span>
-          </div>
-        </div>
 
         <div class="card animate-fade-in">
           <div class="card__header">
@@ -453,8 +463,8 @@ function renderAusbilderDashboard(user) {
     </div>
 
     <div class="dashboard-grid">
-      <!-- Posteingang: Prüfungen -->
-      <div>
+      <!-- LINKS (Hero): Posteingang über die volle Spaltenhöhe -->
+      <div class="dashboard-grid__col dashboard-grid__col--hero">
         <div class="card review-inbox animate-fade-in" id="reviewInboxCard">
           <div class="card__header review-inbox__header">
             <div>
@@ -478,8 +488,8 @@ function renderAusbilderDashboard(user) {
         </div>
       </div>
 
-      <!-- Rechts: Meine Azubis + Aktivität -->
-      <div style="display:flex;flex-direction:column;gap:var(--sp-5)">
+      <!-- RECHTS (gestapelt): Meine Azubis + Letzte Aktivitäten -->
+      <div class="dashboard-grid__col">
         <div class="card animate-fade-in">
           <div class="card__header">
             <span class="card__title">Meine Azubis</span>
@@ -1007,15 +1017,18 @@ function renderWeekStatusDays(woche, kw, year) {
 
     const pct = Math.min((stunden / maxH) * 100, 100);
     const isFull = stunden >= maxH;
+    const hoursStr = stunden
+      ? stunden + ':00'
+      : (isWE ? '–' : (anwesenheit && anwesenheit !== 'anwesend' ? '–' : '0:00'));
 
     html += `
-      <div class="week-status-day${isWE ? ' week-status-day--weekend' : ''}">
+      <div class="week-status-day${isWE ? ' week-status-day--weekend' : ''}${isToday ? ' week-status-day--today' : ''}">
         <span class="week-status-day__name">${days[i]}</span>
-        <span class="week-status-day__date${isToday ? '" style="background:var(--pm-yellow);color:var(--pm-grey-900);border-radius:50%;width:22px;height:22px;display:inline-flex;align-items:center;justify-content:center' : ''}">${d.getDate()}</span>
-        <div class="week-status-day__bar">
-          <div class="week-status-day__bar-fill${isFull ? ' week-status-day__bar-fill--full' : ''}" style="width:${pct}%"></div>
+        <span class="week-status-day__date">${d.getDate()}</span>
+        <div class="week-status-day__bar" aria-hidden="true">
+          <div class="week-status-day__bar-fill${isFull ? ' week-status-day__bar-fill--full' : ''}" style="height:${pct}%"></div>
         </div>
-        <span class="week-status-day__hours">${stunden ? stunden + ':00' : isWE ? '–' : (anwesenheit && anwesenheit !== 'anwesend' ? '–' : '0:00')}</span>
+        <span class="week-status-day__hours">${hoursStr}</span>
       </div>
     `;
   }
