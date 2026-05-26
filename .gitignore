@@ -39,3 +39,6 @@ Prompt.txt
 
 # DB-Doc-Generator (alte DB-Struktur, wird nach Azure-AD-Integration neu gemacht)
 generate-db-doc.ps1
+
+# Backend-Umgebungsvariablen (DB-Credentials, Secrets)
+backend/.env
