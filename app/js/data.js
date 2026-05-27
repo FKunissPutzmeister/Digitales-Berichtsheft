@@ -188,40 +188,6 @@ const DEFAULT_DATA = {
     }
   ],
 
-  /* ── Qualifikationen ── */
-  qualifikationen: {
-    betrieb: [
-      { id: 1, name: 'Aufbau und Organisation des Ausbildungsbetriebes', sollStunden: 80, istStunden: 6812 },
-      { id: 2, name: 'Berufsbildung sowie Arbeits- und Tarifrecht', sollStunden: 40, istStunden: 213 },
-      { id: 3, name: 'Betreiben von IT-Systemen', sollStunden: 400, istStunden: 63310 },
-      { id: 4, name: 'Beurteilen marktgängiger IT-Systeme', sollStunden: 200, istStunden: 0 },
-      { id: 5, name: 'Durchführen und Dokumentieren von qualitätssichernden Maßnahmen', sollStunden: 80, istStunden: 5010 },
-      { id: 6, name: 'Entwickeln, Erstellen und Betreuen von IT-Lösungen', sollStunden: 600, istStunden: 35500 },
-      { id: 7, name: 'Erbringen der Leistungen und Auftragsabschluss', sollStunden: 80, istStunden: 0 },
-      { id: 8, name: 'Inbetriebnahmen von Speicherlösungen', sollStunden: 60, istStunden: 0 },
-      { id: 9, name: 'Informieren und Beraten von Kunden und Kundinnen', sollStunden: 80, istStunden: 1647 },
-      { id: 10, name: 'Konzipieren und Umsetzen von kundenspezifischen Softwareanwendungen', sollStunden: 160, istStunden: 3445 },
-      { id: 11, name: 'Planen, Vorbereiten und Durchführen von Arbeitsaufgaben', sollStunden: 120, istStunden: 4320 },
-      { id: 12, name: 'Programmieren von Softwarelösungen', sollStunden: 480, istStunden: 29926 },
-      { id: 13, name: 'Sicherheit und Gesundheitsschutz bei der Arbeit', sollStunden: 40, istStunden: 215 },
-      { id: 14, name: 'Sicherstellen der Qualität von Softwareanwendungen', sollStunden: 80, istStunden: 300 },
-      { id: 15, name: 'Sonstige Qualifikation', sollStunden: 300, istStunden: 46537 },
-      { id: 16, name: 'Umsetzen, Integrieren und Prüfen von Maßnahmen zur IT-Sicherheit', sollStunden: 80, istStunden: 1308 },
-      { id: 17, name: 'Umweltschutz', sollStunden: 20, istStunden: 330 },
-      { id: 18, name: 'Vernetztes Zusammenarbeiten unter Nutzung digitaler Medien', sollStunden: 60, istStunden: 4814 },
-    ],
-    schule: [
-      { id: 19, name: 'Lernfeld 01: Das Unternehmen und die eigene Rolle', sollStunden: 40, istStunden: 3800 },
-      { id: 20, name: 'Lernfeld 02: Arbeitsplätze nach Kundenwunsch ausstatten', sollStunden: 80, istStunden: 7600 },
-      { id: 21, name: 'Lernfeld 03: Clients in Netzwerke einbinden', sollStunden: 80, istStunden: 6800 },
-      { id: 22, name: 'Lernfeld 04: Schutzbedarfsanalyse durchführen', sollStunden: 40, istStunden: 3200 },
-      { id: 23, name: 'Lernfeld 05: Software zur Verwaltung von Daten anpassen', sollStunden: 80, istStunden: 7200 },
-      { id: 24, name: 'Lernfeld 06: Serviceanfragen bearbeiten', sollStunden: 40, istStunden: 3600 },
-      { id: 25, name: 'Lernfeld 07: Softwareprojekte entwickeln', sollStunden: 120, istStunden: 9800 },
-      { id: 26, name: 'Lernfeld 08: Daten systemübergreifend bereitstellen', sollStunden: 80, istStunden: 0 },
-    ]
-  },
-
   /* ── Benachrichtigungen ──
      Pro User eine Liste mit gelesen/ungelesen-Flag. Wird vom Ausbilder
      beim Genehmigen/Ablehnen einer Woche erzeugt und beim Azubi
@@ -378,11 +344,6 @@ const DB = {
   setWocheStatus(wocheId, status) {
     const woche = this.data.wochen.find(w => w.id === wocheId);
     if (woche) { woche.status = status; this.save(); }
-  },
-
-  /* Qualifikationen */
-  getQualifikationen(bereich = 'betrieb') {
-    return this.data.qualifikationen[bereich] || [];
   },
 
   /* Benachrichtigungen
