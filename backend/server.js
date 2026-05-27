@@ -1,13 +1,14 @@
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
+const path = require('path');
 const session = require('express-session');
 const { devAuth, DEV_USERS } = require('./middleware/auth');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-app.use(cors({ origin: 'http://localhost:5500', credentials: true }));
+app.use(cors({ origin: [`http://localhost:${PORT}`, 'http://localhost:5500'], credentials: true }));
 app.use(express.json());
 app.use(session({
   secret: process.env.SESSION_SECRET || 'dev-secret-change-in-prod',
@@ -62,6 +63,10 @@ if (process.env.NODE_ENV !== 'production') {
     Object.entries(DEV_USERS).map(([oid, u]) => ({ oid, ...u }))
   ));
 }
+
+// ── Frontend statisch ausliefern ──────────────────────────────────
+app.use('/app', express.static(path.join(__dirname, '../app')));
+app.get('/', (req, res) => res.redirect('/app/index.html'));
 
 app.listen(PORT, () => {
   console.log(`Backend läuft auf http://localhost:${PORT}`);
