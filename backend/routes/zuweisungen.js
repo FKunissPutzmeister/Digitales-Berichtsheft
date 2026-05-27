@@ -19,7 +19,7 @@ router.get('/', async (req, res) => {
     }
 
     const result = await request.query(
-      `SELECT * FROM dbo.Zuweisungen WHERE ${where} ORDER BY Von DESC`
+      `SELECT * FROM dbo.Zuweisungen WHERE ${where} ORDER BY AzubiOid, Von DESC`
     );
     res.json(result.recordset);
   } catch (err) {

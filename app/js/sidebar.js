@@ -179,7 +179,7 @@ function buildTopbar(breadcrumbs) {
   trySet(0);
 }
 
-function initPage(navId, breadcrumbs) {
+async function initPage(navId, breadcrumbs) {
   buildSidebar(navId);
   buildTopbar(breadcrumbs);
   return initLayout(navId);

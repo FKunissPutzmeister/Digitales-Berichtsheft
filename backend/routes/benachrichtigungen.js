@@ -8,9 +8,11 @@ router.get('/', async (req, res) => {
     const result = await pool.request()
       .input('userOid', sql.NVarChar(36), req.user.oid)
       .query(`
-        SELECT * FROM dbo.Benachrichtigungen
-        WHERE UserOid = @userOid
-        ORDER BY Timestamp DESC
+        SELECT b.*, w.KW, w.Jahr, w.AzubiOid
+        FROM dbo.Benachrichtigungen b
+        LEFT JOIN dbo.Wochen w ON w.Id = b.WocheId
+        WHERE b.UserOid = @userOid
+        ORDER BY b.Timestamp DESC
       `);
     res.json(result.recordset);
   } catch (err) {

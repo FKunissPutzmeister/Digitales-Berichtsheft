@@ -1,9 +1,10 @@
 /* ===================================================================
    LOGIN.JS
    =================================================================== */
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
   // Bereits eingeloggt?
-  if (DB.getCurrentUser()) {
+  const existing = await DB.fetchCurrentUser();
+  if (existing) {
     window.location.href = 'dashboard.html';
     return;
   }
@@ -15,7 +16,6 @@ document.addEventListener('DOMContentLoaded', () => {
   const pwToggle = document.getElementById('passwordToggle');
   const pwInput = document.getElementById('password');
 
-  // Passwort anzeigen/verbergen
   pwToggle?.addEventListener('click', () => {
     const isPassword = pwInput.type === 'password';
     pwInput.type = isPassword ? 'text' : 'password';
@@ -32,44 +32,43 @@ document.addEventListener('DOMContentLoaded', () => {
     errorBox.classList.remove('visible');
   }
 
-  function doLogin(email, password) {
+  async function doLogin(email) {
     loginBtn.disabled = true;
     loginBtn.innerHTML = '<span class="spinner"></span> Anmelden…';
-
-    setTimeout(() => {
-      const user = DB.login(email.trim().toLowerCase(), password);
+    try {
+      const user = await DB.login(email);
       if (user) {
         window.location.href = 'dashboard.html';
       } else {
-        showError('Ungültige E-Mail-Adresse oder Passwort.');
+        showError('Ungültige E-Mail-Adresse.');
         loginBtn.disabled = false;
         loginBtn.textContent = 'Anmelden';
       }
-    }, 600);
+    } catch {
+      showError('Anmeldung fehlgeschlagen. Bitte prüfe deine E-Mail-Adresse.');
+      loginBtn.disabled = false;
+      loginBtn.textContent = 'Anmelden';
+    }
   }
 
-  form?.addEventListener('submit', (e) => {
+  form?.addEventListener('submit', async (e) => {
     e.preventDefault();
     hideError();
     const email = document.getElementById('email').value;
-    const password = document.getElementById('password').value;
-
-    if (!email || !password) {
-      showError('Bitte E-Mail und Passwort eingeben.');
+    if (!email) {
+      showError('Bitte E-Mail eingeben.');
       return;
     }
-    doLogin(email, password);
+    await doLogin(email);
   });
 
   // Demo-Logins
   document.querySelectorAll('.demo-login-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
+    btn.addEventListener('click', async () => {
       hideError();
       const email = btn.dataset.email;
-      const password = btn.dataset.password;
       document.getElementById('email').value = email;
-      document.getElementById('password').value = password;
-      doLogin(email, password);
+      await doLogin(email);
     });
   });
 });

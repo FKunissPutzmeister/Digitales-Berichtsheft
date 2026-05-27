@@ -1,7 +1,7 @@
 /* ===================================================================
    DASHBOARD.JS – Rollen-spezifisches Dashboard
    =================================================================== */
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
   /* Layout-Marker: erlaubt dem Dashboard volle Seitenbreite (Override
      der globalen --content-max-Beschränkung von 1200 px in layout.css). */
   document.body.dataset.page = 'dashboard';
@@ -10,26 +10,26 @@ document.addEventListener('DOMContentLoaded', () => {
      Sidebar inkl. Theme-Toggle im Footer aufbaut. (initLayout alleine
      würde nur die hardcoded sidebar in dashboard.html anbinden, in der
      der Theme-Toggle nicht enthalten ist.) */
-  const user = initPage('nav-dashboard', []);
+  const user = await initPage('nav-dashboard', []);
   if (!user) return;
 
   if (user.role === 'azubi') {
-    renderAzubiDashboard(user);
+    await renderAzubiDashboard(user);
   } else {
-    renderAusbilderDashboard(user);
+    await renderAusbilderDashboard(user);
   }
 
   Toast.init();
 });
 
 /* ── Azubi-Dashboard (bestehend) ─────────────────────────────── */
-function renderAzubiDashboard(user) {
+async function renderAzubiDashboard(user) {
   const today = new Date();
   const kw = DateUtil.getKW(today);
   const kwYear = DateUtil.getKWYear(today);
 
-  const alleWochen = DB.getWochenFuerAzubi(user.id);
-  const aktuelleWoche = DB.getWoche(user.id, kw, kwYear);
+  const alleWochen = await DB.getWochenFuerAzubi(user.id);
+  const aktuelleWoche = await DB.getWoche(user.id, kw, kwYear);
   const offeneWochen = alleWochen.filter(w => w.status === 'offen').length;
   const genehmigte = alleWochen.filter(w => w.status === 'genehmigt').length;
   const gesamtStunden = alleWochen.reduce((s, w) => s + (w.gesamtstunden || 0), 0);
@@ -44,8 +44,8 @@ function renderAzubiDashboard(user) {
     fortschritt = Math.round((vergangen / gesamt) * 100);
   }
 
-  const zuw = DB.getAktuellerAusbilder(user.id);
-  const ausbilder = zuw ? DB.getUser(zuw.ausbilderId) : null;
+  const zuw = await DB.getAktuellerAusbilder(user.id);
+  const ausbilder = zuw ? await DB.getUser(zuw.ausbilderId) : null;
 
   const main = document.getElementById('mainContent');
   main.innerHTML = `
@@ -373,20 +373,21 @@ function iconInbox() {
 }
 
 /* ── Ausbilder-Cockpit ────────────────────────────────────────── */
-function renderAusbilderDashboard(user) {
+async function renderAusbilderDashboard(user) {
   const today = new Date();
   const kw = DateUtil.getKW(today);
   const kwYear = DateUtil.getKWYear(today);
 
-  const meineAzubis = getMeineAzubis(user);
+  const meineAzubis = await getMeineAzubis(user);
 
   // Alle Wochen aller zugewiesenen Azubis
   const allWochen = [];
-  meineAzubis.forEach(a => {
-    DB.getWochenFuerAzubi(a.id).forEach(w => {
+  for (const a of meineAzubis) {
+    const wochen = await DB.getWochenFuerAzubi(a.id);
+    wochen.forEach(w => {
       allWochen.push({ ...w, azubi: a });
     });
-  });
+  }
 
   // Posteingang: zur Abnahme freigegeben (älteste zuerst)
   const queue = allWochen
@@ -399,8 +400,8 @@ function renderAusbilderDashboard(user) {
   ).length;
 
   // Pro-Azubi-Stats für die rechte Liste
-  const azubiStats = meineAzubis.map(a => {
-    const wochen = DB.getWochenFuerAzubi(a.id);
+  const azubiStatsRaw = await Promise.all(meineAzubis.map(async a => {
+    const wochen = await DB.getWochenFuerAzubi(a.id);
     return {
       azubi: a,
       zuPruefen: wochen.filter(w => w.status === 'freigegeben').length,
@@ -408,7 +409,8 @@ function renderAusbilderDashboard(user) {
       abgelehnt: wochen.filter(w => w.status === 'abgelehnt').length,
       genehmigt: wochen.filter(w => w.status === 'genehmigt').length,
     };
-  }).sort((a, b) => b.zuPruefen - a.zuPruefen);
+  }));
+  const azubiStats = azubiStatsRaw.sort((a, b) => b.zuPruefen - a.zuPruefen);
 
   const main = document.getElementById('mainContent');
   main.innerHTML = `
@@ -721,14 +723,15 @@ function bindReviewFilterBar(queue) {
 }
 
 /* ── Hilfsfunktionen für Ausbilder-Dashboard ──────────────────── */
-function getMeineAzubis(user) {
-  if (user.role === 'admin') return DB.getAzubis();
+async function getMeineAzubis(user) {
+  if (user.role === 'admin') return await DB.getAzubis();
 
   const heute = new Date().toISOString().split('T')[0];
-  const meineZuw = DB.getZuweisungenFuerAusbilder(user.id)
+  const meineZuw = (await DB.getZuweisungenFuerAusbilder(user.id))
     .filter(z => z.von <= heute && z.bis >= heute);
   const azubiIds = [...new Set(meineZuw.map(z => z.azubiId))];
-  return azubiIds.map(id => DB.getUser(id)).filter(Boolean);
+  const users = await Promise.all(azubiIds.map(id => DB.getUser(id)));
+  return users.filter(Boolean);
 }
 
 function renderReviewItem(w, idx) {
@@ -889,43 +892,43 @@ function initBulkActions(queue, currentUser) {
   });
 
   // Bulk-Genehmigen
-  toolbar.querySelector('[data-bulk-approve]').addEventListener('click', () => {
+  toolbar.querySelector('[data-bulk-approve]').addEventListener('click', async () => {
     const ids = Array.from(selectedIds);
     if (ids.length === 0) return;
     if (!confirm(`${ids.length} Berichtshefte gemeinsam genehmigen?`)) return;
-    ids.forEach(wocheId => {
+    for (const wocheId of ids) {
       const w = queueById.get(wocheId);
-      DB.setWocheStatus(wocheId, 'genehmigt');
-      if (w) DB.addBenachrichtigung({
+      await DB.setWocheStatus(wocheId, 'genehmigt');
+      if (w) await DB.addBenachrichtigung({
         userId: w.azubiId, type: 'genehmigt',
         wocheId, azubiId: w.azubiId, kw: w.kw, year: w.year,
         fromUserId: currentUser.id,
       });
-    });
+    }
     Toast.success('Genehmigt', `${ids.length} ${ids.length === 1 ? 'Bericht' : 'Berichte'} genehmigt.`);
     setTimeout(() => window.location.reload(), 700);
   });
 
   // Bulk-Zurückgeben (mit einer gemeinsamen Begründung)
-  toolbar.querySelector('[data-bulk-reject]').addEventListener('click', () => {
+  toolbar.querySelector('[data-bulk-reject]').addEventListener('click', async () => {
     const ids = Array.from(selectedIds);
     if (ids.length === 0) return;
     const reason = prompt(`Begründung für die Rückgabe von ${ids.length} ${ids.length === 1 ? 'Bericht' : 'Berichten'}:`);
     if (!reason || !reason.trim()) return;
     const reasonTrim = reason.trim();
-    ids.forEach(wocheId => {
+    for (const wocheId of ids) {
       const w = queueById.get(wocheId);
-      DB.addKommentar(wocheId, {
+      await DB.addKommentar(wocheId, {
         userId: currentUser.id, text: reasonTrim,
         datum: new Date().toLocaleDateString('de-DE'), typ: 'abgelehnt',
       });
-      DB.setWocheStatus(wocheId, 'abgelehnt');
-      if (w) DB.addBenachrichtigung({
+      await DB.setWocheStatus(wocheId, 'abgelehnt');
+      if (w) await DB.addBenachrichtigung({
         userId: w.azubiId, type: 'abgelehnt',
         wocheId, azubiId: w.azubiId, kw: w.kw, year: w.year,
         fromUserId: currentUser.id, kommentar: reasonTrim,
       });
-    });
+    }
     Toast.warning('Zurückgegeben', `${ids.length} ${ids.length === 1 ? 'Bericht' : 'Berichte'} zurückgegeben.`);
     setTimeout(() => window.location.reload(), 700);
   });

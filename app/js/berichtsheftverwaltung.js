@@ -1,19 +1,20 @@
 /* ===================================================================
    BERICHTSHEFTVERWALTUNG.JS
    =================================================================== */
-document.addEventListener('DOMContentLoaded', () => {
-  const user = initPage('nav-verwaltung', [{ label: 'Berichtsheftverwaltung', href: 'berichtsheftverwaltung.html' }]);
+document.addEventListener('DOMContentLoaded', async () => {
+  const user = await initPage('nav-verwaltung', [{ label: 'Berichtsheftverwaltung', href: 'berichtsheftverwaltung.html' }]);
   if (!user) return;
 
   const main = document.getElementById('mainContent');
 
-  let selectedAzubiId = user.role === 'azubi' ? user.id : DB.getAzubis()[0]?.id;
+  const azubisInit = await DB.getAzubis();
+  let selectedAzubiId = user.role === 'azubi' ? user.id : azubisInit[0]?.id;
   let attachments = [];
 
-  function render() {
+  async function render() {
     const isAusbilder = ['ausbilder', 'admin'].includes(user.role);
-    const azubis = DB.getAzubis();
-    const selectedAzubi = DB.getUser(selectedAzubiId);
+    const azubis = await DB.getAzubis();
+    const selectedAzubi = await DB.getUser(selectedAzubiId);
 
     main.innerHTML = `
       <div class="page-header">
@@ -283,5 +284,5 @@ document.addEventListener('DOMContentLoaded', () => {
     return (bytes / 1048576).toFixed(1) + ' MB';
   }
 
-  render();
+  await render();
 });

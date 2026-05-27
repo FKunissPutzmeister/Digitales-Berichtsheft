@@ -1,8 +1,8 @@
 /* ===================================================================
    AUSBILDUNGSSTAND.JS
    =================================================================== */
-document.addEventListener('DOMContentLoaded', () => {
-  const user = initPage('nav-ausbildungsstand', [{ label: 'Ausbildungsstand', href: 'ausbildungsstand.html' }]);
+document.addEventListener('DOMContentLoaded', async () => {
+  const user = await initPage('nav-ausbildungsstand', [{ label: 'Ausbildungsstand', href: 'ausbildungsstand.html' }]);
   if (!user) return;
 
   // Layout-Marker: erlaubt der Ausbildungsstand-Tabelle die volle Breite.
@@ -14,9 +14,9 @@ document.addEventListener('DOMContentLoaded', () => {
   let filterText = '';
   let viewAzubiId = user.role === 'azubi' ? user.id : user.id;
 
-  function render() {
+  async function render() {
     const isAusbilder = ['ausbilder', 'admin'].includes(user.role);
-    const qualis = DB.getQualifikationen(currentBereich);
+    const qualis = await DB.getQualifikationen(currentBereich);
 
     // Gesamt-Stunden – istStunden ist in 1/100 h gespeichert, sollStunden bereits in h
     const gesamtSoll = qualis.reduce((s, q) => s + q.sollStunden, 0);
@@ -29,7 +29,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Krank- + sonstige Abwesenheits-Tage werden als Fehltage gezählt.
     // Urlaub und Feiertag sind keine Fehltage. Schwellwert für den
     // Ring-Fill: 30 Tage entsprechen 100%.
-    const wochen = DB.getWochenFuerAzubi(viewAzubiId);
+    const wochen = await DB.getWochenFuerAzubi(viewAzubiId);
     const fehltage = wochen.reduce((sum, w) => {
       return sum + (w.tage || []).filter(t =>
         t.anwesenheit === 'krank' || t.anwesenheit === 'sonstige Abwesenheit'
@@ -37,6 +37,8 @@ document.addEventListener('DOMContentLoaded', () => {
     }, 0);
     const FEHLTAGE_SCHWELLE = 30;
     const fehltageProzent = Math.min(Math.round((fehltage / FEHLTAGE_SCHWELLE) * 100), 100);
+
+    const azubis = await DB.getAzubis();
 
     const main = document.getElementById('mainContent');
     main.innerHTML = `
@@ -47,7 +49,7 @@ document.addEventListener('DOMContentLoaded', () => {
         </div>
         ${isAusbilder ? `
         <div class="page-header__actions">
-          ${DB.getAzubis().map(a => `
+          ${azubis.map(a => `
             <button class="ausbilder-chip ${a.id === viewAzubiId ? 'selected' : ''}" data-azubi-id="${a.id}">
               <div class="avatar" style="width:28px;height:28px;font-size:11px">${a.initials}</div>
               ${a.name}
@@ -235,13 +237,13 @@ document.addEventListener('DOMContentLoaded', () => {
     }).join('');
   }
 
-  function refreshTable() {
-    const qualis = DB.getQualifikationen(currentBereich);
+  async function refreshTable() {
+    const qualis = await DB.getQualifikationen(currentBereich);
     document.getElementById('qualiBody').innerHTML = renderQualiRows(qualis);
     const filtered = qualis.filter(q => !filterText || q.name.toLowerCase().includes(filterText));
     document.getElementById('qualiCount').textContent = `${filtered.length} Qualifikationen`;
     document.getElementById('paginationInfo').textContent = `Zeige 1–${filtered.length} von ${filtered.length}`;
   }
 
-  render();
+  await render();
 });
