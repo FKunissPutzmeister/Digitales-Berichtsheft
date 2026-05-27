@@ -3,8 +3,8 @@
    =================================================================== */
 
 /* ── Auth Guard ── */
-function requireAuth() {
-  const user = DB.getCurrentUser();
+async function requireAuth() {
+  const user = await DB.fetchCurrentUser();
   if (!user) {
     window.location.href = 'index.html';
     return null;
@@ -12,8 +12,8 @@ function requireAuth() {
   return user;
 }
 
-function requireRole(...roles) {
-  const user = requireAuth();
+async function requireRole(...roles) {
+  const user = await requireAuth();
   if (!user) return null;
   if (!roles.includes(user.role)) {
     window.location.href = 'dashboard.html';
@@ -23,8 +23,8 @@ function requireRole(...roles) {
 }
 
 /* ── Sidebar & Navigation ── */
-function initLayout(activeNavId) {
-  const user = requireAuth();
+async function initLayout(activeNavId) {
+  const user = await requireAuth();
   if (!user) return null;
 
   // Sidebar-Toggle
@@ -105,7 +105,7 @@ function initLayout(activeNavId) {
     document.body.dataset.logoutBound = '1';
     document.body.addEventListener('click', (e) => {
       if (e.target.closest('#logoutBtn')) {
-        DB.logout();
+        await DB.logout();
         window.location.href = 'index.html';
       }
     });
@@ -201,7 +201,7 @@ function initThemeToggle() {
      #notifList         – Container für die Notification-Items
      #notifMarkAllBtn   – „Alle gelesen"-Button im Header
    Wird von initLayout() pro Page einmal aufgerufen. */
-function initNotifications(user) {
+async function initNotifications(user) {
   const btn = document.getElementById('notifBtn');
   const badge = document.getElementById('notifBadge');
   const dropdown = document.getElementById('notifDropdown');
@@ -225,9 +225,9 @@ function initNotifications(user) {
     abgelehnt: `<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>`,
   };
 
-  function renderItem(b) {
+  async function renderItem(b) {
     const isApproved = b.type === 'genehmigt';
-    const from = b.fromUserId ? DB.getUser(b.fromUserId) : null;
+    const from = b.fromUserId ? await DB.getUser(b.fromUserId) : null;
     const fromName = from ? from.name : 'Ausbilder/in';
     const title = isApproved
       ? `KW ${b.kw}/${b.year} wurde genehmigt`
@@ -257,8 +257,8 @@ function initNotifications(user) {
       .replace(/"/g, '&quot;').replace(/'/g, '&#039;');
   }
 
-  function render() {
-    const items = DB.getBenachrichtigungenFuerUser(user.id);
+  async function render() {
+    const items = await DB.getBenachrichtigungenFuerUser(user.id);
     const unread = items.filter(b => !b.gelesen).length;
 
     if (badge) {
@@ -284,14 +284,14 @@ function initNotifications(user) {
       return;
     }
 
-    list.innerHTML = items.slice(0, 30).map(renderItem).join('');
+    list.innerHTML = (await Promise.all(items.slice(0, 30).map(renderItem))).join('');
 
     list.querySelectorAll('.notif-item').forEach(el => {
       el.addEventListener('click', () => {
         const id = parseInt(el.dataset.id);
         const item = items.find(b => b.id === id);
         if (!item) return;
-        DB.markBenachrichtigungGelesen(id);
+        await DB.markBenachrichtigungGelesen(id);
         // Navigations-Hinweise an wochenansicht.js übergeben
         if (item.kw)        sessionStorage.setItem('gotoKW',    String(item.kw));
         if (item.year)      sessionStorage.setItem('gotoYear',  String(item.year));
@@ -302,12 +302,12 @@ function initNotifications(user) {
   }
 
   // Glocken-Klick → Dropdown toggeln (und andere Dropdowns schließen)
-  btn.addEventListener('click', (e) => {
+  btn.addEventListener('click', async (e) => {
     e.stopPropagation();
     const wasOpen = dropdown.classList.contains('open');
     document.querySelectorAll('.dropdown__menu.open').forEach(m => m.classList.remove('open'));
     if (!wasOpen) {
-      render();
+      await render();
       dropdown.classList.add('open');
     }
   });
@@ -324,14 +324,14 @@ function initNotifications(user) {
   });
 
   // „Alle gelesen"-Button
-  markAllBtn?.addEventListener('click', (e) => {
+  markAllBtn?.addEventListener('click', async (e) => {
     e.stopPropagation();
-    DB.markAlleBenachrichtigungenGelesen(user.id);
-    render();
+    await DB.markAlleBenachrichtigungenGelesen(user.id);
+    await render();
   });
 
   // Initial-Render (für korrekten Badge-Stand sofort beim Pageload)
-  render();
+  await render();
 }
 
 /* ── Toast-System ── */

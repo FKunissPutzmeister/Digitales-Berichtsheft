@@ -1,8 +1,8 @@
 /* ===================================================================
    PROFIL.JS
    =================================================================== */
-document.addEventListener('DOMContentLoaded', () => {
-  const user = initPage('nav-profil', [{ label: 'Mein Profil', href: 'profil.html' }]);
+document.addEventListener('DOMContentLoaded', async () => {
+  const user = await initPage('nav-profil', [{ label: 'Mein Profil', href: 'profil.html' }]);
   if (!user) return;
 
   const isAzubi = user.role === 'azubi';
@@ -243,17 +243,17 @@ document.addEventListener('DOMContentLoaded', () => {
     `;
   }
 
-  function buildAusbilderTimeline() {
+  async function buildAusbilderTimeline() {
     if (!isAzubi) return '';
 
-    const zuweisungen = DB.getZuweisungenFuerAzubi(user.id);
+    const zuweisungen = await DB.getZuweisungenFuerAzubi(user.id);
     if (!zuweisungen.length) return '';
 
     const today = DateUtil.toISODate(new Date());
     const sorted = [...zuweisungen].sort((a, b) => a.von.localeCompare(b.von));
 
-    const items = sorted.map(z => {
-      const ausb = DB.getUser(z.ausbilderId);
+    const itemsArr = await Promise.all(sorted.map(async z => {
+      const ausb = await DB.getUser(z.ausbilderId);
       const isCurrent = z.von <= today && z.bis >= today;
       const dotClass = isCurrent ? 'current' : 'past';
 
@@ -269,7 +269,8 @@ document.addEventListener('DOMContentLoaded', () => {
           </div>
         </div>
       `;
-    }).join('');
+    }));
+    const items = itemsArr.join('');
 
     return `
       <details class="profil-section" open>
@@ -291,10 +292,10 @@ document.addEventListener('DOMContentLoaded', () => {
     `;
   }
 
-  function buildAzubiListe() {
+  async function buildAzubiListe() {
     if (!isAusbilder && !isAdmin) return '';
 
-    const zuweisungen = isAusbilder ? DB.getZuweisungenFuerAusbilder(user.id) : [];
+    const zuweisungen = isAusbilder ? await DB.getZuweisungenFuerAusbilder(user.id) : [];
     if (!zuweisungen.length && isAusbilder) {
       return `
         <details class="profil-section" open>
@@ -312,7 +313,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     if (isAdmin) {
-      const azubis = DB.getAzubis();
+      const azubis = await DB.getAzubis();
       return `
         <details class="profil-section" open>
           <summary class="profil-section__header">
@@ -341,8 +342,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const today = DateUtil.toISODate(new Date());
     const sorted = [...zuweisungen].sort((a, b) => a.von.localeCompare(b.von));
 
-    const items = sorted.map(z => {
-      const azubi = DB.getUser(z.azubiId);
+    const itemsArr = await Promise.all(sorted.map(async z => {
+      const azubi = await DB.getUser(z.azubiId);
       const isCurrent = z.von <= today && z.bis >= today;
       const dotClass = isCurrent ? 'current' : 'past';
 
@@ -357,7 +358,8 @@ document.addEventListener('DOMContentLoaded', () => {
           </div>
         </div>
       `;
-    }).join('');
+    }));
+    const items = itemsArr.join('');
 
     return `
       <details class="profil-section" open>
@@ -432,7 +434,7 @@ document.addEventListener('DOMContentLoaded', () => {
     `;
   }
 
-  function render() {
+  async function render() {
     const main = document.getElementById('mainContent');
 
     main.innerHTML = `
@@ -451,8 +453,8 @@ document.addEventListener('DOMContentLoaded', () => {
           ${ZeitnachweisUpload.renderSection(user)}
           ${buildIHKDaten()}
           ${buildUnternehmensDaten()}
-          ${buildAusbilderTimeline()}
-          ${buildAzubiListe()}
+          ${await buildAusbilderTimeline()}
+          ${await buildAzubiListe()}
           ${buildLogoutBlock()}
         </div>
       </div>
@@ -475,7 +477,7 @@ document.addEventListener('DOMContentLoaded', () => {
       Modal.open('passwordModal');
     });
 
-    document.getElementById('pwSaveBtn')?.addEventListener('click', () => {
+    document.getElementById('pwSaveBtn')?.addEventListener('click', async () => {
       const current = document.getElementById('pwCurrent').value;
       const newPw   = document.getElementById('pwNew').value;
       const confirm = document.getElementById('pwConfirm').value;
@@ -485,11 +487,9 @@ document.addEventListener('DOMContentLoaded', () => {
       if (newPw.length < 8) { Toast.error('Zu kurz', 'Das neue Passwort muss mindestens 8 Zeichen lang sein.'); return; }
       if (newPw !== confirm) { Toast.error('Nicht übereinstimmend', 'Die Passwörter stimmen nicht überein.'); return; }
 
-      const u = DB.data.users.find(u => u.id === user.id);
-      if (u) { u.password = newPw; DB.save(); }
-
+      // Passwort-Änderung entfällt nach Azure-AD-Migration
       Modal.closeAll();
-      Toast.success('Gespeichert', 'Dein Passwort wurde erfolgreich geändert.');
+      Toast.info('Hinweis', 'Passwörter werden über das Putzmeister-Konto verwaltet.');
     });
 
     // Zeitnachweis-Import-Sektion verdrahten (nur für Azubis vorhanden)
@@ -499,5 +499,5 @@ document.addEventListener('DOMContentLoaded', () => {
     Toast.init();
   }
 
-  render();
+  await render();
 });

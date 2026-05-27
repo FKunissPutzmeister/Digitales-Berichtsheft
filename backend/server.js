@@ -25,6 +25,16 @@ app.post('/api/auth/login', (req, res) => {
   res.json({ user: { oid, ...DEV_USERS[oid] } });
 });
 
+// Login per E-Mail (Frontend nutzt weiterhin E-Mail-Formular)
+app.post('/api/auth/login-by-email', (req, res) => {
+  const { email } = req.body;
+  const entry = Object.entries(DEV_USERS).find(([, u]) => u.email === email);
+  if (!entry) return res.status(401).json({ error: 'E-Mail nicht gefunden' });
+  const [oid, u] = entry;
+  req.session.userOid = oid;
+  res.json({ user: { oid, ...u } });
+});
+
 app.post('/api/auth/logout', (req, res) => {
   req.session.destroy();
   res.json({ ok: true });
@@ -35,11 +45,13 @@ app.get('/api/auth/me', devAuth, (req, res) => {
 });
 
 // ── Geschützte API-Routen ─────────────────────────────────────────
+const usersRouter          = require('./routes/users');
 const wochenRouter         = require('./routes/wochen');
 const zuweisungenRouter    = require('./routes/zuweisungen');
 const kommentareRouter     = require('./routes/kommentare');
 const benachrichtigungenRouter = require('./routes/benachrichtigungen');
 
+app.use('/api/users',               devAuth, usersRouter);
 app.use('/api/wochen',              devAuth, wochenRouter);
 app.use('/api/zuweisungen',         devAuth, zuweisungenRouter);
 app.use('/api/wochen',              devAuth, kommentareRouter);   // POST /api/wochen/:id/kommentare

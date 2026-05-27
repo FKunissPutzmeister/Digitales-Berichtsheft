@@ -22,8 +22,8 @@ const QUILL_HANDLERS = {
   redo: function() { this.quill.history.redo(); },
 };
 
-document.addEventListener('DOMContentLoaded', () => {
-  const user = initPage('nav-wochenansicht', [{ label: 'Wochenansicht', href: 'wochenansicht.html' }]);
+document.addEventListener('DOMContentLoaded', async () => {
+  const user = await initPage('nav-wochenansicht', [{ label: 'Wochenansicht', href: 'wochenansicht.html' }]);
   if (!user) return;
 
   // Layout-Marker: erlaubt der Wochenansicht volle Seitenbreite, ohne
@@ -55,17 +55,17 @@ document.addEventListener('DOMContentLoaded', () => {
     sessionStorage.removeItem('gotoAzubiId');
   } else if (user.role !== 'azubi' && !viewAzubiId) {
     // Ausbilder/Admin ohne Vorauswahl: ersten zugewiesenen Azubi anzeigen
-    const firstAzubi = DB.getAzubis()[0];
+    const firstAzubi = (await DB.getAzubis())[0];
     if (firstAzubi) viewAzubiId = firstAzubi.id;
   }
 
-  function getBerichtTyp() {
-    const azubiUser = DB.getUser(viewAzubiId || user.id);
+  async function getBerichtTyp() {
+    const azubiUser = await DB.getUser(viewAzubiId || user.id);
     return azubiUser?.berichtTyp || 'täglich';
   }
 
-  function getCurrentWoche() {
-    return DB.getWoche(viewAzubiId || user.id, currentKW, currentYear);
+  async function getCurrentWoche() {
+    return await DB.getWoche(viewAzubiId || user.id, currentKW, currentYear);
   }
 
   // ── Zeit-Spinner Hilfsfunktionen ──────────────────────────────────
@@ -121,10 +121,10 @@ document.addEventListener('DOMContentLoaded', () => {
     window._spinnerCallback = cb;
   }
 
-  function render() {
-    const berichtTyp = getBerichtTyp();
+  async function render() {
+    const berichtTyp = await getBerichtTyp();
     const azubiId = viewAzubiId || user.id;
-    const woche = DB.getWoche(azubiId, currentKW, currentYear);
+    const woche = await DB.getWoche(azubiId, currentKW, currentYear);
     const monday = DateUtil.getMondayOfKW(currentKW, currentYear);
     const sunday = new Date(monday);
     sunday.setDate(monday.getDate() + 6);
@@ -141,9 +141,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const gesamtstundenDisplay = (woche?.tage || []).reduce((s, t) => s + (t.stunden || 0), 0);
 
     // Stammdaten des aktuell sichtbaren Azubis
-    const azubiUser = DB.getUser(azubiId);
-    const azubiZuw  = DB.getAktuellerAusbilder(azubiId);
-    const azubiAusbilder = azubiZuw ? DB.getUser(azubiZuw.ausbilderId) : null;
+    const azubiUser = await DB.getUser(azubiId);
+    const azubiZuw  = await DB.getAktuellerAusbilder(azubiId);
+    const azubiAusbilder = azubiZuw ? await DB.getUser(azubiZuw.ausbilderId) : null;
     const ausbildungsjahr = calcAusbildungsjahr(azubiUser?.ausbildungsBeginn);
 
     const lastSavedStr = (() => {
@@ -155,13 +155,15 @@ document.addEventListener('DOMContentLoaded', () => {
       return null;
     })();
 
+    const azubiSelectorHtml = isAusbilder ? await renderAzubiSelector(azubiId) : '';
+
     const main = document.getElementById('mainContent');
     main.innerHTML = `
-      ${isAusbilder ? renderAzubiSelector(azubiId) : ''}
+      ${azubiSelectorHtml}
 
       ${renderStammdatenBlock(azubiUser, azubiAusbilder, ausbildungsjahr, azubiZuw)}
 
-      ${renderStatusBanner(woche, azubiAusbilder, user)}
+      ${await renderStatusBanner(woche, azubiAusbilder, user)}
 
       <div class="week-toolbar">
         <div class="week-toolbar__left">
@@ -239,7 +241,7 @@ document.addEventListener('DOMContentLoaded', () => {
       <div class="card" style="margin-top:var(--sp-5)">
         <div class="card__header"><span class="card__title">Kommentare</span></div>
         <div class="card__body" style="display:flex;flex-direction:column;gap:var(--sp-3)">
-          ${woche.kommentare.map(k => renderComment(k)).join('')}
+          ${(await Promise.all(woche.kommentare.map(k => renderComment(k)))).join('')}
           ${isAusbilder ? `<button class="btn btn-outline" id="addCommentBtn" style="align-self:flex-start">
             <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="width:16px;height:16px"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
             Kommentar hinzufügen
@@ -264,8 +266,8 @@ document.addEventListener('DOMContentLoaded', () => {
     bindEvents(woche, azubiId, berichtTyp, monday);
   }
 
-  function renderAzubiSelector(currentId) {
-    const azubis = DB.getAzubis();
+  async function renderAzubiSelector(currentId) {
+    const azubis = await DB.getAzubis();
     return `
       <div style="margin-bottom:var(--sp-4);display:flex;align-items:center;gap:var(--sp-3);flex-wrap:wrap">
         <span style="font-size:var(--text-sm);font-weight:700;color:var(--pm-grey-600)">Azubi:</span>
@@ -478,7 +480,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // ── Status-Banner ─────────────────────────────────────────────────
-  function renderStatusBanner(woche, azubiAusbilder, currentUser) {
+  async function renderStatusBanner(woche, azubiAusbilder, currentUser) {
     if (!woche) return '';
 
     if (woche.status === 'genehmigt') {
@@ -516,7 +518,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (woche.status === 'abgelehnt') {
       const rejectionComment = (woche.kommentare || []).slice().reverse().find(k => k.typ === 'abgelehnt');
-      const author = rejectionComment ? DB.getUser(rejectionComment.userId) : null;
+      const author = rejectionComment ? await DB.getUser(rejectionComment.userId) : null;
       return `
         <div class="week-status-banner week-status-banner--abgelehnt">
           <div class="week-status-banner__icon" aria-hidden="true">
@@ -669,8 +671,8 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   /** Dispatch je nach Format des Azubis. */
-  function validateWoche(woche, monday) {
-    return getBerichtTyp() === 'wöchentlich'
+  async function validateWoche(woche, monday) {
+    return (await getBerichtTyp()) === 'wöchentlich'
       ? validateWocheWoechentlich(woche, monday)
       : validateWocheTaeglich(woche, monday);
   }
@@ -684,7 +686,7 @@ document.addEventListener('DOMContentLoaded', () => {
     document.querySelectorAll('.wochen-kachel--has-error').forEach(k => k.classList.remove('wochen-kachel--has-error'));
   }
 
-  function showValidationErrors(errors) {
+  async function showValidationErrors(errors) {
     clearValidationErrors();
 
     // Tages-Errors nach Datum gruppieren (für täglich-Format und für die
@@ -701,7 +703,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     // ── Tageskarten markieren (gilt für beide Formate) ──
-    Object.keys(byDate).forEach(dateStr => {
+    for (const dateStr of Object.keys(byDate)) {
       const row = document.getElementById('dayCard_' + dateStr);
       if (row) {
         row.classList.add('tag-row--has-error', 'expanded');
@@ -719,7 +721,7 @@ document.addEventListener('DOMContentLoaded', () => {
           `;
         }
         // Editoren initialisieren falls Tag erst jetzt ausklappt
-        const w = DB.getWoche(viewAzubiId || user.id, currentKW, currentYear);
+        const w = await DB.getWoche(viewAzubiId || user.id, currentKW, currentYear);
         const ro = w && (w.status === 'freigegeben' || w.status === 'genehmigt');
         if (!quillInstances['day_betrieb_' + dateStr]) {
           initSingleDayEditor(dateStr, w, ro);
@@ -730,7 +732,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const wochenRow = document.querySelector(`.tag-row--compact[data-date="${dateStr}"]`);
         wochenRow?.classList.add('tag-row--has-error');
       }
-    });
+    }
 
     // ── Wochen-Kachel-Errors markieren (nur wöchentlich-Format) ──
     kachelErrors.forEach(e => {
@@ -1084,7 +1086,7 @@ document.addEventListener('DOMContentLoaded', () => {
     `).join('');
   }
 
-  function refreshWochenKacheln(woche) {
+  async function refreshWochenKacheln(woche) {
     const ort = document.getElementById('wochenOrtSelect')?.value || 'betrieb';
     const unterweisung = document.getElementById('unterweisungCheck')?.checked || false;
     const isReadonly = woche && (woche.status === 'freigegeben' || woche.status === 'genehmigt');
@@ -1170,9 +1172,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // ── Auto-Save ─────────────────────────────────────────────────────
 
-  function autoSaveWoche() {
+  async function autoSaveWoche() {
     const azubiId = viewAzubiId || user.id;
-    let woche = DB.getWoche(azubiId, currentKW, currentYear);
+    let woche = await DB.getWoche(azubiId, currentKW, currentYear);
     if (!woche) {
       const monday = DateUtil.getMondayOfKW(currentKW, currentYear);
       const sunday = new Date(monday); sunday.setDate(monday.getDate() + 6);
@@ -1200,16 +1202,16 @@ document.addEventListener('DOMContentLoaded', () => {
 
     woche.gesamtstunden = (woche.tage || []).reduce((s, t) => s + (t.stunden || 0), 0);
     woche.lastSavedAt = new Date().toISOString();
-    DB.saveWoche(woche);
+    await DB.saveWoche(woche);
   }
 
-  function autoSave(dateStr) {
+  async function autoSave(dateStr) {
     const azubiId = viewAzubiId || user.id;
-    let woche = DB.getWoche(azubiId, currentKW, currentYear);
+    let woche = await DB.getWoche(azubiId, currentKW, currentYear);
     if (!woche) {
       const monday = DateUtil.getMondayOfKW(currentKW, currentYear);
       const sunday = new Date(monday); sunday.setDate(monday.getDate() + 6);
-      const bt = getBerichtTyp();
+      const bt = await getBerichtTyp();
       woche = {
         azubiId, kw: currentKW, year: currentYear,
         startDate: DateUtil.toISODate(monday),
@@ -1247,10 +1249,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
     woche.gesamtstunden = woche.tage.reduce((s, t) => s + (t.stunden || 0), 0);
     woche.lastSavedAt = new Date().toISOString();
-    DB.saveWoche(woche);
+    await DB.saveWoche(woche);
     updateAutosaveTimestamp();
     updateStundenDisplay();
-    updateDayCompletion(dateStr);
+    await updateDayCompletion(dateStr);
     clearDayError(dateStr);
   }
 
@@ -1262,10 +1264,10 @@ document.addEventListener('DOMContentLoaded', () => {
     el.textContent = `${ts} Uhr`;
   }
 
-  function updateDayCompletion(dateStr) {
+  async function updateDayCompletion(dateStr) {
     const row = document.getElementById('dayCard_' + dateStr);
     if (!row) return;
-    const w = DB.getWoche(viewAzubiId || user.id, currentKW, currentYear);
+    const w = await DB.getWoche(viewAzubiId || user.id, currentKW, currentYear);
     const tag = w?.tage?.find(t => t.datum === dateStr);
     const date = new Date(dateStr + 'T00:00:00');
     const isWE = date.getDay() === 0 || date.getDay() === 6;
@@ -1311,8 +1313,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // ── Events ────────────────────────────────────────────────────────
 
-  function renderComment(k) {
-    const author = DB.getUser(k.userId);
+  async function renderComment(k) {
+    const author = await DB.getUser(k.userId);
     return `
       <div class="comment comment--ausbilder">
         <div class="comment__body">
@@ -1369,7 +1371,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // Manuelles „Speichern" – flusht Auto-Save Timer und stößt ein Save an.
-    document.getElementById('saveBtn')?.addEventListener('click', () => {
+    document.getElementById('saveBtn')?.addEventListener('click', async () => {
       for (let i = 0; i < 5; i++) {
         const d = new Date(monday);
         d.setDate(monday.getDate() + i);
@@ -1378,10 +1380,10 @@ document.addEventListener('DOMContentLoaded', () => {
           clearTimeout(saveTimers[ds]);
           delete saveTimers[ds];
         }
-        autoSave(ds);
+        await autoSave(ds);
       }
       if (berichtTyp === 'wöchentlich' && typeof flushWochenAutoSave === 'function') {
-        flushWochenAutoSave();
+        await flushWochenAutoSave();
       }
       Toast.success('Gespeichert', 'Alle Änderungen wurden gespeichert.');
       render();
@@ -1393,7 +1395,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     // Freigabe – mit Pflichtfeld-Validierung
-    document.getElementById('releaseBtn')?.addEventListener('click', () => {
+    document.getElementById('releaseBtn')?.addEventListener('click', async () => {
       // Pending Auto-Saves flushen, damit Validierung den aktuellsten Stand sieht.
       // Im täglich-Format pro Tag ein Auto-Save; im wöchentlich-Format
       // zusätzlich der Wochen-Auto-Save (für Quills + Lernort/Unterweisung).
@@ -1404,32 +1406,32 @@ document.addEventListener('DOMContentLoaded', () => {
         if (saveTimers[ds]) {
           clearTimeout(saveTimers[ds]);
           delete saveTimers[ds];
-          autoSave(ds);
+          await autoSave(ds);
         }
       }
       if (berichtTyp === 'wöchentlich' && typeof flushWochenAutoSave === 'function') {
-        flushWochenAutoSave();
+        await flushWochenAutoSave();
       }
-      const aktuelleWoche = DB.getWoche(viewAzubiId || user.id, currentKW, currentYear);
-      const errors = validateWoche(aktuelleWoche, monday);
+      const aktuelleWoche = await DB.getWoche(viewAzubiId || user.id, currentKW, currentYear);
+      const errors = await validateWoche(aktuelleWoche, monday);
       if (errors.length > 0) {
-        showValidationErrors(errors);
+        await showValidationErrors(errors);
         return;
       }
       clearValidationErrors();
       Modal.open('releaseModal');
     });
-    document.getElementById('releaseConfirmBtn')?.addEventListener('click', () => {
+    document.getElementById('releaseConfirmBtn')?.addEventListener('click', async () => {
       if (!woche) { Toast.warning('Keine Einträge', 'Bitte zuerst Einträge erfassen.'); Modal.closeAll(); return; }
-      DB.setWocheStatus(woche.id, 'freigegeben');
+      await DB.setWocheStatus(woche.id, 'eingereicht');
       Modal.closeAll();
       Toast.success('Freigegeben', `KW ${currentKW} wurde zur Abnahme freigegeben.`);
       render();
     });
 
-    document.getElementById('approveBtn')?.addEventListener('click', () => {
-      DB.setWocheStatus(woche.id, 'genehmigt');
-      DB.addBenachrichtigung({
+    document.getElementById('approveBtn')?.addEventListener('click', async () => {
+      await DB.setWocheStatus(woche.id, 'genehmigt');
+      await DB.addBenachrichtigung({
         userId: woche.azubiId,
         type: 'genehmigt',
         wocheId: woche.id,
@@ -1442,15 +1444,15 @@ document.addEventListener('DOMContentLoaded', () => {
       render();
     });
     document.getElementById('rejectBtn')?.addEventListener('click', () => Modal.open('rejectModal'));
-    document.getElementById('rejectConfirmBtn')?.addEventListener('click', () => {
+    document.getElementById('rejectConfirmBtn')?.addEventListener('click', async () => {
       const reason = document.getElementById('rejectReason').value.trim();
       if (!reason) { Toast.error('Pflichtfeld', 'Bitte eine Begründung eingeben.'); return; }
-      DB.addKommentar(woche.id, {
+      await DB.addKommentar(woche.id, {
         userId: user.id, text: reason,
         datum: new Date().toLocaleDateString('de-DE'), typ: 'abgelehnt',
       });
-      DB.setWocheStatus(woche.id, 'abgelehnt');
-      DB.addBenachrichtigung({
+      await DB.setWocheStatus(woche.id, 'abgelehnt');
+      await DB.addBenachrichtigung({
         userId: woche.azubiId,
         type: 'abgelehnt',
         wocheId: woche.id,
@@ -1470,11 +1472,11 @@ document.addEventListener('DOMContentLoaded', () => {
       document.getElementById('commentText').value = '';
       Modal.open('commentModal');
     });
-    document.getElementById('commentSubmitBtn')?.addEventListener('click', () => {
+    document.getElementById('commentSubmitBtn')?.addEventListener('click', async () => {
       const text = document.getElementById('commentText').value.trim();
       if (!text) { Toast.error('Pflichtfeld', 'Bitte einen Kommentar eingeben.'); return; }
       if (!woche) return;
-      DB.addKommentar(woche.id, {
+      await DB.addKommentar(woche.id, {
         userId: user.id, text,
         datum: new Date().toLocaleDateString('de-DE'), typ: 'ausbilder',
       });
@@ -1492,7 +1494,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Anwesenheit live-toggle
     document.querySelectorAll('select[data-field="anwesenheit"]').forEach(sel => {
-      sel.addEventListener('change', () => {
+      sel.addEventListener('change', async () => {
         const dateStr = sel.dataset.date;
         const isAbwesend = sel.value !== 'anwesend' && sel.value !== '';
         const row = document.getElementById('dayCard_' + dateStr);
@@ -1516,12 +1518,12 @@ document.addEventListener('DOMContentLoaded', () => {
           if (absenceSec) absenceSec.style.display = isAbwesend ? '' : 'none';
 
           if (!isAbwesend && !quillInstances['day_betrieb_' + dateStr]) {
-            const w = DB.getWoche(viewAzubiId || user.id, currentKW, currentYear);
+            const w = await DB.getWoche(viewAzubiId || user.id, currentKW, currentYear);
             const ro = w && (w.status === 'freigegeben' || w.status === 'genehmigt');
             initSingleDayEditor(dateStr, w, ro);
           }
         }
-        autoSave(dateStr);
+        await autoSave(dateStr);
         updateStundenDisplay();
       });
     });
@@ -1529,7 +1531,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Übrige Felder (Ort, Textareas) – Sichtbarkeit der Betrieb-/Schule-Kacheln
     // richtet sich nach dem gewählten Ort.
     document.querySelectorAll('select[data-field="ort"], textarea[data-field]').forEach(el => {
-      el.addEventListener('change', () => {
+      el.addEventListener('change', async () => {
         if (el.dataset.field === 'ort') {
           const dateStr = el.dataset.date;
           const visible = getVisibleDaySections(el.value);
@@ -1559,13 +1561,13 @@ document.addEventListener('DOMContentLoaded', () => {
             uSection.classList.toggle('day-section--hidden', !uVisible);
           }
         }
-        autoSave(el.dataset.date);
+        await autoSave(el.dataset.date);
       });
     });
 
     // Spinner-Callback
-    setSpinnerCallback(dateStr => {
-      autoSave(dateStr);
+    setSpinnerCallback(async dateStr => {
+      await autoSave(dateStr);
       updateStundenDisplay();
     });
   }
@@ -1574,15 +1576,15 @@ document.addEventListener('DOMContentLoaded', () => {
     const isReadonly = woche && (woche.status === 'freigegeben' || woche.status === 'genehmigt');
 
     // Lernort-Umschalter → Kacheln neu rendern
-    document.getElementById('wochenOrtSelect')?.addEventListener('change', () => {
-      autoSaveWoche();
-      refreshWochenKacheln(DB.getWoche(viewAzubiId || user.id, currentKW, currentYear));
+    document.getElementById('wochenOrtSelect')?.addEventListener('change', async () => {
+      await autoSaveWoche();
+      await refreshWochenKacheln(await DB.getWoche(viewAzubiId || user.id, currentKW, currentYear));
     });
 
     // Unterweisung-Checkbox → Kacheln neu rendern
-    document.getElementById('unterweisungCheck')?.addEventListener('change', () => {
-      autoSaveWoche();
-      refreshWochenKacheln(DB.getWoche(viewAzubiId || user.id, currentKW, currentYear));
+    document.getElementById('unterweisungCheck')?.addEventListener('change', async () => {
+      await autoSaveWoche();
+      await refreshWochenKacheln(await DB.getWoche(viewAzubiId || user.id, currentKW, currentYear));
     });
 
     initWochenQuillEditors(woche, isReadonly);
@@ -1594,7 +1596,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const ortSel         = row.querySelector(`select[data-field="ort"]`);
 
       if (anwesenheitSel) {
-        anwesenheitSel.addEventListener('change', () => {
+        anwesenheitSel.addEventListener('change', async () => {
           const isAbwesend = anwesenheitSel.value !== 'anwesend' && anwesenheitSel.value !== '';
           if (ortSel) ortSel.disabled = isAbwesend;
           const spinner = row.querySelector('.time-spinner');
@@ -1606,15 +1608,15 @@ document.addEventListener('DOMContentLoaded', () => {
             });
             spinner.classList.toggle('time-spinner--readonly', isAbwesend);
           }
-          autoSave(dateStr);
+          await autoSave(dateStr);
           updateStundenDisplay();
         });
       }
-      if (ortSel) ortSel.addEventListener('change', () => autoSave(dateStr));
+      if (ortSel) ortSel.addEventListener('change', async () => await autoSave(dateStr));
     });
 
     // Spinner-Callback registrieren
-    setSpinnerCallback(dateStr => autoSave(dateStr));
+    setSpinnerCallback(async dateStr => await autoSave(dateStr));
   }
 
   const saveTimers = {};
@@ -1629,15 +1631,15 @@ document.addEventListener('DOMContentLoaded', () => {
     wochenSaveTimer = setTimeout(() => autoSaveWoche(), ms);
   }
   /** Pending Wochen-Auto-Save sofort ausführen (für Freigabe-Validierung). */
-  function flushWochenAutoSave() {
+  async function flushWochenAutoSave() {
     if (wochenSaveTimer) {
       clearTimeout(wochenSaveTimer);
       wochenSaveTimer = null;
     }
-    autoSaveWoche();
+    await autoSaveWoche();
   }
 
-  render();
+  await render();
 });
 
 // ── Globale Hilfsfunktionen ───────────────────────────────────────
@@ -1706,4 +1708,3 @@ function handleSpinnerInput(inp) {
   inp.value = String(v).padStart(2, '0');
   window._spinnerCallback?.(dateStr);
 }
-

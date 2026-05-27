@@ -1,8 +1,8 @@
 /* ===================================================================
    JAHRESANSICHT.JS
    =================================================================== */
-document.addEventListener('DOMContentLoaded', () => {
-  const user = initPage('nav-jahresansicht', [{ label: 'Jahresansicht', href: 'jahresansicht.html' }]);
+document.addEventListener('DOMContentLoaded', async () => {
+  const user = await initPage('nav-jahresansicht', [{ label: 'Jahresansicht', href: 'jahresansicht.html' }]);
   if (!user) return;
 
   // Layout-Marker: Jahresansicht braucht die volle Breite, damit die
@@ -25,11 +25,13 @@ document.addEventListener('DOMContentLoaded', () => {
     return woche.status;
   }
 
-  function render() {
+  async function render() {
     const azubiId = viewAzubiId || user.id;
-    const wochen = DB.getWochenFuerAzubi(azubiId);
+    const wochen = await DB.getWochenFuerAzubi(azubiId);
     const isAusbilder = ['ausbilder', 'admin'].includes(user.role);
     const main = document.getElementById('mainContent');
+
+    const azubiSelectorHtml = isAusbilder ? await renderAzubiSelector(azubiId) : '';
 
     main.innerHTML = `
       <div class="page-header">
@@ -39,7 +41,7 @@ document.addEventListener('DOMContentLoaded', () => {
         </div>
       </div>
 
-      ${isAusbilder ? renderAzubiSelector(azubiId) : ''}
+      ${azubiSelectorHtml}
 
       <div class="year-header">
         <div class="year-nav">
@@ -100,8 +102,8 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  function renderAzubiSelector(currentId) {
-    const azubis = DB.getAzubis();
+  async function renderAzubiSelector(currentId) {
+    const azubis = await DB.getAzubis();
     return `
       <div style="margin-bottom:var(--sp-5);display:flex;align-items:center;gap:var(--sp-3);flex-wrap:wrap">
         <span style="font-size:var(--text-sm);font-weight:700;color:var(--pm-grey-600)">Azubi:</span>
@@ -225,5 +227,5 @@ document.addEventListener('DOMContentLoaded', () => {
     setTimeout(() => row.classList.remove('week-row--pulse'), 2400);
   }
 
-  render();
+  await render();
 });

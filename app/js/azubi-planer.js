@@ -1,8 +1,8 @@
 /* ===================================================================
    AZUBI-PLANER.JS
    =================================================================== */
-document.addEventListener('DOMContentLoaded', () => {
-  const user = initPage('nav-planer', [{ label: 'Azubi-Planer', href: 'azubi-planer.html' }]);
+document.addEventListener('DOMContentLoaded', async () => {
+  const user = await initPage('nav-planer', [{ label: 'Azubi-Planer', href: 'azubi-planer.html' }]);
   if (!user) return;
 
   if (!['ausbilder', 'admin'].includes(user.role)) {
@@ -24,15 +24,18 @@ document.addEventListener('DOMContentLoaded', () => {
   let searchText = '';
   let pendingDeleteZuweisungId = null;
 
-  const ausbilder = DB.getAusbilder();
-  const azubis = DB.getAzubis();
+  const ausbilder = await DB.getAusbilder();
+  const azubis = await DB.getAzubis();
 
   // Ausbilder-Farb-Map
   const ausbilderColors = {};
   ausbilder.forEach((a, i) => { ausbilderColors[a.id] = COLORS[i % COLORS.length]; });
 
-  function render() {
+  async function render() {
     const main = document.getElementById('mainContent');
+
+    const ganttRowsHtml = await buildGanttRows();
+    const zuweisungTableHtml = await buildZuweisungTable();
 
     main.innerHTML = `
       <div class="page-header">
@@ -81,7 +84,7 @@ document.addEventListener('DOMContentLoaded', () => {
       <div class="gantt-wrap">
         ${buildGanttHeader()}
         <div class="gantt-body">
-          ${buildGanttRows()}
+          ${ganttRowsHtml}
         </div>
         ${buildGanttLegend()}
       </div>
@@ -92,16 +95,16 @@ document.addEventListener('DOMContentLoaded', () => {
           <span class="card__title">Bestehende Zuweisungen</span>
         </div>
         <div class="card__body" style="padding:0 var(--sp-5) 0 0">
-          ${buildZuweisungTable()}
+          ${zuweisungTableHtml}
         </div>
       </div>
     `;
 
     // Events
     document.getElementById('newZuweisungBtn')?.addEventListener('click', openNewZuweisung);
-    document.getElementById('azubiSearch')?.addEventListener('input', (e) => {
+    document.getElementById('azubiSearch')?.addEventListener('input', async (e) => {
       searchText = e.target.value.toLowerCase();
-      document.querySelector('.gantt-body').innerHTML = buildGanttRows();
+      document.querySelector('.gantt-body').innerHTML = await buildGanttRows();
     });
 
     bindZuweisungTableEvents();
@@ -125,7 +128,7 @@ document.addEventListener('DOMContentLoaded', () => {
     `;
   }
 
-  function buildGanttRows() {
+  async function buildGanttRows() {
     let filteredAzubis = azubis;
     if (searchText) {
       filteredAzubis = azubis.filter(a => a.name.toLowerCase().includes(searchText));
@@ -135,9 +138,9 @@ document.addEventListener('DOMContentLoaded', () => {
       return `<div style="padding:var(--sp-8);text-align:center;color:var(--pm-grey-400)">Keine Auszubildenden gefunden.</div>`;
     }
 
-    return filteredAzubis.map(azubi => {
-      const zuweisungen = DB.getZuweisungenFuerAzubi(azubi.id);
-      const bars = buildGanttBars(zuweisungen);
+    const rows = await Promise.all(filteredAzubis.map(async azubi => {
+      const zuweisungen = await DB.getZuweisungenFuerAzubi(azubi.id);
+      const bars = await buildGanttBars(zuweisungen);
 
       return `
         <div class="gantt-row">
@@ -154,15 +157,17 @@ document.addEventListener('DOMContentLoaded', () => {
           </div>
         </div>
       `;
-    }).join('');
+    }));
+
+    return rows.join('');
   }
 
-  function buildGanttBars(zuweisungen) {
+  async function buildGanttBars(zuweisungen) {
     const yearStart = new Date(planYear, 0, 1).getTime();
     const yearEnd = new Date(planYear + 1, 0, 1).getTime();
     const yearDuration = yearEnd - yearStart;
 
-    return zuweisungen.map(z => {
+    const bars = await Promise.all(zuweisungen.map(async z => {
       const from = new Date(z.von + 'T00:00:00').getTime();
       const to = new Date(z.bis + 'T00:00:00').getTime();
 
@@ -172,7 +177,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
       if (width <= 0) return '';
 
-      const ausb = DB.getUser(z.ausbilderId);
+      const ausb = await DB.getUser(z.ausbilderId);
       const colorClass = ausbilder.findIndex(a => a.id === z.ausbilderId);
 
       return `
@@ -183,7 +188,9 @@ document.addEventListener('DOMContentLoaded', () => {
           ${width > 8 ? (ausb?.initials || '') : ''}
         </div>
       `;
-    }).join('');
+    }));
+
+    return bars.join('');
   }
 
   function buildTodayLine() {
@@ -207,11 +214,37 @@ document.addEventListener('DOMContentLoaded', () => {
     `;
   }
 
-  function buildZuweisungTable() {
-    const alle = DB.data.zuweisungen;
+  async function buildZuweisungTable() {
+    const alle = await DB.getAllZuweisungen();
     if (!alle.length) {
       return '<div style="padding:var(--sp-8);text-align:center;color:var(--pm-grey-400)">Keine Zuweisungen vorhanden.</div>';
     }
+
+    const rows = await Promise.all(alle.map(async z => {
+      const azubi = await DB.getUser(z.azubiId);
+      const ausb = await DB.getUser(z.ausbilderId);
+      const isCurrent = z.von <= DateUtil.toISODate(today) && z.bis >= DateUtil.toISODate(today);
+      return `
+        <tr${isCurrent ? ' class="zuweisung-row--current"' : ''}>
+          <td>
+            <div class="zuweisung-azubi-cell">
+              <div class="avatar avatar--sm">${azubi?.initials || '?'}</div>
+              <span class="zuweisung-azubi-name">${azubi?.name || '–'}</span>
+              ${isCurrent ? '<span class="badge badge--genehmigt">Aktuell</span>' : ''}
+            </div>
+          </td>
+          <td>${ausb?.name || '–'}</td>
+          <td>${z.abteilung || '–'}</td>
+          <td class="zuweisung-date">${DateUtil.formatDate(z.von)}</td>
+          <td class="zuweisung-date">${DateUtil.formatDate(z.bis)}</td>
+          <td class="zuweisung-action-cell">
+            <button class="btn btn-sm btn-ghost delete-zuweisung-btn" data-id="${z.id}" aria-label="Löschen">
+              <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" style="width:16px;height:16px"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
+            </button>
+          </td>
+        </tr>
+      `;
+    }));
 
     return `
       <table class="qual-table zuweisung-table">
@@ -234,31 +267,7 @@ document.addEventListener('DOMContentLoaded', () => {
           </tr>
         </thead>
         <tbody>
-          ${alle.map(z => {
-            const azubi = DB.getUser(z.azubiId);
-            const ausb = DB.getUser(z.ausbilderId);
-            const isCurrent = z.von <= DateUtil.toISODate(today) && z.bis >= DateUtil.toISODate(today);
-            return `
-              <tr${isCurrent ? ' class="zuweisung-row--current"' : ''}>
-                <td>
-                  <div class="zuweisung-azubi-cell">
-                    <div class="avatar avatar--sm">${azubi?.initials || '?'}</div>
-                    <span class="zuweisung-azubi-name">${azubi?.name || '–'}</span>
-                    ${isCurrent ? '<span class="badge badge--genehmigt">Aktuell</span>' : ''}
-                  </div>
-                </td>
-                <td>${ausb?.name || '–'}</td>
-                <td>${z.abteilung || '–'}</td>
-                <td class="zuweisung-date">${DateUtil.formatDate(z.von)}</td>
-                <td class="zuweisung-date">${DateUtil.formatDate(z.bis)}</td>
-                <td class="zuweisung-action-cell">
-                  <button class="btn btn-sm btn-ghost delete-zuweisung-btn" data-id="${z.id}" aria-label="Löschen">
-                    ${Icon('trash', { size: 16 })}
-                  </button>
-                </td>
-              </tr>
-            `;
-          }).join('')}
+          ${rows.join('')}
         </tbody>
       </table>
     `;
@@ -266,13 +275,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function bindZuweisungTableEvents() {
     document.querySelectorAll('.delete-zuweisung-btn').forEach(btn => {
-      btn.addEventListener('click', () => {
+      btn.addEventListener('click', async () => {
         const id = parseInt(btn.dataset.id);
         pendingDeleteZuweisungId = id;
 
         // Modal-Text personalisieren, damit klar ist, was gleich gelöscht wird.
-        const z = DB.data.zuweisungen.find(x => x.id === id);
-        const azubi = z ? DB.getUser(z.azubiId) : null;
+        const alleZ = await DB.getAllZuweisungen();
+        const z = alleZ.find(x => x.id === id);
+        const azubi = z ? await DB.getUser(z.azubiId) : null;
         const textEl = document.getElementById('zuweisungDeleteText');
         if (textEl) {
           textEl.textContent = azubi
@@ -288,13 +298,13 @@ document.addEventListener('DOMContentLoaded', () => {
   function initZuweisungDeleteModal() {
     // Bindung erfolgt einmalig beim ersten Render – das Modal selbst bleibt
     // im DOM stehen, nur pendingDeleteZuweisungId wird pro Klick neu gesetzt.
-    document.getElementById('zuweisungDeleteConfirmBtn')?.addEventListener('click', () => {
+    document.getElementById('zuweisungDeleteConfirmBtn')?.addEventListener('click', async () => {
       if (pendingDeleteZuweisungId == null) return;
-      DB.deleteZuweisung(pendingDeleteZuweisungId);
+      await DB.deleteZuweisung(pendingDeleteZuweisungId);
       pendingDeleteZuweisungId = null;
       Modal.closeAll();
       Toast.success('Gelöscht', 'Zuweisung wurde entfernt.');
-      render();
+      await render();
     });
   }
 
@@ -307,7 +317,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function initZuweisungModal() {
-    document.getElementById('zuweisungSaveBtn')?.addEventListener('click', () => {
+    document.getElementById('zuweisungSaveBtn')?.addEventListener('click', async () => {
       const azubiId = parseInt(document.getElementById('zuweisungAzubi').value);
       const ausbilderId = parseInt(document.getElementById('zuweisungAusbilder').value);
       const von = document.getElementById('zuweisungVon').value;
@@ -317,10 +327,10 @@ document.addEventListener('DOMContentLoaded', () => {
       if (!von || !bis) { Toast.error('Pflichtfeld', 'Bitte Zeitraum angeben.'); return; }
       if (von > bis) { Toast.error('Ungültiger Zeitraum', 'Startdatum muss vor Enddatum liegen.'); return; }
 
-      DB.addZuweisung({ azubiId, ausbilderId, von, bis, abteilung });
+      await DB.addZuweisung({ azubiId, ausbilderId, von, bis, abteilung });
       Modal.closeAll();
       Toast.success('Gespeichert', 'Neue Zuweisung wurde angelegt.');
-      render();
+      await render();
     });
   }
 
@@ -334,5 +344,5 @@ document.addEventListener('DOMContentLoaded', () => {
   // angehängt, was zu Mehrfach-Löschungen führen könnte.
   initZuweisungDeleteModal();
 
-  render();
+  await render();
 });
