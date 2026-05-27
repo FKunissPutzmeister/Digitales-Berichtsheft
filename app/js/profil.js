@@ -44,7 +44,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     infoItems.push(`
       <div class="profil-card__info-item">
-        <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+        ${Icon('mail', { size: 18 })}
         <span>${user.email || '–'}</span>
       </div>
     `);
@@ -52,7 +52,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (user.abteilung) {
       infoItems.push(`
         <div class="profil-card__info-item">
-          <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/></svg>
+          ${Icon('briefcase', { size: 18 })}
           <span>${user.abteilung}</span>
         </div>
       `);
@@ -61,7 +61,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (user.unternehmen) {
       infoItems.push(`
         <div class="profil-card__info-item">
-          <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+          ${Icon('building')}
           <span>${user.unternehmen}</span>
         </div>
       `);
@@ -70,7 +70,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (isAzubi && user.ausbildungsBeginn && user.ausbildungsEnde) {
       infoItems.push(`
         <div class="profil-card__info-item">
-          <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+          ${Icon('calendar', { size: 18 })}
           <span>${DateUtil.formatDate(user.ausbildungsBeginn)} – ${DateUtil.formatDate(user.ausbildungsEnde)}</span>
         </div>
       `);
@@ -111,7 +111,7 @@ document.addEventListener('DOMContentLoaded', () => {
       <details class="profil-section" open>
         <summary class="profil-section__header">
           <div class="profil-section__icon">
-            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+            ${Icon('user')}
           </div>
           <div class="profil-section__title">Persönliche Daten</div>
         </summary>
@@ -156,7 +156,7 @@ document.addEventListener('DOMContentLoaded', () => {
       <details class="profil-section" open>
         <summary class="profil-section__header">
           <div class="profil-section__icon">
-            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/></svg>
+            ${Icon('cap')}
           </div>
           <div class="profil-section__title">Ausbildungsdaten</div>
         </summary>
@@ -190,7 +190,7 @@ document.addEventListener('DOMContentLoaded', () => {
       <details class="profil-section">
         <summary class="profil-section__header">
           <div class="profil-section__icon">
-            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+            ${Icon('document')}
           </div>
           <div class="profil-section__title">IHK-Daten</div>
         </summary>
@@ -223,7 +223,7 @@ document.addEventListener('DOMContentLoaded', () => {
       <details class="profil-section">
         <summary class="profil-section__header">
           <div class="profil-section__icon">
-            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+            ${Icon('building')}
           </div>
           <div class="profil-section__title">Unternehmensdaten</div>
         </summary>
@@ -275,7 +275,7 @@ document.addEventListener('DOMContentLoaded', () => {
       <details class="profil-section" open>
         <summary class="profil-section__header">
           <div class="profil-section__icon">
-            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+            ${Icon('clock')}
           </div>
           <div class="profil-section__title">Deine Ausbildungsbeauftragten</div>
         </summary>
@@ -300,7 +300,7 @@ document.addEventListener('DOMContentLoaded', () => {
         <details class="profil-section" open>
           <summary class="profil-section__header">
             <div class="profil-section__icon">
-              <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+              ${Icon('users')}
             </div>
             <div class="profil-section__title">Zugeordnete Auszubildende</div>
           </summary>
@@ -317,7 +317,7 @@ document.addEventListener('DOMContentLoaded', () => {
         <details class="profil-section" open>
           <summary class="profil-section__header">
             <div class="profil-section__icon">
-              <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+              ${Icon('users')}
             </div>
             <div class="profil-section__title">Alle Auszubildenden</div>
           </summary>
@@ -363,7 +363,7 @@ document.addEventListener('DOMContentLoaded', () => {
       <details class="profil-section" open>
         <summary class="profil-section__header">
           <div class="profil-section__icon">
-            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+            ${Icon('users')}
           </div>
           <div class="profil-section__title">Zugeordnete Auszubildende</div>
         </summary>
@@ -382,10 +382,7 @@ document.addEventListener('DOMContentLoaded', () => {
     return `
       <div class="profil-logout">
         <div class="profil-logout__icon" aria-hidden="true">
-          <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-            <path stroke-linecap="round" stroke-linejoin="round"
-                  d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/>
-          </svg>
+          ${Icon('logout')}
         </div>
         <div class="profil-logout__text">
           <div class="profil-logout__title">Abmelden</div>
@@ -451,6 +448,7 @@ document.addEventListener('DOMContentLoaded', () => {
         <div class="profil-panels">
           ${buildPersoenlicheDaten()}
           ${buildAusbildungsDaten()}
+          ${ZeitnachweisUpload.renderSection(user)}
           ${buildIHKDaten()}
           ${buildUnternehmensDaten()}
           ${buildAusbilderTimeline()}
@@ -493,6 +491,9 @@ document.addEventListener('DOMContentLoaded', () => {
       Modal.closeAll();
       Toast.success('Gespeichert', 'Dein Passwort wurde erfolgreich geändert.');
     });
+
+    // Zeitnachweis-Import-Sektion verdrahten (nur für Azubis vorhanden)
+    ZeitnachweisUpload.bind(user);
 
     Modal.init();
     Toast.init();

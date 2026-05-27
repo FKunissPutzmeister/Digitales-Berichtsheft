@@ -69,7 +69,7 @@ function renderAzubiDashboard(user) {
     <div class="stats-grid stats-grid--3">
       <div class="stat-card animate-fade-in" style="animation-delay:0ms">
         <div class="stat-card__icon stat-card__icon--yellow">
-          <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+          ${Icon('chart')}
         </div>
         <div class="stat-card__content">
           <div class="stat-card__label">Gesamtstunden</div>
@@ -79,7 +79,7 @@ function renderAzubiDashboard(user) {
       </div>
       <div class="stat-card animate-fade-in" style="animation-delay:60ms">
         <div class="stat-card__icon stat-card__icon--success">
-          <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+          ${Icon('success')}
         </div>
         <div class="stat-card__content">
           <div class="stat-card__label">Genehmigte Wochen</div>
@@ -89,7 +89,7 @@ function renderAzubiDashboard(user) {
       </div>
       <div class="stat-card animate-fade-in" style="animation-delay:120ms">
         <div class="stat-card__icon stat-card__icon--${offeneWochen > 0 ? 'error' : 'success'}">
-          <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/></svg>
+          ${Icon('wochenansicht')}
         </div>
         <div class="stat-card__content">
           <div class="stat-card__label">Ausstehend</div>
@@ -357,19 +357,19 @@ function restlicheArbeitstage(kw, year) {
 
 /* ── Inline-SVG-Icons für den CTA ─────────────────────────── */
 function iconPen() {
-  return `<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 0 0-2 2v11a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2v-5"/><path stroke-linecap="round" stroke-linejoin="round" d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>`;
+  return Icon('edit');
 }
 function iconAlert() {
-  return `<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v4m0 4h.01M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/></svg>`;
+  return Icon('warning');
 }
 function iconCheck() {
-  return `<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.4"><polyline stroke-linecap="round" stroke-linejoin="round" points="20 6 9 17 4 12"/></svg>`;
+  return Icon('success');
 }
 function iconHourglass() {
-  return `<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 2h12M6 22h12M6 2v4a6 6 0 0 0 12 0V2M6 22v-4a6 6 0 0 1 12 0v4"/></svg>`;
+  return Icon('hourglass');
 }
 function iconInbox() {
-  return `<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M22 12h-6l-2 3h-4l-2-3H2"/><path stroke-linecap="round" stroke-linejoin="round" d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></svg>`;
+  return Icon('inbox');
 }
 
 /* ── Ausbilder-Cockpit ────────────────────────────────────────── */
@@ -432,7 +432,7 @@ function renderAusbilderDashboard(user) {
     <div class="stats-grid stats-grid--3">
       <div class="stat-card animate-fade-in" style="animation-delay:0ms">
         <div class="stat-card__icon stat-card__icon--info">
-          <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+          ${Icon('users')}
         </div>
         <div class="stat-card__content">
           <div class="stat-card__label">Aktive Azubis</div>
@@ -442,7 +442,7 @@ function renderAusbilderDashboard(user) {
       </div>
       <div class="stat-card animate-fade-in" style="animation-delay:60ms">
         <div class="stat-card__icon stat-card__icon--success">
-          <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+          ${Icon('success')}
         </div>
         <div class="stat-card__content">
           <div class="stat-card__label">Diese Woche genehmigt</div>
@@ -452,7 +452,7 @@ function renderAusbilderDashboard(user) {
       </div>
       <div class="stat-card animate-fade-in" style="animation-delay:120ms">
         <div class="stat-card__icon stat-card__icon--${zurueckgegeben > 0 ? 'error' : 'success'}">
-          <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+          ${Icon('refresh')}
         </div>
         <div class="stat-card__content">
           <div class="stat-card__label">Zurückgegeben</div>
@@ -478,7 +478,7 @@ function renderAusbilderDashboard(user) {
             ${queue.length > 0 ? queue.map((w, i) => renderReviewItem(w, i)).join('') : `
               <div class="review-empty">
                 <div class="review-empty__icon">
-                  <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                  ${Icon('success', { size: 32 })}
                 </div>
                 <h3 class="review-empty__title">Alles geprüft!</h3>
                 <p class="review-empty__text">Aktuell warten keine Berichtshefte auf deine Abnahme.</p>
@@ -554,7 +554,7 @@ function renderReviewFilterBar(queue, azubis) {
   return `
     <div class="review-filter-bar" id="reviewFilterBar">
       <div class="review-filter-bar__field review-filter-bar__field--search">
-        <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        ${Icon('search')}
         <input type="search" id="reviewSearchInput" class="review-filter-bar__search"
                placeholder="Suche: Name oder KW…"
                autocomplete="off" spellcheck="false">
@@ -669,7 +669,7 @@ function bindReviewFilterBar(queue) {
       list.innerHTML = `
         <div class="review-empty">
           <div class="review-empty__icon" style="background:var(--pm-grey-100);color:var(--pm-grey-500)">
-            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            ${Icon('search', { size: 32 })}
           </div>
           <h3 class="review-empty__title">Keine Treffer</h3>
           <p class="review-empty__text">Mit den aktuellen Filtern wurde nichts gefunden. Filter zurücksetzen, um alle ${queue.length} Einträge zu zeigen.</p>
