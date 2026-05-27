@@ -103,7 +103,7 @@ async function initLayout(activeNavId) {
   // greift dort ins Leere — daher Delegation.
   if (!document.body.dataset.logoutBound) {
     document.body.dataset.logoutBound = '1';
-    document.body.addEventListener('click', (e) => {
+    document.body.addEventListener('click', async (e) => {
       if (e.target.closest('#logoutBtn')) {
         await DB.logout();
         window.location.href = 'index.html';
@@ -287,7 +287,7 @@ async function initNotifications(user) {
     list.innerHTML = (await Promise.all(items.slice(0, 30).map(renderItem))).join('');
 
     list.querySelectorAll('.notif-item').forEach(el => {
-      el.addEventListener('click', () => {
+      el.addEventListener('click', async () => {
         const id = parseInt(el.dataset.id);
         const item = items.find(b => b.id === id);
         if (!item) return;

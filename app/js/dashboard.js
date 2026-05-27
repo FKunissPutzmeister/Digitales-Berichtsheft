@@ -10,16 +10,33 @@ document.addEventListener('DOMContentLoaded', async () => {
      Sidebar inkl. Theme-Toggle im Footer aufbaut. (initLayout alleine
      würde nur die hardcoded sidebar in dashboard.html anbinden, in der
      der Theme-Toggle nicht enthalten ist.) */
-  const user = await initPage('nav-dashboard', []);
-  if (!user) return;
+  try {
+    const user = await initPage('nav-dashboard', []);
+    if (!user) return;
 
-  if (user.role === 'azubi') {
-    await renderAzubiDashboard(user);
-  } else {
-    await renderAusbilderDashboard(user);
+    if (user.role === 'azubi') {
+      await renderAzubiDashboard(user);
+    } else {
+      await renderAusbilderDashboard(user);
+    }
+
+    Toast.init();
+  } catch (err) {
+    // Ohne diesen Catch verpufft jeder Fehler im Render als unhandled
+    // Promise-Rejection und #mainContent bleibt komplett leer (nur die
+    // statische Sidebar aus dashboard.html bleibt sichtbar).
+    console.error('[Dashboard] Laden fehlgeschlagen:', err);
+    const main = document.getElementById('mainContent');
+    if (main) {
+      main.innerHTML = `
+        <div style="max-width:720px;margin:3rem auto;padding:1.5rem 1.75rem;border:1px solid rgba(245,197,24,.35);border-radius:12px;background:rgba(0,0,0,.25)">
+          <h2 style="margin:0 0 .5rem;color:#f5c518">Dashboard konnte nicht geladen werden</h2>
+          <p style="margin:0 0 1rem;opacity:.85">Beim Abrufen der Daten vom Server ist ein Fehler aufgetreten:</p>
+          <pre style="margin:0;padding:1rem;background:rgba(0,0,0,.45);border-radius:8px;white-space:pre-wrap;word-break:break-word;color:#ff9b9b">${err && err.message ? err.message : String(err)}</pre>
+          <p style="margin:1rem 0 0;font-size:.85rem;opacity:.6">Details in der Browser-Konsole (F12 &rarr; Console).</p>
+        </div>`;
+    }
   }
-
-  Toast.init();
 });
 
 /* ── Azubi-Dashboard (bestehend) ─────────────────────────────── */
@@ -29,6 +46,9 @@ async function renderAzubiDashboard(user) {
   const kwYear = DateUtil.getKWYear(today);
 
   const alleWochen = await DB.getWochenFuerAzubi(user.id);
+  // alleWochen ist bereits geladen → synchroner Lookup statt erneuter async DB.getWoche()-Aufrufe
+  // (DB.getWoche ist seit der Backend-Umstellung asynchron und darf nicht ohne await in Render-Helpern genutzt werden).
+  const findWoche = (k, y) => alleWochen.find(w => w.kw === k && w.year === y) || null;
   const aktuelleWoche = await DB.getWoche(user.id, kw, kwYear);
   const offeneWochen = alleWochen.filter(w => w.status === 'offen').length;
   const genehmigte = alleWochen.filter(w => w.status === 'genehmigt').length;
@@ -62,7 +82,7 @@ async function renderAzubiDashboard(user) {
     // Wochen komplett vor Ausbildungsbeginn überspringen.
     if (user.ausbildungsBeginn && DateUtil.toISODate(su) < user.ausbildungsBeginn) continue;
     const wkw = DateUtil.getKW(mo), wyr = DateUtil.getKWYear(mo);
-    const rec = DB.getWoche(user.id, wkw, wyr);
+    const rec = findWoche(wkw, wyr);
     const st = weekState(rec);
     if (st !== 'abgegeben') {
       ausstehend.push({ kw: wkw, year: wyr, monday: mo, status: rec ? rec.status : null, state: st });
@@ -124,7 +144,7 @@ async function renderAzubiDashboard(user) {
       const mo = new Date(monday); mo.setDate(monday.getDate() - i * 7);
       const wkw = DateUtil.getKW(mo), wyr = DateUtil.getKWYear(mo);
       const su = new Date(mo); su.setDate(mo.getDate() + 6);
-      const st = weekState(DB.getWoche(user.id, wkw, wyr));
+      const st = weekState(findWoche(wkw, wyr));
       html += `
         <a href="wochenansicht.html" class="dash-week-chip dash-week-chip--${st}${i === 0 ? ' is-current' : ''}" data-goto-kw="${wkw}" data-goto-year="${wyr}">
           <span class="dash-week-chip__kw">KW ${wkw}</span>
