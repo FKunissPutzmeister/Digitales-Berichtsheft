@@ -243,6 +243,23 @@
 .stat-card__icon--info { background: var(--color-info-light); color: var(--color-info); }
 .stat-card__icon--error { background: var(--color-error-light); color: var(--color-error); }
 .stat-card__icon svg { width: 24px; height: 24px; }
+
+/* ── Design-Regel: KEINE gefüllten Hintergrund-Flächen hinter Icons ──
+   Icons stehen ohne farbige Box; die Farbe liegt auf dem Icon selbst.
+   (Ausdrücklicher Wunsch — das "Icon in soft-farbiger Box"-Muster wirkt
+   generisch.) Größe/Zentrierung der Container bleibt für das Layout. */
+.stat-card__icon,
+.profil-section__icon,
+.profil-logout__icon,
+.ztn-success__icon,
+.verwaltung-panel__icon,
+.export-btn__icon,
+.upload-zone__icon,
+.attachment-item__icon,
+.review-empty__icon {
+  background: none !important;
+  box-shadow: none !important;
+}
 .stat-card__content { flex: 1; min-width: 0; }
 .stat-card__label {
   font-size: var(--text-xs);

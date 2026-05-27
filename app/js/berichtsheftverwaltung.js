@@ -39,7 +39,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         <details class="verwaltung-panel" open>
           <summary class="verwaltung-panel__header">
             <div class="verwaltung-panel__icon">
-              <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+              ${Icon('download')}
             </div>
             <div class="verwaltung-panel__header-text">
               <div class="verwaltung-panel__title">Berichtsheft herunterladen</div>
@@ -62,7 +62,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             <div class="export-btns">
               <button class="export-btn" id="exportPdfBtn">
                 <div class="export-btn__icon">
-                  <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+                  ${Icon('download')}
                 </div>
                 <div class="export-btn__text">
                   <span class="export-btn__label">Berichtsheft exportieren (.pdf)</span>
@@ -71,7 +71,7 @@ document.addEventListener('DOMContentLoaded', async () => {
               </button>
               <button class="export-btn" id="exportAllPdfBtn">
                 <div class="export-btn__icon">
-                  <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+                  ${Icon('verwaltung')}
                 </div>
                 <div class="export-btn__text">
                   <span class="export-btn__label">Berichtsheftexport aller Einträge (.pdf)</span>
@@ -86,7 +86,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         <details class="verwaltung-panel" open>
           <summary class="verwaltung-panel__header">
             <div class="verwaltung-panel__icon">
-              <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
+              ${Icon('paperclip')}
             </div>
             <div class="verwaltung-panel__header-text">
               <div class="verwaltung-panel__title">Anhänge verwalten</div>
@@ -104,7 +104,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 </div>
               </div>
               <button class="btn btn-outline" id="exportAnhaengeBtn">
-                <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" style="width:16px;height:16px"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+                ${Icon('download', { size: 16 })}
                 Anhänge (.zip)
               </button>
             </div>
@@ -112,7 +112,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             <!-- Upload -->
             <label class="upload-zone" id="uploadZone" for="fileInput">
               <div class="upload-zone__icon">
-                <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>
+                ${Icon('upload')}
               </div>
               <div class="upload-zone__text">Dateien hier ablegen oder klicken zum Auswählen</div>
               <div class="upload-zone__hint">PDF, JPG, PNG, DOCX – max. 10 MB</div>
@@ -194,9 +194,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     return attachments.map((a, i) => `
       <div class="attachment-item${a.fresh ? ' attachment-item--fresh' : ''}">
         <div class="attachment-item__icon">
-          <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" style="width:16px;height:16px">
-            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/>
-          </svg>
+          ${Icon('document', { size: 16 })}
         </div>
         <span class="attachment-item__name">${a.name}</span>
         <span class="attachment-item__size">${a.size}</span>

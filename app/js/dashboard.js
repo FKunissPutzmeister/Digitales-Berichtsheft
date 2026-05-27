@@ -10,16 +10,33 @@ document.addEventListener('DOMContentLoaded', async () => {
      Sidebar inkl. Theme-Toggle im Footer aufbaut. (initLayout alleine
      würde nur die hardcoded sidebar in dashboard.html anbinden, in der
      der Theme-Toggle nicht enthalten ist.) */
-  const user = await initPage('nav-dashboard', []);
-  if (!user) return;
+  try {
+    const user = await initPage('nav-dashboard', []);
+    if (!user) return;
 
-  if (user.role === 'azubi') {
-    await renderAzubiDashboard(user);
-  } else {
-    await renderAusbilderDashboard(user);
+    if (user.role === 'azubi') {
+      await renderAzubiDashboard(user);
+    } else {
+      await renderAusbilderDashboard(user);
+    }
+
+    Toast.init();
+  } catch (err) {
+    // Ohne diesen Catch verpufft jeder Fehler im Render als unhandled
+    // Promise-Rejection und #mainContent bleibt komplett leer (nur die
+    // statische Sidebar aus dashboard.html bleibt sichtbar).
+    console.error('[Dashboard] Laden fehlgeschlagen:', err);
+    const main = document.getElementById('mainContent');
+    if (main) {
+      main.innerHTML = `
+        <div style="max-width:720px;margin:3rem auto;padding:1.5rem 1.75rem;border:1px solid rgba(245,197,24,.35);border-radius:12px;background:rgba(0,0,0,.25)">
+          <h2 style="margin:0 0 .5rem;color:#f5c518">Dashboard konnte nicht geladen werden</h2>
+          <p style="margin:0 0 1rem;opacity:.85">Beim Abrufen der Daten vom Server ist ein Fehler aufgetreten:</p>
+          <pre style="margin:0;padding:1rem;background:rgba(0,0,0,.45);border-radius:8px;white-space:pre-wrap;word-break:break-word;color:#ff9b9b">${err && err.message ? err.message : String(err)}</pre>
+          <p style="margin:1rem 0 0;font-size:.85rem;opacity:.6">Details in der Browser-Konsole (F12 &rarr; Console).</p>
+        </div>`;
+    }
   }
-
-  Toast.init();
 });
 
 /* ── Azubi-Dashboard (bestehend) ─────────────────────────────── */
@@ -29,6 +46,9 @@ async function renderAzubiDashboard(user) {
   const kwYear = DateUtil.getKWYear(today);
 
   const alleWochen = await DB.getWochenFuerAzubi(user.id);
+  // alleWochen ist bereits geladen → synchroner Lookup statt erneuter async DB.getWoche()-Aufrufe
+  // (DB.getWoche ist seit der Backend-Umstellung asynchron und darf nicht ohne await in Render-Helpern genutzt werden).
+  const findWoche = (k, y) => alleWochen.find(w => w.kw === k && w.year === y) || null;
   const aktuelleWoche = await DB.getWoche(user.id, kw, kwYear);
   const offeneWochen = alleWochen.filter(w => w.status === 'offen').length;
   const genehmigte = alleWochen.filter(w => w.status === 'genehmigt').length;
@@ -48,15 +68,141 @@ async function renderAzubiDashboard(user) {
   const ausbilder = zuw ? await DB.getUser(zuw.ausbilderId) : null;
 
   const main = document.getElementById('mainContent');
+
+  // "Ausstehend" = vergangene, noch nicht abgegebene Wochen im jüngeren
+  // Zeitfenster. Auch Wochen OHNE Datensatz (= leer) zählen – sonst wirken
+  // nie begonnene Wochen fälschlich als erledigt. Aktuelle Woche steckt
+  // bereits im Hero, daher hier nur vergangene Wochen.
+  const OUT_WINDOW = 8;
+  const curMonday = DateUtil.getMondayOfKW(kw, kwYear);
+  const ausstehend = [];
+  for (let i = 1; i <= OUT_WINDOW; i++) {
+    const mo = new Date(curMonday); mo.setDate(curMonday.getDate() - i * 7);
+    const su = new Date(mo); su.setDate(mo.getDate() + 6);
+    // Wochen komplett vor Ausbildungsbeginn überspringen.
+    if (user.ausbildungsBeginn && DateUtil.toISODate(su) < user.ausbildungsBeginn) continue;
+    const wkw = DateUtil.getKW(mo), wyr = DateUtil.getKWYear(mo);
+    const rec = findWoche(wkw, wyr);
+    const st = weekState(rec);
+    if (st !== 'abgegeben') {
+      ausstehend.push({ kw: wkw, year: wyr, monday: mo, status: rec ? rec.status : null, state: st });
+    }
+  }
+  ausstehend.sort((a, b) => {
+    const ra = a.status === 'abgelehnt' ? 0 : 1;
+    const rb = b.status === 'abgelehnt' ? 0 : 1;
+    return ra - rb || (a.year - b.year) || (a.kw - b.kw);
+  });
+
+  const aktStatus = aktuelleWoche ? aktuelleWoche.status : 'offen';
+  const wocheStd  = aktuelleWoche
+    ? (aktuelleWoche.tage || []).reduce((s, t) => s + (t.stunden || 0), 0)
+    : 0;
+  const statusLbl = { offen: 'Offen', freigegeben: 'Freigegeben', genehmigt: 'Genehmigt', abgelehnt: 'Zurückgegeben' }[aktStatus] || 'Offen';
+  const monday    = DateUtil.getMondayOfKW(kw, kwYear);
+  const sunday    = new Date(monday); sunday.setDate(monday.getDate() + 6);
+  const hasProgress = user.ausbildungsBeginn && user.ausbildungsEnde;
+  const range = `${DateUtil.formatDateShort(DateUtil.toISODate(monday))} – ${DateUtil.formatDateShort(DateUtil.toISODate(sunday))}`;
+
+  function decToTime(dec) {
+    const m = Math.round((dec || 0) * 60);
+    return `${Math.floor(m / 60)}:${String(m % 60).padStart(2, '0')}`;
+  }
+
+  function renderOutstandingItem(w) {
+    const mo = w.monday || DateUtil.getMondayOfKW(w.kw, w.year);
+    const su = new Date(mo); su.setDate(mo.getDate() + 6);
+    const cls = w.status === 'abgelehnt' ? 'abgelehnt' : (w.state === 'entwurf' ? 'entwurf' : 'leer');
+    const lbl = { abgelehnt: 'Zurückgegeben', entwurf: 'Entwurf', leer: 'Leer' }[cls];
+    return `
+      <a href="wochenansicht.html" class="dash-out-item dash-out-item--${cls}" data-goto-kw="${w.kw}" data-goto-year="${w.year}">
+        <span class="dash-out-item__kw">KW ${w.kw}</span>
+        <span class="dash-out-item__range">${DateUtil.formatDateShort(DateUtil.toISODate(mo))} – ${DateUtil.formatDateShort(DateUtil.toISODate(su))}</span>
+        <span class="dash-out-badge dash-out-badge--${cls}">${lbl}</span>
+        <svg class="dash-out-item__arrow" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+      </a>`;
+  }
+
+  // Berichtstyp steuert den Hero: 'täglich' (gewerblich) → aktuelle Woche
+  // mit Tagen; 'wöchentlich' (kaufmännisch) → Übersicht der letzten KWs.
+  const berichtTyp = user.berichtTyp || 'täglich';
+
+  // Zustand einer Woche fürs farbliche Markieren in der Wochenübersicht.
+  function weekState(w) {
+    if (!w) return 'leer';
+    if (w.status === 'freigegeben' || w.status === 'genehmigt') return 'abgegeben';
+    const hatInhalt = (w.tage || []).some(t =>
+        (t.stunden > 0) || t.eintrag || t.betriebEintrag || t.schuleEintrag || t.unterweisungEintrag)
+      || w.betriebEintrag || w.schuleEintrag || w.unterweisungEintrag;
+    return hatInhalt ? 'entwurf' : 'leer';
+  }
+
+  function renderRecentWeeksGrid(count) {
+    const STATE_LBL = { leer: 'Leer', entwurf: 'Entwurf', abgegeben: 'Abgegeben' };
+    let html = '';
+    for (let i = 0; i < count; i++) {
+      const mo = new Date(monday); mo.setDate(monday.getDate() - i * 7);
+      const wkw = DateUtil.getKW(mo), wyr = DateUtil.getKWYear(mo);
+      const su = new Date(mo); su.setDate(mo.getDate() + 6);
+      const st = weekState(findWoche(wkw, wyr));
+      html += `
+        <a href="wochenansicht.html" class="dash-week-chip dash-week-chip--${st}${i === 0 ? ' is-current' : ''}" data-goto-kw="${wkw}" data-goto-year="${wyr}">
+          <span class="dash-week-chip__kw">KW ${wkw}</span>
+          <span class="dash-week-chip__range">${DateUtil.formatDateShort(DateUtil.toISODate(mo))} – ${DateUtil.formatDateShort(DateUtil.toISODate(su))}</span>
+          <span class="dash-week-chip__state">${STATE_LBL[st]}</span>
+        </a>`;
+    }
+    return `<div class="dash-weekgrid">${html}</div>`;
+  }
+
+  function renderHero() {
+    if (berichtTyp === 'wöchentlich') {
+      return `
+        <section class="dash-tile dash-hero animate-fade-in">
+          <div class="dash-tile__head">
+            <div>
+              <span class="dash-tile__eyebrow">Deine Wochen</span>
+              <h2 class="dash-tile__title">Letzte Kalenderwochen</h2>
+            </div>
+            <a href="wochenansicht.html" class="btn btn-sm btn-outline" data-goto-kw="${kw}" data-goto-year="${kwYear}">Aktuelle Woche →</a>
+          </div>
+          ${renderRecentWeeksGrid(8)}
+          <div class="dash-weekgrid__legend">
+            <span><i class="dash-dot dash-dot--abgegeben"></i> Abgegeben</span>
+            <span><i class="dash-dot dash-dot--entwurf"></i> Entwurf</span>
+            <span><i class="dash-dot dash-dot--leer"></i> Leer / offen</span>
+          </div>
+        </section>`;
+    }
+    return `
+      <section class="dash-tile dash-hero animate-fade-in status-${aktStatus}">
+        <div class="dash-tile__head">
+          <div>
+            <span class="dash-tile__eyebrow">Aktuelle Woche</span>
+            <h2 class="dash-tile__title">KW ${kw} · ${range}</h2>
+          </div>
+          <span class="badge badge--${aktStatus}">${statusLbl}</span>
+        </div>
+        <div class="week-status-list dash-hero__days">
+          ${renderWeekStatusDays(aktuelleWoche, kw, kwYear)}
+        </div>
+        <div class="dash-hero__foot">
+          <span class="dash-hero__sum">Diese Woche: <strong>${decToTime(wocheStd)} Std.</strong></span>
+          <a href="wochenansicht.html" class="lg-btn lg-btn--yellow-solid" data-goto-kw="${kw}" data-goto-year="${kwYear}">
+            <span class="btn__glass"></span>
+            Zur aktuellen Woche
+            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="width:16px;height:16px"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+          </a>
+        </div>
+      </section>`;
+  }
+
   main.innerHTML = `
     <div class="welcome-banner">
       <div class="welcome-banner__content">
         <p class="welcome-banner__greeting">${getGreeting()}, ${user.name.split(' ')[0]} 👋</p>
         <h1 class="welcome-banner__title">Dein Berichtsheft-Dashboard</h1>
-        <p class="welcome-banner__info">
-          ${user.beruf || ''} &nbsp;·&nbsp; ${user.unternehmen || 'Putzmeister'}
-          ${ausbilder ? ` &nbsp;·&nbsp; Ausbilder: ${ausbilder.name}` : ''}
-        </p>
+        <p class="welcome-banner__info">${user.beruf || ''}${ausbilder ? ` &nbsp;·&nbsp; Ausbilder: ${ausbilder.name}` : ''}</p>
       </div>
       <div class="welcome-banner__kw">
         <div class="welcome-banner__kw-number">KW&nbsp;${kw}</div>
@@ -64,98 +210,71 @@ async function renderAzubiDashboard(user) {
       </div>
     </div>
 
-    ${renderAzubiPrimaryCta(user, aktuelleWoche, alleWochen, kw, kwYear)}
+    <div class="dash-bento">
+      <div class="dash-col dash-col--main">
 
-    <div class="stats-grid stats-grid--3">
-      <div class="stat-card animate-fade-in" style="animation-delay:0ms">
-        <div class="stat-card__icon stat-card__icon--yellow">
-          <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
-        </div>
-        <div class="stat-card__content">
-          <div class="stat-card__label">Gesamtstunden</div>
-          <div class="stat-card__value">${formatHoursDecimal(gesamtStunden)}</div>
-          <div class="stat-card__sub">Alle erfassten Wochen</div>
-        </div>
-      </div>
-      <div class="stat-card animate-fade-in" style="animation-delay:60ms">
-        <div class="stat-card__icon stat-card__icon--success">
-          <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-        </div>
-        <div class="stat-card__content">
-          <div class="stat-card__label">Genehmigte Wochen</div>
-          <div class="stat-card__value">${genehmigte}</div>
-          <div class="stat-card__sub">von ${alleWochen.length} gesamt</div>
-        </div>
-      </div>
-      <div class="stat-card animate-fade-in" style="animation-delay:120ms">
-        <div class="stat-card__icon stat-card__icon--${offeneWochen > 0 ? 'error' : 'success'}">
-          <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/></svg>
-        </div>
-        <div class="stat-card__content">
-          <div class="stat-card__label">Ausstehend</div>
-          <div class="stat-card__value">${offeneWochen}</div>
-          <div class="stat-card__sub">Wochen noch offen</div>
-        </div>
-      </div>
-    </div>
+        <!-- HERO: je nach Berichtstyp aktuelle Woche oder Wochenübersicht -->
+        ${renderHero()}
 
-    <div class="dashboard-grid">
-      <!-- LINKS (Hero): KW-Wochenstatus, kompakt — nur so hoch wie nötig -->
-      <div class="dashboard-grid__col dashboard-grid__col--hero">
-        <div class="week-status-card animate-fade-in">
-          <div class="week-status-card__header">
-            <span class="week-status-card__kw">KW ${kw} – Aktuelle Woche</span>
-            <a href="wochenansicht.html" class="btn btn-sm btn-outline-yellow">Öffnen</a>
+        <!-- Ausstehende Wochen – schneller Sprung -->
+        <section class="dash-tile dash-outstanding animate-fade-in">
+          <div class="dash-tile__head">
+            <h2 class="dash-tile__title">Ausstehende Wochen</h2>
+            <span class="dash-tile__hint">${ausstehend.length ? 'Antippen, um die Woche direkt auszufüllen' : ''}</span>
           </div>
-          <div class="week-status-list" id="weekStatusList">
-            ${renderWeekStatusDays(aktuelleWoche, kw, kwYear)}
-          </div>
-          <div style="padding:var(--sp-3) var(--sp-5);border-top:1px solid var(--pm-grey-100);display:flex;justify-content:flex-end;align-items:center;gap:var(--sp-3)">
-            <span style="font-size:var(--text-xs);color:var(--pm-grey-500)">Gesamtstunden:</span>
-            <span style="font-family:var(--font-heading);font-size:var(--text-lg);font-weight:700;color:var(--pm-grey-900)">${aktuelleWoche ? aktuelleWoche.gesamtstunden : 0}:00</span>
-          </div>
-        </div>
+          ${ausstehend.length
+            ? `<div class="dash-out-list">${ausstehend.slice(0, 6).map(renderOutstandingItem).join('')}</div>${ausstehend.length > 6 ? `<div class="dash-out-more">+ ${ausstehend.length - 6} weitere</div>` : ''}`
+            : `<div class="dash-empty">Alles abgegeben — stark! 🎉</div>`}
+        </section>
       </div>
 
-      <!-- RECHTS (gestapelt): Ausbildungsfortschritt (wenn Daten) + Aktivitäten -->
-      <div class="dashboard-grid__col">
-        ${user.ausbildungsBeginn && user.ausbildungsEnde ? `
-        <div class="ausbildung-progress animate-fade-in">
-          <div class="ausbildung-progress__header">
-            <span class="ausbildung-progress__label">Ausbildungsfortschritt</span>
-            <span class="ausbildung-progress__pct">${fortschritt}%</span>
+      <div class="dash-col dash-col--side">
+        ${hasProgress ? `
+        <section class="dash-tile dash-progress animate-fade-in">
+          <div class="dash-tile__head"><h2 class="dash-tile__title">Ausbildungsfortschritt</h2></div>
+          <div class="dash-ring">
+            <svg viewBox="0 0 120 120" aria-hidden="true">
+              <circle class="dash-ring__track" cx="60" cy="60" r="52"/>
+              <circle class="dash-ring__fill" cx="60" cy="60" r="52" data-pct="${fortschritt}"/>
+            </svg>
+            <div class="dash-ring__center"><span class="dash-ring__pct">${fortschritt}</span><span class="dash-ring__unit">%</span></div>
           </div>
-          <div class="progress-bar">
-            <div class="progress-bar__fill" id="ausbildungProgressBar" style="width:0%"></div>
+          <div class="dash-progress__total">
+            <span class="dash-progress__total-icon">${Icon('clock')}</span>
+            <span><strong>${formatHoursDecimal(gesamtStunden)}</strong> Gesamtstunden erfasst</span>
           </div>
-          <div class="ausbildung-progress__dates">
-            <span class="ausbildung-progress__date-item">Start: ${DateUtil.formatDate(user.ausbildungsBeginn)}</span>
-            <span class="ausbildung-progress__date-item">Ende: ${DateUtil.formatDate(user.ausbildungsEnde)}</span>
+          <div class="dash-progress__dates">
+            <span>${DateUtil.formatDate(user.ausbildungsBeginn)}</span>
+            <span>${DateUtil.formatDate(user.ausbildungsEnde)}</span>
           </div>
-        </div>
-        ` : ''}
+        </section>` : ''}
 
-        <div class="card animate-fade-in">
-          <div class="card__header">
-            <span class="card__title">Letzte Aktivitäten</span>
-          </div>
-          <div class="card__body" style="padding-top:0;padding-bottom:0">
-            <div class="activity-feed" id="activityFeed">
-              ${renderAzubiActivities(alleWochen)}
-            </div>
-          </div>
-        </div>
+        <section class="dash-tile dash-activity animate-fade-in">
+          <div class="dash-tile__head"><h2 class="dash-tile__title">Letzte Aktivitäten</h2></div>
+          <div class="activity-feed">${renderAzubiActivities(alleWochen)}</div>
+        </section>
       </div>
     </div>
-
   `;
 
-  setTimeout(() => {
-    const bar = document.getElementById('ausbildungProgressBar');
-    if (bar) bar.style.width = fortschritt + '%';
-  }, 300);
+  // Sprung-Navigation: jede Kachel/Zeile mit data-goto-kw merkt sich die
+  // Ziel-Woche; <a> navigiert per href, andere Elemente per JS.
+  main.querySelectorAll('[data-goto-kw]').forEach(el => {
+    el.addEventListener('click', () => {
+      sessionStorage.setItem('gotoKW', el.dataset.gotoKw);
+      sessionStorage.setItem('gotoYear', el.dataset.gotoYear);
+      if (el.tagName !== 'A') window.location.href = 'wochenansicht.html';
+    });
+  });
 
-  bindPrimaryCtaNav();
+  // Fortschritts-Ring von 0 % hochfüllen. Start-Leerzustand (dashoffset =
+  // Umfang) kommt aus dem CSS, hier wird nur auf den Zielwert animiert.
+  setTimeout(() => {
+    document.querySelectorAll('.dash-ring__fill').forEach(c => {
+      const pct = parseFloat(c.dataset.pct) || 0;
+      c.style.strokeDashoffset = (2 * Math.PI * 52) * (1 - pct / 100);
+    });
+  }, 120);
 }
 
 /* ── Primärer CTA: Azubi-Sicht ────────────────────────────────
@@ -357,19 +476,19 @@ function restlicheArbeitstage(kw, year) {
 
 /* ── Inline-SVG-Icons für den CTA ─────────────────────────── */
 function iconPen() {
-  return `<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 0 0-2 2v11a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2v-5"/><path stroke-linecap="round" stroke-linejoin="round" d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>`;
+  return Icon('edit');
 }
 function iconAlert() {
-  return `<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v4m0 4h.01M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/></svg>`;
+  return Icon('warning');
 }
 function iconCheck() {
-  return `<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.4"><polyline stroke-linecap="round" stroke-linejoin="round" points="20 6 9 17 4 12"/></svg>`;
+  return Icon('success');
 }
 function iconHourglass() {
-  return `<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 2h12M6 22h12M6 2v4a6 6 0 0 0 12 0V2M6 22v-4a6 6 0 0 1 12 0v4"/></svg>`;
+  return Icon('hourglass');
 }
 function iconInbox() {
-  return `<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M22 12h-6l-2 3h-4l-2-3H2"/><path stroke-linecap="round" stroke-linejoin="round" d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></svg>`;
+  return Icon('inbox');
 }
 
 /* ── Ausbilder-Cockpit ────────────────────────────────────────── */
@@ -434,7 +553,7 @@ async function renderAusbilderDashboard(user) {
     <div class="stats-grid stats-grid--3">
       <div class="stat-card animate-fade-in" style="animation-delay:0ms">
         <div class="stat-card__icon stat-card__icon--info">
-          <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+          ${Icon('users')}
         </div>
         <div class="stat-card__content">
           <div class="stat-card__label">Aktive Azubis</div>
@@ -444,7 +563,7 @@ async function renderAusbilderDashboard(user) {
       </div>
       <div class="stat-card animate-fade-in" style="animation-delay:60ms">
         <div class="stat-card__icon stat-card__icon--success">
-          <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+          ${Icon('success')}
         </div>
         <div class="stat-card__content">
           <div class="stat-card__label">Diese Woche genehmigt</div>
@@ -454,7 +573,7 @@ async function renderAusbilderDashboard(user) {
       </div>
       <div class="stat-card animate-fade-in" style="animation-delay:120ms">
         <div class="stat-card__icon stat-card__icon--${zurueckgegeben > 0 ? 'error' : 'success'}">
-          <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+          ${Icon('refresh')}
         </div>
         <div class="stat-card__content">
           <div class="stat-card__label">Zurückgegeben</div>
@@ -480,7 +599,7 @@ async function renderAusbilderDashboard(user) {
             ${queue.length > 0 ? queue.map((w, i) => renderReviewItem(w, i)).join('') : `
               <div class="review-empty">
                 <div class="review-empty__icon">
-                  <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                  ${Icon('success', { size: 32 })}
                 </div>
                 <h3 class="review-empty__title">Alles geprüft!</h3>
                 <p class="review-empty__text">Aktuell warten keine Berichtshefte auf deine Abnahme.</p>
@@ -556,7 +675,7 @@ function renderReviewFilterBar(queue, azubis) {
   return `
     <div class="review-filter-bar" id="reviewFilterBar">
       <div class="review-filter-bar__field review-filter-bar__field--search">
-        <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        ${Icon('search')}
         <input type="search" id="reviewSearchInput" class="review-filter-bar__search"
                placeholder="Suche: Name oder KW…"
                autocomplete="off" spellcheck="false">
@@ -671,7 +790,7 @@ function bindReviewFilterBar(queue) {
       list.innerHTML = `
         <div class="review-empty">
           <div class="review-empty__icon" style="background:var(--pm-grey-100);color:var(--pm-grey-500)">
-            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            ${Icon('search', { size: 32 })}
           </div>
           <h3 class="review-empty__title">Keine Treffer</h3>
           <p class="review-empty__text">Mit den aktuellen Filtern wurde nichts gefunden. Filter zurücksetzen, um alle ${queue.length} Einträge zu zeigen.</p>

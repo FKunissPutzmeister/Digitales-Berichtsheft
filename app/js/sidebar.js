@@ -25,28 +25,28 @@ function buildSidebar(activeNavId) {
     <nav class="sidebar__nav" aria-label="Hauptnavigation">
       <span class="sidebar__section-label">Übersicht</span>
       <a href="dashboard.html" class="sidebar__link" id="nav-dashboard">
-        <span class="sidebar__link-icon"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg></span>
+        <span class="sidebar__link-icon">${Icon('dashboard')}</span>
         <span class="sidebar__link-label">Dashboard</span>
       </a>
 
       <span class="sidebar__section-label">Berichtsheft</span>
       <a href="wochenansicht.html" class="sidebar__link" id="nav-wochenansicht">
-        <span class="sidebar__link-icon"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/></svg></span>
+        <span class="sidebar__link-icon">${Icon('wochenansicht')}</span>
         <span class="sidebar__link-label">Wochenansicht</span>
       </a>
       <a href="jahresansicht.html" class="sidebar__link" id="nav-jahresansicht">
-        <span class="sidebar__link-icon"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg></span>
+        <span class="sidebar__link-icon">${Icon('jahresansicht')}</span>
         <span class="sidebar__link-label">Jahresansicht</span>
       </a>
 
       <div class="sidebar__divider"></div>
       <span class="sidebar__section-label nav-ausbilder-only">Verwaltung</span>
       <a href="berichtsheftverwaltung.html" class="sidebar__link nav-ausbilder-only" id="nav-verwaltung">
-        <span class="sidebar__link-icon"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg></span>
+        <span class="sidebar__link-icon">${Icon('verwaltung')}</span>
         <span class="sidebar__link-label">Berichtsheftverwaltung</span>
       </a>
       <a href="azubi-planer.html" class="sidebar__link nav-ausbilder-only" id="nav-planer">
-        <span class="sidebar__link-icon"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></span>
+        <span class="sidebar__link-icon">${Icon('planer')}</span>
         <span class="sidebar__link-label">Azubi-Planer</span>
       </a>
 

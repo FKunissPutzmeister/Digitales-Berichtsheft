@@ -48,12 +48,25 @@
   --app-bg-image:        url('../assets/backgrounds/abstract-app-light.png');
   --app-bg-overlay:      linear-gradient(180deg, rgba(247, 247, 247, 0.18), rgba(247, 247, 247, 0.32));
   --app-bg-vignette:     radial-gradient(100% 80% at 50% 20%, rgba(255, 255, 255, 0.04), rgba(247, 247, 247, 0.18) 70%);
+
+  /* Sidebar-Backdrop: gleiche Bildsprache wie der App-Hintergrund,
+     im Lightmode hell und im Darkmode dunkel maskiert. */
+  --sidebar-bg:           rgba(255, 255, 255, 0.86);
+  --sidebar-bg-image:    url('../assets/backgrounds/abstract-app-light.png');
+  --sidebar-glass:       rgba(255, 255, 255, 0.48);
+  --sidebar-glass-deep:  rgba(255, 255, 255, 0.66);
+  --sidebar-line:        rgba(255, 195, 0, 0.58);
 }
 
 [data-theme="light"] {
+  --sidebar-bg:           rgba(255, 255, 255, 0.86);
   --app-bg-image:        url('../assets/backgrounds/abstract-app-light.png');
   --app-bg-overlay:      linear-gradient(180deg, rgba(247, 247, 247, 0.18), rgba(247, 247, 247, 0.32));
   --app-bg-vignette:     radial-gradient(100% 80% at 50% 20%, rgba(255, 255, 255, 0.04), rgba(247, 247, 247, 0.18) 70%);
+  --sidebar-bg-image:    url('../assets/backgrounds/abstract-app-light.png');
+  --sidebar-glass:       rgba(255, 255, 255, 0.48);
+  --sidebar-glass-deep:  rgba(255, 255, 255, 0.66);
+  --sidebar-line:        rgba(255, 195, 0, 0.58);
 }
 
 [data-theme="dark"] {
@@ -75,6 +88,12 @@
   --app-bg-image:        url('../assets/backgrounds/abstract-app-dark.png');
   --app-bg-overlay:      linear-gradient(180deg, rgba(44, 44, 44, 0.62), rgba(44, 44, 44, 0.80));
   --app-bg-vignette:     radial-gradient(90% 80% at 50% 20%, rgba(255, 195, 0, 0.055), rgba(26, 26, 26, 0.68) 72%);
+
+  --sidebar-bg:          #1A1A1A;
+  --sidebar-bg-image:    url('../assets/backgrounds/abstract-app-dark.png');
+  --sidebar-glass:       rgba(12, 12, 12, 0.76);
+  --sidebar-glass-deep:  rgba(10, 10, 10, 0.90);
+  --sidebar-line:        rgba(255, 195, 0, 0.24);
 }
 
 /* ===================================================================
@@ -188,10 +207,119 @@ body.login-page::after {
      Inverse-Hintergrund mischt. So fühlt sich der Logo-Bereich „warm" an,
      ohne dass die restliche Navi-Optik verändert wird. */
   background-image:
-    radial-gradient(120% 80% at 0% 0%, rgba(255, 195, 0, 0.08), transparent 55%),
-    linear-gradient(180deg, rgba(255,255,255,0.04) 0%, transparent 25%);
+    linear-gradient(180deg, var(--sidebar-glass-deep) 0%, var(--sidebar-glass) 46%, var(--sidebar-glass-deep) 100%),
+    radial-gradient(120% 80% at 0% 0%, rgba(255, 195, 0, 0.12), transparent 56%),
+    var(--sidebar-bg-image);
+  background-size: cover, cover, auto 100%;
+  background-position: center, left top, 28% center;
+  backdrop-filter: blur(var(--glass-blur)) saturate(150%);
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(150%);
   /* Lichtreflex rechte Innenkante – simuliert eine Glaskante */
-  box-shadow: inset -1px 0 0 rgba(255,255,255,0.04);
+  box-shadow: inset -1px 0 0 rgba(255,255,255,0.06),
+              18px 0 42px rgba(0, 0, 0, 0.10);
+  isolation: isolate;
+}
+.sidebar::before,
+.sidebar::after {
+  content: '';
+  position: absolute;
+  pointer-events: none;
+  inset: 0;
+  z-index: 0;
+}
+.sidebar::before {
+  background:
+    linear-gradient(90deg, rgba(255,255,255,0.055), transparent 22%, transparent 76%, rgba(255,255,255,0.035)),
+    repeating-linear-gradient(135deg,
+      transparent 0,
+      transparent 28px,
+      rgba(255,255,255,0.025) 29px,
+      transparent 30px);
+  mix-blend-mode: screen;
+  opacity: 0.75;
+}
+.sidebar::after {
+  background:
+    linear-gradient(180deg, transparent 0%, rgba(0,0,0,0.28) 100%),
+    linear-gradient(90deg, transparent calc(100% - 2px), var(--sidebar-line) 100%);
+}
+.sidebar > * {
+  position: relative;
+  z-index: 1;
+}
+[data-theme="light"] .sidebar {
+  box-shadow: inset -1px 0 0 rgba(26, 26, 26, 0.08),
+              18px 0 38px rgba(15, 23, 42, 0.08);
+}
+[data-theme="light"] .sidebar::before {
+  background:
+    linear-gradient(90deg, rgba(255,255,255,0.34), transparent 34%, transparent 74%, rgba(255,255,255,0.16)),
+    repeating-linear-gradient(135deg,
+      transparent 0,
+      transparent 28px,
+      rgba(26,26,26,0.035) 29px,
+      transparent 30px);
+  mix-blend-mode: normal;
+  opacity: 0.82;
+}
+[data-theme="light"] .sidebar::after {
+  background:
+    linear-gradient(180deg, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0.10) 100%),
+    linear-gradient(90deg, transparent calc(100% - 2px), var(--sidebar-line) 100%);
+}
+[data-theme="light"] .sidebar__header,
+[data-theme="light"] .sidebar__footer {
+  border-color: rgba(26, 26, 26, 0.08);
+}
+[data-theme="light"] .sidebar__logo-name,
+[data-theme="light"] .sidebar__user-name {
+  color: var(--pm-grey-900);
+}
+[data-theme="light"] .sidebar__logo-sub,
+[data-theme="light"] .sidebar__section-label {
+  color: rgba(26, 26, 26, 0.48);
+}
+[data-theme="light"] .sidebar__link {
+  color: rgba(26, 26, 26, 0.68);
+}
+[data-theme="light"] .sidebar__link:hover {
+  background: rgba(255, 195, 0, 0.12);
+  color: var(--pm-grey-900);
+}
+[data-theme="light"] .sidebar__link.active {
+  color: var(--pm-grey-900);
+  background: rgba(255, 195, 0, 0.18);
+}
+[data-theme="light"] .sidebar__link.active .sidebar__link-icon {
+  color: var(--pm-yellow-darker);
+}
+[data-theme="light"] .sidebar__divider {
+  background: rgba(26, 26, 26, 0.08);
+}
+[data-theme="light"] .sidebar__toggle,
+[data-theme="light"] .sidebar__icon-btn {
+  color: rgba(26, 26, 26, 0.62);
+  background: rgba(255, 255, 255, 0.46);
+  border-color: rgba(26, 26, 26, 0.08);
+}
+[data-theme="light"] .sidebar__toggle:hover,
+[data-theme="light"] .sidebar__icon-btn:hover,
+[data-theme="light"] .sidebar__user-link:hover {
+  background: rgba(255, 195, 0, 0.16);
+  color: var(--pm-grey-900);
+}
+[data-theme="light"] .sidebar__footer {
+  background-image: linear-gradient(180deg,
+    rgba(255, 255, 255, 0.38) 0%,
+    rgba(255, 255, 255, 0) 60%);
+}
+[data-theme="light"] .sidebar__user {
+  background: rgba(255, 255, 255, 0.48);
+  border-color: rgba(26, 26, 26, 0.08);
+}
+[data-theme="light"] .sidebar__user:hover {
+  background: rgba(255, 195, 0, 0.14);
+  border-color: rgba(255, 195, 0, 0.34);
 }
 .sidebar__header {
   /* Logo-Zeile bekommt einen feinen unteren Trenn-Lichtreflex */
@@ -305,6 +433,37 @@ body.login-page::after {
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06),
               inset 0 -1px 0 rgba(0, 0, 0, 0.30),
               0 12px 32px rgba(15, 23, 42, 0.18);
+}
+[data-theme="light"] .welcome-banner {
+  background-image:
+    linear-gradient(135deg,
+      rgba(255, 255, 255, 0.48) 0%,
+      rgba(255, 255, 255, 0.12) 34%,
+      rgba(255, 195, 0, 0.10) 100%),
+    var(--app-bg-vignette),
+    var(--app-bg-image);
+  background-size: cover, cover, cover;
+  background-position: center, center, center;
+  border: 1px solid rgba(255, 195, 0, 0.28);
+  box-shadow: var(--elev-rest),
+              inset 0 1px 0 rgba(255, 255, 255, 0.82);
+}
+[data-theme="light"] .welcome-banner::before {
+  background: rgba(255, 195, 0, 0.16);
+}
+[data-theme="light"] .welcome-banner::after {
+  background: rgba(255, 195, 0, 0.10);
+}
+[data-theme="light"] .welcome-banner__greeting,
+[data-theme="light"] .welcome-banner__kw-number {
+  color: var(--pm-yellow-darker);
+}
+[data-theme="light"] .welcome-banner__title {
+  color: var(--pm-grey-900);
+}
+[data-theme="light"] .welcome-banner__info,
+[data-theme="light"] .welcome-banner__kw-label {
+  color: var(--pm-grey-600);
 }
 
 /* ===================================================================

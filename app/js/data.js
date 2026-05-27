@@ -14,8 +14,11 @@ const DB_KEY = 'pm_berichtsheft';
    • 2: Azubi-Demo umbenannt zu "Florian Kern" (Fachinformatiker für
      Systemintegration, 1. Lehrjahr, 2025–2028). Zweiter Ausbilder-
      "Florian Kern" zu "Markus Berger" umbenannt, um Login-Kollision
-     auf florian.kern@putzmeister.com zu vermeiden. */
-const SCHEMA_VERSION = 2;
+     auf florian.kern@putzmeister.com zu vermeiden.
+   • 3: Azubi-Demo "Florian Kern" auf wöchentliche Berichtsansicht
+     (kaufmännisch) umgestellt → Dashboard zeigt die KW-Übersicht statt
+     der Tagesansicht. */
+const SCHEMA_VERSION = 3;
 
 const DEFAULT_DATA = {
   users: [
@@ -26,7 +29,7 @@ const DEFAULT_DATA = {
       password: 'azubi123',
       role: 'azubi',
       initials: 'FK',
-      berichtTyp: 'täglich',
+      berichtTyp: 'wöchentlich',
       beruf: 'Fachinformatiker für Systemintegration',
       berufsbildnummer: '701702000000',
       azubiNr: '2468103',
@@ -344,6 +347,80 @@ const DB = {
   setWocheStatus(wocheId, status) {
     const woche = this.data.wochen.find(w => w.id === wocheId);
     if (woche) { woche.status = status; this.save(); }
+  },
+
+  /* ── Zeitnachweis-Import ──
+     Liefert den Bearbeitungs-Status eines einzelnen Tages für die
+     Import-Vorschau: gehört der Tag zu einer schreibgeschützten Woche,
+     und ist er bereits inhaltlich belegt? */
+  getTagInfo(azubiId, datum) {
+    const d  = new Date(datum + 'T00:00:00');
+    const kw = DateUtil.getKW(d);
+    const yr = DateUtil.getKWYear(d);
+    const woche = this.getWoche(azubiId, kw, yr);
+    const readonly = !!woche && (woche.status === 'freigegeben' || woche.status === 'genehmigt');
+    const tag = woche?.tage?.find(t => t.datum === datum) || null;
+    const belegt = !!tag
+      && ((tag.anwesenheit && tag.anwesenheit !== '' && tag.anwesenheit !== 'Wochenende')
+          || (tag.stunden > 0));
+    return { kw, year: yr, exists: !!woche, readonly, belegt, status: woche?.status || null };
+  },
+
+  /* Übernimmt die ausgewählten Zeitnachweis-Tage ins Berichtsheft.
+     - Gruppiert nach ISO-Kalenderwoche, legt fehlende Wochen an.
+     - Schreibgeschützte Wochen (freigegeben/genehmigt) werden übersprungen.
+     - Setzt nur anwesenheit/ort/stunden; Texteinträge bleiben unangetastet.
+     `tage`: [{ datum, anwesenheit, ort, stunden }] (bereits gefiltert/ausgewählt). */
+  applyZeitnachweis(azubiId, tage) {
+    const summary = { uebernommen: 0, uebersprungenReadonly: 0, betroffeneWochen: [] };
+    const groups = {};
+    (tage || []).forEach(t => {
+      if (!t.datum) return;
+      const d  = new Date(t.datum + 'T00:00:00');
+      const kw = DateUtil.getKW(d);
+      const yr = DateUtil.getKWYear(d);
+      const key = yr + '-' + kw;
+      if (!groups[key]) groups[key] = { kw, year: yr, tage: [] };
+      groups[key].tage.push(t);
+    });
+
+    Object.values(groups).forEach(g => {
+      let woche = this.getWoche(azubiId, g.kw, g.year);
+      if (woche && (woche.status === 'freigegeben' || woche.status === 'genehmigt')) {
+        summary.uebersprungenReadonly += g.tage.length;
+        return;
+      }
+      if (!woche) {
+        const monday = DateUtil.getMondayOfKW(g.kw, g.year);
+        const sunday = new Date(monday); sunday.setDate(monday.getDate() + 6);
+        woche = {
+          azubiId, kw: g.kw, year: g.year,
+          startDate: DateUtil.toISODate(monday),
+          endDate:   DateUtil.toISODate(sunday),
+          status: 'offen', gesamtstunden: 0, kommentare: [], tage: [],
+        };
+      }
+      if (!Array.isArray(woche.tage)) woche.tage = [];
+
+      g.tage.forEach(t => {
+        let tag = woche.tage.find(x => x.datum === t.datum);
+        if (!tag) {
+          tag = { datum: t.datum, anwesenheit: '', ort: '', stunden: 0 };
+          woche.tage.push(tag);
+        }
+        tag.anwesenheit = t.anwesenheit;
+        tag.ort         = t.ort || '';
+        tag.stunden     = t.stunden || 0;
+        summary.uebernommen++;
+      });
+
+      woche.gesamtstunden = woche.tage.reduce((s, x) => s + (x.stunden || 0), 0);
+      woche.lastSavedAt = Date.now();
+      this.saveWoche(woche);
+      summary.betroffeneWochen.push({ kw: g.kw, year: g.year });
+    });
+
+    return summary;
   },
 
   /* Benachrichtigungen

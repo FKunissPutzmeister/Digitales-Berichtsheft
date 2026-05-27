@@ -1,4 +1,5 @@
 require('dotenv').config();
+const path = require('path');
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
@@ -64,10 +65,27 @@ if (process.env.NODE_ENV !== 'production') {
   ));
 }
 
-// ── Frontend statisch ausliefern ──────────────────────────────────
-app.use('/app', express.static(path.join(__dirname, '../app')));
+// ── Statisches Frontend ausliefern ───────────────────────────────
+// Dev-Komfort: App + API auf einem Port, damit http://localhost:PORT/
+// direkt die App zeigt (in Produktion übernimmt das IIS). Es wird das
+// Repo-Root statisch ausgeliefert (wie der .dev-server.js auf Port 5500),
+// damit die App ihre Assets unter "../Corporate Design/..." findet.
+// Sensible Pfade (backend/ mit .env, .git, node_modules) werden geblockt.
+const ROOT = path.join(__dirname, '..');
+app.use((req, res, next) => {
+  const p = decodeURIComponent(req.path).replace(/\\/g, '/').toLowerCase();
+  if (p === '/backend' || p.startsWith('/backend/') ||
+      p === '/.git'    || p.startsWith('/.git/') ||
+      p.startsWith('/node_modules')) {
+    return res.status(404).send('Not found');
+  }
+  next();
+});
+app.use(express.static(ROOT));
 app.get('/', (req, res) => res.redirect('/app/index.html'));
 
 app.listen(PORT, () => {
-  console.log(`Backend läuft auf http://localhost:${PORT}`);
+  console.log(`Backend + Frontend laufen auf http://localhost:${PORT}`);
+  console.log(`→ App:  http://localhost:${PORT}/  (öffnet /app/index.html)`);
+  console.log(`→ API:  http://localhost:${PORT}/api/...`);
 });

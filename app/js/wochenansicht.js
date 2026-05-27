@@ -403,8 +403,6 @@ document.addEventListener('DOMContentLoaded', async () => {
               <span class="tag-row__day-num">${date.getDate()}</span>
               <span class="tag-row__month">${monthsShort[date.getMonth()]}</span>
               <span class="tag-row__weekday">${d.long}</span>
-              ${!isWE ? `<span class="tag-row__completion-dot tag-row__completion-dot--${completion}"
-                              title="${completionTitle}" aria-label="${completionTitle}"></span>` : ''}
             </div>
 
             <div class="tag-row__field">
@@ -441,7 +439,6 @@ document.addEventListener('DOMContentLoaded', async () => {
                 : `<span class="tag-row__we-marker">WE</span>`}
             </div>
 
-            ${pillText ? `<span class="tag-row__pill tag-row__pill--${pillKind}">${escapeHtml(pillText)}</span>` : ''}
 
             ${!isWE
               ? `<button type="button" class="tag-row__chevron" aria-label="Tag aufklappen"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg></button>`
@@ -1026,7 +1023,6 @@ document.addEventListener('DOMContentLoaded', async () => {
                 : `<span class="tag-row__we-marker">WE</span>`}
             </div>
 
-            ${pillText ? `<span class="tag-row__pill tag-row__pill--${pillKind}">${escapeHtml(pillText)}</span>` : ''}
           </div>
         </div>
       `;
