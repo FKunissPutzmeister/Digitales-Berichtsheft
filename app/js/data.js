@@ -14,8 +14,11 @@ const DB_KEY = 'pm_berichtsheft';
    • 2: Azubi-Demo umbenannt zu "Florian Kern" (Fachinformatiker für
      Systemintegration, 1. Lehrjahr, 2025–2028). Zweiter Ausbilder-
      "Florian Kern" zu "Markus Berger" umbenannt, um Login-Kollision
-     auf florian.kern@putzmeister.com zu vermeiden. */
-const SCHEMA_VERSION = 2;
+     auf florian.kern@putzmeister.com zu vermeiden.
+   • 3: Azubi-Demo "Florian Kern" auf wöchentliche Berichtsansicht
+     (kaufmännisch) umgestellt → Dashboard zeigt die KW-Übersicht statt
+     der Tagesansicht. */
+const SCHEMA_VERSION = 3;
 
 const DEFAULT_DATA = {
   users: [
@@ -26,7 +29,7 @@ const DEFAULT_DATA = {
       password: 'azubi123',
       role: 'azubi',
       initials: 'FK',
-      berichtTyp: 'täglich',
+      berichtTyp: 'wöchentlich',
       beruf: 'Fachinformatiker für Systemintegration',
       berufsbildnummer: '701702000000',
       azubiNr: '2468103',

@@ -48,15 +48,141 @@ function renderAzubiDashboard(user) {
   const ausbilder = zuw ? DB.getUser(zuw.ausbilderId) : null;
 
   const main = document.getElementById('mainContent');
+
+  // "Ausstehend" = vergangene, noch nicht abgegebene Wochen im jüngeren
+  // Zeitfenster. Auch Wochen OHNE Datensatz (= leer) zählen – sonst wirken
+  // nie begonnene Wochen fälschlich als erledigt. Aktuelle Woche steckt
+  // bereits im Hero, daher hier nur vergangene Wochen.
+  const OUT_WINDOW = 8;
+  const curMonday = DateUtil.getMondayOfKW(kw, kwYear);
+  const ausstehend = [];
+  for (let i = 1; i <= OUT_WINDOW; i++) {
+    const mo = new Date(curMonday); mo.setDate(curMonday.getDate() - i * 7);
+    const su = new Date(mo); su.setDate(mo.getDate() + 6);
+    // Wochen komplett vor Ausbildungsbeginn überspringen.
+    if (user.ausbildungsBeginn && DateUtil.toISODate(su) < user.ausbildungsBeginn) continue;
+    const wkw = DateUtil.getKW(mo), wyr = DateUtil.getKWYear(mo);
+    const rec = DB.getWoche(user.id, wkw, wyr);
+    const st = weekState(rec);
+    if (st !== 'abgegeben') {
+      ausstehend.push({ kw: wkw, year: wyr, monday: mo, status: rec ? rec.status : null, state: st });
+    }
+  }
+  ausstehend.sort((a, b) => {
+    const ra = a.status === 'abgelehnt' ? 0 : 1;
+    const rb = b.status === 'abgelehnt' ? 0 : 1;
+    return ra - rb || (a.year - b.year) || (a.kw - b.kw);
+  });
+
+  const aktStatus = aktuelleWoche ? aktuelleWoche.status : 'offen';
+  const wocheStd  = aktuelleWoche
+    ? (aktuelleWoche.tage || []).reduce((s, t) => s + (t.stunden || 0), 0)
+    : 0;
+  const statusLbl = { offen: 'Offen', freigegeben: 'Freigegeben', genehmigt: 'Genehmigt', abgelehnt: 'Zurückgegeben' }[aktStatus] || 'Offen';
+  const monday    = DateUtil.getMondayOfKW(kw, kwYear);
+  const sunday    = new Date(monday); sunday.setDate(monday.getDate() + 6);
+  const hasProgress = user.ausbildungsBeginn && user.ausbildungsEnde;
+  const range = `${DateUtil.formatDateShort(DateUtil.toISODate(monday))} – ${DateUtil.formatDateShort(DateUtil.toISODate(sunday))}`;
+
+  function decToTime(dec) {
+    const m = Math.round((dec || 0) * 60);
+    return `${Math.floor(m / 60)}:${String(m % 60).padStart(2, '0')}`;
+  }
+
+  function renderOutstandingItem(w) {
+    const mo = w.monday || DateUtil.getMondayOfKW(w.kw, w.year);
+    const su = new Date(mo); su.setDate(mo.getDate() + 6);
+    const cls = w.status === 'abgelehnt' ? 'abgelehnt' : (w.state === 'entwurf' ? 'entwurf' : 'leer');
+    const lbl = { abgelehnt: 'Zurückgegeben', entwurf: 'Entwurf', leer: 'Leer' }[cls];
+    return `
+      <a href="wochenansicht.html" class="dash-out-item dash-out-item--${cls}" data-goto-kw="${w.kw}" data-goto-year="${w.year}">
+        <span class="dash-out-item__kw">KW ${w.kw}</span>
+        <span class="dash-out-item__range">${DateUtil.formatDateShort(DateUtil.toISODate(mo))} – ${DateUtil.formatDateShort(DateUtil.toISODate(su))}</span>
+        <span class="dash-out-badge dash-out-badge--${cls}">${lbl}</span>
+        <svg class="dash-out-item__arrow" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+      </a>`;
+  }
+
+  // Berichtstyp steuert den Hero: 'täglich' (gewerblich) → aktuelle Woche
+  // mit Tagen; 'wöchentlich' (kaufmännisch) → Übersicht der letzten KWs.
+  const berichtTyp = user.berichtTyp || 'täglich';
+
+  // Zustand einer Woche fürs farbliche Markieren in der Wochenübersicht.
+  function weekState(w) {
+    if (!w) return 'leer';
+    if (w.status === 'freigegeben' || w.status === 'genehmigt') return 'abgegeben';
+    const hatInhalt = (w.tage || []).some(t =>
+        (t.stunden > 0) || t.eintrag || t.betriebEintrag || t.schuleEintrag || t.unterweisungEintrag)
+      || w.betriebEintrag || w.schuleEintrag || w.unterweisungEintrag;
+    return hatInhalt ? 'entwurf' : 'leer';
+  }
+
+  function renderRecentWeeksGrid(count) {
+    const STATE_LBL = { leer: 'Leer', entwurf: 'Entwurf', abgegeben: 'Abgegeben' };
+    let html = '';
+    for (let i = 0; i < count; i++) {
+      const mo = new Date(monday); mo.setDate(monday.getDate() - i * 7);
+      const wkw = DateUtil.getKW(mo), wyr = DateUtil.getKWYear(mo);
+      const su = new Date(mo); su.setDate(mo.getDate() + 6);
+      const st = weekState(DB.getWoche(user.id, wkw, wyr));
+      html += `
+        <a href="wochenansicht.html" class="dash-week-chip dash-week-chip--${st}${i === 0 ? ' is-current' : ''}" data-goto-kw="${wkw}" data-goto-year="${wyr}">
+          <span class="dash-week-chip__kw">KW ${wkw}</span>
+          <span class="dash-week-chip__range">${DateUtil.formatDateShort(DateUtil.toISODate(mo))} – ${DateUtil.formatDateShort(DateUtil.toISODate(su))}</span>
+          <span class="dash-week-chip__state">${STATE_LBL[st]}</span>
+        </a>`;
+    }
+    return `<div class="dash-weekgrid">${html}</div>`;
+  }
+
+  function renderHero() {
+    if (berichtTyp === 'wöchentlich') {
+      return `
+        <section class="dash-tile dash-hero animate-fade-in">
+          <div class="dash-tile__head">
+            <div>
+              <span class="dash-tile__eyebrow">Deine Wochen</span>
+              <h2 class="dash-tile__title">Letzte Kalenderwochen</h2>
+            </div>
+            <a href="wochenansicht.html" class="btn btn-sm btn-outline" data-goto-kw="${kw}" data-goto-year="${kwYear}">Aktuelle Woche →</a>
+          </div>
+          ${renderRecentWeeksGrid(8)}
+          <div class="dash-weekgrid__legend">
+            <span><i class="dash-dot dash-dot--abgegeben"></i> Abgegeben</span>
+            <span><i class="dash-dot dash-dot--entwurf"></i> Entwurf</span>
+            <span><i class="dash-dot dash-dot--leer"></i> Leer / offen</span>
+          </div>
+        </section>`;
+    }
+    return `
+      <section class="dash-tile dash-hero animate-fade-in status-${aktStatus}">
+        <div class="dash-tile__head">
+          <div>
+            <span class="dash-tile__eyebrow">Aktuelle Woche</span>
+            <h2 class="dash-tile__title">KW ${kw} · ${range}</h2>
+          </div>
+          <span class="badge badge--${aktStatus}">${statusLbl}</span>
+        </div>
+        <div class="week-status-list dash-hero__days">
+          ${renderWeekStatusDays(aktuelleWoche, kw, kwYear)}
+        </div>
+        <div class="dash-hero__foot">
+          <span class="dash-hero__sum">Diese Woche: <strong>${decToTime(wocheStd)} Std.</strong></span>
+          <a href="wochenansicht.html" class="lg-btn lg-btn--yellow-solid" data-goto-kw="${kw}" data-goto-year="${kwYear}">
+            <span class="btn__glass"></span>
+            Zur aktuellen Woche
+            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="width:16px;height:16px"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+          </a>
+        </div>
+      </section>`;
+  }
+
   main.innerHTML = `
     <div class="welcome-banner">
       <div class="welcome-banner__content">
         <p class="welcome-banner__greeting">${getGreeting()}, ${user.name.split(' ')[0]} 👋</p>
         <h1 class="welcome-banner__title">Dein Berichtsheft-Dashboard</h1>
-        <p class="welcome-banner__info">
-          ${user.beruf || ''} &nbsp;·&nbsp; ${user.unternehmen || 'Putzmeister'}
-          ${ausbilder ? ` &nbsp;·&nbsp; Ausbilder: ${ausbilder.name}` : ''}
-        </p>
+        <p class="welcome-banner__info">${user.beruf || ''}${ausbilder ? ` &nbsp;·&nbsp; Ausbilder: ${ausbilder.name}` : ''}</p>
       </div>
       <div class="welcome-banner__kw">
         <div class="welcome-banner__kw-number">KW&nbsp;${kw}</div>
@@ -64,98 +190,71 @@ function renderAzubiDashboard(user) {
       </div>
     </div>
 
-    ${renderAzubiPrimaryCta(user, aktuelleWoche, alleWochen, kw, kwYear)}
+    <div class="dash-bento">
+      <div class="dash-col dash-col--main">
 
-    <div class="stats-grid stats-grid--3">
-      <div class="stat-card animate-fade-in" style="animation-delay:0ms">
-        <div class="stat-card__icon stat-card__icon--yellow">
-          ${Icon('chart')}
-        </div>
-        <div class="stat-card__content">
-          <div class="stat-card__label">Gesamtstunden</div>
-          <div class="stat-card__value">${formatHoursDecimal(gesamtStunden)}</div>
-          <div class="stat-card__sub">Alle erfassten Wochen</div>
-        </div>
-      </div>
-      <div class="stat-card animate-fade-in" style="animation-delay:60ms">
-        <div class="stat-card__icon stat-card__icon--success">
-          ${Icon('success')}
-        </div>
-        <div class="stat-card__content">
-          <div class="stat-card__label">Genehmigte Wochen</div>
-          <div class="stat-card__value">${genehmigte}</div>
-          <div class="stat-card__sub">von ${alleWochen.length} gesamt</div>
-        </div>
-      </div>
-      <div class="stat-card animate-fade-in" style="animation-delay:120ms">
-        <div class="stat-card__icon stat-card__icon--${offeneWochen > 0 ? 'error' : 'success'}">
-          ${Icon('wochenansicht')}
-        </div>
-        <div class="stat-card__content">
-          <div class="stat-card__label">Ausstehend</div>
-          <div class="stat-card__value">${offeneWochen}</div>
-          <div class="stat-card__sub">Wochen noch offen</div>
-        </div>
-      </div>
-    </div>
+        <!-- HERO: je nach Berichtstyp aktuelle Woche oder Wochenübersicht -->
+        ${renderHero()}
 
-    <div class="dashboard-grid">
-      <!-- LINKS (Hero): KW-Wochenstatus, kompakt — nur so hoch wie nötig -->
-      <div class="dashboard-grid__col dashboard-grid__col--hero">
-        <div class="week-status-card animate-fade-in">
-          <div class="week-status-card__header">
-            <span class="week-status-card__kw">KW ${kw} – Aktuelle Woche</span>
-            <a href="wochenansicht.html" class="btn btn-sm btn-outline-yellow">Öffnen</a>
+        <!-- Ausstehende Wochen – schneller Sprung -->
+        <section class="dash-tile dash-outstanding animate-fade-in">
+          <div class="dash-tile__head">
+            <h2 class="dash-tile__title">Ausstehende Wochen</h2>
+            <span class="dash-tile__hint">${ausstehend.length ? 'Antippen, um die Woche direkt auszufüllen' : ''}</span>
           </div>
-          <div class="week-status-list" id="weekStatusList">
-            ${renderWeekStatusDays(aktuelleWoche, kw, kwYear)}
-          </div>
-          <div style="padding:var(--sp-3) var(--sp-5);border-top:1px solid var(--pm-grey-100);display:flex;justify-content:flex-end;align-items:center;gap:var(--sp-3)">
-            <span style="font-size:var(--text-xs);color:var(--pm-grey-500)">Gesamtstunden:</span>
-            <span style="font-family:var(--font-heading);font-size:var(--text-lg);font-weight:700;color:var(--pm-grey-900)">${aktuelleWoche ? aktuelleWoche.gesamtstunden : 0}:00</span>
-          </div>
-        </div>
+          ${ausstehend.length
+            ? `<div class="dash-out-list">${ausstehend.slice(0, 6).map(renderOutstandingItem).join('')}</div>${ausstehend.length > 6 ? `<div class="dash-out-more">+ ${ausstehend.length - 6} weitere</div>` : ''}`
+            : `<div class="dash-empty">Alles abgegeben — stark! 🎉</div>`}
+        </section>
       </div>
 
-      <!-- RECHTS (gestapelt): Ausbildungsfortschritt (wenn Daten) + Aktivitäten -->
-      <div class="dashboard-grid__col">
-        ${user.ausbildungsBeginn && user.ausbildungsEnde ? `
-        <div class="ausbildung-progress animate-fade-in">
-          <div class="ausbildung-progress__header">
-            <span class="ausbildung-progress__label">Ausbildungsfortschritt</span>
-            <span class="ausbildung-progress__pct">${fortschritt}%</span>
+      <div class="dash-col dash-col--side">
+        ${hasProgress ? `
+        <section class="dash-tile dash-progress animate-fade-in">
+          <div class="dash-tile__head"><h2 class="dash-tile__title">Ausbildungsfortschritt</h2></div>
+          <div class="dash-ring">
+            <svg viewBox="0 0 120 120" aria-hidden="true">
+              <circle class="dash-ring__track" cx="60" cy="60" r="52"/>
+              <circle class="dash-ring__fill" cx="60" cy="60" r="52" data-pct="${fortschritt}"/>
+            </svg>
+            <div class="dash-ring__center"><span class="dash-ring__pct">${fortschritt}</span><span class="dash-ring__unit">%</span></div>
           </div>
-          <div class="progress-bar">
-            <div class="progress-bar__fill" id="ausbildungProgressBar" style="width:0%"></div>
+          <div class="dash-progress__total">
+            <span class="dash-progress__total-icon">${Icon('clock')}</span>
+            <span><strong>${formatHoursDecimal(gesamtStunden)}</strong> Gesamtstunden erfasst</span>
           </div>
-          <div class="ausbildung-progress__dates">
-            <span class="ausbildung-progress__date-item">Start: ${DateUtil.formatDate(user.ausbildungsBeginn)}</span>
-            <span class="ausbildung-progress__date-item">Ende: ${DateUtil.formatDate(user.ausbildungsEnde)}</span>
+          <div class="dash-progress__dates">
+            <span>${DateUtil.formatDate(user.ausbildungsBeginn)}</span>
+            <span>${DateUtil.formatDate(user.ausbildungsEnde)}</span>
           </div>
-        </div>
-        ` : ''}
+        </section>` : ''}
 
-        <div class="card animate-fade-in">
-          <div class="card__header">
-            <span class="card__title">Letzte Aktivitäten</span>
-          </div>
-          <div class="card__body" style="padding-top:0;padding-bottom:0">
-            <div class="activity-feed" id="activityFeed">
-              ${renderAzubiActivities(alleWochen)}
-            </div>
-          </div>
-        </div>
+        <section class="dash-tile dash-activity animate-fade-in">
+          <div class="dash-tile__head"><h2 class="dash-tile__title">Letzte Aktivitäten</h2></div>
+          <div class="activity-feed">${renderAzubiActivities(alleWochen)}</div>
+        </section>
       </div>
     </div>
-
   `;
 
-  setTimeout(() => {
-    const bar = document.getElementById('ausbildungProgressBar');
-    if (bar) bar.style.width = fortschritt + '%';
-  }, 300);
+  // Sprung-Navigation: jede Kachel/Zeile mit data-goto-kw merkt sich die
+  // Ziel-Woche; <a> navigiert per href, andere Elemente per JS.
+  main.querySelectorAll('[data-goto-kw]').forEach(el => {
+    el.addEventListener('click', () => {
+      sessionStorage.setItem('gotoKW', el.dataset.gotoKw);
+      sessionStorage.setItem('gotoYear', el.dataset.gotoYear);
+      if (el.tagName !== 'A') window.location.href = 'wochenansicht.html';
+    });
+  });
 
-  bindPrimaryCtaNav();
+  // Fortschritts-Ring von 0 % hochfüllen. Start-Leerzustand (dashoffset =
+  // Umfang) kommt aus dem CSS, hier wird nur auf den Zielwert animiert.
+  setTimeout(() => {
+    document.querySelectorAll('.dash-ring__fill').forEach(c => {
+      const pct = parseFloat(c.dataset.pct) || 0;
+      c.style.strokeDashoffset = (2 * Math.PI * 52) * (1 - pct / 100);
+    });
+  }, 120);
 }
 
 /* ── Primärer CTA: Azubi-Sicht ────────────────────────────────
