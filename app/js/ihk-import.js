@@ -1,0 +1,399 @@
+/* ===================================================================
+   IHK-IMPORT.JS
+   UI-Glue für den IHK-Ausbildungsnachweis-Import im Profil:
+   - rendert die Profil-Sektion (Upload-Widget)
+   - liest das PDF im Browser seitenweise mit pdf.js aus
+   - ruft IhkParser.parse(pages[])
+   - zeigt eine Wochen-Vorschau und übernimmt via DB.saveWoche.
+   Hält profil.js schlank: dort nur renderSection()/bind() aufrufen.
+   =================================================================== */
+const IhkImport = (() => {
+  'use strict';
+
+  const WORKER_SRC = 'js/vendor/pdf.worker.min.js';
+  const STATUS_LABELS = {
+    'offen':       'Offen',
+    'freigegeben': 'Freigegeben',
+    'genehmigt':   'Genehmigt',
+    'abgelehnt':   'Abgelehnt',
+  };
+
+  let _user   = null;
+  let _parsed = null;  // { wochen, warnungen } von IhkParser
+  let _infos  = {};    // key "${year}-${kw}" → { readonly, exists }
+
+  function esc(s) {
+    return String(s == null ? '' : s)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+  }
+
+  // ── 1) Profil-Sektion ──────────────────────────────────────────
+  function renderSection(user) {
+    if (!user || user.role !== 'azubi') return '';
+    return `
+      <details class="profil-section" id="ihkSection">
+        <summary class="profil-section__header">
+          <div class="profil-section__icon">
+            ${Icon('upload')}
+          </div>
+          <div class="profil-section__title">IHK-Berichtsheft importieren</div>
+        </summary>
+        <div class="profil-section__body-wrap"><div class="profil-section__body">
+          <p class="ztn-intro">
+            Lade deinen <strong>IHK-Ausbildungsnachweis</strong> als PDF hoch – alle erkannten
+            Wochen werden mit Anwesenheit, Ort und Stunden ins Berichtsheft übernommen.
+            Deine Tätigkeitsbeschreibungen ergänzt du wie gewohnt selbst.
+          </p>
+          <div class="ztn-drop" id="ihkDrop">
+            ${Icon('upload', { cls: 'ztn-drop__icon' })}
+            <div class="ztn-drop__text">
+              <span>PDF hierher ziehen oder</span>
+            </div>
+            <button class="btn btn-outline btn-sm" id="ihkUploadBtn" type="button">
+              <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" style="width:16px;height:16px"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M12 4v12m0-12l-4 4m4-4l4 4"/></svg>
+              IHK-PDF hochladen
+            </button>
+            <input type="file" id="ihkFileInput" accept="application/pdf,.pdf" hidden>
+            <div class="ztn-drop__hint">Nur PDF-Dateien · Die Datei bleibt lokal auf Ihrem Rechner.</div>
+          </div>
+        </div></div>
+      </details>
+    `;
+  }
+
+  // Modal-Hülle direkt an <body> hängen (wie ztnImportModal), damit
+  // der Glass-Container des Seitenbereichs das Zentrieren nicht verhindert.
+  function buildModal() {
+    return `
+      <div class="modal-overlay" id="ihkImportModal" role="dialog" aria-modal="true" aria-label="IHK-Berichtsheft übernehmen">
+        <div class="modal ztn-modal">
+          <div class="modal__header">
+            <span class="modal__title">IHK-Berichtsheft übernehmen</span>
+            <button class="modal__close" data-modal-close aria-label="Schließen">
+              <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
+          </div>
+          <div class="modal__body"  id="ihkImportBody"></div>
+          <div class="modal__footer" id="ihkImportFooter"></div>
+        </div>
+      </div>
+    `;
+  }
+
+  // ── 2) Events binden ───────────────────────────────────────────
+  function bind(user) {
+    _user = user;
+    const section = document.getElementById('ihkSection');
+    if (!section) return;
+
+    if (!document.getElementById('ihkImportModal')) {
+      document.body.insertAdjacentHTML('beforeend', buildModal());
+    }
+
+    const input = document.getElementById('ihkFileInput');
+    const btn   = document.getElementById('ihkUploadBtn');
+    const drop  = document.getElementById('ihkDrop');
+
+    btn?.addEventListener('click', () => input?.click());
+    input?.addEventListener('change', () => {
+      const file = input.files && input.files[0];
+      if (file) handleFile(file, btn);
+      input.value = '';
+    });
+
+    if (drop) {
+      ['dragenter', 'dragover'].forEach(ev => drop.addEventListener(ev, e => {
+        e.preventDefault(); e.stopPropagation(); drop.classList.add('ztn-drop--over');
+      }));
+      ['dragleave', 'drop'].forEach(ev => drop.addEventListener(ev, e => {
+        e.preventDefault(); e.stopPropagation(); drop.classList.remove('ztn-drop--over');
+      }));
+      drop.addEventListener('drop', e => {
+        const file = e.dataTransfer?.files && e.dataTransfer.files[0];
+        if (file) handleFile(file, btn);
+      });
+    }
+  }
+
+  // ── 3) Datei verarbeiten ───────────────────────────────────────
+  async function handleFile(file, btn) {
+    const isPdf = file.type === 'application/pdf' || /\.pdf$/i.test(file.name);
+    if (!isPdf) {
+      Toast.error('Falscher Dateityp', 'Bitte lade die PDF-Datei deines IHK-Ausbildungsnachweises hoch.');
+      return;
+    }
+    if (typeof pdfjsLib === 'undefined') {
+      Toast.error('PDF-Reader fehlt', 'Die PDF-Bibliothek konnte nicht geladen werden.');
+      return;
+    }
+
+    const origLabel = btn ? btn.innerHTML : '';
+    if (btn) { btn.disabled = true; btn.textContent = 'Wird gelesen…'; }
+
+    try {
+      const pages  = await extractPages(await file.arrayBuffer());
+      const parsed = IhkParser.parse(pages);
+
+      if (!parsed.wochen.length) {
+        Toast.error(
+          'Kein gültiger IHK-Nachweis',
+          'In der Datei konnten keine Ausbildungswochen erkannt werden. ' +
+          'Stammt das PDF aus dem IHK-Ausbildungsnachweis-Portal?'
+        );
+        return;
+      }
+
+      _parsed = parsed;
+      await openPreview();
+    } catch (err) {
+      console.error('[IhkImport] Fehler:', err);
+      Toast.error('Datei konnte nicht gelesen werden', 'Die PDF-Datei ist beschädigt oder hat ein unerwartetes Format.');
+    } finally {
+      if (btn) { btn.disabled = false; btn.innerHTML = origLabel; }
+    }
+  }
+
+  // Seitenweise pdf.js-Extraktion: eine Seite = eine Ausbildungswoche.
+  async function extractPages(arrayBuffer) {
+    pdfjsLib.GlobalWorkerOptions.workerSrc = WORKER_SRC;
+    const pdf   = await pdfjsLib.getDocument({ data: new Uint8Array(arrayBuffer) }).promise;
+    const pages = [];
+    for (let p = 1; p <= pdf.numPages; p++) {
+      const page    = await pdf.getPage(p);
+      const content = await page.getTextContent();
+      pages.push(itemsToText(content.items));
+    }
+    return pages;
+  }
+
+  // Items nach y-Koordinate zu Zeilen gruppieren, dann nach x sortieren.
+  // Identisches Verfahren wie in zeitnachweis-upload.js.
+  function itemsToText(items) {
+    const rows = [];
+    items.forEach(it => {
+      if (!it.str || !it.str.trim()) return;
+      const y = Math.round(it.transform[5]);
+      let row = rows.find(r => Math.abs(r.y - y) <= 3);
+      if (!row) { row = { y, cells: [] }; rows.push(row); }
+      row.cells.push({ x: it.transform[4], str: it.str });
+    });
+    rows.sort((a, b) => b.y - a.y); // oben → unten
+    return rows
+      .map(r => r.cells.sort((a, b) => a.x - b.x).map(c => c.str).join(' ').replace(/\s+/g, ' ').trim())
+      .join('\n');
+  }
+
+  // ── 4) Vorschau-Dialog ─────────────────────────────────────────
+  async function openPreview() {
+    // Bestehende Wochen-Status aus DB vorab laden (für Schreibschutz-Check)
+    _infos = {};
+    for (const w of _parsed.wochen) {
+      const existing = await DB.getWoche(_user.id, w.kw, w.year);
+      _infos[`${w.year}-${w.kw}`] = {
+        readonly: !!(existing && (existing.status === 'freigegeben' || existing.status === 'genehmigt')),
+        exists:   !!existing,
+      };
+    }
+    renderPreviewBody();
+    renderPreviewFooter();
+    Modal.open('ihkImportModal');
+  }
+
+  function renderPreviewBody() {
+    const body = document.getElementById('ihkImportBody');
+    if (!body) return;
+
+    const total    = _parsed.wochen.length;
+    const warnings = _parsed.warnungen;
+
+    body.innerHTML = `
+      <div class="ztn-preview">
+        <div class="ztn-meta">
+          <div class="ztn-meta__range">
+            <strong>${total}</strong> ${total === 1 ? 'Woche' : 'Wochen'} erkannt
+          </div>
+          ${warnings.length
+            ? `<div class="ztn-meta__note">
+                 <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" style="width:15px;height:15px"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                 ${warnings.length} Zeile${warnings.length > 1 ? 'n' : ''} nicht eindeutig erkannt.
+               </div>`
+            : ''}
+        </div>
+        <div class="ztn-table-wrap" id="ihkTableWrap">
+          ${renderTable()}
+        </div>
+      </div>
+    `;
+    wireChecks();
+  }
+
+  function renderTable() {
+    const rows = _parsed.wochen.map((w, idx) => {
+      const key      = `${w.year}-${w.kw}`;
+      const info     = _infos[key] || {};
+      const disabled = info.readonly;
+
+      const hint = disabled
+        ? '<span class="ztn-hint ztn-hint--ro">bereits eingereicht/genehmigt</span>'
+        : (info.exists
+            ? '<span class="ztn-hint ztn-hint--belegt">wird überschrieben</span>'
+            : '<span class="ztn-hint ztn-hint--neu">neu</span>');
+
+      // Warnungen die Tage dieser Woche betreffen
+      const warnCount = _parsed.warnungen.filter(wn =>
+        w.tage.some(t => wn.includes(t.datum))
+      ).length;
+      const warnHint = warnCount
+        ? `<br><span class="ztn-hint ztn-hint--warn">⚠ ${warnCount} Tag${warnCount > 1 ? 'e' : ''} nicht erkannt</span>`
+        : '';
+
+      return `
+        <tr class="ztn-row${disabled ? ' ztn-row--disabled' : ''}">
+          <td class="ztn-row__check">
+            <input type="checkbox" class="ztn-check" data-idx="${idx}"
+              ${disabled ? 'disabled' : 'checked'}>
+          </td>
+          <td class="ztn-row__date"><strong>KW ${esc(w.kw)}</strong> · ${esc(w.year)}</td>
+          <td class="ztn-row__date">${DateUtil.formatDateShort(w.startDate)} – ${DateUtil.formatDateShort(w.endDate)}</td>
+          <td><span class="ztn-anw" data-anw="${esc(w.status)}">${esc(STATUS_LABELS[w.status] || w.status)}</span></td>
+          <td class="ztn-row__std">${w.tage.length} Werktag${w.tage.length !== 1 ? 'e' : ''}</td>
+          <td class="ztn-row__hint">${hint}${warnHint}</td>
+        </tr>`;
+    }).join('');
+
+    return `
+      <table class="ztn-table">
+        <thead>
+          <tr><th></th><th>KW</th><th>Zeitraum</th><th>IHK-Status</th><th>Tage</th><th></th></tr>
+        </thead>
+        <tbody>${rows}</tbody>
+      </table>`;
+  }
+
+  function wireChecks() {
+    document.querySelectorAll('#ihkTableWrap .ztn-check').forEach(cb => {
+      cb.addEventListener('change', updateConfirmCount);
+    });
+  }
+
+  function updateConfirmCount() {
+    const btn = document.getElementById('ihkConfirmBtn');
+    if (!btn) return;
+    const n = document.querySelectorAll('#ihkTableWrap .ztn-check:checked').length;
+    btn.textContent = n > 0 ? `${n} ${n === 1 ? 'Woche' : 'Wochen'} übernehmen` : 'Wochen übernehmen';
+    btn.disabled    = n === 0;
+  }
+
+  function renderPreviewFooter() {
+    const footer = document.getElementById('ihkImportFooter');
+    if (!footer) return;
+    footer.innerHTML = `
+      <button class="btn btn-ghost" data-modal-close type="button">Abbrechen</button>
+      <button class="btn btn-primary" id="ihkConfirmBtn" type="button">Wochen übernehmen</button>
+    `;
+    footer.querySelector('[data-modal-close]')?.addEventListener('click', () => Modal.closeAll());
+    footer.querySelector('#ihkConfirmBtn')?.addEventListener('click', applySelection);
+    updateConfirmCount();
+  }
+
+  // ── 5) Übernahme ───────────────────────────────────────────────
+  async function applySelection() {
+    const selected = [];
+    document.querySelectorAll('#ihkTableWrap .ztn-check:checked').forEach(cb => {
+      const w = _parsed.wochen[parseInt(cb.dataset.idx, 10)];
+      if (w) selected.push(w);
+    });
+    if (!selected.length) return;
+
+    const summary = { uebernommen: 0, uebersprungen: 0, betroffeneWochen: [] };
+
+    for (const pw of selected) {
+      const existing = await DB.getWoche(_user.id, pw.kw, pw.year);
+
+      // Doppelte Schreibschutz-Prüfung (Checkbox-State könnte manipuliert sein)
+      if (existing && (existing.status === 'freigegeben' || existing.status === 'genehmigt')) {
+        summary.uebersprungen++;
+        continue;
+      }
+
+      const woche = existing || {
+        azubiId:       _user.id,
+        kw:            pw.kw,
+        year:          pw.year,
+        startDate:     pw.startDate,
+        endDate:       pw.endDate,
+        status:        pw.status,
+        gesamtstunden: 0,
+        tage:          [],
+      };
+
+      woche.status = pw.status; // IHK-Status übernehmen
+
+      if (!Array.isArray(woche.tage)) woche.tage = [];
+
+      // Anwesenheit/Ort/Stunden schreiben; bestehende eintrag-Texte erhalten
+      pw.tage.forEach(pt => {
+        let tag = woche.tage.find(t => t.datum === pt.datum);
+        if (!tag) {
+          tag = { datum: pt.datum, anwesenheit: '', ort: '', stunden: 0, eintrag: '' };
+          woche.tage.push(tag);
+        }
+        tag.anwesenheit = pt.anwesenheit;
+        tag.ort         = pt.ort;
+        tag.stunden     = pt.stunden;
+      });
+
+      woche.gesamtstunden = woche.tage.reduce((s, t) => s + (t.stunden || 0), 0);
+      await DB.saveWoche(woche);
+      summary.uebernommen++;
+      summary.betroffeneWochen.push({ kw: pw.kw, year: pw.year });
+    }
+
+    renderSuccess(summary);
+  }
+
+  function renderSuccess(summary) {
+    const body   = document.getElementById('ihkImportBody');
+    const footer = document.getElementById('ihkImportFooter');
+
+    const sorted    = summary.betroffeneWochen.slice().sort((a, b) => a.year - b.year || a.kw - b.kw);
+    const wochenTxt = sorted.length ? sorted.map(w => 'KW ' + w.kw).join(', ') : '–';
+    const first     = sorted[0];
+
+    if (body) {
+      body.innerHTML = `
+        <div class="ztn-success">
+          <div class="ztn-success__icon">
+            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+          </div>
+          <div class="ztn-success__title">${summary.uebernommen} ${summary.uebernommen === 1 ? 'Woche' : 'Wochen'} übernommen</div>
+          <p class="ztn-success__text">
+            Aktualisierte Wochen: <strong>${wochenTxt}</strong>.
+            ${summary.uebersprungen
+              ? `<br>${summary.uebersprungen} ${summary.uebersprungen === 1 ? 'Woche' : 'Wochen'} übersprungen (bereits genehmigt/freigegeben).`
+              : ''}
+            <br>Die Einträge findest du in der Wochenansicht.
+          </p>
+        </div>
+      `;
+    }
+
+    if (footer) {
+      footer.innerHTML = `
+        <button class="btn btn-ghost" data-modal-close type="button">Schließen</button>
+        ${first ? `<button class="btn btn-primary" id="ihkGotoBtn" type="button">Zur Wochenansicht</button>` : ''}
+      `;
+      footer.querySelector('[data-modal-close]')?.addEventListener('click', () => Modal.closeAll());
+      footer.querySelector('#ihkGotoBtn')?.addEventListener('click', () => {
+        sessionStorage.setItem('gotoKW',   String(first.kw));
+        sessionStorage.setItem('gotoYear', String(first.year));
+        window.location.href = 'wochenansicht.html';
+      });
+    }
+
+    Toast.success('Übernommen', `${summary.uebernommen} ${summary.uebernommen === 1 ? 'Woche' : 'Wochen'} ins Berichtsheft geschrieben.`);
+  }
+
+  return { renderSection, bind };
+})();
