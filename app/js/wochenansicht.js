@@ -158,6 +158,27 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     const azubiSelectorHtml = isAusbilder ? await renderAzubiSelector(azubiId) : '';
 
+    const wochenKommentare = (woche?.kommentare || []).filter(k => k.tagId === null);
+    const wochenKommentareHtml = woche && wochenKommentare.length
+      ? `<div class="card" style="margin-top:var(--sp-5)">
+          <div class="card__header"><span class="card__title">Kommentare</span></div>
+          <div class="card__body" style="display:flex;flex-direction:column;gap:var(--sp-3)">
+            ${(await Promise.all(wochenKommentare.map(k => renderComment(k)))).join('')}
+            ${isAusbilder ? `<button class="btn btn-outline" id="addCommentBtn" style="align-self:flex-start">
+              <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="width:16px;height:16px"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              Kommentar hinzufügen
+            </button>` : ''}
+          </div>
+        </div>`
+      : (isAusbilder && woche
+          ? `<div style="margin-top:var(--sp-5)">
+              <button class="btn btn-outline" id="addCommentBtn">
+                <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="width:16px;height:16px"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                Kommentar hinzufügen
+              </button>
+            </div>`
+          : '');
+
     const main = document.getElementById('mainContent');
     main.innerHTML = `
       ${azubiSelectorHtml}
@@ -238,25 +259,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         </div>
       </div>
 
-      ${woche && woche.kommentare && woche.kommentare.length ? `
-      <div class="card" style="margin-top:var(--sp-5)">
-        <div class="card__header"><span class="card__title">Kommentare</span></div>
-        <div class="card__body" style="display:flex;flex-direction:column;gap:var(--sp-3)">
-          ${(await Promise.all(woche.kommentare.map(k => renderComment(k)))).join('')}
-          ${isAusbilder ? `<button class="btn btn-outline" id="addCommentBtn" style="align-self:flex-start">
-            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="width:16px;height:16px"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-            Kommentar hinzufügen
-          </button>` : ''}
-        </div>
-      </div>
-      ` : (isAusbilder && woche ? `
-      <div style="margin-top:var(--sp-5)">
-        <button class="btn btn-outline" id="addCommentBtn">
-          <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="width:16px;height:16px"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-          Kommentar hinzufügen
-        </button>
-      </div>
-      ` : '')}
+      ${wochenKommentareHtml}
       </div>
     `;
 
@@ -476,7 +479,12 @@ document.addEventListener('DOMContentLoaded', async () => {
                     <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" style="width:14px;height:14px;flex-shrink:0;margin-top:2px">
                       <path stroke-linecap="round" stroke-linejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/>
                     </svg>
-                    <span>${escapeHtml(k.text)}</span>
+                    <span style="flex:1">${escapeHtml(k.text)}</span>
+                    ${isAusbilder && k.userId === user.id ? `
+                      <button class="btn btn-sm btn-ghost" data-delete-kommentar="${k.id}" title="Kommentar löschen" style="color:var(--color-error);padding:2px 4px;margin-left:var(--sp-2)">
+                        <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" style="width:13px;height:13px"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/></svg>
+                      </button>
+                    ` : ''}
                   </div>
                 `).join('')}
               </div>`;
@@ -1369,13 +1377,17 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   async function renderComment(k) {
     const author = await DB.getUser(k.userId);
+    const canDelete = isAusbilder && k.userId === user.id;
     return `
-      <div class="comment comment--ausbilder">
+      <div class="comment comment--ausbilder" data-kommentar-id="${k.id}">
         <div class="comment__body">
           <div class="comment__header">
             <div class="avatar avatar--sm">${author ? author.initials : '?'}</div>
             <span class="comment__name">${author ? author.name : 'Unbekannt'}</span>
             <span class="comment__date">${k.datum || ''}</span>
+            ${canDelete ? `<button class="btn btn-sm btn-ghost comment__delete" data-delete-kommentar="${k.id}" title="Kommentar löschen" style="margin-left:auto;color:var(--color-error)">
+              <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" style="width:14px;height:14px"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/></svg>
+            </button>` : ''}
           </div>
           <div class="comment__text">${escapeHtml(k.text)}</div>
         </div>
@@ -1732,6 +1744,18 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
     await autoSaveWoche();
   }
+
+  // Delegierter Klick-Handler für Kommentar-Löschen – einmal registriert,
+  // überlebt alle render()-Aufrufe, da mainContent selbst nicht ausgetauscht wird.
+  document.getElementById('mainContent').addEventListener('click', async (e) => {
+    const btn = e.target.closest('[data-delete-kommentar]');
+    if (!btn) return;
+    const id = parseInt(btn.dataset.deleteKommentar);
+    if (!id) return;
+    await DB.deleteKommentar(id);
+    Toast.success('Kommentar', 'Kommentar wurde gelöscht.');
+    render();
+  });
 
   await render();
 });

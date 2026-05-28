@@ -296,6 +296,10 @@ const DB = {
     await apiFetch(`/wochen/${wocheId}/kommentare`, { method: 'POST', body: kommentar });
   },
 
+  async deleteKommentar(kommentarId) {
+    await apiFetch(`/wochen/kommentare/${kommentarId}`, { method: 'DELETE' });
+  },
+
   /* Benachrichtigungen */
   async getBenachrichtigungenFuerUser() {
     const data = await apiFetch('/benachrichtigungen');

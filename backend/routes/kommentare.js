@@ -24,4 +24,18 @@ router.post('/:wocheId/kommentare', async (req, res) => {
   }
 });
 
+// DELETE /api/wochen/kommentare/:id  (nur eigene Kommentare)
+router.delete('/kommentare/:id', async (req, res) => {
+  try {
+    const pool = await getPool();
+    await pool.request()
+      .input('id',      sql.Int,          req.params.id)
+      .input('userOid', sql.NVarChar(36), req.user.oid)
+      .query('DELETE FROM dbo.Kommentare WHERE Id = @id AND UserOid = @userOid');
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 module.exports = router;
