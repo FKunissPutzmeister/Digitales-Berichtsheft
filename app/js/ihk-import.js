@@ -333,12 +333,12 @@ const IhkImport = (() => {
         year:          pw.year,
         startDate:     pw.startDate,
         endDate:       pw.endDate,
-        status:        pw.status,
+        status:        'genehmigt',
         gesamtstunden: 0,
         tage:          [],
       };
 
-      woche.status = pw.status; // IHK-Status übernehmen
+      woche.status = 'genehmigt';
 
       // Wöchentliche Textfelder aus IHK-PDF übernehmen
       woche.typ = 'wöchentlich';
