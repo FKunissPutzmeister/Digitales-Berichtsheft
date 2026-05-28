@@ -451,6 +451,7 @@ document.addEventListener('DOMContentLoaded', async () => {
           ${buildPersoenlicheDaten()}
           ${buildAusbildungsDaten()}
           ${ZeitnachweisUpload.renderSection(user)}
+          ${IhkImport.renderSection(user)}
           ${buildIHKDaten()}
           ${buildUnternehmensDaten()}
           ${await buildAusbilderTimeline()}
@@ -494,6 +495,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // Zeitnachweis-Import-Sektion verdrahten (nur für Azubis vorhanden)
     ZeitnachweisUpload.bind(user);
+    IhkImport.bind(user);
 
     Modal.init();
     Toast.init();
