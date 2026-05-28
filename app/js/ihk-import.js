@@ -303,7 +303,16 @@ const IhkImport = (() => {
       <button class="btn btn-primary" id="ihkConfirmBtn" type="button">Wochen übernehmen</button>
     `;
     footer.querySelector('[data-modal-close]')?.addEventListener('click', () => Modal.closeAll());
-    footer.querySelector('#ihkConfirmBtn')?.addEventListener('click', applySelection);
+    footer.querySelector('#ihkConfirmBtn')?.addEventListener('click', async () => {
+      const confirmBtn = footer.querySelector('#ihkConfirmBtn');
+      const cancelBtn  = footer.querySelector('[data-modal-close]');
+      if (confirmBtn) {
+        confirmBtn.disabled = true;
+        confirmBtn.innerHTML = '<span class="spinner" style="width:15px;height:15px;border-width:2px;vertical-align:middle;margin-right:6px"></span>Wird übernommen…';
+      }
+      if (cancelBtn) cancelBtn.disabled = true;
+      await applySelection();
+    });
     updateConfirmCount();
   }
 
