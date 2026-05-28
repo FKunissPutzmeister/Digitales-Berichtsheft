@@ -284,8 +284,8 @@ git push                          # Abends / vor längeren Pausen
 
 ## Team
 
-- **Florian Kuniß** — Hauptentwickler (Frontend, Backend, Architektur, Datenbank)
-- **Kollege** — Azure-AD- / MSAL-Integration (Enterprise Application)
+- **Florian Kuniß** — 1. Entwickler (Frontend, Backend, Datenbank, Azure-AD-Anbindung, MSAL-Integration)
+- **Florian Kern** — 2. Entwickler (Frontend, Architektur, Designoptimierung)
 
 ---
 
