@@ -58,28 +58,44 @@ router.get('/:id', async (req, res) => {
 // POST /api/wochen  (upsert)
 router.post('/', async (req, res) => {
   try {
-    const { azubiOid, kw, jahr, startDatum, endDatum, status, gesamtstunden, tage } = req.body;
+    const {
+      azubiOid, kw, jahr, startDatum, endDatum, status, gesamtstunden, tage,
+      typ, wochenOrt, unterweisungAktiv, betriebEintrag, schuleEintrag, unterweisungEintrag,
+    } = req.body;
     const pool = await getPool();
 
     // Woche upserten
     const upsert = await pool.request()
-      .input('azubiOid',      sql.NVarChar(36), azubiOid)
-      .input('kw',            sql.TinyInt,       kw)
-      .input('jahr',          sql.SmallInt,      jahr)
-      .input('startDatum',    sql.Date,          startDatum)
-      .input('endDatum',      sql.Date,          endDatum)
-      .input('status',        sql.NVarChar(20),  status || 'offen')
-      .input('gesamtstunden', sql.SmallInt,      gesamtstunden || 0)
+      .input('azubiOid',            sql.NVarChar(36),      azubiOid)
+      .input('kw',                  sql.TinyInt,            kw)
+      .input('jahr',                sql.SmallInt,           jahr)
+      .input('startDatum',          sql.Date,               startDatum)
+      .input('endDatum',            sql.Date,               endDatum)
+      .input('status',              sql.NVarChar(20),       status || 'offen')
+      .input('gesamtstunden',       sql.SmallInt,           gesamtstunden || 0)
+      .input('typ',                 sql.NVarChar(20),       typ || null)
+      .input('wochenOrt',           sql.NVarChar(20),       wochenOrt || null)
+      .input('unterweisungAktiv',   sql.Bit,                unterweisungAktiv ? 1 : 0)
+      .input('betriebEintrag',      sql.NVarChar(sql.MAX),  betriebEintrag || null)
+      .input('schuleEintrag',       sql.NVarChar(sql.MAX),  schuleEintrag || null)
+      .input('unterweisungEintrag', sql.NVarChar(sql.MAX),  unterweisungEintrag || null)
       .query(`
         MERGE dbo.Wochen AS target
         USING (SELECT @azubiOid AS AzubiOid, @kw AS KW, @jahr AS Jahr) AS source
           ON target.AzubiOid = source.AzubiOid AND target.KW = source.KW AND target.Jahr = source.Jahr
         WHEN MATCHED THEN
           UPDATE SET StartDatum = @startDatum, EndDatum = @endDatum,
-                     Status = @status, Gesamtstunden = @gesamtstunden
+                     Status = @status, Gesamtstunden = @gesamtstunden,
+                     Typ = @typ, WochenOrt = @wochenOrt, UnterweisungAktiv = @unterweisungAktiv,
+                     BetriebEintrag = @betriebEintrag, SchuleEintrag = @schuleEintrag,
+                     UnterweisungEintrag = @unterweisungEintrag
         WHEN NOT MATCHED THEN
-          INSERT (AzubiOid, KW, Jahr, StartDatum, EndDatum, Status, Gesamtstunden)
-          VALUES (@azubiOid, @kw, @jahr, @startDatum, @endDatum, @status, @gesamtstunden)
+          INSERT (AzubiOid, KW, Jahr, StartDatum, EndDatum, Status, Gesamtstunden,
+                  Typ, WochenOrt, UnterweisungAktiv,
+                  BetriebEintrag, SchuleEintrag, UnterweisungEintrag)
+          VALUES (@azubiOid, @kw, @jahr, @startDatum, @endDatum, @status, @gesamtstunden,
+                  @typ, @wochenOrt, @unterweisungAktiv,
+                  @betriebEintrag, @schuleEintrag, @unterweisungEintrag)
         OUTPUT inserted.Id;
       `);
 
@@ -93,15 +109,22 @@ router.post('/', async (req, res) => {
 
       for (const tag of tage) {
         await pool.request()
-          .input('wocheId',     sql.Int,          wocheId)
-          .input('datum',       sql.Date,          tag.datum)
-          .input('anwesenheit', sql.NVarChar(30),  tag.anwesenheit || null)
-          .input('ort',         sql.NVarChar(30),  tag.ort || null)
-          .input('eintrag',     sql.NVarChar(sql.MAX), tag.eintrag || null)
-          .input('stunden',     sql.TinyInt,       tag.stunden || 0)
+          .input('wocheId',             sql.Int,               wocheId)
+          .input('datum',               sql.Date,              tag.datum)
+          .input('anwesenheit',         sql.NVarChar(30),      tag.anwesenheit || null)
+          .input('ort',                 sql.NVarChar(30),      tag.ort || null)
+          .input('eintrag',             sql.NVarChar(sql.MAX), tag.eintrag || null)
+          .input('stunden',             sql.TinyInt,           tag.stunden || 0)
+          .input('betriebEintrag',      sql.NVarChar(sql.MAX), tag.betriebEintrag || null)
+          .input('schuleEintrag',       sql.NVarChar(sql.MAX), tag.schuleEintrag || null)
+          .input('unterweisungEintrag', sql.NVarChar(sql.MAX), tag.unterweisungEintrag || null)
           .query(`
-            INSERT INTO dbo.Tage (WocheId, Datum, Anwesenheit, Ort, Eintrag, Stunden)
-            VALUES (@wocheId, @datum, @anwesenheit, @ort, @eintrag, @stunden)
+            INSERT INTO dbo.Tage
+              (WocheId, Datum, Anwesenheit, Ort, Eintrag, Stunden,
+               BetriebEintrag, SchuleEintrag, UnterweisungEintrag)
+            VALUES
+              (@wocheId, @datum, @anwesenheit, @ort, @eintrag, @stunden,
+               @betriebEintrag, @schuleEintrag, @unterweisungEintrag)
           `);
       }
     }

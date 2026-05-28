@@ -42,8 +42,8 @@ const IhkImport = (() => {
         <div class="profil-section__body-wrap"><div class="profil-section__body">
           <p class="ztn-intro">
             Lade deinen <strong>IHK-Ausbildungsnachweis</strong> als PDF hoch – alle erkannten
-            Wochen werden mit Anwesenheit, Ort und Stunden ins Berichtsheft übernommen.
-            Deine Tätigkeitsbeschreibungen ergänzt du wie gewohnt selbst.
+            Wochen werden mit Anwesenheit, Ort, Stunden und Tätigkeitsbeschreibungen
+            (Betrieb, Schule, Unterweisung) ins Berichtsheft übernommen.
           </p>
           <div class="ztn-drop" id="ihkDrop">
             ${Icon('upload', { cls: 'ztn-drop__icon' })}
@@ -240,6 +240,11 @@ const IhkImport = (() => {
             ? '<span class="ztn-hint ztn-hint--belegt">wird überschrieben</span>'
             : '<span class="ztn-hint ztn-hint--neu">neu</span>');
 
+      const hasText = !!(w.betriebText || w.schuleText || w.unterweisungText);
+      const textHint = (!disabled && hasText)
+        ? '<br><span class="ztn-hint ztn-hint--neu">+ Tätigkeitsbeschreibungen</span>'
+        : '';
+
       // Warnungen die Tage dieser Woche betreffen
       const warnCount = _parsed.warnungen.filter(wn =>
         w.tage.some(t => wn.includes(t.datum))
@@ -258,7 +263,7 @@ const IhkImport = (() => {
           <td class="ztn-row__date">${DateUtil.formatDateShort(w.startDate)} – ${DateUtil.formatDateShort(w.endDate)}</td>
           <td><span class="ztn-anw" data-anw="${esc(w.status)}">${esc(STATUS_LABELS[w.status] || w.status)}</span></td>
           <td class="ztn-row__std">${w.tage.length} Werktag${w.tage.length !== 1 ? 'e' : ''}</td>
-          <td class="ztn-row__hint">${hint}${warnHint}</td>
+          <td class="ztn-row__hint">${hint}${textHint}${warnHint}</td>
         </tr>`;
     }).join('');
 
@@ -329,6 +334,16 @@ const IhkImport = (() => {
       };
 
       woche.status = pw.status; // IHK-Status übernehmen
+
+      // Wöchentliche Textfelder aus IHK-PDF übernehmen
+      woche.typ = 'wöchentlich';
+      const hasSchule       = !!(pw.schuleText       && pw.schuleText.trim());
+      const hasUnterweisung = !!(pw.unterweisungText && pw.unterweisungText.trim());
+      woche.wochenOrt         = hasSchule ? 'betrieb_schule' : 'betrieb';
+      woche.unterweisungAktiv = hasUnterweisung;
+      if (pw.betriebText)      woche.betriebEintrag      = pw.betriebText;
+      if (pw.schuleText)       woche.schuleEintrag       = pw.schuleText;
+      if (pw.unterweisungText) woche.unterweisungEintrag = pw.unterweisungText;
 
       if (!Array.isArray(woche.tage)) woche.tage = [];
 

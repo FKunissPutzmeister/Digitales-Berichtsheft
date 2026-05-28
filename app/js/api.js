@@ -41,6 +41,9 @@ function normalizeTag(t) {
     ort: t.Ort ?? '',
     eintrag: t.Eintrag ?? '',
     stunden: t.Stunden ?? 0,
+    betriebEintrag:      t.BetriebEintrag      ?? '',
+    schuleEintrag:       t.SchuleEintrag       ?? '',
+    unterweisungEintrag: t.UnterweisungEintrag ?? '',
   };
 }
 
@@ -65,6 +68,12 @@ function normalizeWoche(w) {
     endDate: toDateStr(w.EndDatum),
     status: w.Status,
     gesamtstunden: w.Gesamtstunden,
+    typ: w.Typ ?? null,
+    wochenOrt: w.WochenOrt ?? null,
+    unterweisungAktiv: !!w.UnterweisungAktiv,
+    betriebEintrag:      w.BetriebEintrag      ?? '',
+    schuleEintrag:       w.SchuleEintrag       ?? '',
+    unterweisungEintrag: w.UnterweisungEintrag ?? '',
     tage: (w.tage || []).map(normalizeTag),
     kommentare: (w.kommentare || []).map(normalizeKommentar),
   };
@@ -261,14 +270,20 @@ const DB = {
 
   async saveWoche(woche) {
     await apiFetch('/wochen', { method: 'POST', body: {
-      azubiOid:     woche.azubiId,
-      kw:           woche.kw,
-      jahr:         woche.year,
-      startDatum:   woche.startDate,
-      endDatum:     woche.endDate,
-      status:       woche.status,
-      gesamtstunden: woche.gesamtstunden,
-      tage:         woche.tage,
+      azubiOid:            woche.azubiId,
+      kw:                  woche.kw,
+      jahr:                woche.year,
+      startDatum:          woche.startDate,
+      endDatum:            woche.endDate,
+      status:              woche.status,
+      gesamtstunden:       woche.gesamtstunden,
+      tage:                woche.tage,
+      typ:                 woche.typ           || null,
+      wochenOrt:           woche.wochenOrt     || null,
+      unterweisungAktiv:   woche.unterweisungAktiv   || false,
+      betriebEintrag:      woche.betriebEintrag      || null,
+      schuleEintrag:       woche.schuleEintrag       || null,
+      unterweisungEintrag: woche.unterweisungEintrag || null,
     }});
   },
 

@@ -55,23 +55,39 @@
 
   function cap(s) { return s ? s.charAt(0).toUpperCase() + s.slice(1) : s; }
 
+  function escapeHtml(s) {
+    return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  }
+
+  function linesToHtml(lines) {
+    if (!lines.length) return '';
+    return lines.map(l => `<p>${escapeHtml(l)}</p>`).join('');
+  }
+
   // Mo/Di/Mi/Do/Fr | DD.MM.YYYY | Typ | anwesend/abwesend [HH:MM]
   // Das | kann im extrahierten pdf.js-Text auch fehlen oder als Leerzeichen erscheinen.
-  const DAY_RE     = /^(Mo|Di|Mi|Do|Fr|Sa|So)\s*\|?\s*(\d{2}\.\d{2}\.\d{4})\s*\|?\s*(.+?)\s*\|?\s*(anwesend|abwesend)(?:\s+(\d{1,2}:\d{2}))?/i;
-  const WOCHE_RE   = /Ausbildungswoche\s+(\d{2}\.\d{2}\.\d{4})\s+bis\s+(\d{2}\.\d{2}\.\d{4})/i;
-  const STATUS_RE  = /^Status[:\s]+(.+)/i;
-  const QUALI_RE   = /^Qualifikationen:/i;
-  const WEEKEND_RE = /^(Sa|So)\b/i;
+  const DAY_RE              = /^(Mo|Di|Mi|Do|Fr|Sa|So)\s*\|?\s*(\d{2}\.\d{2}\.\d{4})\s*\|?\s*(.+?)\s*\|?\s*(anwesend|abwesend)(?:\s+(\d{1,2}:\d{2}))?/i;
+  const WOCHE_RE            = /Ausbildungswoche\s+(\d{2}\.\d{2}\.\d{4})\s+bis\s+(\d{2}\.\d{2}\.\d{4})/i;
+  const STATUS_RE           = /^Status[:\s]+(.+)/i;
+  const QUALI_RE            = /^Qualifikationen:/i;
+  const WEEKEND_RE          = /^(Sa|So)\b/i;
+  const SCHULE_BETRIEB_RE   = /^Schule\/Betrieb\s*$/i;
+  const SCHULE_BLOCK_RE     = /^Schule:\s*$/i;
+  const BETRIEB_BLOCK_RE    = /^Betrieb:\s*$/i;
+  const UNTERWEISUNG_BLOCK_RE = /^Unterweisung:\s*$/i;
 
   function parsePage(text, warnungen) {
     const lines = String(text || '').split(/\r?\n/).map(l => l.trim()).filter(Boolean);
 
-    let startDate = null;
-    let endDate   = null;
-    let status    = 'offen';
-    let skipRest  = false;
+    let startDate   = null;
+    let endDate     = null;
+    let status      = 'offen';
+    let skipRest    = false;
+    let textSection = null; // null | 'schule' | 'betrieb' | 'unterweisung'
+
     // Roheinträge je Datum – mehrere Zeilen möglich (Betrieb + Schule am gleichen Tag)
     const rawByDatum = {};
+    const textBlocks = { schule: [], betrieb: [], unterweisung: [] };
 
     for (const line of lines) {
       if (skipRest) continue;
@@ -89,21 +105,30 @@
 
       if (WEEKEND_RE.test(line)) continue; // Sa/So in 7-Tage-PDFs überspringen
 
+      // Textbereich-Abschnitts-Header
+      if (SCHULE_BETRIEB_RE.test(line))     { continue; }
+      if (SCHULE_BLOCK_RE.test(line))       { textSection = 'schule';       continue; }
+      if (BETRIEB_BLOCK_RE.test(line))      { textSection = 'betrieb';      continue; }
+      if (UNTERWEISUNG_BLOCK_RE.test(line)) { textSection = 'unterweisung'; continue; }
+
       const dm = line.match(DAY_RE);
       if (dm) {
+        textSection = null; // Anwesenheitstabelle kommt vor den Textblöcken
         const [, wt, datStr, typ, anwAbw, zeit] = dm;
         const datum = ddmmyyyyToISO(datStr);
         if (!datum) continue;
 
         const mapped = mapDayType(typ);
         if (!mapped) {
-          warnungen.push(`${cap(wt)} ${datum}: Typ „${typ.trim()}“ nicht erkannt.`);
+          warnungen.push(`${cap(wt)} ${datum}: Typ „${typ.trim()}” nicht erkannt.`);
           continue;
         }
 
         const stunden = anwAbw.toLowerCase() === 'anwesend' ? hmToDecimal(zeit) : 0;
         if (!rawByDatum[datum]) rawByDatum[datum] = [];
         rawByDatum[datum].push({ datum, wochentag: cap(wt), ...mapped, stunden });
+      } else if (textSection) {
+        textBlocks[textSection].push(line);
       }
     }
 
@@ -130,7 +155,12 @@
 
     tage.sort((a, b) => (a.datum < b.datum ? -1 : 1));
 
-    return { kw, year, startDate, endDate, status, tage };
+    return {
+      kw, year, startDate, endDate, status, tage,
+      betriebText:      linesToHtml(textBlocks.betrieb),
+      schuleText:       linesToHtml(textBlocks.schule),
+      unterweisungText: linesToHtml(textBlocks.unterweisung),
+    };
   }
 
   /**
