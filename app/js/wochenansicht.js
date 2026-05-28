@@ -139,6 +139,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     // – status 'abgelehnt' (erneute Freigabe nach Rückgabe durch Ausbilder)
     const canRelease = user.role === 'azubi'
       && (!woche || woche.status === 'offen' || woche.status === 'abgelehnt');
+    const canWithdraw = user.role === 'azubi' && woche?.status === 'freigegeben';
     const gesamtstundenDisplay = (woche?.tage || []).reduce((s, t) => s + (t.stunden || 0), 0);
 
     // Stammdaten des aktuell sichtbaren Azubis
@@ -201,6 +202,20 @@ document.addEventListener('DOMContentLoaded', async () => {
             <button class="btn btn-danger" id="rejectBtn">Zurückgeben</button>
           ` : ''}
           ${!canRelease && !canApprove && woche ? `<span class="badge badge--${woche.status}">${getStatusLabel(woche.status)}</span>` : ''}
+          ${canWithdraw ? `
+            <div class="dropdown" id="weitereAktionenDropdown">
+              <button class="btn btn-outline" id="weitereAktionenBtn" type="button" aria-haspopup="menu" aria-expanded="false">
+                Weitere Aktionen
+                <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="width:14px;height:14px;margin-left:var(--sp-1)"><polyline points="6 9 12 15 18 9"/></svg>
+              </button>
+              <div class="dropdown__menu" role="menu">
+                <button class="dropdown__item" id="withdrawBtn" type="button" role="menuitem">
+                  <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 0 0-2 2v11a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2v-5"/><path stroke-linecap="round" stroke-linejoin="round" d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                  Woche bearbeiten
+                </button>
+              </div>
+            </div>
+          ` : ''}
           ${!isReadonly && user.role === 'azubi' ? `
             <span class="week-toolbar__autosave" title="Letzte Speicherung: ${lastSavedStr || 'noch keine'}">
               <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/><path stroke-linecap="round" stroke-linejoin="round" d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>
@@ -1458,6 +1473,40 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Bottom-Button „Zur Abnahme freigeben" delegiert auf den oberen Handler.
     document.getElementById('releaseBtnBottom')?.addEventListener('click', () => {
       document.getElementById('releaseBtn')?.click();
+    });
+
+    // „Weitere Aktionen"-Dropdown – Toggle + Außenklick schließt
+    const weitereAktionenBtn = document.getElementById('weitereAktionenBtn');
+    const weitereAktionenDropdown = document.getElementById('weitereAktionenDropdown');
+    const weitereAktionenMenu = weitereAktionenDropdown?.querySelector('.dropdown__menu');
+    weitereAktionenBtn?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const isOpen = weitereAktionenMenu?.classList.contains('open');
+      document.querySelectorAll('.dropdown__menu.open').forEach(m => m.classList.remove('open'));
+      if (!isOpen) {
+        weitereAktionenMenu?.classList.add('open');
+        weitereAktionenBtn.setAttribute('aria-expanded', 'true');
+      } else {
+        weitereAktionenBtn.setAttribute('aria-expanded', 'false');
+      }
+    });
+    document.addEventListener('click', () => {
+      if (weitereAktionenMenu?.classList.contains('open')) {
+        weitereAktionenMenu.classList.remove('open');
+        weitereAktionenBtn?.setAttribute('aria-expanded', 'false');
+      }
+    });
+
+    // „Woche bearbeiten" – zieht die Freigabe zurück
+    document.getElementById('withdrawBtn')?.addEventListener('click', () => {
+      weitereAktionenMenu?.classList.remove('open');
+      Modal.open('withdrawModal');
+    });
+    document.getElementById('withdrawConfirmBtn')?.addEventListener('click', async () => {
+      await DB.setWocheStatus(woche.id, 'offen');
+      Modal.closeAll();
+      Toast.info('Bearbeitung freigegeben', `KW ${currentKW} kann wieder bearbeitet werden.`);
+      render();
     });
 
     // Freigabe – mit Pflichtfeld-Validierung
