@@ -1527,28 +1527,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       Toast.success('Genehmigt', `KW ${currentKW} wurde genehmigt.`);
       render();
     });
-    document.getElementById('rejectBtn')?.addEventListener('click', () => {
-      document.getElementById('rejectDayComments').innerHTML = buildDayCommentFields(woche, monday);
-      Modal.open('rejectModal');
-    });
-    document.getElementById('rejectConfirmBtn')?.addEventListener('click', async () => {
-      const reason = document.getElementById('rejectReason').value.trim();
-      if (!reason) { Toast.error('Pflichtfeld', 'Bitte eine Begründung eingeben.'); return; }
-      await DB.addKommentar(woche.id, {
-        userId: user.id, text: reason,
-        datum: new Date().toLocaleDateString('de-DE'), typ: 'abgelehnt',
-      });
-      const dayCommentInputs = document.querySelectorAll('#rejectDayComments [data-day-comment]');
-      for (const input of dayCommentInputs) {
-        const text = input.value.trim();
-        if (text) {
-          await DB.addKommentar(woche.id, {
-            userId: user.id, text,
-            datum: new Date().toLocaleDateString('de-DE'), typ: 'abgelehnt',
-            tagId: parseInt(input.dataset.dayComment),
-          });
-        }
-      }
+    document.getElementById('rejectBtn')?.addEventListener('click', async () => {
       await DB.setWocheStatus(woche.id, 'abgelehnt');
       await DB.addBenachrichtigung({
         userId: woche.azubiId,
@@ -1558,10 +1537,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         kw: woche.kw,
         year: woche.year,
         fromUserId: user.id,
-        kommentar: reason,
       });
-      Modal.closeAll();
-      document.getElementById('rejectReason').value = '';
       Toast.warning('Zurückgegeben', `KW ${currentKW} wurde zurückgegeben.`);
       render();
     });
