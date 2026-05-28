@@ -61,7 +61,17 @@
 
   function linesToHtml(lines) {
     if (!lines.length) return '';
-    return lines.map(l => `<p>${escapeHtml(l)}</p>`).join('');
+    return lines.map(l => {
+      // Segmente an Fett-Markern aufteilen, HTML-escapen, <strong> einfügen
+      const parts = l.split(/(\x02[^\x03]*\x03)/);
+      const html = parts.map(part => {
+        if (part.charAt(0) === '\x02') {
+          return '<strong>' + escapeHtml(part.slice(1, -1)) + '</strong>';
+        }
+        return escapeHtml(part);
+      }).join('');
+      return `<p>${html}</p>`;
+    }).join('');
   }
 
   // Mo/Di/Mi/Do/Fr | DD.MM.YYYY | Typ | anwesend/abwesend [HH:MM]
@@ -90,28 +100,31 @@
     const textBlocks = { schule: [], betrieb: [], unterweisung: [] };
 
     for (const line of lines) {
-      if (skipRest) continue;
-      if (QUALI_RE.test(line)) { skipRest = true; continue; }
+      // Fett-Marker für Struktur-Matching entfernen; Original-Zeile für Textblöcke behalten
+      const s = line.replace(/\x02|\x03/g, '');
 
-      const wm = line.match(WOCHE_RE);
+      if (skipRest) continue;
+      if (QUALI_RE.test(s)) { skipRest = true; continue; }
+
+      const wm = s.match(WOCHE_RE);
       if (wm) {
         startDate = ddmmyyyyToISO(wm[1]);
         endDate   = ddmmyyyyToISO(wm[2]);
         continue;
       }
 
-      const sm = line.match(STATUS_RE);
+      const sm = s.match(STATUS_RE);
       if (sm) { status = mapStatus(sm[1]); continue; }
 
-      if (WEEKEND_RE.test(line)) continue; // Sa/So in 7-Tage-PDFs überspringen
+      if (WEEKEND_RE.test(s)) continue; // Sa/So in 7-Tage-PDFs überspringen
 
       // Textbereich-Abschnitts-Header
-      if (SCHULE_BETRIEB_RE.test(line))     { continue; }
-      if (SCHULE_BLOCK_RE.test(line))       { textSection = 'schule';       continue; }
-      if (BETRIEB_BLOCK_RE.test(line))      { textSection = 'betrieb';      continue; }
-      if (UNTERWEISUNG_BLOCK_RE.test(line)) { textSection = 'unterweisung'; continue; }
+      if (SCHULE_BETRIEB_RE.test(s))     { continue; }
+      if (SCHULE_BLOCK_RE.test(s))       { textSection = 'schule';       continue; }
+      if (BETRIEB_BLOCK_RE.test(s))      { textSection = 'betrieb';      continue; }
+      if (UNTERWEISUNG_BLOCK_RE.test(s)) { textSection = 'unterweisung'; continue; }
 
-      const dm = line.match(DAY_RE);
+      const dm = s.match(DAY_RE);
       if (dm) {
         textSection = null; // Anwesenheitstabelle kommt vor den Textblöcken
         const [, wt, datStr, typ, anwAbw, zeit] = dm;
@@ -128,7 +141,7 @@
         if (!rawByDatum[datum]) rawByDatum[datum] = [];
         rawByDatum[datum].push({ datum, wochentag: cap(wt), ...mapped, stunden });
       } else if (textSection) {
-        textBlocks[textSection].push(line);
+        textBlocks[textSection].push(line); // Original mit Fett-Markern
       }
     }
 

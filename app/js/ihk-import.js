@@ -162,25 +162,30 @@ const IhkImport = (() => {
     for (let p = 1; p <= pdf.numPages; p++) {
       const page    = await pdf.getPage(p);
       const content = await page.getTextContent();
-      pages.push(itemsToText(content.items));
+      pages.push(itemsToText(content.items, content.styles));
     }
     return pages;
   }
 
   // Items nach y-Koordinate zu Zeilen gruppieren, dann nach x sortieren.
-  // Identisches Verfahren wie in zeitnachweis-upload.js.
-  function itemsToText(items) {
+  // Fett-Erkennung: fontFamily aus pdf.js-Styles (z.B. "Arial-Bold") → \x02...\x03-Marker.
+  // Unterstrichen ist in PDFs eine separate Grafik-Linie und hier nicht erkennbar.
+  function itemsToText(items, styles) {
     const rows = [];
     items.forEach(it => {
       if (!it.str || !it.str.trim()) return;
       const y = Math.round(it.transform[5]);
       let row = rows.find(r => Math.abs(r.y - y) <= 3);
       if (!row) { row = { y, cells: [] }; rows.push(row); }
-      row.cells.push({ x: it.transform[4], str: it.str });
+      const fontFamily = (styles && styles[it.fontName] && styles[it.fontName].fontFamily) || it.fontName || '';
+      const isBold = /bold|demi|black/i.test(fontFamily);
+      row.cells.push({ x: it.transform[4], str: it.str, bold: isBold });
     });
     rows.sort((a, b) => b.y - a.y); // oben → unten
     return rows
-      .map(r => r.cells.sort((a, b) => a.x - b.x).map(c => c.str).join(' ').replace(/\s+/g, ' ').trim())
+      .map(r => r.cells.sort((a, b) => a.x - b.x)
+        .map(c => c.bold ? `\x02${c.str}\x03` : c.str)
+        .join(' ').replace(/\s+/g, ' ').trim())
       .join('\n');
   }
 
