@@ -1696,8 +1696,11 @@ body[data-page="wochenansicht"] .tag-row__summary {
 body[data-page="wochenansicht"] .tag-row--weekend .tag-row__summary {
   cursor: default;
 }
-/* Ort-Spalte an Wochenenden ausblenden. */
-body[data-page="wochenansicht"] .tag-row--weekend .tag-row__summary > .tag-row__field:nth-child(3) {
+/* Leere Spalten an Wochenenden visuell zusammenfallen lassen, damit der
+   Date-Block + WE-Marker das Layout bestimmen. Wir blenden die nicht
+   relevanten Grid-Items für WE per nth-child aus (Ort + Qualifikationen). */
+body[data-page="wochenansicht"] .tag-row--weekend .tag-row__summary > .tag-row__field:nth-child(3),
+body[data-page="wochenansicht"] .tag-row--weekend .tag-row__summary > .tag-row__field:nth-child(4) {
   display: none;
 }
 body[data-page="wochenansicht"] .tag-row--weekend .tag-row__summary {
@@ -1863,6 +1866,30 @@ body[data-page="wochenansicht"] .tag-row__summary:hover {
   border-top-color: rgba(255,195,0,0.4);
 }
 
+/* Qualifikationen-Spalte: Label + Clipboard-Icon-Button */
+.tag-row__field--qualif {
+  align-items: center;
+  text-align: center;
+}
+.tag-row__qualif-btn {
+  width: 40px;
+  height: 40px;
+  border-radius: var(--r-md);
+  border: 1.5px solid var(--pm-yellow);
+  background: var(--pm-yellow-bg);
+  color: var(--pm-yellow-darker);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background var(--t-fast), border-color var(--t-fast),
+              transform var(--t-fast);
+  cursor: pointer;
+}
+.tag-row__qualif-btn:hover {
+  background: var(--pm-yellow);
+  color: var(--pm-grey-900);
+  transform: translateY(-1px);
+}
 .tag-row__qualif-btn svg { width: 18px; height: 18px; }
 
 /* Time-Spinner-Spalte: Label zentriert oben */
@@ -2433,6 +2460,17 @@ body[data-page="wochenansicht"] .btn-lg {
 }
 [data-theme="dark"] .tag-row__select {
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%239A9AA4' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+}
+
+/* Qualifikationen-Button */
+[data-theme="dark"] .tag-row__qualif-btn {
+  background: rgba(255, 195, 0, 0.10);
+  border-color: rgba(255, 195, 0, 0.4);
+  color: var(--pm-yellow);
+}
+[data-theme="dark"] .tag-row__qualif-btn:hover {
+  background: var(--pm-yellow);
+  color: var(--on-yellow-text);
 }
 
 /* KW-Block */
