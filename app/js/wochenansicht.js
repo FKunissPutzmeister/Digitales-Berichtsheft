@@ -49,9 +49,11 @@ document.addEventListener('DOMContentLoaded', async () => {
   // beim nächsten render() ans Markup gehängt, um die Slide-Animation zu triggern.
   let weekAnimDirection = null;
 
+  let pendingDayTagId = null;
+  const isAusbilder = ['ausbilder', 'admin'].includes(user.role);
   let viewAzubiId = user.role === 'azubi' ? user.id : null;
   if (savedAzubiId && user.role !== 'azubi') {
-    viewAzubiId = parseInt(savedAzubiId);
+    viewAzubiId = savedAzubiId;
     sessionStorage.removeItem('gotoAzubiId');
   } else if (user.role !== 'azubi' && !viewAzubiId) {
     // Ausbilder/Admin ohne Vorauswahl: ersten zugewiesenen Azubi anzeigen
@@ -129,8 +131,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const sunday = new Date(monday);
     sunday.setDate(monday.getDate() + 6);
 
-    const isReadonly = woche && (woche.status === 'freigegeben' || woche.status === 'genehmigt');
-    const isAusbilder = ['ausbilder', 'admin'].includes(user.role);
+    const isReadonly = isAusbilder || (woche && (woche.status === 'freigegeben' || woche.status === 'genehmigt'));
     const canApprove = isAusbilder && woche && woche.status === 'freigegeben';
     // Freigabe-Button erscheint, wenn die Woche bearbeitbar ist:
     // – noch nicht angelegt
@@ -466,6 +467,26 @@ document.addEventListener('DOMContentLoaded', async () => {
                           ${readonly ? 'disabled' : ''}>${tag.abwesenheitsnotiz || ''}</textarea>
               </div>
             </div>
+            ${(() => {
+              const dayComments = (woche?.kommentare || []).filter(k => k.tagId === tag.id && tag.id);
+              if (!dayComments.length) return '';
+              return `<div class="tag-row__day-comments">
+                ${dayComments.map(k => `
+                  <div class="tag-row__day-comment">
+                    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" style="width:14px;height:14px;flex-shrink:0;margin-top:2px">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/>
+                    </svg>
+                    <span>${escapeHtml(k.text)}</span>
+                  </div>
+                `).join('')}
+              </div>`;
+            })()}
+            ${isAusbilder && tag.id ? `
+              <button class="btn btn-sm btn-ghost tag-row__add-day-comment" data-add-day-comment="${tag.id}" style="margin-top:var(--sp-2);align-self:flex-start">
+                <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="width:14px;height:14px"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                Kommentar
+              </button>
+            ` : ''}
           </div>
           ` : ''}
         </div>
@@ -830,11 +851,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     `;
 
     const header = meta.collapsible
-      ? `<button type="button" class="day-section__header day-section__header--toggle"
-                 aria-expanded="${expanded}" aria-controls="editorWrap_${id}"
-                 onclick="toggleDaySection(this)">
-           ${headerInner}
-         </button>`
+      ? (readonly
+          ? `<div class="day-section__header">${headerInner}</div>`
+          : `<button type="button" class="day-section__header day-section__header--toggle"
+                  aria-expanded="${expanded}" aria-controls="editorWrap_${id}"
+                  onclick="toggleDaySection(this)">
+               ${headerInner}
+             </button>`)
       : `<div class="day-section__header">${headerInner}</div>`;
 
     return `
@@ -1089,7 +1112,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   async function refreshWochenKacheln(woche) {
     const ort = document.getElementById('wochenOrtSelect')?.value || 'betrieb';
     const unterweisung = document.getElementById('unterweisungCheck')?.checked || false;
-    const isReadonly = woche && (woche.status === 'freigegeben' || woche.status === 'genehmigt');
+    const isReadonly = isAusbilder || (woche && (woche.status === 'freigegeben' || woche.status === 'genehmigt'));
 
     const container = document.getElementById('wochenKacheln');
     if (container) {
@@ -1311,6 +1334,37 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (tageEl) tageEl.textContent = val;
   }
 
+  // ── Tages-Kommentar-Felder für Genehmigungs-/Ablehnungs-Modal ────
+
+  function buildDayCommentFields(woche, monday) {
+    const dayNames = ['Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag'];
+    const monthsShort = ['Jan', 'Feb', 'Mrz', 'Apr', 'Mai', 'Jun', 'Jul', 'Aug', 'Sep', 'Okt', 'Nov', 'Dez'];
+    const fields = [];
+    for (let i = 0; i < 5; i++) {
+      const date = new Date(monday);
+      date.setDate(monday.getDate() + i);
+      const dateStr = DateUtil.toISODate(date);
+      const tag = woche?.tage?.find(t => t.datum === dateStr);
+      if (!tag?.id) continue;
+      const dateLabel = `${date.getDate()}. ${monthsShort[date.getMonth()]}`;
+      fields.push(`
+        <div class="form-group" style="margin-bottom:var(--sp-3)">
+          <label class="form-label" style="font-size:var(--text-sm);font-weight:var(--fw-bold)">${dayNames[i]}, ${dateLabel}</label>
+          <textarea class="form-control" rows="2"
+                    placeholder="Kommentar zu diesem Tag (optional)…"
+                    data-day-comment="${tag.id}"></textarea>
+        </div>
+      `);
+    }
+    if (!fields.length) return '';
+    return `
+      <div style="margin-top:var(--sp-4);padding-top:var(--sp-4);border-top:1px solid var(--pm-grey-100)">
+        <p style="font-size:var(--text-sm);font-weight:var(--fw-bold);color:var(--pm-grey-600);margin:0 0 var(--sp-3)">Kommentare zu einzelnen Tagen (optional)</p>
+        ${fields.join('')}
+      </div>
+    `;
+  }
+
   // ── Events ────────────────────────────────────────────────────────
 
   async function renderComment(k) {
@@ -1351,7 +1405,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Azubi-Wechsel (Ausbilder)
     document.querySelectorAll('.ausbilder-chip[data-azubi-id]').forEach(btn => {
       btn.addEventListener('click', () => {
-        viewAzubiId = parseInt(btn.dataset.azubiId);
+        viewAzubiId = btn.dataset.azubiId;
         render();
       });
     });
@@ -1361,7 +1415,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     //  Ein Wechsel zur Laufzeit würde die beiden Erfassungs-Workflows
     //  künstlich koppeln und ist fachlich nicht vorgesehen.)
 
-    const isReadonly = woche && (woche.status === 'freigegeben' || woche.status === 'genehmigt');
+    const isReadonly = isAusbilder || (woche && (woche.status === 'freigegeben' || woche.status === 'genehmigt'));
 
     if (berichtTyp === 'täglich') {
       bindDayCardEvents();
@@ -1423,13 +1477,30 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
     document.getElementById('releaseConfirmBtn')?.addEventListener('click', async () => {
       if (!woche) { Toast.warning('Keine Einträge', 'Bitte zuerst Einträge erfassen.'); Modal.closeAll(); return; }
-      await DB.setWocheStatus(woche.id, 'eingereicht');
+      await DB.setWocheStatus(woche.id, 'freigegeben');
       Modal.closeAll();
       Toast.success('Freigegeben', `KW ${currentKW} wurde zur Abnahme freigegeben.`);
       render();
     });
 
-    document.getElementById('approveBtn')?.addEventListener('click', async () => {
+    document.getElementById('approveBtn')?.addEventListener('click', () => {
+      const dayFields = buildDayCommentFields(woche, monday);
+      document.getElementById('approveDayComments').innerHTML = dayFields ||
+        '<p style="color:var(--pm-grey-500);font-size:var(--text-sm);margin:0">Möchtest du diese Woche genehmigen?</p>';
+      Modal.open('approveModal');
+    });
+    document.getElementById('approveConfirmBtn')?.addEventListener('click', async () => {
+      const dayCommentInputs = document.querySelectorAll('#approveDayComments [data-day-comment]');
+      for (const input of dayCommentInputs) {
+        const text = input.value.trim();
+        if (text) {
+          await DB.addKommentar(woche.id, {
+            userId: user.id, text,
+            datum: new Date().toLocaleDateString('de-DE'), typ: 'ausbilder',
+            tagId: parseInt(input.dataset.dayComment),
+          });
+        }
+      }
       await DB.setWocheStatus(woche.id, 'genehmigt');
       await DB.addBenachrichtigung({
         userId: woche.azubiId,
@@ -1440,10 +1511,14 @@ document.addEventListener('DOMContentLoaded', async () => {
         year: woche.year,
         fromUserId: user.id,
       });
+      Modal.closeAll();
       Toast.success('Genehmigt', `KW ${currentKW} wurde genehmigt.`);
       render();
     });
-    document.getElementById('rejectBtn')?.addEventListener('click', () => Modal.open('rejectModal'));
+    document.getElementById('rejectBtn')?.addEventListener('click', () => {
+      document.getElementById('rejectDayComments').innerHTML = buildDayCommentFields(woche, monday);
+      Modal.open('rejectModal');
+    });
     document.getElementById('rejectConfirmBtn')?.addEventListener('click', async () => {
       const reason = document.getElementById('rejectReason').value.trim();
       if (!reason) { Toast.error('Pflichtfeld', 'Bitte eine Begründung eingeben.'); return; }
@@ -1451,6 +1526,17 @@ document.addEventListener('DOMContentLoaded', async () => {
         userId: user.id, text: reason,
         datum: new Date().toLocaleDateString('de-DE'), typ: 'abgelehnt',
       });
+      const dayCommentInputs = document.querySelectorAll('#rejectDayComments [data-day-comment]');
+      for (const input of dayCommentInputs) {
+        const text = input.value.trim();
+        if (text) {
+          await DB.addKommentar(woche.id, {
+            userId: user.id, text,
+            datum: new Date().toLocaleDateString('de-DE'), typ: 'abgelehnt',
+            tagId: parseInt(input.dataset.dayComment),
+          });
+        }
+      }
       await DB.setWocheStatus(woche.id, 'abgelehnt');
       await DB.addBenachrichtigung({
         userId: woche.azubiId,
@@ -1469,17 +1555,25 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
 
     document.getElementById('addCommentBtn')?.addEventListener('click', () => {
+      pendingDayTagId = null;
       document.getElementById('commentText').value = '';
       Modal.open('commentModal');
+    });
+    document.querySelectorAll('.tag-row__add-day-comment').forEach(btn => {
+      btn.addEventListener('click', () => {
+        pendingDayTagId = parseInt(btn.dataset.addDayComment);
+        document.getElementById('commentText').value = '';
+        Modal.open('commentModal');
+      });
     });
     document.getElementById('commentSubmitBtn')?.addEventListener('click', async () => {
       const text = document.getElementById('commentText').value.trim();
       if (!text) { Toast.error('Pflichtfeld', 'Bitte einen Kommentar eingeben.'); return; }
       if (!woche) return;
-      await DB.addKommentar(woche.id, {
-        userId: user.id, text,
-        datum: new Date().toLocaleDateString('de-DE'), typ: 'ausbilder',
-      });
+      const payload = { userId: user.id, text, datum: new Date().toLocaleDateString('de-DE'), typ: 'ausbilder' };
+      if (pendingDayTagId) payload.tagId = pendingDayTagId;
+      await DB.addKommentar(woche.id, payload);
+      pendingDayTagId = null;
       Modal.closeAll();
       Toast.success('Kommentar', 'Kommentar wurde gespeichert.');
       render();
@@ -1573,7 +1667,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   function bindWochenEvents(woche, monday) {
-    const isReadonly = woche && (woche.status === 'freigegeben' || woche.status === 'genehmigt');
+    const isReadonly = isAusbilder || (woche && (woche.status === 'freigegeben' || woche.status === 'genehmigt'));
 
     // Lernort-Umschalter → Kacheln neu rendern
     document.getElementById('wochenOrtSelect')?.addEventListener('change', async () => {

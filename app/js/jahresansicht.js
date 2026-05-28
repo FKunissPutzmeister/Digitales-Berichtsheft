@@ -12,6 +12,16 @@ document.addEventListener('DOMContentLoaded', async () => {
   let currentYear = new Date().getFullYear();
   let viewAzubiId = user.role === 'azubi' ? user.id : null;
 
+  // Azubi aus sessionStorage übernehmen (Navigation von Wochenansicht/Dashboard)
+  const savedAzubiId = sessionStorage.getItem('gotoAzubiId');
+  if (savedAzubiId && user.role !== 'azubi') {
+    viewAzubiId = savedAzubiId;
+    sessionStorage.removeItem('gotoAzubiId');
+  } else if (user.role !== 'azubi' && !viewAzubiId) {
+    const firstAzubi = (await DB.getAzubis())[0];
+    if (firstAzubi) viewAzubiId = firstAzubi.id;
+  }
+
   function getStatusFuerTag(wochen, dateStr) {
     const d = new Date(dateStr + 'T00:00:00');
     const kw = DateUtil.getKW(d);
@@ -89,7 +99,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
 
     document.querySelectorAll('.ausbilder-chip[data-azubi-id]').forEach(btn => {
-      btn.addEventListener('click', () => { viewAzubiId = parseInt(btn.dataset.azubiId); render(); });
+      btn.addEventListener('click', () => { viewAzubiId = btn.dataset.azubiId; render(); });
     });
 
     // Wochenzeile klickbar → Wochenansicht
@@ -97,6 +107,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       el.addEventListener('click', () => {
         sessionStorage.setItem('gotoKW', el.dataset.kw);
         sessionStorage.setItem('gotoYear', el.dataset.year);
+        if (viewAzubiId) sessionStorage.setItem('gotoAzubiId', viewAzubiId);
         window.location.href = 'wochenansicht.html';
       });
     });
@@ -205,15 +216,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         ${cells}
       </div>
     `;
-  }
-
-  function getStatusFuerTag(wochen, dateStr) {
-    const d = new Date(dateStr + 'T00:00:00');
-    const kw = DateUtil.getKW(d);
-    const year = DateUtil.getKWYear(d);
-    const woche = wochen.find(w => w.kw === kw && w.year === year);
-    if (!woche) return 'offen';
-    return woche.status;
   }
 
   function scrollToCurrentWeek() {

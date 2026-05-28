@@ -28,7 +28,7 @@ function toDateStr(val) {
 
 function normalizeUser(oid, u) {
   const initials = u.initials || (u.name || '').split(' ').map(n => n[0]).join('').toUpperCase();
-  const berichtTyp = localStorage.getItem(`berichtTyp_${oid}`) || u.berichtTyp || 'wöchentlich';
+  const berichtTyp = u.berichtTyp || 'wöchentlich';
   return { ...u, id: oid, oid, initials, berichtTyp };
 }
 
@@ -55,6 +55,7 @@ function normalizeKommentar(k) {
     text: k.Text,
     datum: toDateStr(k.Datum),
     typ: k.Typ,
+    tagId: k.TagId ?? null,
   };
 }
 

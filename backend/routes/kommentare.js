@@ -4,7 +4,7 @@ const { getPool, sql } = require('../db/connection');
 // POST /api/wochen/:wocheId/kommentare
 router.post('/:wocheId/kommentare', async (req, res) => {
   try {
-    const { text, typ } = req.body;
+    const { text, typ, tagId } = req.body;
     const pool = await getPool();
     const result = await pool.request()
       .input('wocheId', sql.Int,          req.params.wocheId)
@@ -12,10 +12,11 @@ router.post('/:wocheId/kommentare', async (req, res) => {
       .input('text',    sql.NVarChar(sql.MAX), text)
       .input('datum',   sql.Date,         new Date().toISOString().split('T')[0])
       .input('typ',     sql.NVarChar(20), typ || 'ausbilder')
+      .input('tagId',   sql.Int,          tagId ?? null)
       .query(`
-        INSERT INTO dbo.Kommentare (WocheId, UserOid, Text, Datum, Typ)
+        INSERT INTO dbo.Kommentare (WocheId, UserOid, Text, Datum, Typ, TagId)
         OUTPUT inserted.Id
-        VALUES (@wocheId, @userOid, @text, @datum, @typ)
+        VALUES (@wocheId, @userOid, @text, @datum, @typ, @tagId)
       `);
     res.json({ id: result.recordset[0].Id });
   } catch (err) {

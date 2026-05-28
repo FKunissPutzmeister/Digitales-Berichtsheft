@@ -14,6 +14,7 @@ const DEV_USERS = {
   '00000000-0000-0000-0000-000000000001': { name: 'Florian Kuniß',       role: 'azubi',     email: 'florian.kuniss@putzmeister.com' },
   '00000000-0000-0000-0000-000000000002': { name: 'Matthias Lengerer',   role: 'ausbilder', email: 'matthias.fauser@putzmeister.com' },
   '00000000-0000-0000-0000-000000000003': { name: 'Florian Kern',        role: 'azubi',     email: 'florian.kern@putzmeister.com' },
+  '00000000-0000-0000-0000-000000000004': { name: 'Admin Verwaltung',    role: 'admin',     email: 'admin@putzmeister.com' },
   '00000000-0000-0000-0000-000000000005': { name: 'Lena Müller',         role: 'azubi',     email: 'lena.mueller@putzmeister.com' },
   '00000000-0000-0000-0000-000000000006': { name: 'Jonas Becker',        role: 'azubi',     email: 'jonas.becker@putzmeister.com',  berichtTyp: 'täglich' },
 };

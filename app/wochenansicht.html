@@ -89,10 +89,30 @@
         <label class="form-label">Begründung</label>
         <textarea id="rejectReason" class="form-control" rows="3" placeholder="Was soll überarbeitet werden?"></textarea>
       </div>
+      <div id="rejectDayComments"></div>
     </div>
     <div class="modal__footer">
       <button class="btn btn-outline" data-modal-close>Abbrechen</button>
       <button class="btn btn-danger" id="rejectConfirmBtn">Zurückgeben</button>
+    </div>
+  </div>
+</div>
+
+<!-- Genehmigen-Modal (Ausbilder, mit optionalen Tages-Kommentaren) -->
+<div class="modal-overlay" id="approveModal">
+  <div class="modal">
+    <div class="modal__header">
+      <h3 class="modal__title">Woche genehmigen</h3>
+      <button class="modal__close" data-modal-close>
+        <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="width:18px;height:18px"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <div class="modal__body">
+      <div id="approveDayComments"></div>
+    </div>
+    <div class="modal__footer">
+      <button class="btn btn-outline" data-modal-close>Abbrechen</button>
+      <button class="btn btn-success" id="approveConfirmBtn">Genehmigen</button>
     </div>
   </div>
 </div>

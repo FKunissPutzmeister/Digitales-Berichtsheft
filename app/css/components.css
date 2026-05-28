@@ -581,6 +581,31 @@ select.form-control {
   gap: var(--sp-3);
 }
 
+/* ── Tages-Kommentare (Ausbilder-Feedback pro Tag) ── */
+.tag-row__day-comments {
+  margin-top: var(--sp-3);
+  padding-top: var(--sp-3);
+  border-top: 1px solid var(--pm-grey-100);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+}
+.tag-row__day-comment {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--sp-2);
+  background: var(--color-info-light);
+  border-left: 3px solid var(--color-info-mid);
+  border-radius: 0 var(--r-md) var(--r-md) 0;
+  padding: var(--sp-2) var(--sp-3);
+  font-size: var(--text-sm);
+  color: var(--pm-grey-700);
+  line-height: 1.4;
+}
+.tag-row__day-comment svg {
+  color: var(--color-info-mid);
+}
+
 /* ── Toast Notifications ── */
 .toast-container {
   position: fixed;
