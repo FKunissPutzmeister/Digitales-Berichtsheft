@@ -3,18 +3,41 @@ const express = require('express');
 const cors = require('cors');
 const path = require('path');
 const session = require('express-session');
+const FileStore = require('session-file-store')(session);
 const { devAuth, DEV_USERS } = require('./middleware/auth');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-app.use(cors({ origin: [`http://localhost:${PORT}`, 'http://localhost:5500'], credentials: true }));
+/* Browser behandelt "localhost" und "127.0.0.1" als unterschiedliche
+   Origins. Beide explizit erlauben, sonst scheitert der Login wenn
+   das Frontend per Live Server (Port 5500) oder über 127.0.0.1 statt
+   localhost geladen wird. */
+app.use(cors({
+  origin: [
+    `http://localhost:${PORT}`,
+    `http://127.0.0.1:${PORT}`,
+    'http://localhost:5500',
+    'http://127.0.0.1:5500',
+  ],
+  credentials: true,
+}));
 app.use(express.json());
+
+// Sessions auf der Platte ablegen (./sessions/) statt im RAM. So überleben
+// Logins einen Backend-Restart – wichtig für `node --watch` im Dev-Modus,
+// damit nicht jeder Code-Change alle Devs ausloggt.
 app.use(session({
+  store: new FileStore({
+    path: path.join(__dirname, 'sessions'),
+    ttl: 60 * 60 * 24 * 7,   // 7 Tage (in Sekunden)
+    retries: 0,              // keine Retry-Logik bei IO-Fehlern (dev-only)
+    logFn: () => {},         // Store-Logs unterdrücken (sonst sehr spammy)
+  }),
   secret: process.env.SESSION_SECRET || 'dev-secret-change-in-prod',
   resave: false,
   saveUninitialized: false,
-  cookie: { secure: false },
+  cookie: { secure: false, maxAge: 1000 * 60 * 60 * 24 * 7 },  // 7 Tage
 }));
 
 // ── Auth-Endpunkte (kein devAuth davor) ──────────────────────────

@@ -11,12 +11,17 @@
    =================================================================== */
 
 const DEV_USERS = {
-  '00000000-0000-0000-0000-000000000001': { name: 'Florian Kuniß',       role: 'azubi',     email: 'florian.kuniss@putzmeister.com' },
+  '00000000-0000-0000-0000-000000000001': { name: 'Florian Kuniß',       role: 'azubi',     email: 'florian.kuniss@putzmeister.com',
+    beruf: 'Mechatroniker', ausbildungsBeginn: '2024-09-01', ausbildungsEnde: '2027-08-31' },
   '00000000-0000-0000-0000-000000000002': { name: 'Matthias Lengerer',   role: 'ausbilder', email: 'matthias.fauser@putzmeister.com' },
-  '00000000-0000-0000-0000-000000000003': { name: 'Florian Kern',        role: 'azubi',     email: 'florian.kern@putzmeister.com' },
+  '00000000-0000-0000-0000-000000000003': { name: 'Florian Kern',        role: 'azubi',     email: 'florian.kern@putzmeister.com',
+    beruf: 'Fachinformatiker für Systemintegration',
+    ausbildungsBeginn: '2025-09-01', ausbildungsEnde: '2028-08-31' },
   '00000000-0000-0000-0000-000000000004': { name: 'Admin Verwaltung',    role: 'admin',     email: 'admin@putzmeister.com' },
-  '00000000-0000-0000-0000-000000000005': { name: 'Lena Müller',         role: 'azubi',     email: 'lena.mueller@putzmeister.com' },
-  '00000000-0000-0000-0000-000000000006': { name: 'Jonas Becker',        role: 'azubi',     email: 'jonas.becker@putzmeister.com',  berichtTyp: 'täglich' },
+  '00000000-0000-0000-0000-000000000005': { name: 'Lena Müller',         role: 'azubi',     email: 'lena.mueller@putzmeister.com',
+    beruf: 'Industriekauffrau', ausbildungsBeginn: '2024-09-01', ausbildungsEnde: '2027-08-31' },
+  '00000000-0000-0000-0000-000000000006': { name: 'Jonas Becker',        role: 'azubi',     email: 'jonas.becker@putzmeister.com',  berichtTyp: 'täglich',
+    beruf: 'Mechatroniker', ausbildungsBeginn: '2023-09-01', ausbildungsEnde: '2026-08-31' },
 };
 
 function devAuth(req, res, next) {

@@ -13,10 +13,32 @@ document.addEventListener('DOMContentLoaded', async () => {
   const user = await initPage('nav-dashboard', []);
   if (!user) return;
 
-  if (user.role === 'azubi') {
-    await renderAzubiDashboard(user);
-  } else {
-    await renderAusbilderDashboard(user);
+  /* Wenn ein Render-Pfad wirft (Daten kaputt, undefined property,
+     etc.) blieb der mainContent früher einfach LEER — ohne jeden
+     Hinweis im UI. Stattdessen: Fehler abfangen und sichtbar machen,
+     damit der Bug nicht mehr stillschweigend passiert. */
+  try {
+    if (user.role === 'azubi') {
+      await renderAzubiDashboard(user);
+    } else {
+      await renderAusbilderDashboard(user);
+    }
+  } catch (err) {
+    console.error('Dashboard-Render gescheitert:', err);
+    const main = document.getElementById('mainContent');
+    if (main) {
+      main.innerHTML = `
+        <div class="dash-error-card" role="alert">
+          <div class="dash-error-card__head">
+            <span class="dash-error-card__icon" aria-hidden="true">⚠️</span>
+            <h2>Dashboard konnte nicht geladen werden</h2>
+          </div>
+          <p>Beim Aufbau des Dashboards ist ein Fehler aufgetreten. Die anderen Seiten (Wochenansicht, Jahresansicht) funktionieren wahrscheinlich weiterhin.</p>
+          <pre class="dash-error-card__detail">${(err && err.stack ? err.stack : String(err)).replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]))}</pre>
+          <button type="button" class="btn btn-sm btn-outline" onclick="window.location.reload()">Neu laden</button>
+        </div>
+      `;
+    }
   }
 
   Toast.init();
@@ -33,6 +55,13 @@ async function renderAzubiDashboard(user) {
   const offeneWochen = alleWochen.filter(w => w.status === 'offen').length;
   const genehmigte = alleWochen.filter(w => w.status === 'genehmigt').length;
   const gesamtStunden = alleWochen.reduce((s, w) => s + (w.gesamtstunden || 0), 0);
+
+  /* Sync-Lookup statt DB.getWoche-Promise-Aufrufen im Render-Pfad.
+     DB.getWoche ist async und wurde an mehreren Stellen ohne await
+     aufgerufen → rec war ein Promise und der ganze Bento-Block
+     rechnete mit Schrottwerten oder warf bei Property-Zugriff. */
+  const wocheLookup = new Map(alleWochen.map(w => [`${w.year}-${w.kw}`, w]));
+  const lookupWoche = (wkw, wyr) => wocheLookup.get(`${wyr}-${wkw}`) || null;
 
   let fortschritt = 0;
   if (user.ausbildungsBeginn && user.ausbildungsEnde) {
@@ -62,7 +91,7 @@ async function renderAzubiDashboard(user) {
     // Wochen komplett vor Ausbildungsbeginn überspringen.
     if (user.ausbildungsBeginn && DateUtil.toISODate(su) < user.ausbildungsBeginn) continue;
     const wkw = DateUtil.getKW(mo), wyr = DateUtil.getKWYear(mo);
-    const rec = DB.getWoche(user.id, wkw, wyr);
+    const rec = lookupWoche(wkw, wyr);
     const st = weekState(rec);
     if (st !== 'abgegeben') {
       ausstehend.push({ kw: wkw, year: wyr, monday: mo, status: rec ? rec.status : null, state: st });
@@ -124,7 +153,7 @@ async function renderAzubiDashboard(user) {
       const mo = new Date(monday); mo.setDate(monday.getDate() - i * 7);
       const wkw = DateUtil.getKW(mo), wyr = DateUtil.getKWYear(mo);
       const su = new Date(mo); su.setDate(mo.getDate() + 6);
-      const st = weekState(DB.getWoche(user.id, wkw, wyr));
+      const st = weekState(lookupWoche(wkw, wyr));
       html += `
         <a href="wochenansicht.html" class="dash-week-chip dash-week-chip--${st}${i === 0 ? ' is-current' : ''}" data-goto-kw="${wkw}" data-goto-year="${wyr}">
           <span class="dash-week-chip__kw">KW ${wkw}</span>
@@ -177,63 +206,302 @@ async function renderAzubiDashboard(user) {
       </section>`;
   }
 
+  /* ── Bento-Daten aufbereiten ──
+     Die linke Spalte (Bento) ersetzt das alte zweispaltige Layout.
+     - Hero: aktuelle Woche mit KW, Date-Range, Status, Wochen-Mini, CTAs.
+     - Ausbildung: SVG-Donut (Monate Lehrjahr) + Lehrjahr-Segmente.
+     - Recent: 6 jüngste Wochen als status-codierte Cards.
+     - Frist: Bis Sonntag 23:59 (gelb).
+     - Stats: Sparkline der letzten 12 Wochen + Streak-Pille. */
+
+  function bentoStatusClass(status) {
+    if (status === 'genehmigt')   return 'genehmigt';
+    if (status === 'freigegeben') return 'freigegeben';
+    if (status === 'abgelehnt')   return 'abgelehnt';
+    return 'offen';
+  }
+  function bentoStatusLabel(status) {
+    return { genehmigt: 'Genehmigt', freigegeben: 'Freigegeben',
+             abgelehnt: 'Zurückgegeben', offen: 'Entwurf' }[bentoStatusClass(status)];
+  }
+  function wkcardKind(w) {
+    if (!w) return 'draft';
+    if (w.status === 'genehmigt')   return 'ok';
+    if (w.status === 'freigegeben') return 'fr';
+    if (w.status === 'abgelehnt')   return 'er';
+    return 'draft';
+  }
+
+  /* Wochen-Mini: Mo–So, today gelb hervorgehoben. KEINE Tages-Stunden,
+     nur Datums-Anzeige (siehe Memory: no-day-level-tracking). */
+  function renderBentoWeekmini() {
+    const todayISO = DateUtil.toISODate(new Date());
+    const days = ['Mo','Di','Mi','Do','Fr','Sa','So'];
+    let html = '';
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(monday); d.setDate(monday.getDate() + i);
+      const iso = DateUtil.toISODate(d);
+      const isToday = iso === todayISO;
+      const isPast  = iso  <  todayISO;
+      const isWE    = i >= 5;
+      const cls = isToday ? 'b-day--today'
+                : isWE    ? 'b-day--weekend'
+                : isPast  ? 'b-day--past'
+                :           '';
+      html += `<div class="b-day ${cls}"><span class="dn">${days[i]}</span><span class="dnum">${d.getDate()}</span></div>`;
+    }
+    return html;
+  }
+
+  /* Recent (Wochen-Variante): 6 jüngste Wochen (vor der aktuellen, die
+     bereits im Hero steckt). Liefert die Wochen-Cards. */
+  function renderBentoRecentWeeks() {
+    let html = '';
+    for (let i = 1; i <= 6; i++) {
+      const mo = new Date(monday); mo.setDate(monday.getDate() - i * 7);
+      if (user.ausbildungsBeginn && DateUtil.toISODate(mo) < user.ausbildungsBeginn) continue;
+      const wkw = DateUtil.getKW(mo), wyr = DateUtil.getKWYear(mo);
+      const su = new Date(mo); su.setDate(mo.getDate() + 6);
+      const rec = lookupWoche(wkw, wyr);
+      const kind = wkcardKind(rec);
+      const lbl = kind === 'ok'    ? 'Genehmigt'
+               : kind === 'fr'     ? 'Freigegeben'
+               : kind === 'er'     ? 'Zurückgegeben'
+               :                     'Offen';
+      html += `
+        <a class="b-wkcard b-wkcard--${kind}" href="wochenansicht.html"
+           data-goto-kw="${wkw}" data-goto-year="${wyr}">
+          <span class="b-wkcard__kw">${wkw}<small>KW</small></span>
+          <span class="b-wkcard__range">${DateUtil.formatDateShort(DateUtil.toISODate(mo))} – ${DateUtil.formatDateShort(DateUtil.toISODate(su))}</span>
+          <span class="b-wkcard__status"><span class="d"></span>${lbl}</span>
+        </a>`;
+    }
+    return html;
+  }
+
+  /* Recent (Tage-Variante): für gewerbliche Azubis (berichtTyp='täglich')
+     die letzten 6 Werktage rückwärts ab gestern. Sa/So und Tage vor
+     Ausbildungsbeginn werden übersprungen. Status pro Tag aus
+     woche.tage[i] gelesen. */
+  function renderBentoRecentDays() {
+    const WD_SHORT = ['SO','MO','DI','MI','DO','FR','SA'];
+    const M_SHORT  = ['Jan','Feb','Mär','Apr','Mai','Jun','Jul','Aug','Sep','Okt','Nov','Dez'];
+    let html = '';
+    let count = 0;
+    const d = new Date(today);
+    d.setDate(d.getDate() - 1); // aktuellen Tag überspringen
+    let safety = 30;
+    while (count < 6 && safety-- > 0) {
+      const wd = d.getDay();
+      if (wd >= 1 && wd <= 5) {
+        const iso = DateUtil.toISODate(d);
+        if (user.ausbildungsBeginn && iso < user.ausbildungsBeginn) break;
+        const wkw = DateUtil.getKW(d), wyr = DateUtil.getKWYear(d);
+        const woche = lookupWoche(wkw, wyr);
+        const tag = woche ? (woche.tage || []).find(t => t.datum === iso) : null;
+        const hatInhalt = tag && (tag.stunden > 0 || tag.eintrag || tag.betriebEintrag || tag.schuleEintrag || tag.unterweisungEintrag);
+
+        let kind = 'leer';
+        let lbl  = 'Leer';
+        if (hatInhalt) {
+          if (woche.status === 'genehmigt')        { kind = 'ok';    lbl = 'Genehmigt'; }
+          else if (woche.status === 'freigegeben') { kind = 'fr';    lbl = 'Freigegeben'; }
+          else if (woche.status === 'abgelehnt')   { kind = 'er';    lbl = 'Zurückgegeben'; }
+          else                                      { kind = 'draft'; lbl = 'Entwurf'; }
+        }
+
+        html += `
+          <a class="b-daycard b-daycard--${kind}" href="wochenansicht.html"
+             data-goto-kw="${wkw}" data-goto-year="${wyr}">
+            <span class="b-daycard__wd">${WD_SHORT[wd]}</span>
+            <span class="b-daycard__num">${d.getDate()}.</span>
+            <span class="b-daycard__mon">${M_SHORT[d.getMonth()]}</span>
+            <span class="b-daycard__status"><span class="d"></span>${lbl}</span>
+          </a>`;
+        count++;
+      }
+      d.setDate(d.getDate() - 1);
+    }
+    return html;
+  }
+
+  const renderBentoRecent = berichtTyp === 'täglich'
+    ? renderBentoRecentDays
+    : renderBentoRecentWeeks;
+
+  /* Ausbildung: Monate vergangen / Gesamt, plus Lehrjahr-Index. */
+  let monatsVergangen = 0, monatsTotal = 0, lehrjahr = 1, donutPct = 0;
+  if (hasProgress) {
+    const beg = new Date(user.ausbildungsBeginn);
+    const end = new Date(user.ausbildungsEnde);
+    const jetzt = new Date();
+    const monthsBetween = (a, b) =>
+      (b.getFullYear() - a.getFullYear()) * 12 + (b.getMonth() - a.getMonth());
+    monatsTotal     = monthsBetween(beg, end);
+    monatsVergangen = Math.max(0, Math.min(monatsTotal, monthsBetween(beg, jetzt)));
+    lehrjahr = Math.min(3, Math.max(1, Math.floor(monatsVergangen / 12) + 1));
+    donutPct = monatsTotal > 0 ? Math.round((monatsVergangen / monatsTotal) * 100) : 0;
+  }
+  // SVG-Ring: Kreisumfang bei r=76 → 2π·76 ≈ 477.5. Offset proportional.
+  const ringCirc = 2 * Math.PI * 76;
+  const ringOffset = ringCirc * (1 - donutPct / 100);
+
+  /* Lehrjahr-Segmente: vorherige sind "done", laufendes ist "now" mit
+     Prozent-Wert (innerhalb des Lehrjahrs). */
+  const segPctInYear = monatsVergangen % 12 === 0 && lehrjahr > 1
+    ? 100 : Math.min(100, Math.round(((monatsVergangen % 12) / 12) * 100));
+
+  /* Stats-Sparkline: 12 jüngste Wochen, Höhe pseudo-zufällig moduliert
+     für visuelle Variation. Echtdaten haben keine "Tagesstunden-Höhe"
+     (siehe Memory), Höhe steht hier symbolisch für "Aktivität". */
+  function bentoSparkSpans() {
+    let out = '';
+    for (let i = 11; i >= 0; i--) {
+      const mo = new Date(monday); mo.setDate(monday.getDate() - i * 7);
+      if (user.ausbildungsBeginn && DateUtil.toISODate(mo) < user.ausbildungsBeginn) {
+        out += `<span style="height:18%;opacity:.3"></span>`; continue;
+      }
+      const wkw = DateUtil.getKW(mo), wyr = DateUtil.getKWYear(mo);
+      const rec = lookupWoche(wkw, wyr);
+      const kind = wkcardKind(rec);
+      // Höhe leicht variieren damit's nicht wie ein Balken aussieht
+      const h = 40 + ((wkw * 17 + wyr) % 50);
+      out += `<span class="${kind}" style="height:${h}%${kind === 'draft' ? ';opacity:.55' : ''}"></span>`;
+    }
+    return out;
+  }
+
+  /* Streak: zähle vergangene zusammenhängende genehmigte/freigegebene Wochen
+     rückwärts ab der aktuellen (ohne die aktuelle selbst). */
+  let streak = 0;
+  for (let i = 1; i <= 26; i++) {
+    const mo = new Date(monday); mo.setDate(monday.getDate() - i * 7);
+    if (user.ausbildungsBeginn && DateUtil.toISODate(mo) < user.ausbildungsBeginn) break;
+    const wkw = DateUtil.getKW(mo), wyr = DateUtil.getKWYear(mo);
+    const rec = lookupWoche(wkw, wyr);
+    if (!rec) break;
+    if (rec.status === 'genehmigt' || rec.status === 'freigegeben') streak++;
+    else break;
+  }
+
+  /* Stats-Aggregat: Genehmigt-Quote. */
+  const genehmigtCount = alleWochen.filter(w => w.status === 'genehmigt').length;
+  const wochenMitInhalt = alleWochen.length;
+  const quote = wochenMitInhalt > 0 ? Math.round((genehmigtCount / wochenMitInhalt) * 100) : 0;
+
+  const weekdayLong = ['Sonntag','Montag','Dienstag','Mittwoch','Donnerstag','Freitag','Samstag'][today.getDay()];
+  const weekdayShort = ['SO','MO','DI','MI','DO','FR','SA'][today.getDay()];
+
+  /* Background-Schriftzug spiegelt den Berichtstyp:
+     - gewerblich (täglich) → Wochentag + Tagesnummer, z. B. "DI29"
+     - kaufmännisch (wöchentlich) → Kalenderwoche, z. B. "KW22" */
+  const heroBgScript = berichtTyp === 'täglich'
+    ? `${weekdayShort}${String(today.getDate()).padStart(2,'0')}`
+    : `KW${String(kw).padStart(2,'0')}`;
+
   main.innerHTML = `
-    <div class="welcome-banner">
-      <div class="welcome-banner__content">
-        <p class="welcome-banner__greeting">${getGreeting()}, ${user.name.split(' ')[0]} 👋</p>
-        <h1 class="welcome-banner__title">Dein Berichtsheft-Dashboard</h1>
-        <p class="welcome-banner__info">${user.beruf || ''}${ausbilder ? ` &nbsp;·&nbsp; Ausbilder: ${ausbilder.name}` : ''}</p>
+    <section class="welcome-hero">
+      <div class="welcome-hero__scene" aria-hidden="true">
+        <div class="welcome-hero__photo"></div>
+        <div class="welcome-hero__veil"></div>
+        <div class="welcome-hero__glow"></div>
+        <div class="welcome-hero__kw-bg" aria-hidden="true">${heroBgScript}</div>
       </div>
-      <div class="welcome-banner__kw">
-        <div class="welcome-banner__kw-number">KW&nbsp;${kw}</div>
-        <div class="welcome-banner__kw-label">${DateUtil.MONTHS[today.getMonth()]} ${today.getFullYear()}</div>
+      <div class="welcome-hero__body">
+        <h1 class="welcome-hero__name">Hallo, ${user.name.split(' ')[0]}</h1>
+        <p class="welcome-hero__sub">${weekdayLong}, ${today.getDate()}. ${DateUtil.MONTHS[today.getMonth()]}</p>
       </div>
-    </div>
+    </section>
 
-    <div class="dash-bento">
-      <div class="dash-col dash-col--main">
+    <div class="bento">
 
-        <!-- HERO: je nach Berichtstyp aktuelle Woche oder Wochenübersicht -->
-        ${renderHero()}
-
-        <!-- Ausstehende Wochen – schneller Sprung -->
-        <section class="dash-tile dash-outstanding animate-fade-in">
-          <div class="dash-tile__head">
-            <h2 class="dash-tile__title">Ausstehende Wochen</h2>
-            <span class="dash-tile__hint">${ausstehend.length ? 'Antippen, um die Woche direkt auszufüllen' : ''}</span>
+      <!-- HERO: Aktuelle Woche -->
+      <section class="b-tile b-tile--glass b-hero animate-fade-in">
+        <div class="b-hero__top">
+          <div class="b-hero__eyebrow">
+            <span class="b-live"></span>
+            ${['Sonntag','Montag','Dienstag','Mittwoch','Donnerstag','Freitag','Samstag'][today.getDay()]}, ${today.getDate()}. ${DateUtil.MONTHS[today.getMonth()]}
           </div>
-          ${ausstehend.length
-            ? `<div class="dash-out-list">${ausstehend.slice(0, 6).map(renderOutstandingItem).join('')}</div>${ausstehend.length > 6 ? `<div class="dash-out-more">+ ${ausstehend.length - 6} weitere</div>` : ''}`
-            : `<div class="dash-empty">Alles abgegeben — stark! 🎉</div>`}
-        </section>
-      </div>
+          <span class="b-status b-status--${bentoStatusClass(aktStatus)}">
+            <span class="dot"></span>${bentoStatusLabel(aktStatus)}
+          </span>
+        </div>
+        <div class="b-hero__middle">
+          <h1 class="b-hero__kw">
+            <small>Aktuelle Woche</small>
+            KW ${kw}
+          </h1>
+          <div class="b-weekmini">${renderBentoWeekmini()}</div>
+        </div>
+        <div class="b-hero__bottom">
+          <a class="b-btn-primary" href="wochenansicht.html"
+             data-goto-kw="${kw}" data-goto-year="${kwYear}">
+            Bericht öffnen
+            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="width:16px;height:16px"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+          </a>
+          <button type="button" class="b-btn-ghost">Aus KW ${kw - 1 || 52} vorbefüllen</button>
+        </div>
+      </section>
 
-      <div class="dash-col dash-col--side">
-        ${hasProgress ? `
-        <section class="dash-tile dash-progress animate-fade-in">
-          <div class="dash-tile__head"><h2 class="dash-tile__title">Ausbildungsfortschritt</h2></div>
-          <div class="dash-ring">
-            <svg viewBox="0 0 120 120" aria-hidden="true">
-              <circle class="dash-ring__track" cx="60" cy="60" r="52"/>
-              <circle class="dash-ring__fill" cx="60" cy="60" r="52" data-pct="${fortschritt}"/>
-            </svg>
-            <div class="dash-ring__center"><span class="dash-ring__pct">${fortschritt}</span><span class="dash-ring__unit">%</span></div>
+      <!-- AUSBILDUNG: Dark Tile mit SVG-Donut -->
+      ${hasProgress ? `
+      <section class="b-tile b-tile--dark b-azubi animate-fade-in">
+        <div class="b-azubi__head">
+          <span class="eyebrow">Ausbildung</span>
+          <span class="b-azubi__lj">Lehrjahr ${lehrjahr} / 3</span>
+        </div>
+        <div class="b-donut">
+          <svg viewBox="0 0 180 180" aria-hidden="true">
+            <circle cx="90" cy="90" r="76" fill="none" stroke="rgba(255,255,255,0.08)" stroke-width="14"/>
+            <circle cx="90" cy="90" r="76" fill="none" stroke="url(#bentoRingGrad)" stroke-width="14"
+                    stroke-linecap="round" stroke-dasharray="${ringCirc.toFixed(1)}" stroke-dashoffset="${ringOffset.toFixed(1)}"/>
+            <defs>
+              <linearGradient id="bentoRingGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stop-color="#FFE780"/>
+                <stop offset="100%" stop-color="#FFC300"/>
+              </linearGradient>
+            </defs>
+          </svg>
+          <div class="b-donut__center">
+            <div class="b-donut__pct">${monatsVergangen}<small>/${monatsTotal}</small></div>
+            <div class="b-donut__label">Monate · LJ ${lehrjahr}</div>
           </div>
-          <div class="dash-progress__total">
-            <span class="dash-progress__total-icon">${Icon('clock')}</span>
-            <span><strong>${formatHoursDecimal(gesamtStunden)}</strong> Gesamtstunden erfasst</span>
+        </div>
+        <div class="b-azubi__foot">
+          <strong>${user.beruf || 'Ausbildung'}</strong>
+          <span class="muted">${monatsTotal - monatsVergangen} Monate offen · bis ${DateUtil.formatDate(user.ausbildungsEnde)}</span>
+          <div class="b-azubi__segs">
+            <span class="${lehrjahr > 1 ? 'done' : (lehrjahr === 1 ? 'now' : '')}"
+                  style="--seg-pct:${lehrjahr === 1 ? segPctInYear : 100}%"></span>
+            <span class="${lehrjahr > 2 ? 'done' : (lehrjahr === 2 ? 'now' : '')}"
+                  style="--seg-pct:${lehrjahr === 2 ? segPctInYear : (lehrjahr > 2 ? 100 : 0)}%"></span>
+            <span class="${lehrjahr > 3 ? 'done' : (lehrjahr === 3 ? 'now' : '')}"
+                  style="--seg-pct:${lehrjahr === 3 ? segPctInYear : (lehrjahr > 3 ? 100 : 0)}%"></span>
           </div>
-          <div class="dash-progress__dates">
-            <span>${DateUtil.formatDate(user.ausbildungsBeginn)}</span>
-            <span>${DateUtil.formatDate(user.ausbildungsEnde)}</span>
-          </div>
-        </section>` : ''}
+        </div>
+      </section>` : `
+      <section class="b-tile b-tile--dark b-azubi animate-fade-in">
+        <div class="b-azubi__head">
+          <span class="eyebrow">Ausbildung</span>
+        </div>
+        <div class="b-azubi__foot">
+          <strong>${user.beruf || 'Ausbildung'}</strong>
+          <span class="muted">Kein Ausbildungszeitraum hinterlegt</span>
+        </div>
+      </section>`}
 
-        <section class="dash-tile dash-activity animate-fade-in">
-          <div class="dash-tile__head"><h2 class="dash-tile__title">Letzte Aktivitäten</h2></div>
-          <div class="activity-feed">${renderAzubiActivities(alleWochen)}</div>
-        </section>
-      </div>
+      <!-- RECENT: Wochen-Cards -->
+      <section class="b-tile b-tile--glass b-recent animate-fade-in">
+        <div class="b-recent__head">
+          <div>
+            <h3>Zuletzt</h3>
+            <span class="sub">${berichtTyp === 'täglich' ? 'letzte 6 Werktage' : 'letzte 6 Wochen'}</span>
+          </div>
+          <a href="jahresansicht.html">Alle ${alleWochen.length} ${berichtTyp === 'täglich' ? 'Berichtswochen' : 'Wochen'} →</a>
+        </div>
+        <div class="b-recent__grid b-recent__grid--${berichtTyp === 'täglich' ? 'days' : 'weeks'}">${renderBentoRecent()}</div>
+      </section>
+
     </div>
   `;
 

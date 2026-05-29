@@ -417,7 +417,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       return `
         <div class="tag-row${isWE ? ' tag-row--weekend' : ''}${isToday ? ' tag-row--today' : ''}${hasEntry ? ' tag-row--has-entry' : ''}${woche ? ' status-' + woche.status : ''}"
              id="dayCard_${dateStr}" data-date="${dateStr}" data-completion="${completion}">
-          <div class="tag-row__summary">
+          <div class="tag-row__summary" ${!isWE ? `onclick="handleTagRowToggle(event)"` : ''}>
             <div class="tag-row__datebox${isWE ? ' tag-row__datebox--we' : ''}${isToday ? ' tag-row__datebox--today' : ''}">
               <span class="tag-row__day-num">${date.getDate()}</span>
               <span class="tag-row__month">${monthsShort[date.getMonth()]}</span>
@@ -1341,6 +1341,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (errBox) { errBox.hidden = true; errBox.innerHTML = ''; }
   }
 
+  /* Letzter Wochen-Total in Modul-Scope, damit wir die Richtung der
+     Änderung kennen und die Bump-Animation passend feuern können. */
+  let _lastWochenTotal = null;
+
   function updateStundenDisplay() {
     let total = 0;
     document.querySelectorAll('.time-spinner[data-date]').forEach(s => {
@@ -1349,12 +1353,26 @@ document.addEventListener('DOMContentLoaded', async () => {
       total += h + m / 60;
     });
     const val = decimalToTimeStr(total);
-    const totalEl = document.getElementById('totalHours');
-    const statusEl = document.getElementById('statusTotalHours');
-    const tageEl = document.getElementById('wochenTageGesamt');
-    if (totalEl) totalEl.textContent = val;
-    if (statusEl) statusEl.textContent = val;
-    if (tageEl) tageEl.textContent = val;
+
+    /* Richtung gegenüber dem letzten Total. Beim allerersten Aufruf
+       (nach Re-Render) wollen wir KEINE Animation feuern — sonst zuckt
+       die Anzeige beim Öffnen der Seite. */
+    let direction = null;
+    if (_lastWochenTotal !== null && Math.abs(total - _lastWochenTotal) > 0.001) {
+      direction = total > _lastWochenTotal ? 'up' : 'down';
+    }
+    _lastWochenTotal = total;
+
+    ['totalHours', 'statusTotalHours', 'wochenTageGesamt'].forEach(id => {
+      const el = document.getElementById(id);
+      if (!el) return;
+      el.textContent = val;
+      if (direction) {
+        el.classList.remove('hours-bump-up', 'hours-bump-down');
+        void el.offsetWidth;
+        el.classList.add('hours-bump-' + direction);
+      }
+    });
   }
 
   // ── Tages-Kommentar-Felder für Genehmigungs-/Ablehnungs-Modal ────
@@ -1782,6 +1800,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     render();
   });
 
+  /* Toggle für Tag-Rows wird inline am .tag-row__summary aufgesetzt,
+     siehe Markup unten. Dadurch braucht's keinen Delegation-Listener
+     und der Klick feuert verlässlich auch zwischen den Form-Controls. */
+
   await render();
 });
 
@@ -1790,6 +1812,27 @@ document.addEventListener('DOMContentLoaded', async () => {
 function toggleDayCard(dateStr) {
   const card = document.getElementById('dayCard_' + dateStr);
   card?.classList.toggle('expanded');
+}
+
+/* Inline-Handler, am .tag-row__summary verkabelt. Robuster als ein
+   delegierter document-Listener, weil das click-Event direkt am Element
+   feuert und nicht durch fehlgeleitete Bubbling-Pfade verschluckt wird.
+   Klicks auf Form-Controls werden ignoriert, damit der Tag nicht zuklappt
+   wenn man einen Select öffnet oder den Spinner bedient. */
+function handleTagRowToggle(e) {
+  if (e.target.closest('select, option, input, textarea, .time-spinner, button')) return;
+  const row = e.currentTarget.closest('.tag-row');
+  if (!row) return;
+  if (row.classList.contains('tag-row--weekend')) return;
+  if (row.classList.contains('tag-row--compact')) return;
+  if (!row.querySelector('.tag-row__body')) return;
+
+  const opened = row.classList.toggle('expanded');
+  const chev = row.querySelector('.tag-row__chevron');
+  if (chev) {
+    chev.setAttribute('aria-expanded', String(opened));
+    chev.setAttribute('aria-label', opened ? 'Tag zuklappen' : 'Tag aufklappen');
+  }
 }
 
 function clearDayEntry(dateStr) {
@@ -1822,6 +1865,16 @@ function escapeHtml(str) {
   return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
+/* Visuelle Quittung am Spinner-Input: leichter Bump in der jeweiligen
+   Richtung. Vor jedem Trigger die Animation-Klassen entfernen und einen
+   Reflow erzwingen, sonst feuert die Animation beim wiederholten Klick
+   in dieselbe Richtung nicht mehr. */
+function pulseSpinnerInput(inp, direction) {
+  inp.classList.remove('spinner-bump-up', 'spinner-bump-down');
+  void inp.offsetWidth;
+  inp.classList.add('spinner-bump-' + direction);
+}
+
 function handleSpinnerClick(btn) {
   if (btn.disabled) return;
   const spinner = btn.closest('.time-spinner');
@@ -1830,11 +1883,15 @@ function handleSpinnerClick(btn) {
   const part = btn.dataset.part;
   const inp = spinner.querySelector(`.time-spinner__input[data-part="${part}"]`);
   if (!inp) return;
-  let v = parseInt(inp.value) || 0;
+  const oldV = parseInt(inp.value) || 0;
+  let v = oldV;
   if (btn.dataset.action === 'up') {
     v = part === 'h' ? Math.min(23, v + 1) : (v + 5 >= 60 ? 0 : v + 5);
   } else {
     v = part === 'h' ? Math.max(0, v - 1) : (v - 5 < 0 ? 55 : v - 5);
+  }
+  if (v !== oldV) {
+    pulseSpinnerInput(inp, btn.dataset.action === 'up' ? 'up' : 'down');
   }
   inp.value = String(v).padStart(2, '0');
   window._spinnerCallback?.(dateStr);
@@ -1846,8 +1903,13 @@ function handleSpinnerInput(inp) {
   if (!spinner || spinner.classList.contains('time-spinner--readonly')) return;
   const dateStr = spinner.dataset.date;
   const part = inp.dataset.part;
+  const oldV = parseInt(inp.dataset.lastValue) || 0;
   let v = parseInt(inp.value) || 0;
   v = part === 'h' ? Math.min(23, Math.max(0, v)) : Math.min(59, Math.max(0, v));
+  if (v !== oldV) {
+    pulseSpinnerInput(inp, v > oldV ? 'up' : 'down');
+  }
   inp.value = String(v).padStart(2, '0');
+  inp.dataset.lastValue = String(v);
   window._spinnerCallback?.(dateStr);
 }

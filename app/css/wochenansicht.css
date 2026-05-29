@@ -840,19 +840,45 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  color: var(--pm-grey-400);
-  transition: transform var(--t-normal);
+  width: 32px;
+  height: 32px;
+  border: 0;
+  background: transparent;
+  border-radius: 999px;
+  color: var(--pm-grey-500);
+  cursor: pointer;
+  transition: transform var(--t-normal), background var(--t-fast), color var(--t-fast);
+}
+.tag-row__chevron:hover {
+  background: var(--pm-grey-100);
+  color: var(--pm-grey-800);
+}
+.tag-row__chevron:focus-visible {
+  outline: none;
+  box-shadow: var(--ring-yellow-sm);
 }
 .tag-row.expanded .tag-row__chevron { transform: rotate(180deg); }
+[data-theme="dark"] .tag-row__chevron { color: var(--pm-grey-500); }
+[data-theme="dark"] .tag-row__chevron:hover {
+  background: rgba(255, 255, 255, 0.10);
+  color: var(--pm-yellow);
+}
 
 .tag-row__body {
   display: none;
   padding: var(--sp-5);
   border-top: 1px solid var(--pm-grey-100);
   background: var(--pm-white);
-  animation: fadeIn var(--t-normal) both;
 }
-.tag-row.expanded .tag-row__body { display: block; }
+.tag-row.expanded .tag-row__body {
+  display: block;
+  animation: tag-row-expand .28s cubic-bezier(.34, 1.2, .5, 1) both;
+  transform-origin: top center;
+}
+@keyframes tag-row-expand {
+  from { opacity: 0; transform: translateY(-6px) scaleY(0.985); }
+  to   { opacity: 1; transform: translateY(0)    scaleY(1); }
+}
 
 .tag-row__absence-section .form-group { margin: 0; }
 
@@ -1939,15 +1965,17 @@ body[data-page="wochenansicht"] .tag-row__summary:hover {
   padding: 3px 0;
 }
 
-/* Chevron entfällt im neuen Design – die Tageskarte ist immer aufgeklappt. */
+/* Chevron bleibt sichtbar — gibt dem User das Toggle-Affordance.
+   (Frühere Version hatte ihn versteckt und den Body permanent offen
+   gepinnt; jetzt klappt der Tag wieder zu wenn der User das will.) */
 body[data-page="wochenansicht"] .tag-row__chevron {
-  display: none;
+  display: flex;
 }
 
-/* Tageskarten-Body ist im Tagesbasis-Modus IMMER sichtbar (kein Toggle).
-   Im wöchentlich-Modus existiert kein Body, daher kein Konflikt. */
+/* Padding/Border-Override für den Tagesbasis-Body. KEIN display:block
+   !important mehr — sonst ist der Body permanent sichtbar und das
+   Auf-/Zuklappen ist defekt. */
 body[data-page="wochenansicht"] .tag-row__body {
-  display: block !important;
   padding: 0 var(--sp-5) var(--sp-4);
   border-top: none;
   background: transparent;
@@ -2310,7 +2338,7 @@ body[data-page="wochenansicht"] .time-spinner__unit {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 2px;
+  gap: 4px;
   box-shadow: none !important;
 }
 body[data-page="wochenansicht"] .time-spinner:focus-within .time-spinner__unit {
@@ -2318,28 +2346,37 @@ body[data-page="wochenansicht"] .time-spinner:focus-within .time-spinner__unit {
   border: none;
 }
 body[data-page="wochenansicht"] .time-spinner__btn {
-  width: 28px;
-  height: 16px;
+  /* Schlanke runde +/− über und unter der Pille. */
+  width: 32px;
+  height: 18px;
   background: transparent;
   color: var(--pm-grey-500);
   font-weight: var(--fw-bold);
+  border-radius: 999px;
 }
 body[data-page="wochenansicht"] .time-spinner__btn:hover:not(:disabled) {
-  background: transparent;
+  background: var(--pm-yellow-pale);
   color: var(--pm-yellow-darker);
 }
+body[data-page="wochenansicht"] .time-spinner__btn:active:not(:disabled) {
+  background: var(--pm-yellow);
+  color: var(--pm-grey-900);
+  transform: scale(0.92);
+}
 body[data-page="wochenansicht"] .time-spinner__input {
-  width: 44px;
-  height: 36px;
+  /* Vollständig abgerundete Pille statt eckiger Box. */
+  width: 50px;
+  height: 38px;
   padding: 0;
   font-family: var(--font-heading);
   font-size: var(--text-base);
   font-weight: var(--fw-bold);
   background: var(--pm-white);
   color: var(--pm-grey-900);
-  border: 1px solid var(--pm-grey-300);
-  border-radius: var(--r-sm);
+  border: 1.5px solid var(--pm-grey-300);
+  border-radius: 999px;
   text-align: center;
+  letter-spacing: -0.01em;
 }
 body[data-page="wochenansicht"] .time-spinner__input:focus {
   background: var(--pm-white);
@@ -2747,4 +2784,188 @@ body[data-page="wochenansicht"] .btn-lg {
   * { box-shadow: none !important; }
   a { color: #000 !important; text-decoration: none !important; }
   @page { margin: 1.5cm 1.5cm 2cm; }
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   STUNDEN-EINGABE: ANIMATION
+   Beim Klick auf Up/Down springt der Input-Wert kurz hoch/runter und
+   ändert sekundär die Farbe (grün=plus, rot=minus). Gleiche Logik in
+   stärker für den Gesamt-Stunden-Indikator am Wochenende.
+   ═══════════════════════════════════════════════════════════════════ */
+@keyframes spinner-bump-up {
+  0%   { transform: translateY(0)    scale(1); }
+  35%  { transform: translateY(-3px) scale(1.14); }
+  100% { transform: translateY(0)    scale(1); }
+}
+@keyframes spinner-bump-down {
+  0%   { transform: translateY(0)   scale(1); }
+  35%  { transform: translateY(3px) scale(0.90); }
+  100% { transform: translateY(0)   scale(1); }
+}
+.time-spinner__input.spinner-bump-up,
+body[data-page="wochenansicht"] .time-spinner__input.spinner-bump-up {
+  animation: spinner-bump-up .34s cubic-bezier(.34, 1.4, .5, 1);
+}
+.time-spinner__input.spinner-bump-down,
+body[data-page="wochenansicht"] .time-spinner__input.spinner-bump-down {
+  animation: spinner-bump-down .34s cubic-bezier(.34, 1.4, .5, 1);
+}
+
+/* Gesamt-Stunden (Bottom-Bar, Status-Banner, Wochen-Tabelle) — stärker
+   inszenierter Bump. transform-origin: center damit das Skalieren nicht
+   den Layout-Fluss zerlegt. display:inline-block weil <span> per default
+   keine transforms zulässt. */
+@keyframes hours-bump-up {
+  0%   { transform: translateY(0)    scale(1); }
+  30%  { transform: translateY(-6px) scale(1.16); }
+  100% { transform: translateY(0)    scale(1); }
+}
+@keyframes hours-bump-down {
+  0%   { transform: translateY(0)   scale(1); }
+  30%  { transform: translateY(6px) scale(0.92); }
+  100% { transform: translateY(0)   scale(1); }
+}
+.hours-bump-up,
+.hours-bump-down {
+  display: inline-block;
+  transform-origin: center;
+  will-change: transform;
+}
+.hours-bump-up   { animation: hours-bump-up   .55s cubic-bezier(.34, 1.3, .5, 1); }
+.hours-bump-down { animation: hours-bump-down .55s cubic-bezier(.34, 1.3, .5, 1); }
+
+/* ═══════════════════════════════════════════════════════════════════
+   DARK-MODE-KONTRAST-BOOST für die Wochenansicht
+   Die alten Tag-Row-Borders mit rgba(255,255,255,0.06) gehen auf dem
+   Dark-Body (#2C2C2C) komplett unter. Stärkere Borders, klare Surface-
+   Hierarchie (Body < Tag-Row < expanded Body), kräftigerer Today-Tint.
+   ═══════════════════════════════════════════════════════════════════ */
+[data-theme="dark"] body[data-page="wochenansicht"] .tag-row {
+  background: linear-gradient(180deg, #44444A 0%, #3D3D43 100%);
+  border-color: rgba(255, 255, 255, 0.10);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.05),
+    0 1px 2px rgba(0, 0, 0, 0.35);
+}
+[data-theme="dark"] body[data-page="wochenansicht"] .tag-row + .tag-row {
+  margin-top: 8px;
+}
+[data-theme="dark"] body[data-page="wochenansicht"] .tag-row:hover {
+  border-color: rgba(255, 255, 255, 0.18);
+}
+[data-theme="dark"] body[data-page="wochenansicht"] .tag-row__summary:hover {
+  background: rgba(255, 255, 255, 0.04);
+}
+[data-theme="dark"] body[data-page="wochenansicht"] .tag-row--today {
+  background:
+    linear-gradient(180deg, rgba(255, 195, 0, 0.10) 0%, rgba(255, 195, 0, 0.04) 100%),
+    linear-gradient(180deg, #44444A 0%, #3D3D43 100%);
+  border-color: rgba(255, 195, 0, 0.45);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 195, 0, 0.15),
+    0 0 0 1px rgba(255, 195, 0, 0.10),
+    0 4px 14px -6px rgba(255, 195, 0, 0.25);
+}
+[data-theme="dark"] body[data-page="wochenansicht"] .tag-row--weekend {
+  background: rgba(255, 255, 255, 0.015);
+  border-color: rgba(255, 255, 255, 0.06);
+  box-shadow: none;
+}
+[data-theme="dark"] body[data-page="wochenansicht"] .tag-row.expanded {
+  border-color: rgba(255, 195, 0, 0.32);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.06),
+    0 0 0 1px rgba(255, 195, 0, 0.18),
+    0 8px 24px -10px rgba(0, 0, 0, 0.55);
+}
+[data-theme="dark"] body[data-page="wochenansicht"] .tag-row__body {
+  background: rgba(0, 0, 0, 0.25);
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+/* Time-Spinner im Dark Mode — die runde Input-Pille selbst ist der
+   sichtbare Container, der äußere .time-spinner__unit bleibt
+   unsichtbar (sonst entsteht eine eckige Box um die Pille). */
+[data-theme="dark"] body[data-page="wochenansicht"] .time-spinner__unit {
+  background: transparent;
+  border: none;
+}
+[data-theme="dark"] body[data-page="wochenansicht"] .time-spinner:focus-within .time-spinner__unit {
+  border: none;
+  box-shadow: none;
+}
+[data-theme="dark"] body[data-page="wochenansicht"] .time-spinner__input {
+  background: rgba(0, 0, 0, 0.30);
+  border-color: rgba(255, 255, 255, 0.14);
+  color: var(--pm-grey-900);
+}
+[data-theme="dark"] body[data-page="wochenansicht"] .time-spinner:focus-within .time-spinner__input {
+  border-color: var(--pm-yellow);
+  box-shadow: 0 0 0 3px rgba(255, 195, 0, 0.18);
+}
+[data-theme="dark"] body[data-page="wochenansicht"] .time-spinner__btn {
+  color: var(--pm-grey-600);
+}
+[data-theme="dark"] body[data-page="wochenansicht"] .time-spinner__btn:hover:not(:disabled) {
+  color: var(--pm-yellow);
+  background: rgba(255, 195, 0, 0.10);
+}
+
+/* Selects + Inputs in Tag-Row: höherer Kontrast */
+[data-theme="dark"] body[data-page="wochenansicht"] .tag-row__select,
+[data-theme="dark"] body[data-page="wochenansicht"] .day-card__select {
+  background-color: rgba(0, 0, 0, 0.30);
+  border-color: rgba(255, 255, 255, 0.14);
+  color: var(--pm-grey-900);
+}
+[data-theme="dark"] body[data-page="wochenansicht"] .tag-row__select:hover,
+[data-theme="dark"] body[data-page="wochenansicht"] .day-card__select:hover {
+  border-color: rgba(255, 255, 255, 0.24);
+}
+[data-theme="dark"] body[data-page="wochenansicht"] .tag-row__select:focus,
+[data-theme="dark"] body[data-page="wochenansicht"] .day-card__select:focus {
+  border-color: var(--pm-yellow);
+  box-shadow: 0 0 0 3px rgba(255, 195, 0, 0.18);
+}
+
+/* Completion-Dots: kräftigere Farben für die fünf States */
+[data-theme="dark"] .tag-row__completion-dot--complete {
+  background: var(--color-success-mid, #43A856);
+  box-shadow: 0 0 0 2px rgba(67, 168, 86, 0.25);
+}
+[data-theme="dark"] .tag-row__completion-dot--partial {
+  background: var(--pm-yellow);
+  box-shadow: 0 0 0 2px rgba(255, 195, 0, 0.30);
+}
+[data-theme="dark"] .tag-row__completion-dot--empty {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+}
+[data-theme="dark"] .tag-row__completion-dot--absent {
+  background: var(--color-info-mid, #1976D2);
+  box-shadow: 0 0 0 2px rgba(25, 118, 210, 0.30);
+}
+
+/* Status-Banner: stärkere Border-Akzentuierung im Dark Mode */
+[data-theme="dark"] .week-status-banner {
+  background-color: rgba(255, 255, 255, 0.03);
+  border-color: rgba(255, 255, 255, 0.08);
+}
+[data-theme="dark"] .week-status-banner__title { color: var(--pm-grey-900); }
+[data-theme="dark"] .week-status-banner__text  { color: var(--pm-grey-700); }
+[data-theme="dark"] .week-status-banner__icon  {
+  background: rgba(255, 255, 255, 0.10);
+  backdrop-filter: blur(8px);
+}
+
+/* Bottom-Bar (Gesamt-Stunden): klare Trennung vom Body */
+[data-theme="dark"] .week-bottom-bar {
+  background: linear-gradient(180deg, #44444A 0%, #3D3D43 100%);
+  border-color: rgba(255, 255, 255, 0.12);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.06),
+    0 -2px 12px rgba(0, 0, 0, 0.35);
+}
+[data-theme="dark"] .week-bottom-bar__sum-value {
+  color: var(--pm-yellow);
 }

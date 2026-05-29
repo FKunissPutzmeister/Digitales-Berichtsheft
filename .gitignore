@@ -42,3 +42,7 @@ generate-db-doc.ps1
 
 # Backend-Umgebungsvariablen (DB-Credentials, Secrets)
 backend/.env
+
+# Persistente Express-Sessions (session-file-store) — lokale Login-Cookies,
+# überleben Backend-Restarts. Gehören NICHT ins Repo.
+backend/sessions/
