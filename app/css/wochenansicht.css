@@ -1484,48 +1484,82 @@
   letter-spacing: 0.02em;
 }
 
-/* ── KW-Wechsel-Animation ─────────────────────────────────────────
-   Beim Klick auf prev/next-Pfeil bekommt der Pane unter der Toolbar
-   ein data-anim="next|prev" Attribut. Inhalt fadet leicht ein und
-   gleitet aus der Richtung herein, in die navigiert wurde; das KW-
-   Label im Toolbar-Kern macht eine subtilere Variante derselben
-   Bewegung. Bewusst kurz (260–340 ms) und mit ease-out, damit der
-   Wechsel spürbar ist, aber das Arbeiten nicht ausbremst. */
-@keyframes week-pane-in-next {
-  0%   { opacity: 0; transform: translate3d(28px, 0, 0); }
-  60%  { opacity: 1; }
-  100% { opacity: 1; transform: translate3d(0, 0, 0); }
+/* ── KW-Wechsel-Animation (Spring Slide + Parallax — Mockup Variante C) ──
+   Mechanik wie im Mockup: alter und neuer Layer leben in einem Stage-
+   Container mit overflow:hidden. Beide animieren gleichzeitig — alter
+   rutscht nach links/rechts weg, neuer kommt mit Spring-Overshoot rein.
+   Überstände am Container-Rand werden sauber abgeschnitten, daher kein
+   versetzter "Doppel"-Effekt.
+
+   - Stage-Container: dynamisch von JS angelegt (position:fixed über der
+     pane, overflow:hidden). Klon des alten Pane liegt drin mit position:
+     absolute.
+   - Parallel dazu setzt JS .main-content auf overflow:hidden, damit der
+     neue (in mainContent eingebettete) Pane mit translateX(60px) ebenfalls
+     am Rand abgeschnitten wird statt frei nach rechts rauszuragen.
+   - KW-Block: gleicher Charakter, aber kleinere Distanz und 80 ms
+     Parallax-Lag. Klone werden direkt an body gehängt (translateX ist mit
+     10-20 px klein genug, dass kein eigener overflow-Container nötig ist). */
+
+@keyframes week-pane-out-next { to { opacity: 0; transform: translateX(-120px); } }
+@keyframes week-pane-out-prev { to { opacity: 0; transform: translateX(120px); } }
+@keyframes week-pane-in-next  { from { opacity: 0; transform: translateX(120px);  } to { opacity: 1; transform: translateX(0); } }
+@keyframes week-pane-in-prev  { from { opacity: 0; transform: translateX(-120px); } to { opacity: 1; transform: translateX(0); } }
+@keyframes week-kw-out-next   { to { opacity: 0; transform: translateX(-10px); } }
+@keyframes week-kw-out-prev   { to { opacity: 0; transform: translateX(10px); } }
+@keyframes week-kw-in-next    { from { opacity: 0; transform: translateX(20px);  } to { opacity: 1; transform: translateX(0); } }
+@keyframes week-kw-in-prev    { from { opacity: 0; transform: translateX(-20px); } to { opacity: 1; transform: translateX(0); } }
+
+/* Dynamisch von JS erstellter Container über der Pane, der den Klon im
+   sichtbaren Bereich hält. */
+.week-pane-anim-stage {
+  position: fixed;
+  overflow: hidden;
+  pointer-events: none;
+  z-index: 80;
 }
-@keyframes week-pane-in-prev {
-  0%   { opacity: 0; transform: translate3d(-28px, 0, 0); }
-  60%  { opacity: 1; }
-  100% { opacity: 1; transform: translate3d(0, 0, 0); }
-}
-@keyframes week-kw-in-next {
-  0%   { opacity: 0; transform: translate3d(10px, 0, 0); filter: blur(2px); }
-  60%  { opacity: 1; filter: blur(0); }
-  100% { opacity: 1; transform: translate3d(0, 0, 0); filter: blur(0); }
-}
-@keyframes week-kw-in-prev {
-  0%   { opacity: 0; transform: translate3d(-10px, 0, 0); filter: blur(2px); }
-  60%  { opacity: 1; filter: blur(0); }
-  100% { opacity: 1; transform: translate3d(0, 0, 0); filter: blur(0); }
+.week-pane-anim-stage > .week-pane--leaving {
+  position: absolute;
+  top: 0;
+  /* left + width werden inline von JS gesetzt — der Klon lebt an seiner
+     ursprünglichen visuellen X-Position innerhalb des breiteren Stages
+     (Stage spannt main-wrapper-Breite, damit der Klon bis zur Sidebar
+     gleiten kann, bevor er am Stage-Rand abgeschnitten wird). */
+  height: 100%;
+  margin: 0;
 }
 
-.week-pane[data-anim="next"] {
-  animation: week-pane-in-next 340ms cubic-bezier(.22, .8, .26, 1) both;
+.week-pane--leaving,
+.week-kw-block__core--leaving {
+  pointer-events: none;
   will-change: transform, opacity;
 }
-.week-pane[data-anim="prev"] {
-  animation: week-pane-in-prev 340ms cubic-bezier(.22, .8, .26, 1) both;
-  will-change: transform, opacity;
-}
+.week-pane--leaving[data-dir="next"] { animation: week-pane-out-next 220ms ease-in both; }
+.week-pane--leaving[data-dir="prev"] { animation: week-pane-out-prev 220ms ease-in both; }
+.week-kw-block__core--leaving { z-index: 80; }
+.week-kw-block__core--leaving[data-dir="next"] { animation: week-kw-out-next 220ms ease-in both; }
+.week-kw-block__core--leaving[data-dir="prev"] { animation: week-kw-out-prev 220ms ease-in both; }
 
-.week-kw-block__core[data-anim="next"] {
-  animation: week-kw-in-next 320ms cubic-bezier(.22, .8, .26, 1) both;
-}
-.week-kw-block__core[data-anim="prev"] {
-  animation: week-kw-in-prev 320ms cubic-bezier(.22, .8, .26, 1) both;
+.week-pane--entering,
+.week-kw-block__core--entering { will-change: transform, opacity; }
+.week-pane--entering[data-dir="next"] { animation: week-pane-in-next 520ms cubic-bezier(.34, 1.45, .5, 1) both; }
+.week-pane--entering[data-dir="prev"] { animation: week-pane-in-prev 520ms cubic-bezier(.34, 1.45, .5, 1) both; }
+.week-kw-block__core--entering[data-dir="next"] { animation: week-kw-in-next 520ms cubic-bezier(.34, 1.45, .5, 1) 80ms both; }
+.week-kw-block__core--entering[data-dir="prev"] { animation: week-kw-in-prev 520ms cubic-bezier(.34, 1.45, .5, 1) 80ms both; }
+
+/* Die Kinder der Pane (Wochen-Kacheln, Tagkarten, Editor-Bodies) haben
+   jeweils eine eigene `animation: fadeIn` mit translateY(8 px) -> 0. Die
+   schießt bei jedem render() los und überlagert die Pane-Spring-Anim mit
+   einer vertikalen "von-unten-rein"-Bewegung. Während der KW-Wechsel-
+   Animation deaktivieren wir die Kind-fadeIn explizit, damit nur der Pane
+   selbst horizontal animiert. */
+.week-pane--leaving .wochen-kachel,
+.week-pane--leaving .day-card,
+.week-pane--leaving .day-card__body,
+.week-pane--entering .wochen-kachel,
+.week-pane--entering .day-card,
+.week-pane--entering .day-card__body {
+  animation: none;
 }
 
 /* Subtiles "Press"-Feedback der Pfeil-Buttons, damit der Klick
@@ -1538,17 +1572,10 @@
   transform: scale(0.92);
 }
 
-/* Wer reduzierte Bewegung will, bekommt nur den Fade — keine Slide-Translation
-   und keinen Blur. */
 @media (prefers-reduced-motion: reduce) {
-  .week-pane[data-anim="next"],
-  .week-pane[data-anim="prev"],
-  .week-kw-block__core[data-anim="next"],
-  .week-kw-block__core[data-anim="prev"] {
+  .week-pane--leaving, .week-pane--entering,
+  .week-kw-block__core--leaving, .week-kw-block__core--entering {
     animation: none;
-    opacity: 1;
-    transform: none;
-    filter: none;
   }
   .week-kw-block__nav:active { transform: none; }
 }

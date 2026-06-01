@@ -44,8 +44,7 @@ document.addEventListener('DOMContentLoaded', async () => {
           <p class="page-subtitle">Zuweisungen von Auszubildenden zu Ausbilder/innen verwalten.</p>
         </div>
         <div class="page-header__actions">
-          <button class="lg-btn lg-btn--yellow-solid" id="newZuweisungBtn">
-            <span class="btn__glass"></span>
+          <button class="btn btn-primary" id="newZuweisungBtn">
             <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="width:16px;height:16px"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
             Neue Zuweisung
           </button>

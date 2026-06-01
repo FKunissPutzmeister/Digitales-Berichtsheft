@@ -24,6 +24,18 @@ document.addEventListener('DOMContentLoaded', async () => {
       : `<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>`;
   });
 
+  // Demo-Zugänge ein-/ausklappen
+  const demoWrap = document.getElementById('loginDemo');
+  const demoToggle = document.getElementById('demoToggle');
+  const demoList = document.getElementById('demoList');
+  const demoLabel = demoToggle?.querySelector('.login-demo__toggle-label');
+  demoToggle?.addEventListener('click', () => {
+    const open = demoWrap.classList.toggle('open');
+    demoToggle.setAttribute('aria-expanded', String(open));
+    demoList.hidden = !open;
+    if (demoLabel) demoLabel.textContent = open ? 'Demo-Zugänge ausblenden' : 'Demo-Zugänge anzeigen';
+  });
+
   function showError(msg) {
     errorText.textContent = msg;
     errorBox.classList.add('visible');

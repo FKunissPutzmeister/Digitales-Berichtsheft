@@ -45,9 +45,19 @@ document.addEventListener('DOMContentLoaded', async () => {
     sessionStorage.removeItem('gotoYear');
   }
 
-  // Richtung der letzten KW-Navigation ('next' | 'prev' | null) — wird einmalig
-  // beim nächsten render() ans Markup gehängt, um die Slide-Animation zu triggern.
-  let weekAnimDirection = null;
+  // Beim nächsten render(): Richtung der gerade laufenden KW-Wechsel-Animation.
+  // Wird von transitionedRender() gesetzt und im Markup direkt als
+  // .week-pane--entering / .week-kw-block__core--entering ausgegeben. Sofort
+  // nach dem Lesen genullt, damit normale Re-Renders (Autosave, Kommentare)
+  // keine Enter-Anim auslösen.
+  let pendingEnterDir = null;
+
+  // Zähler für gerade laufende KW-Wechsel-Animationen. mainContent.overflow
+  // wird erst zurückgesetzt, wenn der Zähler wieder bei 0 ist – verhindert,
+  // dass beim schnellen Mehrfach-Klick ein älterer setTimeout das overflow
+  // entfernt, während eine neuere Pane noch mit translateX(120 px) rechts
+  // raus animiert (sonst horizontale Scrollbar an der Page).
+  let activeTransitions = 0;
 
   let pendingDayTagId = null;
   const isAusbilder = ['ausbilder', 'admin'].includes(user.role);
@@ -124,6 +134,16 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   async function render() {
+    // Wenn dieser Render durch einen KW-Wechsel ausgelöst wurde, hängen
+    // wir die --entering-Klasse + data-dir direkt ans Markup. So ist die
+    // Enter-Animation schon beim allerersten Paint scharf – kein Frame
+    // mit "neuer Pane voll sichtbar ohne Anim".
+    const enterDir = pendingEnterDir;
+    pendingEnterDir = null;
+    const paneCls  = 'week-pane'           + (enterDir ? ' week-pane--entering' : '');
+    const kwCoreCls = 'week-kw-block__core' + (enterDir ? ' week-kw-block__core--entering' : '');
+    const enterAttr = enterDir ? ` data-dir="${enterDir}"` : '';
+
     const berichtTyp = await getBerichtTyp();
     const azubiId = viewAzubiId || user.id;
     const woche = await DB.getWoche(azubiId, currentKW, currentYear);
@@ -191,8 +211,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       <div class="week-toolbar">
         <div class="week-toolbar__left">
           ${canRelease ? `
-            <button class="lg-btn lg-btn--yellow-solid lg-btn--lg" id="releaseBtn">
-              <span class="btn__glass"></span>
+            <button class="btn btn-primary btn-lg" id="releaseBtn">
               Zur Abnahme freigeben
               <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M5 15l7-7 7 7"/></svg>
             </button>
@@ -234,7 +253,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             <button class="week-kw-block__nav" id="prevWeekBtn" aria-label="Vorherige Woche">
               <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg>
             </button>
-            <div class="week-kw-block__core" data-anim="${weekAnimDirection || ''}">
+            <div class="${kwCoreCls}"${enterAttr}>
               <div class="week-kw-block__kw">KW ${currentKW}</div>
               <div class="week-kw-block__range">${DateUtil.formatDateShort(DateUtil.toISODate(monday))} – ${DateUtil.formatDateShort(DateUtil.toISODate(sunday))}</div>
             </div>
@@ -245,7 +264,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         </div>
       </div>
 
-      <div class="week-pane" data-anim="${weekAnimDirection || ''}">
+      <div class="${paneCls}"${enterAttr}>
       ${berichtTyp === 'wöchentlich'
         ? renderWochenKacheln(woche, isReadonly, monday)
         : renderDayCards(woche, monday, isReadonly, isAusbilder)
@@ -258,15 +277,13 @@ document.addEventListener('DOMContentLoaded', async () => {
         </div>
         <div class="week-bottom-bar__actions">
           ${!isReadonly ? `
-            <button class="lg-btn lg-btn--dark-glass" id="saveBtn">
-              <span class="btn__glass"></span>
+            <button class="btn btn-secondary" id="saveBtn">
               <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/><path stroke-linecap="round" stroke-linejoin="round" d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>
               Speichern
             </button>
           ` : ''}
           ${canRelease ? `
-            <button class="lg-btn lg-btn--yellow-solid" id="releaseBtnBottom">
-              <span class="btn__glass"></span>
+            <button class="btn btn-primary" id="releaseBtnBottom">
               Zur Abnahme freigeben
               <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M5 15l7-7 7 7"/></svg>
             </button>
@@ -278,11 +295,151 @@ document.addEventListener('DOMContentLoaded', async () => {
       </div>
     `;
 
-    // Animation-Direction nur fürs aktuelle Render setzen, danach zurücksetzen,
-    // damit Re-Renders (Speichern, Autosave, Kommentare …) keine Slide-Animation auslösen.
-    weekAnimDirection = null;
-
     bindEvents(woche, azubiId, berichtTyp, monday);
+  }
+
+  // Wrapper um render(), der die KW-Wechsel-Animation (Spring Slide + Parallax)
+  // fährt:
+  //   1. .week-pane und .week-kw-block__core werden geklont und mit
+  //      position:fixed an ihrer aktuellen Bildschirmposition ans <body>
+  //      gehängt (--leaving + data-dir → Exit-Anim spielt los).
+  //   2. Die Originale werden sofort auf opacity:0 gesetzt, damit der Klon
+  //      darüber wegfaden kann ohne dass der unveränderte echte Inhalt
+  //      darunter "stehen bleibt" und den Übergang verbuggt wirken lässt.
+  //   3. pendingEnterDir wird gesetzt; render() backt darauf die
+  //      --entering-Klasse direkt ins Markup, damit die Enter-Anim ab dem
+  //      allerersten Paint des neuen Pane scharf ist.
+  //   4. Klone werden entfernt, sobald sowohl render() fertig als auch die
+  //      Exit-Anim mindestens ihre 220 ms abgespielt hat – verhindert
+  //      Lücken bei langsamem render().
+  function transitionedRender(dir) {
+    pendingEnterDir = dir;
+
+    // 1. Reste von einem noch laufenden vorherigen Wechsel wegräumen.
+    document.querySelectorAll(
+      '.week-pane-anim-stage, .week-kw-block__core--leaving'
+    ).forEach(el => el.remove());
+
+    // 2. Pane-Klon in einen Stage-Container mit overflow:hidden — alles was
+    //    der Klon mit translateX rausragen würde, wird am Stage-Rand sauber
+    //    abgeschnitten (Mockup-Verhalten).
+    //
+    //    Y-Sync: das Layout der Wochenansicht kann sich zwischen zwei Wochen
+    //    in der Höhe ändern (Status-Banner / Pflichtfeld-Hinweis / Toolbar-
+    //    Buttons hängen am Wochen-Status). Wir merken die ALTE Pane-Y, und
+    //    nachdem render() fertig ist messen wir die NEUE Pane-Y. Wenn sie
+    //    abweicht, schieben wir den Stage mit einer CSS-Transition sanft auf
+    //    die neue Y. Klon und neuer Pane bleiben so visuell ausgerichtet —
+    //    kein "kommt von oben/unten"-Versatz mehr.
+    // Stage spannt die volle .main-wrapper-Breite (also von Sidebar bis
+    // rechtem Viewport-Rand), damit der Klon mit translateX(-120 px) bis
+    // zur Sidebar gleiten kann und erst dort am Stage-Rand abgeschnitten
+    // wird statt schon an der Pane-Kante. Höhe = Pane-Höhe.
+    const mainWrapper = document.querySelector('.main-wrapper');
+    const mwRect = mainWrapper ? mainWrapper.getBoundingClientRect() : null;
+
+    const pane = document.querySelector('.week-pane');
+    let stage = null;
+    let oldPaneTop = null;
+    if (pane && mwRect) {
+      pane.classList.remove('week-pane--entering');
+      pane.removeAttribute('data-dir');
+      pane.style.removeProperty('opacity');
+
+      const rect = pane.getBoundingClientRect();
+      oldPaneTop = rect.top;
+      stage = document.createElement('div');
+      stage.className = 'week-pane-anim-stage';
+      stage.style.top    = rect.top    + 'px';
+      stage.style.left   = mwRect.left  + 'px';
+      stage.style.width  = mwRect.width + 'px';
+      stage.style.height = rect.height + 'px';
+
+      const clone = pane.cloneNode(true);
+      clone.classList.remove('week-pane--entering');
+      clone.removeAttribute('data-dir');
+      clone.classList.add('week-pane--leaving');
+      clone.setAttribute('data-dir', dir);
+      // Klon innerhalb Stage an seiner originalen X-Position einsetzen
+      // (Stage ist breiter als die Pane, kein 100 %-Width-Fill).
+      clone.style.left  = (rect.left - mwRect.left) + 'px';
+      clone.style.width = rect.width + 'px';
+      stage.appendChild(clone);
+      document.body.appendChild(stage);
+      pane.style.opacity = '0';
+    }
+
+    // 3. KW-Block-Klon: translate ist klein (max 20 px), kein eigener
+    //    overflow-Container nötig.
+    const kw = document.querySelector('.week-kw-block__core');
+    let kwClone = null;
+    let oldKwTop = null;
+    if (kw) {
+      kw.classList.remove('week-kw-block__core--entering');
+      kw.removeAttribute('data-dir');
+      kw.style.removeProperty('opacity');
+
+      const rect = kw.getBoundingClientRect();
+      oldKwTop = rect.top;
+      kwClone = kw.cloneNode(true);
+      kwClone.classList.remove('week-kw-block__core--entering');
+      kwClone.removeAttribute('data-dir');
+      kwClone.style.position = 'fixed';
+      kwClone.style.top    = rect.top    + 'px';
+      kwClone.style.left   = rect.left   + 'px';
+      kwClone.style.width  = rect.width  + 'px';
+      kwClone.style.height = rect.height + 'px';
+      kwClone.style.margin = '0';
+      kwClone.classList.add('week-kw-block__core--leaving');
+      kwClone.setAttribute('data-dir', dir);
+      document.body.appendChild(kwClone);
+      kw.style.opacity = '0';
+    }
+
+    // 4. mainContent overflow:hidden, damit der neue Pane mit translateX(120 px)
+    //    nicht frei nach rechts rausragt. activeTransitions++ koordiniert das
+    //    Zurücksetzen weiter unten – nur die letzte fertige Anim räumt auf.
+    const mainContent = document.getElementById('mainContent');
+    if (mainContent) mainContent.style.overflow = 'hidden';
+    activeTransitions++;
+
+    // 5. Render + Y-Sync nach render().
+    render().then(() => {
+      // Y-Differenz alte vs. neue Pane-Position ausgleichen, indem wir den
+      // Stage sanft zur neuen Y mitwandern lassen. Gleiches Spiel für die KW.
+      const newPane = document.querySelector('.week-pane');
+      if (stage && newPane && oldPaneTop !== null) {
+        const dy = newPane.getBoundingClientRect().top - oldPaneTop;
+        if (Math.abs(dy) > 1) {
+          stage.style.transition = 'top 240ms ease-out';
+          stage.style.top = (oldPaneTop + dy) + 'px';
+        }
+      }
+      const newKw = document.querySelector('.week-kw-block__core');
+      if (kwClone && newKw && oldKwTop !== null) {
+        const dy = newKw.getBoundingClientRect().top - oldKwTop;
+        if (Math.abs(dy) > 1) {
+          kwClone.style.transition = 'top 240ms ease-out';
+          kwClone.style.top = (oldKwTop + dy) + 'px';
+        }
+      }
+    });
+
+    // 6. Cleanup: Klone nach Exit-Anim (220 ms) raus, mainContent.overflow
+    //    nach Enter-Anim (520 ms + KW-Lag 80 ms + Puffer) zurücksetzen.
+    //    Overflow wird nur restored, wenn KEINE andere Anim mehr läuft —
+    //    verhindert die horizontale Scrollbar beim schnellen Hin-und-Her-Klicken.
+    setTimeout(() => {
+      if (stage) stage.remove();
+      if (kwClone) kwClone.remove();
+    }, 260);
+    setTimeout(() => {
+      activeTransitions--;
+      if (activeTransitions <= 0) {
+        activeTransitions = 0;
+        if (mainContent) mainContent.style.removeProperty('overflow');
+      }
+    }, 620);
   }
 
   async function renderAzubiSelector(currentId) {
@@ -1435,16 +1592,14 @@ document.addEventListener('DOMContentLoaded', async () => {
       prev.setDate(prev.getDate() - 7);
       currentKW = DateUtil.getKW(prev);
       currentYear = DateUtil.getKWYear(prev);
-      weekAnimDirection = 'prev';
-      render();
+      transitionedRender('prev');
     });
     document.getElementById('nextWeekBtn')?.addEventListener('click', () => {
       const next = DateUtil.getMondayOfKW(currentKW, currentYear);
       next.setDate(next.getDate() + 7);
       currentKW = DateUtil.getKW(next);
       currentYear = DateUtil.getKWYear(next);
-      weekAnimDirection = 'next';
-      render();
+      transitionedRender('next');
     });
 
     // Azubi-Wechsel (Ausbilder)

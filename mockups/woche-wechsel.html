@@ -1,0 +1,504 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Wochenwechsel — Animations-Varianten v2</title>
+<style>
+  :root {
+    --bg: #0a0a0a;
+    --surface: #141414;
+    --surface-2: #1c1c1c;
+    --tile: #0f0f0f;
+    --border: #2a2a2a;
+    --border-strong: #3a3a3a;
+    --text: #f5f5f5;
+    --text-dim: #a3a3a3;
+    --text-faint: #6b6b6b;
+    --accent: #facc15;
+    --accent-glow: rgba(250, 204, 21, 0.25);
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; padding: 0;
+    background: var(--bg);
+    color: var(--text);
+    font: 14px/1.5 -apple-system, "Segoe UI", Inter, system-ui, sans-serif;
+    min-height: 100vh;
+  }
+  .page { max-width: 1280px; margin: 0 auto; padding: 40px 32px 80px; }
+  h1 { font-size: 22px; font-weight: 600; margin: 0 0 4px; }
+  .lead { color: var(--text-dim); margin: 0 0 24px; max-width: 720px; }
+
+  .global-bar {
+    display: flex; align-items: center; gap: 12px;
+    padding: 14px 18px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    margin-bottom: 28px;
+  }
+  .global-bar__label { flex: 1; font-size: 13px; color: var(--text-dim); }
+  .btn {
+    appearance: none; border: 1px solid var(--border-strong);
+    background: var(--surface-2); color: var(--text);
+    padding: 8px 14px; border-radius: 10px; font: inherit;
+    cursor: pointer;
+    transition: background 140ms ease, transform 100ms ease;
+  }
+  .btn:hover { background: #252525; }
+  .btn:active { transform: scale(0.96); }
+  .btn--accent {
+    background: var(--accent); color: #1a1a1a; border-color: var(--accent);
+    font-weight: 600;
+  }
+  .btn--accent:hover { background: #fde047; }
+
+  .grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 22px; }
+  @media (max-width: 920px) { .grid { grid-template-columns: 1fr; } }
+
+  .variant {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 18px 18px 20px;
+  }
+  .variant__head { margin-bottom: 14px; }
+  .variant__title {
+    display: flex; align-items: baseline; gap: 10px;
+    font-size: 15px; font-weight: 600;
+  }
+  .variant__title .num { color: var(--accent); font-variant-numeric: tabular-nums; }
+  .variant__desc { font-size: 12.5px; color: var(--text-dim); margin-top: 4px; }
+  .variant__meta {
+    font-size: 11.5px; color: var(--text-faint);
+    margin-top: 4px; font-family: ui-monospace, "SF Mono", monospace;
+  }
+
+  /* ── Wochenansicht-Mini ─────────────────────────── */
+  .pane-frame {
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 14px;
+    overflow: hidden;
+  }
+  .toolbar {
+    display: flex; align-items: center; gap: 10px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 12px;
+  }
+  .nav-btn {
+    width: 30px; height: 30px;
+    display: grid; place-items: center;
+    border-radius: 8px;
+    background: transparent; color: var(--text-dim);
+    border: 1px solid var(--border-strong);
+    cursor: pointer; font-size: 16px; line-height: 1;
+    transition: background 140ms ease, color 140ms ease, transform 120ms cubic-bezier(.22,.8,.26,1);
+  }
+  .nav-btn:hover { background: #252525; color: var(--text); }
+  .nav-btn:active { transform: scale(0.9); }
+
+  .kw-block {
+    flex: 1; text-align: center;
+    position: relative; min-height: 38px;
+    display: grid; place-items: center;
+  }
+  .kw-block__core {
+    display: inline-flex; flex-direction: column; align-items: center;
+    line-height: 1.15;
+  }
+  .kw-block__kw { font-weight: 700; font-size: 15px; letter-spacing: 0.2px; }
+  .kw-block__range { font-size: 11.5px; color: var(--text-dim); margin-top: 2px; }
+
+  /* Stage: die KEIN min-height bekommt, ihre Höhe trägt der jeweils
+     "ruhende" Layer. Absolute Layer haben kein bottom/inset gesetzt
+     -> sie behalten ihre natürliche Höhe und stretchen nicht. */
+  .stage { position: relative; }
+  .layer {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 6px;
+  }
+  .layer--abs { position: absolute; top: 0; left: 0; right: 0; }
+
+  .tile {
+    background: var(--tile);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 8px 6px;
+    min-height: 92px;
+    display: flex; flex-direction: column; gap: 4px;
+    transform-origin: center;
+  }
+  .tile__day { font-size: 10px; color: var(--text-faint); text-transform: uppercase; letter-spacing: 0.6px; }
+  .tile__date { font-size: 13px; font-weight: 600; }
+  .tile__hours { font-size: 11px; color: var(--text-dim); }
+  .tile__bar {
+    margin-top: auto; height: 6px; border-radius: 3px;
+    background: linear-gradient(90deg, var(--accent), #f59e0b);
+    opacity: 0.7;
+  }
+  .tile__bar--empty { background: var(--border); opacity: 0.5; }
+
+  /* ╔══════════════════════════════════════════════════════════════╗
+     ║ Variante A — Tile Cascade                                    ║
+     ║ Alter Layer fadet schnell weg; neue Tiles ploppen mit Stagger║
+     ║ von links nach rechts (bei "next") bzw. rechts→links (prev)  ║
+     ║ rein. Welle. Gibt der Woche Charakter, jede Karte hat Auftritt║
+     ╚══════════════════════════════════════════════════════════════╝ */
+  @keyframes a-old-out {
+    to { opacity: 0; transform: scale(0.985); }
+  }
+  @keyframes a-tile-in {
+    0%   { opacity: 0; transform: translateY(14px) scale(0.92); }
+    60%  { opacity: 1; transform: translateY(-2px) scale(1.02); }
+    100% { opacity: 1; transform: translateY(0)    scale(1); }
+  }
+  @keyframes a-kw-cross-in  { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+  @keyframes a-kw-cross-out { from { opacity: 1; transform: none; }            to { opacity: 0; transform: translateY(-4px); } }
+  .a .layer--abs.anim-exit { animation: a-old-out 200ms ease-out both; }
+  .a .tile.anim-enter      { animation: a-tile-in 440ms cubic-bezier(.34, 1.4, .55, 1) both; }
+  .a .kw-block__core.anim-enter { animation: a-kw-cross-in 300ms ease-out 80ms both; }
+  .a .kw-block__core.anim-exit  { animation: a-kw-cross-out 200ms ease-in both; }
+
+  /* ╔══════════════════════════════════════════════════════════════╗
+     ║ Variante B — KW Odometer                                     ║
+     ║ Die KW-Zahl rollt mechanisch wie ein Tachometer: alte rollt  ║
+     ║ nach oben raus, neue von unten rein. Datum & Tiles dezent    ║
+     ║ Crossfade -> Fokus voll auf der Zahl, sehr "spürbar".        ║
+     ╚══════════════════════════════════════════════════════════════╝ */
+  .kw-roll {
+    display: inline-flex; flex-direction: column;
+    height: 1.15em; overflow: hidden;
+    vertical-align: top;
+    transition: transform 480ms cubic-bezier(.7, 0, .3, 1);
+  }
+  .kw-roll--up   { transform: translateY(-50%); }
+  .kw-roll--down { transform: translateY(0%); }
+  .kw-roll__digit { height: 1.15em; display: block; line-height: 1.15em; }
+
+  @keyframes b-fade-in   { from { opacity: 0; } to { opacity: 1; } }
+  @keyframes b-fade-out  { from { opacity: 1; } to { opacity: 0; } }
+  .b .kw-block__range.anim-enter { animation: b-fade-in 300ms ease-out 100ms both; }
+  .b .kw-block__range.anim-exit  { animation: b-fade-out 200ms ease-in both; }
+  .b .layer--abs.anim-exit       { animation: b-fade-out 360ms ease-in-out both; }
+  .b .layer.anim-enter           { animation: b-fade-in 360ms ease-in-out both; }
+
+  /* ╔══════════════════════════════════════════════════════════════╗
+     ║ Variante C — Spring Slide + Parallax                         ║
+     ║ Neuer Pane fliegt mit physikalischem Spring rein und übersteigt║
+     ║ kurz die Ruheposition. KW-Block laggt 80 ms hinterher        ║
+     ║ (Parallax-Tiefe). Sehr dynamisch, schwerer/wuchtiger Wechsel.║
+     ╚══════════════════════════════════════════════════════════════╝ */
+  @keyframes c-pane-in-next  { from { opacity: 0; transform: translateX(60px); } to { opacity: 1; transform: none; } }
+  @keyframes c-pane-in-prev  { from { opacity: 0; transform: translateX(-60px); } to { opacity: 1; transform: none; } }
+  @keyframes c-pane-out-next { to { opacity: 0; transform: translateX(-24px); } }
+  @keyframes c-pane-out-prev { to { opacity: 0; transform: translateX(24px); } }
+  @keyframes c-kw-in-next    { from { opacity: 0; transform: translateX(20px); } to { opacity: 1; transform: none; } }
+  @keyframes c-kw-in-prev    { from { opacity: 0; transform: translateX(-20px); } to { opacity: 1; transform: none; } }
+  @keyframes c-kw-out-next   { to { opacity: 0; transform: translateX(-10px); } }
+  @keyframes c-kw-out-prev   { to { opacity: 0; transform: translateX(10px); } }
+  .c .layer.anim-enter[data-dir="next"]    { animation: c-pane-in-next  520ms cubic-bezier(.34, 1.45, .5, 1) both; }
+  .c .layer.anim-enter[data-dir="prev"]    { animation: c-pane-in-prev  520ms cubic-bezier(.34, 1.45, .5, 1) both; }
+  .c .layer--abs.anim-exit[data-dir="next"]{ animation: c-pane-out-next 220ms ease-in both; }
+  .c .layer--abs.anim-exit[data-dir="prev"]{ animation: c-pane-out-prev 220ms ease-in both; }
+  .c .kw-block__core.anim-enter[data-dir="next"] { animation: c-kw-in-next  520ms cubic-bezier(.34, 1.45, .5, 1) 80ms both; }
+  .c .kw-block__core.anim-enter[data-dir="prev"] { animation: c-kw-in-prev  520ms cubic-bezier(.34, 1.45, .5, 1) 80ms both; }
+  .c .kw-block__core.anim-exit[data-dir="next"]  { animation: c-kw-out-next 220ms ease-in both; }
+  .c .kw-block__core.anim-exit[data-dir="prev"]  { animation: c-kw-out-prev 220ms ease-in both; }
+
+  /* ╔══════════════════════════════════════════════════════════════╗
+     ║ Variante D — Liquid Reveal (Material-Style)                  ║
+     ║ Tiles "wachsen" aus ihrer Mitte heraus (scale 0.7 -> 1.03 ->1)║
+     ║ mit Stagger – als ob sich der Inhalt materialisiert. Alter    ║
+     ║ Layer löst sich mit Blur+Fade auf. KW dezent Crossfade.      ║
+     ╚══════════════════════════════════════════════════════════════╝ */
+  @keyframes d-old-out {
+    to { opacity: 0; filter: blur(6px); transform: scale(1.04); }
+  }
+  @keyframes d-tile-in {
+    0%   { opacity: 0; transform: scale(0.7); filter: blur(4px); }
+    55%  { opacity: 1; transform: scale(1.03); filter: blur(0); }
+    100% { opacity: 1; transform: scale(1); filter: blur(0); }
+  }
+  @keyframes d-kw-in  { from { opacity: 0; filter: blur(3px); } to { opacity: 1; filter: blur(0); } }
+  @keyframes d-kw-out { to { opacity: 0; filter: blur(3px); } }
+  .d .layer--abs.anim-exit { animation: d-old-out 280ms ease-in both; }
+  .d .tile.anim-enter      { animation: d-tile-in 520ms cubic-bezier(.34, 1.4, .55, 1) both; }
+  .d .kw-block__core.anim-enter { animation: d-kw-in  340ms ease-out 100ms both; }
+  .d .kw-block__core.anim-exit  { animation: d-kw-out 220ms ease-in both; }
+
+  /* Status-quo-Mini-Referenz (oben). */
+  .reference {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 14px; padding: 14px 18px;
+    margin-bottom: 18px; display: flex; align-items: center; gap: 14px;
+  }
+  .reference__icon { font-size: 16px; }
+  .reference__text { flex: 1; color: var(--text-dim); font-size: 13px; }
+  .reference__text b { color: var(--text); }
+</style>
+</head>
+<body>
+  <main class="page">
+    <h1>Wochenwechsel — Animations-Varianten (v2)</h1>
+    <p class="lead">
+      Vier deutlich charakterstärkere Übergänge. Bug behoben: die Tiles
+      springen nicht mehr in der Höhe (Stage-Höhe wird jetzt sauber vom
+      jeweils ruhenden Layer getragen statt von einer fixen min-height).
+    </p>
+
+    <div class="reference">
+      <span class="reference__icon">↺</span>
+      <div class="reference__text">
+        Zum Vergleich liegt der <b>Status quo</b> live unter
+        <a href="http://localhost:3000/app/wochenansicht.html" target="_blank" style="color:var(--accent)">/app/wochenansicht.html</a>
+        — kannst du in einem zweiten Tab offen lassen.
+      </div>
+    </div>
+
+    <div class="global-bar">
+      <div class="global-bar__label">Alle vier gleichzeitig wechseln &mdash; A/B-Vergleich:</div>
+      <button class="btn" id="allPrev">‹ Vorherige</button>
+      <button class="btn btn--accent" id="allNext">Nächste ›</button>
+    </div>
+
+    <div class="grid" id="grid"></div>
+  </main>
+
+<script>
+  // ── Daten ────────────────────────────────────────────────────────
+  const WEEKS = [
+    { kw: 22, range: '25.05. – 31.05.', days: [
+        { d:'Mo', date:25, hours:'8,0 h', filled:true },
+        { d:'Di', date:26, hours:'8,0 h', filled:true },
+        { d:'Mi', date:27, hours:'8,0 h', filled:true },
+        { d:'Do', date:28, hours:'8,0 h', filled:true },
+        { d:'Fr', date:29, hours:'6,0 h', filled:true },
+        { d:'Sa', date:30, hours:'—',     filled:false },
+        { d:'So', date:31, hours:'—',     filled:false }] },
+    { kw: 23, range: '01.06. – 07.06.', days: [
+        { d:'Mo', date:1, hours:'8,0 h', filled:true },
+        { d:'Di', date:2, hours:'7,5 h', filled:true },
+        { d:'Mi', date:3, hours:'8,0 h', filled:true },
+        { d:'Do', date:4, hours:'—',     filled:false },
+        { d:'Fr', date:5, hours:'—',     filled:false },
+        { d:'Sa', date:6, hours:'—',     filled:false },
+        { d:'So', date:7, hours:'—',     filled:false }] }
+  ];
+
+  const VARIANTS = [
+    { id:'a', title:'Tile Cascade',
+      desc:'Karten ploppen einzeln mit Welle rein (links→rechts bei Vor, rechts→links bei Zurück). Jede Karte bekommt ihren eigenen kleinen Auftritt.',
+      meta:'Stagger 38 ms · spring(.34,1.4) · 440 ms je Tile · alter Layer 200 ms weg' },
+    { id:'b', title:'KW Odometer',
+      desc:'Die Wochenzahl rollt mechanisch wie ein Tachometer. Tiles und Datumsbereich crossfaden ruhig — die Zahl ist der Star.',
+      meta:'KW translateY · 480 ms cubic-bezier(.7,0,.3,1) · Content Crossfade 360 ms' },
+    { id:'c', title:'Spring Slide + Parallax',
+      desc:'Wuchtiger physical-spring: neuer Pane fliegt rein und übersteigt kurz die Position. Das KW-Label folgt 80 ms später (Tiefen-Parallax).',
+      meta:'spring(.34,1.45) · 520 ms · KW-Lag 80 ms · alter Pane 220 ms zurück' },
+    { id:'d', title:'Liquid Reveal',
+      desc:'Material-Style: Tiles wachsen aus ihrer Mitte mit Blur-Fokus. Alter Inhalt zerfließt weich mit Blur+Scale weg.',
+      meta:'tile scale 0.7→1.03→1 · blur(4px)→0 · stagger 32 ms · 520 ms je Tile' }
+  ];
+
+  // ── Render ───────────────────────────────────────────────────────
+  const grid = document.getElementById('grid');
+  const states = new Map();
+
+  for (const v of VARIANTS) {
+    const card = document.createElement('section');
+    card.className = `variant ${v.id}`;
+    card.innerHTML = `
+      <div class="variant__head">
+        <div class="variant__title"><span class="num">${v.id.toUpperCase()}</span> <span>${v.title}</span></div>
+        <div class="variant__desc">${v.desc}</div>
+        <div class="variant__meta">${v.meta}</div>
+      </div>
+      <div class="pane-frame">
+        <div class="toolbar">
+          <button class="nav-btn" data-action="prev" aria-label="Vorherige Woche">‹</button>
+          <div class="kw-block" data-slot="kw"></div>
+          <button class="nav-btn" data-action="next" aria-label="Nächste Woche">›</button>
+        </div>
+        <div class="stage" data-slot="stage"></div>
+      </div>
+    `;
+    grid.appendChild(card);
+    states.set(v.id, { idx: 0, busy: false });
+    renderInitial(card, v);
+    card.querySelectorAll('[data-action]').forEach(btn => {
+      btn.addEventListener('click', () => switchWeek(card, v, btn.dataset.action));
+    });
+  }
+
+  function kwCoreHtml(week, variantId) {
+    if (variantId === 'b') {
+      // Odometer: zwei Zahlen übereinander, der Container rollt.
+      const next = WEEKS[(WEEKS.indexOf(week) + 1) % WEEKS.length];
+      return `<div class="kw-block__core">
+        <div class="kw-block__kw">KW&nbsp;<span class="kw-roll" data-kw-roll>
+          <span class="kw-roll__digit">${week.kw}</span>
+          <span class="kw-roll__digit">${next.kw}</span>
+        </span></div>
+        <div class="kw-block__range" data-kw-range>${week.range}</div>
+      </div>`;
+    }
+    return `<div class="kw-block__core">
+      <div class="kw-block__kw">KW ${week.kw}</div>
+      <div class="kw-block__range">${week.range}</div>
+    </div>`;
+  }
+  function stageHtml(week) {
+    return `<div class="layer">${week.days.map(d => `
+      <div class="tile">
+        <div class="tile__day">${d.d}</div>
+        <div class="tile__date">${d.date}</div>
+        <div class="tile__hours">${d.hours}</div>
+        <div class="tile__bar ${d.filled ? '' : 'tile__bar--empty'}"></div>
+      </div>`).join('')}</div>`;
+  }
+  function renderInitial(card, v) {
+    const week = WEEKS[states.get(v.id).idx];
+    card.querySelector('[data-slot="kw"]').innerHTML = kwCoreHtml(week, v.id);
+    card.querySelector('[data-slot="stage"]').innerHTML = stageHtml(week);
+  }
+
+  // ── Switch ───────────────────────────────────────────────────────
+  function switchWeek(card, v, dir) {
+    const state = states.get(v.id);
+    if (state.busy) return;
+    state.busy = true;
+    const newIdx = dir === 'next' ? (state.idx + 1) % WEEKS.length
+                                  : (state.idx - 1 + WEEKS.length) % WEEKS.length;
+    const newWeek = WEEKS[newIdx];
+    const stage = card.querySelector('[data-slot="stage"]');
+    const kw = card.querySelector('[data-slot="kw"]');
+
+    if (v.id === 'b') {
+      switchVariantB(card, kw, stage, newWeek, dir, () => { state.idx = newIdx; state.busy = false; });
+      return;
+    }
+
+    // A, C, D: gemeinsame Crossfade-Mechanik mit unterschiedlichen
+    // CSS-Animationen.
+    const oldStageLayer = stage.querySelector('.layer');
+    oldStageLayer.classList.add('layer--abs', 'anim-exit');
+    oldStageLayer.setAttribute('data-dir', dir);
+    stage.insertAdjacentHTML('beforeend', stageHtml(newWeek));
+    const newStageLayer = stage.lastElementChild;
+    newStageLayer.setAttribute('data-dir', dir);
+
+    if (v.id === 'a' || v.id === 'd') {
+      // Tile-by-tile Stagger statt Layer-weit.
+      const tiles = newStageLayer.querySelectorAll('.tile');
+      const order = dir === 'next' ? Array.from(tiles) : Array.from(tiles).reverse();
+      const stagger = v.id === 'a' ? 38 : 32;
+      order.forEach((t, i) => {
+        t.classList.add('anim-enter');
+        t.style.animationDelay = (i * stagger) + 'ms';
+      });
+    } else {
+      newStageLayer.classList.add('anim-enter');
+    }
+
+    // KW-Block immer mit eigener Exit/Enter
+    const oldKwCore = kw.querySelector('.kw-block__core');
+    oldKwCore.classList.add('anim-exit');
+    oldKwCore.setAttribute('data-dir', dir);
+    oldKwCore.style.position = 'absolute';
+    oldKwCore.style.left = '50%';
+    oldKwCore.style.transform = 'translateX(-50%)';
+    kw.insertAdjacentHTML('beforeend', kwCoreHtml(newWeek, v.id));
+    const newKwCore = kw.lastElementChild;
+    newKwCore.classList.add('anim-enter');
+    newKwCore.setAttribute('data-dir', dir);
+
+    state.idx = newIdx;
+
+    const maxDelay = { a: 38*6 + 440, c: 520, d: 32*6 + 520 }[v.id];
+    setTimeout(() => {
+      card.querySelectorAll('.anim-exit').forEach(el => el.remove());
+      card.querySelectorAll('.anim-enter').forEach(el => {
+        el.classList.remove('anim-enter');
+        el.removeAttribute('data-dir');
+        el.style.animationDelay = '';
+      });
+      card.querySelectorAll('.layer--abs').forEach(el => el.classList.remove('layer--abs'));
+      state.busy = false;
+    }, maxDelay + 40);
+  }
+
+  // ── Variante B (Odometer) — eigene Mechanik ──────────────────────
+  function switchVariantB(card, kw, stage, newWeek, dir, done) {
+    const roll = kw.querySelector('[data-kw-roll]');
+    const range = kw.querySelector('[data-kw-range]');
+    const oldStageLayer = stage.querySelector('.layer');
+
+    // Stage Crossfade
+    oldStageLayer.classList.add('layer--abs', 'anim-exit');
+    stage.insertAdjacentHTML('beforeend', stageHtml(newWeek));
+    const newStageLayer = stage.lastElementChild;
+    newStageLayer.classList.add('anim-enter');
+
+    // Range Crossfade
+    range.classList.add('anim-exit');
+    range.style.position = 'absolute';
+    range.style.left = '50%';
+    range.style.transform = 'translateX(-50%)';
+    const newRangeEl = document.createElement('div');
+    newRangeEl.className = 'kw-block__range anim-enter';
+    newRangeEl.textContent = newWeek.range;
+    range.parentElement.appendChild(newRangeEl);
+
+    // Roll: bei next nach oben (alte raus, neue rein), bei prev anders
+    if (dir === 'next') {
+      // Reihenfolge im DOM: aktuelle, dann nächste. -> -50% rollt aktuelle hoch.
+      requestAnimationFrame(() => roll.classList.add('kw-roll--up'));
+    } else {
+      // Für prev: erst die "neue" oben einsetzen, dann von -50% zurück auf 0%.
+      const oldNum = roll.children[0];
+      const nextNum = roll.children[1];
+      // DOM-Reihenfolge umkehren: previous nach oben, current nach unten.
+      const prevWeek = newWeek;
+      roll.innerHTML = `
+        <span class="kw-roll__digit">${prevWeek.kw}</span>
+        <span class="kw-roll__digit">${WEEKS[(WEEKS.indexOf(prevWeek) + 1) % WEEKS.length].kw}</span>
+      `;
+      // Start in "up"-Position (zeigt "current" – die zweite Ziffer)
+      roll.classList.add('kw-roll--up');
+      // Force reflow
+      void roll.offsetWidth;
+      // Dann zurück auf 0 (zeigt previous – die erste Ziffer)
+      roll.classList.remove('kw-roll--up');
+    }
+
+    setTimeout(() => {
+      card.querySelectorAll('.anim-exit').forEach(el => el.remove());
+      card.querySelectorAll('.anim-enter').forEach(el => el.classList.remove('anim-enter'));
+      card.querySelectorAll('.layer--abs').forEach(el => el.classList.remove('layer--abs'));
+      // Roll-Container für nächsten next-Wechsel neu aufbauen
+      const cur = WEEKS[WEEKS.indexOf(newWeek)];
+      const nxt = WEEKS[(WEEKS.indexOf(newWeek) + 1) % WEEKS.length];
+      roll.classList.remove('kw-roll--up');
+      roll.innerHTML = `
+        <span class="kw-roll__digit">${cur.kw}</span>
+        <span class="kw-roll__digit">${nxt.kw}</span>
+      `;
+      done();
+    }, 560);
+  }
+
+  // ── Global-Bar ───────────────────────────────────────────────────
+  document.getElementById('allPrev').addEventListener('click', () => {
+    for (const v of VARIANTS) switchWeek(grid.querySelector('.' + v.id), v, 'prev');
+  });
+  document.getElementById('allNext').addEventListener('click', () => {
+    for (const v of VARIANTS) switchWeek(grid.querySelector('.' + v.id), v, 'next');
+  });
+</script>
+</body>
+</html>

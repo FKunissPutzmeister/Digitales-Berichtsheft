@@ -9,139 +9,107 @@
   <link rel="stylesheet" href="css/variables.css">
   <link rel="stylesheet" href="css/base.css">
   <link rel="stylesheet" href="css/components.css">
-  <link rel="stylesheet" href="css/login.css">
   <link rel="stylesheet" href="css/glass.css">
-  <link rel="stylesheet" href="css/topbar-ds.css">
+  <link rel="stylesheet" href="css/login.css">
 </head>
 <body class="login-page">
 
-  <div class="login-shell">
-    <!-- Linke Seite: Brand -->
-    <div class="login-brand">
-      <div class="login-brand__logo">
-        <img src="../Corporate Design/Digital Logo_png/Standard Logo/400 px_wide_Std_Grey.png"
-             alt="Putzmeister"
-             onerror="this.style.display='none'; this.nextElementSibling.style.display='block'">
-        <span style="display:none; font-family:var(--font-heading); font-size:1.5rem; font-weight:700; color:#2C2C2C;">Putzmeister</span>
-      </div>
+  <!-- Dekorative Brand-Kreise (Tiefe statt flacher Gelb-Fläche) -->
+  <span class="login-orb login-orb--1" aria-hidden="true"></span>
+  <span class="login-orb login-orb--2" aria-hidden="true"></span>
 
-      <div class="login-brand__content">
-        <h1 class="login-brand__title">Digitales<br>Berichtsheft</h1>
-        <p class="login-brand__subtitle">
-          Verwalte deine Ausbildungsberichte einfach, modern und mobil – direkt im Unternehmen.
-        </p>
-      </div>
+  <!-- Putzmeister-Wortmarke oben links -->
+  <img class="login-corner-logo" src="../Corporate Design/Digital Logo_png/Standard Logo/600 px_wide_Std_Grey.png" alt="Putzmeister">
 
-      <div class="login-brand__features">
-        <div class="login-brand__feature">
-          <div class="login-brand__feature-icon">
-            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/></svg>
-          </div>
-          Wochenberichte einfach erfassen
-        </div>
-        <div class="login-brand__feature">
-          <div class="login-brand__feature-icon">
-            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-          </div>
-          Schnelle Genehmigung durch Ausbilder
-        </div>
-        <div class="login-brand__feature">
-          <div class="login-brand__feature-icon">
-            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-          </div>
-          Jahresübersicht auf einen Blick
-        </div>
+  <div class="login-card">
+    <!-- App-Identität -->
+    <div class="login-card__ident">
+      <img class="login-card__mark" src="../Corporate Design/Digital Logo_png/Social Logo/400 x 400 px.png" alt="">
+      <div>
+        <div class="login-card__app">Digitales Berichtsheft</div>
+        <div class="login-card__sub">Bitte anmelden</div>
       </div>
     </div>
 
-    <!-- Rechte Seite: Login-Formular -->
-    <div class="login-form-panel">
-      <div class="login-form__header">
-        <h2 class="login-form__title">Willkommen zurück</h2>
-        <p class="login-form__subtitle">Melde dich mit deinem Putzmeister-Konto an.</p>
+    <div class="login-error" id="loginError">
+      <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+      <span id="loginErrorText">Ungültige E-Mail oder Passwort.</span>
+    </div>
+
+    <form class="login-form" id="loginForm" novalidate>
+      <div class="form-group">
+        <label class="form-label" for="email">E-Mail-Adresse</label>
+        <input type="email" id="email" class="form-control" placeholder="vorname.nachname@putzmeister.com" autocomplete="email">
       </div>
 
-      <div class="login-error" id="loginError">
-        <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="width:16px;height:16px;flex-shrink:0"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
-        <span id="loginErrorText">Ungültige E-Mail oder Passwort.</span>
-      </div>
-
-      <form class="login-form" id="loginForm" novalidate>
-        <div class="form-group">
-          <label class="form-label" for="email">E-Mail-Adresse</label>
-          <input type="email" id="email" class="form-control" placeholder="vorname.nachname@putzmeister.com" autocomplete="email">
+      <div class="form-group">
+        <label class="form-label" for="password">Passwort</label>
+        <div class="password-wrap">
+          <input type="password" id="password" class="form-control" placeholder="••••••••" autocomplete="current-password">
+          <button type="button" class="password-toggle" id="passwordToggle" aria-label="Passwort anzeigen">
+            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+          </button>
         </div>
+      </div>
 
-        <div class="form-group">
-          <label class="form-label" for="password">Passwort</label>
-          <div class="password-wrap">
-            <input type="password" id="password" class="form-control" placeholder="••••••••" autocomplete="current-password">
-            <button type="button" class="password-toggle" id="passwordToggle" aria-label="Passwort anzeigen">
-              <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
-            </button>
+      <div class="login-form__options">
+        <label class="checkbox-wrap">
+          <input type="checkbox" id="rememberMe">
+          <span>Angemeldet bleiben</span>
+        </label>
+        <span class="login-form__forgot">Passwort vergessen?</span>
+      </div>
+
+      <button type="submit" class="btn btn-primary btn-lg" id="loginBtn">Anmelden</button>
+    </form>
+
+    <!-- Demo-Logins (standardmäßig eingeklappt – in der Produktiv-Version ausgeblendet) -->
+    <div class="login-demo" id="loginDemo">
+      <button type="button" class="login-demo__toggle" id="demoToggle" aria-expanded="false" aria-controls="demoList">
+        <span class="login-demo__toggle-label">Demo-Zugänge anzeigen</span>
+        <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
+      </button>
+      <div class="login-demo__list" id="demoList" hidden>
+        <button class="demo-login-btn" data-email="florian.kern@putzmeister.com" data-password="azubi123">
+          <div class="avatar avatar--sm">FK</div>
+          <div class="demo-login-btn__info">
+            <span class="demo-login-btn__name">Florian Kern</span>
+            <span class="demo-login-btn__role">Auszubildender · Wöchentliche Ansicht</span>
           </div>
-        </div>
-
-        <div class="login-form__options">
-          <label class="checkbox-wrap">
-            <input type="checkbox" id="rememberMe">
-            <span>Angemeldet bleiben</span>
-          </label>
-          <span class="login-form__forgot">Passwort vergessen?</span>
-        </div>
-
-        <button type="submit" class="lg-btn lg-btn--yellow-solid lg-btn--lg" id="loginBtn">
-          <span class="btn__glass"></span>
-          Anmelden
         </button>
-      </form>
-
-      <!-- Demo-Logins -->
-      <div class="login-demo">
-        <div class="login-demo__label">Demo-Zugänge</div>
-        <div class="login-demo__btns">
-          <button class="demo-login-btn" data-email="florian.kern@putzmeister.com" data-password="azubi123">
-            <div class="avatar avatar--sm">FK</div>
-            <div class="demo-login-btn__info">
-              <span class="demo-login-btn__name">Florian Kern</span>
-              <span class="demo-login-btn__role">Auszubildender · Wöchentliche Ansicht</span>
-            </div>
-          </button>
-          <button class="demo-login-btn" data-email="jonas.becker@putzmeister.com" data-password="azubi123">
-            <div class="avatar avatar--sm">JB</div>
-            <div class="demo-login-btn__info">
-              <span class="demo-login-btn__name">Jonas Becker</span>
-              <span class="demo-login-btn__role">Auszubildender · Tägliche Ansicht</span>
-            </div>
-          </button>
-          <button class="demo-login-btn" data-email="lena.mueller@putzmeister.com" data-password="azubi123">
-            <div class="avatar avatar--sm">LM</div>
-            <div class="demo-login-btn__info">
-              <span class="demo-login-btn__name">Lena Müller</span>
-              <span class="demo-login-btn__role">Auszubildende · Wöchentliche Ansicht</span>
-            </div>
-          </button>
-          <button class="demo-login-btn" data-email="matthias.fauser@putzmeister.com" data-password="ausbilder123">
-            <div class="avatar avatar--sm" style="background:var(--pm-grey-700);color:white;">ML</div>
-            <div class="demo-login-btn__info">
-              <span class="demo-login-btn__name">Matthias Lengerer</span>
-              <span class="demo-login-btn__role">Ausbilder</span>
-            </div>
-          </button>
-          <button class="demo-login-btn" data-email="admin@putzmeister.com" data-password="admin123">
-            <div class="avatar avatar--sm" style="background:var(--pm-grey-600);color:white;">AD</div>
-            <div class="demo-login-btn__info">
-              <span class="demo-login-btn__name">Admin Verwaltung</span>
-              <span class="demo-login-btn__role">Administrator</span>
-            </div>
-          </button>
-        </div>
+        <button class="demo-login-btn" data-email="jonas.becker@putzmeister.com" data-password="azubi123">
+          <div class="avatar avatar--sm">JB</div>
+          <div class="demo-login-btn__info">
+            <span class="demo-login-btn__name">Jonas Becker</span>
+            <span class="demo-login-btn__role">Auszubildender · Tägliche Ansicht</span>
+          </div>
+        </button>
+        <button class="demo-login-btn" data-email="lena.mueller@putzmeister.com" data-password="azubi123">
+          <div class="avatar avatar--sm">LM</div>
+          <div class="demo-login-btn__info">
+            <span class="demo-login-btn__name">Lena Müller</span>
+            <span class="demo-login-btn__role">Auszubildende · Wöchentliche Ansicht</span>
+          </div>
+        </button>
+        <button class="demo-login-btn" data-email="matthias.fauser@putzmeister.com" data-password="ausbilder123">
+          <div class="avatar avatar--sm" style="background:var(--pm-grey-700);color:white;">ML</div>
+          <div class="demo-login-btn__info">
+            <span class="demo-login-btn__name">Matthias Lengerer</span>
+            <span class="demo-login-btn__role">Ausbilder</span>
+          </div>
+        </button>
+        <button class="demo-login-btn" data-email="admin@putzmeister.com" data-password="admin123">
+          <div class="avatar avatar--sm" style="background:var(--pm-grey-600);color:white;">AD</div>
+          <div class="demo-login-btn__info">
+            <span class="demo-login-btn__name">Admin Verwaltung</span>
+            <span class="demo-login-btn__role">Administrator</span>
+          </div>
+        </button>
       </div>
     </div>
   </div>
 
   <script src="js/api.js"></script>
-<script src="js/topbar-ds.js"></script>
   <script src="js/login.js"></script>
 </body>
 </html>

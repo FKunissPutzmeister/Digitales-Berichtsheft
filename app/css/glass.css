@@ -606,36 +606,12 @@ body.login-page::after {
 }
 
 /* ===================================================================
-   LOGIN – Brand-Panel-Glas-Akzente + Demo-Buttons als Mini-Glass-Cards
+   LOGIN – Demo-Buttons als ruhige, matte Karten
    -------------------------------------------------------------------
-   UX-Mehrwert: Login bleibt klar und seriös. Wir geben der gelben
-   Brand-Spalte einen zusätzlichen, fein verlaufenden Lichtreflex und
-   den Feature-Icons sowie Demo-Logins eine glasige Anmutung – das
-   wirkt einladend ohne reißerisch zu sein.
+   Das Login-Layout selbst (V3 Brand-Gelb-Backdrop) lebt vollständig in
+   login.css. Hier bleibt nur: die Demo-Login-Karten bewusst flach /
+   matt halten (Anmutung des Sidebar-Profil-Chips), kein Glas-Sheen.
    =================================================================== */
-.login-brand {
-  background-image:
-    radial-gradient(80% 60% at 100% 0%, rgba(255, 255, 255, 0.18), transparent 70%),
-    radial-gradient(60% 50% at 0% 100%, rgba(0, 0, 0, 0.06), transparent 70%),
-    linear-gradient(135deg, var(--pm-yellow) 0%, var(--pm-yellow-dark) 100%);
-}
-.login-brand__feature-icon {
-  background: rgba(255, 255, 255, 0.55);
-  backdrop-filter: blur(6px);
-  -webkit-backdrop-filter: blur(6px);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.70),
-              0 1px 2px rgba(0, 0, 0, 0.05);
-}
-.login-form-panel {
-  /* Subtiles vertikales Highlight, damit das Panel sich vom Brand-Block
-     wirklich abhebt und nicht „flach" daneben sitzt. */
-  background-image: linear-gradient(180deg,
-    rgba(255, 255, 255, 0.50) 0%,
-    rgba(255, 255, 255, 0) 25%);
-}
-/* Bewusst KEIN Glas-Highlight / Gradient mehr – die Demo-Login-Karten
-   sollen die ruhige, matte Anmutung des Sidebar-Profil-Chips
-   (.sidebar__user) übernehmen. Grundfläche kommt aus login.css. */
 .demo-login-btn {
   background-image: none;
   box-shadow: none;

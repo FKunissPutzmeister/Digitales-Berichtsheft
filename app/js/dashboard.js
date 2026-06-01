@@ -197,8 +197,7 @@ async function renderAzubiDashboard(user) {
         </div>
         <div class="dash-hero__foot">
           <span class="dash-hero__sum">Diese Woche: <strong>${decToTime(wocheStd)} Std.</strong></span>
-          <a href="wochenansicht.html" class="lg-btn lg-btn--yellow-solid" data-goto-kw="${kw}" data-goto-year="${kwYear}">
-            <span class="btn__glass"></span>
+          <a href="wochenansicht.html" class="btn btn-primary" data-goto-kw="${kw}" data-goto-year="${kwYear}">
             Zur aktuellen Woche
             <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="width:16px;height:16px"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
           </a>
