@@ -391,24 +391,23 @@ async function renderAzubiDashboard(user) {
   const weekdayLong = ['Sonntag','Montag','Dienstag','Mittwoch','Donnerstag','Freitag','Samstag'][today.getDay()];
   const weekdayShort = ['SO','MO','DI','MI','DO','FR','SA'][today.getDay()];
 
-  /* Background-Schriftzug spiegelt den Berichtstyp:
-     - gewerblich (täglich) → Wochentag + Tagesnummer, z. B. "DI29"
-     - kaufmännisch (wöchentlich) → Kalenderwoche, z. B. "KW22" */
-  const heroBgScript = berichtTyp === 'täglich'
-    ? `${weekdayShort}${String(today.getDate()).padStart(2,'0')}`
-    : `KW${String(kw).padStart(2,'0')}`;
+  /* Eyecatcher = kleines Label (Eyebrow) + große Zahl, spiegelt den Berichtstyp:
+     - gewerblich (täglich) → Wochentag-Kürzel + Tagesnummer, z. B. "DI" / "29"
+     - kaufmännisch (wöchentlich) → "KW" + Kalenderwoche, z. B. "KW" / "23" */
+  const heroEyebrow = berichtTyp === 'täglich' ? weekdayShort.toUpperCase() : 'KW';
+  const heroNum = berichtTyp === 'täglich'
+    ? String(today.getDate()).padStart(2, '0')
+    : String(kw).padStart(2, '0');
 
   main.innerHTML = `
     <section class="welcome-hero">
-      <div class="welcome-hero__scene" aria-hidden="true">
-        <div class="welcome-hero__photo"></div>
-        <div class="welcome-hero__veil"></div>
-        <div class="welcome-hero__glow"></div>
-        <div class="welcome-hero__kw-bg" aria-hidden="true">${heroBgScript}</div>
-      </div>
       <div class="welcome-hero__body">
         <h1 class="welcome-hero__name">Hallo, ${user.name.split(' ')[0]}</h1>
         <p class="welcome-hero__sub">${weekdayLong}, ${today.getDate()}. ${DateUtil.MONTHS[today.getMonth()]}</p>
+      </div>
+      <div class="welcome-hero__kw" aria-hidden="true">
+        <span class="welcome-hero__kw-eye">${heroEyebrow}</span>
+        <span class="welcome-hero__kw-num">${heroNum}</span>
       </div>
     </section>
 

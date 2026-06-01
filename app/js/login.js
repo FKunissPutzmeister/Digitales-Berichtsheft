@@ -24,6 +24,13 @@ document.addEventListener('DOMContentLoaded', async () => {
       : `<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>`;
   });
 
+  // Microsoft-SSO (Platzhalter bis Azure AD verbunden ist)
+  const msBtn = document.getElementById('msLoginBtn');
+  const ssoHint = document.getElementById('ssoHint');
+  msBtn?.addEventListener('click', () => {
+    ssoHint?.classList.add('visible');
+  });
+
   // Demo-Zugänge ein-/ausklappen
   const demoWrap = document.getElementById('loginDemo');
   const demoToggle = document.getElementById('demoToggle');

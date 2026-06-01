@@ -31,6 +31,23 @@
       </div>
     </div>
 
+    <!-- Microsoft-SSO (primärer Login-Weg) -->
+    <button type="button" class="btn-ms" id="msLoginBtn">
+      <svg class="btn-ms__logo" viewBox="0 0 21 21" aria-hidden="true">
+        <rect x="1"  y="1"  width="9" height="9" fill="#F25022"/>
+        <rect x="11" y="1"  width="9" height="9" fill="#7FBA00"/>
+        <rect x="1"  y="11" width="9" height="9" fill="#00A4EF"/>
+        <rect x="11" y="11" width="9" height="9" fill="#FFB900"/>
+      </svg>
+      Mit Microsoft anmelden
+    </button>
+    <div class="login-sso-hint" id="ssoHint">
+      <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="9"/><path stroke-linecap="round" stroke-linejoin="round" d="M12 11v5m0-8h.01"/></svg>
+      <span>Microsoft-Anmeldung wird aktiviert, sobald Azure AD verbunden ist.</span>
+    </div>
+
+    <div class="login-divider"><span>oder</span></div>
+
     <div class="login-error" id="loginError">
       <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
       <span id="loginErrorText">Ungültige E-Mail oder Passwort.</span>

@@ -17,17 +17,14 @@
   font-style: normal;
   font-display: swap;
 }
+/* Open Sans als Variable Font (OFL) – ein File deckt 300–800 ab. Wichtig:
+   vorher gab es NUR Light (300) + Bold (700), wodurch normaler Text (400)
+   auf den Light-Schnitt zurückfiel und „dünn"/ausgefranst wirkte. Mit dem
+   durchgehenden Gewichtsbereich rendern 400/500/600 jetzt korrekt. */
 @font-face {
   font-family: 'Open Sans';
-  src: url('../../Corporate Design/Fonts/OpenSans-Bold.ttf') format('truetype');
-  font-weight: 700;
-  font-style: normal;
-  font-display: swap;
-}
-@font-face {
-  font-family: 'Open Sans';
-  src: url('../../Corporate Design/Fonts/OpenSans-Light.ttf') format('truetype');
-  font-weight: 300;
+  src: url('../../Corporate Design/Fonts/OpenSans-Variable.ttf') format('truetype-variations');
+  font-weight: 300 800;
   font-style: normal;
   font-display: swap;
 }

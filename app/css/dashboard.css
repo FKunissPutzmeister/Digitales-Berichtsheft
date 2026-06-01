@@ -1436,13 +1436,40 @@
   padding: 36px 40px 32px;
   display: grid;
   grid-template-rows: auto 1fr auto;
+  background-image:
+    linear-gradient(105deg, rgba(255,255,255,0.52) 0%, rgba(255,255,255,0.28) 44%, rgba(255,255,255,0.02) 100%),
+    url("../assets/backgrounds/aktuelle-woche-flow-light.png");
+  background-size: cover, 122% auto;
+  background-position: center, 72% center;
+}
+.b-hero::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(ellipse 32% 56% at 24% 56%, rgba(255,255,255,0.60), rgba(255,255,255,0.16) 58%, transparent 76%),
+    radial-gradient(ellipse 28% 38% at 78% 58%, rgba(255,255,255,0.16), transparent 70%);
+  pointer-events: none;
 }
 .b-hero::after {
-  content: ""; position: absolute;
-  right: -100px; top: -180px;
-  width: 480px; height: 480px;
-  background: radial-gradient(circle, rgba(255,195,0,0.28), transparent 60%);
-  pointer-events: none;
+  display: none;
+}
+[data-theme="dark"] .b-hero {
+  background-image:
+    linear-gradient(105deg, rgba(8,10,14,0.18) 0%, rgba(8,10,14,0.08) 44%, rgba(8,10,14,0.00) 100%),
+    url("../assets/backgrounds/aktuelle-woche-minimal-dark.png");
+}
+[data-theme="dark"] .b-hero::before {
+  background:
+    radial-gradient(ellipse 32% 56% at 24% 56%, rgba(8,10,14,0.46), rgba(8,10,14,0.12) 58%, transparent 76%),
+    radial-gradient(ellipse 28% 38% at 78% 58%, rgba(8,10,14,0.10), transparent 70%);
+}
+[data-theme="dark"] .b-hero__eyebrow,
+[data-theme="dark"] .b-hero__kw small {
+  color: rgba(255,255,255,0.62);
+}
+[data-theme="dark"] .b-hero__kw {
+  color: #fff;
 }
 .b-hero__top {
   display: flex; align-items: center; justify-content: space-between;
@@ -1614,6 +1641,44 @@
   display: flex; flex-direction: column;
   justify-content: space-between;
   padding: 30px 30px 28px;
+  background-image:
+    linear-gradient(160deg, rgba(255,255,255,0.34) 0%, rgba(255,255,255,0.10) 100%),
+    url("../assets/backgrounds/ausbildung-minimal-depth-light.png");
+  background-size: cover, 118% auto;
+  background-position: center, 76% center;
+  color: var(--pm-grey-900);
+  border-color: rgba(255,255,255,0.64);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,0.72),
+    0 12px 32px -8px rgba(14,17,22,0.16);
+}
+.b-azubi::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(circle at 50% 44%, rgba(255,255,255,0.70) 0%, rgba(255,255,255,0.58) 24%, rgba(255,255,255,0.12) 42%, transparent 56%),
+    linear-gradient(180deg, rgba(255,255,255,0.18) 0%, transparent 34%, transparent 66%, rgba(255,255,255,0.24) 100%);
+  pointer-events: none;
+}
+[data-theme="dark"] .b-azubi::before {
+  background:
+    radial-gradient(circle at 50% 44%, rgba(10,12,16,0.76) 0%, rgba(10,12,16,0.62) 24%, rgba(10,12,16,0.14) 42%, transparent 56%),
+    linear-gradient(180deg, rgba(10,12,16,0.14) 0%, transparent 34%, transparent 66%, rgba(10,12,16,0.24) 100%);
+}
+.b-azubi > * {
+  position: relative;
+  z-index: 1;
+}
+[data-theme="dark"] .b-azubi {
+  background-image:
+    linear-gradient(160deg, rgba(10,12,16,0.16) 0%, rgba(10,12,16,0.00) 100%),
+    url("../assets/backgrounds/ausbildung-minimal-depth-dark.png");
+  color: #fff;
+  border-color: rgba(255,255,255,0.08);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,0.08),
+    0 12px 32px -8px rgba(14,17,22,0.4);
 }
 .b-azubi__head {
   display: flex; align-items: center; justify-content: space-between;
@@ -1621,16 +1686,22 @@
 .b-azubi__head .eyebrow {
   font-weight: 600; font-size: 11px; line-height: 1;
   letter-spacing: 0.16em; text-transform: uppercase;
-  color: rgba(255,255,255,0.55);
+  color: rgba(14,17,22,0.58);
 }
+[data-theme="dark"] .b-azubi__head .eyebrow { color: rgba(255,255,255,0.55); }
 .b-azubi__lj {
   font-weight: 600; font-size: 11px; line-height: 1;
-  color: var(--pm-yellow);
-  background: rgba(255,195,0,0.12);
-  border: 1px solid rgba(255,195,0,0.28);
+  color: var(--pm-grey-900);
+  background: rgba(255,195,0,0.36);
+  border: 1px solid rgba(255,195,0,0.52);
   padding: 6px 12px;
   border-radius: 999px;
   letter-spacing: 0.04em;
+}
+[data-theme="dark"] .b-azubi__lj {
+  color: var(--pm-yellow);
+  background: rgba(255,195,0,0.12);
+  border-color: rgba(255,195,0,0.28);
 }
 .b-donut {
   align-self: center;
@@ -1643,6 +1714,8 @@
   transform: rotate(-90deg);
   filter: drop-shadow(0 0 12px rgba(255,195,0,0.35));
 }
+.b-donut circle:first-child { stroke: rgba(14,17,22,0.10); }
+[data-theme="dark"] .b-donut circle:first-child { stroke: rgba(255,255,255,0.08); }
 .b-donut__center {
   position: relative; z-index: 1;
   display: flex; flex-direction: column; align-items: center; gap: 2px;
@@ -1650,42 +1723,48 @@
 .b-donut__pct {
   font-weight: 700; font-size: 44px; line-height: 1;
   letter-spacing: -0.04em;
-  color: #fff;
+  color: var(--pm-grey-900);
   font-feature-settings: "tnum";
 }
+[data-theme="dark"] .b-donut__pct { color: #fff; }
 .b-donut__pct small {
   font-weight: 600; font-size: 18px; line-height: 1;
-  color: rgba(255,255,255,0.45);
+  color: rgba(14,17,22,0.46);
   margin-left: 2px;
 }
+[data-theme="dark"] .b-donut__pct small { color: rgba(255,255,255,0.45); }
 .b-donut__label {
   font-weight: 600; font-size: 10px; line-height: 1;
   letter-spacing: 0.14em; text-transform: uppercase;
-  color: rgba(255,255,255,0.45);
+  color: rgba(14,17,22,0.46);
   margin-top: 4px;
 }
+[data-theme="dark"] .b-donut__label { color: rgba(255,255,255,0.45); }
 .b-azubi__foot strong {
   font-weight: 700; font-size: 17px; line-height: 1.2;
-  color: #fff;
+  color: var(--pm-grey-900);
   letter-spacing: -0.01em;
   display: block;
   margin-bottom: 4px;
 }
+[data-theme="dark"] .b-azubi__foot strong { color: #fff; }
 .b-azubi__foot .muted {
   font-weight: 500; font-size: 13px; line-height: 1.4;
-  color: rgba(255,255,255,0.5);
+  color: rgba(14,17,22,0.54);
 }
+[data-theme="dark"] .b-azubi__foot .muted { color: rgba(255,255,255,0.5); }
 .b-azubi__segs {
   display: flex; gap: 4px;
   margin-top: 10px;
 }
 .b-azubi__segs span {
   flex: 1; height: 4px;
-  background: rgba(255,255,255,0.08);
+  background: rgba(14,17,22,0.10);
   border-radius: 999px;
   overflow: hidden;
   position: relative;
 }
+[data-theme="dark"] .b-azubi__segs span { background: rgba(255,255,255,0.08); }
 .b-azubi__segs span.done { background: var(--pm-yellow); }
 .b-azubi__segs span.now::after {
   content: ""; position: absolute; inset: 0;
@@ -1700,6 +1779,34 @@
   grid-column: span 12;
   grid-row: span 2;
   padding: 24px 26px 26px;
+  background-image:
+    linear-gradient(105deg, rgba(255,255,255,0.46) 0%, rgba(255,255,255,0.24) 42%, rgba(255,255,255,0.02) 100%),
+    url("../assets/backgrounds/tile-technical-light.png");
+  background-size: cover, 118% auto;
+  background-position: center, 70% center;
+}
+[data-theme="dark"] .b-recent {
+  background-image:
+    linear-gradient(105deg, rgba(8,10,14,0.14) 0%, rgba(8,10,14,0.06) 42%, rgba(8,10,14,0.00) 100%),
+    url("../assets/backgrounds/zuletzt-technical-minimal-dark.png");
+}
+.b-recent::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(180deg, rgba(255,255,255,0.24) 0%, transparent 34%),
+    radial-gradient(ellipse 82% 54% at 48% 78%, rgba(255,255,255,0.38), rgba(255,255,255,0.10) 58%, transparent 78%);
+  pointer-events: none;
+}
+[data-theme="dark"] .b-recent::before {
+  background:
+    linear-gradient(180deg, rgba(8,10,14,0.12) 0%, transparent 34%),
+    radial-gradient(ellipse 82% 54% at 48% 78%, rgba(8,10,14,0.20), rgba(8,10,14,0.04) 58%, transparent 78%);
+}
+.b-recent > * {
+  position: relative;
+  z-index: 1;
 }
 .b-recent__head {
   display: flex; align-items: baseline; justify-content: space-between;
@@ -2034,83 +2141,74 @@
    große "KW 22"-Schriftzug mit Gradient-Fill (yellow → transparent),
    halb-transparent und leicht überlappend mit dem Glow.
    ═══════════════════════════════════════════════════════════════════ */
+/* Begrüßungs-Banner: ruhig, professionell-industriell. Das Hintergrundbild
+   (der große Dashboard-Hintergrund) ist bewusst PRÄSENT — nur ein leichtes,
+   links etwas stärkeres Overlay sichert den Text-Kontrast. Kein Pop-out,
+   keine gelbe Linie. Gelb erscheint einmal, dezent, am KW-Label. */
 .welcome-hero {
   position: relative;
+  margin: var(--sp-6) 0 var(--sp-5);
   border-radius: 24px;
   overflow: hidden;
   isolation: isolate;
-  margin-bottom: var(--sp-5);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 32px;
+  padding: 24px 40px;
+  min-height: 132px;
+  background-image:
+    linear-gradient(100deg, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0.26) 48%, rgba(0,0,0,0.08) 100%),
+    var(--app-bg-image);
+  background-size: cover, cover;
+  background-position: center, center;
   box-shadow:
     0 1px 2px rgba(14,17,22,0.06),
-    0 18px 40px -18px rgba(14,17,22,0.28);
+    0 18px 40px -18px rgba(14,17,22,0.40);
 }
 
-.welcome-hero__scene { position: absolute; inset: 0; z-index: 0; pointer-events: none; }
-.welcome-hero__photo {
-  position: absolute; inset: 0;
-  background-image: url("../assets/backgrounds/abstract-app-dark.png");
-  background-size: cover;
-  background-position: center;
-  filter: saturate(0.9) contrast(1.05);
-  transform: scale(1.06);
-}
-.welcome-hero__veil {
-  position: absolute; inset: 0;
-  background:
-    radial-gradient(110% 90% at 100% 0%, rgba(255,195,0,0.18), transparent 55%),
-    linear-gradient(180deg, rgba(11,13,18,0.62) 0%, rgba(11,13,18,0.82) 100%);
-}
-.welcome-hero__glow {
-  position: absolute; border-radius: 50%;
-  filter: blur(80px);
-  width: 380px; height: 380px;
-  right: -120px; top: -180px;
-  background: radial-gradient(circle, rgba(255,195,0,0.9), transparent 65%);
-  opacity: 0.55;
-}
-
-/* Massiver KW-Schriftzug im Hintergrund — Gradient-Fill mit
-   background-clip:text, halb aus dem Container raus, damit's wie ein
-   typografisches Statement wirkt statt wie eine zweite Headline. */
-.welcome-hero__kw-bg {
-  position: absolute;
-  z-index: 0;
-  right: -2%;
-  top: 50%;
-  transform: translateY(-52%);
-  font-family: var(--font-heading);
-  font-weight: 900;
-  font-size: clamp(110px, 16vw, 200px);
-  line-height: 0.85;
-  letter-spacing: -0.06em;
-  font-feature-settings: "tnum" 1;
-  white-space: nowrap;
+/* KW-Block rechts: kleines Label + große LIGHT-Zahl (Gewichtskontrast in der
+   Hausschrift, kein Display-Font, kein Effekt). Sitzt vollständig IN der
+   Kachel. */
+.welcome-hero__kw {
+  position: relative; z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  flex-shrink: 0;
   user-select: none;
   pointer-events: none;
-  background-image: linear-gradient(
-    115deg,
-    rgba(255, 230, 128, 0.95) 0%,
-    rgba(255, 195, 0, 0.85) 35%,
-    rgba(255, 195, 0, 0.18) 70%,
-    rgba(255, 195, 0, 0) 100%
-  );
-  -webkit-background-clip: text;
-          background-clip: text;
-  color: transparent;
-  filter: drop-shadow(0 0 28px rgba(255, 195, 0, 0.18));
+}
+.welcome-hero__kw-eye {
+  font-family: var(--font-heading);
+  font-weight: 700;
+  font-size: 17px;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--pm-yellow);
+  margin-bottom: 3px;
+}
+.welcome-hero__kw-num {
+  font-family: var(--font-heading);
+  font-weight: 300;                 /* LIGHT – präzise statt plakativ */
+  font-size: clamp(76px, 8vw, 104px);
+  line-height: 0.92;
+  letter-spacing: -0.03em;
+  font-feature-settings: "tnum" 1;
+  font-variant-numeric: tabular-nums;
+  color: #fff;
 }
 
-/* Vordergrund — minimaler Inhalt, links angedockt. */
+/* Vordergrund-Inhalt links. */
 .welcome-hero__body {
   position: relative; z-index: 1;
-  padding: 26px 32px;
-  max-width: 620px;
+  max-width: 58%;
 }
 .welcome-hero__name {
   margin: 0;
   font-family: var(--font-heading);
   font-weight: 800;
-  font-size: clamp(28px, 3.2vw, 38px);
+  font-size: clamp(26px, 3.2vw, 36px);
   line-height: 1.05;
   letter-spacing: -0.025em;
   color: #fff;
@@ -2119,15 +2217,12 @@
   margin: 6px 0 0;
   font-weight: 500; font-size: 13px; line-height: 1.4;
   letter-spacing: 0.02em;
-  color: rgba(255,255,255,0.68);
+  color: rgba(255,255,255,0.72);
   font-feature-settings: "tnum" 1;
 }
 
 @media (max-width: 640px) {
-  .welcome-hero__body { padding: 20px 22px; }
-  .welcome-hero__kw-bg {
-    font-size: clamp(90px, 28vw, 140px);
-    right: -6%;
-    top: 58%;
-  }
+  .welcome-hero { padding: 20px 24px; min-height: 110px; gap: 16px; }
+  .welcome-hero__body { max-width: 58%; }
+  .welcome-hero__kw-num { font-size: clamp(60px, 17vw, 88px); }
 }
