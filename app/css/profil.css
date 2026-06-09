@@ -339,6 +339,18 @@ details.profil-section .profil-section__body-wrap > .profil-section__body {
 }
 
 /* Dark-Mode */
+[data-theme="dark"] .profil-card__banner {
+  background: #ffffff;
+}
+[data-theme="dark"] .profil-card__banner::after {
+  background: repeating-linear-gradient(
+    45deg,
+    rgba(0, 0, 0, 0.07) 0,
+    rgba(0, 0, 0, 0.07) 2px,
+    transparent 2px,
+    transparent 16px
+  );
+}
 [data-theme="dark"] .profil-logout {
   background: rgba(255,255,255,0.03);
   border-color: rgba(255,255,255,0.08);
