@@ -84,6 +84,7 @@ function buildSidebar(activeNavId) {
 
   setupSidebarTooltips(sidebar);
   setupSidebarThemeToggle();
+  if (typeof window.initRouter === 'function') window.initRouter(sidebar);
 }
 
 /* Theme-Toggle im Sidebar-Footer.

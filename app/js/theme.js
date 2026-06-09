@@ -88,4 +88,32 @@
       html.classList.add('sidebar-init-collapsed');
     }
   } catch (e) {}
+
+  /* ── Rollen-Init-State ──────────────────────────────────────────
+     Spiegelt die zuletzt bekannte Rolle (siehe cacheUserRole() in
+     api.js) synchron auf <html data-role="…">, damit rollen-spezifische
+     Nav-Items per CSS schon vor dem ersten Paint korrekt sichtbar/
+     versteckt sind. Verhindert den Flash, bei dem „Verwaltung" für
+     Azubis kurz erscheint, bevor initLayout() es per JS versteckt.
+     Bei Rollen-Mismatch (cache vs. Server) korrigiert api.js den Wert
+     direkt nach dem ersten /auth/me-Roundtrip. */
+  try {
+    var cachedRole = localStorage.getItem('userRole');
+    if (cachedRole === 'azubi' || cachedRole === 'ausbilder' || cachedRole === 'admin') {
+      html.setAttribute('data-role', cachedRole);
+    }
+  } catch (e) {}
+
+  /* ── Navigations-Übergang ───────────────────────────────────────
+     sidebar.js setzt sessionStorage('navTransition') = '1' bevor es
+     zu einer inneren Seite navigiert. Wir lesen das Flag hier synchron
+     (vor dem ersten Paint) und setzen [data-page-enter] auf <html>.
+     base.css greift darauf an und startet die Einblendeanimation auf
+     .main-wrapper sofort ab Frame 0 – kein weißer Blitz sichtbar. */
+  try {
+    if (sessionStorage.getItem('navTransition') === '1') {
+      sessionStorage.removeItem('navTransition');
+      html.setAttribute('data-page-enter', '');
+    }
+  } catch (e) {}
 })();

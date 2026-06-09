@@ -109,6 +109,23 @@ function normalizeBenachrichtigung(b) {
 /* ── Aktuell eingeloggter User (nach initPage gesetzt) ────────── */
 let _currentUser = null;
 
+/* Rollen-Cache: schreibt die Rolle in localStorage UND spiegelt sie auf
+   <html data-role="…">. theme.js liest dieselbe Quelle synchron beim
+   nächsten Page-Load und kann damit rollen-spezifische Nav-Items schon
+   vor dem ersten Paint korrekt ein-/ausblenden – verhindert den Flash,
+   bei dem „Verwaltung" für Azubis kurz sichtbar wird. */
+function cacheUserRole(role) {
+  try {
+    if (role) {
+      localStorage.setItem('userRole', role);
+      document.documentElement.setAttribute('data-role', role);
+    } else {
+      localStorage.removeItem('userRole');
+      document.documentElement.removeAttribute('data-role');
+    }
+  } catch (e) { /* localStorage kann in Privacy-Modi blockieren */ }
+}
+
 /* ── DateUtil (identisch zu data.js) ─────────────────────────── */
 const DateUtil = {
   getKW(date) {
@@ -175,9 +192,11 @@ const DB = {
     try {
       const data = await apiFetch('/auth/me');
       _currentUser = normalizeUser(data.user.oid, data.user);
+      cacheUserRole(_currentUser.role);
       return _currentUser;
     } catch {
       _currentUser = null;
+      cacheUserRole(null);
       return null;
     }
   },
@@ -188,12 +207,14 @@ const DB = {
       body: { email: email.trim().toLowerCase() },
     });
     _currentUser = normalizeUser(data.user.oid, data.user);
+    cacheUserRole(_currentUser.role);
     return _currentUser;
   },
 
   async logout() {
     await apiFetch('/auth/logout', { method: 'POST' });
     _currentUser = null;
+    cacheUserRole(null);
   },
 
   /* Benutzer */

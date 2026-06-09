@@ -226,6 +226,27 @@ p {
   pointer-events: none;
 }
 
+/* ── Seitenübergänge (JS-gesteuert, browserübergreifend) ─────────────────
+   sidebar.js setzt sessionStorage('navTransition') = '1' vor jedem
+   internen Nav-Klick und spielt gleichzeitig eine Exit-Animation auf
+   .main-wrapper ab. theme.js liest das Flag synchron im <head> und setzt
+   [data-page-enter] auf <html>, BEVOR der Browser das erste Frame rendert.
+   .main-wrapper startet damit unsichtbar und blendet sich über 300ms ein.
+   Läuft browserübergreifend ohne View Transitions API. */
+
+@keyframes vt-out {
+  from { opacity: 1; transform: translateY(0); }
+  to   { opacity: 0; transform: translateY(-5px); }
+}
+@keyframes vt-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+[data-page-enter] .main-wrapper {
+  animation: vt-in 300ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
 /* ── Accessibility: Reduzierte Bewegung ───────────────────────────────
    Hard‑Override für alle Animationen / Transitions, sobald Nutzer im
    System „Bewegung reduzieren" aktiviert hat. Verhindert Motion‑Sickness
@@ -236,5 +257,13 @@ p {
     animation-iteration-count: 1 !important;
     transition-duration: 0.001ms !important;
     scroll-behavior: auto !important;
+  }
+  /* View-Transition-Pseudo-Elemente liegen außerhalb des normalen DOM –
+     sie werden vom Selektor oben nicht erfasst und müssen separat
+     abgeschaltet werden. */
+  ::view-transition-group(*),
+  ::view-transition-old(*),
+  ::view-transition-new(*) {
+    animation: none !important;
   }
 }

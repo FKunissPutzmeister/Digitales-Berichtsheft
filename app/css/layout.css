@@ -10,6 +10,7 @@
 
 /* ── Sidebar ── */
 .sidebar {
+  view-transition-name: sidebar;
   position: fixed;
   top: 0;
   left: 0;
@@ -189,6 +190,22 @@
   height: 1px;
   background: rgba(255,255,255,0.06);
   margin: var(--sp-3) var(--sp-4);
+}
+
+/* ── Rollen-spezifische Nav-Sichtbarkeit ──────────────────────────
+   Default: rollen-spezifische Items sind versteckt. Sichtbar werden
+   sie nur, wenn theme.js (oder cacheUserRole in api.js) die zur
+   Rolle passende Markierung auf <html data-role="…"> gesetzt hat.
+   So entsteht KEIN Flash mehr, in dem „Verwaltung" für Azubis kurz
+   sichtbar wäre, bevor das async /auth/me-Result die Items per JS
+   versteckt. Negation per :not() statt explizitem Whitelist-Override
+   – damit die Items ihren normalen display-Wert (flex/block) behalten,
+   sobald die Rolle passt. */
+html:not([data-role="ausbilder"]):not([data-role="admin"]) .nav-ausbilder-only {
+  display: none;
+}
+html:not([data-role="admin"]) .nav-admin-only {
+  display: none;
 }
 
 .sidebar__footer {
@@ -441,6 +458,7 @@ html.sidebar-init-collapsed .main-wrapper         { margin-left: var(--sidebar-i
 
 /* ── Main Wrapper ── */
 .main-wrapper {
+  view-transition-name: main-wrapper;
   flex: 1;
   margin-left: var(--sidebar-w);
   display: flex;
