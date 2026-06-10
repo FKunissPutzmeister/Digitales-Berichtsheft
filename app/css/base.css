@@ -11,6 +11,7 @@
 html {
   font-size: 16px;
   -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
   scroll-behavior: smooth;
   /* Native Form-Controls, Scrollbars etc. an aktuelles Theme anpassen */
   color-scheme: light;
@@ -90,8 +91,8 @@ p {
 
 /* ── Fokus ── */
 :focus-visible {
-  outline: 2px solid var(--pm-yellow);
-  outline-offset: 2px;
+  outline: 3px solid var(--pm-yellow);
+  outline-offset: 3px;
   border-radius: var(--r-sm);
   transition: outline-offset var(--t-fast);
 }
