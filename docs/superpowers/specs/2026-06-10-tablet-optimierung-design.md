@@ -21,18 +21,21 @@ Die Anwendung soll auf Tablets (Surface Pro, iPad) sowohl performant laufen als 
 
 ### 1a. Font Loading
 
-**Dateien:** `app/css/base.css` (oder `variables.css`), alle 8 HTML-Seiten
+**Dateien:** alle 8 HTML-Seiten
 
-**Änderungen:**
-- Alle `@font-face`-Regeln erhalten `font-display: swap`
-- In allen HTML-Dateien werden `<link rel="preload">` Hints für die zwei Corporate-Fonts ergänzt:
+**Status:** `font-display: swap` ist bereits in allen drei `@font-face`-Regeln in `variables.css` vorhanden (Zeilen 11, 18, 29) – keine CSS-Änderung nötig.
+
+**Ausstehend:** `<link rel="preload">` Hints in allen HTML-Dateien.
+
+Die Fonts liegen unter `Corporate Design/Fonts/` (außerhalb von `app/`). Preload-Pfad relativ zur HTML-Datei in `app/`:
 
 ```html
-<link rel="preload" href="assets/fonts/librefranklin-bold.ttf" as="font" type="font/ttf" crossorigin>
-<link rel="preload" href="assets/fonts/OpenSans-Variable.ttf" as="font" type="font/ttf" crossorigin>
+<link rel="preload" href="../Corporate%20Design/Fonts/librefranklin-bold.ttf" as="font" type="font/ttf" crossorigin>
+<link rel="preload" href="../Corporate%20Design/Fonts/librefranklin-light.ttf" as="font" type="font/ttf" crossorigin>
+<link rel="preload" href="../Corporate%20Design/Fonts/OpenSans-Variable.ttf" as="font" type="font/ttf" crossorigin>
 ```
 
-**Effekt:** Fonts werden parallel zum HTML geladen; kein unsichtbarer Text (FOIT) während des Ladens. Auf Tablets mit schwächerer Verbindung sichtbar schnellere erste Darstellung.
+**Effekt:** Fonts werden parallel zum HTML-Parse geladen statt nachgelagert über CSS-Discovery. Auf Tablets mit schwächerer Verbindung sichtbar schnellere erste Textdarstellung.
 
 ---
 
@@ -151,16 +154,18 @@ html {
 **Zielgeräte:** iPad Pro 11" Landscape (1194px), iPad Air Landscape (1180px)
 
 **Neue Regel:**
+
+Die App verwendet CSS Custom Properties für die Sidebar-Breite (`--sidebar-w: 256px` in `variables.css`). Sidebar und `.main-wrapper` referenzieren diese Variable. Daher wird die Variable im Media Query überschrieben – beide Elemente passen sich automatisch an:
+
 ```css
 @media (max-width: 1280px) {
-  .sidebar:not(.collapsed) {
-    width: 220px;
-  }
-  .main-wrapper {
-    margin-left: 220px;
+  :root {
+    --sidebar-w: 220px;
   }
 }
 ```
+
+`--sidebar-icon-w` (68px für Icon-Only) bleibt unverändert.
 
 **Breakpoint-Übersicht nach Änderung:**
 
@@ -298,7 +303,7 @@ Falls nicht gesetzt, läuft pdf.js im Main-Thread und blockiert die UI beim PDF-
 | Datei | Änderungen |
 |---|---|
 | `app/index.html` + 7 weitere HTML | preload fonts, preload scripts, viewport-fit=cover |
-| `app/css/base.css` | font-display swap, text-size-adjust, scroll-behavior, overscroll-behavior, focus-ring |
+| `app/css/base.css` | text-size-adjust, scroll-behavior, overscroll-behavior, focus-ring |
 | `app/css/layout.css` | will-change sidebar, safe-area-insets, neuer 1280px-Breakpoint |
 | `app/css/components.css` | will-change modal/toast, touch-action manipulation, contain stat-card |
 | `app/css/wochenansicht.css` | contain week-day-card, 900px 4+3-Grid |
