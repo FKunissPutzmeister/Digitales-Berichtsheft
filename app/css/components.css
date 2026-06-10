@@ -3,6 +3,16 @@
    =================================================================== */
 
 /* ── Buttons ── */
+/* Entfernt die 300ms-Tap-Verzögerung auf Touch-Geräten */
+button,
+a,
+[role="button"],
+input[type="submit"],
+input[type="button"],
+label[for] {
+  touch-action: manipulation;
+}
+
 .btn {
   display: inline-flex;
   align-items: center;
@@ -205,6 +215,7 @@
 
 /* ── Stat-Karten ── */
 .stat-card {
+  contain: layout style;
   background: var(--pm-white);
   border-radius: var(--r-lg);
   border: 1px solid var(--pm-grey-200);
@@ -525,6 +536,7 @@ select.form-control {
   opacity: 0;
   pointer-events: none;
   transition: opacity var(--t-normal), backdrop-filter var(--t-normal);
+  will-change: opacity;
 }
 .modal-overlay.open {
   opacity: 1;
@@ -540,6 +552,7 @@ select.form-control {
   overflow-y: auto;
   transform: scale(0.95) translateY(16px);
   transition: transform var(--t-spring);
+  will-change: transform, opacity;
 }
 .modal-overlay.open .modal { transform: scale(1) translateY(0); }
 .modal__header {
@@ -631,6 +644,7 @@ select.form-control {
   animation: toastIn var(--t-normal) both;
   position: relative;
   overflow: hidden;
+  will-change: transform, opacity;
 }
 [data-theme="dark"] .toast {
   background: var(--inverse-surface-soft);
