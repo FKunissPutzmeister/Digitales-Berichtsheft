@@ -625,6 +625,7 @@
   flex-direction: column;
   animation: fadeIn var(--t-normal) both;
   transition: border-color var(--t-fast), box-shadow var(--t-fast);
+  contain: layout style;
 }
 /* Validierungs-Fehler: Kachel rot umranden + leichter Tint im Header,
    damit der Azubi sieht, welcher Wocheneintrag noch fehlt. */
