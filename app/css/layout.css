@@ -23,14 +23,16 @@
   transition: width var(--t-normal), transform var(--t-normal),
               background-color 220ms var(--ease-out-quart);
   overflow: hidden;
+  will-change: transform;
+  padding-bottom: env(safe-area-inset-bottom, 0px);
 }
 
 .sidebar__header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 var(--sp-4);
-  height: var(--topbar-h);
+  padding: env(safe-area-inset-top, 0px) var(--sp-4) 0 var(--sp-4);
+  height: calc(var(--topbar-h) + env(safe-area-inset-top, 0px));
   border-bottom: 1px solid rgba(255,255,255,0.06);
   flex-shrink: 0;
 }
@@ -478,14 +480,14 @@ html.sidebar-init-collapsed .main-wrapper         { margin-left: var(--sidebar-i
 .topbar {
   position: sticky;
   top: 0;
-  height: var(--topbar-h);
+  height: calc(var(--topbar-h) + env(safe-area-inset-top, 0px));
   background: var(--topbar-bg-glass);
   backdrop-filter: blur(8px) saturate(140%);
   -webkit-backdrop-filter: blur(8px) saturate(140%);
   border-bottom: 1px solid var(--pm-grey-200);
   display: flex;
   align-items: center;
-  padding: 0 var(--sp-6);
+  padding: env(safe-area-inset-top, 0px) var(--sp-6) 0 var(--sp-6);
   gap: var(--sp-4);
   z-index: var(--z-sticky);
   flex-shrink: 0;
@@ -582,6 +584,7 @@ html.sidebar-init-collapsed .main-wrapper         { margin-left: var(--sidebar-i
   max-width: var(--content-max);
   width: 100%;
   animation: fadeIn var(--t-normal) both;
+  overscroll-behavior: none;
 }
 
 /* Volle Seitenbreite für daten-/grid-orientierte Seiten. Diese nutzen
@@ -633,6 +636,11 @@ body[data-page="dashboard"] .welcome-hero {
   align-items: center;
   gap: var(--sp-3);
   flex-shrink: 0;
+}
+
+/* ── Responsive: Kompakter Tablet-Landscape (Surface Pro 13", iPad Pro 11"/12.9" Landscape) ── */
+@media (max-width: 1280px) {
+  :root { --sidebar-w: 220px; }
 }
 
 /* ── Responsive: Tablet ── */
