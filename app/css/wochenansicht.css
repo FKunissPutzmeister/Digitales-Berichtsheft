@@ -696,9 +696,16 @@
   align-items: center;
   border: 1.5px solid var(--pm-grey-200);
   border-radius: var(--r-md);
-  overflow: hidden;
   background: var(--pm-white);
   transition: border-color var(--t-fast), box-shadow var(--t-fast);
+}
+.time-spinner__btn:first-child {
+  border-top-left-radius: calc(var(--r-md) - 1.5px);
+  border-top-right-radius: calc(var(--r-md) - 1.5px);
+}
+.time-spinner__btn:last-child {
+  border-bottom-left-radius: calc(var(--r-md) - 1.5px);
+  border-bottom-right-radius: calc(var(--r-md) - 1.5px);
 }
 .time-spinner:focus-within .time-spinner__unit {
   border-color: var(--pm-yellow);

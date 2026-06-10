@@ -42,6 +42,22 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   Toast.init();
+
+  // Wenn der Nutzer per Zurück-Schaltfläche zurückkommt (BFCache-Restore),
+  // feuert DOMContentLoaded nicht erneut – aber pageshow mit persisted=true.
+  // Damit sieht der Ausbilder immer den aktuellen Stand des Posteingangs.
+  window.addEventListener('pageshow', async (event) => {
+    if (!event.persisted) return;
+    try {
+      if (user.role === 'azubi') {
+        await renderAzubiDashboard(user);
+      } else {
+        await renderAusbilderDashboard(user);
+      }
+    } catch (err) {
+      console.error('Dashboard BFCache-Refresh gescheitert:', err);
+    }
+  });
 });
 
 /* ── Azubi-Dashboard (bestehend) ─────────────────────────────── */

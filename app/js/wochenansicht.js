@@ -1743,7 +1743,18 @@ document.addEventListener('DOMContentLoaded', async () => {
       Toast.success('Genehmigt', `KW ${currentKW} wurde genehmigt.`);
       render();
     });
-    document.getElementById('rejectBtn')?.addEventListener('click', async () => {
+    document.getElementById('rejectBtn')?.addEventListener('click', () => {
+      document.getElementById('rejectReason').value = '';
+      Modal.open('rejectModal');
+    });
+    document.getElementById('rejectConfirmBtn')?.addEventListener('click', async () => {
+      const reason = document.getElementById('rejectReason').value.trim();
+      if (!reason) { Toast.error('Pflichtfeld', 'Bitte eine Begründung eingeben.'); return; }
+      if (!woche) return;
+      await DB.addKommentar(woche.id, {
+        userId: user.id, text: reason,
+        datum: new Date().toLocaleDateString('de-DE'), typ: 'abgelehnt',
+      });
       await DB.setWocheStatus(woche.id, 'abgelehnt');
       await DB.addBenachrichtigung({
         userId: woche.azubiId,
@@ -1754,6 +1765,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         year: woche.year,
         fromUserId: user.id,
       });
+      Modal.closeAll();
       Toast.warning('Zurückgegeben', `KW ${currentKW} wurde zurückgegeben.`);
       render();
     });
