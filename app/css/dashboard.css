@@ -708,6 +708,16 @@
   color: var(--pm-grey-500);
   white-space: nowrap;
 }
+/* Wenn PMSelect den nativen <select> in einen div.pm-select wrapped, erbt der
+   Wrapper alle Klassen inkl. review-filter-bar__select. Dort die Box-Styles
+   zurücksetzen, damit nur der pm-select__trigger sichtbar ist. */
+.pm-select.review-filter-bar__select {
+  border: none;
+  background: transparent;
+  background-image: none;
+  padding: 0;
+  height: auto;
+}
 .review-filter-bar__select {
   appearance: none;
   background: var(--pm-white);

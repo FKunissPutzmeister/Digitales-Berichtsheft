@@ -1358,6 +1358,39 @@ select.form-control {
   line-height: var(--lh-relaxed);
 }
 
+/* ── Ausbilder-Chip (Azubi-Auswahl auf Wochen-, Jahresansicht, Azubi-Planer) ── */
+.ausbilder-chip {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: var(--sp-2) var(--sp-3) var(--sp-2) var(--sp-2);
+  background: var(--pm-white);
+  border: 1.5px solid var(--pm-grey-200);
+  border-radius: var(--r-full);
+  cursor: pointer;
+  transition: background var(--t-fast), border-color var(--t-fast),
+              box-shadow var(--t-fast), color var(--t-fast);
+  font-family: var(--font-body);
+  font-size: var(--text-sm);
+  color: var(--pm-grey-700);
+}
+.ausbilder-chip:hover {
+  border-color: var(--pm-yellow);
+  background: var(--pm-yellow-pale);
+}
+.ausbilder-chip.selected {
+  background: var(--pm-yellow);
+  border-color: var(--pm-yellow-darker);
+  color: var(--pm-grey-900);
+  font-weight: var(--fw-bold);
+  box-shadow: 0 0 0 2px var(--pm-yellow-darker);
+}
+.ausbilder-chip.selected .avatar {
+  background: var(--inverse-surface);
+  color: #fff;
+}
+.ausbilder-chip .avatar { width: 28px; height: 28px; font-size: 11px; }
+
 /* Auf Mobile bis zur Bildschirmbreite begrenzen und am rechten Rand
    andocken (Dropdown__menu setzt right:0, das bleibt – nur Breite cappen) */
 @media (max-width: 480px) {
