@@ -1,0 +1,20 @@
+name: Deploy to Dev Server
+
+on:
+  push:
+    branches: [Digitales-Berichtsheft]
+
+jobs:
+  deploy:
+    runs-on: self-hosted
+    steps:
+      - name: Code aktualisieren
+        working-directory: C:\inetpub\Berichtsheft
+        run: git pull origin Digitales-Berichtsheft
+
+      - name: Dependencies prüfen
+        working-directory: C:\inetpub\Berichtsheft\backend
+        run: npm install --production --prefer-offline
+
+      - name: Backend neu starten
+        run: Restart-Service berichtsheft-backend

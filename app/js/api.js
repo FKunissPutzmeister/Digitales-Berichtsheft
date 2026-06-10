@@ -3,7 +3,11 @@
    Alle DB.*-Methoden sind async. Normalisierung DB→Frontend hier.
    =================================================================== */
 
-const API_BASE = 'http://localhost:3000/api';
+// Live Server (Port 5500) braucht absoluten Pfad, da Frontend und Backend
+// auf verschiedenen Ports laufen. Alle anderen Umgebungen nutzen relativen Pfad.
+const API_BASE = (window.location.port === '5500')
+  ? 'http://localhost:3000/api'
+  : '/api';
 
 /* ── HTTP-Hilfsfunktionen ─────────────────────────────────────── */
 async function apiFetch(path, options = {}) {
