@@ -21,7 +21,7 @@ body.login-page {
   justify-content: center;
   padding: var(--sp-6);
   position: relative;
-  overflow: hidden;
+  overflow-y: auto;
 }
 
 /* Dekorative Brand-Kreise (eigene Elemente, damit glass.css' Ambient-

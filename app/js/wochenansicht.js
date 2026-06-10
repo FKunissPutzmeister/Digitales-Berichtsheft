@@ -1231,15 +1231,9 @@ document.addEventListener('DOMContentLoaded', async () => {
       `;
     });
 
-    const gesamt = (woche?.tage || []).reduce((s, t) => s + (t.stunden || 0), 0);
-
     return `
       <div class="tag-cards">
         ${rows.join('')}
-      </div>
-      <div class="wochen-tage-total">
-        <span class="wochen-tage-total__label">Gesamt</span>
-        <span id="wochenTageGesamt" class="wochen-tage-total__val">${decimalToTimeStr(gesamt)}</span>
       </div>
     `;
   }
@@ -1520,7 +1514,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
     _lastWochenTotal = total;
 
-    ['totalHours', 'statusTotalHours', 'wochenTageGesamt'].forEach(id => {
+    ['totalHours', 'statusTotalHours'].forEach(id => {
       const el = document.getElementById(id);
       if (!el) return;
       el.textContent = val;

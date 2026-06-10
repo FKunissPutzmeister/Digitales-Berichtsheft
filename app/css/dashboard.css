@@ -1644,6 +1644,12 @@ html[data-theme="dark"] .b-hero__kw {
 [data-theme="dark"] .b-btn-ghost { color: rgba(255,255,255,0.7); }
 [data-theme="dark"] .b-btn-ghost:hover { background: rgba(255,255,255,0.08); color: #fff; }
 
+@media (max-width: 1280px) {
+  .b-hero { padding: 24px 28px 20px; }
+  .b-hero__kw { font-size: 64px; }
+  .b-weekmini { grid-template-columns: repeat(7, 1fr); }
+}
+
 /* ───────── Ausbildung (Dark Tile mit SVG-Donut) ───────── */
 .b-azubi {
   grid-column: span 4;
