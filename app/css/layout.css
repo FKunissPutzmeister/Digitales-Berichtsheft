@@ -471,6 +471,10 @@ html.sidebar-init-collapsed .main-wrapper         { margin-left: var(--sidebar-i
 }
 
 /* ── Topbar ── */
+/* Leere Topbar-Elemente (DS-Header wurde entfernt) vollständig ausblenden */
+.topbar:empty {
+  display: none;
+}
 .topbar {
   position: sticky;
   top: 0;
@@ -595,6 +599,13 @@ body[data-page="wochenansicht"] .main-content,
 body[data-page="jahresansicht"] .main-content,
 body[data-page="ausbildungsstand"] .main-content {
   max-width: min(2200px, 100%);
+}
+
+body[data-page="dashboard"] .main-content {
+  padding-top: 0;
+}
+body[data-page="dashboard"] .welcome-hero {
+  margin-top: 0;
 }
 
 .page-header {

@@ -31,6 +31,7 @@ const IhkImport = (() => {
   // ── 1) Profil-Sektion ──────────────────────────────────────────
   function renderSection(user) {
     if (!user || user.role !== 'azubi') return '';
+    const img = name => `assets/ihk/${name}`;
     return `
       <details class="profil-section" id="ihkSection">
         <summary class="profil-section__header">
@@ -45,6 +46,57 @@ const IhkImport = (() => {
             Wochen werden mit Anwesenheit, Ort, Stunden und Tätigkeitsbeschreibungen
             (Betrieb, Schule, Unterweisung) ins Berichtsheft übernommen.
           </p>
+
+          <details class="ztn-tutorial">
+            <summary class="ztn-tutorial__summary">
+              ${Icon('question', { size: 16 })}
+              Wie bekomme ich den IHK-Ausbildungsnachweis?
+            </summary>
+            <div class="ztn-tutorial__body">
+              <ol class="ztn-steps">
+                <li>
+                  <div class="ztn-step__text">
+                    <strong>IHK-Portal öffnen&nbsp;&amp; anmelden</strong> – Rufe das
+                    IHK-Ausbildungsnachweis-Portal auf und melde dich mit deinen Zugangsdaten an.
+                  </div>
+                  <img class="ztn-step__img" src="${img('login.png')}" alt="IHK-Portal: Anmeldeseite" loading="lazy">
+                </li>
+                <li>
+                  <div class="ztn-step__text">
+                    In der <strong>Wochenansicht</strong> findest du oben rechts den Button
+                    <em>„Berichtsheft exportieren&nbsp;(.pdf)"</em> – klicke darauf.
+                  </div>
+                  <img class="ztn-step__img" src="${img('exportieren.png')}" alt="Schaltfläche 'Berichtsheft exportieren' oben rechts" loading="lazy">
+                </li>
+                <li>
+                  <div class="ztn-step__text">
+                    Im Dialog hast du zwei Möglichkeiten:
+                    <ul style="margin-top:6px;padding-left:18px">
+                      <li><strong>„Berichtsheft exportieren"</strong> – exportiert alle Einträge des gesamten Ausbildungszeitraums.</li>
+                      <li><strong>Zeitraum auswählen</strong> → <em>„Berichtsheft in Zeitraum exportieren"</em> – exportiert nur die Wochen im gewählten Zeitraum.</li>
+                    </ul>
+                  </div>
+                  <img class="ztn-step__img" src="${img('export-dialog.png')}" alt="Export-Dialog: komplettes Berichtsheft oder Zeitraum wählen" loading="lazy">
+                </li>
+                <li>
+                  <div class="ztn-step__text">
+                    Die PDF öffnet sich im Browser. Klicke auf das <strong>Drucken-Symbol</strong>
+                    in der Browser-Toolbar.
+                  </div>
+                  <img class="ztn-step__img" src="${img('drucken.png')}" alt="Browser-Toolbar: Drucken-Symbol anklicken" loading="lazy">
+                </li>
+                <li>
+                  <div class="ztn-step__text">
+                    Wähle als Drucker <em>„Als PDF speichern"</em> aus und klicke auf
+                    <strong>„Speichern"</strong>. Wähle einen Speicherort auf deinem Rechner –
+                    diese PDF-Datei lädst du hier hoch.
+                  </div>
+                  <img class="ztn-step__img" src="${img('als-pdf-speichern.png')}" alt="Druckdialog: Als PDF speichern auswählen" loading="lazy">
+                </li>
+              </ol>
+            </div>
+          </details>
+
           <div class="ztn-drop" id="ihkDrop">
             ${Icon('upload', { cls: 'ztn-drop__icon' })}
             <div class="ztn-drop__text">
