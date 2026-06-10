@@ -159,7 +159,7 @@ function setupSidebarTooltips(sidebar) {
   document.addEventListener('click', (e) => {
     if (e.target.closest('#sidebarToggle')) hide();
   });
-  window.addEventListener('scroll', hide, true);
+  window.addEventListener('scroll', hide, { capture: true, passive: true });
 }
 
 /* Topbar = jetzt der DS-Header (sc-nav). Die in-page #topbar-Leiste ist
