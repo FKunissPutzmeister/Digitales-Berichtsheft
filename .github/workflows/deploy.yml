@@ -8,6 +8,9 @@ jobs:
   deploy:
     runs-on: self-hosted
     steps:
+      - name: Git safe directory
+        run: git config --global --add safe.directory C:/inetpub/Berichtsheft
+
       - name: Code aktualisieren
         working-directory: C:\inetpub\Berichtsheft
         run: git pull origin Digitales-Berichtsheft
