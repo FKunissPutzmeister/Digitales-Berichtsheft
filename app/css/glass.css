@@ -1273,3 +1273,11 @@ html.sidebar-init-collapsed .main-wrapper {
     margin-right: var(--lg-gap);
   }
 }
+
+/* ── Responsive: Kompakter Tablet-Landscape (Surface Pro 13", iPad Pro 11"/12.9" Landscape) ──
+   Pendant zum 1280px-Breakpoint in layout.css: die Glass-Shell nutzt --lg-sidebar-w
+   statt --sidebar-w, daher hier ebenfalls verschmälern. Sidebar + .main-wrapper
+   (margin-left: calc(var(--lg-sidebar-w) + …)) passen sich automatisch an. */
+@media (max-width: 1280px) {
+  :root { --lg-sidebar-w: 220px; }
+}

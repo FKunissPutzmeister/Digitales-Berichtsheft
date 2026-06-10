@@ -404,11 +404,19 @@
   color: var(--pm-grey-900);
 }
 
-/* ── Tablet: Toolbar scrollt horizontal statt umzubrechen ── */
+/* ── Tablet: Toolbar scrollt horizontal statt umzubrechen ──
+   Hinweis: Quill macht das .ql-editor-wrap-Div selbst zum .ql-container und
+   hängt die Toolbar als Geschwister davor – daher direkt .ql-toolbar.ql-snow
+   selektieren (ein Nachfahren-Selektor über .ql-editor-wrap matcht nie). */
 @media (max-width: 1280px) {
-  .ql-editor-wrap .ql-toolbar.ql-snow {
+  .ql-toolbar.ql-snow {
+    display: flex;
+    align-items: center;
     flex-wrap: nowrap;
     overflow-x: auto;
     -webkit-overflow-scrolling: auto;
+  }
+  .ql-toolbar.ql-snow .ql-formats {
+    flex-shrink: 0;
   }
 }
