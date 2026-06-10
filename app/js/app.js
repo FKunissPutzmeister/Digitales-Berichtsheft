@@ -2,6 +2,19 @@
    APP.JS – Auth-Guard, Sidebar, Toast, globale Hilfsfunktionen
    =================================================================== */
 
+/**
+ * Verzögert fn-Aufrufe – verhindert übermäßige Ausführung bei Resize/Input.
+ * @param {Function} fn
+ * @param {number} delay - Millisekunden
+ */
+function debounce(fn, delay = 150) {
+  let timer;
+  return (...args) => {
+    clearTimeout(timer);
+    timer = setTimeout(() => fn.apply(this, args), delay);
+  };
+}
+
 /* ── Auth Guard ── */
 async function requireAuth() {
   const user = await DB.fetchCurrentUser();
@@ -724,7 +737,7 @@ class PMSelect {
 
     document.addEventListener('mousedown', this.outsideClickHandler);
     document.addEventListener('keydown', this.escapeHandler);
-    window.addEventListener('scroll', this.repositionHandler, true);
+    window.addEventListener('scroll', this.repositionHandler, { capture: true, passive: true });
     window.addEventListener('resize', this.repositionHandler);
   }
 
@@ -741,7 +754,7 @@ class PMSelect {
 
     document.removeEventListener('mousedown', this.outsideClickHandler);
     document.removeEventListener('keydown', this.escapeHandler);
-    window.removeEventListener('scroll', this.repositionHandler, true);
+    window.removeEventListener('scroll', this.repositionHandler, { capture: true });
     window.removeEventListener('resize', this.repositionHandler);
   }
 
