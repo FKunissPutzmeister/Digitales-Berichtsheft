@@ -50,6 +50,8 @@
   flex-shrink: 0;
   border-radius: var(--r-sm);
   object-fit: contain;
+  /* Für sanftes Ausblenden im Collapsed-State (siehe Collapsed-Block) */
+  transition: width var(--t-normal), opacity var(--t-normal);
 }
 .sidebar__logo-text {
   overflow: hidden;
@@ -378,6 +380,17 @@ html:not([data-role="admin"]) .nav-admin-only {
 .sidebar.collapsed .sidebar__toggle svg {
   transform: rotate(180deg);
 }
+/* Collapsed: gelbes Logo-Quadrat ausblenden, Toggle ohne Fläche mittig —
+   im schmalen Header passen Logo-Mark + Toggle nicht nebeneinander, der
+   angeschnittene Logo-Rest erschien als gelbes Viereck am Toggle.
+   (Pendant in glass.css, dort inkl. Theme-Hover-Farben.) */
+.sidebar.collapsed .sidebar__logo-mark { width: 0; opacity: 0; }
+.sidebar.collapsed .sidebar__header    { justify-content: center; }
+.sidebar.collapsed .sidebar__toggle {
+  background: transparent;
+  border-color: transparent;
+  box-shadow: none;
+}
 .sidebar.collapsed .sidebar__footer {
   padding: var(--sp-3) var(--sp-2);
   flex-direction: column;
@@ -438,6 +451,9 @@ html.sidebar-init-collapsed .sidebar__user-info    { opacity: 0; max-width: 0; o
 html.sidebar-init-collapsed .sidebar__link        { justify-content: center; padding: 0; }
 html.sidebar-init-collapsed .sidebar__link::before { display: none; }
 html.sidebar-init-collapsed .sidebar__toggle svg   { transform: rotate(180deg); }
+html.sidebar-init-collapsed .sidebar__logo-mark    { width: 0; opacity: 0; }
+html.sidebar-init-collapsed .sidebar__header       { justify-content: center; }
+html.sidebar-init-collapsed .sidebar__toggle       { background: transparent; border-color: transparent; box-shadow: none; }
 html.sidebar-init-collapsed .sidebar__footer      { padding: var(--sp-3) var(--sp-2); flex-direction: column; gap: var(--sp-2); }
 html.sidebar-init-collapsed .sidebar__user-name   { opacity: 0; max-width: 0; overflow: hidden; }
 html.sidebar-init-collapsed .sidebar__user-link   { flex: none; justify-content: center; padding: 2px; gap: 0; }

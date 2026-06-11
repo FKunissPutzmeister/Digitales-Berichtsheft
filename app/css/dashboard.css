@@ -1606,8 +1606,7 @@ html[data-theme="dark"] .b-hero__kw {
 }
 [data-theme="dark"] .b-hero__bottom { border-top-color: rgba(255,255,255,0.08); }
 
-.b-btn-primary,
-.b-btn-ghost {
+.b-btn-primary {
   appearance: none; border: 0; cursor: pointer;
   font-weight: 600; font-size: 14px; line-height: 1;
   border-radius: 999px;
@@ -1634,19 +1633,20 @@ html[data-theme="dark"] .b-hero__kw {
   background: var(--pm-white);
   color: var(--pm-grey-900);
 }
-[data-theme="dark"] .b-btn-primary:hover { background: #f6f6f6; }
-.b-btn-ghost {
-  padding: 10px 14px;
-  background: transparent;
-  color: var(--pm-grey-700);
-}
-.b-btn-ghost:hover { background: rgba(14,17,22,0.06); color: var(--pm-grey-900); }
-[data-theme="dark"] .b-btn-ghost { color: rgba(255,255,255,0.7); }
-[data-theme="dark"] .b-btn-ghost:hover { background: rgba(255,255,255,0.08); color: #fff; }
+/* Hover hellt die dunkle Fläche dezent auf. Vorher: literales #f6f6f6
+   (near-white) bei near-white Text (--pm-grey-900 im Dark-Theme) →
+   unlesbar weiß-auf-weiß. */
+[data-theme="dark"] .b-btn-primary:hover { background: var(--pm-grey-100); }
 
 @media (max-width: 1280px) {
   .b-hero { padding: 24px 28px 20px; }
   .b-hero__kw { font-size: 64px; }
+  /* Tablet: Wochen-Info oben, Kalender gestapelt darunter (volle Breite) */
+  .b-hero__middle {
+    grid-template-columns: 1fr;
+    align-items: stretch;
+    gap: 18px;
+  }
   .b-weekmini { grid-template-columns: repeat(7, 1fr); }
 }
 

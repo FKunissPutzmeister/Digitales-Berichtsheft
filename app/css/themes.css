@@ -1,0 +1,107 @@
+/* ===================================================================
+   THEMES.CSS – Custom-Designs (Theme-Engine, Loader + geteilte Infra)
+   -------------------------------------------------------------------
+   Wird auf ALLEN Seiten NACH allen anderen Stylesheets geladen.
+   Die theme-spezifischen Token-Overrides/Hintergründe/Komponenten-
+   Spiegelungen liegen in den per-Theme-Dateien (via @import unten):
+
+   • theme-hyperspace.css  [data-theme="hyperspace"] – Weltall/Warp, dunkel, Cyan/Magenta
+   • theme-cmd.css         [data-theme="cmd"]        – Terminal „color a", schwarz/grün, mono
+   • theme-candy.css       [data-theme="candy"]      – Candy Land, pastell-verspielt, hell
+   • theme-iceland.css     [data-theme="iceland"]    – Schnee & Eis, weiß/eisblau, hell
+
+   Jede dieser Dateien gehört EXKLUSIV ihrem Theme-Designer; jede
+   neue/geänderte Regel MUSS dort unter dem jeweiligen
+   [data-theme="…"]-Scope stehen. Das Standard-Theme (light/dark)
+   darf sich um KEIN Pixel ändern.
+
+   Diese Datei behält nur die GETEILTE Infrastruktur:
+   • @import der vier Theme-Dateien (muss vor allen Regeln stehen)
+   • #pmThemeFX-Basisregeln (DOM-FX-Layer, von js/theme.js verwaltet)
+   • prefers-reduced-motion-Sammelblock
+   • Print-Sammelblock
+
+   js/theme.js setzt data-theme auf <html> (FOUC-frei im <head>), die
+   Auswahl-UI liegt auf der Profil-Seite („Darstellung & Themes").
+
+   VERHALTEN (siehe theme.js): Der Sidebar-Hell/Dunkel-Toggle verlässt
+   bei aktivem Custom-Design das Design und kehrt zum gespeicherten
+   Standard-Modus zurück.
+
+   Hintergrund-Layer: pro Theme werden die beiden von glass.css
+   definierten fixen Ambient-Pseudo-Elemente body::before / body::after
+   umfunktioniert (position:fixed, z-index:0 → hinter .app-shell mit
+   z-index:1, pointer-events:none). Animiert werden AUSSCHLIESSLICH
+   transform/opacity; @media (prefers-reduced-motion: reduce) schaltet
+   alle Animationen ab. Auf der Login-Seite bleiben die Layer aus
+   (body.login-page::before/after { display:none } aus glass.css greift
+   weiterhin, da `display` nirgends gesetzt wird).
+
+   Kontrast-Strategie: Wie der eingebaute Dark-Mode kippen die dunklen
+   Themes die komplette --pm-grey-Skala (hell ↔ dunkel) + Surfaces;
+   Text-/Border-Token bleiben dadurch app-weit lesbar. Komponenten-
+   Regeln, die in anderen Dateien hart an [data-theme="dark"] hängen
+   (Sidebar-Hover, Karten-Borders, Toast, Badges …), sind in
+   theme-hyperspace.css und theme-cmd.css gespiegelt (bewusst je
+   eine eigene Kopie pro Datei).
+   =================================================================== */
+
+@import url("theme-hyperspace.css");
+@import url("theme-cmd.css");
+@import url("theme-candy.css");
+@import url("theme-iceland.css");
+
+/* ===================================================================
+   FX-LAYER-CONTAINER – #pmThemeFX (geteilte Basisregeln)
+   -------------------------------------------------------------------
+   js/theme.js (ensureThemeFX) injiziert pro Custom-Theme einen
+   DOM-Container <div id="pmThemeFX" aria-hidden="true"> als direktes
+   <body>-Kind (außerhalb von #mainContent → überlebt SPA-Navigation,
+   router.js synct nur .modal-overlay). Die Kind-Elemente kommen aus
+   FX_TEMPLATES in theme.js und werden pro Theme in der jeweiligen
+   theme-*.css gestylt ([data-theme="…"] #pmThemeFX …).
+   .app-shell hat z-index:1 (glass.css) → Inhalt liegt über dem Layer.
+   PERF-Regel für die Templates: nur transform/opacity animieren,
+   keine großen filter:blur auf viewportfüllenden fixed Layern.
+   =================================================================== */
+#pmThemeFX {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+/* ===================================================================
+   REDUCED MOTION – alle Theme-Hintergrund-Animationen aus
+   =================================================================== */
+@media (prefers-reduced-motion: reduce) {
+  [data-theme="hyperspace"] body::before,
+  [data-theme="hyperspace"] body::after,
+  [data-theme="cmd"] body::before,
+  [data-theme="cmd"] body::after,
+  [data-theme="candy"] body::before,
+  [data-theme="candy"] body::after,
+  [data-theme="iceland"] body::before,
+  [data-theme="iceland"] body::after {
+    animation: none !important;
+  }
+  /* FX-Layer: Container + alle Kinder (Templates aus theme.js) still */
+  #pmThemeFX,
+  #pmThemeFX * {
+    animation: none !important;
+    transition: none !important;
+  }
+}
+
+/* Print: animierte Layer komplett aus (glass.css blendet body::before/
+   ::after im Print bereits aus – hier nur zur Sicherheit dupliziert). */
+@media print {
+  [data-theme="hyperspace"] body::before, [data-theme="hyperspace"] body::after,
+  [data-theme="cmd"] body::before,        [data-theme="cmd"] body::after,
+  [data-theme="candy"] body::before,      [data-theme="candy"] body::after,
+  [data-theme="iceland"] body::before,    [data-theme="iceland"] body::after {
+    display: none;
+  }
+  #pmThemeFX { display: none !important; }
+}

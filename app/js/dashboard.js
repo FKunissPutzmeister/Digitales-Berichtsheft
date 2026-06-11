@@ -453,7 +453,6 @@ async function renderAzubiDashboard(user) {
             Bericht öffnen
             <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="width:16px;height:16px"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
           </a>
-          <button type="button" class="b-btn-ghost">Aus KW ${kw - 1 || 52} vorbefüllen</button>
         </div>
       </section>
 

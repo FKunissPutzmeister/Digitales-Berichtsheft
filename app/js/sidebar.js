@@ -76,6 +76,21 @@ function buildSidebar(activeNavId) {
 
   document.getElementById(activeNavId)?.classList.add('active');
 
+  /* Tablet-Auto-Collapse (769–1280px): beim echten Page-Load eingeklappt
+     starten — unabhängig von localStorage('sidebarCollapsed'). Gegenstück
+     zum Pre-Paint-Marker html.sidebar-init-collapsed (theme.js); die
+     Klasse muss hier synchron sitzen, BEVOR app.js den Marker im
+     requestAnimationFrame entfernt, sonst klappt die Sidebar nach dem
+     ersten Frame sichtbar auf. Manuelles Aufklappen über den Toggle
+     (app.js) funktioniert danach normal; SPA-Navigationen durchlaufen
+     buildSidebar nicht erneut (router.js patcht initPage), der Session-
+     Zustand bleibt also erhalten. localStorage wird hier bewusst NICHT
+     beschrieben, damit die Desktop-Präferenz unangetastet bleibt. */
+  if (window.matchMedia &&
+      window.matchMedia('(min-width: 769px) and (max-width: 1280px)').matches) {
+    sidebar.classList.add('collapsed');
+  }
+
   // Tooltips für Collapsed-State: Label-Text als data-tooltip pflegen.
   sidebar.querySelectorAll('.sidebar__link').forEach(link => {
     const label = link.querySelector('.sidebar__link-label')?.textContent.trim();

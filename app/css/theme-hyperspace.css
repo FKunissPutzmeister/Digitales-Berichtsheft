@@ -1,0 +1,632 @@
+/* ===================================================================
+   THEME-HYPERSPACE.CSS – tiefes Weltall, Neon-Cyan/-Magenta
+   -------------------------------------------------------------------
+   Wird via @import aus themes.css geladen (dort liegen auch die
+   geteilten Blöcke: #pmThemeFX-Basis, prefers-reduced-motion, print).
+   Diese Datei gehört EXKLUSIV dem Hyperspace-Designer.
+
+   HINWEIS: Die Komponenten-Spiegelungen am Dateiende existieren
+   bewusst DOPPELT (identische Kopie in theme-cmd.css) – die früheren
+   Komma-Selektoren wurden aufgespalten, damit beide Themes unabhängig
+   editierbar sind.
+
+   HINTERGRUND: originalgetreue Portierung des CodePen „Hyperspace"
+   (Noah Blon, DpNRyR) als DOM-FX-Layer – siehe Abschnitt
+   HYPERSPACE-TUNNEL unten. Das DOM dazu liefert FX_TEMPLATES.hyperspace
+   in js/theme.js, die NASA-Wandtextur (PIA09959, public domain) liegt
+   in ../assets/backgrounds/hyperspace-stars.jpg.
+   =================================================================== */
+html[data-theme="hyperspace"] { color-scheme: dark; }
+
+[data-theme="hyperspace"] {
+  /* Akzent: Neon-Cyan ersetzt das Brand-Gelb (CI hier bewusst aus) */
+  --pm-yellow:          #2FD6F2;
+  --pm-yellow-dark:     #6BE2F7;
+  --pm-yellow-darker:   #4ADEF5;
+  --pm-yellow-light:    #A5F3FC;
+  --pm-yellow-pale:     rgba(47, 214, 242, 0.24);
+  --pm-yellow-bg:       rgba(47, 214, 242, 0.14);
+  --on-yellow-text:     #04121F;
+
+  /* Grau-Skala → Weltraum-Violett (Karten heller als Body).
+     Die drei Surface-Stufen sind TRANSLUZENT (rgba statt Hex), damit
+     der Hyperspace-Tunnel (#pmThemeFX) hinter Karten/Toolbars
+     durchscheint; Alpha bleibt hoch genug, dass Text auf den Flächen
+     >= 4.5:1 Kontrast behält (effektive Fläche über Schwarz bleibt
+     dunkler als die alten Hex-Werte). */
+  --pm-white:           rgba(28, 26, 62, 0.86);
+  --pm-grey-50:         rgba(10, 9, 33, 0.66);
+  --pm-grey-100:        rgba(99, 92, 190, 0.30);
+  --pm-grey-200:        #37336B;
+  --pm-grey-300:        #4D4889;
+  --pm-grey-400:        #8F8CC4;
+  --pm-grey-500:        #ABA8DA;
+  --pm-grey-600:        #C4C2EA;
+  --pm-grey-700:        #D9D8F4;
+  --pm-grey-800:        #EAE9FB;
+  --pm-grey-900:        #F6F6FF;
+
+  /* Status-Tints als Overlays (wie Dark-Mode) */
+  --color-success-light: rgba(67, 168, 86, 0.18);
+  --color-error-light:   rgba(229, 57, 53, 0.20);
+  --color-info-light:    rgba(25, 118, 210, 0.22);
+  --color-warning-light: rgba(244, 81, 30, 0.20);
+  /* Mid-Töne heller als die Light-Defaults (#E53935/#1976D2), sonst
+     schwacher Kontrast auf #1C1A3E (vgl. cmd: #FF6B5E/#5AA8F0).
+     Error = Neon-Coral mit Magenta-Anteil, Info = helles Cyan –
+     beides passend zur Hyperspace-Palette. */
+  --color-error-mid:     #FF6B81;
+  --color-info-mid:      #6FD3F2;
+  --status-offen-bg:        rgba(154, 154, 200, 0.18);
+  --status-freigegeben-bg:  rgba(25, 118, 210, 0.24);
+  --status-genehmigt-bg:    rgba(67, 168, 86, 0.20);
+  --status-abgelehnt-bg:    rgba(229, 57, 53, 0.24);
+
+  /* Schatten/Ringe */
+  --shadow-xs:  0 1px 2px rgba(0, 0, 6, 0.50);
+  --shadow-sm:  0 1px 2px rgba(0, 0, 6, 0.45), 0 1px 3px rgba(0, 0, 6, 0.55);
+  --shadow-md:  0 2px 4px rgba(0, 0, 6, 0.45), 0 6px 14px rgba(0, 0, 6, 0.55);
+  --shadow-lg:  0 4px 10px rgba(0, 0, 6, 0.50), 0 14px 28px rgba(0, 0, 6, 0.58);
+  --shadow-xl:  0 8px 16px rgba(0, 0, 6, 0.55), 0 24px 48px rgba(0, 0, 6, 0.68);
+  /* Neon-Leuchtspur: Akzent-Schatten + Fokus-Ringe glühen Cyan */
+  --shadow-yellow:    0 4px 18px rgba(47, 214, 242, 0.35), 0 0 26px rgba(47, 214, 242, 0.28);
+  --shadow-yellow-lg: 0 8px 34px rgba(47, 214, 242, 0.45), 0 0 44px rgba(47, 214, 242, 0.30);
+  --ring-yellow:    0 0 0 3px rgba(47, 214, 242, 0.34), 0 0 18px rgba(47, 214, 242, 0.42);
+  --ring-yellow-sm: 0 0 0 2px rgba(47, 214, 242, 0.30), 0 0 12px rgba(47, 214, 242, 0.36);
+  --ring-error:     0 0 0 3px rgba(229, 57, 53, 0.32);
+  --ring-info:      0 0 0 3px rgba(25, 118, 210, 0.30);
+
+  /* Inverse Surfaces / Topbar / Overlay */
+  --sidebar-bg:           #121030;
+  --inverse-surface:      #121030;
+  --inverse-surface-soft: #1C1A3E;
+  --inverse-surface-mid:  #262350;
+  --topbar-bg-glass:      rgba(18, 16, 48, 0.78);
+  --surface-overlay:      rgba(3, 2, 14, 0.62);
+
+  /* Glass-Token (glass.css) */
+  --glass-bg:           rgba(30, 27, 66, 0.55);
+  --glass-bg-strong:    rgba(30, 27, 66, 0.80);
+  --glass-bg-tint:      rgba(72, 28, 92, 0.40);
+  --glass-border:       rgba(160, 170, 255, 0.16);
+  --glass-border-soft:  rgba(160, 170, 255, 0.08);
+  --glass-highlight:    rgba(190, 215, 255, 0.12);
+  --glass-shadow:       0 1px 0 rgba(190,215,255,0.08) inset,
+                        0 -1px 0 rgba(0,0,10,0.35) inset,
+                        0 14px 36px rgba(0,0,10,0.50),
+                        0 2px 8px rgba(0,0,10,0.40);
+  --ambient-yellow:     rgba(47, 214, 242, 0.10);
+  --ambient-yellow-2:   rgba(232, 64, 220, 0.06);
+  --ambient-neutral:    rgba(120, 80, 220, 0.07);
+
+  /* App-Hintergrund AUS – der DOM-Tunnel (#pmThemeFX) übernimmt.
+     body bekommt nur tiefes Schwarz (s. Abschnitt HYPERSPACE-TUNNEL),
+     die Sidebar wird transluzent, damit der Flug durchscheint. */
+  --app-bg-image:       none;
+  --app-bg-overlay:     none;
+  --app-bg-vignette:    none;
+  --sidebar-bg-image:   linear-gradient(180deg, rgba(20, 18, 58, 0.80) 0%, rgba(11, 10, 40, 0.88) 100%);
+  --sidebar-glass:      rgba(14, 12, 40, 0.72);
+  --sidebar-glass-deep: rgba(10, 9, 30, 0.88);
+  --sidebar-line:       rgba(47, 214, 242, 0.32);
+
+  /* Liquid-Glass-Pill-Token (Floating Sidebar) */
+  --lg-tint:           rgba(28, 26, 62, 0.62);
+  --lg-tint-strong:    rgba(34, 31, 74, 0.82);
+  --lg-tint-soft:      rgba(28, 26, 62, 0.42);
+  --lg-tint-warm:      rgba(64, 30, 86, 0.42);
+  --lg-sidebar:        rgba(17, 15, 44, 0.74);
+  --lg-border:         rgba(150, 160, 255, 0.16);
+  --lg-border-soft:    rgba(150, 160, 255, 0.08);
+  --lg-edge:           rgba(0, 0, 12, 0.45);
+  --lg-spec:           rgba(140, 220, 255, 0.30);
+  --lg-spec-soft:      rgba(140, 220, 255, 0.10);
+  --lg-shadow:
+    0 1px 0 rgba(170,190,255,0.10) inset,
+    0 -1px 0 rgba(0,0,12,0.40) inset,
+    0 1px 3px rgba(0,0,12,0.50),
+    0 10px 28px rgba(0,0,12,0.50),
+    0 36px 72px rgba(0,0,12,0.55);
+  --lg-shadow-lift:
+    0 1px 0 rgba(170,190,255,0.12) inset,
+    0 -1px 0 rgba(0,0,12,0.50) inset,
+    0 2px 6px rgba(0,0,12,0.55),
+    0 18px 42px rgba(0,0,12,0.60),
+    0 48px 96px rgba(0,0,12,0.65);
+  --lg-shadow-pill:
+    0 1px 0 rgba(170,190,255,0.10) inset,
+    0 2px 6px rgba(0,0,12,0.50),
+    0 14px 36px rgba(0,0,12,0.55),
+    0 40px 80px rgba(0,0,12,0.60);
+  --lg-mesh-1: rgba(47, 214, 242, 0.10);
+  --lg-mesh-2: rgba(124, 58, 237, 0.10);
+  --lg-mesh-3: rgba(232, 64, 220, 0.07);
+  --lg-mesh-4: rgba(34, 122, 220, 0.07);
+  --lg-mesh-base: #0A0921;
+}
+
+/* ===================================================================
+   HYPERSPACE-TUNNEL – CodePen „Hyperspace" (Noah Blon, DpNRyR)
+   -------------------------------------------------------------------
+   Originalgetreue Portierung (Variante A: fade-Keyframes auf den
+   Wänden): zwei um 6s versetzte 1000×1000-Würfel (je 5 Wände mit
+   NASA-Textur PIA09959) fliegen per perspective:5px durch den
+   Viewport. Geometrie + Timing (12s, 6s-Versatz) EXAKT wie im Pen.
+   DOM liefert FX_TEMPLATES.hyperspace in js/theme.js (#pmThemeFX:
+   fixed, inset:0, z-index:0, pointer-events:none – Basisregeln in
+   themes.css); #pmThemeFX ersetzt html/body des Pens und zentriert
+   die Szene per Flex. .app-shell (z-index:1, glass.css) liegt
+   darüber; die Surfaces oben im Token-Block sind transluzent, damit
+   der Flug durchscheint. Animiert werden NUR transform/opacity. */
+
+/* Ambient-Orbs (glass.css body::before/::after) aus – Tunnel übernimmt */
+[data-theme="hyperspace"] body::before,
+[data-theme="hyperspace"] body::after { display: none; }
+
+/* Body hinter dem FX-Layer tiefschwarz (auch vor DOMContentLoaded,
+   solange #pmThemeFX noch nicht injiziert ist → kein heller Blitz) */
+[data-theme="hyperspace"] body:not(.login-page) { background-color: #000; }
+
+[data-theme="hyperspace"] #pmThemeFX {
+  background: #000;             /* body-Schwarz des Original-Pens */
+  display: flex;                /* ersetzt das inline-block-Zentrieren */
+  align-items: center;
+  justify-content: center;
+}
+/* Statischer Schleier + Rand-Vignette ÜBER dem Tunnel (paint-order:
+   ::after nach den Kind-Elementen): hebt den Text-Kontrast der
+   transluzenten Flächen. Kein filter, keine Animation. */
+[data-theme="hyperspace"] #pmThemeFX::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(120% 100% at 50% 50%, rgba(0, 0, 6, 0) 38%, rgba(0, 0, 6, 0.50) 100%),
+    linear-gradient(rgba(2, 2, 12, 0.22), rgba(2, 2, 12, 0.22));
+}
+
+/* .scene des Pens: 0×0-Anker exakt in der Viewport-Mitte */
+[data-theme="hyperspace"] .pm-hs-scene {
+  position: relative;
+  width: 0;
+  height: 0;
+  perspective: 5px;
+  perspective-origin: 50% 50%;
+}
+[data-theme="hyperspace"] .pm-hs-wrap {
+  position: absolute;
+  width: 1000px;
+  height: 1000px;
+  left: -500px;
+  top: -500px;
+  transform-style: preserve-3d;
+  animation: pm-hs-move 12s infinite linear;
+  animation-fill-mode: forwards;
+}
+[data-theme="hyperspace"] .pm-hs-wrap:nth-child(2) {
+  animation: pm-hs-move 12s infinite linear;
+  animation-delay: 6s;
+}
+[data-theme="hyperspace"] .pm-hs-wall {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  background: url("../assets/backgrounds/hyperspace-stars.jpg");
+  background-size: cover;
+  animation: pm-hs-fade 12s infinite linear;
+  animation-delay: 0s;
+}
+[data-theme="hyperspace"] .pm-hs-wrap:nth-child(2) .pm-hs-wall {
+  animation-delay: 6s;
+}
+[data-theme="hyperspace"] .pm-hs-wall--right  { transform: rotateY(90deg)  translateZ(500px); }
+[data-theme="hyperspace"] .pm-hs-wall--left   { transform: rotateY(-90deg) translateZ(500px); }
+[data-theme="hyperspace"] .pm-hs-wall--top    { transform: rotateX(90deg)  translateZ(500px); }
+[data-theme="hyperspace"] .pm-hs-wall--bottom { transform: rotateX(-90deg) translateZ(500px); }
+[data-theme="hyperspace"] .pm-hs-wall--back   { transform: rotateX(180deg) translateZ(500px); }
+
+@keyframes pm-hs-move {
+  0%   { transform: translateZ(-500px) rotate(0deg); }
+  100% { transform: translateZ(500px)  rotate(0deg); }
+}
+@keyframes pm-hs-fade {
+  0%   { opacity: 0; }
+  25%  { opacity: 1; }
+  75%  { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+/* Reduced Motion: themes.css stoppt alle FX-Animationen → die Wände
+   blieben bei opacity:0 unsichtbar. Statt schwarzer Leere zeigt der
+   Container ein statisches, abgedunkeltes Sternenfeld. */
+@media (prefers-reduced-motion: reduce) {
+  [data-theme="hyperspace"] #pmThemeFX {
+    background-color: #000;
+    background-image:
+      linear-gradient(rgba(0, 0, 0, 0.55), rgba(0, 0, 0, 0.55)),
+      url("../assets/backgrounds/hyperspace-stars.jpg");
+    background-size: cover, cover;
+    background-position: center, center;
+  }
+  [data-theme="hyperspace"] .pm-hs-scene { display: none; }
+  [data-theme="hyperspace"] .btn-primary:hover:not(:disabled)::after { animation: none; }
+}
+
+/* Print: #pmThemeFX blendet themes.css bereits aus – hier zusätzlich
+   den schwarzen Body neutralisieren. */
+@media print {
+  [data-theme="hyperspace"] body { background: #fff !important; }
+}
+
+/* ===================================================================
+   NEON-/SCI-FI-UI – kreative Akzente (nur Hyperspace)
+   =================================================================== */
+
+/* Seitentitel: dezenter Cyan-Glow */
+[data-theme="hyperspace"] .page-title {
+  text-shadow:
+    0 0 10px rgba(47, 214, 242, 0.40),
+    0 0 28px rgba(47, 214, 242, 0.16);
+}
+
+/* Primär-Buttons: Neon-Glow-Saum mit Hover-Puls (animiert NUR die
+   opacity eines Pseudo-Glow-Layers – GPU-freundlich) */
+[data-theme="hyperspace"] .btn-primary { position: relative; }
+[data-theme="hyperspace"] .btn-primary::after {
+  content: '';
+  position: absolute;
+  inset: -3px;
+  border-radius: inherit;
+  pointer-events: none;
+  opacity: 0;
+  box-shadow:
+    0 0 16px rgba(47, 214, 242, 0.55),
+    0 0 34px rgba(232, 64, 220, 0.22);
+  transition: opacity var(--t-fast);
+}
+[data-theme="hyperspace"] .btn-primary:hover:not(:disabled)::after {
+  opacity: 1;
+  animation: pm-hs-pulse 1.6s ease-in-out infinite;
+}
+@keyframes pm-hs-pulse {
+  0%, 100% { opacity: 0.55; }
+  50%      { opacity: 1; }
+}
+
+/* Outline/Ghost: leise Cyan-Aura beim Hover */
+[data-theme="hyperspace"] .btn-outline:hover:not(:disabled),
+[data-theme="hyperspace"] .btn-ghost:hover:not(:disabled) {
+  box-shadow: 0 0 12px rgba(47, 214, 242, 0.20);
+}
+
+/* Scrollbar: Neon-Verlauf Cyan → Magenta */
+[data-theme="hyperspace"] ::-webkit-scrollbar-track { background: rgba(255, 255, 255, 0.03); }
+[data-theme="hyperspace"] ::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, rgba(47, 214, 242, 0.70), rgba(178, 64, 232, 0.70));
+}
+[data-theme="hyperspace"] ::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(180deg, rgba(47, 214, 242, 0.95), rgba(232, 64, 220, 0.95));
+}
+
+/* Interaktive Karten: Cyan-Kante beim Hover (statisch, kein Filter) */
+[data-theme="hyperspace"] .card--interactive:hover {
+  border-color: rgba(47, 214, 242, 0.35);
+}
+
+/* ===================================================================
+   KOMPONENTEN-SPIEGELUNGEN für das DUNKLE Custom-Theme
+   -------------------------------------------------------------------
+   Diese Regeln existieren in components.css/glass.css/layout.css nur
+   unter [data-theme="dark"] und würden hier sonst mit ihren
+   Light-Werten (z.B. rgba(0,0,0,…)-Hover auf dunkler Fläche,
+   near-white Active-Pill) laufen. 1:1 gespiegelt. Identische Kopie
+   (gewollt) in theme-cmd.css – ehemalige Komma-Selektoren wurden
+   pro Theme aufgespalten.
+   =================================================================== */
+
+/* Text auf Akzent-Flächen bleibt dunkel (vgl. components.css §dark) */
+[data-theme="hyperspace"] .btn-primary,
+[data-theme="hyperspace"] .avatar,
+[data-theme="hyperspace"] .pm-select__option--selected {
+  color: var(--on-yellow-text);
+}
+[data-theme="hyperspace"] ::selection {
+  background: var(--pm-yellow);
+  color: var(--on-yellow-text);
+}
+[data-theme="hyperspace"] .btn-outline-yellow:hover:not(:disabled) {
+  color: var(--pm-yellow);
+}
+
+/* Sidebar (Floating-Pill, Light-Defaults nutzen rgba(0,0,0,…)) */
+[data-theme="hyperspace"] .sidebar__link { color: var(--pm-grey-600); }
+[data-theme="hyperspace"] .sidebar__link:hover {
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--pm-grey-900);
+}
+[data-theme="hyperspace"] .sidebar__link.active {
+  background: rgba(47, 214, 242, 0.16);
+  color: var(--pm-yellow-dark);
+  box-shadow: 0 1px 0 rgba(255,255,255,0.08) inset,
+              0 0 14px rgba(47, 214, 242, 0.30),
+              0 2px 8px rgba(0,0,12,0.40);
+}
+[data-theme="hyperspace"] .sidebar__divider { background: rgba(255, 255, 255, 0.08); }
+[data-theme="hyperspace"] .sidebar__footer { border-top-color: rgba(255, 255, 255, 0.06); }
+[data-theme="hyperspace"] .sidebar__user-link { background: rgba(255, 255, 255, 0.06); }
+[data-theme="hyperspace"] .sidebar__user-link:hover { background: rgba(255, 255, 255, 0.10); }
+[data-theme="hyperspace"] .sidebar__icon-btn {
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--pm-grey-700);
+}
+[data-theme="hyperspace"] .sidebar__icon-btn:hover { background: rgba(255, 255, 255, 0.12); }
+[data-theme="hyperspace"] .sidebar__toggle:hover { background: rgba(255, 255, 255, 0.08); }
+[data-theme="hyperspace"] .sidebar__nav::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.10); }
+[data-theme="hyperspace"] .sidebar.collapsed .sidebar__toggle { color: rgba(255, 255, 255, 0.70); }
+[data-theme="hyperspace"] .role-badge {
+  background: rgba(255, 255, 255, 0.10);
+  color: var(--pm-grey-700);
+}
+
+/* Theme-Toggle-Icon: dunkle Custom-Themes zeigen den Mond
+   (layout.css schaltet das nur unter [data-theme="dark"]) */
+[data-theme="hyperspace"] .sidebar__theme-icon--sun { display: none; }
+[data-theme="hyperspace"] .sidebar__theme-icon--moon { display: block; }
+
+/* Karten: Light-Sheen aus glass.css ist auf dunklen Surfaces zu hart */
+[data-theme="hyperspace"] .card,
+[data-theme="hyperspace"] .stat-card,
+[data-theme="hyperspace"] .accordion__item {
+  background-image: linear-gradient(180deg, rgba(255, 255, 255, 0.04) 0%, rgba(255, 255, 255, 0) 35%);
+  box-shadow: var(--elev-rest), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+[data-theme="hyperspace"] .card:hover,
+[data-theme="hyperspace"] .stat-card:hover,
+[data-theme="hyperspace"] .accordion__item:hover {
+  box-shadow: var(--elev-hover), inset 0 1px 0 rgba(255, 255, 255, 0.07);
+}
+[data-theme="hyperspace"] .stat-card::after {
+  background: linear-gradient(115deg, transparent 30%, rgba(255, 255, 255, 0.06) 50%, transparent 70%);
+}
+[data-theme="hyperspace"] .card,
+[data-theme="hyperspace"] .stat-card,
+[data-theme="hyperspace"] .accordion__item,
+[data-theme="hyperspace"] .profil-section,
+[data-theme="hyperspace"] .verwaltung-panel {
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+/* Modal-Sheen analog dämpfen + „Sternenrand": Cyan-Hairline innen
+   und weiche Außen-Aura statt der neutralen Glas-Kante */
+[data-theme="hyperspace"] .modal {
+  background-image: linear-gradient(180deg, rgba(255, 255, 255, 0.05) 0%, rgba(255, 255, 255, 0) 30%);
+  box-shadow: var(--shadow-xl),
+              0 0 34px rgba(47, 214, 242, 0.16),
+              inset 0 1px 0 rgba(255,255,255,0.06),
+              inset 0 0 0 1px rgba(47, 214, 242, 0.28);
+}
+
+/* Toast braucht auf dunklem Body eine Hairline */
+[data-theme="hyperspace"] .toast {
+  background: var(--inverse-surface-soft);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+/* Dropdown: Danger-Eintrag heller (vgl. glass.css §dark) */
+[data-theme="hyperspace"] .dropdown__item--danger { color: var(--color-error-mid); }
+[data-theme="hyperspace"] .dropdown__item--danger:hover {
+  background: rgba(229, 57, 53, 0.14);
+  color: #F18581;
+}
+
+/* Status-Badges: hellere Textfarben auf Tint-Hintergründen */
+[data-theme="hyperspace"] .badge--offen        { color: var(--pm-grey-600); }
+[data-theme="hyperspace"] .badge--freigegeben  { color: #6FB1F2; }
+[data-theme="hyperspace"] .badge--genehmigt    { color: #6BD089; }
+[data-theme="hyperspace"] .badge--abgelehnt    { color: #F18581; }
+[data-theme="hyperspace"] .badge--grey         { color: var(--pm-grey-700); }
+
+/* Stat-Card-Icons als Tint-Overlays */
+[data-theme="hyperspace"] .stat-card__icon--yellow  { background: var(--pm-yellow-bg); color: var(--pm-yellow); }
+[data-theme="hyperspace"] .stat-card__icon--success { background: rgba(67, 168, 86, 0.18); color: #6BD089; }
+[data-theme="hyperspace"] .stat-card__icon--info    { background: rgba(25, 118, 210, 0.20); color: #6FB1F2; }
+[data-theme="hyperspace"] .stat-card__icon--error   { background: rgba(229, 57, 53, 0.20); color: #F18581; }
+
+/* Form-Hover: sichtbarer Surface-Lift statt rgba(0,0,0,…) */
+[data-theme="hyperspace"] .form-control:hover:not(:focus):not(:disabled) {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+/* Week-Toolbar (wochenansicht, in glass.css hart auf dark gemünzt) */
+[data-theme="hyperspace"] .week-toolbar {
+  background: var(--pm-white);
+  border-color: rgba(255, 255, 255, 0.06);
+  box-shadow: var(--elev-rest), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+/* Topbar-Scroll-Schatten dunkel statt hell */
+[data-theme="hyperspace"] .topbar.is-scrolled {
+  box-shadow: inset 0 1px 0 var(--glass-highlight),
+              0 1px 0 rgba(255,255,255,0.06),
+              0 10px 28px rgba(0, 0, 0, 0.5);
+}
+
+/* Profil-Logout-Karte (profil.css spiegelt nur dark) */
+[data-theme="hyperspace"] .profil-logout {
+  background: rgba(255,255,255,0.03);
+  border-color: rgba(255,255,255,0.08);
+  border-left-color: var(--color-error-mid);
+}
+
+/* ── Bento-Dashboard (dashboard.css spiegelt nur [data-theme="dark"]) ──
+   1:1-Spiegelung ALLER Dark-.b-*-Regeln aus dashboard.css. Ohne sie
+   laufen hier die Light-Basisregeln: near-white .b-btn-primary mit
+   weißem Text, helle PNG-Hintergrund-Tiles mit near-white Text,
+   helle .b-day/.b-status-Flächen etc. */
+
+/* Material: Glass (dashboard.css §Glass) */
+[data-theme="hyperspace"] .b-tile--glass {
+  background: linear-gradient(180deg, rgba(30,33,40,0.72) 0%, rgba(20,22,28,0.62) 100%);
+  border: 1px solid rgba(255,255,255,0.08);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,0.06),
+    0 1px 2px rgba(0,0,0,0.4),
+    0 12px 32px -8px rgba(0,0,0,0.55);
+}
+
+/* Hero (Aktuelle Woche) */
+html[data-theme="hyperspace"] .b-hero {
+  background-image:
+    linear-gradient(105deg, rgba(8,10,14,0.20) 0%, rgba(8,10,14,0.08) 44%, rgba(8,10,14,0.00) 100%),
+    url("../assets/backgrounds/tile-series-week-dark.png?v=20260602-series");
+}
+html[data-theme="hyperspace"] .b-hero::before {
+  background:
+    radial-gradient(ellipse 32% 56% at 24% 56%, rgba(8,10,14,0.46), rgba(8,10,14,0.12) 58%, transparent 76%),
+    radial-gradient(ellipse 28% 38% at 78% 58%, rgba(8,10,14,0.10), transparent 70%);
+}
+html[data-theme="hyperspace"] .b-hero__eyebrow,
+html[data-theme="hyperspace"] .b-hero__kw small {
+  color: rgba(255,255,255,0.62);
+}
+html[data-theme="hyperspace"] .b-hero__kw {
+  color: #fff;
+}
+[data-theme="hyperspace"] .b-status--offen { background: rgba(255,255,255,0.08); color: rgba(255,255,255,0.85); border-color: transparent; }
+[data-theme="hyperspace"] .b-hero__bottom { border-top-color: rgba(255,255,255,0.08); }
+
+/* CTA "Bericht öffnen": Basisregel wäre near-white auf near-white */
+[data-theme="hyperspace"] .b-btn-primary {
+  background: var(--pm-white);
+  color: var(--pm-grey-900);
+}
+/* Hover hellt dezent auf (kein literales near-white — Text ist near-white). */
+[data-theme="hyperspace"] .b-btn-primary:hover { background: var(--pm-grey-100); }
+
+/* Ausbildung (Azubi-Kachel mit Donut) */
+html[data-theme="hyperspace"] .b-azubi::before {
+  background:
+    radial-gradient(circle at 50% 44%, rgba(10,12,16,0.70) 0%, rgba(10,12,16,0.54) 24%, rgba(10,12,16,0.10) 42%, transparent 56%),
+    linear-gradient(180deg, rgba(10,12,16,0.10) 0%, transparent 34%, transparent 66%, rgba(10,12,16,0.18) 100%);
+}
+html[data-theme="hyperspace"] .b-azubi {
+  background-image:
+    linear-gradient(160deg, rgba(10,12,16,0.16) 0%, rgba(10,12,16,0.00) 100%),
+    url("../assets/backgrounds/tile-series-training-dark.png?v=20260602-series");
+  color: #fff;
+  border-color: rgba(255,255,255,0.08);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,0.08),
+    0 12px 32px -8px rgba(14,17,22,0.4);
+}
+html[data-theme="hyperspace"] .b-azubi__head .eyebrow { color: rgba(255,255,255,0.55); }
+html[data-theme="hyperspace"] .b-azubi__lj {
+  color: var(--pm-yellow);
+  background: rgba(255,195,0,0.12);
+  border-color: rgba(255,195,0,0.28);
+}
+html[data-theme="hyperspace"] .b-donut circle:first-child { stroke: rgba(255,255,255,0.08); }
+html[data-theme="hyperspace"] .b-donut__pct { color: #fff; }
+html[data-theme="hyperspace"] .b-donut__pct small { color: rgba(255,255,255,0.45); }
+html[data-theme="hyperspace"] .b-donut__label { color: rgba(255,255,255,0.45); }
+html[data-theme="hyperspace"] .b-azubi__foot strong { color: #fff; }
+html[data-theme="hyperspace"] .b-azubi__foot .muted { color: rgba(255,255,255,0.5); }
+html[data-theme="hyperspace"] .b-azubi__segs span { background: rgba(255,255,255,0.08); }
+
+/* Recent (Wochen-Cards-Kachel) */
+html[data-theme="hyperspace"] .b-recent {
+  background-image:
+    linear-gradient(105deg, rgba(8,10,14,0.16) 0%, rgba(8,10,14,0.06) 42%, rgba(8,10,14,0.00) 100%),
+    url("../assets/backgrounds/tile-series-recent-dark.png?v=20260602-series");
+}
+html[data-theme="hyperspace"] .b-recent::before {
+  background:
+    linear-gradient(180deg, rgba(8,10,14,0.10) 0%, transparent 34%),
+    radial-gradient(ellipse 82% 54% at 48% 78%, rgba(8,10,14,0.18), rgba(8,10,14,0.04) 58%, transparent 78%);
+}
+
+/* Wochen-/Tages-Karten */
+[data-theme="hyperspace"] .b-wkcard {
+  background: rgba(255,255,255,0.04);
+  border-color: rgba(255,255,255,0.08);
+  color: #fff;
+}
+[data-theme="hyperspace"] .b-wkcard__kw { color: #fff; }
+[data-theme="hyperspace"] .b-wkcard:hover { border-color: rgba(255,255,255,0.18); }
+[data-theme="hyperspace"] .b-daycard {
+  background: rgba(255,255,255,0.04);
+  border-color: rgba(255,255,255,0.08);
+  color: #fff;
+}
+[data-theme="hyperspace"] .b-daycard__num { color: #fff; }
+[data-theme="hyperspace"] .b-daycard:hover { border-color: rgba(255,255,255,0.18); }
+
+/* Glass-Inhalte (Hero, Recent, Stats) + Mini-Wochenkalender */
+[data-theme="hyperspace"] .b-hero__kw,
+[data-theme="hyperspace"] .b-recent__head h3,
+[data-theme="hyperspace"] .b-stats__foot .big {
+  color: #fff;
+}
+[data-theme="hyperspace"] .b-hero__range strong { color: rgba(255,255,255,0.9); }
+[data-theme="hyperspace"] .b-day {
+  background: rgba(255,255,255,0.05);
+  border-color: rgba(255,255,255,0.08);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.06);
+}
+[data-theme="hyperspace"] .b-day .dn { color: rgba(255,255,255,0.5); }
+[data-theme="hyperspace"] .b-day .dnum { color: rgba(255,255,255,0.85); }
+[data-theme="hyperspace"] .b-day--past .dnum, [data-theme="hyperspace"] .b-day--weekend .dnum { color: rgba(255,255,255,0.35); }
+
+/* Finaler Material-Layer (dashboard.css §Ende, !important wie dort –
+   gewinnt über die series-Tiles oben, exakt wie im Dark-Mode) */
+html[data-theme="hyperspace"] .bento .b-hero {
+  background-image:
+    linear-gradient(105deg, rgba(4,6,9,0.10) 0%, rgba(4,6,9,0.02) 44%, rgba(4,6,9,0.00) 100%),
+    url("../assets/backgrounds/tile-material-week-dark.png?v=20260602-materialdark2") !important;
+  background-size: cover, cover !important;
+  background-position: center, center !important;
+}
+html[data-theme="hyperspace"] .bento .b-azubi {
+  background-image:
+    linear-gradient(160deg, rgba(4,6,9,0.08) 0%, rgba(4,6,9,0.00) 100%),
+    url("../assets/backgrounds/tile-material-training-dark.png?v=20260602-materialdark2") !important;
+  background-size: cover, cover !important;
+  background-position: center, center !important;
+}
+html[data-theme="hyperspace"] .bento .b-recent {
+  background-image:
+    linear-gradient(105deg, rgba(4,6,9,0.08) 0%, rgba(4,6,9,0.02) 42%, rgba(4,6,9,0.00) 100%),
+    url("../assets/backgrounds/tile-material-recent-dark.png?v=20260602-materialdark2") !important;
+  background-size: cover, cover !important;
+  background-position: center, center !important;
+}
+
+/* ── Wochenansicht-Pill-Selects (wochenansicht.css spiegelt nur dark:
+   Light-Schatten rgba(15,23,42,…) wirken auf dunkler Fläche flach).
+   Gate :not([data-btn-style="classic"]) wie im Original beibehalten. ── */
+[data-theme="hyperspace"] body[data-page="wochenansicht"]:not([data-btn-style="classic"]) .pm-select.tag-row__select .pm-select__trigger,
+[data-theme="hyperspace"] body[data-page="wochenansicht"]:not([data-btn-style="classic"]) .pm-select.wochen-options__select .pm-select__trigger {
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--pm-grey-800);
+  box-shadow:
+    0 1px 2px rgba(0, 0, 0, 0.40),
+    0 4px 12px rgba(0, 0, 0, 0.45);
+}
+[data-theme="hyperspace"] body[data-page="wochenansicht"]:not([data-btn-style="classic"]) .pm-select.tag-row__select .pm-select__trigger:hover:not(:disabled),
+[data-theme="hyperspace"] body[data-page="wochenansicht"]:not([data-btn-style="classic"]) .pm-select.wochen-options__select .pm-select__trigger:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.10);
+  box-shadow:
+    0 2px 4px rgba(0, 0, 0, 0.45),
+    0 8px 20px rgba(0, 0, 0, 0.55);
+}
+[data-theme="hyperspace"] body[data-page="wochenansicht"]:not([data-btn-style="classic"]) .pm-select.tag-row__select--needs-input .pm-select__trigger {
+  background: var(--pm-yellow-bg);
+  border-color: var(--pm-yellow);
+}
+[data-theme="hyperspace"] body[data-page="wochenansicht"]:not([data-btn-style="classic"]) select.tag-row__select:not([data-pm-enhanced]) {
+  background-color: rgba(255, 255, 255, 0.06);
+  box-shadow:
+    0 1px 2px rgba(0, 0, 0, 0.40),
+    0 4px 12px rgba(0, 0, 0, 0.45);
+}

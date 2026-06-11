@@ -1,0 +1,430 @@
+/* ===================================================================
+   THEME-ICELAND.CSS – realistische Gletscherwelt
+   -------------------------------------------------------------------
+   Wird via @import aus themes.css geladen (dort liegen auch die
+   geteilten Blöcke: #pmThemeFX-Basis, prefers-reduced-motion, print).
+   Diese Datei gehört EXKLUSIV dem Iceland-Designer.
+
+   Szene (DOM-FX-Layer, Template "iceland" in js/theme.js, pm-is-*):
+   • gedeckter Grau-Weiß-Himmel mit kühler Lichtquelle
+   • 3 Berg-/Gletscher-Silhouetten (hinten hell/neblig → vorne dunkler)
+   • 2 driftende Nebelbänke (transform-only, nahtloser 720px-Loop)
+   • Schneeboden + Iglu aus Eisblöcken (Blockfugen, Eingangstunnel,
+     kühles Innenleuchten)
+   • SCHNEEREGEN: 3 Lagen dünner, schräg fallender Streifen/Tropfen
+     (Tile-Gradients, nur transform animiert)
+   • Frost-Kristall-Ecken am Viewport-Rand (subtil, hinter dem Inhalt)
+   Dazu: Eiszapfen-Optik für Primär-Buttons (.btn-primary,
+   .b-btn-primary) mit langsam tropfender Schmelz-Animation.
+   =================================================================== */
+html[data-theme="iceland"] { color-scheme: light; }
+
+/* ── 1 · Token-Block: gedeckte Gletscher-Palette ──────────────────
+   Orientierung am Iglu-Foto: karge Grau-Weiß-Töne, kühles Licht,
+   Eisblau nur als gedeckter Akzent (kein Knallblau). */
+[data-theme="iceland"] {
+  /* Akzent: gedecktes Gletscherblau */
+  --pm-yellow:          #84B7D0;
+  --pm-yellow-dark:     #97C4DA;
+  --pm-yellow-darker:   #2F6B86;
+  --pm-yellow-light:    #B9D8E6;
+  --pm-yellow-pale:     #DFECF3;
+  --pm-yellow-bg:       #EAF3F8;
+  --on-yellow-text:     #14242E;
+
+  /* Grau-Skala → kühle, entsättigte Schiefer-/Eis-Töne */
+  --pm-white:           #FFFFFF;
+  --pm-grey-50:         #F2F5F7;
+  --pm-grey-100:        #E6EBEE;
+  --pm-grey-200:        #D3DCE1;
+  --pm-grey-300:        #B4C2CA;
+  --pm-grey-400:        #6E828E;
+  --pm-grey-500:        #5A6E7A;
+  --pm-grey-600:        #475A66;
+  --pm-grey-700:        #374851;
+  --pm-grey-800:        #28363F;
+  --pm-grey-900:        #1A262E;
+
+  --shadow-xs:  0 1px 2px rgba(38, 58, 72, 0.07);
+  --shadow-sm:  0 1px 2px rgba(38, 58, 72, 0.07), 0 1px 3px rgba(38, 58, 72, 0.09);
+  --shadow-md:  0 2px 4px rgba(38, 58, 72, 0.07), 0 4px 12px rgba(38, 58, 72, 0.11);
+  --shadow-lg:  0 4px 8px rgba(38, 58, 72, 0.08), 0 12px 28px rgba(38, 58, 72, 0.13);
+  --shadow-xl:  0 8px 16px rgba(38, 58, 72, 0.09), 0 24px 48px rgba(38, 58, 72, 0.17);
+  --shadow-yellow:    0 4px 16px rgba(132, 183, 208, 0.38);
+  --shadow-yellow-lg: 0 8px 32px rgba(132, 183, 208, 0.46);
+  --ring-yellow:    0 0 0 3px rgba(132, 183, 208, 0.34);
+  --ring-yellow-sm: 0 0 0 2px rgba(132, 183, 208, 0.30);
+
+  --sidebar-bg:           #EFF4F7;
+  --inverse-surface:      #22313B;
+  --inverse-surface-soft: #2C3E4A;
+  --inverse-surface-mid:  #36495A;
+  --topbar-bg-glass:      rgba(255, 255, 255, 0.80);
+  --surface-overlay:      rgba(30, 46, 58, 0.45);
+
+  /* Kühles Milchglas auf allen App-Flächen */
+  --glass-bg:           rgba(255, 255, 255, 0.62);
+  --glass-bg-strong:    rgba(255, 255, 255, 0.84);
+  --glass-bg-tint:      rgba(234, 243, 248, 0.58);
+  --glass-border:       rgba(255, 255, 255, 0.66);
+  --glass-border-soft:  rgba(38, 58, 72, 0.09);
+  --glass-highlight:    rgba(255, 255, 255, 0.85);
+  --ambient-yellow:     rgba(170, 200, 215, 0.10);
+  --ambient-yellow-2:   rgba(170, 200, 215, 0.05);
+  --ambient-neutral:    rgba(255, 255, 255, 0.25);
+
+  /* Body-Hintergrundbilder (glass.css) sind unter iceland aus –
+     die Tokens bleiben als neutrale Verläufe definiert, falls sie
+     anderswo referenziert werden. */
+  --app-bg-image:       linear-gradient(180deg, #DEE6EB 0%, #F2F5F7 100%);
+  --app-bg-overlay:     linear-gradient(180deg, rgba(222, 230, 235, 0.30), rgba(242, 245, 247, 0.10));
+  --app-bg-vignette:    radial-gradient(100% 80% at 50% 0%, rgba(255, 255, 255, 0.30), rgba(222, 230, 235, 0.14) 70%);
+  --sidebar-bg-image:   linear-gradient(180deg, #F4F8FA, #E7EEF2);
+  --sidebar-glass:      rgba(255, 255, 255, 0.55);
+  --sidebar-glass-deep: rgba(255, 255, 255, 0.72);
+  --sidebar-line:       rgba(132, 183, 208, 0.55);
+
+  --lg-tint:           rgba(255, 255, 255, 0.66);
+  --lg-tint-strong:    rgba(255, 255, 255, 0.84);
+  --lg-tint-soft:      rgba(255, 255, 255, 0.46);
+  --lg-tint-warm:      rgba(234, 243, 248, 0.60);
+  --lg-sidebar:        rgba(255, 255, 255, 0.70);
+  --lg-border:         rgba(255, 255, 255, 0.85);
+  --lg-border-soft:    rgba(255, 255, 255, 0.55);
+  --lg-edge:           rgba(38, 58, 72, 0.09);
+  --lg-spec:           rgba(255, 255, 255, 0.95);
+  --lg-spec-soft:      rgba(255, 255, 255, 0.55);
+  --lg-mesh-1: rgba(150, 180, 200, 0.14);
+  --lg-mesh-2: rgba(190, 210, 222, 0.12);
+  --lg-mesh-3: rgba(255, 255, 255, 0.30);
+  --lg-mesh-4: rgba(120, 150, 170, 0.10);
+  --lg-mesh-base: #DFE7EC;
+}
+
+/* ── 2 · Body: PNG-Hintergründe + Ambient-Blobs aus ───────────────
+   Die komplette Landschaft lebt im #pmThemeFX-Layer; die von
+   glass.css gesetzten Hintergrundbilder und die geblurrten
+   Ambient-Pseudo-Elemente wären dahinter unsichtbar (nur GPU-Kosten). */
+[data-theme="iceland"] body:not(.login-page) {
+  background-image: none;
+  background-color: #E9EEF2;
+}
+[data-theme="iceland"] body:not(.login-page)::before,
+[data-theme="iceland"] body:not(.login-page)::after {
+  display: none;
+}
+
+/* ===================================================================
+   3 · FX-SZENE (#pmThemeFX, Klassen pm-is-*)
+   =================================================================== */
+
+/* Himmel: gedeckter Grau-Verlauf + kühle, diffuse Lichtquelle */
+[data-theme="iceland"] #pmThemeFX {
+  background:
+    radial-gradient(60% 42% at 72% 16%, rgba(255, 255, 255, 0.70), rgba(255, 255, 255, 0) 70%),
+    linear-gradient(180deg, #C7D2DA 0%, #DCE4E9 38%, #ECF0F3 70%, #F4F6F8 100%);
+}
+[data-theme="iceland"] .pm-is-scene {
+  position: absolute;
+  inset: 0;
+}
+
+/* Berg-/Gletscher-Silhouetten: hinten hell/neblig, vorne dunkler */
+[data-theme="iceland"] .pm-is-range {
+  position: absolute;
+  left: 0; right: 0; bottom: 0;
+  width: 100%;
+  display: block;
+}
+[data-theme="iceland"] .pm-is-range--far          { height: 62vh; }
+[data-theme="iceland"] .pm-is-range--far polygon  { fill: #C6D1D9; }
+[data-theme="iceland"] .pm-is-range--mid          { height: 44vh; }
+[data-theme="iceland"] .pm-is-range--mid polygon  { fill: #A9B7C2; }
+[data-theme="iceland"] .pm-is-range--near         { height: 30vh; }
+[data-theme="iceland"] .pm-is-range--near polygon { fill: #8C9BA7; }
+
+/* Nebelbänke: weiche Tile-Verläufe, sehr langsamer horizontaler
+   Drift. Element ist beidseitig um eine Tile-Breite (720px) größer
+   → translateX(±720px) loopt nahtlos und deckt immer den Viewport. */
+[data-theme="iceland"] .pm-is-fog {
+  position: absolute;
+  left: -720px; right: -720px;
+  height: 16vh;
+  background-image:
+    radial-gradient(46% 110% at 18% 60%, rgba(244, 248, 250, 0.60), rgba(244, 248, 250, 0) 70%),
+    radial-gradient(38% 90% at 52% 40%, rgba(238, 244, 247, 0.50), rgba(238, 244, 247, 0) 72%),
+    radial-gradient(50% 120% at 84% 65%, rgba(247, 250, 252, 0.55), rgba(247, 250, 252, 0) 70%);
+  background-size: 720px 100%;
+  background-repeat: repeat-x;
+  will-change: transform;
+}
+[data-theme="iceland"] .pm-is-fog--high {
+  bottom: 26vh;
+  opacity: 0.9;
+  animation: pm-is-fog-drift 90s linear infinite;
+}
+[data-theme="iceland"] .pm-is-fog--low {
+  bottom: 12vh;
+  height: 14vh;
+  opacity: 0.8;
+  animation: pm-is-fog-drift-rev 70s linear infinite;
+}
+@keyframes pm-is-fog-drift     { from { transform: translateX(0); } to { transform: translateX(720px); } }
+@keyframes pm-is-fog-drift-rev { from { transform: translateX(0); } to { transform: translateX(-720px); } }
+
+/* Schneeboden vor den Bergen */
+[data-theme="iceland"] .pm-is-ground {
+  position: absolute;
+  left: 0; right: 0; bottom: 0;
+  height: 18vh;
+  background: linear-gradient(180deg,
+    rgba(234, 239, 242, 0) 0%,
+    #E9EEF1 30%,
+    #F5F7F8 100%);
+}
+
+/* Iglu: dezent unten rechts auf dem Schneeboden */
+[data-theme="iceland"] .pm-is-igloo {
+  position: absolute;
+  right: 5vw;
+  bottom: 3vh;
+  width: clamp(170px, 23vw, 320px);
+  height: auto;
+  opacity: 0.92;
+}
+
+/* SCHNEEREGEN: 3 Lagen dünner, elliptisch verlängerter Streifen
+   (+ Tropfen-Punkte). Die Lage ist leicht rotiert (Schräge) und um
+   eine Tile-Höhe nach oben verlängert; translateY(Tile-Höhe) im
+   rotierten Koordinatensystem loopt nahtlos entlang der Fallrichtung.
+   Seitliche/untere 220px-Reserve fängt die Rotations-Verschiebung ab. */
+[data-theme="iceland"] .pm-is-sleet {
+  position: absolute;
+  left: -220px; right: -220px; bottom: -220px;
+  background-repeat: repeat;
+  will-change: transform;
+}
+[data-theme="iceland"] .pm-is-sleet--far {
+  top: -660px;
+  background-image:
+    radial-gradient(1px 9px at 30px 40px,   rgba(255, 255, 255, 0.55), transparent 80%),
+    radial-gradient(1px 8px at 120px 150px, rgba(255, 255, 255, 0.40), transparent 80%),
+    radial-gradient(1px 9px at 205px 75px,  rgba(255, 255, 255, 0.48), transparent 80%),
+    radial-gradient(1px 8px at 65px 265px,  rgba(255, 255, 255, 0.38), transparent 80%),
+    radial-gradient(1px 9px at 175px 345px, rgba(255, 255, 255, 0.46), transparent 80%),
+    radial-gradient(1px 8px at 245px 215px, rgba(255, 255, 255, 0.40), transparent 80%);
+  background-size: 260px 440px;
+  animation: pm-is-sleet-far 2.6s linear infinite;
+}
+[data-theme="iceland"] .pm-is-sleet--mid {
+  top: -740px;
+  background-image:
+    radial-gradient(1.2px 13px at 40px 60px,   rgba(255, 255, 255, 0.65), transparent 80%),
+    radial-gradient(1.2px 12px at 150px 180px, rgba(255, 255, 255, 0.50), transparent 80%),
+    radial-gradient(1.2px 13px at 250px 90px,  rgba(255, 255, 255, 0.58), transparent 80%),
+    radial-gradient(1.2px 12px at 90px 310px,  rgba(255, 255, 255, 0.48), transparent 80%),
+    radial-gradient(1.2px 13px at 210px 400px, rgba(255, 255, 255, 0.58), transparent 80%),
+    radial-gradient(1.2px 12px at 285px 250px, rgba(255, 255, 255, 0.50), transparent 80%),
+    radial-gradient(2px 2.6px at 20px 460px,   rgba(255, 255, 255, 0.55), transparent 85%);
+  background-size: 300px 520px;
+  animation: pm-is-sleet-mid 1.7s linear infinite;
+}
+[data-theme="iceland"] .pm-is-sleet--near {
+  top: -820px;
+  background-image:
+    radial-gradient(1.6px 20px at 50px 70px,   rgba(255, 255, 255, 0.85), transparent 80%),
+    radial-gradient(1.5px 18px at 180px 210px, rgba(255, 255, 255, 0.65), transparent 80%),
+    radial-gradient(1.6px 21px at 290px 110px, rgba(255, 255, 255, 0.75), transparent 80%),
+    radial-gradient(1.5px 18px at 110px 360px, rgba(141, 160, 175, 0.40), transparent 80%),
+    radial-gradient(1.6px 20px at 250px 470px, rgba(255, 255, 255, 0.75), transparent 80%),
+    radial-gradient(1.5px 19px at 330px 300px, rgba(141, 160, 175, 0.35), transparent 80%),
+    radial-gradient(2.4px 3px at 20px 540px,   rgba(255, 255, 255, 0.70), transparent 85%);
+  background-size: 340px 600px;
+  animation: pm-is-sleet-near 1.15s linear infinite;
+}
+@keyframes pm-is-sleet-far  { from { transform: rotate(7deg)  translateY(0); } to { transform: rotate(7deg)  translateY(440px); } }
+@keyframes pm-is-sleet-mid  { from { transform: rotate(9deg)  translateY(0); } to { transform: rotate(9deg)  translateY(520px); } }
+@keyframes pm-is-sleet-near { from { transform: rotate(11deg) translateY(0); } to { transform: rotate(11deg) translateY(600px); } }
+
+/* Frost-Kristall-Ecken (angelehnt an den Eiskristall-Rahmen):
+   halbtransparente SVG-Zweige, wachsen aus den Viewport-Ecken.
+   Liegen im FX-Layer (z-index 0) → stören den Inhalt nicht. */
+[data-theme="iceland"] .pm-is-frost {
+  position: absolute;
+  width: 190px;
+  height: 190px;
+  opacity: 0.5;
+}
+[data-theme="iceland"] .pm-is-frost--tl { top: -16px;    left: -16px; }
+[data-theme="iceland"] .pm-is-frost--tr { top: -16px;    right: -16px;  transform: scaleX(-1); }
+[data-theme="iceland"] .pm-is-frost--bl { bottom: -16px; left: -16px;   transform: scaleY(-1); opacity: 0.38; }
+[data-theme="iceland"] .pm-is-frost--br { bottom: -16px; right: -16px;  transform: scale(-1, -1); opacity: 0.38; }
+
+/* ===================================================================
+   4 · MILCHGLAS-FEINSCHLIFF
+   =================================================================== */
+
+/* Topbar: frostige Ober-/Unterkante */
+[data-theme="iceland"] .topbar {
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.90),
+              inset 0 -1px 0 rgba(150, 180, 198, 0.30);
+}
+
+/* ===================================================================
+   5 · EISZAPFEN-BUTTONS ("schmelzende Eiszapfen")
+   -------------------------------------------------------------------
+   Primär-Buttons als glasiges Eis: frostiger Verlauf (weiß → eisblau)
+   mit Glanzkante, am unteren Rand hängende Eiszapfen (clip-path-
+   Zacken im ::after) und ein periodisch fallender Schmelz-Tropfen
+   (::before, nur transform/opacity). Hover = "antauen": Zapfen
+   schrumpfen (scaleY), Tropfen fällt schneller. Kleine Buttons
+   (.btn-icon, .btn-sm) bekommen nur die Frost-Glas-Optik.
+   Lesbarkeit: dunkles Schiefer (#16323F) auf Eisfläche ≥ 4.5:1.
+   =================================================================== */
+[data-theme="iceland"] .btn-primary {
+  position: relative;
+  background: linear-gradient(180deg, #FDFEFF 0%, #E8F1F6 45%, #CCDFE9 100%);
+  border-color: rgba(125, 160, 180, 0.60);
+  color: #16323F;
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.55);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.95),
+              inset 0 -6px 10px -6px rgba(108, 156, 180, 0.45),
+              0 2px 6px rgba(31, 58, 72, 0.16);
+}
+[data-theme="iceland"] .btn-primary:hover:not(:disabled) {
+  background: linear-gradient(180deg, #FFFFFF 0%, #EDF4F8 40%, #D6E7EF 100%);
+  border-color: rgba(125, 160, 180, 0.75);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 1),
+              inset 0 -6px 10px -6px rgba(108, 156, 180, 0.50),
+              0 4px 14px rgba(31, 58, 72, 0.20);
+}
+
+/* Eiszapfen-Saum (nicht auf kleinen Icon-/sm-Buttons) */
+[data-theme="iceland"] .btn-primary:not(.btn-icon):not(.btn-sm)::after {
+  content: '';
+  position: absolute;
+  top: 100%;
+  left: 7%; right: 7%;
+  height: 11px;
+  pointer-events: none;
+  background: linear-gradient(180deg,
+    rgba(214, 232, 241, 0.95) 0%,
+    rgba(178, 208, 224, 0.65) 55%,
+    rgba(178, 208, 224, 0.30) 100%);
+  clip-path: polygon(0% 0%, 100% 0%,
+    97% 30%, 94% 88%, 91% 26%, 86% 60%, 81% 24%, 76% 100%,
+    70% 28%, 64% 66%, 58% 26%, 52% 94%, 46% 24%, 40% 60%,
+    34% 28%, 28% 92%, 22% 24%, 16% 58%, 10% 28%, 5% 76%, 0% 22%);
+  transform-origin: top center;
+  transition: transform 280ms ease;
+}
+[data-theme="iceland"] .btn-primary:not(.btn-icon):not(.btn-sm):hover:not(:disabled)::after {
+  transform: scaleY(0.62);   /* Zapfen "schmelzen" */
+}
+
+/* Schmelz-Tropfen: löst sich periodisch unter einem Zapfen */
+[data-theme="iceland"] .btn-primary:not(.btn-icon):not(.btn-sm)::before {
+  content: '';
+  position: absolute;
+  top: calc(100% + 9px);
+  left: 26%;
+  width: 4px; height: 6px;
+  border-radius: 50% 50% 60% 60%;
+  background: rgba(186, 216, 232, 0.90);
+  opacity: 0;
+  pointer-events: none;
+  animation: pm-is-drip 4.5s ease-in infinite;
+}
+[data-theme="iceland"] .btn-primary:not(.btn-icon):not(.btn-sm):hover:not(:disabled)::before {
+  animation-duration: 1.6s;  /* angetaut → tropft schneller */
+}
+[data-theme="iceland"] .btn-primary:disabled::before {
+  animation: none;
+  opacity: 0;
+}
+@keyframes pm-is-drip {
+  0%, 55% { opacity: 0;    transform: translateY(0) scale(0.6); }
+  62%     { opacity: 0.9;  transform: translateY(0) scale(1); }
+  80%     { opacity: 0.85; transform: translateY(14px) scale(1); }
+  90%     { opacity: 0;    transform: translateY(20px) scale(0.8); }
+  100%    { opacity: 0;    transform: translateY(20px) scale(0.8); }
+}
+
+/* Dashboard-Hero-CTA ("Bericht öffnen", Pill) – gleiche Eis-Optik */
+[data-theme="iceland"] .b-btn-primary {
+  position: relative;
+  background: linear-gradient(180deg, #FDFEFF 0%, #E8F1F6 45%, #CCDFE9 100%);
+  color: #16323F;
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.55);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.95),
+              inset 0 -5px 9px -5px rgba(108, 156, 180, 0.50),
+              0 10px 26px -10px rgba(31, 58, 72, 0.45);
+}
+[data-theme="iceland"] .b-btn-primary:hover {
+  background: linear-gradient(180deg, #FFFFFF 0%, #EDF4F8 40%, #D6E7EF 100%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 1),
+              inset 0 -5px 9px -5px rgba(108, 156, 180, 0.55),
+              0 14px 32px -10px rgba(31, 58, 72, 0.50);
+}
+[data-theme="iceland"] .b-btn-primary::after {
+  content: '';
+  position: absolute;
+  top: 100%;
+  left: 12%; right: 12%;
+  height: 10px;
+  pointer-events: none;
+  background: linear-gradient(180deg,
+    rgba(214, 232, 241, 0.95) 0%,
+    rgba(178, 208, 224, 0.65) 55%,
+    rgba(178, 208, 224, 0.30) 100%);
+  clip-path: polygon(0% 0%, 100% 0%,
+    97% 30%, 94% 88%, 91% 26%, 86% 60%, 81% 24%, 76% 100%,
+    70% 28%, 64% 66%, 58% 26%, 52% 94%, 46% 24%, 40% 60%,
+    34% 28%, 28% 92%, 22% 24%, 16% 58%, 10% 28%, 5% 76%, 0% 22%);
+  transform-origin: top center;
+  transition: transform 280ms ease;
+}
+[data-theme="iceland"] .b-btn-primary:hover::after {
+  transform: scaleY(0.62);
+}
+[data-theme="iceland"] .b-btn-primary::before {
+  content: '';
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 30%;
+  width: 4px; height: 6px;
+  border-radius: 50% 50% 60% 60%;
+  background: rgba(186, 216, 232, 0.90);
+  opacity: 0;
+  pointer-events: none;
+  animation: pm-is-drip 5s ease-in infinite;
+}
+[data-theme="iceland"] .b-btn-primary:hover::before {
+  animation-duration: 1.6s;
+}
+
+/* ===================================================================
+   6 · REDUCED MOTION / PRINT (Iceland-spezifische Ergänzungen;
+       FX-Layer-Animationen + Print-Ausblendung übernimmt themes.css)
+   =================================================================== */
+@media (prefers-reduced-motion: reduce) {
+  /* eingefrorener Schneeregen sähe falsch aus → ganz aus */
+  [data-theme="iceland"] .pm-is-sleet { display: none; }
+  [data-theme="iceland"] .btn-primary::before,
+  [data-theme="iceland"] .b-btn-primary::before {
+    animation: none !important;
+    opacity: 0 !important;
+  }
+  [data-theme="iceland"] .btn-primary::after,
+  [data-theme="iceland"] .b-btn-primary::after {
+    transition: none !important;
+  }
+}
+@media print {
+  [data-theme="iceland"] .btn-primary::before,
+  [data-theme="iceland"] .btn-primary::after,
+  [data-theme="iceland"] .b-btn-primary::before,
+  [data-theme="iceland"] .b-btn-primary::after {
+    display: none;
+  }
+}

@@ -1,0 +1,486 @@
+/* ===================================================================
+   THEME-CANDY.CSS – Candy Land: knallige 3D-Candy-Welt
+   -------------------------------------------------------------------
+   Wird via @import aus themes.css geladen (dort liegen auch die
+   geteilten Blöcke: #pmThemeFX-Basis, prefers-reduced-motion, print).
+   Diese Datei gehört EXKLUSIV dem Candy-Designer.
+
+   Szene (DOM-FX-Layer, Template "candy" in js/theme.js, Klassen
+   pm-cd-*): hellblauer Himmel (body-Hintergrund-Token), 4 sehr
+   langsam driftende CSS-Wolken, ein halb sichtbarer transluzenter
+   Regenbogen, 3 gewellte Zuckerguss-Wiesen-Lagen (eigene SVG-Wellen
+   als data-URI, sanftes horizontales Driften, transform-only) und
+   Deko: Donut mit Streuseln, 2 Lollipops, 2 Gumdrops – alles selbst
+   gezeichnet (CSS/SVG), keine Fremdbilder.
+
+   Z-Ordnung im FX-Container:
+   1 Regenbogen · 2 Wolken · 3 Wiese hinten · 4 Donut · 5 Wiese Mitte
+   · 6 Lollipops · 7 Wiese vorn · 8 Gumdrops
+
+   PERF: ausschließlich transform/opacity animiert; kein filter:blur
+   auf viewportfüllenden fixed Layern; backdrop-filter nur auf Karten.
+   =================================================================== */
+html[data-theme="candy"] { color-scheme: light; }
+
+[data-theme="candy"] {
+  /* Akzent: Bubblegum-Pink */
+  --pm-yellow:          #FF6FB5;
+  --pm-yellow-dark:     #F25AA5;
+  --pm-yellow-darker:   #C42579;
+  --pm-yellow-light:    #FF9DCC;
+  --pm-yellow-pale:     #FFD9EB;
+  --pm-yellow-bg:       #FFE9F4;
+  --on-yellow-text:     #3D1030;
+
+  /* Grau-Skala → warmes Pastell-Plum */
+  --pm-white:           #FFFFFF;
+  --pm-grey-50:         #FFF1F7;
+  --pm-grey-100:        #FCE4EF;
+  --pm-grey-200:        #F5CCE0;
+  --pm-grey-300:        #E3A8C8;
+  --pm-grey-400:        #A05880;
+  --pm-grey-500:        #8E4A70;
+  --pm-grey-600:        #713A5A;
+  --pm-grey-700:        #5D2F4B;
+  --pm-grey-800:        #4A2440;
+  --pm-grey-900:        #371A31;
+
+  /* Pink-getintete Schatten + Ringe (pastellig weich) */
+  --shadow-xs:  0 1px 2px rgba(150, 40, 100, 0.06);
+  --shadow-sm:  0 1px 2px rgba(150, 40, 100, 0.06), 0 1px 3px rgba(150, 40, 100, 0.08);
+  --shadow-md:  0 2px 4px rgba(150, 40, 100, 0.06), 0 4px 12px rgba(150, 40, 100, 0.10);
+  --shadow-lg:  0 4px 8px rgba(150, 40, 100, 0.07), 0 12px 28px rgba(150, 40, 100, 0.12);
+  --shadow-xl:  0 8px 16px rgba(150, 40, 100, 0.08), 0 24px 48px rgba(150, 40, 100, 0.16);
+  --shadow-yellow:    0 4px 16px rgba(255, 111, 181, 0.35);
+  --shadow-yellow-lg: 0 8px 32px rgba(255, 111, 181, 0.45);
+  --ring-yellow:    0 0 0 3px rgba(255, 111, 181, 0.28);
+  --ring-yellow-sm: 0 0 0 2px rgba(255, 111, 181, 0.24);
+
+  /* Extra-runde Formen */
+  --r-md:   12px;
+  --r-lg:   16px;
+  --r-xl:   22px;
+  --r-2xl:  26px;
+  --lg-r-card: 26px;
+  --lg-r-pill: 30px;
+
+  --sidebar-bg:           #371A31;
+  --inverse-surface:      #371A31;
+  --inverse-surface-soft: #4A2440;
+  --inverse-surface-mid:  #5D2F4B;
+  --topbar-bg-glass:      rgba(255, 255, 255, 0.80);
+  --surface-overlay:      rgba(90, 30, 70, 0.40);
+
+  --glass-bg:           rgba(255, 255, 255, 0.62);
+  --glass-bg-strong:    rgba(255, 255, 255, 0.82);
+  --glass-bg-tint:      rgba(255, 233, 244, 0.60);
+  --glass-border:       rgba(255, 255, 255, 0.60);
+  --glass-border-soft:  rgba(150, 40, 100, 0.08);
+  --glass-highlight:    rgba(255, 255, 255, 0.75);
+  --ambient-yellow:     rgba(255, 111, 181, 0.14);
+  --ambient-yellow-2:   rgba(255, 220, 120, 0.10);
+  --ambient-neutral:    rgba(110, 230, 190, 0.12);
+
+  /* Himmel statt PNG: hellblau → weiß → zarter Zuckerwatte-Saum.
+     body:not(.login-page) malt overlay/vignette/image übereinander –
+     overlay/vignette laufen hier als 'none'-Layer, der Verlauf liegt
+     HINTER dem FX-Layer (Wolken/Regenbogen/Wiese) und ist auch vor
+     der FX-Injektion (DOMContentLoaded) schon sichtbar → kein Flash. */
+  --app-bg-image:       linear-gradient(180deg, #87CEF5 0%, #B5E3FB 38%, #E8F7FF 70%, #FFF1F8 100%);
+  --app-bg-overlay:     none;
+  --app-bg-vignette:    none;
+  --sidebar-bg-image:   linear-gradient(180deg, #FFF6FA, #FFEDF5);
+  --sidebar-glass:      rgba(255, 255, 255, 0.55);
+  --sidebar-glass-deep: rgba(255, 255, 255, 0.70);
+  --sidebar-line:       rgba(255, 111, 181, 0.55);
+
+  --lg-tint:           rgba(255, 255, 255, 0.64);
+  --lg-tint-strong:    rgba(255, 255, 255, 0.80);
+  --lg-tint-soft:      rgba(255, 255, 255, 0.44);
+  --lg-tint-warm:      rgba(255, 235, 246, 0.60);
+  --lg-sidebar:        rgba(255, 255, 255, 0.66);
+  --lg-border:         rgba(255, 255, 255, 0.80);
+  --lg-border-soft:    rgba(255, 255, 255, 0.50);
+  --lg-edge:           rgba(150, 40, 100, 0.08);
+  --lg-spec:           rgba(255, 255, 255, 0.90);
+  --lg-spec-soft:      rgba(255, 255, 255, 0.50);
+  --lg-mesh-1: rgba(255, 111, 181, 0.18);
+  --lg-mesh-2: rgba(150, 235, 205, 0.14);
+  --lg-mesh-3: rgba(255, 230, 150, 0.14);
+  --lg-mesh-4: rgba(170, 200, 255, 0.10);
+  --lg-mesh-base: #FBE9F2;
+}
+
+/* Die alten Ambient-Blob/Konfetti-Pseudo-Layer (glass.css-Basis) sind
+   durch die FX-Szene ersetzt → unter candy komplett entfernen.
+   (themes.css-Sammelblöcke für reduced-motion/print bleiben harmlos.) */
+[data-theme="candy"] body::before,
+[data-theme="candy"] body::after {
+  content: none;
+}
+
+/* ===================================================================
+   FX-SZENE – #pmThemeFX (Kinder aus FX_TEMPLATES.candy in theme.js)
+   =================================================================== */
+
+/* ── Regenbogen: halbrunder Bogen, der hinter der Wiese am rechten
+   Bildrand aufsteigt. Konzentrische Farbbänder via radial-gradient
+   mit harten Stops auf einem Kreis-Div; die untere Hälfte liegt
+   unterhalb des Viewports (overflow:hidden im Container), die
+   Bogen-Enden faden per Mask weich Richtung Horizont aus. Dezent
+   transluzent (Alpha ≈ 0.5), damit er nicht mit Inhalt konkurriert. ── */
+[data-theme="candy"] #pmThemeFX .pm-cd-rainbow {
+  --cd-rb: min(120vmin, 1040px);
+  position: absolute;
+  z-index: 1;
+  width: var(--cd-rb);
+  height: var(--cd-rb);
+  right: -16vmin;
+  bottom: calc(var(--cd-rb) / -2 + 7vh);
+  border-radius: 50%;
+  background: radial-gradient(closest-side,
+    transparent 0 56%,
+    rgba(178, 140, 255, 0.50) 56% 61%,
+    rgba(108, 178, 255, 0.52) 61% 66%,
+    rgba(120, 222, 150, 0.52) 66% 71%,
+    rgba(255, 224, 110, 0.58) 71% 76%,
+    rgba(255, 176, 99, 0.55) 76% 81%,
+    rgba(255, 122, 140, 0.55) 81% 86%,
+    transparent 86.5%);
+  -webkit-mask-image: linear-gradient(180deg, #000 0%, #000 32%, transparent 50%);
+          mask-image: linear-gradient(180deg, #000 0%, #000 32%, transparent 50%);
+}
+
+/* ── Wolken: klassische CSS-Komposition (Pill + 2 runde Bumps),
+   skaliert über font-size/em pro Variante; SEHR langsames Driften
+   (transform-only, alternate). ── */
+[data-theme="candy"] #pmThemeFX .pm-cd-cloud {
+  position: absolute;
+  z-index: 2;
+  width: 11em;
+  height: 3.6em;
+  background: #FFFFFF;
+  border-radius: 10em;
+  opacity: 0.92;
+  box-shadow: 0 10px 24px rgba(110, 160, 210, 0.16);
+  animation: pm-cd-cloud-drift var(--cd-dur, 120s) ease-in-out var(--cd-delay, 0s) infinite alternate;
+}
+[data-theme="candy"] #pmThemeFX .pm-cd-cloud::before,
+[data-theme="candy"] #pmThemeFX .pm-cd-cloud::after {
+  content: '';
+  position: absolute;
+  background: #FFFFFF;
+  border-radius: 50%;
+}
+[data-theme="candy"] #pmThemeFX .pm-cd-cloud::before {
+  width: 4.2em; height: 4.2em;
+  bottom: 1.2em; left: 1.6em;
+}
+[data-theme="candy"] #pmThemeFX .pm-cd-cloud::after {
+  width: 5.6em; height: 5.6em;
+  bottom: 1.4em; left: 4.6em;
+}
+[data-theme="candy"] #pmThemeFX .pm-cd-cloud--1 { font-size: 13px; top: 9%;  left: 10%; --cd-dur: 120s; --cd-delay: -30s; }
+[data-theme="candy"] #pmThemeFX .pm-cd-cloud--2 { font-size: 9px;  top: 21%; left: 56%; --cd-dur: 150s; --cd-delay: -70s; opacity: 0.8; }
+[data-theme="candy"] #pmThemeFX .pm-cd-cloud--3 { font-size: 16px; top: 5%;  left: 72%; --cd-dur: 135s; --cd-delay: -10s; }
+[data-theme="candy"] #pmThemeFX .pm-cd-cloud--4 { font-size: 8px;  top: 31%; left: 30%; --cd-dur: 160s; --cd-delay: -90s; opacity: 0.7; }
+@keyframes pm-cd-cloud-drift {
+  from { transform: translate3d(0, 0, 0); }
+  to   { transform: translate3d(7vw, 0, 0); }
+}
+
+/* ── Wiese: 3 Lagen gewellter Zuckerguss-Hügel. Jede Lage ist ein
+   selbst gezeichnetes 600×180-SVG-Tile (data-URI, 2 Pfade: hellerer
+   Zuckerguss-Saum + Hauptgrün) mit nahtloser Cos-Welle (Anfangs- und
+   End-Steigung identisch → repeat-x ohne Knick). Sanftes horizontales
+   Driften pro Lage (transform-only, alternate); die seitliche
+   Überbreite (±80px) deckt den Drift-Hub ab. ── */
+[data-theme="candy"] #pmThemeFX .pm-cd-hill {
+  position: absolute;
+  left: -80px;
+  right: -80px;
+  bottom: 0;
+  background-repeat: repeat-x;
+  animation: pm-cd-hill-drift var(--cd-dur, 44s) ease-in-out var(--cd-delay, 0s) infinite alternate;
+}
+[data-theme="candy"] #pmThemeFX .pm-cd-hill--back {
+  z-index: 3;
+  height: clamp(170px, 30vh, 280px);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 600 180' preserveAspectRatio='none'%3E%3Cpath fill='%23C7EFC4' d='M0,64C150,8,150,120,300,64C450,8,450,120,600,64L600,180L0,180Z'/%3E%3Cpath fill='%23A9E3A4' d='M0,80C150,24,150,136,300,80C450,24,450,136,600,80L600,180L0,180Z'/%3E%3C/svg%3E");
+  background-size: 840px 100%;
+  background-position: 0 bottom;
+  --cd-dur: 52s;
+  --cd-drift: 40px;
+}
+[data-theme="candy"] #pmThemeFX .pm-cd-hill--mid {
+  z-index: 5;
+  height: clamp(130px, 22vh, 220px);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 600 180' preserveAspectRatio='none'%3E%3Cpath fill='%2397DE9B' d='M0,64C150,8,150,120,300,64C450,8,450,120,600,64L600,180L0,180Z'/%3E%3Cpath fill='%2374CF83' d='M0,80C150,24,150,136,300,80C450,24,450,136,600,80L600,180L0,180Z'/%3E%3C/svg%3E");
+  background-size: 620px 100%;
+  background-position: -180px bottom;
+  --cd-dur: 40s;
+  --cd-delay: -14s;
+  --cd-drift: -46px;
+}
+[data-theme="candy"] #pmThemeFX .pm-cd-hill--front {
+  z-index: 7;
+  height: clamp(90px, 15vh, 170px);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 600 180' preserveAspectRatio='none'%3E%3Cpath fill='%236BCB7C' d='M0,64C150,8,150,120,300,64C450,8,450,120,600,64L600,180L0,180Z'/%3E%3Cpath fill='%234BB465' d='M0,80C150,24,150,136,300,80C450,24,450,136,600,80L600,180L0,180Z'/%3E%3C/svg%3E");
+  background-size: 460px 100%;
+  background-position: -90px bottom;
+  --cd-dur: 58s;
+  --cd-delay: -26s;
+  --cd-drift: 30px;
+}
+@keyframes pm-cd-hill-drift {
+  from { transform: translate3d(0, 0, 0); }
+  to   { transform: translate3d(var(--cd-drift, 40px), 0, 0); }
+}
+
+/* ── Deko: Donut (Ring + Streusel, hinter der mittleren Wiese) ── */
+[data-theme="candy"] #pmThemeFX .pm-cd-donut {
+  position: absolute;
+  z-index: 4;
+  width: 120px;
+  height: 120px;
+  left: 9%;
+  bottom: 13vh;
+  transform: rotate(-12deg);
+  background-image:
+    radial-gradient(circle at 30% 22%, #FFFFFF 0 2.5px, transparent 3.5px),
+    radial-gradient(circle at 52% 13%, #FFE066 0 2.5px, transparent 3.5px),
+    radial-gradient(circle at 70% 24%, #7FB2FF 0 2.5px, transparent 3.5px),
+    radial-gradient(circle at 21% 41%, #7DE3B7 0 2.5px, transparent 3.5px),
+    radial-gradient(circle at 79% 43%, #FFFFFF 0 2.5px, transparent 3.5px),
+    radial-gradient(circle at 50% 46%, transparent 0 17%, #F7A8CE 18% 52%, #EFB272 53% 62%, transparent 63%);
+  background-repeat: no-repeat;
+}
+
+/* ── Deko: Lollipops (Kopf = Wirbel aus repeating-conic-gradient mit
+   Glanzlicht, Stiel = ::after). Der pinke wiegt sich ganz sanft um
+   seinen Fußpunkt. ── */
+[data-theme="candy"] #pmThemeFX .pm-cd-lolli {
+  position: absolute;
+  z-index: 6;
+  border-radius: 50%;
+  border: 5px solid #FFFFFF;
+  background-image:
+    radial-gradient(circle at 32% 28%, rgba(255, 255, 255, 0.55), rgba(255, 255, 255, 0) 46%),
+    repeating-conic-gradient(var(--cd-a) 0 24deg, var(--cd-b) 24deg 48deg);
+  box-shadow: 0 6px 18px rgba(150, 40, 100, 0.18);
+}
+[data-theme="candy"] #pmThemeFX .pm-cd-lolli::after {
+  content: '';
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  width: 8px;
+  margin-left: -4px;
+  margin-top: -4px;
+  height: var(--cd-stick, 110px);
+  border-radius: 0 0 4px 4px;
+  background: linear-gradient(90deg, #FFFFFF, #EBD9C8);
+}
+[data-theme="candy"] #pmThemeFX .pm-cd-lolli--pink {
+  width: 72px; height: 72px;
+  left: 76%;
+  bottom: calc(6vh + 120px);
+  --cd-a: #FF5FA8;
+  --cd-b: #FFE3F1;
+  --cd-stick: 120px;
+  transform-origin: 50% calc(100% + 120px);
+  animation: pm-cd-sway 9s ease-in-out infinite alternate;
+}
+[data-theme="candy"] #pmThemeFX .pm-cd-lolli--mint {
+  width: 52px; height: 52px;
+  left: 86%;
+  bottom: calc(7vh + 84px);
+  --cd-a: #3FC9A6;
+  --cd-b: #DFFBF1;
+  --cd-stick: 84px;
+}
+@keyframes pm-cd-sway {
+  from { transform: rotate(-1.5deg); }
+  to   { transform: rotate(1.5deg); }
+}
+
+/* ── Deko: Gumdrops (Zuckertropfen mit Puderzucker-Pünktchen) ── */
+[data-theme="candy"] #pmThemeFX .pm-cd-gumdrop {
+  position: absolute;
+  z-index: 8;
+  border-radius: 50% 50% 45% 45% / 75% 75% 28% 28%;
+  background-color: var(--cd-gd, #FF8FC0);
+  background-image:
+    radial-gradient(circle at 30% 26%, rgba(255, 255, 255, 0.60), rgba(255, 255, 255, 0) 48%),
+    radial-gradient(circle at 24% 58%, rgba(255, 255, 255, 0.85) 0 1.5px, transparent 2.5px),
+    radial-gradient(circle at 56% 38%, rgba(255, 255, 255, 0.85) 0 1.5px, transparent 2.5px),
+    radial-gradient(circle at 72% 64%, rgba(255, 255, 255, 0.85) 0 1.5px, transparent 2.5px),
+    radial-gradient(circle at 42% 76%, rgba(255, 255, 255, 0.85) 0 1.5px, transparent 2.5px);
+  background-repeat: no-repeat;
+  box-shadow: 0 4px 10px rgba(60, 130, 80, 0.22);
+}
+[data-theme="candy"] #pmThemeFX .pm-cd-gumdrop--1 {
+  width: 56px; height: 48px;
+  left: 20%;
+  bottom: 1.4vh;
+  --cd-gd: #FF8FC0;
+}
+[data-theme="candy"] #pmThemeFX .pm-cd-gumdrop--2 {
+  width: 44px; height: 38px;
+  left: 66%;
+  bottom: 0.8vh;
+  --cd-gd: #6FD7B2;
+}
+
+/* Kleine Screens: Deko ausdünnen, damit nichts mit Inhalt drängelt */
+@media (max-width: 640px) {
+  [data-theme="candy"] #pmThemeFX .pm-cd-donut,
+  [data-theme="candy"] #pmThemeFX .pm-cd-lolli--mint,
+  [data-theme="candy"] #pmThemeFX .pm-cd-gumdrop--2,
+  [data-theme="candy"] #pmThemeFX .pm-cd-cloud--4 {
+    display: none;
+  }
+}
+
+/* ===================================================================
+   APP-FLÄCHEN – hell transluzent, damit die Szene durchscheint
+   -------------------------------------------------------------------
+   backdrop-filter NUR auf inhaltsgroßen Karten (nicht viewportfüllend);
+   0.82-Weiß hält dunklen Text bei >= 4.5:1.
+   =================================================================== */
+[data-theme="candy"] .card,
+[data-theme="candy"] .stat-card,
+[data-theme="candy"] .accordion__item,
+[data-theme="candy"] .profil-section,
+[data-theme="candy"] .verwaltung-panel,
+[data-theme="candy"] .week-toolbar {
+  background-color: rgba(255, 255, 255, 0.82);
+  -webkit-backdrop-filter: blur(8px) saturate(130%);
+          backdrop-filter: blur(8px) saturate(130%);
+}
+[data-theme="candy"] .modal {
+  background-color: rgba(255, 255, 255, 0.92);
+}
+
+/* ===================================================================
+   LOLLI-UI – verspielte Komponenten (Lesbarkeit: dunkles Plum auf
+   hellen Flächen, Akzent-Pink #FF6FB5 + #3D1030 ≈ 6.2:1)
+   =================================================================== */
+
+/* Primär-Buttons: Lollipop-Pille mit Candy-Stripes (leicht rotiertes
+   repeating-linear-gradient rosa/weiß) + Zuckerguss-Glanzkante.
+   Hover-Regel gespiegelt, weil components.css dort das background-
+   Shorthand neu setzt (würde die Stripes löschen). */
+[data-theme="candy"] .btn-primary {
+  background-color: var(--pm-yellow);
+  background-image:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.50), rgba(255, 255, 255, 0) 46%),
+    repeating-linear-gradient(115deg, rgba(255, 255, 255, 0) 0 10px, rgba(255, 255, 255, 0.38) 10px 20px);
+  border-color: rgba(255, 255, 255, 0.85);
+  border-radius: var(--r-full);
+  color: #3D1030;
+  box-shadow: 0 3px 10px rgba(255, 111, 181, 0.30), inset 0 1px 0 rgba(255, 255, 255, 0.60);
+}
+[data-theme="candy"] .btn-primary:hover:not(:disabled) {
+  background-color: var(--pm-yellow-dark);
+  background-image:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.50), rgba(255, 255, 255, 0) 46%),
+    repeating-linear-gradient(115deg, rgba(255, 255, 255, 0) 0 10px, rgba(255, 255, 255, 0.38) 10px 20px);
+  border-color: rgba(255, 255, 255, 0.95);
+  box-shadow: var(--shadow-yellow), inset 0 1px 0 rgba(255, 255, 255, 0.60);
+  animation: pm-cd-bounce 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+@keyframes pm-cd-bounce {
+  0%   { transform: translateY(0); }
+  35%  { transform: translateY(-4px) scale(1.02); }
+  70%  { transform: translateY(0); }
+  100% { transform: translateY(-1px); }
+}
+
+/* Sekundär/Outline/Danger/Success: nur extra-runde Pillen-Form */
+[data-theme="candy"] .btn-secondary,
+[data-theme="candy"] .btn-outline,
+[data-theme="candy"] .btn-outline-yellow,
+[data-theme="candy"] .btn-danger,
+[data-theme="candy"] .btn-success,
+[data-theme="candy"] .btn-ghost {
+  border-radius: var(--r-full);
+}
+
+/* Runde Icon-Buttons als Lollipop-Wirbel: dezente konische Spirale,
+   Icon (currentColor) bleibt dunkel lesbar. Eigene background-image-
+   Property → Varianten-Hover (background-Shorthand, gleiche
+   Spezifität, aber frühere Quelle) überschreibt nur die Farbe. */
+[data-theme="candy"] .btn-icon {
+  border-radius: 50%;
+  background-image: repeating-conic-gradient(rgba(255, 111, 181, 0.14) 0 20deg, rgba(255, 255, 255, 0) 20deg 40deg);
+}
+[data-theme="candy"] .btn-icon:hover:not(:disabled) {
+  animation: pm-cd-bounce 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* Badges als Bonbons: Glanzlicht + weiße Zuckerkruste */
+[data-theme="candy"] .badge {
+  border: 1px solid rgba(255, 255, 255, 0.75);
+  background-image: linear-gradient(180deg, rgba(255, 255, 255, 0.40), rgba(255, 255, 255, 0) 55%);
+  box-shadow: 0 1px 2px rgba(150, 40, 100, 0.10), inset 0 1px 0 rgba(255, 255, 255, 0.55);
+}
+
+/* Progress-Bars als Regenbogen (dekorativ, kein Text auf der Füllung) */
+[data-theme="candy"] .progress-bar {
+  background: rgba(255, 255, 255, 0.70);
+  box-shadow: inset 0 1px 2px rgba(150, 40, 100, 0.14);
+}
+[data-theme="candy"] .progress-bar__fill {
+  background: linear-gradient(90deg, #FF5FA8, #FFB13D 30%, #FFE45C 50%, #58D68D 70%, #5CA8FF 88%, #9D7BFF);
+}
+
+/* Toast als Marshmallow: weiche helle Capsule, dunkler Text (>= 4.5:1) */
+[data-theme="candy"] .toast {
+  background: rgba(255, 250, 253, 0.96);
+  color: #3D1030;
+  border: 1px solid #F5CCE0;
+  border-radius: 24px;
+  box-shadow: 0 12px 32px rgba(150, 40, 100, 0.18), inset 0 2px 0 rgba(255, 255, 255, 0.90);
+}
+
+/* Regenbogen-Akzente: Lichtkante der Sidebar-Pill + Toast-Progress */
+[data-theme="candy"] .sidebar::before {
+  background: linear-gradient(90deg,
+    transparent, #FF6FB5 18%, #FFC861 38%, #7DE3B7 58%, #7FB2FF 78%, transparent);
+  opacity: 0.9;
+}
+[data-theme="candy"] .toast::after {
+  background: linear-gradient(90deg, #FF6FB5, #FFC861, #7DE3B7, #7FB2FF);
+}
+[data-theme="candy"] .page-title {
+  background-image: linear-gradient(90deg, #C42579, #E0691F 40%, #1E8F62 75%, #2D62C4);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+/* ===================================================================
+   REDUCED MOTION / PRINT (Candy-Zusätze; FX-Layer + body-Pseudos
+   deckt themes.css bereits ab)
+   =================================================================== */
+@media (prefers-reduced-motion: reduce) {
+  [data-theme="candy"] .btn-primary:hover:not(:disabled),
+  [data-theme="candy"] .btn-icon:hover:not(:disabled) {
+    animation: none !important;
+  }
+}
+@media print {
+  [data-theme="candy"] .card,
+  [data-theme="candy"] .stat-card,
+  [data-theme="candy"] .accordion__item,
+  [data-theme="candy"] .profil-section,
+  [data-theme="candy"] .verwaltung-panel,
+  [data-theme="candy"] .week-toolbar,
+  [data-theme="candy"] .modal,
+  [data-theme="candy"] .toast {
+    background-color: #FFFFFF;
+    -webkit-backdrop-filter: none;
+            backdrop-filter: none;
+  }
+}

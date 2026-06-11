@@ -204,7 +204,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     main.innerHTML = `
       ${azubiSelectorHtml}
 
-      ${renderStammdatenBlock(azubiUser, azubiAusbilder, ausbildungsjahr, azubiZuw)}
+      ${renderStammdatenPrintBlock(azubiUser, azubiAusbilder, ausbildungsjahr, azubiZuw)}
 
       ${await renderStatusBanner(woche, azubiAusbilder, user)}
 
@@ -457,7 +457,14 @@ document.addEventListener('DOMContentLoaded', async () => {
     `;
   }
 
-  // ── Stammdaten-Block ──────────────────────────────────────────────
+  // ── Stammdaten (nur Druck/PDF-Export) ─────────────────────────────
+  // Die Bildschirm-Darstellung der Stammdaten lebt jetzt auf der
+  // Profil-Seite (profil.js, Kachel "Stammdaten"). Für den IHK-Ausdruck
+  // der Wochenansicht müssen die Stammdaten aber weiterhin auf dem
+  // Papier stehen – daher rendert die Wochenansicht einen auf dem
+  // Bildschirm unsichtbaren Block, der nur in @media print erscheint
+  // (s. wochenansicht.css, Abschnitte "STAMMDATEN (nur Druck)" und
+  // "DRUCK-OPTIMIERUNG").
   function calcAusbildungsjahr(beginnStr, refDate = new Date()) {
     if (!beginnStr) return null;
     const start = new Date(beginnStr + 'T00:00:00');
@@ -465,13 +472,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     return Math.max(1, Math.min(4, Math.floor(months / 12) + 1));
   }
 
-  function renderStammdatenBlock(azubi, ausbilder, ausbildungsjahr, zuw) {
+  function renderStammdatenPrintBlock(azubi, ausbilder, ausbildungsjahr, zuw) {
     if (!azubi) return '';
-    const summarySub = [
-      ausbildungsjahr ? `${ausbildungsjahr}. Ausbildungsjahr` : null,
-      azubi.beruf,
-      azubi.abteilung,
-    ].filter(Boolean).join(' · ');
 
     // Im Wochenansicht-Kontext nur die für die Erfassung relevanten Stammdaten.
     // Detail-Felder (IHK, Berufsbildnummer, Azubi-Nr.) finden sich im Profil.
@@ -485,30 +487,17 @@ document.addEventListener('DOMContentLoaded', async () => {
     ];
 
     return `
-      <details class="stammdaten" id="stammdatenBlock">
-        <summary class="stammdaten__summary">
-          <div class="stammdaten__summary-icon" aria-hidden="true">
-            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
-          </div>
-          <div class="stammdaten__summary-text">
-            <div class="stammdaten__summary-title">Stammdaten</div>
-            <div class="stammdaten__summary-sub">${azubi.name}${summarySub ? ' · ' + summarySub : ''}</div>
-          </div>
-          <div class="stammdaten__summary-chevron" aria-hidden="true">
-            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
-          </div>
-        </summary>
-        <div class="stammdaten__body">
-          <dl class="stammdaten__grid">
-            ${fields.map(f => `
-              <div class="stammdaten__field">
-                <dt class="stammdaten__label">${f.label}</dt>
-                <dd class="stammdaten__value">${f.value}</dd>
-              </div>
-            `).join('')}
-          </dl>
-        </div>
-      </details>
+      <section class="stammdaten-print">
+        <div class="stammdaten-print__title">Stammdaten</div>
+        <dl class="stammdaten-print__grid">
+          ${fields.map(f => `
+            <div class="stammdaten-print__field">
+              <dt class="stammdaten-print__label">${f.label}</dt>
+              <dd class="stammdaten-print__value">${f.value}</dd>
+            </div>
+          `).join('')}
+        </dl>
+      </section>
     `;
   }
 

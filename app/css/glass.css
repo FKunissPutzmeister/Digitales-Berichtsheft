@@ -995,6 +995,8 @@ body.login-page::after {
   flex-shrink: 0;
   border-radius: 11px;
   object-fit: contain;
+  /* Für sanftes Ausblenden im Collapsed-State (siehe Collapsed-Block) */
+  transition: width var(--t-normal), opacity var(--t-normal);
 }
 .sidebar__logo-text {
   overflow: hidden;
@@ -1230,6 +1232,31 @@ body.login-page::after {
 .sidebar.collapsed .sidebar__user-link     { flex: none; justify-content: center; padding: 4px; gap: 0; background: transparent; }
 .sidebar.collapsed .sidebar__toggle svg    { transform: rotate(180deg); }
 
+/* Collapsed: gelbes Logo-Quadrat ausblenden + Toggle "nackt".
+   Im 76px-Collapsed-Header passen Logo-Mark (36px, gelbes PM-Logo) und
+   Toggle nicht nebeneinander — der per overflow:hidden angeschnittene
+   Logo-Rest erschien als gelbes Viereck direkt am Toggle. Daher: Mark
+   komplett ausblenden, Toggle mittig zentrieren und jede Button-Fläche
+   (auch die [data-theme="light"]-Glasfläche von oben) entfernen — es
+   bleibt nur der Pfeil. Hover behält einen dezenten neutralen Effekt. */
+.sidebar.collapsed .sidebar__logo-mark { width: 0; opacity: 0; }
+.sidebar.collapsed .sidebar__header    { justify-content: center; }
+.sidebar.collapsed .sidebar__toggle {
+  background: transparent;
+  border-color: transparent;
+  box-shadow: none;
+  color: rgba(26, 26, 26, 0.62);
+}
+[data-theme="dark"] .sidebar.collapsed .sidebar__toggle { color: rgba(255, 255, 255, 0.70); }
+.sidebar.collapsed .sidebar__toggle:hover {
+  background: rgba(0, 0, 0, 0.06);
+  color: var(--pm-grey-900);
+}
+[data-theme="dark"] .sidebar.collapsed .sidebar__toggle:hover {
+  background: rgba(255, 255, 255, 0.10);
+  color: #fff;
+}
+
 /* Initial-Render-Marker (FOUC-Schutz) */
 html.sidebar-init-collapsed .sidebar { width: var(--lg-sidebar-w-collapsed); }
 html.sidebar-init-collapsed .sidebar__logo-text,
@@ -1237,6 +1264,9 @@ html.sidebar-init-collapsed .sidebar__logo-sub { opacity: 0; max-width: 0; }
 html.sidebar-init-collapsed .sidebar__section-label { opacity: 0; max-height: 0; padding: 0; }
 html.sidebar-init-collapsed .sidebar__link-label   { opacity: 0; max-width: 0; flex: none; }
 html.sidebar-init-collapsed .sidebar__link         { justify-content: center; padding: 0; }
+html.sidebar-init-collapsed .sidebar__logo-mark    { width: 0; opacity: 0; }
+html.sidebar-init-collapsed .sidebar__header       { justify-content: center; }
+html.sidebar-init-collapsed .sidebar__toggle       { background: transparent; border-color: transparent; box-shadow: none; }
 html.sidebar-init-collapsed .main-wrapper          { margin-left: calc(var(--lg-sidebar-w-collapsed) + var(--lg-gap) * 2); }
 
 /* Mobile Overlay (bei mobile-open) */

@@ -18,91 +18,54 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   }
 
-  function getRoleBadgeClass(role) {
-    switch (role) {
-      case 'azubi':     return 'badge--info';
-      case 'ausbilder': return 'badge--genehmigt';
-      case 'admin':     return 'badge--grey';
-      default:          return 'badge--grey';
-    }
+  /* Ausbildungsjahr-Berechnung — identisch zur (früheren) Logik der
+     Wochenansicht, damit beide Stellen dasselbe Jahr anzeigen. */
+  function calcAusbildungsjahr(beginnStr, refDate = new Date()) {
+    if (!beginnStr) return null;
+    const start = new Date(beginnStr + 'T00:00:00');
+    const months = (refDate.getFullYear() - start.getFullYear()) * 12 + (refDate.getMonth() - start.getMonth());
+    return Math.max(1, Math.min(4, Math.floor(months / 12) + 1));
   }
 
-  function calcAusbildungsfortschritt(azubi) {
-    if (!azubi.ausbildungsBeginn || !azubi.ausbildungsEnde) return null;
-    const start = new Date(azubi.ausbildungsBeginn).getTime();
-    const end   = new Date(azubi.ausbildungsEnde).getTime();
-    const now   = Date.now();
-    if (now >= end) return 100;
-    if (now <= start) return 0;
-    return Math.round(((now - start) / (end - start)) * 100);
-  }
+  /* Stammdaten-Kachel — von der Wochenansicht hierher umgezogen.
+     Gleiche Datenquelle wie dort: aktuelle Zuweisung über
+     DB.getAktuellerAusbilder, Ausbilder-Name über DB.getUser,
+     Ausbildungsjahr aus user.ausbildungsBeginn. */
+  async function buildStammdaten() {
+    if (!isAzubi) return '';
 
-  function buildProfilCard() {
-    const pct = isAzubi ? calcAusbildungsfortschritt(user) : null;
+    const zuw = await DB.getAktuellerAusbilder(user.id);
+    const ausbilder = zuw ? await DB.getUser(zuw.ausbilderId) : null;
+    const ausbildungsjahr = calcAusbildungsjahr(user.ausbildungsBeginn);
 
-    const infoItems = [];
-
-    infoItems.push(`
-      <div class="profil-card__info-item">
-        ${Icon('mail', { size: 18 })}
-        <span>${user.email || '–'}</span>
-      </div>
-    `);
-
-    if (user.abteilung) {
-      infoItems.push(`
-        <div class="profil-card__info-item">
-          ${Icon('briefcase', { size: 18 })}
-          <span>${user.abteilung}</span>
-        </div>
-      `);
-    }
-
-    if (user.unternehmen) {
-      infoItems.push(`
-        <div class="profil-card__info-item">
-          ${Icon('building')}
-          <span>${user.unternehmen}</span>
-        </div>
-      `);
-    }
-
-    if (isAzubi && user.ausbildungsBeginn && user.ausbildungsEnde) {
-      infoItems.push(`
-        <div class="profil-card__info-item">
-          ${Icon('calendar', { size: 18 })}
-          <span>${DateUtil.formatDate(user.ausbildungsBeginn)} – ${DateUtil.formatDate(user.ausbildungsEnde)}</span>
-        </div>
-      `);
-    }
+    const fields = [
+      { label: 'Auszubildende/r',         value: user.name },
+      { label: 'Beruf',                   value: user.beruf || '–' },
+      { label: 'Ausbildungsjahr',         value: ausbildungsjahr ? `${ausbildungsjahr}. Jahr` : '–' },
+      { label: 'Aktuelle Abteilung',      value: zuw?.abteilung || user.abteilung || '–' },
+      { label: 'Aktuelle/r Ausbilder/in', value: ausbilder ? ausbilder.name : '–' },
+      { label: 'Ausbildungsbetrieb',      value: user.unternehmen || '–' },
+    ];
 
     return `
-      <div class="profil-card">
-        <div class="profil-card__banner"></div>
-        <div class="profil-card__avatar-wrap">
-          <div class="profil-card__avatar">${user.initials}</div>
-        </div>
-        <div class="profil-card__name">${user.name}</div>
-        <div class="profil-card__role">
-          <span class="badge ${getRoleBadgeClass(user.role)}">${getRoleLabel(user.role)}</span>
-        </div>
-        <div class="profil-card__divider"></div>
-        <div class="profil-card__info-list">
-          ${infoItems.join('')}
-        </div>
-        ${pct !== null ? `
-        <div class="profil-card__divider"></div>
-        <div style="padding:var(--sp-4)">
-          <div style="font-size:var(--text-xs);font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--pm-grey-400);margin-bottom:var(--sp-2)">Ausbildungsfortschritt</div>
-          <div style="display:flex;align-items:center;gap:var(--sp-2)">
-            <div class="progress-bar" style="flex:1">
-              <div class="progress-bar__fill" id="profilProgressBar" style="width:0%;transition:width .8s ease"></div>
-            </div>
-            <span style="font-size:var(--text-sm);font-weight:700;color:var(--pm-grey-700)">${pct}%</span>
+      <details class="profil-section" open>
+        <summary class="profil-section__header">
+          <div class="profil-section__icon">
+            ${Icon('document')}
           </div>
-        </div>
-        ` : ''}
-      </div>
+          <div class="profil-section__title">Stammdaten</div>
+        </summary>
+        <div class="profil-section__body-wrap"><div class="profil-section__body">
+          <dl class="profil-stammdaten__grid">
+            ${fields.map(f => `
+              <div class="profil-stammdaten__field">
+                <dt class="profil-stammdaten__label">${f.label}</dt>
+                <dd class="profil-stammdaten__value">${f.value}</dd>
+              </div>
+            `).join('')}
+          </dl>
+        </div></div>
+      </details>
     `;
   }
 
@@ -143,6 +106,114 @@ document.addEventListener('DOMContentLoaded', async () => {
         </div></div>
       </details>
     `;
+  }
+
+  /* ── Darstellung & Themes ──────────────────────────────────────
+     Einstellungs-Karte: Standard-Modus (Hell/Dunkel) + Custom-Designs
+     (Hyperspace, CMD, Candy Land, Iceland). theme.js ist ein SHARED-
+     Script (der SPA-Router führt es bei Navigationen nicht erneut aus)
+     und exponiert das globale window.PMTheme-API – hier wird nur
+     gerufen, nie neu initialisiert.
+     Verhalten: Der Hell/Dunkel-Toggle in der Sidebar verlässt ein
+     aktives Custom-Design und kehrt zum gewählten Standard-Modus
+     zurück (implementiert in PMTheme.set/toggle, theme.js). */
+  const THEME_DESIGNS = [
+    { id: '',           name: 'Standard',   sub: 'Putzmeister-Design' },
+    { id: 'hyperspace', name: 'Hyperspace', sub: 'Weltall & Neon' },
+    { id: 'cmd',        name: 'CMD',        sub: 'Terminal, Grün auf Schwarz' },
+    { id: 'candy',      name: 'Candy Land', sub: 'Pastell & Regenbogen' },
+    { id: 'iceland',    name: 'Iceland',    sub: 'Schnee, Eis & Iglu' },
+  ];
+
+  function buildDarstellung() {
+    const mode   = window.PMTheme?.getMode?.()   || 'light';
+    const custom = window.PMTheme?.getCustom?.() || '';
+
+    const modeBtn = (val, label, icon) => `
+      <button type="button" class="theme-mode-btn ${mode === val ? 'active' : ''}"
+              data-theme-mode="${val}" aria-pressed="${mode === val}">
+        ${icon}
+        <span>${label}</span>
+      </button>
+    `;
+    const SUN  = '<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>';
+    const MOON = '<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>';
+
+    const tiles = THEME_DESIGNS.map(d => `
+      <button type="button" class="theme-tile ${custom === d.id ? 'active' : ''}"
+              data-theme-design="${d.id}" aria-pressed="${custom === d.id}">
+        <span class="theme-tile__swatch theme-tile__swatch--${d.id || 'standard'}" aria-hidden="true"></span>
+        <span class="theme-tile__name">${d.name}</span>
+        <span class="theme-tile__sub">${d.sub}</span>
+      </button>
+    `).join('');
+
+    return `
+      <details class="profil-section" open>
+        <summary class="profil-section__header">
+          <div class="profil-section__icon">
+            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path d="M12 22a10 10 0 1 1 10-10c0 2.21-1.79 3.5-4 3.5h-2.2c-1.1 0-1.8.9-1.8 2 0 .55.2 1.05.55 1.45.35.4.55.9.55 1.45 0 1.1-.9 1.6-2.1 1.6Z"/><circle cx="7.5" cy="11.5" r="1.2" fill="currentColor" stroke="none"/><circle cx="11" cy="7.5" r="1.2" fill="currentColor" stroke="none"/><circle cx="15.5" cy="9" r="1.2" fill="currentColor" stroke="none"/></svg>
+          </div>
+          <div class="profil-section__title">Darstellung &amp; Themes</div>
+        </summary>
+        <div class="profil-section__body-wrap"><div class="profil-section__body">
+          <div class="theme-group">
+            <div class="theme-group__label">Standard-Modus</div>
+            <p class="theme-group__hint">Gilt überall, solange kein Custom-Design aktiv ist. Der Hell/Dunkel-Schalter in der Sidebar wechselt diesen Modus.</p>
+            <div class="theme-mode-row">
+              ${modeBtn('light', 'Hell', SUN)}
+              ${modeBtn('dark', 'Dunkel', MOON)}
+            </div>
+          </div>
+          <div class="theme-group">
+            <div class="theme-group__label">Custom-Design</div>
+            <p class="theme-group__hint">Ein Custom-Design überlagert den Standard-Modus. Ein Klick auf den Hell/Dunkel-Schalter in der Sidebar beendet das Custom-Design und kehrt zum Standard-Modus zurück.</p>
+            <div class="theme-tiles">
+              ${tiles}
+            </div>
+          </div>
+        </div></div>
+      </details>
+    `;
+  }
+
+  /* Active-Markierungen der Theme-Karte mit dem aktuellen PMTheme-State
+     synchronisieren (auch bei Änderungen durch Sidebar-Toggle/andere Tabs). */
+  function syncDarstellung() {
+    if (!window.PMTheme) return;
+    const mode   = window.PMTheme.getMode();
+    const custom = window.PMTheme.getCustom() || '';
+    document.querySelectorAll('[data-theme-mode]').forEach(btn => {
+      const on = btn.dataset.themeMode === mode;
+      btn.classList.toggle('active', on);
+      btn.setAttribute('aria-pressed', String(on));
+    });
+    document.querySelectorAll('[data-theme-design]').forEach(tile => {
+      const on = (tile.dataset.themeDesign || '') === custom;
+      tile.classList.toggle('active', on);
+      tile.setAttribute('aria-pressed', String(on));
+    });
+  }
+
+  function bindDarstellung() {
+    if (!window.PMTheme) return;
+    document.querySelectorAll('[data-theme-mode]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        window.PMTheme.setMode(btn.dataset.themeMode);
+      });
+    });
+    document.querySelectorAll('[data-theme-design]').forEach(tile => {
+      tile.addEventListener('click', () => {
+        window.PMTheme.setCustom(tile.dataset.themeDesign || null);
+      });
+    });
+    /* Listener deduplizieren: profil.js läuft bei jeder SPA-Navigation
+       auf die Profil-Seite erneut – alten Handler vorher abhängen. */
+    if (window.__pmThemeCardSync) {
+      window.removeEventListener('pm-theme-change', window.__pmThemeCardSync);
+    }
+    window.__pmThemeCardSync = syncDarstellung;
+    window.addEventListener('pm-theme-change', syncDarstellung);
   }
 
   function buildAusbildungsDaten() {
@@ -445,30 +516,22 @@ document.addEventListener('DOMContentLoaded', async () => {
         </div>
       </div>
 
-      <div class="profil-layout">
-        ${buildProfilCard()}
-        <div class="profil-panels">
-          ${buildPersoenlicheDaten()}
-          ${buildAusbildungsDaten()}
-          ${ZeitnachweisUpload.renderSection(user)}
-          ${IhkImport.renderSection(user)}
-          ${buildIHKDaten()}
-          ${buildUnternehmensDaten()}
-          ${await buildAusbilderTimeline()}
-          ${await buildAzubiListe()}
-          ${buildLogoutBlock()}
-        </div>
+      <div class="profil-panels">
+        ${await buildStammdaten()}
+        ${buildPersoenlicheDaten()}
+        ${buildDarstellung()}
+        ${buildAusbildungsDaten()}
+        ${ZeitnachweisUpload.renderSection(user)}
+        ${IhkImport.renderSection(user)}
+        ${buildIHKDaten()}
+        ${buildUnternehmensDaten()}
+        ${await buildAusbilderTimeline()}
+        ${await buildAzubiListe()}
+        ${buildLogoutBlock()}
       </div>
 
       ${buildPasswordModal()}
     `;
-
-    // Fortschrittsbalken animieren
-    const bar = document.getElementById('profilProgressBar');
-    if (bar) {
-      const pct = calcAusbildungsfortschritt(user);
-      setTimeout(() => { bar.style.width = pct + '%'; }, 150);
-    }
 
     // Passwort-Modal
     document.getElementById('changePasswordBtn')?.addEventListener('click', () => {
@@ -492,6 +555,9 @@ document.addEventListener('DOMContentLoaded', async () => {
       Modal.closeAll();
       Toast.info('Hinweis', 'Passwörter werden über das Putzmeister-Konto verwaltet.');
     });
+
+    // Darstellung & Themes verdrahten (Klick = sofort anwenden + persistieren)
+    bindDarstellung();
 
     // Zeitnachweis-Import-Sektion verdrahten (nur für Azubis vorhanden)
     ZeitnachweisUpload.bind(user);
