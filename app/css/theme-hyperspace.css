@@ -1,8 +1,9 @@
 /* ===================================================================
    THEME-HYPERSPACE.CSS – tiefes Weltall, Neon-Cyan/-Magenta
    -------------------------------------------------------------------
-   Wird via @import aus themes.css geladen (dort liegen auch die
-   geteilten Blöcke: #pmThemeFX-Basis, prefers-reduced-motion, print).
+   Wird von jeder HTML-Seite als eigenes <link>-Stylesheet DIREKT VOR
+   themes.css geladen (dort liegen die geteilten Blöcke: #pmThemeFX-
+   Basis, Modal-FX-Pause, prefers-reduced-motion, print).
    Diese Datei gehört EXKLUSIV dem Hyperspace-Designer.
 
    HINWEIS: Die Komponenten-Spiegelungen am Dateiende existieren
@@ -327,9 +328,14 @@ html[data-theme="hyperspace"] { color-scheme: dark; }
 
 /* Text auf Akzent-Flächen bleibt dunkel (vgl. components.css §dark) */
 [data-theme="hyperspace"] .btn-primary,
-[data-theme="hyperspace"] .avatar,
-[data-theme="hyperspace"] .pm-select__option--selected {
+[data-theme="hyperspace"] .avatar {
   color: var(--on-yellow-text);
+}
+/* Selektierte Option: --pm-yellow-bg ist hier nur ein schwacher
+   Cyan-Tint über dem dunklen Menü – dunkler --on-yellow-text wäre
+   darauf ~1,4:1 unsichtbar. Akzentfarbe auf Tint statt dessen. */
+[data-theme="hyperspace"] .pm-select__option--selected {
+  color: var(--pm-yellow);
 }
 [data-theme="hyperspace"] ::selection {
   background: var(--pm-yellow);
@@ -367,6 +373,18 @@ html[data-theme="hyperspace"] { color-scheme: dark; }
 [data-theme="hyperspace"] .role-badge {
   background: rgba(255, 255, 255, 0.10);
   color: var(--pm-grey-700);
+}
+/* Role-Badges: glass.css setzt [data-role] mit höherer Spezifität auf
+   die dunklen Light-Farben (#1565C0/#B38A00) – auf der dunklen Pille
+   unlesbar. Spiegelung der Dark-Overrides (glass.css:1219-1220),
+   Ausbilder-Tint auf den Cyan-Akzent umgefärbt. */
+[data-theme="hyperspace"] .role-badge[data-role="azubi"] {
+  background: rgba(111, 177, 242, 0.20);
+  color: #B4D7F7;
+}
+[data-theme="hyperspace"] .role-badge[data-role="ausbilder"] {
+  background: rgba(47, 214, 242, 0.20);
+  color: var(--pm-yellow);
 }
 
 /* Theme-Toggle-Icon: dunkle Custom-Themes zeigen den Mond
@@ -600,6 +618,66 @@ html[data-theme="hyperspace"] .bento .b-recent {
     url("../assets/backgrounds/tile-material-recent-dark.png?v=20260602-materialdark2") !important;
   background-size: cover, cover !important;
   background-position: center, center !important;
+}
+
+/* ── Welcome-Hero (dashboard.css ~2164): die Basisregel malt einen nur
+   0.18-0.68 starken Abdunkel-Gradient über var(--app-bg-image) – unter
+   hyperspace ist das none, der Gradient läge direkt über dem animierten
+   Tunnel und der Kontrast der weißen Schrift (__kw-num/__name) würde
+   flackern. Eigene, fast deckende Weltraum-Fläche (Alpha ≥ 0.86) +
+   kräftigerer Overlay-Gradient → Weiß bleibt überall ≥ 4.5:1. ── */
+[data-theme="hyperspace"] .welcome-hero {
+  background-image:
+    linear-gradient(100deg, rgba(0, 0, 6, 0.78) 0%, rgba(0, 0, 6, 0.55) 48%, rgba(0, 0, 6, 0.38) 100%),
+    linear-gradient(180deg, rgba(20, 18, 52, 0.88) 0%, rgba(10, 9, 33, 0.86) 100%);
+}
+
+/* ── Wochenansicht-Tag-Rows (wochenansicht.css ~2881 spiegelt den
+   Kontrast-Boost nur unter [data-theme="dark"]): ohne ihn laufen die
+   Light-Regeln mit unsichtbaren rgba(255,255,255,0.06)-Borders und
+   literalem Gelb als Today-Tint. 1:1 gespiegelt, Flächen auf das
+   Weltraum-Violett und der Today-/Expanded-Akzent auf Cyan umgefärbt. ── */
+[data-theme="hyperspace"] body[data-page="wochenansicht"] .tag-row {
+  background: linear-gradient(180deg, #322E61 0%, #2B2755 100%);
+  border-color: rgba(255, 255, 255, 0.10);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.05),
+    0 1px 2px rgba(0, 0, 6, 0.35);
+}
+[data-theme="hyperspace"] body[data-page="wochenansicht"] .tag-row + .tag-row {
+  margin-top: 8px;
+}
+[data-theme="hyperspace"] body[data-page="wochenansicht"] .tag-row:hover {
+  border-color: rgba(255, 255, 255, 0.10);
+}
+[data-theme="hyperspace"] body[data-page="wochenansicht"] .tag-row__summary:hover {
+  background: rgba(255, 255, 255, 0.04);
+}
+[data-theme="hyperspace"] body[data-page="wochenansicht"] .tag-row--today {
+  background:
+    linear-gradient(180deg, rgba(47, 214, 242, 0.10) 0%, rgba(47, 214, 242, 0.04) 100%),
+    linear-gradient(180deg, #322E61 0%, #2B2755 100%);
+  border-color: rgba(47, 214, 242, 0.45);
+  box-shadow:
+    inset 0 1px 0 rgba(47, 214, 242, 0.15),
+    0 0 0 1px rgba(47, 214, 242, 0.10),
+    0 4px 14px -6px rgba(47, 214, 242, 0.25);
+}
+[data-theme="hyperspace"] body[data-page="wochenansicht"] .tag-row--weekend {
+  background: rgba(255, 255, 255, 0.015);
+  border-color: rgba(255, 255, 255, 0.06);
+  box-shadow: none;
+}
+[data-theme="hyperspace"] body[data-page="wochenansicht"] .tag-row.expanded {
+  border-color: rgba(47, 214, 242, 0.32);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.06),
+    0 0 0 1px rgba(47, 214, 242, 0.18),
+    0 8px 24px -10px rgba(0, 0, 0, 0.55);
+}
+[data-theme="hyperspace"] body[data-page="wochenansicht"] .tag-row__body {
+  background: rgba(0, 0, 0, 0.25);
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 /* ── Wochenansicht-Pill-Selects (wochenansicht.css spiegelt nur dark:

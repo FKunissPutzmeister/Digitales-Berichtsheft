@@ -3,7 +3,9 @@
    -------------------------------------------------------------------
    Wird auf ALLEN Seiten NACH allen anderen Stylesheets geladen.
    Die theme-spezifischen Token-Overrides/Hintergründe/Komponenten-
-   Spiegelungen liegen in den per-Theme-Dateien (via @import unten):
+   Spiegelungen liegen in den per-Theme-Dateien, die jede HTML-Seite
+   als eigene <link>-Stylesheets DIREKT VOR dieser Datei einbindet
+   (parallel ladbar – bewusst KEIN serielles @import mehr):
 
    • theme-hyperspace.css  [data-theme="hyperspace"] – Weltall/Warp, dunkel, Cyan/Magenta
    • theme-cmd.css         [data-theme="cmd"]        – Terminal „color a", schwarz/grün, mono
@@ -16,8 +18,8 @@
    darf sich um KEIN Pixel ändern.
 
    Diese Datei behält nur die GETEILTE Infrastruktur:
-   • @import der vier Theme-Dateien (muss vor allen Regeln stehen)
    • #pmThemeFX-Basisregeln (DOM-FX-Layer, von js/theme.js verwaltet)
+   • FX-Pause-Sammelblock bei offenem Modal (.modal-overlay.open)
    • prefers-reduced-motion-Sammelblock
    • Print-Sammelblock
 
@@ -46,11 +48,6 @@
    eine eigene Kopie pro Datei).
    =================================================================== */
 
-@import url("theme-hyperspace.css");
-@import url("theme-cmd.css");
-@import url("theme-candy.css");
-@import url("theme-iceland.css");
-
 /* ===================================================================
    FX-LAYER-CONTAINER – #pmThemeFX (geteilte Basisregeln)
    -------------------------------------------------------------------
@@ -70,6 +67,31 @@
   z-index: 0;
   pointer-events: none;
   overflow: hidden;
+}
+
+/* ===================================================================
+   FX-PAUSE BEI OFFENEM MODAL
+   -------------------------------------------------------------------
+   js/app.js (Modal.open) schaltet das Overlay über die Klasse
+   .modal-overlay.open aktiv; components.css legt darunter einen
+   viewportfüllenden backdrop-filter: blur(12px). Laufende FX-
+   Animationen unter dieser Blur-Fläche wären reine GPU-Dauerlast
+   ohne sichtbaren Nutzen → pausieren, solange ein Modal offen ist.
+   Greift nur in Custom-Themes: #pmThemeFX existiert nur dort, die
+   body-Pseudo-Layer sind explizit pro Theme gescopet.
+   =================================================================== */
+body:has(.modal-overlay.open) #pmThemeFX * {
+  animation-play-state: paused !important;
+}
+[data-theme="hyperspace"] body:has(.modal-overlay.open)::before,
+[data-theme="hyperspace"] body:has(.modal-overlay.open)::after,
+[data-theme="cmd"] body:has(.modal-overlay.open)::before,
+[data-theme="cmd"] body:has(.modal-overlay.open)::after,
+[data-theme="candy"] body:has(.modal-overlay.open)::before,
+[data-theme="candy"] body:has(.modal-overlay.open)::after,
+[data-theme="iceland"] body:has(.modal-overlay.open)::before,
+[data-theme="iceland"] body:has(.modal-overlay.open)::after {
+  animation-play-state: paused !important;
 }
 
 /* ===================================================================

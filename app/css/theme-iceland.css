@@ -1,8 +1,9 @@
 /* ===================================================================
    THEME-ICELAND.CSS – realistische Gletscherwelt
    -------------------------------------------------------------------
-   Wird via @import aus themes.css geladen (dort liegen auch die
-   geteilten Blöcke: #pmThemeFX-Basis, prefers-reduced-motion, print).
+   Wird von jeder HTML-Seite als eigenes <link>-Stylesheet DIREKT VOR
+   themes.css geladen (dort liegen die geteilten Blöcke: #pmThemeFX-
+   Basis, Modal-FX-Pause, prefers-reduced-motion, print).
    Diese Datei gehört EXKLUSIV dem Iceland-Designer.
 
    Szene (DOM-FX-Layer, Template "iceland" in js/theme.js, pm-is-*):
@@ -23,9 +24,11 @@ html[data-theme="iceland"] { color-scheme: light; }
    Orientierung am Iglu-Foto: karge Grau-Weiß-Töne, kühles Licht,
    Eisblau nur als gedeckter Akzent (kein Knallblau). */
 [data-theme="iceland"] {
-  /* Akzent: gedecktes Gletscherblau */
+  /* Akzent: gedecktes Gletscherblau.
+     Konvention: -dark MUSS dunkler sein als der Akzent (Token wird u.a.
+     als Farbe auf hellen Flächen genutzt, z.B. stat-card__icon--yellow). */
   --pm-yellow:          #84B7D0;
-  --pm-yellow-dark:     #97C4DA;
+  --pm-yellow-dark:     #5E96B2;
   --pm-yellow-darker:   #2F6B86;
   --pm-yellow-light:    #B9D8E6;
   --pm-yellow-pale:     #DFECF3;
@@ -38,7 +41,7 @@ html[data-theme="iceland"] { color-scheme: light; }
   --pm-grey-100:        #E6EBEE;
   --pm-grey-200:        #D3DCE1;
   --pm-grey-300:        #B4C2CA;
-  --pm-grey-400:        #6E828E;
+  --pm-grey-400:        #64777F;   /* Sekundärtext-Token: >= 4.5:1 auf Weiß */
   --pm-grey-500:        #5A6E7A;
   --pm-grey-600:        #475A66;
   --pm-grey-700:        #374851;
@@ -156,7 +159,8 @@ html[data-theme="iceland"] { color-scheme: light; }
     radial-gradient(50% 120% at 84% 65%, rgba(247, 250, 252, 0.55), rgba(247, 250, 252, 0) 70%);
   background-size: 720px 100%;
   background-repeat: repeat-x;
-  will-change: transform;
+  /* kein will-change: die laufende transform-Animation promoted die
+     Lage ohnehin auf einen eigenen Compositor-Layer */
 }
 [data-theme="iceland"] .pm-is-fog--high {
   bottom: 26vh;
@@ -197,15 +201,22 @@ html[data-theme="iceland"] { color-scheme: light; }
    (+ Tropfen-Punkte). Die Lage ist leicht rotiert (Schräge) und um
    eine Tile-Höhe nach oben verlängert; translateY(Tile-Höhe) im
    rotierten Koordinatensystem loopt nahtlos entlang der Fallrichtung.
-   Seitliche/untere 220px-Reserve fängt die Rotations-Verschiebung ab. */
+   Die Rotations-Reserve fängt die Eck-Verschiebung der gedrehten Lage
+   ab; sie skaliert mit dem Viewport (fixe 220px reichen bei sehr
+   großen/hohen Viewports nicht → schneefreie Ecken). Die top-Werte
+   sind je Lage Tile-Höhe + Reserve. Kein will-change: die laufende
+   transform-Animation promoted die Lage ohnehin auf einen eigenen
+   Compositor-Layer. */
 [data-theme="iceland"] .pm-is-sleet {
+  --is-sleet-pad: max(220px, 12vh, 12vw);
   position: absolute;
-  left: -220px; right: -220px; bottom: -220px;
+  left: calc(-1 * var(--is-sleet-pad));
+  right: calc(-1 * var(--is-sleet-pad));
+  bottom: calc(-1 * var(--is-sleet-pad));
   background-repeat: repeat;
-  will-change: transform;
 }
 [data-theme="iceland"] .pm-is-sleet--far {
-  top: -660px;
+  top: calc(-440px - var(--is-sleet-pad));
   background-image:
     radial-gradient(1px 9px at 30px 40px,   rgba(255, 255, 255, 0.55), transparent 80%),
     radial-gradient(1px 8px at 120px 150px, rgba(255, 255, 255, 0.40), transparent 80%),
@@ -217,7 +228,7 @@ html[data-theme="iceland"] { color-scheme: light; }
   animation: pm-is-sleet-far 2.6s linear infinite;
 }
 [data-theme="iceland"] .pm-is-sleet--mid {
-  top: -740px;
+  top: calc(-520px - var(--is-sleet-pad));
   background-image:
     radial-gradient(1.2px 13px at 40px 60px,   rgba(255, 255, 255, 0.65), transparent 80%),
     radial-gradient(1.2px 12px at 150px 180px, rgba(255, 255, 255, 0.50), transparent 80%),
@@ -230,7 +241,7 @@ html[data-theme="iceland"] { color-scheme: light; }
   animation: pm-is-sleet-mid 1.7s linear infinite;
 }
 [data-theme="iceland"] .pm-is-sleet--near {
-  top: -820px;
+  top: calc(-600px - var(--is-sleet-pad));
   background-image:
     radial-gradient(1.6px 20px at 50px 70px,   rgba(255, 255, 255, 0.85), transparent 80%),
     radial-gradient(1.5px 18px at 180px 210px, rgba(255, 255, 255, 0.65), transparent 80%),
@@ -401,6 +412,48 @@ html[data-theme="iceland"] { color-scheme: light; }
 }
 [data-theme="iceland"] .b-btn-primary:hover::before {
   animation-duration: 1.6s;
+}
+
+/* ===================================================================
+   5b · DASHBOARD-SPIEGELUNGEN (dashboard.css gated auf light/dark)
+   =================================================================== */
+
+/* ── Welcome-Hero (dashboard.css ~2164): die Basisregel malt weiße
+   Schrift (__kw-num/__name) über var(--app-bg-image) mit nur 0.18er-
+   Abdunkelung – über dem hellen Iceland-Grau unlesbar (~2:1).
+   Eigene tiefe Gletscher-Schieferblau-Fläche: Weiß bleibt überall
+   ≥ 4.5:1 (hellster Stop #2A4456 ≈ 10:1, 0.72-Weiß der Subline
+   ≈ 6:1, Akzent #84B7D0 des KW-Labels ≈ 4.7:1). ── */
+[data-theme="iceland"] .welcome-hero {
+  background-image:
+    linear-gradient(110deg, #16242E 0%, #1F3441 55%, #2A4456 100%);
+}
+
+/* ── Bento-Material-Tiles: der finale Material-Layer am Ende von
+   dashboard.css ist auf html[data-theme="light"|"dark"] gegated –
+   iceland fiele sonst auf die veralteten Mid-File-Series-Tiles
+   zurück, die mit der FX-Szene kollidieren. Light-Block verbatim
+   gespiegelt (inkl. !important, wie im Original). ── */
+html[data-theme="iceland"] .bento .b-hero {
+  background-image:
+    linear-gradient(105deg, rgba(255,255,255,0.38) 0%, rgba(255,255,255,0.18) 44%, rgba(255,255,255,0.00) 100%),
+    url("../assets/backgrounds/tile-series-week-light.png?v=20260602-darkfix") !important;
+  background-size: cover, cover !important;
+  background-position: center, 72% center !important;
+}
+html[data-theme="iceland"] .bento .b-azubi {
+  background-image:
+    linear-gradient(160deg, rgba(255,255,255,0.28) 0%, rgba(255,255,255,0.08) 100%),
+    url("../assets/backgrounds/tile-series-training-light.png?v=20260602-darkfix") !important;
+  background-size: cover, cover !important;
+  background-position: center, 76% center !important;
+}
+html[data-theme="iceland"] .bento .b-recent {
+  background-image:
+    linear-gradient(105deg, rgba(255,255,255,0.34) 0%, rgba(255,255,255,0.16) 42%, rgba(255,255,255,0.00) 100%),
+    url("../assets/backgrounds/tile-series-recent-light-soft.png?v=20260602-materialdark2") !important;
+  background-size: cover, cover !important;
+  background-position: center, 70% center !important;
 }
 
 /* ===================================================================

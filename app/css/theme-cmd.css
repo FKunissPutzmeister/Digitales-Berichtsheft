@@ -1,8 +1,9 @@
 /* ===================================================================
    THEME-CMD.CSS – Windows-Terminal „color a": Schwarz + Leuchtgrün + Mono
    -------------------------------------------------------------------
-   Wird via @import aus themes.css geladen (dort liegen auch die
-   geteilten Blöcke: #pmThemeFX-Basis, prefers-reduced-motion, print).
+   Wird von jeder HTML-Seite als eigenes <link>-Stylesheet DIREKT VOR
+   themes.css geladen (dort liegen die geteilten Blöcke: #pmThemeFX-
+   Basis, Modal-FX-Pause, prefers-reduced-motion, print).
    Diese Datei gehört EXKLUSIV dem CMD-Designer.
 
    HINWEIS: Die Komponenten-Spiegelungen am Dateiende existieren
@@ -185,9 +186,14 @@ html[data-theme="cmd"] { color-scheme: dark; }
 
 /* Text auf Akzent-Flächen bleibt dunkel (vgl. components.css §dark) */
 [data-theme="cmd"] .btn-primary,
-[data-theme="cmd"] .avatar,
-[data-theme="cmd"] .pm-select__option--selected {
+[data-theme="cmd"] .avatar {
   color: var(--on-yellow-text);
+}
+/* Selektierte Option: --pm-yellow-bg ist hier nur ein schwacher
+   Grün-Tint über dem dunklen Menü – dunkler --on-yellow-text wäre
+   darauf ~1,4:1 unsichtbar. Akzentfarbe auf Tint statt dessen. */
+[data-theme="cmd"] .pm-select__option--selected {
+  color: var(--pm-yellow);
 }
 [data-theme="cmd"] ::selection {
   background: var(--pm-yellow);
@@ -223,6 +229,18 @@ html[data-theme="cmd"] { color-scheme: dark; }
 [data-theme="cmd"] .role-badge {
   background: rgba(255, 255, 255, 0.10);
   color: var(--pm-grey-700);
+}
+/* Role-Badges: glass.css setzt [data-role] mit höherer Spezifität auf
+   die dunklen Light-Farben (#1565C0/#B38A00) – auf der dunklen Pille
+   unlesbar. Spiegelung der Dark-Overrides (glass.css:1219-1220),
+   Ausbilder-Tint auf den Terminal-Grün-Akzent umgefärbt. */
+[data-theme="cmd"] .role-badge[data-role="azubi"] {
+  background: rgba(111, 177, 242, 0.20);
+  color: #B4D7F7;
+}
+[data-theme="cmd"] .role-badge[data-role="ausbilder"] {
+  background: rgba(0, 230, 77, 0.20);
+  color: var(--pm-yellow);
 }
 
 /* Theme-Toggle-Icon: dunkle Custom-Themes zeigen den Mond
@@ -456,6 +474,55 @@ html[data-theme="cmd"] .bento .b-recent {
   background-position: center, center !important;
 }
 
+/* ── Wochenansicht-Tag-Rows (wochenansicht.css ~2881 spiegelt den
+   Kontrast-Boost nur unter [data-theme="dark"]): ohne ihn laufen die
+   Light-Regeln mit unsichtbaren rgba(255,255,255,0.06)-Borders und
+   literalem Gelb als Today-Tint. 1:1 gespiegelt, Flächen auf das
+   Terminal-Schwarzgrün und der Today-/Expanded-Akzent auf Grün
+   umgefärbt. ── */
+[data-theme="cmd"] body[data-page="wochenansicht"] .tag-row {
+  background: linear-gradient(180deg, #14290F 0%, #0F2009 100%);
+  border-color: rgba(255, 255, 255, 0.10);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.05),
+    0 1px 2px rgba(0, 0, 0, 0.35);
+}
+[data-theme="cmd"] body[data-page="wochenansicht"] .tag-row + .tag-row {
+  margin-top: 8px;
+}
+[data-theme="cmd"] body[data-page="wochenansicht"] .tag-row:hover {
+  border-color: rgba(255, 255, 255, 0.10);
+}
+[data-theme="cmd"] body[data-page="wochenansicht"] .tag-row__summary:hover {
+  background: rgba(255, 255, 255, 0.04);
+}
+[data-theme="cmd"] body[data-page="wochenansicht"] .tag-row--today {
+  background:
+    linear-gradient(180deg, rgba(0, 230, 77, 0.10) 0%, rgba(0, 230, 77, 0.04) 100%),
+    linear-gradient(180deg, #14290F 0%, #0F2009 100%);
+  border-color: rgba(0, 230, 77, 0.45);
+  box-shadow:
+    inset 0 1px 0 rgba(0, 230, 77, 0.15),
+    0 0 0 1px rgba(0, 230, 77, 0.10),
+    0 4px 14px -6px rgba(0, 230, 77, 0.25);
+}
+[data-theme="cmd"] body[data-page="wochenansicht"] .tag-row--weekend {
+  background: rgba(255, 255, 255, 0.015);
+  border-color: rgba(255, 255, 255, 0.06);
+  box-shadow: none;
+}
+[data-theme="cmd"] body[data-page="wochenansicht"] .tag-row.expanded {
+  border-color: rgba(0, 230, 77, 0.32);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.06),
+    0 0 0 1px rgba(0, 230, 77, 0.18),
+    0 8px 24px -10px rgba(0, 0, 0, 0.55);
+}
+[data-theme="cmd"] body[data-page="wochenansicht"] .tag-row__body {
+  background: rgba(0, 0, 0, 0.25);
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
 /* ── Wochenansicht-Pill-Selects (wochenansicht.css spiegelt nur dark:
    Light-Schatten rgba(15,23,42,…) wirken auf dunkler Fläche flach).
    Gate :not([data-btn-style="classic"]) wie im Original beibehalten. ── */
@@ -560,11 +627,13 @@ html[data-theme="cmd"] .bento .b-recent {
   background: #021008;
 }
 
-/* ── Fokus: harte 1px-Grün-Outline statt weichem Ring ── */
+/* ── Fokus: harte 1px-Grün-Outline statt weichem Ring ──
+   KEIN border-radius hier: das wirkt auf die Element-Box selbst (nicht
+   nur auf die Outline) und würde runde Elemente bei Tastaturfokus
+   verformen. */
 [data-theme="cmd"] :focus-visible {
   outline: 1px solid var(--pm-yellow);
   outline-offset: 2px;
-  border-radius: 0;
   transition: none;
 }
 [data-theme="cmd"] .btn:focus-visible,
@@ -575,7 +644,6 @@ html[data-theme="cmd"] .bento .b-recent {
   outline: 1px solid var(--pm-yellow);
   outline-offset: 3px;
   box-shadow: none;
-  border-radius: 2px;
 }
 
 /* ── Seitentitel: Prompt-Prefix + blinkender Block-Cursor ── */

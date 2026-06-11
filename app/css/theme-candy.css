@@ -1,8 +1,9 @@
 /* ===================================================================
    THEME-CANDY.CSS – Candy Land: knallige 3D-Candy-Welt
    -------------------------------------------------------------------
-   Wird via @import aus themes.css geladen (dort liegen auch die
-   geteilten Blöcke: #pmThemeFX-Basis, prefers-reduced-motion, print).
+   Wird von jeder HTML-Seite als eigenes <link>-Stylesheet DIREKT VOR
+   themes.css geladen (dort liegen die geteilten Blöcke: #pmThemeFX-
+   Basis, Modal-FX-Pause, prefers-reduced-motion, print).
    Diese Datei gehört EXKLUSIV dem Candy-Designer.
 
    Szene (DOM-FX-Layer, Template "candy" in js/theme.js, Klassen
@@ -18,7 +19,9 @@
    · 6 Lollipops · 7 Wiese vorn · 8 Gumdrops
 
    PERF: ausschließlich transform/opacity animiert; kein filter:blur
-   auf viewportfüllenden fixed Layern; backdrop-filter nur auf Karten.
+   auf viewportfüllenden fixed Layern; KEIN backdrop-filter auf Karten
+   (über der permanent animierten Szene zu teuer, vgl. glass.css) –
+   nur das Modal als einzelnes Element darf blurren.
    =================================================================== */
 html[data-theme="candy"] { color-scheme: light; }
 
@@ -343,10 +346,14 @@ html[data-theme="candy"] { color-scheme: light; }
 }
 
 /* ===================================================================
-   APP-FLÄCHEN – hell transluzent, damit die Szene durchscheint
+   APP-FLÄCHEN – fast deckendes Weiß, die Szene scheint nur noch
+   schwach durch
    -------------------------------------------------------------------
-   backdrop-filter NUR auf inhaltsgroßen Karten (nicht viewportfüllend);
-   0.82-Weiß hält dunklen Text bei >= 4.5:1.
+   KEIN backdrop-filter auf Karten: über der permanent animierten
+   FX-Szene müsste der Blur jeden Frame neu gerechnet werden (teuerster
+   Perf-Posten, vgl. Warnung in glass.css). Stattdessen deckendere
+   Flächen (0.90-Weiß hält dunklen Text locker >= 4.5:1).
+   backdrop-filter bleibt erlaubt NUR auf .modal (einzelnes Element).
    =================================================================== */
 [data-theme="candy"] .card,
 [data-theme="candy"] .stat-card,
@@ -354,9 +361,7 @@ html[data-theme="candy"] { color-scheme: light; }
 [data-theme="candy"] .profil-section,
 [data-theme="candy"] .verwaltung-panel,
 [data-theme="candy"] .week-toolbar {
-  background-color: rgba(255, 255, 255, 0.82);
-  -webkit-backdrop-filter: blur(8px) saturate(130%);
-          backdrop-filter: blur(8px) saturate(130%);
+  background-color: rgba(255, 255, 255, 0.90);
 }
 [data-theme="candy"] .modal {
   background-color: rgba(255, 255, 255, 0.92);
@@ -458,6 +463,52 @@ html[data-theme="candy"] { color-scheme: light; }
   -webkit-background-clip: text;
   background-clip: text;
   -webkit-text-fill-color: transparent;
+}
+
+/* ===================================================================
+   DASHBOARD-SPIEGELUNGEN (dashboard.css gated auf light/dark)
+   =================================================================== */
+
+/* ── Welcome-Hero (dashboard.css ~2164): die Basisregel malt weiße
+   Schrift (__kw-num/__name) über var(--app-bg-image) mit nur 0.18er-
+   Abdunkelung – über dem hellen Candy-Himmel unlesbar (~2:1).
+   Eigene satte Bonbon-Plum-Fläche: Weiß bleibt überall ≥ 4.5:1
+   (hellster Stop #932962 ≈ 7.7:1, 0.72-Weiß der Subline ≈ 4.7:1). ── */
+[data-theme="candy"] .welcome-hero {
+  background-image:
+    linear-gradient(110deg, #5D1242 0%, #7E1F58 52%, #932962 100%);
+}
+/* KW-Label: Akzent-Pink #FF6FB5 erreicht auf dem Plum nur ~3:1 →
+   helles Bonbon-Rosa (--pm-yellow-pale, ≈ 6:1). */
+[data-theme="candy"] .welcome-hero__kw-eye {
+  color: var(--pm-yellow-pale);
+}
+
+/* ── Bento-Material-Tiles: der finale Material-Layer am Ende von
+   dashboard.css ist auf html[data-theme="light"|"dark"] gegated –
+   candy fiele sonst auf die veralteten Mid-File-Series-Tiles zurück,
+   die mit der FX-Szene kollidieren. Light-Block verbatim gespiegelt
+   (inkl. !important, wie im Original). ── */
+html[data-theme="candy"] .bento .b-hero {
+  background-image:
+    linear-gradient(105deg, rgba(255,255,255,0.38) 0%, rgba(255,255,255,0.18) 44%, rgba(255,255,255,0.00) 100%),
+    url("../assets/backgrounds/tile-series-week-light.png?v=20260602-darkfix") !important;
+  background-size: cover, cover !important;
+  background-position: center, 72% center !important;
+}
+html[data-theme="candy"] .bento .b-azubi {
+  background-image:
+    linear-gradient(160deg, rgba(255,255,255,0.28) 0%, rgba(255,255,255,0.08) 100%),
+    url("../assets/backgrounds/tile-series-training-light.png?v=20260602-darkfix") !important;
+  background-size: cover, cover !important;
+  background-position: center, 76% center !important;
+}
+html[data-theme="candy"] .bento .b-recent {
+  background-image:
+    linear-gradient(105deg, rgba(255,255,255,0.34) 0%, rgba(255,255,255,0.16) 42%, rgba(255,255,255,0.00) 100%),
+    url("../assets/backgrounds/tile-series-recent-light-soft.png?v=20260602-materialdark2") !important;
+  background-size: cover, cover !important;
+  background-position: center, 70% center !important;
 }
 
 /* ===================================================================
