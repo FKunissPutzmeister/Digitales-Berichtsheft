@@ -1774,7 +1774,8 @@ body[data-page="wochenansicht"] .tag-row {
   scroll-margin-top: calc(var(--topbar-h) + var(--sp-4));
 }
 body[data-page="wochenansicht"] .tag-row:hover {
-  border-color: var(--pm-grey-300);
+  /* Sanfterer Hover: nur halb so starker Rahmen-Wechsel wie grey-300. */
+  border-color: color-mix(in srgb, var(--pm-grey-300) 50%, var(--pm-grey-200));
 }
 body[data-page="wochenansicht"] .tag-row--today {
   border-color: var(--pm-grey-300);
@@ -2930,7 +2931,7 @@ body[data-page="wochenansicht"] .time-spinner__input.spinner-bump-down {
   margin-top: 8px;
 }
 [data-theme="dark"] body[data-page="wochenansicht"] .tag-row:hover {
-  border-color: rgba(255, 255, 255, 0.18);
+  border-color: rgba(255, 255, 255, 0.10);
 }
 [data-theme="dark"] body[data-page="wochenansicht"] .tag-row__summary:hover {
   background: rgba(255, 255, 255, 0.04);
@@ -3103,6 +3104,11 @@ body[data-page="wochenansicht"]:not([data-btn-style="classic"]) .pm-select.woche
      begrenzt (füllt nicht die ganze Spalte). */
   width: 100%;
   max-width: 300px;
+  /* Etwas größer (höher) als der 36px-Basis-Trigger und ein kleines Stück
+     nach oben gesetzt (margin-bottom hebt bei align-items:end an). */
+  height: 42px;
+  min-height: 42px;
+  margin-bottom: 6px;
   /* Raised-Look: dezenter Außenschatten + zarte obere Lichtkante. */
   box-shadow:
     0 1px 2px rgba(15, 23, 42, 0.06),
