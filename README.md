@@ -8,16 +8,21 @@ Digitales Ausbildungs-Berichtsheft für Putzmeister-Auszubildende. Ersetzt das k
 
 | Bereich | Status |
 | --- | --- |
-| Frontend – alle 8 Seiten (HTML/CSS/JS) | erledigt |
-| UI mit Putzmeister-Design-System (DS-Topbar, Liquid-Glass-Effekte) | erledigt |
-| SAP-ESS-Zeitnachweis-Import (PDF → Wochenansicht) | erledigt |
-| IHK-Berichtsheft-Import (PDF → wöchentliche Anwesenheitsdaten) | erledigt |
-| Node.js-Backend (Express + mssql, REST-API, Session-Auth) | erledigt |
-| Dev-Auth-Middleware (X-Dev-OID, DEV_USERS) | erledigt |
-| Dev-Server-Anbindung (SQL Server Express, .env) | eingerichtet und getestet |
-| **Datenbank-Schema (SQL-Migrations-Skripte)** | **ausstehend — nach Azure-AD-Klärung** |
-| Azure-AD-Anbindung über MSAL | offen (Aufgabe: Kollege) |
-| IIS-Reverse-Proxy zu Node.js | offen |
+| Frontend – alle 8 Seiten (HTML/CSS/JS) | ✅ erledigt |
+| UI mit Putzmeister-Design-System (DS-Topbar, Liquid-Glass-Effekte) | ✅ erledigt |
+| SAP-ESS-Zeitnachweis-Import (PDF → Wochenansicht) | ✅ erledigt |
+| IHK-Berichtsheft-Import (PDF → wöchentliche Anwesenheitsdaten) | ✅ erledigt |
+| Node.js-Backend (Express + mssql, REST-API, Session-Auth) | ✅ erledigt |
+| Dev-Auth-Middleware (X-Dev-OID, DEV_USERS) | ✅ erledigt |
+| Dev-Server-Anbindung (SQL Server Express, .env) | ✅ eingerichtet und getestet |
+| Status-Workflow (freigeben → genehmigen / zurückgeben) | ✅ erledigt |
+| Ausbilder-Kommentar-Funktion (inkl. Zurückgeben-Begründung) | ✅ erledigt |
+| Benachrichtigungs-System | ✅ erledigt |
+| Tablet-Optimierung (Surface Pro & iPad – Performance + Layout) | ✅ erledigt |
+| Dashboard BFCache-Refresh (pageshow-Event) | ✅ erledigt |
+| **Datenbank-Schema (SQL-Migrations-Skripte)** | **⏳ ausstehend — nach Azure-AD-Klärung** |
+| Azure-AD-Anbindung über MSAL | ⏳ offen (Aufgabe: Kollege) |
+| IIS-Reverse-Proxy zu Node.js | ⏳ offen |
 
 ---
 
@@ -27,32 +32,93 @@ Digitales Ausbildungs-Berichtsheft für Putzmeister-Auszubildende. Ersetzt das k
 
 | Seite | Datei | Beschreibung |
 | --- | --- | --- |
-| Login | `app/index.html` | E-Mail-/Passwort-Formular (Putzmeister-Branding) |
-| Dashboard | `app/dashboard.html` | Rollenbasiert: Azubi-Übersicht oder Ausbilder-Cockpit |
-| Wochenansicht | `app/wochenansicht.html` | Tageweise Eingabe (Anwesenheit, Ort, Stunden, Eintrag) |
+| Login | `app/index.html` | E-Mail-/Passwort-Formular, Microsoft SSO-Platzhalter, Demo-Zugänge (eingeklappt) |
+| Dashboard | `app/dashboard.html` | Rollenbasiert: Azubi-Übersicht oder Ausbilder-Cockpit mit Posteingang |
+| Wochenansicht | `app/wochenansicht.html` | Tageweise Eingabe (Anwesenheit, Ort, Stunden, Eintrag); Freigabe-/Genehmigungs-Workflow |
 | Jahresansicht | `app/jahresansicht.html` | Alle Kalenderwochen eines Jahres auf einen Blick |
 | Ausbildungsstand | `app/ausbildungsstand.html` | Kompetenz- und Fortschritts-Tracking |
 | Azubi-Planer | `app/azubi-planer.html` | Planung und Terminübersicht |
-| Berichtsheftverwaltung | `app/berichtsheftverwaltung.html` | Freigabe-Workflow für Ausbilder |
+| Berichtsheftverwaltung | `app/berichtsheftverwaltung.html` | Freigabe-Übersicht für Ausbilder |
 | Profil | `app/profil.html` | Profildaten + Importfunktionen |
+
+### Freigabe-Workflow
+
+Die Wochenansicht unterstützt einen vollständigen Status-Workflow:
+
+| Status | Wer | Aktion |
+| --- | --- | --- |
+| `offen` | Azubi | Einträge erfassen, jederzeit bearbeitbar |
+| `freigegeben` | Azubi → Ausbilder | Azubi gibt Woche frei; Ausbilder prüft |
+| `genehmigt` | Ausbilder | Woche ist abgenommen; für Azubi schreibgeschützt |
+| `abgelehnt` | Ausbilder | Woche zurückgegeben mit Begründung (Pflichtfeld); Azubi kann überarbeiten und erneut freigeben |
+
+Beim Zurückgeben öffnet sich ein Modal zur Eingabe der Begründung. Die Begründung wird als Kommentar mit `typ: 'abgelehnt'` gespeichert und im Status-Banner des Azubis angezeigt.
+
+### Ausbilder-Cockpit (Dashboard)
+
+- **Posteingang** — alle freigegeben Berichte, älteste zuerst; Wartezeit-Anzeige (dringend ab 2 Wochen)
+- **Filter-Bar** — Suche nach Name / KW, Filter nach Wartedauer, Sortierung
+- **Bulk-Aktionen** — mehrere Berichte gleichzeitig genehmigen / zurückgeben
+- **Meine Azubis** — Übersicht mit offenen / freigegebenen / genehmigten Zahlen pro Azubi
+- **BFCache-Refresh** — kehrt der Ausbilder per Zurück-Schaltfläche zur Dashboard-Seite zurück, werden die Daten automatisch neu geladen
+
+### Kommentar-Funktion (Ausbilder)
+
+- Ausbilder können jederzeit Wochen-Kommentare hinzufügen
+- Kommentare sind tagesgebunden (optional) oder wochenweit
+- Kommentare mit `typ: 'genehmigt'` entstehen über das Genehmigen-Modal (Tages-Feedback)
+- Kommentare mit `typ: 'abgelehnt'` entstehen über das neue Zurückgeben-Modal (Begründung Pflicht)
+- Eigene Kommentare können vom Ausbilder gelöscht werden
+
+### Benachrichtigungs-System
+
+- Azubi erhält Benachrichtigung, wenn eine Woche genehmigt oder zurückgegeben wird
+- Ausbilder erhält Benachrichtigung, wenn eine Woche freigegeben wird
+- Topbar zeigt Badge mit ungelesener Anzahl
 
 ### PDF-Importfunktionen (Profil-Seite)
 
 **SAP-ESS-Zeitnachweis-Import**
-
 - PDF-Export aus SAP ESS → tagesweise Anwesenheits-, Ort- und Stundendaten
 - Drag-&-Drop oder Dateiauswahl im Browser
 - Vorschau mit Konflikterkennung (überschreiben / bestehende schützen)
 - Reiner Client-Side-Import via pdf.js (kein Upload an Server)
 
 **IHK-Berichtsheft-Import**
-
 - PDF-Export aus dem IHK-Ausbildungsnachweis-Portal → wöchentliche Daten
 - Eine Seite im PDF = eine Ausbildungswoche
 - Erkennt: Betrieb, Schule, Betrieb/Schule, Urlaub, Feiertag, Zeitausgleich, Krank
 - Übernimmt IHK-Status (offen / freigegeben / genehmigt / abgelehnt)
 - Schützt bereits freigegebene/genehmigte Wochen vor Überschreiben
 - Erhält vorhandene Texteinträge (`eintrag`-Felder)
+
+### Tablet-Optimierung (Surface Pro & iPad)
+
+Zielgruppe: Keyboard + Touchpad/Maus. Kein Offline-/PWA-Support, keine Touch-Gesten.
+
+**Performance-Layer**
+- `will-change: transform` auf Sidebar, Modals, Toasts
+- `contain: layout style` auf Wochenkacheln und Stat-Cards (isoliert Reflows)
+- `touch-action: manipulation` auf allen interaktiven Elementen (entfernt 300ms Tap-Delay)
+- Passive Event-Listener für `scroll`, `touchstart`, `touchmove`, `wheel`
+- `debounce(fn, 150)` auf allen `resize`-Handlern
+
+**Viewport & Device-Fixes**
+- `viewport-fit=cover` in allen HTML-Seiten
+- `env(safe-area-inset-*)` auf Sidebar und Topbar (iPad Notch/Dynamic Island)
+- `-webkit-text-size-adjust: 100%` verhindert automatische Font-Inflation
+- `overscroll-behavior: none` auf `.main-content` (kein iOS-Bounce)
+
+**Layout-Breakpoints**
+
+| Viewport | Sidebar | Dashboard-Hero |
+| --- | --- | --- |
+| > 1280px | volle Breite (256px) — unverändert | KW-Zahl 96px, Wochenmini 50px |
+| 1024–1280px | kompakt (220px) | KW-Zahl 64px, Wochenmini fluid (`1fr`) |
+| 768–1024px | Icon-Only (68px) | — |
+| < 768px | versteckt / Mobile | — |
+
+**Quill-Toolbar** scrollt horizontal statt umzubrechen (`overflow-x: auto`).
 
 ---
 
@@ -61,7 +127,9 @@ Digitales Ausbildungs-Berichtsheft für Putzmeister-Auszubildende. Ersetzt das k
 | Komponente | Wahl |
 | --- | --- |
 | Frontend | Vanilla HTML, CSS, JavaScript |
+| CSS-Architektur | Design-Tokens (`variables.css`), 12-Spalten-Bento-Grid, Liquid-Glass-Effekte |
 | PDF-Verarbeitung | pdf.js (vendored, client-side) |
+| Rich-Text-Editor | Quill 1.3.7 (CDN) |
 | Backend | Node.js + Express 5 + `mssql`-Treiber |
 | Auth (Entwicklung) | Session-basiert + DEV_USERS (X-Dev-OID Header) |
 | Auth (Produktion) | Azure AD / Microsoft Entra ID über MSAL |
@@ -77,66 +145,68 @@ Digitales Ausbildungs-Berichtsheft für Putzmeister-Auszubildende. Ersetzt das k
 ```
 .
 ├── app/                          # Frontend
-│   ├── css/                      # Stylesheets
-│   │   ├── variables.css         # Design Tokens (Farben, Abstände, Animationen)
-│   │   ├── base.css              # Globale Stile, Typografie, Resets
-│   │   ├── layout.css            # App-Shell, Sidebar, Topbar
-│   │   ├── components.css        # Buttons, Cards, Modals, Formulare
+│   ├── css/
+│   │   ├── variables.css         # Design-Tokens (Farben, Abstände, Animationen)
+│   │   ├── base.css              # Globale Stile, Typografie, Resets, text-size-adjust
+│   │   ├── layout.css            # App-Shell, Sidebar, Topbar (Tablet-Breakpoints)
+│   │   ├── components.css        # Buttons, Cards, Modals, Formulare, touch-action
 │   │   ├── glass.css             # Liquid-Glass-Effekte
 │   │   ├── topbar-ds.css         # Putzmeister Design System Topbar
-│   │   ├── dashboard.css
-│   │   ├── wochenansicht.css
+│   │   ├── login.css             # Login-Seite
+│   │   ├── dashboard.css         # Dashboard + Bento-Grid (inkl. Tablet-Breakpoint)
+│   │   ├── wochenansicht.css     # Wochenansicht, Zeit-Spinner, Animationen
 │   │   ├── jahresansicht.css
 │   │   ├── ausbildungsstand.css
 │   │   ├── azubi-planer.css
 │   │   ├── berichtsheftverwaltung.css
-│   │   └── profil.css
-│   ├── js/                       # JavaScript-Module
-│   │   ├── app.js                # Auth-Guard, Sidebar-Navigation, Toast
-│   │   ├── api.js                # HTTP-Layer (API_BASE: localhost:3000/api), DB-Objekt
-│   │   ├── login.js              # Login-Formular
-│   │   ├── dashboard.js          # Dashboard-Rendering (Azubi / Ausbilder)
-│   │   ├── wochenansicht.js      # Wochenansicht-UI und State
-│   │   ├── jahresansicht.js      # Jahreskalender und Wochenauswahl
-│   │   ├── ausbildungsstand.js   # Kompetenz-Tracking-UI
-│   │   ├── azubi-planer.js       # Planer-Funktionalität
+│   │   ├── profil.css
+│   │   └── quill-editor.css      # Quill-Toolbar (overflow-x scroll)
+│   ├── js/
+│   │   ├── app.js                # Auth-Guard, Sidebar, Toast, debounce-Utility
+│   │   ├── api.js                # HTTP-Layer (API_BASE), DB-Objekt (alle async)
+│   │   ├── login.js
+│   │   ├── dashboard.js          # Azubi- und Ausbilder-Dashboard, BFCache-Refresh
+│   │   ├── wochenansicht.js      # Wochenansicht-UI, Status-Workflow, Kommentare
+│   │   ├── jahresansicht.js
+│   │   ├── ausbildungsstand.js
+│   │   ├── azubi-planer.js
 │   │   ├── berichtsheftverwaltung.js
-│   │   ├── profil.js             # Profil und Einstellungen
-│   │   ├── sidebar.js            # Sidebar-Navigation
-│   │   ├── topbar-ds.js          # Design-System-Topbar
+│   │   ├── profil.js
+│   │   ├── sidebar.js            # Passive scroll-Listener
+│   │   ├── topbar-ds.js
 │   │   ├── theme.js              # Hell-/Dunkel-Modus (vor CSS geladen)
-│   │   ├── icons.js              # SVG-Icon-Helfer
-│   │   ├── zeitnachweis-parser.js  # SAP-ESS-PDF-Parser (pure, Node-testbar)
-│   │   ├── zeitnachweis-upload.js  # SAP-Import-UI + pdf.js-Extraktion
-│   │   ├── ihk-parser.js         # IHK-Berichtsheft-PDF-Parser (pure, Node-testbar)
-│   │   ├── ihk-import.js         # IHK-Import-UI + pdf.js-Extraktion
+│   │   ├── icons.js
+│   │   ├── zeitnachweis-parser.js
+│   │   ├── zeitnachweis-upload.js
+│   │   ├── ihk-parser.js
+│   │   ├── ihk-import.js
 │   │   └── vendor/
-│   │       ├── pdf.min.js        # pdf.js (vendored)
+│   │       ├── pdf.min.js
 │   │       └── pdf.worker.min.js
-│   ├── index.html                # Login
+│   ├── index.html
 │   ├── dashboard.html
-│   ├── wochenansicht.html
+│   ├── wochenansicht.html        # inkl. rejectModal (Zurückgeben-Begründung)
 │   ├── jahresansicht.html
 │   ├── ausbildungsstand.html
 │   ├── azubi-planer.html
 │   ├── berichtsheftverwaltung.html
 │   └── profil.html
-├── backend/                      # Node.js-Backend
+├── backend/
 │   ├── routes/
-│   │   ├── users.js              # GET /api/users, GET /api/users/:oid
-│   │   ├── wochen.js             # GET /api/wochen, GET /api/wochen/:id
-│   │   ├── zuweisungen.js        # GET/POST /api/zuweisungen
-│   │   ├── kommentare.js         # POST /api/wochen/:id/kommentare
-│   │   └── benachrichtigungen.js # GET /api/benachrichtigungen[/count]
+│   │   ├── users.js
+│   │   ├── wochen.js             # GET, POST (upsert), PATCH /:id/status
+│   │   ├── zuweisungen.js
+│   │   ├── kommentare.js         # POST (add), DELETE (eigene)
+│   │   └── benachrichtigungen.js
 │   ├── middleware/
-│   │   └── auth.js               # devAuth-Middleware (X-Dev-OID / DEV_USERS)
+│   │   └── auth.js
 │   ├── db/
-│   │   └── connection.js         # mssql-Pool (Env-Vars: DB_SERVER, DB_NAME, ...)
-│   ├── server.js                 # Express-App, CORS, Session, Routen-Registrierung
-│   ├── .env.example              # Template für .env
+│   │   └── connection.js
+│   ├── server.js
+│   ├── .env.example
 │   └── package.json
 ├── db/
-│   └── migrations/               # SQL-Migrations-Skripte (noch leer — kommt nach Azure-AD-Klärung)
+│   └── migrations/               # SQL-Migrations-Skripte (ausstehend)
 ├── docs/
 │   └── superpowers/
 │       ├── specs/                # Design-Spezifikationen
@@ -163,13 +233,19 @@ Digitales Ausbildungs-Berichtsheft für Putzmeister-Auszubildende. Ersetzt das k
 | --- | --- | --- |
 | GET | `/api/users` | Alle User (filterbar: `?role=azubi\|ausbilder`) |
 | GET | `/api/users/:oid` | Einzelner User nach OID |
-| GET | `/api/wochen` | Wochen (Azubi: eigene; Ausbilder: alle) |
-| GET | `/api/wochen/:id` | Einzelne Woche mit Tage und Kommentare |
-| GET | `/api/zuweisungen` | Zuweisungen (filterbar nach azubiOid / ausbilderOid) |
+| GET | `/api/wochen` | Wochen eines Azubis (`?azubiOid=...`) oder alle |
+| GET | `/api/wochen/:id` | Einzelne Woche inkl. Tage und Kommentare |
+| POST | `/api/wochen` | Woche anlegen / aktualisieren (Upsert) |
+| PATCH | `/api/wochen/:id/status` | Status einer Woche setzen (`offen`, `freigegeben`, `genehmigt`, `abgelehnt`) |
+| POST | `/api/wochen/:wocheId/kommentare` | Kommentar zu einer Woche hinzufügen |
+| DELETE | `/api/wochen/kommentare/:id` | Eigenen Kommentar löschen |
+| GET | `/api/zuweisungen` | Zuweisungen (filterbar nach `azubiOid` / `ausbilderOid`) |
 | POST | `/api/zuweisungen` | Neue Zuweisung anlegen |
-| POST | `/api/wochen/:id/kommentare` | Kommentar zu einer Woche hinzufügen |
-| GET | `/api/benachrichtigungen` | Alle Benachrichtigungen des Users |
+| DELETE | `/api/zuweisungen/:id` | Zuweisung löschen |
+| GET | `/api/benachrichtigungen` | Alle Benachrichtigungen des eingeloggten Users |
 | GET | `/api/benachrichtigungen/count` | Anzahl ungelesener Benachrichtigungen |
+| PATCH | `/api/benachrichtigungen/:id/gelesen` | Einzelne Benachrichtigung als gelesen markieren |
+| PATCH | `/api/benachrichtigungen/alle-gelesen` | Alle Benachrichtigungen als gelesen markieren |
 
 ---
 
@@ -179,7 +255,7 @@ Digitales Ausbildungs-Berichtsheft für Putzmeister-Auszubildende. Ersetzt das k
 
 Das Repo wird **ausschließlich lokal** unter `C:\Dev\Digitales-Berichtsheft\` betrieben — **niemals** in SharePoint, OneDrive oder einem anderen synchronisierten Cloud-Ordner.
 
-Cloud-Sync-Mechanismen (SharePoint/OneDrive) sind mit Git inkompatibel: Sie korrumpieren den `.git`-Ordner durch Datei-Locks, erzeugen "Conflicted Copy"-Dateien statt echter Merges und kollabieren bei `node_modules`. **GitHub ist Quelle der Wahrheit und Cloud-Backup zugleich.**
+Cloud-Sync-Mechanismen sind mit Git inkompatibel: Sie korrumpieren den `.git`-Ordner durch Datei-Locks, erzeugen "Conflicted Copy"-Dateien statt echter Merges und kollabieren bei `node_modules`. **GitHub ist Quelle der Wahrheit und Cloud-Backup zugleich.**
 
 ### Erst-Setup auf neuem Rechner
 
@@ -206,7 +282,7 @@ Der API-Server läuft dann auf `http://localhost:3000`.
 
 ### Frontend öffnen
 
-Das Frontend (`app/`) kann direkt im Browser geöffnet oder per Live Server (VS Code Extension) bereitgestellt werden. `app/api.js` zeigt auf `http://localhost:3000/api`.
+Das Frontend (`app/`) kann direkt im Browser geöffnet oder per Live Server (VS Code Extension) bereitgestellt werden. `api.js` erkennt Port 5500 automatisch und zeigt dann auf `http://localhost:3000/api`.
 
 ---
 
@@ -234,6 +310,7 @@ DB_NAME=Berichtsheft_Dev
 DB_USER=<sql-user>
 DB_PASSWORD=<sql-passwort>
 SESSION_SECRET=<langer-zufälliger-string>
+PORT=3000
 ```
 
 ---
@@ -245,7 +322,7 @@ SESSION_SECRET=<langer-zufälliger-string>
 Die SQL-Datenbank existiert auf dem Dev-Server, aber das Schema (Tabellen, Constraints, Indices) wurde noch nicht als versionierte Skripte ins Repo eingecheckt.
 
 **Ausstehend:**
-- Klärung, welche Tabellen nach Azure-AD-Integration noch lokal gehalten werden müssen (User-Attribute, Ausbilder-Zuordnung, Berichtsheft-Verlauf, Freigabe-Status)
+- Klärung, welche Tabellen nach Azure-AD-Integration noch lokal gehalten werden müssen
 - Erstellen von `db/migrations/001_initial_schema.sql` und Folge-Skripten
 
 **Konvention:** Schema-Änderungen IMMER als nummerierte `.sql`-Migrations-Skripte unter `db/migrations/`. Keine händischen Änderungen in SSMS ohne entsprechendes Skript.
@@ -258,7 +335,7 @@ MSAL-Integration in Express zur Token-Validierung für Produktivbetrieb — Aufg
 
 IIS bekommt URL Rewrite + ARR: terminiert HTTPS, leitet `/api/*` an Node.js auf `localhost:3000` weiter. Statisches Frontend liefert IIS direkt aus.
 
-### 4. IHK-Import: Tägliche PDF-Format (Folge-Feature)
+### 4. IHK-Import: Tägliches PDF-Format (Folge-Feature)
 
 Technische Azubis schreiben auf täglicher Basis. Das zugehörige IHK-PDF-Format unterscheidet sich vom wöchentlichen. Umsetzung, sobald ein Beispiel-PDF vorliegt.
 
@@ -284,7 +361,7 @@ git push                          # Abends / vor längeren Pausen
 
 ## Team
 
-- **Florian Kuniß** — 1. Entwickler (Frontend, Backend, Datenbank, Azure-AD-Anbindung, MSAL-Integration)
+- **Florian Kuniß** — 1. Entwickler (Frontend, Backend, Datenbank, Azure-AD-Anbindung)
 - **Florian Kern** — 2. Entwickler (Frontend, Architektur, Designoptimierung)
 
 ---
@@ -295,9 +372,13 @@ Falls eine neue KI-Session ohne Vorkontext gestartet wird, hier die wichtigsten 
 
 1. **Arbeitsverzeichnis:** `C:\Dev\Digitales-Berichtsheft\` (NICHT der frühere SharePoint-Pfad — obsolet)
 2. **Aktiver Branch:** `Digitales-Berichtsheft`
-3. **Aktueller Stand:** Frontend vollständig (8 Seiten), zwei PDF-Import-Flows fertig, Express-Backend mit 5 Routen läuft. Datenbank-Schema fehlt noch als SQL-Migrations-Skripte.
+3. **Aktueller Stand:** Frontend vollständig (8 Seiten), zwei PDF-Import-Flows, Express-Backend mit 6 Routen, vollständiger Status-Workflow, Ausbilder-Kommentar-Funktion, Benachrichtigungen, Tablet-Optimierung. Datenbank-Schema fehlt noch als SQL-Migrations-Skripte.
 4. **Anti-Pattern:** Niemals empfehlen, Code in SharePoint/OneDrive abzulegen. Cloud-Sync ist mit Git inkompatibel.
 5. **DB-Konvention:** Schema-Änderungen IMMER als nummerierte `.sql`-Skripte unter `db/migrations/`. Keine händischen Änderungen in SSMS ohne entsprechendes Skript.
 6. **Backend starten:** `cd backend && npm run dev` → API läuft auf `http://localhost:3000`
-7. **PDF-Parser sind Node-testbar:** `ihk-parser.js` und `zeitnachweis-parser.js` haben keine DOM/pdf.js-Abhängigkeit — mit `node -e "require('./app/js/ihk-parser.js'); ..."` testbar.
-8. **Dev-Auth:** Im Entwicklungsbetrieb nutzt der Backend `devAuth`-Middleware mit DEV\_USERS (hardcoded OIDs). Header `X-Dev-OID: <oid>` oder Session-basiert. In Produktion wird MSAL das ersetzen.
+7. **PDF-Parser sind Node-testbar:** `ihk-parser.js` und `zeitnachweis-parser.js` haben keine DOM/pdf.js-Abhängigkeit.
+8. **Dev-Auth:** Im Entwicklungsbetrieb nutzt das Backend `devAuth`-Middleware mit DEV\_USERS (hardcoded OIDs). In Produktion wird MSAL das ersetzen.
+9. **Status-Workflow:** `offen` → `freigegeben` (Azubi) → `genehmigt` oder `abgelehnt` (Ausbilder). Beim Zurückgeben muss eine Begründung eingegeben werden — sie wird als Kommentar mit `typ: 'abgelehnt'` gespeichert.
+10. **Tablet-Breakpoints:** 1280px (Sidebar 220px, Hero-KW 64px), 1024px (Icon-Only), 768px (Mobile). Implementiert in `layout.css` und `dashboard.css`.
+11. **Dashboard-Refresh:** `pageshow`-Event mit `event.persisted`-Prüfung in `dashboard.js` — sorgt für frische Daten beim Zurücknavigieren aus der Wochenansicht (BFCache).
+12. **Animation-Clipping:** `.time-spinner__unit` hat kein `overflow: hidden` mehr — Eck-Radius auf `:first-child`/`:last-child` stattdessen, damit die Bump-Animation nicht abgeschnitten wird.

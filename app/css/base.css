@@ -15,6 +15,14 @@ html {
   scroll-behavior: smooth;
   /* Native Form-Controls, Scrollbars etc. an aktuelles Theme anpassen */
   color-scheme: light;
+  /* App-Feeling auf Touch-Geräten (iPad/Surface): die Seite selbst darf
+     NICHT horizontal verschoben oder per Rubber-Band gezogen werden.
+     overscroll-behavior unterbindet das ganzseitige Bounce/Glow-Panning;
+     overflow-x: hidden kappt jede versehentliche horizontale Scrollachse
+     des Dokuments. Greift nur auf die Dokument-Wurzel – innere Container
+     mit eigenem overflow-x:auto (Quill-Toolbar, Tabellen) bleiben scrollbar. */
+  overflow-x: hidden;
+  overscroll-behavior: none;
 }
 html[data-theme="dark"] { color-scheme: dark; }
 
@@ -27,6 +35,12 @@ body {
   background-color: var(--pm-grey-50);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  /* Doppelte Absicherung gegen horizontales Seiten-Panning: verhindert,
+     dass der <body> selbst zur horizontalen Scrollachse wird, falls ein
+     einzelnes Element kurzzeitig breiter als der Viewport rendert.
+     Vertikales Scrollen bleibt unberührt. */
+  overflow-x: hidden;
+  overscroll-behavior-x: none;
   /* Sanfter Theme-Switch – nur Farb-Properties, kein Layout-Reflow.
      Dauer kurz genug, dass es nicht "schmierig" wirkt. */
   transition: background-color 220ms var(--ease-out-quart),

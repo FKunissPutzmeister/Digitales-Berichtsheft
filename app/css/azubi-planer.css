@@ -287,6 +287,28 @@
 .zuweisung-action-cell .btn {
   margin-left: auto;
 }
+/* ── Löschen-Button (Icon-Only) ──
+   Ursache des halben Hover-Highlights: .btn-sm liefert nur horizontales
+   Padding (0 var(--sp-3)) ohne feste Breite. In der mit table-layout:fixed
+   nur 4% breiten Action-Spalte wird die Button-Box gestaucht, sodass der
+   zentrierte Ghost-Hover-Background das 16px-Icon nicht als sauberes Kästchen
+   umschließt. Fix: feste quadratische Icon-Box (32x32), Padding 0, Flex
+   zentriert – der Hover-Background (Theme-Token --pm-grey-100, hell & dunkel)
+   umhüllt damit das gesamte Button-Feld und ist auf dem Icon zentriert. */
+.delete-zuweisung-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  flex-shrink: 0;
+  border-radius: var(--r-md);
+}
+.delete-zuweisung-btn:hover:not(:disabled) {
+  background: var(--pm-grey-100);
+  color: var(--pm-grey-800);
+}
 .zuweisung-row--current td {
   background: rgba(255, 195, 0, 0.04);
 }

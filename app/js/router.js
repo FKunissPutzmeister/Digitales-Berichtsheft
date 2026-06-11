@@ -115,6 +115,17 @@
     document.title = doc.querySelector('title')?.textContent || document.title;
     window.scrollTo(0, 0);
 
+    /* Body-Level-Markup der Seite übernehmen (z. B. Modal-Overlays).
+       Diese liegen als Geschwister der .app-shell AUSSERHALB von
+       #mainContent und werden vom reinen innerHTML-Tausch oben nicht
+       erfasst. Ohne diesen Schritt findet Modal.open(id) das Modal-
+       Element der neuen Seite nicht (getElementById → null), wodurch
+       Buttons wie "Neue Zuweisung" oder "Kommentieren" nach SPA-
+       Navigation scheinbar funktionslos sind und erst nach F5 wirken.
+       Persistente Shell (.app-shell), Scripts, Styles und Templates
+       bleiben unangetastet. */
+    syncBodyOverlays(doc);
+
     if (pushState) history.pushState({ spa: true, page: href }, '', href);
     _currentPage = href;
 
@@ -225,6 +236,29 @@
         console.error('[Router] Ausführungsfehler:', src, e);
       }
     }
+  }
+
+  /* ── Body-Level-Modal-Overlays zwischen Seiten synchronisieren ──
+     Die Modals liegen in jeder Seite als direkte <body>-Geschwister der
+     .app-shell, also AUSSERHALB von #mainContent (siehe z. B.
+     azubi-planer.html / wochenansicht.html). Der reine innerHTML-Tausch
+     von #mainContent erfasst sie nicht, weshalb sie nach SPA-Navigation
+     im DOM fehlen und Modal.open(id) auf null läuft.
+     Strategie: alle Body-Level-Overlays der bisherigen Seite entfernen
+     (egal ob Full-Load-Original oder zuvor injiziert) und die der
+     Zielseite klonen. Andere Body-Knoten (.toast-container von Toast.init,
+     Scripts, Styles) bleiben unberührt, da gezielt nur `.modal-overlay`
+     adressiert wird. */
+  function syncBodyOverlays(doc) {
+    document.querySelectorAll('body > .modal-overlay').forEach(el => el.remove());
+
+    /* Vor den ersten <script>-Tag einfügen (bzw. ans Body-Ende), damit
+       Stacking/Styling identisch zum Full-Reload bleibt. */
+    const beforeNode = document.querySelector('body > script');
+    doc.querySelectorAll('body > .modal-overlay').forEach(modal => {
+      const clone = document.importNode(modal, true);
+      document.body.insertBefore(clone, beforeNode);
+    });
   }
 
   function fallback(href) {

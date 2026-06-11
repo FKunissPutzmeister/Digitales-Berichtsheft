@@ -462,6 +462,12 @@ html.sidebar-init-collapsed .main-wrapper         { margin-left: var(--sidebar-i
 .main-wrapper {
   view-transition-name: main-wrapper;
   flex: 1;
+  /* Flex-Item: ohne min-width:0 würde min-width:auto den Wrapper von
+     breitem Inhalt (nowrap-Text, breite Tabellen) über den Viewport
+     hinausdrücken und so das horizontale Seiten-Panning erst ermöglichen.
+     min-width:0 lässt ihn korrekt schrumpfen. */
+  min-width: 0;
+  max-width: 100%;
   margin-left: var(--sidebar-w);
   display: flex;
   flex-direction: column;

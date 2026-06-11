@@ -675,6 +675,13 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     return `
       <div class="tag-cards">
+        <div class="tag-cards__header" aria-hidden="true">
+          <span class="tag-cards__header-spacer"></span>
+          <span class="tag-cards__header-label">Anwesenheit</span>
+          <span class="tag-cards__header-label">Ort</span>
+          <span class="tag-cards__header-label tag-cards__header-label--center">Std.</span>
+          <span class="tag-cards__header-spacer"></span>
+        </div>
         ${rows.join('')}
       </div>
     `;
@@ -1233,6 +1240,13 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     return `
       <div class="tag-cards">
+        <div class="tag-cards__header" aria-hidden="true">
+          <span class="tag-cards__header-spacer"></span>
+          <span class="tag-cards__header-label">Anwesenheit</span>
+          <span class="tag-cards__header-label">Ort</span>
+          <span class="tag-cards__header-label tag-cards__header-label--center">Std.</span>
+          <span class="tag-cards__header-spacer"></span>
+        </div>
         ${rows.join('')}
       </div>
     `;
@@ -1870,6 +1884,22 @@ document.addEventListener('DOMContentLoaded', async () => {
             const uVisible = !!el.value || hasUnterweisungContent;
             uSection.classList.toggle('day-section--hidden', !uVisible);
           }
+
+          // Nach Wahl eines Orts die Tageskachel automatisch aufklappen und
+          // dorthin scrollen, damit der Eintrag sofort erfasst werden kann.
+          // (Nur im Tages-Modus relevant – nur dort gibt es dayCard_<datum>.)
+          if (el.value) {
+            const card = document.getElementById('dayCard_' + dateStr);
+            if (card) {
+              card.classList.add('expanded');
+              const chev = card.querySelector('.tag-row__chevron');
+              if (chev) {
+                chev.setAttribute('aria-expanded', 'true');
+                chev.setAttribute('aria-label', 'Tag zuklappen');
+              }
+              card.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
+          }
         }
         await autoSave(el.dataset.date);
       });
@@ -1981,7 +2011,9 @@ function toggleDayCard(dateStr) {
    Klicks auf Form-Controls werden ignoriert, damit der Tag nicht zuklappt
    wenn man einen Select öffnet oder den Spinner bedient. */
 function handleTagRowToggle(e) {
-  if (e.target.closest('select, option, input, textarea, .time-spinner, button')) return;
+  if (e.target.closest('select, option, input, textarea, .time-spinner')) return;
+  // Buttons ignorieren – AUSSER dem Aufklapp-Pfeil, der ebenfalls toggeln soll.
+  if (e.target.closest('button') && !e.target.closest('.tag-row__chevron')) return;
   const row = e.currentTarget.closest('.tag-row');
   if (!row) return;
   if (row.classList.contains('tag-row--weekend')) return;
