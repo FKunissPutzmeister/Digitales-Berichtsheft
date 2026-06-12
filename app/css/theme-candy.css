@@ -502,8 +502,9 @@ html[data-theme="candy"] { color-scheme: light; }
    sind (sonst spränge der Bodenschatten mit in die Luft):
    · .pm-cd-unicorn       → Wiesen-LAUF (Translate X quer übers Bild) +
                             Blickrichtung (scaleX) + Bodenschatten (::before)
-   · .pm-cd-unicorn__hop  → HÜPF-Bogen (Translate Y) + leichtes Vorlehnen
-                            (rotate); trägt das selbst gezeichnete SVG
+   · .pm-cd-unicorn__hop  → SPRING-Hüpfbogen (Translate Y) + Stauchen/
+                            Strecken (scale) + leichtes Vorlehnen (rotate);
+                            trägt das freigestellte Foto-Sprite (<img>)
    Alle Achsen wieder als @property-Custom-Props, je Ebene in EINEM
    transform zusammengeführt (gleiche Technik wie bei den Wolken). Schatten
    und Sprung teilen Dauer/Delay → der Schatten schrumpft synchron zum
@@ -511,13 +512,19 @@ html[data-theme="candy"] { color-scheme: light; }
 @property --uni-x   { syntax: '<length>'; inherits: false; initial-value: 0px; }
 @property --uni-y   { syntax: '<length>'; inherits: false; initial-value: 0px; }
 @property --uni-rot { syntax: '<angle>';  inherits: false; initial-value: 0deg; }
+@property --uni-sx  { syntax: '<number>'; inherits: false; initial-value: 1; }
+@property --uni-sy  { syntax: '<number>'; inherits: false; initial-value: 1; }
 
 [data-theme="candy"] #pmThemeFX .pm-cd-unicorn {
   position: absolute;
   left: 0;
   font-size: 12px;
   width: 9em;
-  height: 8.3em;
+  /* Foto-Sprites sind hochkant (Reiter sitzt auf dem Einhorn) – die Höhe
+     folgt dem Seitenverhältnis des jeweiligen freigestellten Bildes
+     (Default = candy-unicorn-1; der vordere Reiter überschreibt es). */
+  height: auto;
+  aspect-ratio: 330 / 460;
   transform: translate3d(var(--uni-x, 0px), 0, 0) scaleX(var(--uni-dir, 1));
   animation: pm-cd-uni-run var(--uni-run-dur, 34s) linear var(--uni-run-delay, 0s) infinite;
 }
@@ -538,18 +545,27 @@ html[data-theme="candy"] { color-scheme: light; }
 [data-theme="candy"] #pmThemeFX .pm-cd-unicorn__hop {
   width: 100%;
   height: 100%;
-  transform-origin: 50% 90%;
-  transform: translate3d(0, var(--uni-y, 0px), 0) rotate(var(--uni-rot, 0deg));
+  transform-origin: 50% 100%;
+  transform:
+    translate3d(0, var(--uni-y, 0px), 0)
+    scale(var(--uni-sx, 1), var(--uni-sy, 1))
+    rotate(var(--uni-rot, 0deg));
   animation: pm-cd-uni-hop var(--uni-hop-dur, 1.2s) var(--uni-hop-delay, 0s) infinite;
 }
-[data-theme="candy"] #pmThemeFX .pm-cd-uni-svg {
+[data-theme="candy"] #pmThemeFX .pm-cd-uni-img {
   display: block;
   width: 100%;
   height: 100%;
-  overflow: visible;
-  /* dezenter Konturschatten – hebt den weißen Körper vom hellen Himmel ab
-     (kleines Sprite, kein viewportfüllender Blur → Perf unkritisch). */
-  filter: drop-shadow(0 1px 2px rgba(120, 60, 95, 0.22));
+  /* Foto-Sprite formfüllend, aber unverzerrt; am Fußpunkt ausgerichtet, damit
+     die Hufe auf dem Bodenschatten stehen, egal wie stark contain randelt. */
+  object-fit: contain;
+  object-position: 50% 100%;
+  pointer-events: none;
+  user-select: none;
+  -webkit-user-drag: none;
+  /* dezenter Schlagschatten – hebt das freigestellte Foto vom hellen Himmel
+     ab (kleines Sprite, kein viewportfüllender Blur → Perf unkritisch). */
+  filter: drop-shadow(0 2px 3px rgba(120, 60, 95, 0.28));
 }
 
 /* Hinten: kleiner, läuft nach rechts, vom Vordergrund-Hügel (z7) teils
@@ -570,6 +586,7 @@ html[data-theme="candy"] { color-scheme: light; }
   z-index: 8;
   font-size: 13px;
   bottom: 7vh;
+  aspect-ratio: 321 / 460;   /* eigenes Seitenverhältnis von candy-unicorn-2 */
   --uni-dir: -1;
   --uni-run-dur: 31s;
   --uni-run-delay: -4s;
@@ -583,20 +600,50 @@ html[data-theme="candy"] { color-scheme: light; }
   from { --uni-x: -22vw; }
   to   { --uni-x: 122vw; }
 }
-/* Hüpf-Bogen: kurzer Bodenkontakt, dann „Gravitation" – Aufstieg bremst
-   zum Scheitel ab (ease-out), Fall beschleunigt (ease-in); am Scheitel
-   lehnt es sich leicht nach vorn. */
+/* Spring-Hüpfbogen mit Squash & Stretch: Anlauf-Stauchung (breit/flach),
+   Absprung-Streckung, schwereloser Scheitel, harte Lande-Stauchung und ein
+   kurzes Nachfedern – fühlt sich elastisch/„springy" an statt nur ballistisch.
+   Stauchen/Strecken über --uni-sx/--uni-sy, Pivot am Fußpunkt (50% 100%). */
 @keyframes pm-cd-uni-hop {
-  0%, 10%   { --uni-y: 0px;    --uni-rot: 0deg; animation-timing-function: cubic-bezier(0.25, 0.6, 0.35, 1); }
-  50%       { --uni-y: -3.4em; --uni-rot: -5deg; animation-timing-function: cubic-bezier(0.6, 0, 0.7, 0.4); }
-  90%, 100% { --uni-y: 0px;    --uni-rot: 0deg; }
+  0%   { --uni-y: 0px;     --uni-sx: 1;    --uni-sy: 1;    --uni-rot: 0deg;  animation-timing-function: cubic-bezier(0.5, 0, 0.7, 0.25); }
+  8%   { --uni-y: 0px;     --uni-sx: 1.13; --uni-sy: 0.83; --uni-rot: 0deg;  animation-timing-function: cubic-bezier(0.2, 0.75, 0.35, 1); }   /* Anlauf-Stauchung */
+  22%  { --uni-y: -1.1em;  --uni-sx: 0.9;  --uni-sy: 1.14; --uni-rot: -3deg; animation-timing-function: cubic-bezier(0.25, 0.7, 0.45, 1); }  /* Absprung-Streckung */
+  48%  { --uni-y: -3.7em;  --uni-sx: 1;    --uni-sy: 1;    --uni-rot: -5deg; animation-timing-function: cubic-bezier(0.5, 0, 0.7, 0.35); }   /* schwereloser Scheitel */
+  71%  { --uni-y: 0px;     --uni-sx: 1.16; --uni-sy: 0.8;  --uni-rot: 0deg;  animation-timing-function: cubic-bezier(0.34, 1.45, 0.64, 1); } /* harte Landung */
+  83%  { --uni-y: -0.6em;  --uni-sx: 0.97; --uni-sy: 1.05; --uni-rot: 1deg;  animation-timing-function: cubic-bezier(0.4, 0, 0.6, 1); }       /* Nachfedern */
+  92%  { --uni-y: 0px;     --uni-sx: 1.05; --uni-sy: 0.95; --uni-rot: 0deg;  animation-timing-function: cubic-bezier(0.25, 0.6, 0.5, 1); }   /* Mini-Aufprall */
+  100% { --uni-y: 0px;     --uni-sx: 1;    --uni-sy: 1;    --uni-rot: 0deg; }                                                                /* Ruhe vor dem nächsten Satz */
 }
-/* Bodenschatten gegenläufig zum Sprung (klein/blass am Scheitel) – gleiche
-   Phasenkurve wie der Hüpf-Bogen. */
+/* Bodenschatten synchron zum Sprung: breit/dunkel beim Stauchen am Boden,
+   klein/blass am Scheitel; gleiche Phasenpunkte wie der Hüpf-Bogen. */
 @keyframes pm-cd-uni-shadow {
-  0%, 10%   { transform: scale(1);    opacity: 0.85; animation-timing-function: cubic-bezier(0.25, 0.6, 0.35, 1); }
-  50%       { transform: scale(0.55); opacity: 0.4;  animation-timing-function: cubic-bezier(0.6, 0, 0.7, 0.4); }
-  90%, 100% { transform: scale(1);    opacity: 0.85; }
+  0%   { transform: scale(1.04); opacity: 0.88; animation-timing-function: cubic-bezier(0.5, 0, 0.7, 0.25); }
+  8%   { transform: scale(1.16); opacity: 0.92; animation-timing-function: cubic-bezier(0.2, 0.75, 0.35, 1); }
+  48%  { transform: scale(0.48); opacity: 0.32; animation-timing-function: cubic-bezier(0.5, 0, 0.7, 0.35); }
+  71%  { transform: scale(1.18); opacity: 0.92; animation-timing-function: cubic-bezier(0.34, 1.3, 0.64, 1); }
+  83%  { transform: scale(0.86); opacity: 0.66; animation-timing-function: cubic-bezier(0.4, 0, 0.6, 1); }
+  100% { transform: scale(1.04); opacity: 0.88; }
+}
+
+/* ===================================================================
+   SEIFENBLASEN – <canvas> über der Szene
+   -------------------------------------------------------------------
+   Nur Positionierung: viewport-deckend (wie der iceland-Canvas), aber
+   z-index 9 → VOR den Einhörnern (z6/z8), damit das Zerplatzen beim
+   Treffer immer sichtbar ist. Als Kind von #pmThemeFX (z-index 0) bleibt
+   die Ebene trotzdem hinter dem App-Inhalt (.app-shell z-index 1).
+   Die Animation/Physik/Kollision steuert der PMCandyBubbles-Controller
+   in js/theme.js (requestAnimationFrame; Pause bei verstecktem Tab/Modal;
+   prefers-reduced-motion → statisches Standbild). Transparent → die
+   Candy-Szene scheint durch. =================================================================== */
+[data-theme="candy"] #pmThemeFX .pm-cd-bubbles {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  z-index: 9;
+  pointer-events: none;
 }
 
 /* Kleine Screens: Deko ausdünnen, damit nichts mit Inhalt drängelt */

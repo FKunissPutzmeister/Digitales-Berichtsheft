@@ -70,7 +70,9 @@
       .then(r => r.ok ? r.text() : null)
       .catch(() => null);
 
-    /* Exit-Animation */
+    /* Exit-Animation (im CMD-Theme läuft der 0/1-Matrix-Hintergrund via
+       theme.js dauerhaft WEITER und wird vom Content-Tausch nicht berührt –
+       kein Lade-Overlay mehr, daher hier die normale Wrapper-Fade). */
     const wrapper = document.querySelector('.main-wrapper');
     const noMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
     if (wrapper && !noMotion) {
@@ -143,6 +145,7 @@
     } else if (wrapper) {
       wrapper.style.opacity   = '';
       wrapper.style.transform = '';
+      wrapper.style.animation = '';
     }
 
     /* Patches einmalig für diese Navigation setzen:

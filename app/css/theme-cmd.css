@@ -64,13 +64,16 @@ html[data-theme="cmd"] { color-scheme: dark; }
   --ring-error:     0 0 0 3px rgba(255, 90, 80, 0.32);
   --ring-info:      0 0 0 3px rgba(70, 160, 255, 0.30);
 
-  /* Terminal-Kanten: weniger Rundung (inkl. Floating-Sidebar-Pill) */
-  --r-md:   4px;
-  --r-lg:   6px;
-  --r-xl:   8px;
-  --r-2xl:  10px;
-  --lg-r-card: 8px;
-  --lg-r-pill: 10px;
+  /* Terminal-Kanten: scharfe, eckige Rahmen (inkl. Floating-Sidebar-Pill).
+     Bewusst nur 2–3px Rest-Rundung → Kacheln/Pillen wirken wie gezeichnete
+     Terminal-Boxen statt abgerundeter Karten. Buttons werden weiter unten
+     ganz eckig (border-radius: 0). */
+  --r-md:   2px;
+  --r-lg:   2px;
+  --r-xl:   3px;
+  --r-2xl:  3px;
+  --lg-r-card: 2px;
+  --lg-r-pill: 3px;
 
   --sidebar-bg:           #020A03;
   --inverse-surface:      #020A03;
@@ -292,12 +295,15 @@ html[data-theme="cmd"] { color-scheme: dark; }
   color: #F18581;
 }
 
-/* Status-Badges: hellere Textfarben auf Tint-Hintergründen */
-[data-theme="cmd"] .badge--offen        { color: var(--pm-grey-600); }
+/* Status-Badges: hellere Textfarben auf Tint-Hintergründen.
+   Die früher grünen Labels (offen/genehmigt/grey) blendeten im grünen
+   Terminal-Look in ihre Tint-Flächen ein → neutral WEISS für Lesbarkeit.
+   Blau (freigegeben) und Rot (abgelehnt) bleiben farbig (gut lesbar). */
+[data-theme="cmd"] .badge--offen        { color: rgba(255, 255, 255, 0.92); }
 [data-theme="cmd"] .badge--freigegeben  { color: #6FB1F2; }
-[data-theme="cmd"] .badge--genehmigt    { color: #6BD089; }
+[data-theme="cmd"] .badge--genehmigt    { color: rgba(255, 255, 255, 0.92); }
 [data-theme="cmd"] .badge--abgelehnt    { color: #F18581; }
-[data-theme="cmd"] .badge--grey         { color: var(--pm-grey-700); }
+[data-theme="cmd"] .badge--grey         { color: rgba(255, 255, 255, 0.92); }
 
 /* Stat-Card-Icons als Tint-Overlays */
 [data-theme="cmd"] .stat-card__icon--yellow  { background: var(--pm-yellow-bg); color: var(--pm-yellow); }
@@ -579,10 +585,11 @@ html[data-theme="cmd"] .bento .b-recent {
    prefers-reduced-motion stoppt das Blinken am Dateiende.
    =================================================================== */
 
-/* ── Buttons: eckig, kein Schweben – Hover ist eine Block-Selektion ── */
+/* ── Buttons: ganz eckig (Kommando-Blöcke), kein Schweben – Hover ist
+      eine Block-Selektion ── */
 [data-theme="cmd"] .btn,
 [data-theme="cmd"] .btn-icon {
-  border-radius: 2px;
+  border-radius: 0;
   letter-spacing: 0.10em;
 }
 
@@ -630,7 +637,7 @@ html[data-theme="cmd"] .bento .b-recent {
 
 /* Bento-CTA (Dashboard): Pill → eckiges Kommando mit Prompt */
 [data-theme="cmd"] .b-btn-primary {
-  border-radius: 2px;
+  border-radius: 0;
 }
 [data-theme="cmd"] .b-btn-primary::before {
   content: '> ';
@@ -778,4 +785,96 @@ html[data-theme="cmd"] .bento .b-recent {
 [data-theme="cmd"] .sidebar__logo-mark,
 [data-theme="cmd"] .login-card__mark {
   content: url("../assets/logo-cmd.png");
+}
+
+/* ===================================================================
+   STATUS-TEXTE LESBAR (statt Terminal-Grün)
+   -------------------------------------------------------------------
+   Im CMD-Theme ist die Graustufen-Skala auf Grün gemappt → mehrere
+   Status-Labels erschienen grün (teils auf grünem Tint). Hier werden
+   nur die GRÜNEN Status-TEXTE neutralisiert – Regel nach Untergrund:
+   WEISS auf dunklen Flächen, SCHWARZ auf hellen Pastell-Pillen.
+   Hintergründe und farbige Status-Punkte bleiben unangetastet.
+   Blau (freigegeben) und Rot (abgelehnt) bleiben farbig.
+   (Die Status-BADGES sind oben unter §Status-Badges abgedeckt.)
+   =================================================================== */
+
+/* Wochenansicht-Banner-Titel: war einheitlich hellgrün (--pm-grey-900),
+   sitzt auf dunklem Tint → neutral weiß. */
+[data-theme="cmd"] .week-status-banner__title { color: rgba(255, 255, 255, 0.95); }
+
+/* Dashboard-Hero-Status „Genehmigt": dunkelgrüner Text auf HELLER
+   Mint-Pille (wie im Dark-Mode hell belassen) → schwarz statt grün. */
+[data-theme="cmd"] .b-status--genehmigt { color: #0A140C; }
+
+/* Dashboard Wochen-/Tageskarten, Variante „ok" (grün): Text auf dunkler
+   Karte → weiß; der farbige Status-Punkt (.d) bleibt grün. */
+[data-theme="cmd"] .b-wkcard--ok  .b-wkcard__status,
+[data-theme="cmd"] .b-daycard--ok .b-daycard__status { color: rgba(255, 255, 255, 0.92); }
+
+/* Jahresansicht-Legende: Standardtext war --pm-grey-600 (= grün). Die
+   Legenden-Pille ist im CMD hell (fehlender Dark-Override) → schwarzer
+   Text. Die farbigen Status-Punkte bleiben erhalten. */
+[data-theme="cmd"] .legend-item { color: #0A140C; }
+
+/* ===================================================================
+   0/1-MATRIX-HINTERGRUND (.pm-cmd-bg – js/theme.js · PMCmdFX)
+   -------------------------------------------------------------------
+   <canvas> im FX-Layer #pmThemeFX (Basisregeln in themes.css:
+   position:fixed, inset:0, z-index:0, pointer-events:none). Der 0/1-
+   Regen läuft DAUERHAFT hinter dem Inhalt durch; .app-shell (z-index:1,
+   glass.css) liegt darüber. Es gibt KEIN Lade-Intro/Overlay mehr
+   (früher .cmd-intro-overlay + js/cmd-intro.js – beides entfernt). */
+[data-theme="cmd"] .pm-cmd-bg {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+/* ===================================================================
+   KACHELN: ECKIG + PHOSPHOR-RAHMEN („Terminal-Boxen")
+   -------------------------------------------------------------------
+   Die Token-Rundungen (oben) greifen nur dort, wo Komponenten
+   var(--r-*) nutzen. Mehrere Dashboard-Kacheln (dashboard.css) haben
+   jedoch HARTE Radien (32/24/14/10px) → hier explizit auf scharfe
+   Terminal-Kanten (2px) gesetzt. Zusätzlich werden die weißen
+   Hairline-Rahmen der Kacheln/Karten auf ein dezentes Terminal-Grün
+   umgefärbt, damit sie wie GEZEICHNETE Boxen statt weicher Karten
+   wirken. (html-Prefix bei den Bento-Regeln, um die dort ebenfalls
+   html-gescopeten Dark-Spiegelungen sicher zu überschreiben.) */
+
+/* — Harte Radien der Kacheln scharf stellen — */
+[data-theme="cmd"] .bento .b-tile,
+[data-theme="cmd"] .b-wkcard,
+[data-theme="cmd"] .b-daycard,
+[data-theme="cmd"] .b-day,
+[data-theme="cmd"] .welcome-hero,
+[data-theme="cmd"] .dash-error-card__detail {
+  border-radius: 2px;
+}
+
+/* — Karten/Panels: weißer Hairline-Rahmen → Phosphor-Grün — */
+[data-theme="cmd"] .card,
+[data-theme="cmd"] .stat-card,
+[data-theme="cmd"] .accordion__item,
+[data-theme="cmd"] .profil-section,
+[data-theme="cmd"] .verwaltung-panel,
+[data-theme="cmd"] .week-toolbar {
+  border-color: rgba(0, 230, 77, 0.30);
+}
+
+/* — Bento-Kacheln: Phosphor-Rahmen (html-Prefix schlägt die
+     html[data-theme="cmd"]-Dark-Spiegelungen weiter oben) — */
+html[data-theme="cmd"] .b-tile--glass,
+html[data-theme="cmd"] .b-azubi,
+html[data-theme="cmd"] .b-wkcard,
+html[data-theme="cmd"] .b-daycard,
+html[data-theme="cmd"] .b-day {
+  border-color: rgba(0, 230, 77, 0.30);
+}
+html[data-theme="cmd"] .b-wkcard:hover,
+html[data-theme="cmd"] .b-daycard:hover {
+  border-color: rgba(0, 230, 77, 0.55);
 }

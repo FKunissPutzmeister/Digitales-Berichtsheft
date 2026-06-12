@@ -10,7 +10,8 @@
    • <canvas class="pm-is-bg"> – ein per requestAnimationFrame animierter
      Schneesturm (Engine = PMIcelandFX-Controller in js/theme.js):
        – weiche Glow-Schneeflocken in 3 Parallax-Tiefenebenen
-       – prozedurale Gletscher-Silhouetten mit Eiskanten-Glanz
+       – echtes verschneites Bergfoto (assets/mountains.png), obere
+         Kante weich ausgefadet → nahtloser Übergang zum Himmel
        – driftende Nebelbänke + Seitenwind mit Böen/Turbulenz
        – tiefer Schiefer-/Eisblau-Himmel als Verlauf
      (prefers-reduced-motion → ein statisches Standbild ohne Loop).
@@ -121,8 +122,9 @@ html[data-theme="iceland"] { color-scheme: light; }
    -------------------------------------------------------------------
    Der Iceland-Hintergrund ist jetzt eine <canvas>-Animation statt der
    früheren CSS/SVG-Szene: Schneesturm mit weichen Parallax-Glow-Flocken
-   (3 Tiefenebenen), prozeduralen Gletscher-Silhouetten, driftendem Nebel
-   und Seitenwind mit Böen. Den requestAnimationFrame-Loop steuert der
+   (3 Tiefenebenen), einem echten verschneiten Bergfoto (mountains.png)
+   mit weich ausgefadeter Oberkante, driftendem Nebel und Seitenwind mit
+   Böen. Den requestAnimationFrame-Loop steuert der
    PMIcelandFX-Controller in js/theme.js (start/stop am FX-Lebenszyklus,
    prefers-reduced-motion → Standbild, Pause bei Modal/verstecktem Tab).
    Hier nur die Positionierung des <canvas> + eine deckende Fallback-
