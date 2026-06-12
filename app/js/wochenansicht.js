@@ -210,12 +210,6 @@ document.addEventListener('DOMContentLoaded', async () => {
 
       <div class="week-toolbar">
         <div class="week-toolbar__left">
-          ${canRelease ? `
-            <button class="btn btn-primary btn-lg" id="releaseBtn">
-              Zur Abnahme freigeben
-              <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M5 15l7-7 7 7"/></svg>
-            </button>
-          ` : ''}
           ${canApprove ? `
             <button class="btn btn-success btn-lg" id="approveBtn">Genehmigen</button>
             <button class="btn btn-danger" id="rejectBtn">Zurückgeben</button>
@@ -572,7 +566,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
             <div class="tag-row__field">
               <label class="tag-row__field-label">Anwesenheit</label>
-              <select class="tag-row__select day-card__select${(!isWE && !readonly && !tag.anwesenheit) ? ' tag-row__select--needs-input' : ''}" data-field="anwesenheit" data-date="${dateStr}"
+              <select class="tag-row__select day-card__select" data-field="anwesenheit" data-date="${dateStr}"
                       ${isWE || readonly ? 'disabled' : ''}>
                 ${ANWESENHEIT_OPTS.map(o =>
                   `<option value="${o}" ${tag.anwesenheit === o ? 'selected' : ''}>${o || '– bitte wählen –'}</option>`
@@ -1124,13 +1118,21 @@ document.addEventListener('DOMContentLoaded', async () => {
             <span>mit Unterweisung</span>
           </label>
           <div class="wochen-options__actions">
-            <button type="button" class="wochen-options__icon-btn" title="Anhang hinzufügen" tabindex="-1" aria-label="Anhang">
+            ${!readonly ? `
+            <input type="file" id="wochenAnhangInput" multiple hidden
+                   accept=".pdf,.jpg,.jpeg,.png,.gif,.webp,.docx,.xlsx,.pptx,.txt">
+            <button type="button" class="wochen-options__icon-btn" id="wochenAnhangBtn" title="Anhang hinzufügen" aria-label="Anhang hinzufügen">
               <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"/></svg>
             </button>
+            ` : ''}
             <button type="button" class="wochen-options__icon-btn" id="wochenResetBtn" title="Eingaben zurücksetzen" aria-label="Zurücksetzen">
               <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v6h6M20 20v-6h-6M5.07 9A8 8 0 0119 12M19 15a8 8 0 01-13.93 3"/></svg>
             </button>
           </div>
+        </div>
+
+        <div class="wochen-anhaenge" id="wochenAnhaengeWrap">
+          <div class="wochen-anhaenge__list" id="wochenAnhaengeListe"></div>
         </div>
 
         <div class="wochen-kacheln" id="wochenKacheln">
@@ -1190,7 +1192,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
             <div class="tag-row__field">
               <label class="tag-row__field-label">Anwesenheit</label>
-              <select class="tag-row__select day-card__select${(!isWE && !readonly && !tag.anwesenheit) ? ' tag-row__select--needs-input' : ''}" data-field="anwesenheit" data-date="${dateStr}"
+              <select class="tag-row__select day-card__select" data-field="anwesenheit" data-date="${dateStr}"
                       ${isWE || readonly ? 'disabled' : ''}>
                 ${ANWESENHEIT_OPTS.map(o =>
                   `<option value="${o}" ${tag.anwesenheit === o ? 'selected' : ''}>${o || '– bitte wählen –'}</option>`
@@ -1241,65 +1243,285 @@ document.addEventListener('DOMContentLoaded', async () => {
     `;
   }
 
-  function buildWochenKacheln(ort, unterweisung, woche, readonly) {
-    const tiles = [
-      {
-        id: 'betrieb',
-        label: 'Betrieb',
-        hint: 'Betriebliche Tätigkeiten und Lerninhalte',
-        placeholder: 'Tätigkeiten und Lerninhalte im Betrieb für diese Woche beschreiben…',
-        text: woche?.betriebEintrag || '',
-        show: true,
-      },
-      {
-        id: 'schule',
-        label: 'Schule',
-        hint: 'Schulische Unterrichtsinhalte',
-        placeholder: 'Unterrichtsinhalte der Berufsschule für diese Woche beschreiben…',
-        text: woche?.schuleEintrag || '',
-        show: ort === 'betrieb_schule',
-      },
-      {
-        id: 'unterweisung',
-        label: 'Unterweisung',
-        hint: 'Thema und Inhalt der Unterweisung',
-        placeholder: 'Thema und Inhalt der Unterweisung beschreiben…',
-        text: woche?.unterweisungEintrag || '',
-        show: unterweisung,
-      },
-    ].filter(t => t.show);
+  // Metadaten der drei Wochen-Kacheln. Placeholder lebt in
+  // initSingleWochenEditor (Quill), Label/Hint hier fürs Markup.
+  const WOCHEN_TILE_META = {
+    betrieb:      { label: 'Betrieb',      hint: 'Betriebliche Tätigkeiten und Lerninhalte' },
+    schule:       { label: 'Schule',       hint: 'Schulische Unterrichtsinhalte' },
+    unterweisung: { label: 'Unterweisung', hint: 'Thema und Inhalt der Unterweisung' },
+  };
 
-    if (!tiles.length) return '';
-
-    return tiles.map(t => `
-      <div class="wochen-kachel">
-        <div class="wochen-kachel__header">
-          <span class="wochen-kachel__title">${t.label}</span>
-          <span class="wochen-kachel__hint">${t.hint}</span>
-        </div>
-        <div class="ql-editor-wrap wochen-editor-wrap" id="wochenEditorWrap_${t.id}" data-kachel="${t.id}"></div>
-        <div class="day-card__footer">
-          <span class="day-card__char-count" id="wochenCharCount_${t.id}">0 Zeichen</span>
-          ${!readonly ? `<button class="btn btn-sm btn-ghost" onclick="clearWochenKachel('${t.id}')">Leeren</button>` : ''}
-        </div>
-      </div>
-    `).join('');
+  function wochenKachelTextOf(id, woche) {
+    if (id === 'betrieb') return woche?.betriebEintrag || '';
+    if (id === 'schule')  return woche?.schuleEintrag || '';
+    return woche?.unterweisungEintrag || '';
   }
 
-  async function refreshWochenKacheln(woche) {
-    const ort = document.getElementById('wochenOrtSelect')?.value || 'betrieb';
-    const unterweisung = document.getElementById('unterweisungCheck')?.checked || false;
-    const isReadonly = isAusbilder || (woche && (woche.status === 'freigegeben' || woche.status === 'genehmigt'));
+  // Markup einer einzelnen Wochen-Kachel. data-kachel-id erlaubt das
+  // gezielte Ein-/Ausblenden einzelner Kacheln (statt Voll-Rerender).
+  function wochenKachelHtml(id, readonly) {
+    const meta = WOCHEN_TILE_META[id];
+    return `
+      <div class="wochen-kachel" data-kachel-id="${id}">
+        <div class="wochen-kachel__header">
+          <span class="wochen-kachel__title">${meta.label}</span>
+          <span class="wochen-kachel__hint">${meta.hint}</span>
+        </div>
+        <div class="ql-editor-wrap wochen-editor-wrap" id="wochenEditorWrap_${id}" data-kachel="${id}"></div>
+        <div class="day-card__footer">
+          <span class="day-card__char-count" id="wochenCharCount_${id}">0 Zeichen</span>
+          ${!readonly ? `<button class="btn btn-sm btn-ghost" onclick="clearWochenKachel('${id}')">Leeren</button>` : ''}
+        </div>
+      </div>
+    `;
+  }
 
+  function buildWochenKacheln(ort, unterweisung, woche, readonly) {
+    const ids = ['betrieb'];
+    if (ort === 'betrieb_schule') ids.push('schule');
+    if (unterweisung)             ids.push('unterweisung');
+    return ids.map(id => wochenKachelHtml(id, readonly)).join('');
+  }
+
+  // ── Optimistisches Ein-/Ausblenden einzelner Wochen-Kacheln ───────
+  // Statt bei jedem Häkchen die ganze Liste neu zu bauen (3 Netzwerk-
+  // Round-Trips + alle Quills neu) wird nur die betroffene Kachel sofort
+  // mit sanfter Höhen-/Fade-Animation ein- bzw. ausgeblendet. Gespeichert
+  // wird im Hintergrund über debounceSaveWoche().
+
+  function prefersReducedMotion() {
+    return !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+  }
+
+  // Misst die natürliche Höhe (height:auto) ohne die laufende Animation
+  // zu stören – inline gesetzte Höhe wird kurz aufgehoben und restauriert.
+  function measureNatural(node) {
+    const prevH = node.style.height;
+    const prevT = node.style.transition;
+    node.style.transition = 'none';
+    node.style.height = 'auto';
+    const h = node.getBoundingClientRect().height;
+    node.style.height = prevH;
+    node.style.transition = prevT;
+    return h;
+  }
+
+  // Inline-Animationsreste entfernen (animation:none NICHT anfassen –
+  // sonst würde die CSS-fadeIn-Regel der Kachel nachträglich noch feuern).
+  function clearKachelAnim(node) {
+    node.style.removeProperty('height');
+    node.style.removeProperty('overflow');
+    node.style.removeProperty('transition');
+    node.style.removeProperty('opacity');
+  }
+
+  // Aktuellen Stand (Ort, Unterweisung, Editor-Inhalte) aus dem DOM/den
+  // Live-Quills in ein woche-ähnliches Objekt übernehmen – als Basis für
+  // den Neu-Aufbau einer Kachel, ohne dafür den Server zu fragen.
+  function collectWochenState(base) {
+    const w = { ...(base || {}) };
+    const ortEl = document.getElementById('wochenOrtSelect');
+    const uEl   = document.getElementById('unterweisungCheck');
+    if (ortEl) w.wochenOrt = ortEl.value;
+    if (uEl)   w.unterweisungAktiv = uEl.checked;
+    const bQ = quillInstances['woche_betrieb'];
+    const sQ = quillInstances['woche_schule'];
+    const uQ = quillInstances['woche_unterweisung'];
+    if (bQ) w.betriebEintrag      = bQ.root.innerHTML;
+    if (sQ) w.schuleEintrag       = sQ.root.innerHTML;
+    if (uQ) w.unterweisungEintrag = uQ.root.innerHTML;
+    return w;
+  }
+
+  function expandKachel(node) {
+    delete node.dataset.removing;
+    if (prefersReducedMotion()) { clearKachelAnim(node); return; }
+    const target = measureNatural(node);
+    const start  = node.getBoundingClientRect().height;
+    node.style.overflow = 'hidden';
+    node.style.transition = 'none';
+    node.style.height = start + 'px';
+    void node.offsetHeight; // Reflow, damit der Startwert „greift"
+    node.style.transition = 'height 260ms ease-out, opacity 200ms ease-out';
+    node.style.height = target + 'px';
+    node.style.opacity = '1';
+    const done = (e) => {
+      if (e.target !== node || e.propertyName !== 'height') return;
+      node.removeEventListener('transitionend', done);
+      if (!node.dataset.removing) clearKachelAnim(node); // Höhe → auto (wächst mit Inhalt)
+    };
+    node.addEventListener('transitionend', done);
+  }
+
+  function addWochenKachel(id, woche, readonly) {
     const container = document.getElementById('wochenKacheln');
-    if (container) {
-      container.innerHTML = buildWochenKacheln(ort, unterweisung, woche, isReadonly);
-      initWochenQuillEditors(woche, isReadonly);
+    if (!container) return;
+
+    let node = container.querySelector(`.wochen-kachel[data-kachel-id="${id}"]`);
+    if (node) {
+      // Kachel ist noch da (evtl. mitten im Ausblenden) → wieder einblenden.
+      // Die Quill-Instanz wird erst nach Abschluss des Ausblendens gelöscht,
+      // daher hier kein Neu-Init nötig.
+      expandKachel(node);
+      return;
     }
+
+    const tmp = document.createElement('div');
+    tmp.innerHTML = wochenKachelHtml(id, readonly).trim();
+    node = tmp.firstElementChild;
+    // Reihenfolge wahren: Unterweisung ans Ende, Schule davor.
+    const before = id === 'schule'
+      ? container.querySelector('.wochen-kachel[data-kachel-id="unterweisung"]')
+      : null;
+    container.insertBefore(node, before);
+
+    // CSS-fadeIn der Kachel unterdrücken – wir animieren die Höhe selbst.
+    node.style.animation = 'none';
+    node.style.overflow = 'hidden';
+    node.style.height = '0px';
+    node.style.opacity = '0';
+
+    initSingleWochenEditor(id, woche, readonly);
+    expandKachel(node);
+  }
+
+  function removeWochenKachel(id) {
+    const container = document.getElementById('wochenKacheln');
+    const node = container?.querySelector(`.wochen-kachel[data-kachel-id="${id}"]`);
+    if (!node) return;
+    node.dataset.removing = '1';
+
+    if (prefersReducedMotion()) {
+      delete quillInstances['woche_' + id];
+      node.remove();
+      return;
+    }
+
+    const current = node.getBoundingClientRect().height;
+    node.style.overflow = 'hidden';
+    node.style.transition = 'none';
+    node.style.height = current + 'px';
+    node.style.opacity = '1';
+    void node.offsetHeight;
+    node.style.transition = 'height 220ms ease-in, opacity 160ms ease-in';
+    node.style.height = '0px';
+    node.style.opacity = '0';
+    const done = (e) => {
+      if (e.target !== node || e.propertyName !== 'height') return;
+      node.removeEventListener('transitionend', done);
+      // Nur entfernen, wenn nicht zwischenzeitlich wieder eingeblendet wurde.
+      if (node.dataset.removing) {
+        delete quillInstances['woche_' + id];
+        node.remove();
+      }
+    };
+    node.addEventListener('transitionend', done);
   }
 
   function bindWochenEditorEvents() {
     // Events handled by Quill instances in initWochenQuillEditors
+  }
+
+  // ── Wochen-Anhänge ────────────────────────────────────────────────
+  const ANHANG_MAX_BYTES = 10 * 1024 * 1024; // 10 MB (Spiegel des Backend-Limits)
+  const ANHANG_ALLOWED_EXT = ['pdf', 'jpg', 'jpeg', 'png', 'gif', 'webp', 'docx', 'xlsx', 'pptx', 'txt'];
+
+  function anhangExt(name) {
+    const m = /\.([^.]+)$/.exec(name || '');
+    return m ? m[1].toLowerCase() : '';
+  }
+
+  function formatBytes(n) {
+    if (!n) return '0 B';
+    if (n < 1024) return n + ' B';
+    if (n < 1024 * 1024) return Math.round(n / 1024) + ' KB';
+    return (n / (1024 * 1024)).toFixed(1).replace('.', ',') + ' MB';
+  }
+
+  function anhangIconSvg(dateiname) {
+    const isImg = ['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(anhangExt(dateiname));
+    return isImg
+      ? '<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>'
+      : '<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>';
+  }
+
+  function renderAnhaengeListe(anhaenge, readonly) {
+    if (!anhaenge || !anhaenge.length) return '';
+    const rows = anhaenge.map(a => `
+      <div class="wochen-anhang" data-anhang-id="${a.id}">
+        <span class="wochen-anhang__icon" aria-hidden="true">${anhangIconSvg(a.dateiname)}</span>
+        <a class="wochen-anhang__name" href="${DB.anhangDownloadUrl(a.id)}" download="${escapeHtml(a.dateiname)}" title="Herunterladen">${escapeHtml(a.dateiname)}</a>
+        <span class="wochen-anhang__size">${formatBytes(a.groesseBytes)}</span>
+        ${!readonly ? `
+          <button type="button" class="wochen-anhang__delete" data-delete-anhang="${a.id}" title="Anhang löschen" aria-label="Anhang löschen">
+            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
+        ` : ''}
+      </div>
+    `).join('');
+    return `
+      <div class="wochen-anhaenge__header">
+        <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" style="width:14px;height:14px"><path stroke-linecap="round" stroke-linejoin="round" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"/></svg>
+        <span>Anhänge (${anhaenge.length})</span>
+      </div>
+      ${rows}
+    `;
+  }
+
+  async function refreshAnhaenge(wocheId, readonly) {
+    const listEl = document.getElementById('wochenAnhaengeListe');
+    if (!listEl) return;
+    if (!wocheId) { listEl.innerHTML = ''; return; }
+    try {
+      const anhaenge = await DB.getAnhaenge(wocheId);
+      listEl.innerHTML = renderAnhaengeListe(anhaenge, readonly);
+    } catch {
+      // Liste beim Render still lassen (kein Toast-Spam) – Fehler bei
+      // den eigentlichen Aktionen (Upload/Delete) werden dort gemeldet.
+      listEl.innerHTML = '';
+    }
+  }
+
+  async function handleAnhangFiles(fileList) {
+    if (!fileList || !fileList.length) return;
+    const azubiId = viewAzubiId || user.id;
+    let woche = await DB.getWoche(azubiId, currentKW, currentYear);
+
+    // Anhänge brauchen eine WocheId. Neue Wochen existieren erst nach dem
+    // ersten Speichern – daher hier sicherstellen, dass die Woche persistiert ist.
+    if (!woche || !woche.id) {
+      await autoSaveWoche();
+      woche = await DB.getWoche(azubiId, currentKW, currentYear);
+    }
+    if (!woche || !woche.id) {
+      Toast.error('Fehler', 'Die Woche konnte nicht gespeichert werden.');
+      return;
+    }
+
+    let uploaded = 0;
+    for (const file of Array.from(fileList)) {
+      if (file.size > ANHANG_MAX_BYTES) {
+        Toast.error('Datei zu groß', `„${file.name}" überschreitet 10 MB.`);
+        continue;
+      }
+      if (!ANHANG_ALLOWED_EXT.includes(anhangExt(file.name))) {
+        Toast.error('Typ nicht erlaubt', `„${file.name}" hat einen nicht unterstützten Dateityp.`);
+        continue;
+      }
+      try {
+        await DB.uploadAnhang(woche.id, file);
+        uploaded++;
+      } catch (err) {
+        Toast.error('Upload fehlgeschlagen', err.message || file.name);
+      }
+    }
+
+    if (uploaded > 0) {
+      Toast.success('Hochgeladen', uploaded === 1
+        ? 'Die Datei wurde angehängt.'
+        : `${uploaded} Dateien wurden angehängt.`);
+      await refreshAnhaenge(woche.id, false);
+    }
   }
 
   function initDayQuillEditors(woche, monday, readonly) {
@@ -1318,56 +1540,55 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   }
 
+  const WOCHEN_PLACEHOLDERS = {
+    betrieb:       'Tätigkeiten und Lerninhalte im Betrieb für diese Woche beschreiben…',
+    schule:        'Unterrichtsinhalte der Berufsschule für diese Woche beschreiben…',
+    unterweisung:  'Thema und Inhalt der Unterweisung beschreiben…',
+  };
+
+  // Initialisiert den Quill-Editor genau einer Wochen-Kachel. Wird sowohl
+  // beim Voll-Aufbau (initWochenQuillEditors) als auch beim einzelnen
+  // Hinzufügen einer Kachel (addWochenKachel) genutzt.
+  function initSingleWochenEditor(id, woche, readonly) {
+    const wrap = document.getElementById('wochenEditorWrap_' + id);
+    if (!wrap || quillInstances['woche_' + id]) return;
+
+    const quill = new Quill(wrap, {
+      theme: 'snow',
+      readOnly: readonly,
+      placeholder: WOCHEN_PLACEHOLDERS[id],
+      modules: {
+        toolbar: readonly ? false : { container: QUILL_TOOLBAR },
+        history: { delay: 1000, maxStack: 100, userOnly: true },
+      },
+    });
+
+    const content = wochenKachelTextOf(id, woche);
+    if (content) {
+      quill.clipboard.dangerouslyPasteHTML(content, 'silent');
+    }
+
+    const charCount = Math.max(0, quill.getText().length - 1);
+    const counter = document.getElementById('wochenCharCount_' + id);
+    if (counter) counter.textContent = charCount + ' Zeichen';
+
+    quillInstances['woche_' + id] = quill;
+
+    if (!readonly) {
+      quill.on('text-change', () => {
+        const count = Math.max(0, quill.getText().length - 1);
+        const ctr = document.getElementById('wochenCharCount_' + id);
+        if (ctr) ctr.textContent = count + ' Zeichen';
+        debounceSaveWoche();
+      });
+    }
+  }
+
   function initWochenQuillEditors(woche, readonly) {
     Object.keys(quillInstances)
       .filter(k => k.startsWith('woche_'))
       .forEach(k => { delete quillInstances[k]; });
-
-    const placeholders = {
-      betrieb:       'Tätigkeiten und Lerninhalte im Betrieb für diese Woche beschreiben…',
-      schule:        'Unterrichtsinhalte der Berufsschule für diese Woche beschreiben…',
-      unterweisung:  'Thema und Inhalt der Unterweisung beschreiben…',
-    };
-    const contentMap = {
-      betrieb:      woche?.betriebEintrag || '',
-      schule:       woche?.schuleEintrag || '',
-      unterweisung: woche?.unterweisungEintrag || '',
-    };
-
-    ['betrieb', 'schule', 'unterweisung'].forEach(id => {
-      const wrap = document.getElementById('wochenEditorWrap_' + id);
-      if (!wrap) return;
-
-      const quill = new Quill(wrap, {
-        theme: 'snow',
-        readOnly: readonly,
-        placeholder: placeholders[id],
-        modules: {
-          toolbar: readonly ? false : { container: QUILL_TOOLBAR },
-          history: { delay: 1000, maxStack: 100, userOnly: true },
-        },
-      });
-
-      const content = contentMap[id];
-      if (content) {
-        quill.clipboard.dangerouslyPasteHTML(content, 'silent');
-      }
-
-      const charCount = Math.max(0, quill.getText().length - 1);
-      const counter = document.getElementById('wochenCharCount_' + id);
-      if (counter) counter.textContent = charCount + ' Zeichen';
-
-      quillInstances['woche_' + id] = quill;
-
-      if (!readonly) {
-        quill.on('text-change', () => {
-          const count = Math.max(0, quill.getText().length - 1);
-          const ctr = document.getElementById('wochenCharCount_' + id);
-          if (ctr) ctr.textContent = count + ' Zeichen';
-          debounceSaveWoche();
-        });
-      }
-    });
+    ['betrieb', 'schule', 'unterweisung'].forEach(id => initSingleWochenEditor(id, woche, readonly));
   }
 
   // ── Auto-Save ─────────────────────────────────────────────────────
@@ -1640,11 +1861,6 @@ document.addEventListener('DOMContentLoaded', async () => {
       render();
     });
 
-    // Bottom-Button „Zur Abnahme freigeben" delegiert auf den oberen Handler.
-    document.getElementById('releaseBtnBottom')?.addEventListener('click', () => {
-      document.getElementById('releaseBtn')?.click();
-    });
-
     // „Weitere Aktionen"-Dropdown – Toggle + Außenklick schließt
     const weitereAktionenBtn = document.getElementById('weitereAktionenBtn');
     const weitereAktionenDropdown = document.getElementById('weitereAktionenDropdown');
@@ -1679,8 +1895,10 @@ document.addEventListener('DOMContentLoaded', async () => {
       render();
     });
 
-    // Freigabe – mit Pflichtfeld-Validierung
-    document.getElementById('releaseBtn')?.addEventListener('click', async () => {
+    // Freigabe – mit Pflichtfeld-Validierung. Der Freigabe-Button sitzt jetzt
+    // nur noch unten in der Bottom-Bar (#releaseBtnBottom); der frühere
+    // Hero-Button wurde entfernt.
+    document.getElementById('releaseBtnBottom')?.addEventListener('click', async () => {
       // Pending Auto-Saves flushen, damit Validierung den aktuellsten Stand sieht.
       // Im täglich-Format pro Tag ein Auto-Save; im wöchentlich-Format
       // zusätzlich der Wochen-Auto-Save (für Quills + Lernort/Unterweisung).
@@ -1904,16 +2122,21 @@ document.addEventListener('DOMContentLoaded', async () => {
   function bindWochenEvents(woche, monday) {
     const isReadonly = isAusbilder || (woche && (woche.status === 'freigegeben' || woche.status === 'genehmigt'));
 
-    // Lernort-Umschalter → Kacheln neu rendern
-    document.getElementById('wochenOrtSelect')?.addEventListener('change', async () => {
-      await autoSaveWoche();
-      await refreshWochenKacheln(await DB.getWoche(viewAzubiId || user.id, currentKW, currentYear));
+    // Lernort-Umschalter → Schule-Kachel sofort ein-/ausblenden (optimistisch),
+    // Speichern im Hintergrund. Kein Voll-Rerender, kein Warten aufs Netzwerk.
+    document.getElementById('wochenOrtSelect')?.addEventListener('change', (e) => {
+      const wlocal = collectWochenState(woche);
+      if (e.target.value === 'betrieb_schule') addWochenKachel('schule', wlocal, isReadonly);
+      else                                      removeWochenKachel('schule');
+      debounceSaveWoche();
     });
 
-    // Unterweisung-Checkbox → Kacheln neu rendern
-    document.getElementById('unterweisungCheck')?.addEventListener('change', async () => {
-      await autoSaveWoche();
-      await refreshWochenKacheln(await DB.getWoche(viewAzubiId || user.id, currentKW, currentYear));
+    // Unterweisung-Checkbox → Unterweisungs-Kachel sofort ein-/ausblenden.
+    document.getElementById('unterweisungCheck')?.addEventListener('change', (e) => {
+      const wlocal = collectWochenState(woche);
+      if (e.target.checked) addWochenKachel('unterweisung', wlocal, isReadonly);
+      else                  removeWochenKachel('unterweisung');
+      debounceSaveWoche();
     });
 
     initWochenQuillEditors(woche, isReadonly);
@@ -1946,6 +2169,21 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // Spinner-Callback registrieren
     setSpinnerCallback(async dateStr => await autoSave(dateStr));
+
+    // Anhänge: Büroklammer-Button öffnet das versteckte File-Input.
+    // (Button + Input existieren im Markup nur, wenn die Woche bearbeitbar ist.)
+    const anhangBtn = document.getElementById('wochenAnhangBtn');
+    const anhangInput = document.getElementById('wochenAnhangInput');
+    if (anhangBtn && anhangInput) {
+      anhangBtn.addEventListener('click', () => anhangInput.click());
+      anhangInput.addEventListener('change', async () => {
+        await handleAnhangFiles(anhangInput.files);
+        anhangInput.value = ''; // erlaubt erneutes Wählen derselben Datei
+      });
+    }
+
+    // Bestehende Anhänge laden – auch im Readonly-Fall (Ausbilder: nur Download).
+    refreshAnhaenge(woche?.id, isReadonly);
   }
 
   const saveTimers = {};
@@ -1978,6 +2216,24 @@ document.addEventListener('DOMContentLoaded', async () => {
     await DB.deleteKommentar(id);
     Toast.success('Kommentar', 'Kommentar wurde gelöscht.');
     render();
+  });
+
+  // Delegierter Klick-Handler für Anhang-Löschen. Aktualisiert nur die
+  // Anhang-Liste (kein voller render(), der die Quill-Editoren neu aufbaut).
+  document.getElementById('mainContent').addEventListener('click', async (e) => {
+    const btn = e.target.closest('[data-delete-anhang]');
+    if (!btn) return;
+    const id = parseInt(btn.dataset.deleteAnhang);
+    if (!id) return;
+    try {
+      await DB.deleteAnhang(id);
+      Toast.success('Anhang', 'Anhang wurde gelöscht.');
+    } catch (err) {
+      Toast.error('Fehler', err.message || 'Anhang konnte nicht gelöscht werden.');
+      return;
+    }
+    const w = await DB.getWoche(viewAzubiId || user.id, currentKW, currentYear);
+    await refreshAnhaenge(w?.id, false);
   });
 
   /* Toggle für Tag-Rows wird inline am .tag-row__summary aufgesetzt,

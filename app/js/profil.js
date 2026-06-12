@@ -505,8 +505,39 @@ document.addEventListener('DOMContentLoaded', async () => {
     `;
   }
 
+  /* Profil/Import-Tabs: rein clientseitiges Anzeigen/Verbergen der Panels.
+     Beide Panels bleiben im DOM (Import-Panel nur via [hidden] versteckt),
+     damit ZeitnachweisUpload.bind()/IhkImport.bind() ihre Elemente finden. */
+  function initProfilTabs() {
+    const tabs = Array.from(document.querySelectorAll('.profil-tab'));
+    const panels = {
+      profil: document.getElementById('panel-profil'),
+      import: document.getElementById('panel-import'),
+    };
+    tabs.forEach(tab => {
+      tab.addEventListener('click', () => {
+        const key = tab.dataset.tab;
+        tabs.forEach(t => {
+          const on = t === tab;
+          t.classList.toggle('is-active', on);
+          t.setAttribute('aria-selected', String(on));
+        });
+        Object.entries(panels).forEach(([k, panel]) => {
+          if (panel) panel.hidden = (k !== key);
+        });
+      });
+    });
+  }
+
   async function render() {
     const main = document.getElementById('mainContent');
+
+    /* Import-Sektionen separat erfassen → eigener "Import"-Tab.
+       renderSection() liefert '' für Nicht-Azubis; dann gibt es weder
+       Import-Inhalt noch Tab-Leiste (Ausbilder/Admin sehen nur Profil). */
+    const zeitnachweisHtml = ZeitnachweisUpload.renderSection(user);
+    const ihkHtml = IhkImport.renderSection(user);
+    const hasImport = (zeitnachweisHtml.trim() + ihkHtml.trim()).length > 0;
 
     main.innerHTML = `
       <div class="page-header">
@@ -516,13 +547,19 @@ document.addEventListener('DOMContentLoaded', async () => {
         </div>
       </div>
 
-      <div class="profil-panels">
+      ${hasImport ? `
+      <div class="profil-tabs" role="tablist" aria-label="Profilbereiche">
+        <button type="button" class="profil-tab is-active" role="tab" id="tab-profil"
+                aria-controls="panel-profil" aria-selected="true" data-tab="profil">Profil</button>
+        <button type="button" class="profil-tab" role="tab" id="tab-import"
+                aria-controls="panel-import" aria-selected="false" data-tab="import">Import</button>
+      </div>` : ''}
+
+      <div class="profil-panels" id="panel-profil"${hasImport ? ' role="tabpanel" aria-labelledby="tab-profil"' : ''}>
         ${await buildStammdaten()}
         ${buildPersoenlicheDaten()}
         ${buildDarstellung()}
         ${buildAusbildungsDaten()}
-        ${ZeitnachweisUpload.renderSection(user)}
-        ${IhkImport.renderSection(user)}
         ${buildIHKDaten()}
         ${buildUnternehmensDaten()}
         ${await buildAusbilderTimeline()}
@@ -530,8 +567,19 @@ document.addEventListener('DOMContentLoaded', async () => {
         ${buildLogoutBlock()}
       </div>
 
+      ${hasImport ? `
+      <div class="profil-panels profil-panels--import" id="panel-import"
+           role="tabpanel" aria-labelledby="tab-import" hidden>
+        <p class="profil-import-intro">Übernimm Daten aus externen Quellen direkt in dein Berichtsheft – ohne alles von Hand einzutragen.</p>
+        ${zeitnachweisHtml}
+        ${ihkHtml}
+      </div>` : ''}
+
       ${buildPasswordModal()}
     `;
+
+    // Tabs: Profil- vs. Import-Panel clientseitig umschalten.
+    if (hasImport) initProfilTabs();
 
     // Passwort-Modal
     document.getElementById('changePasswordBtn')?.addEventListener('click', () => {

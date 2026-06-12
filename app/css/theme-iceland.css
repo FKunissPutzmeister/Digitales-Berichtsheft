@@ -6,15 +6,14 @@
    Basis, Modal-FX-Pause, prefers-reduced-motion, print).
    Diese Datei gehört EXKLUSIV dem Iceland-Designer.
 
-   Szene (DOM-FX-Layer, Template "iceland" in js/theme.js, pm-is-*):
-   • gedeckter Grau-Weiß-Himmel mit kühler Lichtquelle
-   • 3 Berg-/Gletscher-Silhouetten (hinten hell/neblig → vorne dunkler)
-   • 2 driftende Nebelbänke (transform-only, nahtloser 720px-Loop)
-   • Schneeboden + Iglu aus Eisblöcken (Blockfugen, Eingangstunnel,
-     kühles Innenleuchten)
-   • SCHNEEREGEN: 3 Lagen dünner, schräg fallender Streifen/Tropfen
-     (Tile-Gradients, nur transform animiert)
-   • Frost-Kristall-Ecken am Viewport-Rand (subtil, hinter dem Inhalt)
+   Szene (FX-Layer #pmThemeFX, Template "iceland" in js/theme.js):
+   • <canvas class="pm-is-bg"> – ein per requestAnimationFrame animierter
+     Schneesturm (Engine = PMIcelandFX-Controller in js/theme.js):
+       – weiche Glow-Schneeflocken in 3 Parallax-Tiefenebenen
+       – prozedurale Gletscher-Silhouetten mit Eiskanten-Glanz
+       – driftende Nebelbänke + Seitenwind mit Böen/Turbulenz
+       – tiefer Schiefer-/Eisblau-Himmel als Verlauf
+     (prefers-reduced-motion → ein statisches Standbild ohne Loop).
    Dazu: Eiszapfen-Optik für Primär-Buttons (.btn-primary,
    .b-btn-primary) mit langsam tropfender Schmelz-Animation.
    =================================================================== */
@@ -118,158 +117,27 @@ html[data-theme="iceland"] { color-scheme: light; }
 }
 
 /* ===================================================================
-   3 · FX-SZENE (#pmThemeFX, Klassen pm-is-*)
+   3 · FX-SZENE (#pmThemeFX) – Canvas-Schneesturm
+   -------------------------------------------------------------------
+   Der Iceland-Hintergrund ist jetzt eine <canvas>-Animation statt der
+   früheren CSS/SVG-Szene: Schneesturm mit weichen Parallax-Glow-Flocken
+   (3 Tiefenebenen), prozeduralen Gletscher-Silhouetten, driftendem Nebel
+   und Seitenwind mit Böen. Den requestAnimationFrame-Loop steuert der
+   PMIcelandFX-Controller in js/theme.js (start/stop am FX-Lebenszyklus,
+   prefers-reduced-motion → Standbild, Pause bei Modal/verstecktem Tab).
+   Hier nur die Positionierung des <canvas> + eine deckende Fallback-
+   Farbe, die die Fläche überbrückt, bis der erste Frame gezeichnet ist.
    =================================================================== */
-
-/* Himmel: gedeckter Grau-Verlauf + kühle, diffuse Lichtquelle */
 [data-theme="iceland"] #pmThemeFX {
-  background:
-    radial-gradient(60% 42% at 72% 16%, rgba(255, 255, 255, 0.70), rgba(255, 255, 255, 0) 70%),
-    linear-gradient(180deg, #C7D2DA 0%, #DCE4E9 38%, #ECF0F3 70%, #F4F6F8 100%);
+  background: #0c141c;   /* Sky-Basiston des Canvas (kein Flash vor Frame 1) */
 }
-[data-theme="iceland"] .pm-is-scene {
+[data-theme="iceland"] .pm-is-bg {
   position: absolute;
   inset: 0;
-}
-
-/* Berg-/Gletscher-Silhouetten: hinten hell/neblig, vorne dunkler */
-[data-theme="iceland"] .pm-is-range {
-  position: absolute;
-  left: 0; right: 0; bottom: 0;
-  width: 100%;
   display: block;
+  width: 100%;
+  height: 100%;
 }
-[data-theme="iceland"] .pm-is-range--far          { height: 62vh; }
-[data-theme="iceland"] .pm-is-range--far polygon  { fill: #C6D1D9; }
-[data-theme="iceland"] .pm-is-range--mid          { height: 44vh; }
-[data-theme="iceland"] .pm-is-range--mid polygon  { fill: #A9B7C2; }
-[data-theme="iceland"] .pm-is-range--near         { height: 30vh; }
-[data-theme="iceland"] .pm-is-range--near polygon { fill: #8C9BA7; }
-
-/* Nebelbänke: weiche Tile-Verläufe, sehr langsamer horizontaler
-   Drift. Element ist beidseitig um eine Tile-Breite (720px) größer
-   → translateX(±720px) loopt nahtlos und deckt immer den Viewport. */
-[data-theme="iceland"] .pm-is-fog {
-  position: absolute;
-  left: -720px; right: -720px;
-  height: 16vh;
-  background-image:
-    radial-gradient(46% 110% at 18% 60%, rgba(244, 248, 250, 0.60), rgba(244, 248, 250, 0) 70%),
-    radial-gradient(38% 90% at 52% 40%, rgba(238, 244, 247, 0.50), rgba(238, 244, 247, 0) 72%),
-    radial-gradient(50% 120% at 84% 65%, rgba(247, 250, 252, 0.55), rgba(247, 250, 252, 0) 70%);
-  background-size: 720px 100%;
-  background-repeat: repeat-x;
-  /* kein will-change: die laufende transform-Animation promoted die
-     Lage ohnehin auf einen eigenen Compositor-Layer */
-}
-[data-theme="iceland"] .pm-is-fog--high {
-  bottom: 26vh;
-  opacity: 0.9;
-  animation: pm-is-fog-drift 90s linear infinite;
-}
-[data-theme="iceland"] .pm-is-fog--low {
-  bottom: 12vh;
-  height: 14vh;
-  opacity: 0.8;
-  animation: pm-is-fog-drift-rev 70s linear infinite;
-}
-@keyframes pm-is-fog-drift     { from { transform: translateX(0); } to { transform: translateX(720px); } }
-@keyframes pm-is-fog-drift-rev { from { transform: translateX(0); } to { transform: translateX(-720px); } }
-
-/* Schneeboden vor den Bergen */
-[data-theme="iceland"] .pm-is-ground {
-  position: absolute;
-  left: 0; right: 0; bottom: 0;
-  height: 18vh;
-  background: linear-gradient(180deg,
-    rgba(234, 239, 242, 0) 0%,
-    #E9EEF1 30%,
-    #F5F7F8 100%);
-}
-
-/* Iglu: dezent unten rechts auf dem Schneeboden */
-[data-theme="iceland"] .pm-is-igloo {
-  position: absolute;
-  right: 5vw;
-  bottom: 3vh;
-  width: clamp(170px, 23vw, 320px);
-  height: auto;
-  opacity: 0.92;
-}
-
-/* SCHNEEREGEN: 3 Lagen dünner, elliptisch verlängerter Streifen
-   (+ Tropfen-Punkte). Die Lage ist leicht rotiert (Schräge) und um
-   eine Tile-Höhe nach oben verlängert; translateY(Tile-Höhe) im
-   rotierten Koordinatensystem loopt nahtlos entlang der Fallrichtung.
-   Die Rotations-Reserve fängt die Eck-Verschiebung der gedrehten Lage
-   ab; sie skaliert mit dem Viewport (fixe 220px reichen bei sehr
-   großen/hohen Viewports nicht → schneefreie Ecken). Die top-Werte
-   sind je Lage Tile-Höhe + Reserve. Kein will-change: die laufende
-   transform-Animation promoted die Lage ohnehin auf einen eigenen
-   Compositor-Layer. */
-[data-theme="iceland"] .pm-is-sleet {
-  --is-sleet-pad: max(220px, 12vh, 12vw);
-  position: absolute;
-  left: calc(-1 * var(--is-sleet-pad));
-  right: calc(-1 * var(--is-sleet-pad));
-  bottom: calc(-1 * var(--is-sleet-pad));
-  background-repeat: repeat;
-}
-[data-theme="iceland"] .pm-is-sleet--far {
-  top: calc(-440px - var(--is-sleet-pad));
-  background-image:
-    radial-gradient(1px 9px at 30px 40px,   rgba(255, 255, 255, 0.55), transparent 80%),
-    radial-gradient(1px 8px at 120px 150px, rgba(255, 255, 255, 0.40), transparent 80%),
-    radial-gradient(1px 9px at 205px 75px,  rgba(255, 255, 255, 0.48), transparent 80%),
-    radial-gradient(1px 8px at 65px 265px,  rgba(255, 255, 255, 0.38), transparent 80%),
-    radial-gradient(1px 9px at 175px 345px, rgba(255, 255, 255, 0.46), transparent 80%),
-    radial-gradient(1px 8px at 245px 215px, rgba(255, 255, 255, 0.40), transparent 80%);
-  background-size: 260px 440px;
-  animation: pm-is-sleet-far 2.6s linear infinite;
-}
-[data-theme="iceland"] .pm-is-sleet--mid {
-  top: calc(-520px - var(--is-sleet-pad));
-  background-image:
-    radial-gradient(1.2px 13px at 40px 60px,   rgba(255, 255, 255, 0.65), transparent 80%),
-    radial-gradient(1.2px 12px at 150px 180px, rgba(255, 255, 255, 0.50), transparent 80%),
-    radial-gradient(1.2px 13px at 250px 90px,  rgba(255, 255, 255, 0.58), transparent 80%),
-    radial-gradient(1.2px 12px at 90px 310px,  rgba(255, 255, 255, 0.48), transparent 80%),
-    radial-gradient(1.2px 13px at 210px 400px, rgba(255, 255, 255, 0.58), transparent 80%),
-    radial-gradient(1.2px 12px at 285px 250px, rgba(255, 255, 255, 0.50), transparent 80%),
-    radial-gradient(2px 2.6px at 20px 460px,   rgba(255, 255, 255, 0.55), transparent 85%);
-  background-size: 300px 520px;
-  animation: pm-is-sleet-mid 1.7s linear infinite;
-}
-[data-theme="iceland"] .pm-is-sleet--near {
-  top: calc(-600px - var(--is-sleet-pad));
-  background-image:
-    radial-gradient(1.6px 20px at 50px 70px,   rgba(255, 255, 255, 0.85), transparent 80%),
-    radial-gradient(1.5px 18px at 180px 210px, rgba(255, 255, 255, 0.65), transparent 80%),
-    radial-gradient(1.6px 21px at 290px 110px, rgba(255, 255, 255, 0.75), transparent 80%),
-    radial-gradient(1.5px 18px at 110px 360px, rgba(141, 160, 175, 0.40), transparent 80%),
-    radial-gradient(1.6px 20px at 250px 470px, rgba(255, 255, 255, 0.75), transparent 80%),
-    radial-gradient(1.5px 19px at 330px 300px, rgba(141, 160, 175, 0.35), transparent 80%),
-    radial-gradient(2.4px 3px at 20px 540px,   rgba(255, 255, 255, 0.70), transparent 85%);
-  background-size: 340px 600px;
-  animation: pm-is-sleet-near 1.15s linear infinite;
-}
-@keyframes pm-is-sleet-far  { from { transform: rotate(7deg)  translateY(0); } to { transform: rotate(7deg)  translateY(440px); } }
-@keyframes pm-is-sleet-mid  { from { transform: rotate(9deg)  translateY(0); } to { transform: rotate(9deg)  translateY(520px); } }
-@keyframes pm-is-sleet-near { from { transform: rotate(11deg) translateY(0); } to { transform: rotate(11deg) translateY(600px); } }
-
-/* Frost-Kristall-Ecken (angelehnt an den Eiskristall-Rahmen):
-   halbtransparente SVG-Zweige, wachsen aus den Viewport-Ecken.
-   Liegen im FX-Layer (z-index 0) → stören den Inhalt nicht. */
-[data-theme="iceland"] .pm-is-frost {
-  position: absolute;
-  width: 190px;
-  height: 190px;
-  opacity: 0.5;
-}
-[data-theme="iceland"] .pm-is-frost--tl { top: -16px;    left: -16px; }
-[data-theme="iceland"] .pm-is-frost--tr { top: -16px;    right: -16px;  transform: scaleX(-1); }
-[data-theme="iceland"] .pm-is-frost--bl { bottom: -16px; left: -16px;   transform: scaleY(-1); opacity: 0.38; }
-[data-theme="iceland"] .pm-is-frost--br { bottom: -16px; right: -16px;  transform: scale(-1, -1); opacity: 0.38; }
 
 /* ===================================================================
    4 · MILCHGLAS-FEINSCHLIFF
@@ -461,8 +329,9 @@ html[data-theme="iceland"] .bento .b-recent {
        FX-Layer-Animationen + Print-Ausblendung übernimmt themes.css)
    =================================================================== */
 @media (prefers-reduced-motion: reduce) {
-  /* eingefrorener Schneeregen sähe falsch aus → ganz aus */
-  [data-theme="iceland"] .pm-is-sleet { display: none; }
+  /* Der Canvas-Schneesturm wird vom PMIcelandFX-Controller (js/theme.js)
+     bei prefers-reduced-motion gar nicht erst geloopt, sondern als ein
+     statisches Standbild gezeichnet – hier ist dafür keine Regel nötig. */
   [data-theme="iceland"] .btn-primary::before,
   [data-theme="iceland"] .b-btn-primary::before {
     animation: none !important;
@@ -480,4 +349,29 @@ html[data-theme="iceland"] .bento .b-recent {
   [data-theme="iceland"] .b-btn-primary::after {
     display: none;
   }
+}
+
+/* ===================================================================
+   WOCHENANSICHT-STUNDEN-SPINNER (analog dark/hyperspace/cmd)
+   -------------------------------------------------------------------
+   Helles Theme: weiße Pille auf weißer Zeile → ohne Rahmen ist die
+   runde Umrandung im Ruhezustand unsichtbar. Dezente dunkle Kante,
+   damit der „Kreis" dauerhaft sichtbar ist (nicht erst beim Editieren;
+   die Fokus-Regel färbt die Kante dann im Akzent). Pills/Schatten sind
+   hier bereits dezent (Standard-Basiswerte) – kein weiterer Eingriff. */
+[data-theme="iceland"] body[data-page="wochenansicht"] .time-spinner__input {
+  border-color: rgba(15, 23, 42, 0.20);
+}
+
+/* ===================================================================
+   PUTZMEISTER-LOGO (TESTWEISE auf iceland-Farben)
+   -------------------------------------------------------------------
+   Marken-Gelb → Akzent #84B7D0, grauer PM-Elefant → #14242E.
+   content:url() tauscht NUR unter [data-theme="iceland"] das <img>-
+   Bitmap – Sidebar (.sidebar__logo-mark) UND Login-Karte
+   (.login-card__mark). Asset assets/logo-iceland.png (aus „Social
+   Logo/200 x 200 px.png" umgefärbt, 2-Farb-Remap, AA-Kanten erhalten). */
+[data-theme="iceland"] .sidebar__logo-mark,
+[data-theme="iceland"] .login-card__mark {
+  content: url("../assets/logo-iceland.png");
 }

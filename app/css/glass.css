@@ -691,50 +691,62 @@ body.login-page::after {
 /* ===================================================================
    WOCHENANSICHT – Pflichtfeld-Marker neutralisieren
    -------------------------------------------------------------------
-   Die gelbe Umrandung (border + background) auf leeren Pflichtfeldern
-   (Anwesenheit, Ort, Stunden/Minuten) wird entfernt. Das "PFLICHT"-
-   Badge bleibt als diskreter Hinweis erhalten. Der kursive Schriftstil
-   bleibt ebenfalls, damit leere Felder noch erkennbar sind.
-   =================================================================== */
-
-/* Natives <select> Pflichtfeld */
+   Buttons (Anwesenheit/Ort-Pillen) und Stundenauswahl (Std./Min) sollen
+   in ALLEN Themes komplett RANDLOS sein (Nutzerwunsch). Diese Regeln
+   liegen mit !important über components/wochenansicht/Theme-Dateien –
+   deshalb wird die Kante hier zentral auf transparent gesetzt (statt
+   früher Gelb→Grau). Der Flächen-/Tint-Hintergrund bleibt als diskreter
+   Pflichtfeld-Hinweis erhalten, ebenso Badge und kursiver Schriftstil;
+   die border-Breite bleibt (transparent) → kein Layout-Sprung. Fokus-
+   Ring (box-shadow) bleibt als Affordance erhalten. */
 .tag-row__select--needs-input:not(:disabled) {
-  border-color: var(--pm-grey-300) !important;
+  border-color: transparent !important;
   background-color: var(--pm-white) !important;
 }
 .tag-row__select--needs-input:not(:disabled):hover {
   background-color: var(--pm-grey-50) !important;
-  border-color: var(--pm-grey-400) !important;
+  border-color: transparent !important;
 }
-[data-theme="dark"] .tag-row__select--needs-input:not(:disabled) {
-  border-color: rgba(255,255,255,0.12) !important;
+[data-theme="dark"] .tag-row__select--needs-input:not(:disabled),
+[data-theme="hyperspace"] .tag-row__select--needs-input:not(:disabled),
+[data-theme="cmd"] .tag-row__select--needs-input:not(:disabled) {
+  border-color: transparent !important;
   background-color: transparent !important;
 }
 
 /* PM-Select Custom-Dropdown Trigger */
 .pm-select.tag-row__select--needs-input .pm-select__trigger {
-  border-color: var(--pm-grey-300) !important;
+  border-color: transparent !important;
   background: var(--pm-white) !important;
 }
 .pm-select.tag-row__select--needs-input .pm-select__trigger:hover {
-  border-color: var(--pm-grey-400) !important;
+  border-color: transparent !important;
   background: var(--pm-grey-50) !important;
 }
-[data-theme="dark"] .pm-select.tag-row__select--needs-input .pm-select__trigger {
-  border-color: rgba(255,255,255,0.12) !important;
+[data-theme="dark"] .pm-select.tag-row__select--needs-input .pm-select__trigger,
+[data-theme="hyperspace"] .pm-select.tag-row__select--needs-input .pm-select__trigger,
+[data-theme="cmd"] .pm-select.tag-row__select--needs-input .pm-select__trigger {
+  border-color: transparent !important;
   background: transparent !important;
 }
 
 /* Time-Spinner (Stunden / Minuten) */
 .time-spinner--needs-input:not(.time-spinner--readonly) .time-spinner__unit {
-  border-color: var(--pm-grey-300) !important;
+  border-color: transparent !important;
   background: var(--pm-white) !important;
 }
 .time-spinner--needs-input:not(.time-spinner--readonly) .time-spinner__unit-label {
-  border-top-color: var(--pm-grey-200) !important;
+  border-top-color: transparent !important;
 }
-[data-theme="dark"] .time-spinner--needs-input:not(.time-spinner--readonly) .time-spinner__unit {
-  border-color: rgba(255,255,255,0.12) !important;
+/* Dunkle Themes (dark + Custom hyperspace/cmd): die weiße Pflichtfeld-Fläche
+   oben wirkt auf der dunklen Tag-Zeile wie ein hartes Kästchen. Transparent
+   halten, damit die editierbare Azubi-Ansicht so flach bleibt wie die
+   Readonly-Ausbilder-Ansicht (der --needs-input-Hinweis kommt aus dem
+   Caret/Input). */
+[data-theme="dark"] .time-spinner--needs-input:not(.time-spinner--readonly) .time-spinner__unit,
+[data-theme="hyperspace"] .time-spinner--needs-input:not(.time-spinner--readonly) .time-spinner__unit,
+[data-theme="cmd"] .time-spinner--needs-input:not(.time-spinner--readonly) .time-spinner__unit {
+  border-color: transparent !important;
   background: transparent !important;
 }
 

@@ -44,10 +44,58 @@
      Jeder Template-Eintrag unten gehört EXKLUSIV einem Theme-Designer:
      dort den HTML-String für die Layer-Kinder eintragen (leerer String
      = kein DOM-FX für dieses Theme). */
+
+  /* ── Candy: Einhorn-Sprite (rein selbst gezeichnetes Inline-SVG, nur
+     Vollfarben – KEINE <defs>/IDs, damit der Sprite ohne ID-Kollision
+     mehrfach eingehängt werden kann). Blickt nach rechts; Mähne & Schweif
+     als gefächerte Pastell-Regenbogen-Kapseln, goldenes Spiralhorn.
+     Gestylt/animiert (Hüpfen + Wiesen-Lauf) in css/theme-candy.css. */
+  var CD_UNICORN_SVG =
+    '<svg class="pm-cd-uni-svg" viewBox="0 0 104 96" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">' +
+      '<g class="pm-cd-uni-tail">' +
+        '<rect x="16" y="48" width="9" height="32" rx="4.5" fill="#A77BFF" transform="rotate(34 30 56)"/>' +
+        '<rect x="17" y="49" width="9" height="30" rx="4.5" fill="#6CC6FF" transform="rotate(24 30 56)"/>' +
+        '<rect x="18" y="50" width="9" height="28" rx="4.5" fill="#7DE3A6" transform="rotate(14 30 56)"/>' +
+        '<rect x="19" y="51" width="9" height="26" rx="4.5" fill="#FFE066" transform="rotate(4 30 56)"/>' +
+        '<rect x="20" y="52" width="9" height="24" rx="4.5" fill="#FF8FB6" transform="rotate(-6 30 56)"/>' +
+      '</g>' +
+      '<ellipse cx="52" cy="57" rx="30" ry="19" fill="#FFFFFF"/>' +
+      '<path d="M24 62c8 11 48 11 56 0 0 9-12 15-28 15S24 71 24 62z" fill="#FFE3F1"/>' +
+      '<g fill="#FFFFFF">' +
+        '<rect x="30" y="66" width="8" height="24" rx="4"/>' +
+        '<rect x="42" y="68" width="8" height="24" rx="4"/>' +
+        '<rect x="56" y="68" width="8" height="24" rx="4"/>' +
+        '<rect x="68" y="66" width="8" height="24" rx="4"/>' +
+      '</g>' +
+      '<g fill="#FFB3D4">' +
+        '<rect x="30" y="85" width="8" height="6" rx="3"/>' +
+        '<rect x="42" y="87" width="8" height="6" rx="3"/>' +
+        '<rect x="56" y="87" width="8" height="6" rx="3"/>' +
+        '<rect x="68" y="85" width="8" height="6" rx="3"/>' +
+      '</g>' +
+      '<path d="M70 50 Q73 35 85 32 L95 43 Q90 58 76 60 Z" fill="#FFFFFF"/>' +
+      '<ellipse cx="87" cy="33" rx="14" ry="13" fill="#FFFFFF"/>' +
+      '<path d="M97 33c7-1 11 2 11 6s-5 6-11 4z" fill="#FFFFFF"/>' +
+      '<path d="M77 18l4 11-10-4z" fill="#FFFFFF"/>' +
+      '<path d="M87 17l4-17 5 16z" fill="#FFD55E"/>' +
+      '<path d="M88 13l5 1M89 8l4 1M90 4l3 1" stroke="#FFEBB0" stroke-width="1.3" fill="none"/>' +
+      '<g class="pm-cd-uni-mane">' +
+        '<rect x="64" y="2"  width="9" height="26" rx="4.5" fill="#A77BFF" transform="rotate(20 74 17)"/>' +
+        '<rect x="65" y="4"  width="9" height="24" rx="4.5" fill="#6CC6FF" transform="rotate(11 74 17)"/>' +
+        '<rect x="65" y="7"  width="9" height="23" rx="4.5" fill="#7DE3A6" transform="rotate(0 72 19)"/>' +
+        '<rect x="63" y="11" width="9" height="23" rx="4.5" fill="#FFE066" transform="rotate(-12 70 22)"/>' +
+        '<rect x="60" y="16" width="9" height="22" rx="4.5" fill="#FF8FB6" transform="rotate(-24 68 26)"/>' +
+      '</g>' +
+      '<circle cx="90" cy="32" r="2.6" fill="#3D1030"/>' +
+      '<circle cx="89" cy="31" r="0.9" fill="#FFFFFF"/>' +
+      '<circle cx="95" cy="38" r="3" fill="#FFC2DD"/>' +
+      '<circle cx="103" cy="36" r="1" fill="#C76B96"/>' +
+    '</svg>';
+
   var FX_TEMPLATES = {
     /* ── FX-Template: hyperspace (wird vom Theme-Designer befüllt) ──
        3D-Sternentunnel nach CodePen „Hyperspace" (Noah Blon, DpNRyR):
-       zwei um 6s versetzte 1000×1000-Würfel-Wraps (je 5 Wände) fliegen
+       zwei um 10s versetzte 1000×1000-Würfel-Wraps (je 5 Wände) fliegen
        per perspective:5px durch den Viewport. Styling/Keyframes liegen
        in css/theme-hyperspace.css (Klassen pm-hs-* zur Kollisions-
        vermeidung). */
@@ -73,9 +121,11 @@
     cmd: '',
 
     /* ── FX-Template: candy (wird vom Theme-Designer befüllt) ──
-       Candy-Land-Szene: halb sichtbarer Regenbogen, sehr langsam
-       driftende Wolken, drei gewellte Zuckerguss-Wiesen-Lagen plus
-       Deko (Donut, Lollipops, Gumdrops). Styling/Keyframes liegen in
+       Candy-Land-Szene: leuchtend schimmernder Regenbogen, eine
+       Wolken-Prozession (7 Wolken ziehen ENDLOS von links nach rechts
+       und schweben/pulsieren dabei), drei gewellte Zuckerguss-Wiesen-
+       Lagen, zwei über die Wiese hüpfende Einhörner plus Deko (Donut,
+       Lollipops, Gumdrops). Styling/Keyframes liegen in
        css/theme-candy.css (Klassen pm-cd-* zur Kollisionsvermeidung). */
     candy:
       '<div class="pm-cd-rainbow"></div>' +
@@ -83,113 +133,289 @@
       '<div class="pm-cd-cloud pm-cd-cloud--2"></div>' +
       '<div class="pm-cd-cloud pm-cd-cloud--3"></div>' +
       '<div class="pm-cd-cloud pm-cd-cloud--4"></div>' +
+      '<div class="pm-cd-cloud pm-cd-cloud--5"></div>' +
+      '<div class="pm-cd-cloud pm-cd-cloud--6"></div>' +
+      '<div class="pm-cd-cloud pm-cd-cloud--7"></div>' +
       '<div class="pm-cd-hill pm-cd-hill--back"></div>' +
       '<div class="pm-cd-donut"></div>' +
       '<div class="pm-cd-hill pm-cd-hill--mid"></div>' +
+      '<div class="pm-cd-unicorn pm-cd-unicorn--mid"><div class="pm-cd-unicorn__hop">' + CD_UNICORN_SVG + '</div></div>' +
       '<div class="pm-cd-lolli pm-cd-lolli--pink"></div>' +
       '<div class="pm-cd-lolli pm-cd-lolli--mint"></div>' +
       '<div class="pm-cd-hill pm-cd-hill--front"></div>' +
+      '<div class="pm-cd-unicorn pm-cd-unicorn--front"><div class="pm-cd-unicorn__hop">' + CD_UNICORN_SVG + '</div></div>' +
       '<div class="pm-cd-gumdrop pm-cd-gumdrop--1"></div>' +
       '<div class="pm-cd-gumdrop pm-cd-gumdrop--2"></div>',
 
     /* ── FX-Template: iceland (wird vom Theme-Designer befüllt) ──
-       Realistische Gletscher-Szene: 3 Berg-Silhouetten (SVG-Polygone,
-       hinten hell/neblig → vorne dunkler), 2 driftende Nebelbänke,
-       Schneeboden, Iglu aus Eisblöcken (Inline-SVG mit Blockfugen +
-       kühlem Innenleuchten), 3 Schneeregen-Lagen (schräge Streifen,
-       transform-only) und Frost-Kristall-Ecken am Viewport-Rand.
-       Styling/Keyframes in css/theme-iceland.css (Klassen pm-is-*). */
+       Schneesturm als <canvas>-Animation statt CSS/SVG-Szene: weiche
+       Glow-Schneeflocken in 3 Parallax-Ebenen, prozedurale Gletscher-
+       Silhouetten, driftende Nebelbänke und Seitenwind mit Böen. Der
+       requestAnimationFrame-Loop wird vom PMIcelandFX-Controller (oben)
+       gesteuert; ensureThemeFX() startet/stoppt ihn am FX-Lebenszyklus.
+       Styling/Fallback-Farbe in css/theme-iceland.css (.pm-is-bg). */
     iceland:
-      '<div class="pm-is-scene">' +
-        '<svg class="pm-is-range pm-is-range--far" viewBox="0 0 1440 320" preserveAspectRatio="none">' +
-          '<polygon points="0,196 110,150 210,176 330,118 420,156 540,108 660,158 780,122 900,164 1020,118 1140,168 1250,138 1340,170 1440,144 1440,320 0,320"/>' +
-        '</svg>' +
-        '<div class="pm-is-fog pm-is-fog--high"></div>' +
-        '<svg class="pm-is-range pm-is-range--mid" viewBox="0 0 1440 320" preserveAspectRatio="none">' +
-          '<polygon points="0,238 130,186 250,224 380,160 500,212 640,170 760,218 880,176 1010,224 1140,186 1270,228 1370,200 1440,216 1440,320 0,320"/>' +
-        '</svg>' +
-        '<div class="pm-is-fog pm-is-fog--low"></div>' +
-        '<svg class="pm-is-range pm-is-range--near" viewBox="0 0 1440 320" preserveAspectRatio="none">' +
-          '<polygon points="0,272 150,232 300,266 470,218 640,258 810,228 980,266 1150,238 1310,268 1440,248 1440,320 0,320"/>' +
-        '</svg>' +
-        '<div class="pm-is-ground"></div>' +
-        '<svg class="pm-is-igloo" viewBox="0 0 320 200">' +
-          '<defs>' +
-            '<linearGradient id="pmIsDome" x1="0" y1="0" x2="0" y2="1">' +
-              '<stop offset="0" stop-color="#FBFDFE"/>' +
-              '<stop offset="0.55" stop-color="#E7EEF2"/>' +
-              '<stop offset="1" stop-color="#CFDBE2"/>' +
-            '</linearGradient>' +
-            '<linearGradient id="pmIsTun" x1="0" y1="0" x2="0" y2="1">' +
-              '<stop offset="0" stop-color="#EEF3F6"/>' +
-              '<stop offset="1" stop-color="#C5D3DC"/>' +
-            '</linearGradient>' +
-            '<radialGradient id="pmIsGlow" cx="0.5" cy="0.88" r="0.85">' +
-              '<stop offset="0" stop-color="#CDEAF4"/>' +
-              '<stop offset="0.5" stop-color="#7FA9BC"/>' +
-              '<stop offset="1" stop-color="#36505F"/>' +
-            '</radialGradient>' +
-          '</defs>' +
-          '<ellipse cx="158" cy="184" rx="150" ry="10" fill="#8DA0AD" opacity="0.28"/>' +
-          '<path d="M28 182 A112 112 0 0 1 252 182 Z" fill="url(#pmIsDome)" stroke="#AFC0CB" stroke-width="2.5"/>' +
-          '<g fill="none" stroke="#B9CAD4" stroke-width="2">' +
-            '<path d="M56 182 A84 84 0 0 1 224 182"/>' +
-            '<path d="M84 182 A56 56 0 0 1 196 182"/>' +
-            '<path d="M110 182 A30 30 0 0 1 170 182"/>' +
-            '<path d="M244 140 L218 151 M209 94 L192 116 M156 71 L152 99 M98 78 L108 104 M52 113 L74 130 M32 151 L59 159"/>' +
-            '<path d="M208 133 L185 149 M171 104 L161 130 M125 99 L130 127 M84 120 L103 140 M61 153 L87 163"/>' +
-            '<path d="M172 136 L157 157 M140 126 L140 152 M108 136 L123 157"/>' +
-          '</g>' +
-          '<path d="M86 112 A80 80 0 0 1 178 105" fill="none" stroke="#FFFFFF" stroke-width="4" stroke-linecap="round" opacity="0.6"/>' +
-          '<path d="M206 182 A40 34 0 0 1 286 182 Z" fill="url(#pmIsTun)" stroke="#A7B9C4" stroke-width="2.5"/>' +
-          '<path d="M216 182 A30 25 0 0 1 276 182" fill="none" stroke="#B9CAD4" stroke-width="2"/>' +
-          '<path d="M226 182 A20 17 0 0 1 266 182 Z" fill="url(#pmIsGlow)"/>' +
-        '</svg>' +
-        '<div class="pm-is-sleet pm-is-sleet--far"></div>' +
-        '<div class="pm-is-sleet pm-is-sleet--mid"></div>' +
-        '<div class="pm-is-sleet pm-is-sleet--near"></div>' +
-        '<svg class="pm-is-frost pm-is-frost--tl" viewBox="0 0 150 150">' +
-          '<g fill="none" stroke="#EAF4F9" stroke-linecap="round">' +
-            '<path d="M4 4 L128 128" stroke-width="3"/>' +
-            '<path d="M34 34 L66 22 M34 34 L22 66 M62 62 L98 46 M62 62 L46 98 M92 92 L124 78 M92 92 L78 124" stroke-width="2"/>' +
-            '<path d="M66 22 L84 16 M66 22 L72 4 M22 66 L16 84 M22 66 L4 72" stroke-width="1.4"/>' +
-            '<path d="M4 64 L74 134 M64 4 L134 74" stroke-width="1.6" opacity="0.7"/>' +
-            '<path d="M24 86 L44 82 M86 24 L82 44 M44 104 L60 98 M104 44 L98 60" stroke-width="1.2" opacity="0.7"/>' +
-          '</g>' +
-          '<circle cx="128" cy="128" r="3" fill="#EAF4F9"/><circle cx="134" cy="74" r="2" fill="#EAF4F9"/><circle cx="74" cy="134" r="2" fill="#EAF4F9"/>' +
-        '</svg>' +
-        '<svg class="pm-is-frost pm-is-frost--tr" viewBox="0 0 150 150">' +
-          '<g fill="none" stroke="#EAF4F9" stroke-linecap="round">' +
-            '<path d="M4 4 L128 128" stroke-width="3"/>' +
-            '<path d="M34 34 L66 22 M34 34 L22 66 M62 62 L98 46 M62 62 L46 98 M92 92 L124 78 M92 92 L78 124" stroke-width="2"/>' +
-            '<path d="M66 22 L84 16 M66 22 L72 4 M22 66 L16 84 M22 66 L4 72" stroke-width="1.4"/>' +
-            '<path d="M4 64 L74 134 M64 4 L134 74" stroke-width="1.6" opacity="0.7"/>' +
-            '<path d="M24 86 L44 82 M86 24 L82 44 M44 104 L60 98 M104 44 L98 60" stroke-width="1.2" opacity="0.7"/>' +
-          '</g>' +
-          '<circle cx="128" cy="128" r="3" fill="#EAF4F9"/><circle cx="134" cy="74" r="2" fill="#EAF4F9"/><circle cx="74" cy="134" r="2" fill="#EAF4F9"/>' +
-        '</svg>' +
-        '<svg class="pm-is-frost pm-is-frost--bl" viewBox="0 0 150 150">' +
-          '<g fill="none" stroke="#EAF4F9" stroke-linecap="round">' +
-            '<path d="M4 4 L128 128" stroke-width="3"/>' +
-            '<path d="M34 34 L66 22 M34 34 L22 66 M62 62 L98 46 M62 62 L46 98 M92 92 L124 78 M92 92 L78 124" stroke-width="2"/>' +
-            '<path d="M66 22 L84 16 M66 22 L72 4 M22 66 L16 84 M22 66 L4 72" stroke-width="1.4"/>' +
-            '<path d="M4 64 L74 134 M64 4 L134 74" stroke-width="1.6" opacity="0.7"/>' +
-            '<path d="M24 86 L44 82 M86 24 L82 44 M44 104 L60 98 M104 44 L98 60" stroke-width="1.2" opacity="0.7"/>' +
-          '</g>' +
-          '<circle cx="128" cy="128" r="3" fill="#EAF4F9"/><circle cx="134" cy="74" r="2" fill="#EAF4F9"/><circle cx="74" cy="134" r="2" fill="#EAF4F9"/>' +
-        '</svg>' +
-        '<svg class="pm-is-frost pm-is-frost--br" viewBox="0 0 150 150">' +
-          '<g fill="none" stroke="#EAF4F9" stroke-linecap="round">' +
-            '<path d="M4 4 L128 128" stroke-width="3"/>' +
-            '<path d="M34 34 L66 22 M34 34 L22 66 M62 62 L98 46 M62 62 L46 98 M92 92 L124 78 M92 92 L78 124" stroke-width="2"/>' +
-            '<path d="M66 22 L84 16 M66 22 L72 4 M22 66 L16 84 M22 66 L4 72" stroke-width="1.4"/>' +
-            '<path d="M4 64 L74 134 M64 4 L134 74" stroke-width="1.6" opacity="0.7"/>' +
-            '<path d="M24 86 L44 82 M86 24 L82 44 M44 104 L60 98 M104 44 L98 60" stroke-width="1.2" opacity="0.7"/>' +
-          '</g>' +
-          '<circle cx="128" cy="128" r="3" fill="#EAF4F9"/><circle cx="134" cy="74" r="2" fill="#EAF4F9"/><circle cx="74" cy="134" r="2" fill="#EAF4F9"/>' +
-        '</svg>' +
-      '</div>'
+      '<canvas class="pm-is-bg" aria-hidden="true"></canvas>'
   };
+
+  /* ── Iceland-FX: Canvas-Schneesturm-Engine ───────────────────────
+     Der Iceland-Hintergrund ist – anders als die übrigen Custom-Themes –
+     keine reine CSS/SVG-Szene, sondern ein <canvas> mit requestAnimation-
+     Frame-Loop: weiche Glow-Schneeflocken in 3 Parallax-Ebenen, proze-
+     durale Gletscher-Silhouetten, driftender Nebel und Seitenwind mit
+     Böen. Dieser Controller kapselt den Loop und wird vom FX-Lebenszyklus
+     gesteuert (start beim Aufbau des iceland-FX, stop beim Theme-Wechsel /
+     Teardown). Konventionen aus themes.css werden mit-abgebildet, die für
+     ein <canvas> nicht über CSS greifen:
+       • prefers-reduced-motion → ein einziges statisches Standbild
+       • verstecktes Tab / offenes Modal → Loop pausiert (GPU sparen,
+         analog zur animation-play-state-Pause in themes.css).
+     Styling/Fallback-Farbe des <canvas> in css/theme-iceland.css. */
+  var PMIcelandFX = (function () {
+    var THEME = {
+      sky:     ['#0c141c', '#19262f', '#2b3a44'],
+      glacier: ['#16242f', '#22394a', '#33566b'],
+      iceHi:   '#bfe6f5',
+      fog:     '#b6c6d2',
+      fogStrength: 0.34,
+      snow:    '#f4f8fc',
+      wind:    8.5,
+      flakeNear: 130, flakeMid: 340, flakeFar: 1100
+    };
+    var intensity = 0.4; // niedrigste Sturm-Stufe
+
+    var reduceMotion = !!(window.matchMedia &&
+      window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+
+    /* Flocken-Sprites einmalig (lazy) bauen und wiederverwenden. */
+    var SPR_FAR = null, SPR_MID = null, SPR_NEAR = null;
+
+    /* Laufzeit-State (wird pro start() neu aufgebaut). */
+    var canvas = null, ctx = null;
+    var raf = 0, running = false;
+    var W = 0, H = 0, DPR = 1;
+    var windT = 0, last = 0, fogPhase = 0;
+    var far = [], mid = [], near = [], glaciers = [];
+
+    function hexToRgb(h) { var n = parseInt(h.slice(1), 16); return [(n >> 16) & 255, (n >> 8) & 255, n & 255]; }
+    function fogRgb() { return hexToRgb(THEME.fog); }
+
+    function makeFlakeSprite(size, softness) {
+      var c = document.createElement('canvas');
+      c.width = c.height = size;
+      var cx = c.getContext('2d');
+      var r = size / 2;
+      var g = cx.createRadialGradient(r, r, 0, r, r, r);
+      g.addColorStop(0, 'rgba(255,255,255,1)');
+      g.addColorStop(softness, 'rgba(255,255,255,0.85)');
+      g.addColorStop(0.7, 'rgba(255,255,255,0.25)');
+      g.addColorStop(1, 'rgba(255,255,255,0)');
+      cx.fillStyle = g;
+      cx.beginPath();
+      cx.arc(r, r, r, 0, Math.PI * 2);
+      cx.fill();
+      return c;
+    }
+    function ensureSprites() {
+      if (SPR_FAR) return;
+      SPR_FAR  = makeFlakeSprite(16, 0.55);
+      SPR_MID  = makeFlakeSprite(32, 0.40);
+      SPR_NEAR = makeFlakeSprite(64, 0.22);
+    }
+
+    function windAt(t) {
+      var base = THEME.wind;
+      var gust = Math.sin(t * 0.0004) * 0.42 + Math.sin(t * 0.0011 + 1.3) * 0.28 + Math.sin(t * 0.0027 + 2.7) * 0.14;
+      return base * (1 + gust) * intensity;
+    }
+    function updraft(t, x) { return Math.sin(t * 0.0009 + x * 0.004) * 1.1 * intensity; }
+
+    function iceRidge(baseY, amp, jag, seed) {
+      var pts = [], steps = 22;
+      for (var i = 0; i <= steps; i++) {
+        var x = (i / steps) * (W + 80) - 40;
+        var n = Math.sin(i * 0.7 + seed) * amp
+              + Math.sin(i * 1.9 + seed * 2.1) * amp * jag
+              + Math.sin(i * 4.3 + seed * 0.6) * amp * jag * 0.5
+              + (Math.sin(i * 9.1 + seed) > 0.6 ? amp * 0.25 : 0);
+        pts.push({ x: x, y: baseY - Math.abs(n) * 0.6 + n * 0.4 });
+      }
+      return pts;
+    }
+    function buildGlaciers() {
+      glaciers = [
+        { pts: iceRidge(H * 0.78, H * 0.16, 0.55, 1.0),  ci: 0, parallax: 0.04 },
+        { pts: iceRidge(H * 0.86, H * 0.13, 0.50, 5.3),  ci: 1, parallax: 0.08 },
+        { pts: iceRidge(H * 0.94, H * 0.10, 0.45, 11.2), ci: 2, parallax: 0.14 }
+      ];
+    }
+
+    function makeFar()  { return { x: Math.random() * W, y: Math.random() * H, s: Math.random() * 3 + 2,   speed: Math.random() * 0.5 + 0.4, drift: Math.random() * 0.4 + 0.1, alpha: Math.random() * 0.35 + 0.15 }; }
+    function makeMid()  { return { x: Math.random() * W, y: Math.random() * H, s: Math.random() * 6 + 5,   speed: Math.random() * 1.0 + 1.0, drift: Math.random() * 0.6 + 0.4, sway: Math.random() * 6.28, swaySpeed: Math.random() * 0.02 + 0.008, alpha: Math.random() * 0.4 + 0.5 }; }
+    function makeNear() { return { x: Math.random() * W, y: Math.random() * H, s: Math.random() * 18 + 16, speed: Math.random() * 1.6 + 2.0, drift: Math.random() * 0.9 + 0.7, sway: Math.random() * 6.28, swaySpeed: Math.random() * 0.03 + 0.01,  alpha: Math.random() * 0.3 + 0.4 }; }
+    function fillFlakes(arr, n, fn) { arr.length = 0; for (var i = 0; i < n; i++) arr.push(fn()); }
+    function rebuildAll() {
+      fillFlakes(far,  THEME.flakeFar,  makeFar);
+      fillFlakes(mid,  THEME.flakeMid,  makeMid);
+      fillFlakes(near, THEME.flakeNear, makeNear);
+    }
+
+    function resize() {
+      if (!canvas || !ctx) return;
+      DPR = Math.min(window.devicePixelRatio || 1, 2);
+      W = window.innerWidth; H = window.innerHeight;
+      canvas.width  = Math.floor(W * DPR);
+      canvas.height = Math.floor(H * DPR);
+      canvas.style.width = W + 'px'; canvas.style.height = H + 'px';
+      ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+      rebuildAll();
+      buildGlaciers();
+      /* setzen von canvas.width leert die Fläche → bei reduced-motion
+         (kein Loop) das Standbild direkt neu zeichnen. */
+      if (reduceMotion) renderOnce(2);
+    }
+
+    function drawSky() {
+      var g = ctx.createLinearGradient(0, 0, 0, H);
+      g.addColorStop(0,    'rgb(' + hexToRgb(THEME.sky[0]).join(',') + ')');
+      g.addColorStop(0.55, 'rgb(' + hexToRgb(THEME.sky[1]).join(',') + ')');
+      g.addColorStop(1,    'rgb(' + hexToRgb(THEME.sky[2]).join(',') + ')');
+      ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+    }
+    function recycle(f) {
+      if (f.y > H + f.s) { f.y = -f.s; f.x = Math.random() * W; }
+      if (f.x > W + f.s) f.x -= W + f.s * 2;
+      if (f.x < -f.s)    f.x += W + f.s * 2;
+    }
+    function drawFar(t, wind) {
+      for (var i = 0; i < far.length; i++) { var f = far[i];
+        f.x += wind * 0.22 * f.drift; f.y += f.speed * intensity * 0.7; recycle(f);
+        ctx.globalAlpha = f.alpha; ctx.drawImage(SPR_FAR, f.x - f.s / 2, f.y - f.s / 2, f.s, f.s);
+      }
+      ctx.globalAlpha = 1;
+    }
+    function drawMid(t, wind) {
+      for (var i = 0; i < mid.length; i++) { var f = mid[i];
+        f.sway += f.swaySpeed;
+        f.x += wind * 0.6 * f.drift + Math.sin(f.sway) * 0.7;
+        f.y += f.speed * intensity + updraft(t, f.x) * 0.3; recycle(f);
+        ctx.globalAlpha = f.alpha; ctx.drawImage(SPR_MID, f.x - f.s / 2, f.y - f.s / 2, f.s, f.s);
+      }
+      ctx.globalAlpha = 1;
+    }
+    function drawNear(t, wind) {
+      for (var i = 0; i < near.length; i++) { var f = near[i];
+        f.sway += f.swaySpeed;
+        f.x += wind * 1.2 * f.drift + Math.sin(f.sway) * 1.2;
+        f.y += f.speed * intensity * 1.6 + updraft(t, f.x); recycle(f);
+        ctx.globalAlpha = f.alpha; ctx.drawImage(SPR_NEAR, f.x - f.s / 2, f.y - f.s / 2, f.s, f.s);
+      }
+      ctx.globalAlpha = 1;
+    }
+    function drawGlaciers(wind) {
+      var hi = THEME.iceHi;
+      for (var li = 0; li < glaciers.length; li++) {
+        var layer = glaciers[li];
+        var off = Math.sin(windT * 0.0003) * wind * layer.parallax * 6;
+        ctx.save();
+        ctx.translate(off, 0);
+        ctx.fillStyle = 'rgb(' + hexToRgb(THEME.glacier[layer.ci]).join(',') + ')';
+        ctx.beginPath();
+        ctx.moveTo(layer.pts[0].x, H + 5);
+        ctx.lineTo(layer.pts[0].x, layer.pts[0].y);
+        for (var i = 1; i < layer.pts.length; i++) {
+          var p = layer.pts[i], prev = layer.pts[i - 1];
+          ctx.quadraticCurveTo(prev.x, prev.y, (prev.x + p.x) / 2, (prev.y + p.y) / 2);
+        }
+        var lastP = layer.pts[layer.pts.length - 1];
+        ctx.lineTo(lastP.x, H + 5);
+        ctx.closePath();
+        ctx.fill();
+        ctx.globalAlpha = 0.22 + layer.ci * 0.06;
+        ctx.strokeStyle = hi;
+        ctx.lineWidth = 1.4;
+        ctx.beginPath();
+        ctx.moveTo(layer.pts[0].x, layer.pts[0].y);
+        for (var j = 1; j < layer.pts.length; j++) {
+          var p2 = layer.pts[j], prev2 = layer.pts[j - 1];
+          ctx.quadraticCurveTo(prev2.x, prev2.y, (prev2.x + p2.x) / 2, (prev2.y + p2.y) / 2);
+        }
+        ctx.stroke();
+        ctx.globalAlpha = 1;
+        ctx.restore();
+      }
+    }
+    function drawFog(t, wind) {
+      var strength = THEME.fogStrength;
+      var rgb = fogRgb(), r = rgb[0], g = rgb[1], b = rgb[2];
+      fogPhase += 0.0008 * (1 + Math.abs(wind) * 0.02);
+      ctx.save();
+      for (var i = 0; i < 3; i++) {
+        var yc = H * (0.3 + i * 0.25) + Math.sin(t * 0.0005 + i) * H * 0.08;
+        var band = H * 0.5;
+        var a = strength * (0.16 + Math.sin(fogPhase * 2 + i * 1.7) * 0.05);
+        var grad = ctx.createLinearGradient(0, yc - band, 0, yc + band);
+        grad.addColorStop(0,   'rgba(' + r + ',' + g + ',' + b + ',0)');
+        grad.addColorStop(0.5, 'rgba(' + r + ',' + g + ',' + b + ',' + Math.max(0, a) + ')');
+        grad.addColorStop(1,   'rgba(' + r + ',' + g + ',' + b + ',0)');
+        ctx.fillStyle = grad; ctx.fillRect(0, 0, W, H);
+      }
+      var gustHaze = strength * (0.08 + Math.max(0, Math.sin(t * 0.0004)) * 0.08);
+      ctx.fillStyle = 'rgba(' + r + ',' + g + ',' + b + ',' + gustHaze + ')';
+      ctx.fillRect(0, 0, W, H);
+      ctx.restore();
+    }
+
+    function renderOnce(wind) {
+      drawSky();
+      drawFar(windT, wind);
+      drawGlaciers(wind);
+      drawFog(windT, wind);
+      drawMid(windT, wind);
+      drawNear(windT, wind);
+    }
+
+    /* Loop pausieren, wenn es nichts zu sehen gibt: Tab im Hintergrund
+       oder offenes Modal (dessen blur-Backdrop alles verdeckt). */
+    function isPaused() {
+      if (document.hidden) return true;
+      if (document.querySelector('.modal-overlay.open')) return true;
+      return false;
+    }
+
+    function frame(now) {
+      if (!running) return;
+      if (isPaused()) { last = now; raf = requestAnimationFrame(frame); return; }
+      var dt = Math.min(now - last, 50);
+      last = now; windT += dt;
+      renderOnce(windAt(windT));
+      raf = requestAnimationFrame(frame);
+    }
+
+    function start(cv) {
+      stop();               // idempotent: evtl. laufenden Loop sauber beenden
+      if (!cv) return;
+      canvas = cv;
+      ctx = canvas.getContext('2d', { alpha: false });
+      if (!ctx) { canvas = null; return; }
+      ensureSprites();
+      resize();             // baut Szene auf (+ zeichnet bei reduced-motion)
+      window.addEventListener('resize', resize);
+      if (reduceMotion) return;   // statisches Standbild → kein Loop
+      running = true;
+      last = (window.performance && performance.now) ? performance.now() : 0;
+      raf = requestAnimationFrame(frame);
+    }
+
+    function stop() {
+      running = false;
+      if (raf) { cancelAnimationFrame(raf); raf = 0; }
+      window.removeEventListener('resize', resize);
+      canvas = null; ctx = null;
+    }
+
+    return { start: start, stop: stop };
+  })();
 
   /* FX-Container für das übergebene Theme (neu) aufbauen.
      Idempotent: ein evtl. vorhandener Container wird immer zuerst
@@ -211,6 +437,9 @@
     }
     var existing = document.getElementById('pmThemeFX');
     if (existing && existing.parentNode) existing.parentNode.removeChild(existing);
+    /* Beim Neuaufbau/Teardown einen evtl. laufenden Canvas-Loop (iceland)
+       sauber beenden – sonst rendert er nach dem Theme-Wechsel weiter. */
+    PMIcelandFX.stop();
 
     var tpl = FX_TEMPLATES[theme] || '';   // light/dark/unbekannt → ''
     if (!tpl) return;
@@ -223,6 +452,13 @@
     el.setAttribute('aria-hidden', 'true');
     el.innerHTML = tpl;
     document.body.appendChild(el);
+
+    /* iceland: Canvas-Schneesturm-Loop am frisch eingehängten <canvas>
+       starten (alle anderen Themes sind rein CSS/SVG → kein JS-Loop). */
+    if (theme === 'iceland') {
+      var isCanvas = el.querySelector('.pm-is-bg');
+      if (isCanvas) PMIcelandFX.start(isCanvas);
+    }
   }
 
   function readSystem() {

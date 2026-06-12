@@ -24,6 +24,22 @@ async function apiFetch(path, options = {}) {
   return res.json();
 }
 
+/* Multipart-Upload (Datei-Anhänge). apiFetch serialisiert immer zu JSON und
+   ist daher ungeeignet – hier wird FormData gesendet und KEIN Content-Type
+   gesetzt, damit der Browser die multipart-Boundary selbst bestimmt. */
+async function apiUpload(path, formData) {
+  const res = await fetch(API_BASE + path, {
+    method: 'POST',
+    credentials: 'include',
+    body: formData,
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ error: res.statusText }));
+    throw new Error(err.error || res.statusText);
+  }
+  return res.json();
+}
+
 /* ── Normalisierung: DB PascalCase → Frontend camelCase ───────── */
 function toDateStr(val) {
   if (!val) return '';
@@ -92,6 +108,18 @@ function normalizeZuweisung(z) {
     abteilung: z.Abteilung ?? '',
     von: toDateStr(z.Von),
     bis: toDateStr(z.Bis),
+  };
+}
+
+function normalizeAnhang(a) {
+  return {
+    id: a.Id,
+    wocheId: a.WocheId,
+    dateiname: a.Dateiname,
+    mimeTyp: a.MimeTyp ?? '',
+    groesseBytes: a.GroesseBytes ?? 0,
+    hochgeladenVon: a.HochgeladenVon,
+    hochgeladenAm: a.HochgeladenAm ?? null,
   };
 }
 
@@ -323,6 +351,27 @@ const DB = {
 
   async deleteKommentar(kommentarId) {
     await apiFetch(`/wochen/kommentare/${kommentarId}`, { method: 'DELETE' });
+  },
+
+  /* Datei-Anhänge (Wochen-Ebene) */
+  async getAnhaenge(wocheId) {
+    if (!wocheId) return [];
+    const data = await apiFetch(`/wochen/${wocheId}/anhaenge`);
+    return data.map(normalizeAnhang);
+  },
+
+  async uploadAnhang(wocheId, file) {
+    const fd = new FormData();
+    fd.append('datei', file);
+    return normalizeAnhang(await apiUpload(`/wochen/${wocheId}/anhaenge`, fd));
+  },
+
+  async deleteAnhang(id) {
+    await apiFetch(`/wochen/anhaenge/${id}`, { method: 'DELETE' });
+  },
+
+  anhangDownloadUrl(id) {
+    return `${API_BASE}/wochen/anhaenge/${id}/download`;
   },
 
   /* Benachrichtigungen */

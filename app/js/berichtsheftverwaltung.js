@@ -5,6 +5,10 @@ document.addEventListener('DOMContentLoaded', async () => {
   const user = await initPage('nav-verwaltung', [{ label: 'Berichtsheftverwaltung', href: 'berichtsheftverwaltung.html' }]);
   if (!user) return;
 
+  /* Layout-Marker: erlaubt der Berichtsheftverwaltung die volle Seitenbreite
+     (Override der globalen --content-max-Beschränkung in layout.css). */
+  document.body.dataset.page = 'berichtsheftverwaltung';
+
   const main = document.getElementById('mainContent');
 
   const azubisInit = await DB.getAzubis();
