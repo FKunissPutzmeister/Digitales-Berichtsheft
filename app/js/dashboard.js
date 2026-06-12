@@ -405,15 +405,14 @@ async function renderAzubiDashboard(user) {
   const quote = wochenMitInhalt > 0 ? Math.round((genehmigtCount / wochenMitInhalt) * 100) : 0;
 
   const weekdayLong = ['Sonntag','Montag','Dienstag','Mittwoch','Donnerstag','Freitag','Samstag'][today.getDay()];
-  const weekdayShort = ['SO','MO','DI','MI','DO','FR','SA'][today.getDay()];
 
-  /* Eyecatcher = kleines Label (Eyebrow) + große Zahl, spiegelt den Berichtstyp:
-     - gewerblich (täglich) → Wochentag-Kürzel + Tagesnummer, z. B. "DI" / "29"
-     - kaufmännisch (wöchentlich) → "KW" + Kalenderwoche, z. B. "KW" / "23" */
-  const heroEyebrow = berichtTyp === 'täglich' ? weekdayShort.toUpperCase() : 'KW';
-  const heroNum = berichtTyp === 'täglich'
-    ? String(today.getDate()).padStart(2, '0')
-    : String(kw).padStart(2, '0');
+  /* Eyecatcher = kleines Label (Eyebrow) + große Zahl. Zeigt für ALLE Azubis
+     (täglich wie wöchentlich) das Datum des aktuellen Tages: Monatskürzel als
+     Eyebrow (per CSS in Großbuchstaben) + Tag des Monats als große Zahl,
+     z. B. "JUN" / "12". Früher zeigte die wöchentliche Variante stattdessen
+     "KW" + Kalenderwoche – das war für Azubis verwirrend und ist ersetzt. */
+  const heroEyebrow = DateUtil.MONTHS_SHORT[today.getMonth()];
+  const heroNum = String(today.getDate()).padStart(2, '0');
 
   main.innerHTML = `
     <section class="welcome-hero">

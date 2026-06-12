@@ -227,7 +227,11 @@
   gap: 2px;
   transition: background var(--t-fast), color var(--t-fast);
 }
-.week-row--clickable:hover .week-row__kw {
+/* Hover-Akzent NICHT auf die aktuelle KW anwenden: deren Zelle hat einen
+   gelben Hintergrund, und --pm-yellow-darker ist im Dark-Mode identisch mit
+   --pm-yellow (#FFC300) → die Zahl würde gelb-auf-gelb unsichtbar. Die
+   current-kw behält daher beim Hover ihre dunkle, lesbare Schriftfarbe. */
+.week-row--clickable:hover .week-row__kw:not(.current-kw) {
   color: var(--pm-yellow-darker);
 }
 .week-row__kw.current-kw {

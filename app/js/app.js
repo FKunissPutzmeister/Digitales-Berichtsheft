@@ -407,20 +407,28 @@ const Modal = {
     document.body.style.overflow = '';
   },
   init() {
+    // Idempotent: darf nach jeder SPA-Navigation erneut laufen, ohne
+    // Handler doppelt zu binden. Bereits verdrahtete Elemente tragen
+    // data-modal-bound; der ESC-Listener wird nur EINMAL global gesetzt.
     // Close on overlay-click
-    document.querySelectorAll('.modal-overlay').forEach(overlay => {
+    document.querySelectorAll('.modal-overlay:not([data-modal-bound])').forEach(overlay => {
+      overlay.dataset.modalBound = '1';
       overlay.addEventListener('click', (e) => {
         if (e.target === overlay) Modal.closeAll();
       });
     });
     // Close buttons
-    document.querySelectorAll('.modal__close, [data-modal-close]').forEach(btn => {
+    document.querySelectorAll('.modal__close:not([data-modal-bound]), [data-modal-close]:not([data-modal-bound])').forEach(btn => {
+      btn.dataset.modalBound = '1';
       btn.addEventListener('click', Modal.closeAll);
     });
-    // ESC
-    document.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape') Modal.closeAll();
-    });
+    // ESC (nur einmal pro Seitensession registrieren)
+    if (!Modal._escBound) {
+      Modal._escBound = true;
+      document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') Modal.closeAll();
+      });
+    }
   }
 };
 

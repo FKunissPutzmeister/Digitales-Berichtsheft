@@ -61,6 +61,7 @@
   flex: 1;
   overflow: hidden;
   display: flex;
+  position: relative;   /* Bezug für das einmalige „Heute"-Label */
 }
 .gantt-header__month {
   flex: 1;
@@ -191,17 +192,23 @@
   z-index: 2;
   pointer-events: none;
 }
-.gantt-today-line::after {
-  content: 'Heute';
+/* „Heute"-Label: nur EINMAL oben im Header an der Tages-Position
+   (statt früher per ::after auf jeder Zeilen-Linie). */
+.gantt-today-marker {
   position: absolute;
-  top: -20px;
-  left: 50%;
+  bottom: 3px;
   transform: translateX(-50%);
   font-size: 9px;
   font-weight: var(--fw-bold);
   text-transform: uppercase;
+  letter-spacing: 0.04em;
   color: var(--color-error-mid);
+  background: var(--pm-grey-50);
+  padding: 0 4px;
+  border-radius: var(--r-full);
   white-space: nowrap;
+  pointer-events: none;
+  z-index: 3;
 }
 
 /* ── Legende ── */

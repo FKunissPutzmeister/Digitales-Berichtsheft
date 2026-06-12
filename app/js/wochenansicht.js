@@ -14,13 +14,13 @@ const QUILL_TOOLBAR = [
   [{ indent: '-1' }, { indent: '+1' }],
   ['image'],
   ['blockquote'],
-  ['undo', 'redo'],
+  // Hinweis: KEINE 'undo'/'redo'-Buttons. Quill liefert für diese
+  // Custom-Formate kein Icon, und die ::before-Pfeile aus quill-editor.css
+  // greifen nicht (Quill hängt die Toolbar als GESCHWISTER von
+  // .ql-editor-wrap ein, nicht als Nachfahre) → es entstanden zwei leere,
+  // unsichtbare Toolbar-Felder. Rückgängig/Wiederherstellen bleibt über die
+  // Tastatur (Strg+Z / Strg+Y) via history-Modul verfügbar.
 ];
-
-const QUILL_HANDLERS = {
-  undo: function() { this.quill.history.undo(); },
-  redo: function() { this.quill.history.redo(); },
-};
 
 document.addEventListener('DOMContentLoaded', async () => {
   const user = await initPage('nav-wochenansicht', [{ label: 'Wochenansicht', href: 'wochenansicht.html' }]);
@@ -1065,7 +1065,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         readOnly: readonly,
         placeholder: DAY_SECTION_META[kind].placeholder,
         modules: {
-          toolbar: readonly ? false : { container: QUILL_TOOLBAR, handlers: QUILL_HANDLERS },
+          toolbar: readonly ? false : { container: QUILL_TOOLBAR },
           history: { delay: 1000, maxStack: 100, userOnly: true },
         },
       });
@@ -1343,7 +1343,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         readOnly: readonly,
         placeholder: placeholders[id],
         modules: {
-          toolbar: readonly ? false : { container: QUILL_TOOLBAR, handlers: QUILL_HANDLERS },
+          toolbar: readonly ? false : { container: QUILL_TOOLBAR },
           history: { delay: 1000, maxStack: 100, userOnly: true },
         },
       });

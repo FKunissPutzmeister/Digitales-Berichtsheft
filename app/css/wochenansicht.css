@@ -1670,7 +1670,7 @@ body[data-page="wochenansicht"] .tag-cards__header {
      linksbündiger Text) bleibt die linksbündige Basisregel oben aktiv.
      Das "--center"-Label ("Std.") bleibt ausgenommen, damit dessen
      eigenständige Regel unten greift (keine width/max-width-Vererbung). */
-  body[data-page="wochenansicht"]:not([data-btn-style="classic"]) .tag-cards__header-label:not(.tag-cards__header-label--center) {
+  body[data-page="wochenansicht"] .tag-cards__header-label:not(.tag-cards__header-label--center) {
     width: 100%;
     max-width: 300px;
     text-align: center;
@@ -2984,10 +2984,16 @@ body[data-page="wochenansicht"] .time-spinner__input.spinner-bump-down {
   box-shadow: 0 0 0 2px rgba(25, 118, 210, 0.30);
 }
 
-/* Status-Banner: stärkere Border-Akzentuierung im Dark Mode */
+/* Status-Banner: stärkere Border-Akzentuierung im Dark Mode.
+   Der Hintergrund war mit 3 % Deckkraft praktisch durchsichtig, sodass der
+   gold-/farbige Ambient-Verlauf hinter dem Banner deutlich durchschien.
+   Jetzt ein klar deckenderer dunkler Panel-Hintergrund (leicht frostig) –
+   die Status-Farbe tragen weiterhin das Icon und der linke Rand. */
 [data-theme="dark"] .week-status-banner {
-  background-color: rgba(255, 255, 255, 0.03);
-  border-color: rgba(255, 255, 255, 0.08);
+  background-color: rgba(48, 48, 54, 0.90);
+  border-color: rgba(255, 255, 255, 0.10);
+  backdrop-filter: blur(4px) saturate(130%);
+  -webkit-backdrop-filter: blur(4px) saturate(130%);
 }
 [data-theme="dark"] .week-status-banner__title { color: var(--pm-grey-900); }
 [data-theme="dark"] .week-status-banner__text  { color: var(--pm-grey-700); }
@@ -3019,39 +3025,23 @@ body[data-page="wochenansicht"] .time-spinner__input.spinner-bump-down {
    Fall, dass noch das native <select> sichtbar ist (vor Enhancement /
    ohne JS), gibt es einen Fallback weiter unten.
 
-   ============================  TOGGLE  =============================
-   Standard = PILL-Stil AKTIV (Body hat kein data-btn-style-Attribut,
-   daher greift :not([data-btn-style="classic"])).
-
-   ► ZURÜCK ZUM KLASSISCHEN STIL – wähle EINE der beiden Methoden:
-
-     (A) Reine CSS-Methode (ein Schritt):
-         Markiere diesen kompletten Block (von "PILL-STIL" bis zur
-         schließenden Markierung "ENDE PILL-STIL") und kommentiere ihn
-         als Ganzes aus (im Editor: Block markieren, Strg+/ – bzw. von
-         Slash-Stern bis Stern-Slash umschließen).
-         -> Es bleibt automatisch der originale Dropdown-Stil aus
-            components.css / glass.css aktiv. Kein weiterer Eingriff nötig.
-
-     (B) Live-Schalter ohne Datei-Edit (falls man das Body-Attribut
-         setzen kann, z. B. in der DevTools-Konsole):
-            document.body.dataset.btnStyle = 'classic';   // klassisch
-            delete document.body.dataset.btnStyle;        // wieder Pill
-         Der Guard :not([data-btn-style="classic"]) schaltet die
-         Pill-Regeln dann ohne Reload an/aus.
+   Der Pill-Stil ist jetzt der EINZIGE Stil. Das frühere klassische
+   Backup-Design (umschaltbar über body[data-btn-style="classic"]) wurde
+   entfernt – die Regeln greifen daher unbedingt auf
+   body[data-page="wochenansicht"].
    =================================================================== */
 
 /* Wrapper füllt die Grid-Spalte (Tabellen-Look: Dropdowns richten sich
    in Spalten unter der Überschrift aus). */
-body[data-page="wochenansicht"]:not([data-btn-style="classic"]) .pm-select.tag-row__select,
-body[data-page="wochenansicht"]:not([data-btn-style="classic"]) .pm-select.wochen-options__select {
+body[data-page="wochenansicht"] .pm-select.tag-row__select,
+body[data-page="wochenansicht"] .pm-select.wochen-options__select {
   align-self: stretch;
   width: 100%;
 }
 
 /* --- Pill-Trigger (Anwesenheit + Ort), Hauptfall via PMSelect --- */
-body[data-page="wochenansicht"]:not([data-btn-style="classic"]) .pm-select.tag-row__select .pm-select__trigger,
-body[data-page="wochenansicht"]:not([data-btn-style="classic"]) .pm-select.wochen-options__select .pm-select__trigger {
+body[data-page="wochenansicht"] .pm-select.tag-row__select .pm-select__trigger,
+body[data-page="wochenansicht"] .pm-select.wochen-options__select .pm-select__trigger {
   /* Weiche, helle Pille mit großzügigem Radius. */
   background: var(--pm-white);
   border: 1px solid transparent;
@@ -3075,42 +3065,49 @@ body[data-page="wochenansicht"]:not([data-btn-style="classic"]) .pm-select.woche
   transition: box-shadow var(--t-fast), background-color var(--t-fast),
               transform var(--t-fast), border-color var(--t-fast);
 }
-body[data-page="wochenansicht"]:not([data-btn-style="classic"]) .pm-select.tag-row__select .pm-select__trigger:hover:not(:disabled),
-body[data-page="wochenansicht"]:not([data-btn-style="classic"]) .pm-select.wochen-options__select .pm-select__trigger:hover:not(:disabled) {
+/* Wochen-Ort-Pille ("Betrieb" / "Schule/Betrieb") ist – anders als die
+   Tag-Zeilen-Selects – ein schrumpfender Flex-Eintrag und legt sich im
+   Desktop-Layout eng um seinen Text. max-width deckelt sie nur noch im
+   Tablet-Spaltenlayout (.wochen-options wird dort column/stretch). */
+body[data-page="wochenansicht"] .pm-select.wochen-options__select .pm-select__trigger {
+  max-width: 200px;
+}
+body[data-page="wochenansicht"] .pm-select.tag-row__select .pm-select__trigger:hover:not(:disabled),
+body[data-page="wochenansicht"] .pm-select.wochen-options__select .pm-select__trigger:hover:not(:disabled) {
   background: var(--pm-white);
   /* Nur Schatten verstärken – kein Anheben (translateY entfällt). */
   box-shadow:
     0 2px 4px rgba(15, 23, 42, 0.08),
     0 8px 18px rgba(15, 23, 42, 0.14);
 }
-body[data-page="wochenansicht"]:not([data-btn-style="classic"]) .pm-select.tag-row__select .pm-select__trigger:active:not(:disabled),
-body[data-page="wochenansicht"]:not([data-btn-style="classic"]) .pm-select.wochen-options__select .pm-select__trigger:active:not(:disabled) {
+body[data-page="wochenansicht"] .pm-select.tag-row__select .pm-select__trigger:active:not(:disabled),
+body[data-page="wochenansicht"] .pm-select.wochen-options__select .pm-select__trigger:active:not(:disabled) {
   transform: translateY(0);
   box-shadow:
     0 1px 2px rgba(15, 23, 42, 0.10),
     inset 0 1px 3px rgba(15, 23, 42, 0.10);
 }
-body[data-page="wochenansicht"]:not([data-btn-style="classic"]) .pm-select.tag-row__select .pm-select__trigger:focus-visible,
-body[data-page="wochenansicht"]:not([data-btn-style="classic"]) .pm-select.wochen-options__select .pm-select__trigger:focus-visible,
-body[data-page="wochenansicht"]:not([data-btn-style="classic"]) .pm-select--open.tag-row__select .pm-select__trigger,
-body[data-page="wochenansicht"]:not([data-btn-style="classic"]) .pm-select--open.wochen-options__select .pm-select__trigger {
+body[data-page="wochenansicht"] .pm-select.tag-row__select .pm-select__trigger:focus-visible,
+body[data-page="wochenansicht"] .pm-select.wochen-options__select .pm-select__trigger:focus-visible,
+body[data-page="wochenansicht"] .pm-select--open.tag-row__select .pm-select__trigger,
+body[data-page="wochenansicht"] .pm-select--open.wochen-options__select .pm-select__trigger {
   border-color: var(--pm-yellow);
   box-shadow: var(--ring-yellow-sm),
     0 4px 10px rgba(15, 23, 42, 0.10);
 }
-body[data-page="wochenansicht"]:not([data-btn-style="classic"]) .pm-select.tag-row__select .pm-select__trigger:disabled,
-body[data-page="wochenansicht"]:not([data-btn-style="classic"]) .pm-select.wochen-options__select .pm-select__trigger:disabled {
+body[data-page="wochenansicht"] .pm-select.tag-row__select .pm-select__trigger:disabled,
+body[data-page="wochenansicht"] .pm-select.wochen-options__select .pm-select__trigger:disabled {
   background: var(--pm-grey-100);
   box-shadow: none;
   transform: none;
   border-color: transparent;
 }
 /* Pflichtfeld-Hinweis (--needs-input): gelbe Pille statt grauer. */
-body[data-page="wochenansicht"]:not([data-btn-style="classic"]) .pm-select.tag-row__select--needs-input .pm-select__trigger {
+body[data-page="wochenansicht"] .pm-select.tag-row__select--needs-input .pm-select__trigger {
   background: var(--pm-yellow-bg);
   border-color: var(--pm-yellow);
 }
-body[data-page="wochenansicht"]:not([data-btn-style="classic"]) .pm-select.tag-row__select--needs-input .pm-select__trigger:hover:not(:disabled) {
+body[data-page="wochenansicht"] .pm-select.tag-row__select--needs-input .pm-select__trigger:hover:not(:disabled) {
   background: var(--pm-yellow-pale);
 }
 
@@ -3122,35 +3119,43 @@ body[data-page="wochenansicht"]:not([data-btn-style="classic"]) .pm-select.tag-r
    Chevron-Box laut components.css: 16px Basis, 14px bei .pm-select--sm
    (die Tag-Zeilen-Selects tragen day-card__select → PMSelect setzt
    pm-select--sm; das Wochen-Options-Select bleibt bei 16px). */
-body[data-page="wochenansicht"]:not([data-btn-style="classic"]) .pm-select.tag-row__select .pm-select__trigger .pm-select__label,
-body[data-page="wochenansicht"]:not([data-btn-style="classic"]) .pm-select.wochen-options__select .pm-select__trigger .pm-select__label {
+body[data-page="wochenansicht"] .pm-select.tag-row__select .pm-select__trigger .pm-select__label,
+body[data-page="wochenansicht"] .pm-select.wochen-options__select .pm-select__trigger .pm-select__label {
   flex: 1;
   text-align: center;
   padding-left: calc(16px + var(--sp-2));
 }
-body[data-page="wochenansicht"]:not([data-btn-style="classic"]) .pm-select--sm.tag-row__select .pm-select__trigger .pm-select__label {
+body[data-page="wochenansicht"] .pm-select--sm.tag-row__select .pm-select__trigger .pm-select__label {
   padding-left: calc(14px + var(--sp-2));
+}
+/* Wochen-Ort-Pille: Chevron-Kompensation zurücknehmen. Da diese Pille ihren
+   Text eng umschließt (statt eine breite Spalte zu füllen), würde das
+   padding-left nur links vom Text Leerraum erzeugen – genau die "freie
+   Graufläche links". Ohne Kompensation sitzt der Text bündig zwischen den
+   gleich großen Innenabständen, der Chevron rechts. */
+body[data-page="wochenansicht"] .pm-select.wochen-options__select .pm-select__trigger .pm-select__label {
+  padding-left: 0;
 }
 
 /* Dark-Mode: weiche, leicht erhabene Pille auf dunkler Fläche.
    Helle Tokens würden hier brechen – daher gezielt theme-passende
    Werte (analog zu den bestehenden Dark-Overrides in glass.css). */
-[data-theme="dark"] body[data-page="wochenansicht"]:not([data-btn-style="classic"]) .pm-select.tag-row__select .pm-select__trigger,
-[data-theme="dark"] body[data-page="wochenansicht"]:not([data-btn-style="classic"]) .pm-select.wochen-options__select .pm-select__trigger {
+[data-theme="dark"] body[data-page="wochenansicht"] .pm-select.tag-row__select .pm-select__trigger,
+[data-theme="dark"] body[data-page="wochenansicht"] .pm-select.wochen-options__select .pm-select__trigger {
   background: rgba(255, 255, 255, 0.06);
   color: var(--pm-grey-800);
   box-shadow:
     0 1px 2px rgba(0, 0, 0, 0.40),
     0 4px 12px rgba(0, 0, 0, 0.45);
 }
-[data-theme="dark"] body[data-page="wochenansicht"]:not([data-btn-style="classic"]) .pm-select.tag-row__select .pm-select__trigger:hover:not(:disabled),
-[data-theme="dark"] body[data-page="wochenansicht"]:not([data-btn-style="classic"]) .pm-select.wochen-options__select .pm-select__trigger:hover:not(:disabled) {
+[data-theme="dark"] body[data-page="wochenansicht"] .pm-select.tag-row__select .pm-select__trigger:hover:not(:disabled),
+[data-theme="dark"] body[data-page="wochenansicht"] .pm-select.wochen-options__select .pm-select__trigger:hover:not(:disabled) {
   background: rgba(255, 255, 255, 0.10);
   box-shadow:
     0 2px 4px rgba(0, 0, 0, 0.45),
     0 8px 20px rgba(0, 0, 0, 0.55);
 }
-[data-theme="dark"] body[data-page="wochenansicht"]:not([data-btn-style="classic"]) .pm-select.tag-row__select--needs-input .pm-select__trigger {
+[data-theme="dark"] body[data-page="wochenansicht"] .pm-select.tag-row__select--needs-input .pm-select__trigger {
   background: var(--pm-yellow-bg);
   border-color: var(--pm-yellow);
 }
@@ -3159,7 +3164,7 @@ body[data-page="wochenansicht"]:not([data-btn-style="classic"]) .pm-select--sm.t
    appearance:none + Caret als Hintergrundbild, damit auch hier die
    Pille greift. Die :not([data-pm-enhanced]) verhindert Doppel-Styling,
    sobald PMSelect übernommen hat. --- */
-body[data-page="wochenansicht"]:not([data-btn-style="classic"]) select.tag-row__select:not([data-pm-enhanced]) {
+body[data-page="wochenansicht"] select.tag-row__select:not([data-pm-enhanced]) {
   background-color: var(--pm-white);
   border: 1px solid transparent;
   border-radius: 999px;
@@ -3172,13 +3177,13 @@ body[data-page="wochenansicht"]:not([data-btn-style="classic"]) select.tag-row__
     0 1px 2px rgba(15, 23, 42, 0.06),
     0 4px 10px rgba(15, 23, 42, 0.10);
 }
-body[data-page="wochenansicht"]:not([data-btn-style="classic"]) select.tag-row__select:not([data-pm-enhanced]):hover:not(:disabled) {
+body[data-page="wochenansicht"] select.tag-row__select:not([data-pm-enhanced]):hover:not(:disabled) {
   background-color: var(--pm-white);
   box-shadow:
     0 2px 4px rgba(15, 23, 42, 0.08),
     0 8px 18px rgba(15, 23, 42, 0.14);
 }
-[data-theme="dark"] body[data-page="wochenansicht"]:not([data-btn-style="classic"]) select.tag-row__select:not([data-pm-enhanced]) {
+[data-theme="dark"] body[data-page="wochenansicht"] select.tag-row__select:not([data-pm-enhanced]) {
   background-color: rgba(255, 255, 255, 0.06);
   box-shadow:
     0 1px 2px rgba(0, 0, 0, 0.40),

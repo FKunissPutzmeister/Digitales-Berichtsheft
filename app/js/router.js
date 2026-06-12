@@ -174,6 +174,20 @@
       await runScript(src);
     }
 
+    /* Globale Einmal-Initialisierer aus app.js (Modal.init / PMSelect.enhance)
+       laufen nur beim echten DOMContentLoaded eines Voll-Loads. Bei der
+       SPA-Navigation wird app.js (SHARED) NICHT neu ausgeführt. Damit jede
+       per SPA geladene Seite sich exakt wie ein Voll-Load verhält (Modals
+       schließbar, native <select> als PMSelect verschönert), hier defensiv
+       erneut anstoßen. Beide sind idempotent (data-modal-bound / data-pm-
+       enhanced), Doppelaufrufe sind also unschädlich. */
+    if (typeof PMSelect !== 'undefined' && typeof PMSelect.enhance === 'function') {
+      try { PMSelect.enhance(); } catch (e) { /* defensiv */ }
+    }
+    if (typeof Modal !== 'undefined' && typeof Modal.init === 'function') {
+      try { Modal.init(); } catch (e) { /* defensiv */ }
+    }
+
     /* addEventListener nach einem Tick zurücksetzen —
        DOMContentLoaded-Microtasks laufen zuerst durch. */
     setTimeout(() => { document.addEventListener = origAddEL; }, 0);

@@ -74,24 +74,6 @@
   fill: var(--pm-grey-900);
 }
 
-/* ── Undo / Redo ── */
-.ql-editor-wrap .ql-undo::before {
-  content: '↩';
-  font-size: 13px;
-  line-height: 1;
-  color: var(--pm-grey-500);
-}
-.ql-editor-wrap .ql-redo::before {
-  content: '↪';
-  font-size: 13px;
-  line-height: 1;
-  color: var(--pm-grey-500);
-}
-.ql-editor-wrap button.ql-undo:hover::before,
-.ql-editor-wrap button.ql-redo:hover::before {
-  color: var(--pm-grey-900);
-}
-
 /* ── Header-Picker (Normal / Überschriften) ── */
 .ql-editor-wrap .ql-snow .ql-picker.ql-header {
   font-family: var(--font-body);
@@ -379,14 +361,6 @@
 }
 [data-theme="dark"] .ql-editor-wrap .ql-toolbar.ql-snow .ql-formats + .ql-formats::before {
   background: rgba(255, 255, 255, 0.12);
-}
-[data-theme="dark"] .ql-editor-wrap .ql-undo::before,
-[data-theme="dark"] .ql-editor-wrap .ql-redo::before {
-  color: var(--pm-grey-600);
-}
-[data-theme="dark"] .ql-editor-wrap button.ql-undo:hover::before,
-[data-theme="dark"] .ql-editor-wrap button.ql-redo:hover::before {
-  color: var(--pm-grey-900);
 }
 [data-theme="dark"] .ql-editor-wrap .ql-snow .ql-picker-options {
   background: var(--pm-white);

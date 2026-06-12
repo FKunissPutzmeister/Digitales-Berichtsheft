@@ -130,7 +130,10 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // Events
     document.getElementById('azubiSelect')?.addEventListener('change', (e) => {
-      selectedAzubiId = parseInt(e.target.value);
+      // Azubi-IDs sind GUID-Strings (z. B. "00000000-…-000000000003").
+      // parseInt() hätte daraus 0 gemacht (Parsen bricht beim "-" ab) →
+      // DB.getUser(0) findet nichts, die Auswahl wurde nie übernommen.
+      selectedAzubiId = e.target.value;
       render();
     });
 

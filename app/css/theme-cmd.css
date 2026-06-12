@@ -525,27 +525,28 @@ html[data-theme="cmd"] .bento .b-recent {
 
 /* ── Wochenansicht-Pill-Selects (wochenansicht.css spiegelt nur dark:
    Light-Schatten rgba(15,23,42,…) wirken auf dunkler Fläche flach).
-   Gate :not([data-btn-style="classic"]) wie im Original beibehalten. ── */
-[data-theme="cmd"] body[data-page="wochenansicht"]:not([data-btn-style="classic"]) .pm-select.tag-row__select .pm-select__trigger,
-[data-theme="cmd"] body[data-page="wochenansicht"]:not([data-btn-style="classic"]) .pm-select.wochen-options__select .pm-select__trigger {
+   Das klassische Backup-Design wurde entfernt; die Pill-Regeln greifen
+   unbedingt (kein btn-style-Gate mehr). ── */
+[data-theme="cmd"] body[data-page="wochenansicht"] .pm-select.tag-row__select .pm-select__trigger,
+[data-theme="cmd"] body[data-page="wochenansicht"] .pm-select.wochen-options__select .pm-select__trigger {
   background: rgba(255, 255, 255, 0.06);
   color: var(--pm-grey-800);
   box-shadow:
     0 1px 2px rgba(0, 0, 0, 0.40),
     0 4px 12px rgba(0, 0, 0, 0.45);
 }
-[data-theme="cmd"] body[data-page="wochenansicht"]:not([data-btn-style="classic"]) .pm-select.tag-row__select .pm-select__trigger:hover:not(:disabled),
-[data-theme="cmd"] body[data-page="wochenansicht"]:not([data-btn-style="classic"]) .pm-select.wochen-options__select .pm-select__trigger:hover:not(:disabled) {
+[data-theme="cmd"] body[data-page="wochenansicht"] .pm-select.tag-row__select .pm-select__trigger:hover:not(:disabled),
+[data-theme="cmd"] body[data-page="wochenansicht"] .pm-select.wochen-options__select .pm-select__trigger:hover:not(:disabled) {
   background: rgba(255, 255, 255, 0.10);
   box-shadow:
     0 2px 4px rgba(0, 0, 0, 0.45),
     0 8px 20px rgba(0, 0, 0, 0.55);
 }
-[data-theme="cmd"] body[data-page="wochenansicht"]:not([data-btn-style="classic"]) .pm-select.tag-row__select--needs-input .pm-select__trigger {
+[data-theme="cmd"] body[data-page="wochenansicht"] .pm-select.tag-row__select--needs-input .pm-select__trigger {
   background: var(--pm-yellow-bg);
   border-color: var(--pm-yellow);
 }
-[data-theme="cmd"] body[data-page="wochenansicht"]:not([data-btn-style="classic"]) select.tag-row__select:not([data-pm-enhanced]) {
+[data-theme="cmd"] body[data-page="wochenansicht"] select.tag-row__select:not([data-pm-enhanced]) {
   background-color: rgba(255, 255, 255, 0.06);
   box-shadow:
     0 1px 2px rgba(0, 0, 0, 0.40),

@@ -122,9 +122,20 @@ document.addEventListener('DOMContentLoaded', async () => {
     return `
       <div class="gantt-header">
         <div class="gantt-header__name-col">Auszubildende/r</div>
-        <div class="gantt-header__timeline">${monthHeaders}</div>
+        <div class="gantt-header__timeline">${monthHeaders}${buildTodayMarker()}</div>
       </div>
     `;
+  }
+
+  /* „Heute"-Label EINMAL im Header (an der Tages-Position). Die senkrechte
+     Linie pro Zeile (buildTodayLine) bleibt als durchgehende Orientierung,
+     trägt aber keinen Text mehr – sonst stünde „Heute" auf jeder Zeile. */
+  function buildTodayMarker() {
+    const yearStart = new Date(planYear, 0, 1).getTime();
+    const yearEnd = new Date(planYear + 1, 0, 1).getTime();
+    if (today.getFullYear() !== planYear) return '';
+    const pct = (today.getTime() - yearStart) / (yearEnd - yearStart) * 100;
+    return `<div class="gantt-today-marker" style="left:${pct}%">Heute</div>`;
   }
 
   async function buildGanttRows() {
@@ -317,8 +328,10 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   function initZuweisungModal() {
     document.getElementById('zuweisungSaveBtn')?.addEventListener('click', async () => {
-      const azubiId = parseInt(document.getElementById('zuweisungAzubi').value);
-      const ausbilderId = parseInt(document.getElementById('zuweisungAusbilder').value);
+      // Azubi-/Ausbilder-IDs sind GUID-Strings – nicht per parseInt() in
+      // Zahlen wandeln (ergäbe 0 und damit eine ungültige Zuweisung).
+      const azubiId = document.getElementById('zuweisungAzubi').value;
+      const ausbilderId = document.getElementById('zuweisungAusbilder').value;
       const von = document.getElementById('zuweisungVon').value;
       const bis = document.getElementById('zuweisungBis').value;
       const abteilung = document.getElementById('zuweisungAbteilung').value;
