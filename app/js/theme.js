@@ -45,52 +45,12 @@
      dort den HTML-String für die Layer-Kinder eintragen (leerer String
      = kein DOM-FX für dieses Theme). */
 
-  /* ── Candy: Einhorn-Sprite (rein selbst gezeichnetes Inline-SVG, nur
-     Vollfarben – KEINE <defs>/IDs, damit der Sprite ohne ID-Kollision
-     mehrfach eingehängt werden kann). Blickt nach rechts; Mähne & Schweif
-     als gefächerte Pastell-Regenbogen-Kapseln, goldenes Spiralhorn.
-     Gestylt/animiert (Hüpfen + Wiesen-Lauf) in css/theme-candy.css. */
-  var CD_UNICORN_SVG =
-    '<svg class="pm-cd-uni-svg" viewBox="0 0 104 96" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">' +
-      '<g class="pm-cd-uni-tail">' +
-        '<rect x="16" y="48" width="9" height="32" rx="4.5" fill="#A77BFF" transform="rotate(34 30 56)"/>' +
-        '<rect x="17" y="49" width="9" height="30" rx="4.5" fill="#6CC6FF" transform="rotate(24 30 56)"/>' +
-        '<rect x="18" y="50" width="9" height="28" rx="4.5" fill="#7DE3A6" transform="rotate(14 30 56)"/>' +
-        '<rect x="19" y="51" width="9" height="26" rx="4.5" fill="#FFE066" transform="rotate(4 30 56)"/>' +
-        '<rect x="20" y="52" width="9" height="24" rx="4.5" fill="#FF8FB6" transform="rotate(-6 30 56)"/>' +
-      '</g>' +
-      '<ellipse cx="52" cy="57" rx="30" ry="19" fill="#FFFFFF"/>' +
-      '<path d="M24 62c8 11 48 11 56 0 0 9-12 15-28 15S24 71 24 62z" fill="#FFE3F1"/>' +
-      '<g fill="#FFFFFF">' +
-        '<rect x="30" y="66" width="8" height="24" rx="4"/>' +
-        '<rect x="42" y="68" width="8" height="24" rx="4"/>' +
-        '<rect x="56" y="68" width="8" height="24" rx="4"/>' +
-        '<rect x="68" y="66" width="8" height="24" rx="4"/>' +
-      '</g>' +
-      '<g fill="#FFB3D4">' +
-        '<rect x="30" y="85" width="8" height="6" rx="3"/>' +
-        '<rect x="42" y="87" width="8" height="6" rx="3"/>' +
-        '<rect x="56" y="87" width="8" height="6" rx="3"/>' +
-        '<rect x="68" y="85" width="8" height="6" rx="3"/>' +
-      '</g>' +
-      '<path d="M70 50 Q73 35 85 32 L95 43 Q90 58 76 60 Z" fill="#FFFFFF"/>' +
-      '<ellipse cx="87" cy="33" rx="14" ry="13" fill="#FFFFFF"/>' +
-      '<path d="M97 33c7-1 11 2 11 6s-5 6-11 4z" fill="#FFFFFF"/>' +
-      '<path d="M77 18l4 11-10-4z" fill="#FFFFFF"/>' +
-      '<path d="M87 17l4-17 5 16z" fill="#FFD55E"/>' +
-      '<path d="M88 13l5 1M89 8l4 1M90 4l3 1" stroke="#FFEBB0" stroke-width="1.3" fill="none"/>' +
-      '<g class="pm-cd-uni-mane">' +
-        '<rect x="64" y="2"  width="9" height="26" rx="4.5" fill="#A77BFF" transform="rotate(20 74 17)"/>' +
-        '<rect x="65" y="4"  width="9" height="24" rx="4.5" fill="#6CC6FF" transform="rotate(11 74 17)"/>' +
-        '<rect x="65" y="7"  width="9" height="23" rx="4.5" fill="#7DE3A6" transform="rotate(0 72 19)"/>' +
-        '<rect x="63" y="11" width="9" height="23" rx="4.5" fill="#FFE066" transform="rotate(-12 70 22)"/>' +
-        '<rect x="60" y="16" width="9" height="22" rx="4.5" fill="#FF8FB6" transform="rotate(-24 68 26)"/>' +
-      '</g>' +
-      '<circle cx="90" cy="32" r="2.6" fill="#3D1030"/>' +
-      '<circle cx="89" cy="31" r="0.9" fill="#FFFFFF"/>' +
-      '<circle cx="95" cy="38" r="3" fill="#FFC2DD"/>' +
-      '<circle cx="103" cy="36" r="1" fill="#C76B96"/>' +
-    '</svg>';
+  /* ── Candy: Einhörner als freigestellte Foto-Sprites (Reiter auf
+     Einhorn, Seitenansicht – blicken nach RECHTS). Liegen unter
+     app/assets/candy-unicorn-{1,2}.png und werden unten per <img> in die
+     beiden FX-Hüpf-Ebenen eingehängt; die Spiegelung für den nach links
+     laufenden vorderen Reiter macht scaleX in css/theme-candy.css
+     (dort auch Wiesen-Lauf + Spring-Hüpfen). */
 
   var FX_TEMPLATES = {
     /* ── FX-Template: hyperspace (wird vom Theme-Designer befüllt) ──
@@ -117,16 +77,26 @@
         '</div>' +
       '</div>',
 
-    /* ── FX-Template: cmd (wird vom Theme-Designer befüllt) ── */
-    cmd: '',
+    /* ── FX-Template: cmd (wird vom Theme-Designer befüllt) ──
+       0/1-Matrix-Regen als DAUERHAFTER Hintergrund (<canvas>): Spalten
+       fallender Nullen/Einsen in dezentem Terminal-Grün laufen endlos
+       hinter dem Inhalt durch. Der rAF-Loop wird vom PMCmdFX-Controller
+       (unten) gesteuert; ensureThemeFX() startet/stoppt ihn am FX-Lebens-
+       zyklus. Styling/Fallback-Farbe in css/theme-cmd.css (.pm-cmd-bg).
+       (Früher: kurzes Lade-Intro-Overlay via js/cmd-intro.js – entfernt.) */
+    cmd: '<canvas class="pm-cmd-bg" aria-hidden="true"></canvas>',
 
     /* ── FX-Template: candy (wird vom Theme-Designer befüllt) ──
        Candy-Land-Szene: leuchtend schimmernder Regenbogen, eine
        Wolken-Prozession (7 Wolken ziehen ENDLOS von links nach rechts
        und schweben/pulsieren dabei), drei gewellte Zuckerguss-Wiesen-
        Lagen, zwei über die Wiese hüpfende Einhörner plus Deko (Donut,
-       Lollipops, Gumdrops). Styling/Keyframes liegen in
-       css/theme-candy.css (Klassen pm-cd-* zur Kollisionsvermeidung). */
+       Lollipops, Gumdrops) und – als oberste Ebene – ein <canvas> mit
+       sanft steigenden Seifenblasen, die beim Treffer auf ein Einhorn
+       zerplatzen (Engine = PMCandyBubbles-Controller unten; Charakter-
+       wechsel der Einhörner = wireCandyUnicornSwap). Styling/Keyframes
+       liegen in css/theme-candy.css (Klassen pm-cd-* zur Kollisions-
+       vermeidung). */
     candy:
       '<div class="pm-cd-rainbow"></div>' +
       '<div class="pm-cd-cloud pm-cd-cloud--1"></div>' +
@@ -139,13 +109,14 @@
       '<div class="pm-cd-hill pm-cd-hill--back"></div>' +
       '<div class="pm-cd-donut"></div>' +
       '<div class="pm-cd-hill pm-cd-hill--mid"></div>' +
-      '<div class="pm-cd-unicorn pm-cd-unicorn--mid"><div class="pm-cd-unicorn__hop">' + CD_UNICORN_SVG + '</div></div>' +
+      '<div class="pm-cd-unicorn pm-cd-unicorn--mid"><div class="pm-cd-unicorn__hop"><img class="pm-cd-uni-img" src="assets/candy-unicorn-1.png" alt="" aria-hidden="true"></div></div>' +
       '<div class="pm-cd-lolli pm-cd-lolli--pink"></div>' +
       '<div class="pm-cd-lolli pm-cd-lolli--mint"></div>' +
       '<div class="pm-cd-hill pm-cd-hill--front"></div>' +
-      '<div class="pm-cd-unicorn pm-cd-unicorn--front"><div class="pm-cd-unicorn__hop">' + CD_UNICORN_SVG + '</div></div>' +
+      '<div class="pm-cd-unicorn pm-cd-unicorn--front"><div class="pm-cd-unicorn__hop"><img class="pm-cd-uni-img" src="assets/candy-unicorn-2.png" alt="" aria-hidden="true"></div></div>' +
       '<div class="pm-cd-gumdrop pm-cd-gumdrop--1"></div>' +
-      '<div class="pm-cd-gumdrop pm-cd-gumdrop--2"></div>',
+      '<div class="pm-cd-gumdrop pm-cd-gumdrop--2"></div>' +
+      '<canvas class="pm-cd-bubbles" aria-hidden="true"></canvas>',
 
     /* ── FX-Template: iceland (wird vom Theme-Designer befüllt) ──
        Schneesturm als <canvas>-Animation statt CSS/SVG-Szene: weiche
@@ -417,6 +388,469 @@
     return { start: start, stop: stop };
   })();
 
+  /* ── CMD-FX: 0/1-Matrix-Hintergrund-Engine ───────────────────────
+     Der CMD-Hintergrund ist – wie iceland – ein <canvas> mit requestAni-
+     mationFrame-Loop: Spalten fallender Nullen/Einsen in dezentem
+     Terminal-Grün, die DAUERHAFT hinter dem Inhalt durchlaufen (es gibt
+     KEIN Lade-Intro mehr – früher js/cmd-intro.js als Overlay vor dem
+     Content). Steuerung über den FX-Lebenszyklus (start beim Aufbau des
+     cmd-FX, stop beim Theme-Wechsel/Teardown). themes.css-Konventionen,
+     die für ein <canvas> nicht per CSS greifen, hier in JS abgebildet:
+       • prefers-reduced-motion → ein einziges statisches Standbild
+       • verstecktes Tab / offenes Modal → Loop pausiert (GPU sparen,
+         analog zur animation-play-state-Pause in themes.css). */
+  var PMCmdFX = (function () {
+    var FONT  = 16;          // px Glyphengröße (= Spaltenbreite)
+    var STEP  = 60;          // ms pro Regen-Schritt (ruhiger als 60 fps)
+    var FADE  = 0.10;        // Nachzieh-Deckkraft pro Schritt (kl. = lange Spuren)
+    var BASE  = '#020A03';   // Grundfläche (Terminal-Schwarz)
+    var GLYPH = 'rgba(0, 230, 77, 0.40)';    // normale Ziffer (dezent)
+    var HEAD  = 'rgba(190, 255, 205, 0.68)'; // gelegentlich hellerer Spaltenkopf
+    var FONT_STACK = FONT + 'px Consolas, "Cascadia Mono", "Courier New", monospace';
+
+    var reduceMotion = !!(window.matchMedia &&
+      window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+
+    var canvas = null, ctx = null;
+    var raf = 0, running = false;
+    var W = 0, H = 0, DPR = 1;
+    var cols = [];           // y-Position (in Zeilen) pro Spalte
+    var last = 0, acc = 0;
+
+    function resize() {
+      if (!canvas || !ctx) return;
+      DPR = Math.min(window.devicePixelRatio || 1, 2);
+      W = window.innerWidth; H = window.innerHeight;
+      canvas.width  = Math.floor(W * DPR);
+      canvas.height = Math.floor(H * DPR);
+      canvas.style.width = W + 'px'; canvas.style.height = H + 'px';
+      ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+      ctx.textBaseline = 'top';
+      /* Spaltenanzahl an Breite anpassen, vorhandene Tropfen beibehalten,
+         neue Spalten gestaffelt oberhalb des Sichtbereichs starten. */
+      var n = Math.max(1, Math.floor(W / FONT));
+      var next = [];
+      for (var i = 0; i < n; i++) {
+        next[i] = (cols[i] != null) ? cols[i] : Math.floor(Math.random() * -50);
+      }
+      cols = next;
+      ctx.fillStyle = BASE;
+      ctx.fillRect(0, 0, W, H);
+      if (reduceMotion) renderStatic();
+    }
+
+    function step() {
+      /* Nachzieh-Effekt: leicht transparentes Schwarz über den Vorframe. */
+      ctx.fillStyle = 'rgba(2, 10, 3, ' + FADE + ')';
+      ctx.fillRect(0, 0, W, H);
+      ctx.font = FONT_STACK;
+      for (var i = 0; i < cols.length; i++) {
+        var ch = (Math.random() < 0.5) ? '0' : '1';
+        var x = i * FONT, y = cols[i] * FONT;
+        ctx.fillStyle = (Math.random() < 0.05) ? HEAD : GLYPH;
+        ctx.fillText(ch, x, y);
+        if (y > H && Math.random() > 0.975) {
+          cols[i] = Math.floor(Math.random() * -20);   // Spalte oben neu starten
+        } else {
+          cols[i] += 1;
+        }
+      }
+    }
+
+    /* reduced-motion: ein ruhiges, sparsames Standbild statt Loop. */
+    function renderStatic() {
+      ctx.font = FONT_STACK;
+      var rows = Math.max(1, Math.floor(H / FONT));
+      ctx.fillStyle = GLYPH;
+      for (var i = 0; i < cols.length; i++) {
+        if (Math.random() < 0.55) continue;            // gelichtetes Raster
+        var y = Math.floor(Math.random() * rows) * FONT;
+        ctx.fillText((Math.random() < 0.5) ? '0' : '1', i * FONT, y);
+      }
+    }
+
+    /* Loop pausieren, wenn es nichts zu sehen gibt: Tab im Hintergrund
+       oder offenes Modal (dessen Backdrop alles verdeckt). */
+    function isPaused() {
+      if (document.hidden) return true;
+      if (document.querySelector('.modal-overlay.open')) return true;
+      return false;
+    }
+
+    function frame(now) {
+      if (!running) return;
+      raf = requestAnimationFrame(frame);
+      if (isPaused()) { last = now; return; }
+      acc += (now - last);
+      last = now;
+      if (acc < STEP) return;
+      acc = 0;
+      step();
+    }
+
+    function start(cv) {
+      stop();               // idempotent: evtl. laufenden Loop sauber beenden
+      if (!cv) return;
+      canvas = cv;
+      ctx = canvas.getContext('2d', { alpha: false });
+      if (!ctx) { canvas = null; return; }
+      resize();             // baut Szene auf (+ zeichnet bei reduced-motion)
+      window.addEventListener('resize', resize);
+      if (reduceMotion) return;   // statisches Standbild → kein Loop
+      running = true;
+      last = (window.performance && performance.now) ? performance.now() : 0;
+      acc = 0;
+      raf = requestAnimationFrame(frame);
+    }
+
+    function stop() {
+      running = false;
+      if (raf) { cancelAnimationFrame(raf); raf = 0; }
+      window.removeEventListener('resize', resize);
+      cols = [];
+      canvas = null; ctx = null;
+    }
+
+    return { start: start, stop: stop };
+  })();
+
+  /* ── Candy-FX: Canvas-Seifenblasen-Engine ─────────────────────────
+     Anders als die übrige Candy-Szene (reines CSS/SVG) sind die Seifen-
+     blasen ein <canvas> mit requestAnimationFrame-Loop. Grund: sie sollen
+     mit den (CSS-animierten) Einhörnern KOLLIDIEREN und beim Treffer
+     zerplatzen – Kollision braucht Positionsdaten, die reines CSS nicht
+     liefert. Der Physik-Charakter (Wander, sanftes Steigen, Soft-Body-
+     Wabbeln) ist an den CodePen „Water Droplets" (wBzWebb) angelehnt, aber
+     bewusst als leichte 2D-Variante OHNE WebGL/Three.js nachgebaut.
+     Konventionen wie bei PMIcelandFX/PMCmdFX:
+       • prefers-reduced-motion → ein statisches Standbild, kein Loop
+       • verstecktes Tab / offenes Modal → Loop pausiert (GPU sparen)
+     Fester Zeitschritt (FIXED_DT) → frame-raten-unabhängig; alle Tuning-
+     Konstanten sind pro 16-ms-Tick gedacht. Styling/Position des <canvas>
+     in css/theme-candy.css (.pm-cd-bubbles, z-index 9 = vor den Einhörnern,
+     aber als Teil von #pmThemeFX weiter hinter dem App-Inhalt). */
+  var PMCandyBubbles = (function () {
+    var reduceMotion = !!(window.matchMedia &&
+      window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+
+    var SPRITE = null;            // vorgerendertes Blasen-Sprite (lazy)
+    var SPRITE_SIZE = 128;
+
+    /* Laufzeit-State (pro start() neu). */
+    var canvas = null, ctx = null, fxRoot = null;
+    var raf = 0, running = false;
+    var W = 0, H = 0, DPR = 1;
+    var last = 0, acc = 0, spawnT = 0;
+    var bubbles = [];
+    var uniImgs = [];             // Einhorn-<img> (Kollisionsziele)
+
+    /* Physik – Werte pro fixem 16-ms-Tick (nicht pro Sekunde). */
+    var FIXED_DT = 16;
+    var MAX_BUBBLES = 16, SEED = 11;
+    var BUOY = 0.045;             // Auftrieb (nach oben) pro Tick²
+    var WANDER = 0.22;            // seitliche Zufallsbeschleunigung
+    var SWAY = 0.10;              // Sinus-Schlinger-Amplitude
+    var DAMP = 0.96;              // Geschwindigkeits-Dämpfung
+    var MAX_SP = 2.2;             // Tempo-Cap (px/Tick)
+    var REPEL = 0.6;              // gegenseitige Abstoßung bei Überlappung
+    var POP_MS = 260;             // Dauer der Zerplatz-Animation
+    var SPAWN_MS = 1400;          // Auto-Spawn-Intervall
+
+    function rand(a, b) { return a + Math.random() * (b - a); }
+
+    /* Seifenblasen-Sprite: zarte Haut, irisierender Ring, Glanzpunkte. */
+    function buildSprite() {
+      if (SPRITE) return;
+      var s = SPRITE_SIZE, c = document.createElement('canvas');
+      c.width = c.height = s;
+      var x = c.getContext('2d');
+      var r = s / 2, cx = r, cy = r, ringR = r * 0.9;
+      /* durchscheinende Haut (leicht sichtbar, bleibt aber glasig) */
+      var g = x.createRadialGradient(cx, cy, r * 0.1, cx, cy, r);
+      g.addColorStop(0,    'rgba(255,255,255,0.10)');
+      g.addColorStop(0.55, 'rgba(225,240,255,0.07)');
+      g.addColorStop(0.85, 'rgba(208,230,255,0.18)');
+      g.addColorStop(1,    'rgba(255,255,255,0)');
+      x.fillStyle = g; x.beginPath(); x.arc(cx, cy, r, 0, Math.PI * 2); x.fill();
+      /* irisierender Ring (Hue-Sweep aus mehreren Bögen) */
+      x.lineWidth = Math.max(1.5, s * 0.026);
+      var hues = [320, 280, 200, 160, 60, 20];
+      for (var i = 0; i < hues.length; i++) {
+        x.strokeStyle = 'hsla(' + hues[i] + ', 90%, 70%, 0.50)';
+        x.beginPath();
+        x.arc(cx, cy, ringR, (i / hues.length) * Math.PI * 2, ((i + 1) / hues.length) * Math.PI * 2);
+        x.stroke();
+      }
+      /* klarer heller äußerer Rand */
+      x.lineWidth = Math.max(1, s * 0.018);
+      x.strokeStyle = 'rgba(255,255,255,0.78)';
+      x.beginPath(); x.arc(cx, cy, ringR, 0, Math.PI * 2); x.stroke();
+      /* großer Glanzpunkt oben-links */
+      var hl = x.createRadialGradient(cx - r * 0.34, cy - r * 0.38, 0, cx - r * 0.34, cy - r * 0.38, r * 0.30);
+      hl.addColorStop(0, 'rgba(255,255,255,0.85)');
+      hl.addColorStop(1, 'rgba(255,255,255,0)');
+      x.fillStyle = hl; x.beginPath(); x.arc(cx - r * 0.34, cy - r * 0.38, r * 0.30, 0, Math.PI * 2); x.fill();
+      /* kleiner Glanz unten-rechts */
+      var hl2 = x.createRadialGradient(cx + r * 0.30, cy + r * 0.34, 0, cx + r * 0.30, cy + r * 0.34, r * 0.14);
+      hl2.addColorStop(0, 'rgba(255,255,255,0.50)');
+      hl2.addColorStop(1, 'rgba(255,255,255,0)');
+      x.fillStyle = hl2; x.beginPath(); x.arc(cx + r * 0.30, cy + r * 0.34, r * 0.14, 0, Math.PI * 2); x.fill();
+      SPRITE = c;
+    }
+
+    function makeBubble(atBottom) {
+      var r = rand(16, 34);
+      var b = {
+        x: rand(r, Math.max(r + 1, W - r)),
+        y: atBottom ? (H + r + rand(0, H * 0.3)) : rand(r, Math.max(r + 1, H - r)),
+        r: r,
+        vx: rand(-0.4, 0.4),
+        vy: -rand(0.4, 1.0),      // negativ = steigt
+        phase: rand(0, Math.PI * 2),
+        swaySpeed: rand(0.6, 1.3) * 0.035,
+        sox: 0, soy: 0, svx: 0, svy: 0, px: 0, py: 0,
+        pop: 0                    // 0 = lebt; >0 = Zerplatz-Fortschritt (ms)
+      };
+      b.px = b.x; b.py = b.y;
+      return b;
+    }
+
+    function seed() {
+      bubbles.length = 0;
+      var n = reduceMotion ? 6 : SEED;
+      for (var i = 0; i < n; i++) bubbles.push(makeBubble(false));
+    }
+
+    function grabUnicorns() {
+      uniImgs = [];
+      if (!fxRoot) return;
+      var els = fxRoot.querySelectorAll('.pm-cd-unicorn .pm-cd-uni-img');
+      for (var i = 0; i < els.length; i++) uniImgs.push(els[i]);
+    }
+
+    /* Kollisionsrechtecke der Einhörner (einmal pro Tick gelesen). Der
+       sichtbare Körper wird geschätzt: PNG ist hochkant, Sprite via
+       object-fit:contain unten ausgerichtet → seitlich einschrumpfen,
+       oben etwas kappen. Null-Flächen (z. B. mid via Media-Query
+       display:none) werden übersprungen. */
+    function unicornRects() {
+      var out = [];
+      for (var i = 0; i < uniImgs.length; i++) {
+        var r = uniImgs[i].getBoundingClientRect();
+        if (r.width < 2 || r.height < 2) continue;
+        var insetX = r.width * 0.19;
+        out.push({ l: r.left + insetX, r: r.right - insetX, t: r.top + r.height * 0.12, b: r.bottom });
+      }
+      return out;
+    }
+    function hitsAny(b, rects) {
+      for (var i = 0; i < rects.length; i++) {
+        var R = rects[i];
+        var nx = b.x < R.l ? R.l : (b.x > R.r ? R.r : b.x);
+        var ny = b.y < R.t ? R.t : (b.y > R.b ? R.b : b.y);
+        var dx = b.x - nx, dy = b.y - ny;
+        if (dx * dx + dy * dy <= b.r * b.r) return true;
+      }
+      return false;
+    }
+
+    function step() {
+      var i, j, b;
+      /* Kräfte auf lebende Blasen */
+      for (i = 0; i < bubbles.length; i++) {
+        b = bubbles[i];
+        if (b.pop > 0) { b.pop += FIXED_DT; continue; }
+        b.phase += b.swaySpeed;
+        b.vx += (Math.random() - 0.5) * WANDER;
+        b.vx += Math.cos(b.phase) * SWAY;
+        b.vy -= BUOY;
+      }
+      /* gegenseitige Abstoßung (kein Merge – Seifenblasen jostlen nur) */
+      for (i = 0; i < bubbles.length; i++) {
+        var a = bubbles[i]; if (a.pop > 0) continue;
+        for (j = i + 1; j < bubbles.length; j++) {
+          var c = bubbles[j]; if (c.pop > 0) continue;
+          var dx = c.x - a.x, dy = c.y - a.y, d2 = dx * dx + dy * dy, mn = a.r + c.r;
+          if (d2 < mn * mn && d2 > 0.01) {
+            var d = Math.sqrt(d2), f = (1 - d / mn) * REPEL, ux = dx / d, uy = dy / d;
+            a.vx -= ux * f; a.vy -= uy * f; c.vx += ux * f; c.vy += uy * f;
+          }
+        }
+      }
+      /* Integration + Wände + Soft-Body + Kollision */
+      var rects = unicornRects();
+      for (i = 0; i < bubbles.length; i++) {
+        b = bubbles[i];
+        if (b.pop > 0) continue;
+        var sp = Math.sqrt(b.vx * b.vx + b.vy * b.vy);
+        if (sp > MAX_SP) { var s = MAX_SP / sp; b.vx *= s; b.vy *= s; }
+        b.x += b.vx; b.y += b.vy; b.vx *= DAMP; b.vy *= DAMP;
+        if (b.x < b.r) { b.x = b.r; b.vx = Math.abs(b.vx) * 0.5; }
+        else if (b.x > W - b.r) { b.x = W - b.r; b.vx = -Math.abs(b.vx) * 0.5; }
+        if (b.y < -b.r - 6) { bubbles[i] = makeBubble(true); continue; }  // oben raus → unten neu
+        /* Soft-Body-Feder: Wabbeln folgt der Bewegung verzögert */
+        var mvx = b.x - b.px, mvy = b.y - b.py;
+        b.svx = (b.svx + (mvx - b.sox) * 0.25) * 0.55;
+        b.svy = (b.svy + (mvy - b.soy) * 0.25) * 0.55;
+        b.sox += b.svx; b.soy += b.svy; b.px = b.x; b.py = b.y;
+        if (hitsAny(b, rects)) b.pop = 1;   // Einhorn-Treffer → zerplatzt
+      }
+      /* ausgereifte Pops entfernen */
+      for (i = bubbles.length - 1; i >= 0; i--) if (bubbles[i].pop > POP_MS) bubbles.splice(i, 1);
+      /* Auto-Spawn füllt geplatzte nach */
+      spawnT += FIXED_DT;
+      if (spawnT > SPAWN_MS && bubbles.length < MAX_BUBBLES) {
+        spawnT = 0; bubbles.push(makeBubble(true));
+      }
+    }
+
+    function clampW(v) { return v < -0.12 ? -0.12 : (v > 0.12 ? 0.12 : v); }
+    function drawBubble(b) {
+      if (b.pop > 0) {
+        var t = b.pop / POP_MS;             // 0..1
+        var alpha = 1 - t;
+        var rad = b.r * (1 + t * 0.6);
+        ctx.globalAlpha = alpha;
+        ctx.drawImage(SPRITE, b.x - rad, b.y - rad, rad * 2, rad * 2);
+        /* Burst-Ring */
+        ctx.globalAlpha = alpha * 0.7;
+        ctx.strokeStyle = 'rgba(255,255,255,0.9)';
+        ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.arc(b.x, b.y, b.r * (1 + t * 0.9), 0, Math.PI * 2); ctx.stroke();
+        /* Spritzer */
+        ctx.fillStyle = 'rgba(255,255,255,0.85)';
+        for (var k = 0; k < 5; k++) {
+          var ang = (k / 5) * Math.PI * 2, dd = b.r * (0.6 + t * 1.6), pr = Math.max(0.5, 2 * (1 - t));
+          ctx.beginPath(); ctx.arc(b.x + Math.cos(ang) * dd, b.y + Math.sin(ang) * dd, pr, 0, Math.PI * 2); ctx.fill();
+        }
+        ctx.globalAlpha = 1;
+        return;
+      }
+      /* lebende Blase mit leichtem Soft-Body-Squash entlang der Bewegung */
+      var sx = 1 + clampW(b.sox * 0.04), sy = 1 + clampW(b.soy * 0.04), d2 = b.r * 2;
+      ctx.save();
+      ctx.translate(b.x, b.y);
+      ctx.scale(sx, sy);
+      ctx.drawImage(SPRITE, -b.r, -b.r, d2, d2);
+      ctx.restore();
+    }
+
+    function renderFrame() {
+      ctx.clearRect(0, 0, W, H);
+      for (var i = 0; i < bubbles.length; i++) drawBubble(bubbles[i]);
+    }
+    function renderStatic() {
+      if (!ctx) return;
+      ctx.clearRect(0, 0, W, H);
+      for (var i = 0; i < bubbles.length; i++) {
+        var b = bubbles[i];
+        ctx.drawImage(SPRITE, b.x - b.r, b.y - b.r, b.r * 2, b.r * 2);
+      }
+    }
+
+    function resize() {
+      if (!canvas || !ctx) return;
+      DPR = Math.min(window.devicePixelRatio || 1, 2);
+      W = window.innerWidth; H = window.innerHeight;
+      canvas.width = Math.floor(W * DPR);
+      canvas.height = Math.floor(H * DPR);
+      canvas.style.width = W + 'px'; canvas.style.height = H + 'px';
+      ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+      if (reduceMotion) renderStatic();   // kein Loop → Standbild neu zeichnen
+    }
+
+    /* Loop pausieren, wenn nichts zu sehen ist (Tab versteckt / Modal offen –
+       analog PMIcelandFX und der animation-play-state-Pause in themes.css). */
+    function isPaused() {
+      if (document.hidden) return true;
+      if (document.querySelector('.modal-overlay.open')) return true;
+      return false;
+    }
+    function frame(now) {
+      if (!running) return;
+      if (isPaused()) { last = now; raf = requestAnimationFrame(frame); return; }
+      var dt = Math.min(now - last, 100);
+      last = now; acc += dt;
+      var guard = 0;
+      while (acc >= FIXED_DT && guard < 6) { step(); acc -= FIXED_DT; guard++; }
+      if (guard >= 6) acc = 0;
+      renderFrame();
+      raf = requestAnimationFrame(frame);
+    }
+
+    function start(cv) {
+      stop();                 // idempotent
+      if (!cv) return;
+      canvas = cv;
+      fxRoot = cv.parentNode;
+      ctx = canvas.getContext('2d');   // alpha → transparent über der Szene
+      if (!ctx) { canvas = null; return; }
+      buildSprite();
+      resize();               // setzt W/H
+      seed();
+      grabUnicorns();
+      window.addEventListener('resize', resize);
+      if (reduceMotion) { renderStatic(); return; }   // Standbild, kein Loop
+      running = true;
+      last = (window.performance && performance.now) ? performance.now() : 0;
+      acc = 0; spawnT = 0;
+      raf = requestAnimationFrame(frame);
+    }
+    function stop() {
+      running = false;
+      if (raf) { cancelAnimationFrame(raf); raf = 0; }
+      window.removeEventListener('resize', resize);
+      canvas = null; ctx = null; fxRoot = null;
+      bubbles.length = 0; uniImgs.length = 0;
+    }
+
+    return { start: start, stop: stop };
+  })();
+
+  /* ── Candy: Vordergrund-Charakterwechsel beim Rand-Austritt ───────
+     „Wenn ein Einhorn den Bildschirmrand verlassen hat, wechselt, welcher
+     Charakter im Vordergrund läuft." Umgesetzt rein über das CSS-
+     animationiteration-Event der LAUF-Animation (pm-cd-uni-run): eine
+     Iteration = ein voller Lauf von Rand zu Rand, d. h. das Einhorn ist
+     beim Iterations-Ende OFF-SCREEN → der Sprite-Tausch ist unsichtbar.
+     Es gibt 2 Charaktere; der Vordergrund wechselt bei jedem Lauf des
+     vorderen Einhorns, der Hintergrund nimmt am eigenen (off-screen)
+     Rundenende stets den Komplement-Charakter → die beiden bleiben i. d. R.
+     verschieden, und jede Änderung passiert unsichtbar am Rand.
+     Listener werden beim FX-Teardown automatisch mit den Elementen
+     entsorgt (kein manuelles Aufräumen nötig). */
+  var UNI_CHARS = [
+    { src: 'assets/candy-unicorn-1.png', ar: '330 / 460' },
+    { src: 'assets/candy-unicorn-2.png', ar: '321 / 460' }
+  ];
+  function uniCharIndex(img) {
+    var s = img && img.getAttribute('src');
+    return (s && s.indexOf('candy-unicorn-2') !== -1) ? 1 : 0;
+  }
+  function setUniChar(unicornEl, idx) {
+    if (!unicornEl) return;
+    var img = unicornEl.querySelector('.pm-cd-uni-img');
+    if (!img) return;
+    img.setAttribute('src', UNI_CHARS[idx].src);
+    unicornEl.style.aspectRatio = UNI_CHARS[idx].ar;
+  }
+  function wireCandyUnicornSwap(fxRoot) {
+    var front = fxRoot.querySelector('.pm-cd-unicorn--front');
+    var mid   = fxRoot.querySelector('.pm-cd-unicorn--mid');
+    if (!front && !mid) return;
+    /* aktueller Vordergrund-Charakter aus dem DOM ableiten */
+    var frontIdx = front ? uniCharIndex(front.querySelector('.pm-cd-uni-img')) : 1;
+    if (front) front.addEventListener('animationiteration', function (e) {
+      if (e.animationName !== 'pm-cd-uni-run') return;   // Hüpf-/Schatten-Iteration ignorieren
+      frontIdx = 1 - frontIdx;            // Vordergrund wechselt (front ist hier off-screen)
+      setUniChar(front, frontIdx);
+    });
+    if (mid) mid.addEventListener('animationiteration', function (e) {
+      if (e.animationName !== 'pm-cd-uni-run') return;
+      setUniChar(mid, 1 - frontIdx);      // Hintergrund = Komplement (mid hier off-screen)
+    });
+  }
+
   /* FX-Container für das übergebene Theme (neu) aufbauen.
      Idempotent: ein evtl. vorhandener Container wird immer zuerst
      entfernt; mehrfaches apply() erzeugt also keine Duplikate.
@@ -437,9 +871,12 @@
     }
     var existing = document.getElementById('pmThemeFX');
     if (existing && existing.parentNode) existing.parentNode.removeChild(existing);
-    /* Beim Neuaufbau/Teardown einen evtl. laufenden Canvas-Loop (iceland)
-       sauber beenden – sonst rendert er nach dem Theme-Wechsel weiter. */
+    /* Beim Neuaufbau/Teardown evtl. laufende Canvas-Loops (iceland, cmd,
+       candy-Seifenblasen) sauber beenden – sonst rendern sie nach dem
+       Theme-Wechsel weiter. Alle stop() sind idempotent. */
     PMIcelandFX.stop();
+    PMCmdFX.stop();
+    PMCandyBubbles.stop();
 
     var tpl = FX_TEMPLATES[theme] || '';   // light/dark/unbekannt → ''
     if (!tpl) return;
@@ -453,11 +890,18 @@
     el.innerHTML = tpl;
     document.body.appendChild(el);
 
-    /* iceland: Canvas-Schneesturm-Loop am frisch eingehängten <canvas>
-       starten (alle anderen Themes sind rein CSS/SVG → kein JS-Loop). */
+    /* iceland/cmd/candy: Canvas-Loop am frisch eingehängten <canvas>
+       starten (alle übrigen Themes sind rein CSS/SVG → kein JS-Loop). */
     if (theme === 'iceland') {
       var isCanvas = el.querySelector('.pm-is-bg');
       if (isCanvas) PMIcelandFX.start(isCanvas);
+    } else if (theme === 'cmd') {
+      var cmdCanvas = el.querySelector('.pm-cmd-bg');
+      if (cmdCanvas) PMCmdFX.start(cmdCanvas);
+    } else if (theme === 'candy') {
+      var bubbleCanvas = el.querySelector('.pm-cd-bubbles');
+      if (bubbleCanvas) PMCandyBubbles.start(bubbleCanvas);
+      wireCandyUnicornSwap(el);
     }
   }
 
