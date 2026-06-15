@@ -30,7 +30,9 @@ const IhkImport = (() => {
 
   // ── 1) Profil-Sektion ──────────────────────────────────────────
   function renderSection(user) {
-    if (!user || user.role !== 'azubi') return '';
+    // Vorerst nur fuer die woechentliche Berichtsform (kaufmaennische & IT-Azubis).
+    // Taeglicher Import folgt spaeter. berichtTyp ist pro Azubi gespeichert.
+    if (!user || user.role !== 'azubi' || user.berichtTyp !== 'wöchentlich') return '';
     const img = name => `assets/ihk/${name}`;
     return `
       <details class="profil-section" id="ihkSection">
@@ -206,39 +208,51 @@ const IhkImport = (() => {
     }
   }
 
-  // Seitenweise pdf.js-Extraktion: eine Seite = eine Ausbildungswoche.
+  // Seitenweise pdf.js-Extraktion: getOperatorList() laedt Fonts (fuer echte
+  // Schriftnamen) und liefert die Pfad-Ops (fuer Unterstreichungs-Erkennung).
   async function extractPages(arrayBuffer) {
     pdfjsLib.GlobalWorkerOptions.workerSrc = WORKER_SRC;
     const pdf   = await pdfjsLib.getDocument({ data: new Uint8Array(arrayBuffer) }).promise;
     const pages = [];
     for (let p = 1; p <= pdf.numPages; p++) {
-      const page    = await pdf.getPage(p);
-      const content = await page.getTextContent();
-      pages.push(itemsToText(content.items, content.styles));
+      const page       = await pdf.getPage(p);
+      const opList     = await page.getOperatorList();
+      const underlines = IhkParser.decodeUnderlineSegments(opList.fnArray, opList.argsArray, pdfjsLib.OPS);
+      const content    = await page.getTextContent();
+      pages.push(itemsToText(content.items, page, underlines));
+      page.cleanup();
     }
     return pages;
   }
 
-  // Items nach y-Koordinate zu Zeilen gruppieren, dann nach x sortieren.
-  // Fett-Erkennung: fontFamily aus pdf.js-Styles (z.B. "Arial-Bold") → \x02...\x03-Marker.
-  // Unterstrichen ist in PDFs eine separate Grafik-Linie und hier nicht erkennbar.
-  function itemsToText(items, styles) {
+  // Items nach y-Koordinate zu Zeilen gruppieren; pro Lauf Bold/Italic (echter
+  // Schriftname via commonObjs) und Underline (Fuell-Rechteck) bestimmen.
+  function itemsToText(items, page, underlines) {
+    const fontFlags = {};
+    function flagsFor(fontName) {
+      if (fontFlags[fontName]) return fontFlags[fontName];
+      let name = '';
+      try {
+        if (page.commonObjs.has(fontName)) name = (page.commonObjs.get(fontName) || {}).name || '';
+      } catch (e) { name = ''; }
+      return (fontFlags[fontName] = IhkParser.classifyFontName(name));
+    }
+
     const rows = [];
     items.forEach(it => {
       if (!it.str || !it.str.trim()) return;
       const y = Math.round(it.transform[5]);
       let row = rows.find(r => Math.abs(r.y - y) <= 3);
       if (!row) { row = { y, cells: [] }; rows.push(row); }
-      const fontFamily = (styles && styles[it.fontName] && styles[it.fontName].fontFamily) || it.fontName || '';
-      const isBold = /bold|demi|black/i.test(fontFamily);
-      row.cells.push({ x: it.transform[4], str: it.str, bold: isBold });
+      const f  = flagsFor(it.fontName);
+      const x0 = it.transform[4];
+      const underline = IhkParser.matchUnderline(
+        { x0, x1: x0 + it.width, baseline: it.transform[5] }, underlines
+      );
+      row.cells.push({ x: x0, str: it.str, bold: f.bold, italic: f.italic, underline });
     });
     rows.sort((a, b) => b.y - a.y); // oben → unten
-    return rows
-      .map(r => r.cells.sort((a, b) => a.x - b.x)
-        .map(c => c.bold ? `\x02${c.str}\x03` : c.str)
-        .join(' ').replace(/\s+/g, ' ').trim())
-      .join('\n');
+    return rows.map(r => IhkParser.assembleLine(r.cells)).join('\n');
   }
 
   // ── 4) Vorschau-Dialog ─────────────────────────────────────────
