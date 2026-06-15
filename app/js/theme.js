@@ -45,52 +45,12 @@
      dort den HTML-String für die Layer-Kinder eintragen (leerer String
      = kein DOM-FX für dieses Theme). */
 
-  /* ── Candy: Einhorn-Sprite (rein selbst gezeichnetes Inline-SVG, nur
-     Vollfarben – KEINE <defs>/IDs, damit der Sprite ohne ID-Kollision
-     mehrfach eingehängt werden kann). Blickt nach rechts; Mähne & Schweif
-     als gefächerte Pastell-Regenbogen-Kapseln, goldenes Spiralhorn.
-     Gestylt/animiert (Hüpfen + Wiesen-Lauf) in css/theme-candy.css. */
-  var CD_UNICORN_SVG =
-    '<svg class="pm-cd-uni-svg" viewBox="0 0 104 96" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">' +
-      '<g class="pm-cd-uni-tail">' +
-        '<rect x="16" y="48" width="9" height="32" rx="4.5" fill="#A77BFF" transform="rotate(34 30 56)"/>' +
-        '<rect x="17" y="49" width="9" height="30" rx="4.5" fill="#6CC6FF" transform="rotate(24 30 56)"/>' +
-        '<rect x="18" y="50" width="9" height="28" rx="4.5" fill="#7DE3A6" transform="rotate(14 30 56)"/>' +
-        '<rect x="19" y="51" width="9" height="26" rx="4.5" fill="#FFE066" transform="rotate(4 30 56)"/>' +
-        '<rect x="20" y="52" width="9" height="24" rx="4.5" fill="#FF8FB6" transform="rotate(-6 30 56)"/>' +
-      '</g>' +
-      '<ellipse cx="52" cy="57" rx="30" ry="19" fill="#FFFFFF"/>' +
-      '<path d="M24 62c8 11 48 11 56 0 0 9-12 15-28 15S24 71 24 62z" fill="#FFE3F1"/>' +
-      '<g fill="#FFFFFF">' +
-        '<rect x="30" y="66" width="8" height="24" rx="4"/>' +
-        '<rect x="42" y="68" width="8" height="24" rx="4"/>' +
-        '<rect x="56" y="68" width="8" height="24" rx="4"/>' +
-        '<rect x="68" y="66" width="8" height="24" rx="4"/>' +
-      '</g>' +
-      '<g fill="#FFB3D4">' +
-        '<rect x="30" y="85" width="8" height="6" rx="3"/>' +
-        '<rect x="42" y="87" width="8" height="6" rx="3"/>' +
-        '<rect x="56" y="87" width="8" height="6" rx="3"/>' +
-        '<rect x="68" y="85" width="8" height="6" rx="3"/>' +
-      '</g>' +
-      '<path d="M70 50 Q73 35 85 32 L95 43 Q90 58 76 60 Z" fill="#FFFFFF"/>' +
-      '<ellipse cx="87" cy="33" rx="14" ry="13" fill="#FFFFFF"/>' +
-      '<path d="M97 33c7-1 11 2 11 6s-5 6-11 4z" fill="#FFFFFF"/>' +
-      '<path d="M77 18l4 11-10-4z" fill="#FFFFFF"/>' +
-      '<path d="M87 17l4-17 5 16z" fill="#FFD55E"/>' +
-      '<path d="M88 13l5 1M89 8l4 1M90 4l3 1" stroke="#FFEBB0" stroke-width="1.3" fill="none"/>' +
-      '<g class="pm-cd-uni-mane">' +
-        '<rect x="64" y="2"  width="9" height="26" rx="4.5" fill="#A77BFF" transform="rotate(20 74 17)"/>' +
-        '<rect x="65" y="4"  width="9" height="24" rx="4.5" fill="#6CC6FF" transform="rotate(11 74 17)"/>' +
-        '<rect x="65" y="7"  width="9" height="23" rx="4.5" fill="#7DE3A6" transform="rotate(0 72 19)"/>' +
-        '<rect x="63" y="11" width="9" height="23" rx="4.5" fill="#FFE066" transform="rotate(-12 70 22)"/>' +
-        '<rect x="60" y="16" width="9" height="22" rx="4.5" fill="#FF8FB6" transform="rotate(-24 68 26)"/>' +
-      '</g>' +
-      '<circle cx="90" cy="32" r="2.6" fill="#3D1030"/>' +
-      '<circle cx="89" cy="31" r="0.9" fill="#FFFFFF"/>' +
-      '<circle cx="95" cy="38" r="3" fill="#FFC2DD"/>' +
-      '<circle cx="103" cy="36" r="1" fill="#C76B96"/>' +
-    '</svg>';
+  /* ── Candy: Einhörner als freigestellte Foto-Sprites (Reiter auf
+     Einhorn, Seitenansicht – blicken nach RECHTS). Liegen unter
+     app/assets/candy-unicorn-{1,2}.png und werden unten per <img> in die
+     beiden FX-Hüpf-Ebenen eingehängt; die Spiegelung für den nach links
+     laufenden vorderen Reiter macht scaleX in css/theme-candy.css
+     (dort auch Wiesen-Lauf + Spring-Hüpfen). */
 
   var FX_TEMPLATES = {
     /* ── FX-Template: hyperspace (wird vom Theme-Designer befüllt) ──
@@ -117,8 +77,14 @@
         '</div>' +
       '</div>',
 
-    /* ── FX-Template: cmd (wird vom Theme-Designer befüllt) ── */
-    cmd: '',
+    /* ── FX-Template: cmd (wird vom Theme-Designer befüllt) ──
+       0/1-Matrix-Regen als DAUERHAFTER Hintergrund (<canvas>): Spalten
+       fallender Nullen/Einsen in dezentem Terminal-Grün laufen endlos
+       hinter dem Inhalt durch. Der rAF-Loop wird vom PMCmdFX-Controller
+       (unten) gesteuert; ensureThemeFX() startet/stoppt ihn am FX-Lebens-
+       zyklus. Styling/Fallback-Farbe in css/theme-cmd.css (.pm-cmd-bg).
+       (Früher: kurzes Lade-Intro-Overlay via js/cmd-intro.js – entfernt.) */
+    cmd: '<canvas class="pm-cmd-bg" aria-hidden="true"></canvas>',
 
     /* ── FX-Template: candy (wird vom Theme-Designer befüllt) ──
        Candy-Land-Szene: leuchtend schimmernder Regenbogen, eine
@@ -139,11 +105,11 @@
       '<div class="pm-cd-hill pm-cd-hill--back"></div>' +
       '<div class="pm-cd-donut"></div>' +
       '<div class="pm-cd-hill pm-cd-hill--mid"></div>' +
-      '<div class="pm-cd-unicorn pm-cd-unicorn--mid"><div class="pm-cd-unicorn__hop">' + CD_UNICORN_SVG + '</div></div>' +
+      '<div class="pm-cd-unicorn pm-cd-unicorn--mid"><div class="pm-cd-unicorn__hop"><img class="pm-cd-uni-img" src="assets/candy-unicorn-1.png" alt="" aria-hidden="true"></div></div>' +
       '<div class="pm-cd-lolli pm-cd-lolli--pink"></div>' +
       '<div class="pm-cd-lolli pm-cd-lolli--mint"></div>' +
       '<div class="pm-cd-hill pm-cd-hill--front"></div>' +
-      '<div class="pm-cd-unicorn pm-cd-unicorn--front"><div class="pm-cd-unicorn__hop">' + CD_UNICORN_SVG + '</div></div>' +
+      '<div class="pm-cd-unicorn pm-cd-unicorn--front"><div class="pm-cd-unicorn__hop"><img class="pm-cd-uni-img" src="assets/candy-unicorn-2.png" alt="" aria-hidden="true"></div></div>' +
       '<div class="pm-cd-gumdrop pm-cd-gumdrop--1"></div>' +
       '<div class="pm-cd-gumdrop pm-cd-gumdrop--2"></div>',
 
@@ -417,6 +383,132 @@
     return { start: start, stop: stop };
   })();
 
+  /* ── CMD-FX: 0/1-Matrix-Hintergrund-Engine ───────────────────────
+     Der CMD-Hintergrund ist – wie iceland – ein <canvas> mit requestAni-
+     mationFrame-Loop: Spalten fallender Nullen/Einsen in dezentem
+     Terminal-Grün, die DAUERHAFT hinter dem Inhalt durchlaufen (es gibt
+     KEIN Lade-Intro mehr – früher js/cmd-intro.js als Overlay vor dem
+     Content). Steuerung über den FX-Lebenszyklus (start beim Aufbau des
+     cmd-FX, stop beim Theme-Wechsel/Teardown). themes.css-Konventionen,
+     die für ein <canvas> nicht per CSS greifen, hier in JS abgebildet:
+       • prefers-reduced-motion → ein einziges statisches Standbild
+       • verstecktes Tab / offenes Modal → Loop pausiert (GPU sparen,
+         analog zur animation-play-state-Pause in themes.css). */
+  var PMCmdFX = (function () {
+    var FONT  = 16;          // px Glyphengröße (= Spaltenbreite)
+    var STEP  = 60;          // ms pro Regen-Schritt (ruhiger als 60 fps)
+    var FADE  = 0.10;        // Nachzieh-Deckkraft pro Schritt (kl. = lange Spuren)
+    var BASE  = '#020A03';   // Grundfläche (Terminal-Schwarz)
+    var GLYPH = 'rgba(0, 230, 77, 0.40)';    // normale Ziffer (dezent)
+    var HEAD  = 'rgba(190, 255, 205, 0.68)'; // gelegentlich hellerer Spaltenkopf
+    var FONT_STACK = FONT + 'px Consolas, "Cascadia Mono", "Courier New", monospace';
+
+    var reduceMotion = !!(window.matchMedia &&
+      window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+
+    var canvas = null, ctx = null;
+    var raf = 0, running = false;
+    var W = 0, H = 0, DPR = 1;
+    var cols = [];           // y-Position (in Zeilen) pro Spalte
+    var last = 0, acc = 0;
+
+    function resize() {
+      if (!canvas || !ctx) return;
+      DPR = Math.min(window.devicePixelRatio || 1, 2);
+      W = window.innerWidth; H = window.innerHeight;
+      canvas.width  = Math.floor(W * DPR);
+      canvas.height = Math.floor(H * DPR);
+      canvas.style.width = W + 'px'; canvas.style.height = H + 'px';
+      ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+      ctx.textBaseline = 'top';
+      /* Spaltenanzahl an Breite anpassen, vorhandene Tropfen beibehalten,
+         neue Spalten gestaffelt oberhalb des Sichtbereichs starten. */
+      var n = Math.max(1, Math.floor(W / FONT));
+      var next = [];
+      for (var i = 0; i < n; i++) {
+        next[i] = (cols[i] != null) ? cols[i] : Math.floor(Math.random() * -50);
+      }
+      cols = next;
+      ctx.fillStyle = BASE;
+      ctx.fillRect(0, 0, W, H);
+      if (reduceMotion) renderStatic();
+    }
+
+    function step() {
+      /* Nachzieh-Effekt: leicht transparentes Schwarz über den Vorframe. */
+      ctx.fillStyle = 'rgba(2, 10, 3, ' + FADE + ')';
+      ctx.fillRect(0, 0, W, H);
+      ctx.font = FONT_STACK;
+      for (var i = 0; i < cols.length; i++) {
+        var ch = (Math.random() < 0.5) ? '0' : '1';
+        var x = i * FONT, y = cols[i] * FONT;
+        ctx.fillStyle = (Math.random() < 0.05) ? HEAD : GLYPH;
+        ctx.fillText(ch, x, y);
+        if (y > H && Math.random() > 0.975) {
+          cols[i] = Math.floor(Math.random() * -20);   // Spalte oben neu starten
+        } else {
+          cols[i] += 1;
+        }
+      }
+    }
+
+    /* reduced-motion: ein ruhiges, sparsames Standbild statt Loop. */
+    function renderStatic() {
+      ctx.font = FONT_STACK;
+      var rows = Math.max(1, Math.floor(H / FONT));
+      ctx.fillStyle = GLYPH;
+      for (var i = 0; i < cols.length; i++) {
+        if (Math.random() < 0.55) continue;            // gelichtetes Raster
+        var y = Math.floor(Math.random() * rows) * FONT;
+        ctx.fillText((Math.random() < 0.5) ? '0' : '1', i * FONT, y);
+      }
+    }
+
+    /* Loop pausieren, wenn es nichts zu sehen gibt: Tab im Hintergrund
+       oder offenes Modal (dessen Backdrop alles verdeckt). */
+    function isPaused() {
+      if (document.hidden) return true;
+      if (document.querySelector('.modal-overlay.open')) return true;
+      return false;
+    }
+
+    function frame(now) {
+      if (!running) return;
+      raf = requestAnimationFrame(frame);
+      if (isPaused()) { last = now; return; }
+      acc += (now - last);
+      last = now;
+      if (acc < STEP) return;
+      acc = 0;
+      step();
+    }
+
+    function start(cv) {
+      stop();               // idempotent: evtl. laufenden Loop sauber beenden
+      if (!cv) return;
+      canvas = cv;
+      ctx = canvas.getContext('2d', { alpha: false });
+      if (!ctx) { canvas = null; return; }
+      resize();             // baut Szene auf (+ zeichnet bei reduced-motion)
+      window.addEventListener('resize', resize);
+      if (reduceMotion) return;   // statisches Standbild → kein Loop
+      running = true;
+      last = (window.performance && performance.now) ? performance.now() : 0;
+      acc = 0;
+      raf = requestAnimationFrame(frame);
+    }
+
+    function stop() {
+      running = false;
+      if (raf) { cancelAnimationFrame(raf); raf = 0; }
+      window.removeEventListener('resize', resize);
+      cols = [];
+      canvas = null; ctx = null;
+    }
+
+    return { start: start, stop: stop };
+  })();
+
   /* FX-Container für das übergebene Theme (neu) aufbauen.
      Idempotent: ein evtl. vorhandener Container wird immer zuerst
      entfernt; mehrfaches apply() erzeugt also keine Duplikate.
@@ -437,9 +529,10 @@
     }
     var existing = document.getElementById('pmThemeFX');
     if (existing && existing.parentNode) existing.parentNode.removeChild(existing);
-    /* Beim Neuaufbau/Teardown einen evtl. laufenden Canvas-Loop (iceland)
-       sauber beenden – sonst rendert er nach dem Theme-Wechsel weiter. */
+    /* Beim Neuaufbau/Teardown evtl. laufende Canvas-Loops (iceland, cmd)
+       sauber beenden – sonst rendern sie nach dem Theme-Wechsel weiter. */
     PMIcelandFX.stop();
+    PMCmdFX.stop();
 
     var tpl = FX_TEMPLATES[theme] || '';   // light/dark/unbekannt → ''
     if (!tpl) return;
@@ -453,11 +546,14 @@
     el.innerHTML = tpl;
     document.body.appendChild(el);
 
-    /* iceland: Canvas-Schneesturm-Loop am frisch eingehängten <canvas>
-       starten (alle anderen Themes sind rein CSS/SVG → kein JS-Loop). */
+    /* iceland/cmd: Canvas-Loop am frisch eingehängten <canvas> starten
+       (alle übrigen Themes sind rein CSS/SVG → kein JS-Loop). */
     if (theme === 'iceland') {
       var isCanvas = el.querySelector('.pm-is-bg');
       if (isCanvas) PMIcelandFX.start(isCanvas);
+    } else if (theme === 'cmd') {
+      var cmdCanvas = el.querySelector('.pm-cmd-bg');
+      if (cmdCanvas) PMCmdFX.start(cmdCanvas);
     }
   }
 
