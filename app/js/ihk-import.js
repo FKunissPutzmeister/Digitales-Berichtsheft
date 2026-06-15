@@ -417,12 +417,15 @@ const IhkImport = (() => {
         year:          pw.year,
         startDate:     pw.startDate,
         endDate:       pw.endDate,
-        status:        'genehmigt',
+        status:        pw.status || 'offen',
         gesamtstunden: 0,
         tage:          [],
       };
 
-      woche.status = 'genehmigt';
+      // Echten IHK-Status aus dem Import übernehmen (offen/freigegeben/
+      // genehmigt/abgelehnt) statt hart 'genehmigt'. pw.status kommt aus
+      // IhkParser (mapStatus → bereits eine App-Status-Konstante).
+      woche.status = pw.status || 'offen';
 
       // Wöchentliche Textfelder aus IHK-PDF übernehmen
       woche.typ = 'wöchentlich';
