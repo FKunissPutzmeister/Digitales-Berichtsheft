@@ -179,3 +179,20 @@ test('Betrieb + Schule am selben Tag → Ort Betrieb/Schule, Stunden summiert', 
   assert.equal(mo.ort, 'Betrieb/Schule');
   assert.equal(mo.stunden, 8);
 });
+
+test('Status leakt nicht aus dem Freitext der Vorwoche in die Folgewoche', () => {
+  const page = [
+    'Ausbildungswoche 06.01.2025 bis 12.01.2025',
+    'Betrieb:',
+    'Wir haben das Projekt freigegeben und ausgiebig getestet',
+    'Mo | 06.01.2025 | Betrieb | anwesend 08:00',
+    'Qualifikationen:',
+    '- Irgendwas',
+    'Ausbildungswoche 13.01.2025 bis 19.01.2025',
+    'Mo | 13.01.2025 | Betrieb | anwesend 08:00',
+  ].join('\n');
+  const res = P.parse([page]);
+  assert.equal(res.wochen.length, 2);
+  assert.equal(wByKw(res, 2).status, 'offen');
+  assert.equal(wByKw(res, 3).status, 'offen'); // KW3 hat keinen Status-Kopf → kein Leak aus KW2-Freitext
+});

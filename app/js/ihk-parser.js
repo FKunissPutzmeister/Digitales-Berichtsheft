@@ -83,7 +83,11 @@
   function assembleLine(cells) {
     return cells.slice()
       .sort((a, b) => a.x - b.x)
-      .map(c => { const f = cellFlag(c); return f ? `\x02${f}${c.str}\x03` : c.str; })
+      .map(c => {
+        const str = String(c.str).replace(/[\x02\x03]/g, ''); // In-band-Markerzeichen aus Nutztext fernhalten
+        const f = cellFlag(c);
+        return f ? `\x02${f}${str}\x03` : str;
+      })
       .join(' ')
       .replace(/\s+/g, ' ')
       .trim();
@@ -134,6 +138,8 @@
         const b = matApply(ctm, r.rx + r.rw, r.ry + r.rh);
         const h = Math.abs(b[1] - a[1]);
         const w = Math.abs(b[0] - a[0]);
+        // Unterstreichungen im IHK-Export sind ~0,3pt hohe gefüllte Rechtecke
+        // (PDF-Punkte): h<1,5 trennt sie von Flächen/Boxen, w>3 von Punkten.
         if (h < 1.5 && w > 3) {
           segs.push({ y: (a[1] + b[1]) / 2, x0: Math.min(a[0], b[0]), x1: Math.max(a[0], b[0]) });
         }
@@ -164,6 +170,9 @@
 
   // Liegt eine Unterstreichungs-Linie knapp unter der Baseline und ~ textbreit?
   function matchUnderline(item, segs) {
+    // Toleranzen in PDF-Punkten, empirisch am IHK-Export kalibriert: Linie sitzt
+    // ~1pt unter der Baseline (0..4), deckt ≥60% der Laufbreite und ist nicht
+    // wesentlich breiter als der Text (≤1,4×) → grenzt Unterstreichung von Tabellenrändern ab.
     const w = item.x1 - item.x0;
     if (w <= 0) return false;
     return segs.some(s => {
@@ -306,12 +315,20 @@
     markers.forEach((mk, idx) => {
       const bodyEnd   = idx + 1 < markers.length ? markers[idx + 1].i : allLines.length;
       const bodyLines = allLines.slice(mk.i + 1, bodyEnd);
-      // Status steht im Export VOR dem Wochen-Marker („Ausbilder Status …
-      // Eingereicht … freigegeben"): die bis zu 8 Vorlauf-Zeilen scannen,
-      // begrenzt durch die vorige Woche.
-      const headStart = Math.max(idx === 0 ? 0 : markers[idx - 1].i + 1, mk.i - 8);
-      const status    = mapStatus(allLines.slice(headStart, mk.i).map(strip).join(' '));
-      const woche     = parseWeekBody(mk.startDate, mk.endDate, bodyLines, status, result.warnungen);
+      // Status steht im Kopfbereich direkt VOR dem Wochen-Marker („Ausbilder
+      // Status … Eingereicht … freigegeben"). Rückwärts (max. 8 Zeilen, begrenzt
+      // durch die vorige Woche) sammeln und an der ersten Body-Zeile der Vorwoche
+      // (Tageszeile / Abschnitt-Header / Qualifikationen) STOPPEN — sonst können
+      // Status-Stichwörter aus Freitexten der Vorwoche die Folgewoche falsch stempeln.
+      const lowBound = idx === 0 ? 0 : markers[idx - 1].i + 1;
+      const head = [];
+      for (let j = mk.i - 1; j >= lowBound && (mk.i - j) <= 8; j--) {
+        const sj = strip(allLines[j]);
+        if (DAY_RE.test(sj) || isSectionHeader(sj) || QUALI_RE.test(sj)) break;
+        head.push(allLines[j]);
+      }
+      const status = mapStatus(head.map(strip).join(' '));
+      const woche  = parseWeekBody(mk.startDate, mk.endDate, bodyLines, status, result.warnungen);
       if (woche) result.wochen.push(woche);
     });
 
