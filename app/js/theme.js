@@ -47,7 +47,7 @@
   var FX_TEMPLATES = {
     /* ── FX-Template: hyperspace (wird vom Theme-Designer befüllt) ──
        3D-Sternentunnel nach CodePen „Hyperspace" (Noah Blon, DpNRyR):
-       zwei um 6s versetzte 1000×1000-Würfel-Wraps (je 5 Wände) fliegen
+       zwei um 10s versetzte 1000×1000-Würfel-Wraps (je 5 Wände) fliegen
        per perspective:5px durch den Viewport. Styling/Keyframes liegen
        in css/theme-hyperspace.css (Klassen pm-hs-* zur Kollisions-
        vermeidung). */

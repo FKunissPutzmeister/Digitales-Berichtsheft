@@ -149,10 +149,13 @@ html[data-theme="hyperspace"] { color-scheme: dark; }
 /* ===================================================================
    HYPERSPACE-TUNNEL – CodePen „Hyperspace" (Noah Blon, DpNRyR)
    -------------------------------------------------------------------
-   Originalgetreue Portierung (Variante A: fade-Keyframes auf den
-   Wänden): zwei um 6s versetzte 1000×1000-Würfel (je 5 Wände mit
-   NASA-Textur PIA09959) fliegen per perspective:5px durch den
-   Viewport. Geometrie + Timing (12s, 6s-Versatz) EXAKT wie im Pen.
+   Portierung (Variante A: fade-Keyframes auf den Wänden): zwei um
+   10s versetzte 1000×1000-Würfel (je 5 Wände mit NASA-Textur
+   PIA09959) fliegen per perspective:5px durch den Viewport.
+   Geometrie EXAKT wie im Pen; Timing bewusst entschleunigt (20s
+   statt 12s, Versatz konstant = halbe Laufzeit = 10s, damit der
+   nahtlose Endlos-Loop erhalten bleibt). Der statische Schleier
+   (#pmThemeFX::after) ist zudem dunkler abgestimmt.
    DOM liefert FX_TEMPLATES.hyperspace in js/theme.js (#pmThemeFX:
    fixed, inset:0, z-index:0, pointer-events:none – Basisregeln in
    themes.css); #pmThemeFX ersetzt html/body des Pens und zentriert
@@ -182,8 +185,8 @@ html[data-theme="hyperspace"] { color-scheme: dark; }
   position: absolute;
   inset: 0;
   background:
-    radial-gradient(120% 100% at 50% 50%, rgba(0, 0, 6, 0) 38%, rgba(0, 0, 6, 0.50) 100%),
-    linear-gradient(rgba(2, 2, 12, 0.22), rgba(2, 2, 12, 0.22));
+    radial-gradient(120% 100% at 50% 50%, rgba(0, 0, 6, 0) 38%, rgba(0, 0, 6, 0.60) 100%),
+    linear-gradient(rgba(2, 2, 12, 0.40), rgba(2, 2, 12, 0.40));
 }
 
 /* .scene des Pens: 0×0-Anker exakt in der Viewport-Mitte */
@@ -201,12 +204,12 @@ html[data-theme="hyperspace"] { color-scheme: dark; }
   left: -500px;
   top: -500px;
   transform-style: preserve-3d;
-  animation: pm-hs-move 12s infinite linear;
+  animation: pm-hs-move 20s infinite linear;
   animation-fill-mode: forwards;
 }
 [data-theme="hyperspace"] .pm-hs-wrap:nth-child(2) {
-  animation: pm-hs-move 12s infinite linear;
-  animation-delay: 6s;
+  animation: pm-hs-move 20s infinite linear;
+  animation-delay: 10s;
 }
 [data-theme="hyperspace"] .pm-hs-wall {
   position: absolute;
@@ -215,11 +218,11 @@ html[data-theme="hyperspace"] { color-scheme: dark; }
   opacity: 0;
   background: url("../assets/backgrounds/hyperspace-stars.jpg");
   background-size: cover;
-  animation: pm-hs-fade 12s infinite linear;
+  animation: pm-hs-fade 20s infinite linear;
   animation-delay: 0s;
 }
 [data-theme="hyperspace"] .pm-hs-wrap:nth-child(2) .pm-hs-wall {
-  animation-delay: 6s;
+  animation-delay: 10s;
 }
 [data-theme="hyperspace"] .pm-hs-wall--right  { transform: rotateY(90deg)  translateZ(500px); }
 [data-theme="hyperspace"] .pm-hs-wall--left   { transform: rotateY(-90deg) translateZ(500px); }

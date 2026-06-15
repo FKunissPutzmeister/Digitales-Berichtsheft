@@ -455,6 +455,16 @@ html[data-theme="candy"] { color-scheme: light; }
     transparent, #FF6FB5 18%, #FFC861 38%, #7DE3B7 58%, #7FB2FF 78%, transparent);
   opacity: 0.9;
 }
+
+/* Putzmeister-Logo (TESTWEISE auf Candy-Farben): Marken-Gelb → Bubblegum-
+   Pink (--pm-yellow #FF6FB5), grauer PM-Elefant → Plum (--on-yellow-text
+   #3D1030). content:url() tauscht NUR unter [data-theme="candy"] das
+   <img>-Bitmap der Sidebar; alle anderen Themes behalten das Original.
+   Asset: assets/logo-candy.png – aus „Social Logo/200 x 200 px.png"
+   umgefärbt (2-Farb-Remap mit erhaltenen Anti-Aliasing-Kanten). */
+[data-theme="candy"] .sidebar__logo-mark {
+  content: url("../assets/logo-candy.png");
+}
 [data-theme="candy"] .toast::after {
   background: linear-gradient(90deg, #FF6FB5, #FFC861, #7DE3B7, #7FB2FF);
 }
