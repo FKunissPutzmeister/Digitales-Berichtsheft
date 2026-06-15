@@ -5,6 +5,11 @@ document.addEventListener('DOMContentLoaded', async () => {
   const user = await initPage('nav-profil', [{ label: 'Mein Profil', href: 'profil.html' }]);
   if (!user) return;
 
+  /* Volle Seitenbreite: aktiviert den body[data-page="profil"]-Override in
+     layout.css. Wird hier (nicht in profil.html) gesetzt, weil der SPA-Router
+     data-page bei jeder Navigation löscht und die Seiten-Skripte es neu setzen. */
+  document.body.dataset.page = 'profil';
+
   const isAzubi = user.role === 'azubi';
   const isAusbilder = user.role === 'ausbilder';
   const isAdmin = user.role === 'admin';
@@ -139,14 +144,29 @@ document.addEventListener('DOMContentLoaded', async () => {
     const SUN  = '<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>';
     const MOON = '<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>';
 
-    const tiles = THEME_DESIGNS.map(d => `
-      <button type="button" class="theme-tile ${custom === d.id ? 'active' : ''}"
-              data-theme-design="${d.id}" aria-pressed="${custom === d.id}">
-        <span class="theme-tile__swatch theme-tile__swatch--${d.id || 'standard'}" aria-hidden="true"></span>
-        <span class="theme-tile__name">${d.name}</span>
-        <span class="theme-tile__sub">${d.sub}</span>
-      </button>
-    `).join('');
+    /* Custom-Designs sind ein reines Azubi-Feature – Ausbilder/Admin
+       sehen nur den Hell/Dunkel-Umschalter: Titel ohne „& Themes",
+       kürzerer Hinweis, keine Custom-Design-Gruppe. */
+    const title = isAzubi ? 'Darstellung &amp; Themes' : 'Darstellung';
+    const standardHint = isAzubi
+      ? 'Gilt überall, solange kein Custom-Design aktiv ist. Der Hell/Dunkel-Schalter in der Sidebar wechselt diesen Modus.'
+      : 'Der Hell/Dunkel-Schalter in der Sidebar wechselt ebenfalls diesen Modus.';
+
+    const customGroup = !isAzubi ? '' : `
+          <div class="theme-group">
+            <div class="theme-group__label">Custom-Design</div>
+            <p class="theme-group__hint">Ein Custom-Design überlagert den Standard-Modus. Ein Klick auf den Hell/Dunkel-Schalter in der Sidebar beendet das Custom-Design und kehrt zum Standard-Modus zurück.</p>
+            <div class="theme-tiles">
+              ${THEME_DESIGNS.map(d => `
+                <button type="button" class="theme-tile ${custom === d.id ? 'active' : ''}"
+                        data-theme-design="${d.id}" aria-pressed="${custom === d.id}">
+                  <span class="theme-tile__swatch theme-tile__swatch--${d.id || 'standard'}" aria-hidden="true"></span>
+                  <span class="theme-tile__name">${d.name}</span>
+                  <span class="theme-tile__sub">${d.sub}</span>
+                </button>
+              `).join('')}
+            </div>
+          </div>`;
 
     return `
       <details class="profil-section" open>
@@ -154,24 +174,18 @@ document.addEventListener('DOMContentLoaded', async () => {
           <div class="profil-section__icon">
             <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path d="M12 22a10 10 0 1 1 10-10c0 2.21-1.79 3.5-4 3.5h-2.2c-1.1 0-1.8.9-1.8 2 0 .55.2 1.05.55 1.45.35.4.55.9.55 1.45 0 1.1-.9 1.6-2.1 1.6Z"/><circle cx="7.5" cy="11.5" r="1.2" fill="currentColor" stroke="none"/><circle cx="11" cy="7.5" r="1.2" fill="currentColor" stroke="none"/><circle cx="15.5" cy="9" r="1.2" fill="currentColor" stroke="none"/></svg>
           </div>
-          <div class="profil-section__title">Darstellung &amp; Themes</div>
+          <div class="profil-section__title">${title}</div>
         </summary>
         <div class="profil-section__body-wrap"><div class="profil-section__body">
           <div class="theme-group">
             <div class="theme-group__label">Standard-Modus</div>
-            <p class="theme-group__hint">Gilt überall, solange kein Custom-Design aktiv ist. Der Hell/Dunkel-Schalter in der Sidebar wechselt diesen Modus.</p>
+            <p class="theme-group__hint">${standardHint}</p>
             <div class="theme-mode-row">
               ${modeBtn('light', 'Hell', SUN)}
               ${modeBtn('dark', 'Dunkel', MOON)}
             </div>
           </div>
-          <div class="theme-group">
-            <div class="theme-group__label">Custom-Design</div>
-            <p class="theme-group__hint">Ein Custom-Design überlagert den Standard-Modus. Ein Klick auf den Hell/Dunkel-Schalter in der Sidebar beendet das Custom-Design und kehrt zum Standard-Modus zurück.</p>
-            <div class="theme-tiles">
-              ${tiles}
-            </div>
-          </div>
+          ${customGroup}
         </div></div>
       </details>
     `;
@@ -558,12 +572,12 @@ document.addEventListener('DOMContentLoaded', async () => {
       <div class="profil-panels" id="panel-profil"${hasImport ? ' role="tabpanel" aria-labelledby="tab-profil"' : ''}>
         ${await buildStammdaten()}
         ${buildPersoenlicheDaten()}
-        ${buildDarstellung()}
         ${buildAusbildungsDaten()}
         ${buildIHKDaten()}
         ${buildUnternehmensDaten()}
         ${await buildAusbilderTimeline()}
         ${await buildAzubiListe()}
+        ${buildDarstellung()}
         ${buildLogoutBlock()}
       </div>
 

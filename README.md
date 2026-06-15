@@ -1,4 +1,4 @@
-# Digitales Berichtsheft
+# Berichtsheft
 
 Digitales Ausbildungs-Berichtsheft für Putzmeister-Auszubildende. Ersetzt das klassische Papier-Berichtsheft durch eine Web-Anwendung mit Wochenansicht, Jahresplaner, Ausbildungsstand-Tracking und Berichtsheftverwaltung.
 

@@ -14,7 +14,7 @@ function buildSidebar(activeNavId) {
              onerror="this.style.display='none'">
         <div class="sidebar__logo-text">
           <span class="sidebar__logo-name">Putzmeister</span>
-          <span class="sidebar__logo-sub">Digitales Berichtsheft</span>
+          <span class="sidebar__logo-sub">Berichtsheft</span>
         </div>
       </div>
       <button class="sidebar__toggle" id="sidebarToggle" aria-label="Navigation einklappen">

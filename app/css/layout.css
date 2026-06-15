@@ -613,9 +613,9 @@ html.sidebar-init-collapsed .main-wrapper         { margin-left: var(--sidebar-i
    den ganzen Viewport bis zu einem Ultra-Wide-Cap (2200 px), damit
    Cockpit-Layouts, Kalender-Grids und breite Datentabellen nicht in
    die 1200-px-Lesegrenze gezwängt werden. Verwaltung und Azubi-Planer
-   gehören ebenfalls dazu (breite Tabellen bzw. 12-Monats-Timeline). Nur
-   die "klassische" Lese-Seite Profil behält ihren --content-max für
-   angenehme Zeilenlängen.
+   gehören ebenfalls dazu (breite Tabellen bzw. 12-Monats-Timeline).
+   Profil nutzt auf Wunsch ebenfalls die volle Breite (Panels/Kacheln
+   sind ohnehin grid-basiert und füllen den Platz sinnvoll).
 
    Liegt in layout.css statt in wochenansicht.css, weil jahresansicht/
    ausbildungsstand/dashboard ihre eigene Page-CSS laden und sonst der
@@ -625,7 +625,8 @@ body[data-page="wochenansicht"] .main-content,
 body[data-page="jahresansicht"] .main-content,
 body[data-page="ausbildungsstand"] .main-content,
 body[data-page="berichtsheftverwaltung"] .main-content,
-body[data-page="azubi-planer"] .main-content {
+body[data-page="azubi-planer"] .main-content,
+body[data-page="profil"] .main-content {
   max-width: min(2200px, 100%);
 }
 
