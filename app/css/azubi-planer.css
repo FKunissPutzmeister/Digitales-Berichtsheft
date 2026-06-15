@@ -2,32 +2,125 @@
    AZUBI-PLANER – Gantt / Zuweisungen
    =================================================================== */
 
-/* ── Ausbildungsbeauftragte-Auswahl ── */
-.planer-header {
-  display: flex;
-  align-items: flex-start;
-  gap: var(--sp-6);
-  margin-bottom: var(--sp-6);
-  flex-wrap: wrap;
+/* ── Zonen ──
+   Drei klar getrennte Bereiche: oben Filter + Auswertung, Mitte Timeline,
+   unten Liste. Der Abstand zwischen den Zonen schafft die visuelle Trennung. */
+.planer-zone { margin-bottom: var(--sp-8); }
+.planer-zone:last-child { margin-bottom: 0; }
+.planer-zone__title {
+  font-family: var(--font-heading);
+  font-size: var(--text-base);
+  font-weight: var(--fw-bold);
+  color: var(--pm-grey-900);
+  margin: 0 0 var(--sp-3);
 }
-.planer-ausbilder-list {
-  display: flex;
-  gap: var(--sp-3);
-  flex-wrap: wrap;
-  flex: 1;
-}
-/* .ausbilder-chip → verschoben nach components.css (wird auf mehreren Seiten genutzt) */
 
-/* ── Azubi-Suchleiste ── */
-.planer-search-wrap {
-  display: flex;
-  gap: var(--sp-3);
-  align-items: center;
+/* ── Zone 1: Auswertungs-Kacheln (KPIs) ── */
+.planer-kpis {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: var(--sp-4);
   margin-bottom: var(--sp-5);
 }
-.planer-search-wrap .form-control {
-  max-width: 300px;
+.planer-kpi {
+  background: var(--pm-white);
+  border: 1px solid var(--pm-grey-200);
+  border-radius: var(--r-lg);
+  padding: var(--sp-4) var(--sp-5);
+  box-shadow: var(--shadow-sm);
 }
+.planer-kpi__value {
+  font-family: var(--font-heading);
+  font-size: var(--text-2xl);
+  font-weight: var(--fw-bold);
+  line-height: 1.1;
+  color: var(--pm-grey-900);
+  font-variant-numeric: tabular-nums;
+}
+.planer-kpi__label {
+  margin-top: 2px;
+  font-size: var(--text-xs);
+  font-weight: var(--fw-bold);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--pm-grey-500);
+}
+/* Lücken-Indikator: hervorgehoben, wenn Azubis ohne aktuelle Zuweisung sind. */
+.planer-kpi--warn {
+  border-color: var(--pm-yellow);
+  background: var(--pm-yellow-bg);
+}
+.planer-kpi--warn .planer-kpi__value { color: var(--pm-yellow-darker); }
+
+/* ── Zone 1: Toolbar (Roster=Legende + integrierte Suche) ── */
+.planer-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-5);
+  flex-wrap: wrap;
+  padding: var(--sp-3) var(--sp-4);
+  background: var(--pm-white);
+  border: 1px solid var(--pm-grey-200);
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow-sm);
+}
+.planer-roster {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  flex-wrap: wrap;
+  min-width: 0;
+}
+.planer-roster__label {
+  font-size: var(--text-xs);
+  font-weight: var(--fw-bold);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--pm-grey-500);
+  white-space: nowrap;
+}
+.planer-roster__items {
+  display: flex;
+  gap: var(--sp-2) var(--sp-4);
+  flex-wrap: wrap;
+}
+.planer-roster__item {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  font-size: var(--text-sm);
+  color: var(--pm-grey-700);
+}
+.planer-roster__dot {
+  width: 12px;
+  height: 12px;
+  border-radius: var(--r-full);
+  flex-shrink: 0;
+}
+.planer-roster__abt {
+  font-size: var(--text-xs);
+  color: var(--pm-grey-400);
+}
+
+/* Integrierte Suche: Teil der Toolbar statt frei schwebendes Feld. */
+.planer-search {
+  position: relative;
+  flex: 0 0 auto;
+  width: 260px;
+  max-width: 100%;
+}
+.planer-search__icon {
+  position: absolute;
+  left: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 16px;
+  height: 16px;
+  color: var(--pm-grey-400);
+  pointer-events: none;
+}
+.planer-search__input { padding-left: 34px; }
 
 /* ── Gantt-Zeitleiste ── */
 .gantt-wrap {
@@ -47,8 +140,8 @@
   z-index: 2;
 }
 .gantt-header__name-col {
-  width: 240px;
-  min-width: 240px;
+  width: 280px;
+  min-width: 280px;
   padding: var(--sp-3) var(--sp-4);
   font-size: var(--text-xs);
   font-weight: var(--fw-bold);
@@ -72,19 +165,21 @@
   text-transform: uppercase;
   letter-spacing: 0.06em;
   color: var(--pm-grey-700);
-  border-right: 1px solid var(--pm-grey-200);
+  border-right: 1px solid var(--pm-grey-100);   /* dezenter – Monatsraster entzerrt */
   text-align: center;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 .gantt-header__month.current { color: var(--pm-yellow-darker); background: var(--pm-yellow-pale); }
+/* Quartalsanfang (Jan/Apr/Jul/Okt) stärker betont als die Monatslinien. */
+.gantt-header__month--q { border-left: 2px solid var(--pm-grey-300); }
 
 .gantt-body { overflow-x: auto; }
 .gantt-row {
   display: flex;
   align-items: center;
-  min-height: 56px;
+  min-height: 64px;
   border-bottom: 1px solid var(--pm-grey-100);
   transition: background var(--t-fast);
 }
@@ -92,30 +187,34 @@
 .gantt-row:hover { background: var(--pm-grey-50); }
 
 .gantt-row__info {
-  width: 240px;
-  min-width: 240px;
+  width: 280px;
+  min-width: 280px;
   padding: var(--sp-3) var(--sp-4);
   border-right: 1px solid var(--pm-grey-200);
   display: flex;
   align-items: center;
   gap: var(--sp-3);
   flex-shrink: 0;
-  /* Damit die Beruf-Bezeichnung sauber per Ellipsis abschneidet, statt
-     in den Zeitstrahl zu überlaufen, muss der Flex-Container clippen. */
+  /* Clippt den Flex-Container, damit der Beruf sauber endet statt in den
+     Zeitstrahl zu laufen. Der Name selbst darf bis zu 2 Zeilen umbrechen. */
   overflow: hidden;
 }
 .gantt-row__info-text {
   flex: 1;
-  min-width: 0;     /* erlaubt Ellipsis im Flex-Child */
+  min-width: 0;     /* erlaubt Ellipsis/Umbruch im Flex-Child */
   overflow: hidden;
 }
 .gantt-row__name {
   font-size: var(--text-sm);
   font-weight: var(--fw-bold);
   color: var(--pm-grey-800);
-  white-space: nowrap;
+  /* Bis zu 2 Zeilen statt harter Ellipsis – lange Namen werden nicht
+     mehr abgeschnitten (Hauptkritik an der zu schmalen Personenspalte). */
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
   overflow: hidden;
-  text-overflow: ellipsis;
+  line-height: 1.25;
 }
 .gantt-row__beruf {
   font-size: var(--text-xs);
@@ -123,28 +222,36 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  margin-top: 1px;
 }
 
 .gantt-row__timeline {
   flex: 1;
   position: relative;
-  height: 56px;
+  height: 64px;
   display: flex;
   align-items: center;
 }
 
-/* Monatstrennlinien im Hintergrund */
+/* Hintergrund-Raster: Quartalslinien deutlich, Monatslinien nur zart
+   angedeutet – entzerrt das vorher sehr dichte Monatsgrid. */
 .gantt-row__timeline::before {
   content: '';
   position: absolute;
   inset: 0;
-  background-image: repeating-linear-gradient(
-    to right,
-    transparent 0,
-    transparent calc(100% / var(--months) - 1px),
-    var(--pm-grey-100) calc(100% / var(--months) - 1px),
-    var(--pm-grey-100) calc(100% / var(--months))
-  );
+  background-image:
+    repeating-linear-gradient(
+      to right,
+      transparent 0,
+      transparent calc(25% - 1px),
+      var(--pm-grey-200) calc(25% - 1px),
+      var(--pm-grey-200) 25%),
+    repeating-linear-gradient(
+      to right,
+      transparent 0,
+      transparent calc(100% / var(--months) - 1px),
+      var(--pm-grey-50) calc(100% / var(--months) - 1px),
+      var(--pm-grey-50) calc(100% / var(--months)));
   pointer-events: none;
 }
 
@@ -176,11 +283,14 @@
   z-index: 2;
 }
 
-.gantt-bar--ausbilder-1 { background: #FFC300; color: var(--pm-grey-900); }
-.gantt-bar--ausbilder-2 { background: #4A90D9; color: white; }
-.gantt-bar--ausbilder-3 { background: #56C271; color: white; }
-.gantt-bar--ausbilder-4 { background: #E87040; color: white; }
-.gantt-bar--ausbilder-5 { background: #9B59B6; color: white; }
+/* Ruhige, entsättigte Palette; Index 1 bewusst Teal statt Marken-Gelb,
+   damit die Balken nicht mit den gelben UI-Akzenten (Heute, aktueller
+   Monat) konkurrieren. Muss zu getBarColor() in azubi-planer.js passen. */
+.gantt-bar--ausbilder-1 { background: #4F9D9A; color: #fff; }
+.gantt-bar--ausbilder-2 { background: #5B86C2; color: #fff; }
+.gantt-bar--ausbilder-3 { background: #5FAE72; color: #fff; }
+.gantt-bar--ausbilder-4 { background: #D8835A; color: #fff; }
+.gantt-bar--ausbilder-5 { background: #9B7BC4; color: #fff; }
 
 .gantt-today-line {
   position: absolute;
@@ -211,27 +321,8 @@
   z-index: 3;
 }
 
-/* ── Legende ── */
-.gantt-legend {
-  display: flex;
-  gap: var(--sp-4);
-  padding: var(--sp-4) var(--sp-5);
-  border-top: 1px solid var(--pm-grey-100);
-  background: var(--pm-grey-50);
-  flex-wrap: wrap;
-}
-.gantt-legend-item {
-  display: flex;
-  align-items: center;
-  gap: var(--sp-2);
-  font-size: var(--text-sm);
-  color: var(--pm-grey-600);
-}
-.gantt-legend-bar {
-  width: 24px;
-  height: 10px;
-  border-radius: var(--r-full);
-}
+/* ── Legende ── entfällt: Die Balkenfarben werden im Roster (Zone 1,
+   .planer-roster) erklärt – eine separate Gantt-Legende wäre redundant. */
 
 /* ── Bestehende Zuweisungen – Tabelle ──
    Fixe Spaltenbreiten (colgroup im Markup) + einheitliche Cell-Höhe,
@@ -241,10 +332,24 @@
   width: 100%;
 }
 .zuweisung-table thead th {
-  cursor: default;
   font-weight: var(--fw-bold);
 }
-.zuweisung-table thead th:hover { background: var(--pm-grey-50); }
+/* Sortierbare Spaltenköpfe (Klick / Enter / Space) */
+.zuw-th {
+  cursor: pointer;
+  user-select: none;
+  white-space: nowrap;
+  transition: background var(--t-fast), color var(--t-fast);
+}
+.zuw-th:hover { background: var(--pm-grey-50); color: var(--pm-grey-900); }
+.zuw-th.is-sorted { color: var(--pm-grey-900); }
+.zuw-th:focus-visible { outline: 2px solid var(--pm-yellow); outline-offset: -2px; }
+.zuw-th__arrow {
+  font-size: 9px;
+  margin-left: 4px;
+  color: var(--pm-yellow-darker);
+  vertical-align: middle;
+}
 .zuweisung-table tbody td {
   /* Konsistente Mindesthöhe – Avatar (32px) bestimmt die Zeile,
      andere Zellen werden mittig zentriert. */
@@ -367,7 +472,10 @@
 
 /* ── Responsiv ── */
 @media (max-width: 768px) {
-  .gantt-row__info { width: 140px; min-width: 140px; }
-  .gantt-header__name-col { width: 140px; min-width: 140px; }
+  .gantt-row__info { width: 200px; min-width: 200px; }
+  .gantt-header__name-col { width: 200px; min-width: 200px; }
   .azubi-selector { grid-template-columns: 1fr; }
+  .planer-kpis { grid-template-columns: repeat(2, 1fr); }
+  .planer-toolbar { align-items: stretch; }
+  .planer-search { width: 100%; }
 }

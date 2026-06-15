@@ -292,12 +292,15 @@ html[data-theme="cmd"] { color-scheme: dark; }
   color: #F18581;
 }
 
-/* Status-Badges: hellere Textfarben auf Tint-Hintergründen */
-[data-theme="cmd"] .badge--offen        { color: var(--pm-grey-600); }
+/* Status-Badges: hellere Textfarben auf Tint-Hintergründen.
+   Die früher grünen Labels (offen/genehmigt/grey) blendeten im grünen
+   Terminal-Look in ihre Tint-Flächen ein → neutral WEISS für Lesbarkeit.
+   Blau (freigegeben) und Rot (abgelehnt) bleiben farbig (gut lesbar). */
+[data-theme="cmd"] .badge--offen        { color: rgba(255, 255, 255, 0.92); }
 [data-theme="cmd"] .badge--freigegeben  { color: #6FB1F2; }
-[data-theme="cmd"] .badge--genehmigt    { color: #6BD089; }
+[data-theme="cmd"] .badge--genehmigt    { color: rgba(255, 255, 255, 0.92); }
 [data-theme="cmd"] .badge--abgelehnt    { color: #F18581; }
-[data-theme="cmd"] .badge--grey         { color: var(--pm-grey-700); }
+[data-theme="cmd"] .badge--grey         { color: rgba(255, 255, 255, 0.92); }
 
 /* Stat-Card-Icons als Tint-Overlays */
 [data-theme="cmd"] .stat-card__icon--yellow  { background: var(--pm-yellow-bg); color: var(--pm-yellow); }
@@ -531,16 +534,18 @@ html[data-theme="cmd"] .bento .b-recent {
 [data-theme="cmd"] body[data-page="wochenansicht"] .pm-select.wochen-options__select .pm-select__trigger {
   background: rgba(255, 255, 255, 0.06);
   color: var(--pm-grey-800);
+  /* Dezent wie im Standard-Theme: weiche, kaum sichtbare Lichtkante statt
+     der früheren schweren Schlagschatten-Halo (0.40/0.45). */
   box-shadow:
-    0 1px 2px rgba(0, 0, 0, 0.40),
-    0 4px 12px rgba(0, 0, 0, 0.45);
+    0 1px 2px rgba(0, 0, 0, 0.12),
+    0 4px 10px rgba(0, 0, 0, 0.16);
 }
 [data-theme="cmd"] body[data-page="wochenansicht"] .pm-select.tag-row__select .pm-select__trigger:hover:not(:disabled),
 [data-theme="cmd"] body[data-page="wochenansicht"] .pm-select.wochen-options__select .pm-select__trigger:hover:not(:disabled) {
   background: rgba(255, 255, 255, 0.10);
   box-shadow:
-    0 2px 4px rgba(0, 0, 0, 0.45),
-    0 8px 20px rgba(0, 0, 0, 0.55);
+    0 2px 4px rgba(0, 0, 0, 0.16),
+    0 8px 18px rgba(0, 0, 0, 0.22);
 }
 [data-theme="cmd"] body[data-page="wochenansicht"] .pm-select.tag-row__select--needs-input .pm-select__trigger {
   background: var(--pm-yellow-bg);
@@ -549,8 +554,21 @@ html[data-theme="cmd"] .bento .b-recent {
 [data-theme="cmd"] body[data-page="wochenansicht"] select.tag-row__select:not([data-pm-enhanced]) {
   background-color: rgba(255, 255, 255, 0.06);
   box-shadow:
-    0 1px 2px rgba(0, 0, 0, 0.40),
-    0 4px 12px rgba(0, 0, 0, 0.45);
+    0 1px 2px rgba(0, 0, 0, 0.12),
+    0 4px 10px rgba(0, 0, 0, 0.16);
+}
+
+/* ── Wochenansicht-Stunden-Spinner: im Ruhezustand flach (transparent),
+   damit die editierbare Azubi-Ansicht so ruhig wirkt wie die Readonly-
+   Ausbilder-Ansicht. Beim Editieren (:focus-within) füllt + rahmt die
+   Pille wieder, als Eingabe-Feedback. Base-Regel malt sonst --pm-white. ── */
+[data-theme="cmd"] body[data-page="wochenansicht"] .time-spinner__input {
+  background: transparent;
+  /* Runde Umrandung dauerhaft sichtbar (nicht erst beim Editieren). */
+  border-color: rgba(255, 255, 255, 0.25);
+}
+[data-theme="cmd"] body[data-page="wochenansicht"] .time-spinner:focus-within .time-spinner__input {
+  background: var(--pm-white);
 }
 
 /* ===================================================================
@@ -751,3 +769,64 @@ html[data-theme="cmd"] .bento .b-recent {
     opacity: 1;
   }
 }
+
+/* ===================================================================
+   PUTZMEISTER-LOGO (TESTWEISE auf cmd-Farben)
+   -------------------------------------------------------------------
+   Marken-Gelb → Akzent #00E64D, grauer PM-Elefant → #001407.
+   content:url() tauscht NUR unter [data-theme="cmd"] das <img>-
+   Bitmap – Sidebar (.sidebar__logo-mark) UND Login-Karte
+   (.login-card__mark). Asset assets/logo-cmd.png (aus „Social
+   Logo/200 x 200 px.png" umgefärbt, 2-Farb-Remap, AA-Kanten erhalten). */
+[data-theme="cmd"] .sidebar__logo-mark,
+[data-theme="cmd"] .login-card__mark {
+  content: url("../assets/logo-cmd.png");
+}
+
+/* ===================================================================
+   STATUS-TEXTE LESBAR (statt Terminal-Grün)
+   -------------------------------------------------------------------
+   Im CMD-Theme ist die Graustufen-Skala auf Grün gemappt → mehrere
+   Status-Labels erschienen grün (teils auf grünem Tint). Hier werden
+   nur die GRÜNEN Status-TEXTE neutralisiert – Regel nach Untergrund:
+   WEISS auf dunklen Flächen, SCHWARZ auf hellen Pastell-Pillen.
+   Hintergründe und farbige Status-Punkte bleiben unangetastet.
+   Blau (freigegeben) und Rot (abgelehnt) bleiben farbig.
+   (Die Status-BADGES sind oben unter §Status-Badges abgedeckt.)
+   =================================================================== */
+
+/* Wochenansicht-Banner-Titel: war einheitlich hellgrün (--pm-grey-900),
+   sitzt auf dunklem Tint → neutral weiß. */
+[data-theme="cmd"] .week-status-banner__title { color: rgba(255, 255, 255, 0.95); }
+
+/* Dashboard-Hero-Status „Genehmigt": dunkelgrüner Text auf HELLER
+   Mint-Pille (wie im Dark-Mode hell belassen) → schwarz statt grün. */
+[data-theme="cmd"] .b-status--genehmigt { color: #0A140C; }
+
+/* Dashboard Wochen-/Tageskarten, Variante „ok" (grün): Text auf dunkler
+   Karte → weiß; der farbige Status-Punkt (.d) bleibt grün. */
+[data-theme="cmd"] .b-wkcard--ok  .b-wkcard__status,
+[data-theme="cmd"] .b-daycard--ok .b-daycard__status { color: rgba(255, 255, 255, 0.92); }
+
+/* Jahresansicht-Legende: Standardtext war --pm-grey-600 (= grün). Die
+   Legenden-Pille ist im CMD hell (fehlender Dark-Override) → schwarzer
+   Text. Die farbigen Status-Punkte bleiben erhalten. */
+[data-theme="cmd"] .legend-item { color: #0A140C; }
+
+/* ===================================================================
+   0/1-MATRIX-LADE-INTRO (cmd-intro.js)
+   -------------------------------------------------------------------
+   Overlay liegt über dem Hauptbereich (.main-wrapper = Topbar +
+   Inhalt); die Sidebar bleibt frei. Unter Modals (--z-modal: 200).
+   Die Elemente werden ausschließlich im CMD-Theme per JS erzeugt.
+   =================================================================== */
+[data-theme="cmd"] .main-wrapper { position: relative; }
+.cmd-intro-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 150;            /* über Topbar/Inhalt (z-sticky 10), unter Modal (200) */
+  background: #010401;     /* deckend: kein Durchblitzen des Inhalts */
+  overflow: hidden;
+  pointer-events: none;    /* nie die UI blockieren, falls Abbau hängt */
+}
+.cmd-intro-canvas { display: block; width: 100%; height: 100%; }

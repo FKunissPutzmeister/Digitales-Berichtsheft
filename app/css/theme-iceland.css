@@ -481,3 +481,28 @@ html[data-theme="iceland"] .bento .b-recent {
     display: none;
   }
 }
+
+/* ===================================================================
+   WOCHENANSICHT-STUNDEN-SPINNER (analog dark/hyperspace/cmd)
+   -------------------------------------------------------------------
+   Helles Theme: weiße Pille auf weißer Zeile → ohne Rahmen ist die
+   runde Umrandung im Ruhezustand unsichtbar. Dezente dunkle Kante,
+   damit der „Kreis" dauerhaft sichtbar ist (nicht erst beim Editieren;
+   die Fokus-Regel färbt die Kante dann im Akzent). Pills/Schatten sind
+   hier bereits dezent (Standard-Basiswerte) – kein weiterer Eingriff. */
+[data-theme="iceland"] body[data-page="wochenansicht"] .time-spinner__input {
+  border-color: rgba(15, 23, 42, 0.20);
+}
+
+/* ===================================================================
+   PUTZMEISTER-LOGO (TESTWEISE auf iceland-Farben)
+   -------------------------------------------------------------------
+   Marken-Gelb → Akzent #84B7D0, grauer PM-Elefant → #14242E.
+   content:url() tauscht NUR unter [data-theme="iceland"] das <img>-
+   Bitmap – Sidebar (.sidebar__logo-mark) UND Login-Karte
+   (.login-card__mark). Asset assets/logo-iceland.png (aus „Social
+   Logo/200 x 200 px.png" umgefärbt, 2-Farb-Remap, AA-Kanten erhalten). */
+[data-theme="iceland"] .sidebar__logo-mark,
+[data-theme="iceland"] .login-card__mark {
+  content: url("../assets/logo-iceland.png");
+}

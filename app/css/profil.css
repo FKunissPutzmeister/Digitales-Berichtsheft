@@ -10,6 +10,49 @@
   flex-direction: column;
   gap: var(--sp-5);
 }
+
+/* ── Profil / Import – Tabs ──
+   Trennt die Profildaten vom (für Azubis vorhandenen) Import-Bereich.
+   Beide Panels stehen im DOM; das inaktive trägt [hidden]. Tokens decken
+   Hell- und Dunkelmodus ab (kein eigener Dark-Override nötig). */
+.profil-tabs {
+  display: flex;
+  gap: var(--sp-1);
+  margin-bottom: var(--sp-5);
+  border-bottom: 1px solid var(--pm-grey-200);
+}
+.profil-tab {
+  appearance: none;
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;            /* überlappt den Container-Border sauber */
+  padding: var(--sp-3) var(--sp-4);
+  font-family: var(--font-body);
+  font-size: var(--text-sm);
+  font-weight: var(--fw-bold);
+  color: var(--pm-grey-500);
+  cursor: pointer;
+  transition: color var(--t-fast), border-color var(--t-fast);
+}
+.profil-tab:hover { color: var(--pm-grey-800); }
+.profil-tab.is-active {
+  color: var(--pm-grey-900);
+  border-bottom-color: var(--pm-yellow);
+}
+.profil-tab:focus-visible {
+  outline: 2px solid var(--pm-yellow);
+  outline-offset: 2px;
+  border-radius: var(--r-sm);
+}
+.profil-import-intro {
+  font-size: var(--text-sm);
+  color: var(--pm-grey-500);
+  margin: 0 0 var(--sp-1);
+}
+/* [hidden] muss display:flex von .profil-panels überstimmen – sonst bliebe
+   das inaktive Panel sichtbar (Attribut gesetzt, aber display gewinnt). */
+.profil-panels[hidden] { display: none; }
 /* Profil-Sektion ist jetzt ein <details>-Element (kollabierbar).
    Funktioniert sowohl als <details> (mit Accordion-Animation) als auch
    als reines <div> (Fallback). */

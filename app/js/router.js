@@ -24,7 +24,7 @@
      NICHT nochmal ausgeführt werden sollen. */
   const SHARED = new Set([
     'api.js', 'icons.js', 'topbar-ds.js', 'app.js',
-    'sidebar.js', 'router.js', 'theme.js',
+    'sidebar.js', 'router.js', 'theme.js', 'cmd-intro.js',
   ]);
 
   /* Lokale Scripts, die bereits als <script>-Tag in den DOM injiziert
@@ -65,15 +65,23 @@
 
     if (typeof Modal !== 'undefined') Modal.closeAll();
 
+    /* CMD-Theme: 0/1-Matrix-Intro über den gesamten Übergang legen.
+       Deckt sofort den ausgehenden Inhalt ab; Fetch/Content-Tausch laufen
+       darunter; am Ende blendet das Overlay aus (siehe CmdIntro.end()).
+       Bei aktivem Intro entfällt die normale Wrapper-Fade-Animation, da
+       deren opacity:0 auf .main-wrapper sonst auch das Kind-Overlay
+       ausblenden würde. */
+    const cmdIntro = (typeof CmdIntro !== 'undefined') ? CmdIntro.start() : false;
+
     /* Neue Seite im Hintergrund laden — parallel zur Exit-Animation */
     const fetchPromise = fetch(href + '?_spa=1')
       .then(r => r.ok ? r.text() : null)
       .catch(() => null);
 
-    /* Exit-Animation */
+    /* Exit-Animation (entfällt, wenn das CMD-Intro-Overlay den Übergang trägt) */
     const wrapper = document.querySelector('.main-wrapper');
     const noMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
-    if (wrapper && !noMotion) {
+    if (wrapper && !noMotion && !cmdIntro) {
       wrapper.style.transition = 'opacity 110ms ease, transform 110ms ease';
       wrapper.style.opacity    = '0';
       wrapper.style.transform  = 'translateY(-5px)';
@@ -129,8 +137,9 @@
     if (pushState) history.pushState({ spa: true, page: href }, '', href);
     _currentPage = href;
 
-    /* Enter-Animation */
-    if (wrapper && !noMotion) {
+    /* Enter-Animation (entfällt bei aktivem CMD-Intro: der Inhalt liegt
+       fertig gerendert unter dem Overlay und wird beim Ausblenden frei) */
+    if (wrapper && !noMotion && !cmdIntro) {
       wrapper.style.transition = '';
       wrapper.style.opacity    = '';
       wrapper.style.transform  = '';
@@ -143,6 +152,7 @@
     } else if (wrapper) {
       wrapper.style.opacity   = '';
       wrapper.style.transform = '';
+      wrapper.style.animation = '';
     }
 
     /* Patches einmalig für diese Navigation setzen:
@@ -191,6 +201,12 @@
     /* addEventListener nach einem Tick zurücksetzen —
        DOMContentLoaded-Microtasks laufen zuerst durch. */
     setTimeout(() => { document.addEventListener = origAddEL; }, 0);
+
+    /* CMD-Intro abschließen: Mindestdauer abwarten, Overlay ausblenden und
+       den fertig gerenderten Inhalt freigeben. Bewusst awaited, damit die
+       Navigation bis zum vollständigen Abbau "busy" bleibt (kein zweites
+       Intro über das laufende). */
+    if (cmdIntro) await CmdIntro.end();
 
     _busy = false;
   }

@@ -152,7 +152,7 @@ html[data-theme="hyperspace"] { color-scheme: dark; }
    Originalgetreue Portierung (Variante A: fade-Keyframes auf den
    Wänden): zwei um 6s versetzte 1000×1000-Würfel (je 5 Wände mit
    NASA-Textur PIA09959) fliegen per perspective:5px durch den
-   Viewport. Geometrie + Timing (12s, 6s-Versatz) EXAKT wie im Pen.
+   Viewport. Timing entschleunigt: 32s statt 12s, Versatz 16s (= halbe Laufzeit, nahtloser Loop).
    DOM liefert FX_TEMPLATES.hyperspace in js/theme.js (#pmThemeFX:
    fixed, inset:0, z-index:0, pointer-events:none – Basisregeln in
    themes.css); #pmThemeFX ersetzt html/body des Pens und zentriert
@@ -201,12 +201,12 @@ html[data-theme="hyperspace"] { color-scheme: dark; }
   left: -500px;
   top: -500px;
   transform-style: preserve-3d;
-  animation: pm-hs-move 12s infinite linear;
+  animation: pm-hs-move 32s infinite linear;
   animation-fill-mode: forwards;
 }
 [data-theme="hyperspace"] .pm-hs-wrap:nth-child(2) {
-  animation: pm-hs-move 12s infinite linear;
-  animation-delay: 6s;
+  animation: pm-hs-move 32s infinite linear;
+  animation-delay: 16s;
 }
 [data-theme="hyperspace"] .pm-hs-wall {
   position: absolute;
@@ -215,11 +215,11 @@ html[data-theme="hyperspace"] { color-scheme: dark; }
   opacity: 0;
   background: url("../assets/backgrounds/hyperspace-stars.jpg");
   background-size: cover;
-  animation: pm-hs-fade 12s infinite linear;
+  animation: pm-hs-fade 32s infinite linear;
   animation-delay: 0s;
 }
 [data-theme="hyperspace"] .pm-hs-wrap:nth-child(2) .pm-hs-wall {
-  animation-delay: 6s;
+  animation-delay: 16s;
 }
 [data-theme="hyperspace"] .pm-hs-wall--right  { transform: rotateY(90deg)  translateZ(500px); }
 [data-theme="hyperspace"] .pm-hs-wall--left   { transform: rotateY(-90deg) translateZ(500px); }

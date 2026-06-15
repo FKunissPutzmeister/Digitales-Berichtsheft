@@ -44,10 +44,88 @@
      Jeder Template-Eintrag unten gehört EXKLUSIV einem Theme-Designer:
      dort den HTML-String für die Layer-Kinder eintragen (leerer String
      = kein DOM-FX für dieses Theme). */
+
+  /* ── Candy: Einhorn-Sprite (rein selbst gezeichnetes Inline-SVG, nur
+     Vollfarben – KEINE <defs>/IDs, damit der Sprite ohne ID-Kollision
+     mehrfach eingehängt werden kann). Blickt nach rechts; Mähne & Schweif
+     als gefächerte Pastell-Regenbogen-Kapseln, goldenes Spiralhorn.
+     Gestylt/animiert (Hüpfen + Wiesen-Lauf) in css/theme-candy.css. */
+  var CD_UNICORN_SVG =
+    '<svg class="pm-cd-uni-svg" viewBox="0 0 104 96" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">' +
+      '<g class="pm-cd-uni-tail">' +
+        '<rect x="16" y="48" width="9" height="32" rx="4.5" fill="#A77BFF" transform="rotate(34 30 56)"/>' +
+        '<rect x="17" y="49" width="9" height="30" rx="4.5" fill="#6CC6FF" transform="rotate(24 30 56)"/>' +
+        '<rect x="18" y="50" width="9" height="28" rx="4.5" fill="#7DE3A6" transform="rotate(14 30 56)"/>' +
+        '<rect x="19" y="51" width="9" height="26" rx="4.5" fill="#FFE066" transform="rotate(4 30 56)"/>' +
+        '<rect x="20" y="52" width="9" height="24" rx="4.5" fill="#FF8FB6" transform="rotate(-6 30 56)"/>' +
+      '</g>' +
+      '<ellipse cx="52" cy="57" rx="30" ry="19" fill="#FFFFFF"/>' +
+      '<path d="M24 62c8 11 48 11 56 0 0 9-12 15-28 15S24 71 24 62z" fill="#FFE3F1"/>' +
+      '<g fill="#FFFFFF">' +
+        '<rect x="30" y="66" width="8" height="24" rx="4"/>' +
+        '<rect x="42" y="68" width="8" height="24" rx="4"/>' +
+        '<rect x="56" y="68" width="8" height="24" rx="4"/>' +
+        '<rect x="68" y="66" width="8" height="24" rx="4"/>' +
+      '</g>' +
+      '<g fill="#FFB3D4">' +
+        '<rect x="30" y="85" width="8" height="6" rx="3"/>' +
+        '<rect x="42" y="87" width="8" height="6" rx="3"/>' +
+        '<rect x="56" y="87" width="8" height="6" rx="3"/>' +
+        '<rect x="68" y="85" width="8" height="6" rx="3"/>' +
+      '</g>' +
+      '<path d="M70 50 Q73 35 85 32 L95 43 Q90 58 76 60 Z" fill="#FFFFFF"/>' +
+      '<ellipse cx="87" cy="33" rx="14" ry="13" fill="#FFFFFF"/>' +
+      '<path d="M97 33c7-1 11 2 11 6s-5 6-11 4z" fill="#FFFFFF"/>' +
+      '<path d="M77 18l4 11-10-4z" fill="#FFFFFF"/>' +
+      '<path d="M87 17l4-17 5 16z" fill="#FFD55E"/>' +
+      '<path d="M88 13l5 1M89 8l4 1M90 4l3 1" stroke="#FFEBB0" stroke-width="1.3" fill="none"/>' +
+      '<g class="pm-cd-uni-mane">' +
+        '<rect x="64" y="2"  width="9" height="26" rx="4.5" fill="#A77BFF" transform="rotate(20 74 17)"/>' +
+        '<rect x="65" y="4"  width="9" height="24" rx="4.5" fill="#6CC6FF" transform="rotate(11 74 17)"/>' +
+        '<rect x="65" y="7"  width="9" height="23" rx="4.5" fill="#7DE3A6" transform="rotate(0 72 19)"/>' +
+        '<rect x="63" y="11" width="9" height="23" rx="4.5" fill="#FFE066" transform="rotate(-12 70 22)"/>' +
+        '<rect x="60" y="16" width="9" height="22" rx="4.5" fill="#FF8FB6" transform="rotate(-24 68 26)"/>' +
+      '</g>' +
+      '<circle cx="90" cy="32" r="2.6" fill="#3D1030"/>' +
+      '<circle cx="89" cy="31" r="0.9" fill="#FFFFFF"/>' +
+      '<circle cx="95" cy="38" r="3" fill="#FFC2DD"/>' +
+      '<circle cx="103" cy="36" r="1" fill="#C76B96"/>' +
+    '</svg>';
+
+  /* ── Candy: Gras-Büschel – mehrere Halme, die sich im Wind wiegen.
+     Jeder Halm trägt seine Daten als Inline-Custom-Props (Höhe, Neigung,
+     Schwung, Tempo, Phasen-Delay); das eigentliche Wiegen + die Halmform
+     stehen in css/theme-candy.css. Die Halme sind in Büscheln gruppiert
+     und ihre Delays laufen von links nach rechts gestaffelt → es zieht
+     eine sichtbare Wind-Welle durch. Daten hier, damit das Template
+     schlank bleibt: [left%, Höhe px, Spitzenfarbe, Neigung°, Schwung°,
+     Dauer s, Delay s]. */
+  var CD_GRASS = (function () {
+    var b = [
+      [11, 30, '#6FD07F', -4, 7, 4.0, -0.2], [13, 42, '#7CD98C', -1, 6, 4.3, -0.4],
+      [15, 46, '#74CF83',  2, 6, 4.5, -0.3], [17, 32, '#5FC472',  5, 8, 3.7, -0.5],
+      [30, 28, '#68CC7B', -5, 8, 3.6, -1.0], [32, 40, '#82DD90', -1, 6, 4.2, -1.2],
+      [34, 44, '#74CF83',  2, 6, 4.5, -1.1], [36, 31, '#5BC06E',  5, 7, 3.8, -1.3],
+      [49, 30, '#6FD07F', -4, 7, 3.9, -1.8], [51, 43, '#7CD98C', -1, 6, 4.4, -2.0],
+      [53, 47, '#74CF83',  2, 6, 4.6, -1.9], [55, 33, '#5FC472',  5, 8, 3.6, -2.1],
+      [67, 29, '#68CC7B', -5, 8, 3.7, -2.6], [69, 41, '#82DD90', -1, 6, 4.2, -2.8],
+      [71, 45, '#74CF83',  2, 6, 4.5, -2.7], [73, 32, '#5BC06E',  5, 7, 3.8, -2.9],
+      [85, 30, '#6FD07F', -4, 7, 4.0, -3.4], [87, 42, '#7CD98C', -1, 6, 4.3, -3.6],
+      [89, 46, '#74CF83',  2, 6, 4.5, -3.5], [91, 33, '#5FC472',  5, 8, 3.7, -3.7]
+    ];
+    var out = '<div class="pm-cd-grass">';
+    for (var i = 0; i < b.length; i++) {
+      out += '<i class="pm-cd-blade" style="left:' + b[i][0] + '%;--gh:' + b[i][1] +
+        'px;--gc:' + b[i][2] + ';--glean:' + b[i][3] + 'deg;--gr:' + b[i][4] +
+        'deg;--gdur:' + b[i][5] + 's;--gd:' + b[i][6] + 's"></i>';
+    }
+    return out + '</div>';
+  })();
+
   var FX_TEMPLATES = {
     /* ── FX-Template: hyperspace (wird vom Theme-Designer befüllt) ──
        3D-Sternentunnel nach CodePen „Hyperspace" (Noah Blon, DpNRyR):
-       zwei um 6s versetzte 1000×1000-Würfel-Wraps (je 5 Wände) fliegen
+       zwei um 10s versetzte 1000×1000-Würfel-Wraps (je 5 Wände) fliegen
        per perspective:5px durch den Viewport. Styling/Keyframes liegen
        in css/theme-hyperspace.css (Klassen pm-hs-* zur Kollisions-
        vermeidung). */
@@ -73,9 +151,12 @@
     cmd: '',
 
     /* ── FX-Template: candy (wird vom Theme-Designer befüllt) ──
-       Candy-Land-Szene: halb sichtbarer Regenbogen, sehr langsam
-       driftende Wolken, drei gewellte Zuckerguss-Wiesen-Lagen plus
-       Deko (Donut, Lollipops, Gumdrops). Styling/Keyframes liegen in
+       Candy-Land-Szene: Regenbogen, der immer mal wieder lebhaft
+       aufatmet, eine Wolken-Prozession (7 Wolken ziehen ENDLOS von links
+       nach rechts und schweben/pulsieren dabei), drei gewellte Zuckerguss-
+       Wiesen-Lagen, im Wind wiegende Grasbüschel, zwei über die Wiese
+       hüpfende Einhörner, ein über die Wiese rollender Donut plus Deko
+       (3D-Lollipops, Gumdrops). Styling/Keyframes liegen in
        css/theme-candy.css (Klassen pm-cd-* zur Kollisionsvermeidung). */
     candy:
       '<div class="pm-cd-rainbow"></div>' +
@@ -83,12 +164,18 @@
       '<div class="pm-cd-cloud pm-cd-cloud--2"></div>' +
       '<div class="pm-cd-cloud pm-cd-cloud--3"></div>' +
       '<div class="pm-cd-cloud pm-cd-cloud--4"></div>' +
+      '<div class="pm-cd-cloud pm-cd-cloud--5"></div>' +
+      '<div class="pm-cd-cloud pm-cd-cloud--6"></div>' +
+      '<div class="pm-cd-cloud pm-cd-cloud--7"></div>' +
       '<div class="pm-cd-hill pm-cd-hill--back"></div>' +
       '<div class="pm-cd-donut"></div>' +
       '<div class="pm-cd-hill pm-cd-hill--mid"></div>' +
+      '<div class="pm-cd-unicorn pm-cd-unicorn--mid"><div class="pm-cd-unicorn__hop">' + CD_UNICORN_SVG + '</div></div>' +
       '<div class="pm-cd-lolli pm-cd-lolli--pink"></div>' +
       '<div class="pm-cd-lolli pm-cd-lolli--mint"></div>' +
       '<div class="pm-cd-hill pm-cd-hill--front"></div>' +
+      CD_GRASS +
+      '<div class="pm-cd-unicorn pm-cd-unicorn--front"><div class="pm-cd-unicorn__hop">' + CD_UNICORN_SVG + '</div></div>' +
       '<div class="pm-cd-gumdrop pm-cd-gumdrop--1"></div>' +
       '<div class="pm-cd-gumdrop pm-cd-gumdrop--2"></div>',
 
