@@ -7,21 +7,31 @@
    Diese Datei gehört EXKLUSIV dem Candy-Designer.
 
    Szene (DOM-FX-Layer, Template "candy" in js/theme.js, Klassen
-   pm-cd-*): hellblauer Himmel (body-Hintergrund-Token), 4 sehr
-   langsam driftende CSS-Wolken, ein halb sichtbarer transluzenter
-   Regenbogen, 3 gewellte Zuckerguss-Wiesen-Lagen (eigene SVG-Wellen
-   als data-URI, sanftes horizontales Driften, transform-only) und
-   Deko: Donut mit Streuseln, 2 Lollipops, 2 Gumdrops – alles selbst
-   gezeichnet (CSS/SVG), keine Fremdbilder.
+   pm-cd-*): hellblauer Himmel (body-Hintergrund-Token), eine
+   Wolken-Prozession (7 CSS-Wolken ziehen ENDLOS quer von links nach
+   rechts und schweben/pulsieren dabei – kein Hin-und-her mehr, sondern
+   ein steter Strom, der links nachrückt), ein Regenbogen, der NICHT
+   dauer-glänzt, sondern nur immer mal wieder kurz lebhaft aufatmet
+   (Glow-Puls mit langer Ruhephase), 3 gewellte Zuckerguss-Wiesen-Lagen
+   (eigene SVG-Wellen als data-URI, sanftes horizontales Driften,
+   transform-only), im Wind wiegende Grasbüschel (Wind-Welle über
+   gestaffelte Delays), 2 über die Wiese hüpfende Einhörner (selbst
+   gezeichnetes Inline-SVG, Hüpf-Bogen + Wiesen-Lauf, mitschrumpfender
+   Bodenschatten), ein über die Wiese rollender Donut (Translate +
+   synchrone Rotation) plus Deko: 2 glänzende 3D-Lollipops, 2 Gumdrops –
+   alles selbst gezeichnet (CSS/SVG), keine Fremdbilder.
 
    Z-Ordnung im FX-Container:
-   1 Regenbogen · 2 Wolken · 3 Wiese hinten · 4 Donut · 5 Wiese Mitte
-   · 6 Lollipops · 7 Wiese vorn · 8 Gumdrops
+   1 Regenbogen · 2 Wolken · 3 Wiese hinten · 5 Wiese Mitte · 6 Donut
+   (rollt) + Einhorn hinten + Lollipops · 7 Wiese vorn + Gras · 8 Einhorn
+   vorn + Gumdrops
 
    PERF: ausschließlich transform/opacity animiert; kein filter:blur
    auf viewportfüllenden fixed Layern; KEIN backdrop-filter auf Karten
    (über der permanent animierten Szene zu teuer, vgl. glass.css) –
-   nur das Modal als einzelnes Element darf blurren.
+   nur das Modal als einzelnes Element darf blurren. Der Regenbogen-
+   Atem nutzt statt blur reines mix-blend-mode:screen (Compositing,
+   billig) für ein „durchscheinendes Licht" statt flacher Farbbänder.
    =================================================================== */
 html[data-theme="candy"] { color-scheme: light; }
 
@@ -128,10 +138,12 @@ html[data-theme="candy"] { color-scheme: light; }
 
 /* ── Regenbogen: halbrunder Bogen, der hinter der Wiese am rechten
    Bildrand aufsteigt. Konzentrische Farbbänder via radial-gradient
-   mit harten Stops auf einem Kreis-Div; die untere Hälfte liegt
-   unterhalb des Viewports (overflow:hidden im Container), die
-   Bogen-Enden faden per Mask weich Richtung Horizont aus. Dezent
-   transluzent (Alpha ≈ 0.5), damit er nicht mit Inhalt konkurriert. ── */
+   auf einem Kreis-Div; die untere Hälfte liegt unterhalb des Viewports
+   (overflow:hidden im Container), die Bogen-Enden faden per Mask weich
+   Richtung Horizont aus. Kräftigere, sattere Bänder (Alpha ≈ 0.62–0.74)
+   + breiterer Bogen, damit er leuchtet statt „mit Paint reingemalt" zu
+   wirken; die eigentliche Lebendigkeit liefern die zwei screen-Blend-
+   Lichtschichten (::before Glanz-Sweep, ::after atmender Glow). ── */
 [data-theme="candy"] #pmThemeFX .pm-cd-rainbow {
   --cd-rb: min(120vmin, 1040px);
   position: absolute;
@@ -142,23 +154,82 @@ html[data-theme="candy"] { color-scheme: light; }
   bottom: calc(var(--cd-rb) / -2 + 7vh);
   border-radius: 50%;
   background: radial-gradient(closest-side,
-    transparent 0 56%,
-    rgba(178, 140, 255, 0.50) 56% 61%,
-    rgba(108, 178, 255, 0.52) 61% 66%,
-    rgba(120, 222, 150, 0.52) 66% 71%,
-    rgba(255, 224, 110, 0.58) 71% 76%,
-    rgba(255, 176, 99, 0.55) 76% 81%,
-    rgba(255, 122, 140, 0.55) 81% 86%,
-    transparent 86.5%);
+    transparent 0 55%,
+    rgba(176, 120, 255, 0.62) 55% 60.5%,
+    rgba(96, 170, 255, 0.66) 60.5% 66%,
+    rgba(104, 226, 150, 0.66) 66% 71.5%,
+    rgba(255, 226, 96, 0.74) 71.5% 77%,
+    rgba(255, 168, 84, 0.70) 77% 82%,
+    rgba(255, 110, 134, 0.70) 82% 87%,
+    transparent 87.5%);
   -webkit-mask-image: linear-gradient(180deg, #000 0%, #000 32%, transparent 50%);
           mask-image: linear-gradient(180deg, #000 0%, #000 32%, transparent 50%);
 }
 
+/* ── Regenbogen-Atem (::after): KEIN drehender Glanz mehr (das wirkte zu
+   „shiny"). Stattdessen ein ruhiger weißer Licht-Saum über den mittleren
+   Bändern, der nur IMMER MAL WIEDER kurz lebhaft aufatmet – ein opacity-
+   Puls mit hellem Hauptatemzug + kleinem Nachschlag und langer Ruhephase.
+   screen-Blend → im Atemzug leuchten die Farben kräftiger auf, ohne flach
+   weiß zu überstrahlen. Gleiche Bottom-Fade-Mask wie das Eltern-Element.
+   Perf: nur opacity animiert (Compositing), kein Repaint. ── */
+[data-theme="candy"] #pmThemeFX .pm-cd-rainbow::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: radial-gradient(closest-side,
+    transparent 0 60%,
+    rgba(255, 255, 255, 0.26) 69%,
+    rgba(255, 255, 255, 0.08) 80%,
+    transparent 87.5%);
+  mix-blend-mode: screen;
+  -webkit-mask-image: linear-gradient(180deg, #000 0%, #000 32%, transparent 50%);
+          mask-image: linear-gradient(180deg, #000 0%, #000 32%, transparent 50%);
+  opacity: 0.2;
+  animation: pm-cd-rainbow-breathe 9s ease-in-out infinite;
+}
+@keyframes pm-cd-rainbow-breathe {
+  0%   { opacity: 0.2; }
+  10%  { opacity: 0.22; }
+  22%  { opacity: 1; }
+  40%  { opacity: 0.4; }
+  52%  { opacity: 0.6; }
+  66%  { opacity: 0.24; }
+  100% { opacity: 0.2; }
+}
+/* Bei offenem Modal pausieren: der geteilte themes.css-Block stoppt nur
+   `#pmThemeFX *` (Elemente), trifft aber Pseudo-Elemente nicht → candy-
+   lokal nachgezogen (Regenbogen-Atem ::after, Einhorn-Bodenschatten
+   ::before), damit unter dem geblurrten Modal keine GPU-Dauerlast bleibt. */
+[data-theme="candy"] body:has(.modal-overlay.open) #pmThemeFX .pm-cd-rainbow::after,
+[data-theme="candy"] body:has(.modal-overlay.open) #pmThemeFX .pm-cd-unicorn::before {
+  animation-play-state: paused !important;
+}
+
 /* ── Wolken: klassische CSS-Komposition (Pill + 2 runde Bumps),
-   skaliert über font-size/em pro Variante; SEHR langsames Driften
-   (transform-only, alternate). ── */
+   skaliert über font-size/em pro Variante. Drei UNABHÄNGIGE Bewegungen
+   mit eigenem Tempo lassen sich nicht in eine einzige transform-
+   Keyframe pressen → je eine animierte Custom-Property (Drift X,
+   Wippen Y, Pulsieren scale), die in EINEM transform zusammenlaufen.
+   @property registriert sie als interpolierbar (sonst würden sie hart
+   bei 50% umspringen). Edge/Chromium unterstützt das; ohne Support
+   degradiert es gefahrlos zur statischen Wolke (Initialwerte 0/0/1).
+
+   PROZESSION statt Pendeln: Drift X läuft jetzt LINEAR und NICHT
+   alternierend einmal komplett quer durch (-26vw → 126vw, beide Enden
+   außerhalb des Viewports → der Loop-Sprung ist unsichtbar). Sieben
+   Wolken mit gestaffelten NEGATIVEN --cd-delay sind dauerhaft über die
+   Strecke verteilt → es zieht ein steter Strom nach rechts, und sobald
+   eine Wolke rechts verschwindet, rückt links die nächste nach. Wippen
+   (Y) + Pulsieren (scale) laufen unabhängig weiter, damit die Wolken
+   beim Wandern zugleich schweben und „atmen". ── */
+@property --cd-x     { syntax: '<length>'; inherits: false; initial-value: 0px; }
+@property --cd-y     { syntax: '<length>'; inherits: false; initial-value: 0px; }
+@property --cd-scale { syntax: '<number>'; inherits: false; initial-value: 1; }
 [data-theme="candy"] #pmThemeFX .pm-cd-cloud {
   position: absolute;
+  left: 0;
   z-index: 2;
   width: 11em;
   height: 3.6em;
@@ -166,7 +237,11 @@ html[data-theme="candy"] { color-scheme: light; }
   border-radius: 10em;
   opacity: 0.92;
   box-shadow: 0 10px 24px rgba(110, 160, 210, 0.16);
-  animation: pm-cd-cloud-drift var(--cd-dur, 120s) ease-in-out var(--cd-delay, 0s) infinite alternate;
+  transform: translate3d(var(--cd-x, 0px), var(--cd-y, 0px), 0) scale(var(--cd-scale, 1));
+  animation:
+    pm-cd-cloud-x var(--cd-dur, 100s) linear var(--cd-delay, 0s) infinite,
+    pm-cd-cloud-y var(--cd-bob-dur, 8s) ease-in-out var(--cd-bob-delay, 0s) infinite,
+    pm-cd-cloud-s var(--cd-pulse-dur, 6s) ease-in-out var(--cd-pulse-delay, 0s) infinite;
 }
 [data-theme="candy"] #pmThemeFX .pm-cd-cloud::before,
 [data-theme="candy"] #pmThemeFX .pm-cd-cloud::after {
@@ -183,13 +258,32 @@ html[data-theme="candy"] { color-scheme: light; }
   width: 5.6em; height: 5.6em;
   bottom: 1.4em; left: 4.6em;
 }
-[data-theme="candy"] #pmThemeFX .pm-cd-cloud--1 { font-size: 13px; top: 9%;  left: 10%; --cd-dur: 120s; --cd-delay: -30s; }
-[data-theme="candy"] #pmThemeFX .pm-cd-cloud--2 { font-size: 9px;  top: 21%; left: 56%; --cd-dur: 150s; --cd-delay: -70s; opacity: 0.8; }
-[data-theme="candy"] #pmThemeFX .pm-cd-cloud--3 { font-size: 16px; top: 5%;  left: 72%; --cd-dur: 135s; --cd-delay: -10s; }
-[data-theme="candy"] #pmThemeFX .pm-cd-cloud--4 { font-size: 8px;  top: 31%; left: 30%; --cd-dur: 160s; --cd-delay: -90s; opacity: 0.7; }
-@keyframes pm-cd-cloud-drift {
-  from { transform: translate3d(0, 0, 0); }
-  to   { transform: translate3d(7vw, 0, 0); }
+/* Sieben Wolken, je eigenes Tempo (--cd-dur) und Phasen-Offset
+   (--cd-delay, negativ → Startposition mitten auf der Strecke). top =
+   Höhenband am Himmel, font-size = Größe/Tiefe. So ist immer ein lockerer
+   Strom unterwegs, ohne dass alle im Gleichtakt laufen. */
+[data-theme="candy"] #pmThemeFX .pm-cd-cloud--1 { font-size: 14px; top: 7%;  --cd-dur: 86s;  --cd-delay: -6s;  --cd-bob: -1.1em;  --cd-bob-dur: 7.5s; --cd-pulse: 1.04;  --cd-pulse-dur: 6.5s; }
+[data-theme="candy"] #pmThemeFX .pm-cd-cloud--2 { font-size: 9px;  top: 17%; --cd-dur: 120s; --cd-delay: -64s; opacity: 0.82; --cd-bob: -0.9em;  --cd-bob-dur: 10s;  --cd-bob-delay: -3s;   --cd-pulse: 1.03;  --cd-pulse-dur: 8s;   --cd-pulse-delay: -2s; }
+[data-theme="candy"] #pmThemeFX .pm-cd-cloud--3 { font-size: 17px; top: 3%;  --cd-dur: 74s;  --cd-delay: -38s; --cd-bob: -1.25em; --cd-bob-dur: 6.5s; --cd-pulse: 1.045; --cd-pulse-dur: 5.5s; --cd-pulse-delay: -1.5s; }
+[data-theme="candy"] #pmThemeFX .pm-cd-cloud--4 { font-size: 8px;  top: 27%; --cd-dur: 132s; --cd-delay: -96s; opacity: 0.7;  --cd-bob: -0.8em;  --cd-bob-dur: 9s;   --cd-bob-delay: -4s;   --cd-pulse: 1.03;  --cd-pulse-dur: 7s; }
+[data-theme="candy"] #pmThemeFX .pm-cd-cloud--5 { font-size: 11px; top: 12%; --cd-dur: 100s; --cd-delay: -22s; opacity: 0.88; --cd-bob: -1em;    --cd-bob-dur: 8.5s; --cd-bob-delay: -1s;   --cd-pulse: 1.035; --cd-pulse-dur: 6.8s; --cd-pulse-delay: -3s; }
+[data-theme="candy"] #pmThemeFX .pm-cd-cloud--6 { font-size: 7px;  top: 22%; --cd-dur: 142s; --cd-delay: -50s; opacity: 0.66; --cd-bob: -0.7em;  --cd-bob-dur: 11s;  --cd-bob-delay: -5s;   --cd-pulse: 1.025; --cd-pulse-dur: 9s; }
+[data-theme="candy"] #pmThemeFX .pm-cd-cloud--7 { font-size: 10px; top: 33%; --cd-dur: 96s;  --cd-delay: -82s; opacity: 0.76; --cd-bob: -0.95em; --cd-bob-dur: 8s;   --cd-bob-delay: -2.5s; --cd-pulse: 1.03;  --cd-pulse-dur: 7.5s; --cd-pulse-delay: -1s; }
+/* Drift X (linear, quer durchs ganze Bild, endlos – beide Enden außerhalb
+   des Viewports) · Wippen Y (sanftes Schweben) · Pulsieren scale
+   (minimales „Atmen") – je eine Custom-Property, vom transform der
+   Basisregel zusammengeführt. */
+@keyframes pm-cd-cloud-x {
+  from { --cd-x: -26vw; }
+  to   { --cd-x: 126vw; }
+}
+@keyframes pm-cd-cloud-y {
+  0%, 100% { --cd-y: 0px; }
+  50%      { --cd-y: var(--cd-bob, -1em); }
+}
+@keyframes pm-cd-cloud-s {
+  0%, 100% { --cd-scale: 1; }
+  50%      { --cd-scale: var(--cd-pulse, 1.035); }
 }
 
 /* ── Wiese: 3 Lagen gewellter Zuckerguss-Hügel. Jede Lage ist ein
@@ -240,15 +334,19 @@ html[data-theme="candy"] { color-scheme: light; }
   to   { transform: translate3d(var(--cd-drift, 40px), 0, 0); }
 }
 
-/* ── Deko: Donut (Ring + Streusel, hinter der mittleren Wiese) ── */
+/* ── Deko: Donut (Ring + Streusel) – ROLLT über die Wiese: Translate X
+   quer durchs Bild + synchrone Rotation (Streusel drehen mit → echtes
+   Rollen). Beide Achsen laufen synchron, also in EINER Keyframe; ~5 Um-
+   drehungen über die Breite ≈ realistisches Abrollverhältnis. z-index 6
+   → vor der mittleren Wiese, vom Vordergrund-Hügel (z7) unten leicht
+   verdeckt, so wirkt er auf der Wiese rollend. ── */
 [data-theme="candy"] #pmThemeFX .pm-cd-donut {
   position: absolute;
-  z-index: 4;
-  width: 120px;
-  height: 120px;
-  left: 9%;
-  bottom: 13vh;
-  transform: rotate(-12deg);
+  z-index: 6;
+  width: 104px;
+  height: 104px;
+  left: 0;
+  bottom: 9.5vh;
   background-image:
     radial-gradient(circle at 30% 22%, #FFFFFF 0 2.5px, transparent 3.5px),
     radial-gradient(circle at 52% 13%, #FFE066 0 2.5px, transparent 3.5px),
@@ -257,49 +355,78 @@ html[data-theme="candy"] { color-scheme: light; }
     radial-gradient(circle at 79% 43%, #FFFFFF 0 2.5px, transparent 3.5px),
     radial-gradient(circle at 50% 46%, transparent 0 17%, #F7A8CE 18% 52%, #EFB272 53% 62%, transparent 63%);
   background-repeat: no-repeat;
+  animation: pm-cd-donut-roll 36s linear infinite;
+}
+@keyframes pm-cd-donut-roll {
+  from { transform: translateX(-16vw) rotate(0deg); }
+  to   { transform: translateX(116vw) rotate(1800deg); }
 }
 
-/* ── Deko: Lollipops (Kopf = Wirbel aus repeating-conic-gradient mit
-   Glanzlicht, Stiel = ::after). Der pinke wiegt sich ganz sanft um
-   seinen Fußpunkt. ── */
+/* ── Deko: Lollipops als glänzende 3D-Kugeln (nach der Beispiel-Vorlage):
+   Volumen-Verlauf (Licht oben-links → Schattenkante unten-rechts) +
+   heller Spekular-Glanzpunkt; ::before legt die diagonale, hellere
+   „Bonbon-Kappe" mit weicher Naht darüber (der Swirl); ::after ist der
+   Holz-Stiel. Der pinke wiegt sich sanft um seinen Fußpunkt. ── */
 [data-theme="candy"] #pmThemeFX .pm-cd-lolli {
   position: absolute;
   z-index: 6;
   border-radius: 50%;
-  border: 5px solid #FFFFFF;
-  background-image:
-    radial-gradient(circle at 32% 28%, rgba(255, 255, 255, 0.55), rgba(255, 255, 255, 0) 46%),
-    repeating-conic-gradient(var(--cd-a) 0 24deg, var(--cd-b) 24deg 48deg);
-  box-shadow: 0 6px 18px rgba(150, 40, 100, 0.18);
+  background:
+    radial-gradient(circle at 30% 24%, rgba(255, 255, 255, 0.95) 0 4%, rgba(255, 255, 255, 0) 20%),
+    radial-gradient(circle at 40% 34%, var(--cd-light, #FFD0E7), var(--cd-a, #FF4F9F) 52%, var(--cd-dark, #C42E78) 100%);
+  box-shadow:
+    0 8px 18px rgba(150, 40, 100, 0.24),
+    inset -5px -7px 13px rgba(35, 25, 40, 0.30),
+    inset 5px 6px 11px rgba(255, 255, 255, 0.32);
+}
+/* Bonbon-Kappe + Swirl-Naht: hellere, leicht gedrehte Ellipse oben-links,
+   die nach unten-rechts ausfadet; ihr Glanzpunkt sitzt obenauf, die weiche
+   Schlagschatten-Kante darunter liest sich als Swirl-Naht. */
+[data-theme="candy"] #pmThemeFX .pm-cd-lolli::before {
+  content: '';
+  position: absolute;
+  left: 9%;
+  top: 8%;
+  width: 66%;
+  height: 54%;
+  border-radius: 60% 58% 52% 48% / 70% 66% 42% 38%;
+  background:
+    radial-gradient(circle at 28% 26%, rgba(255, 255, 255, 0.95) 0 7%, rgba(255, 255, 255, 0) 34%),
+    linear-gradient(150deg, var(--cd-light, #FFD0E7) 0%, rgba(255, 255, 255, 0) 76%);
+  transform: rotate(-20deg);
+  box-shadow: 0 3px 5px -2px rgba(35, 25, 40, 0.20);
 }
 [data-theme="candy"] #pmThemeFX .pm-cd-lolli::after {
   content: '';
   position: absolute;
   top: 100%;
   left: 50%;
-  width: 8px;
-  margin-left: -4px;
-  margin-top: -4px;
+  width: 9px;
+  margin-left: -4.5px;
+  margin-top: -6px;
   height: var(--cd-stick, 110px);
-  border-radius: 0 0 4px 4px;
-  background: linear-gradient(90deg, #FFFFFF, #EBD9C8);
+  border-radius: 0 0 5px 5px;
+  background: linear-gradient(90deg, #D9B587 0%, #F6E3C7 42%, #E7C79C 70%, #CDA678 100%);
+  box-shadow: 0 2px 4px rgba(120, 80, 40, 0.18);
 }
 [data-theme="candy"] #pmThemeFX .pm-cd-lolli--pink {
-  width: 72px; height: 72px;
+  width: 74px; height: 74px;
   left: 76%;
   bottom: calc(6vh + 120px);
-  --cd-a: #FF5FA8;
-  --cd-b: #FFE3F1;
+  --cd-light: #FFD0E7;
+  --cd-a:     #FF4F9F;
+  --cd-dark:  #C42E78;
   --cd-stick: 120px;
   transform-origin: 50% calc(100% + 120px);
   animation: pm-cd-sway 9s ease-in-out infinite alternate;
 }
 [data-theme="candy"] #pmThemeFX .pm-cd-lolli--mint {
-  width: 52px; height: 52px;
+  width: 54px; height: 54px;
   left: 86%;
   bottom: calc(7vh + 84px);
-  --cd-a: #3FC9A6;
-  --cd-b: #DFFBF1;
+  --cd-light: #C6F5E7;
+  --cd-a:     #2FC6A2;
+  --cd-dark:  #1C8A70;
   --cd-stick: 84px;
 }
 @keyframes pm-cd-sway {
@@ -335,12 +462,179 @@ html[data-theme="candy"] { color-scheme: light; }
   --cd-gd: #6FD7B2;
 }
 
+/* ===================================================================
+   GRAS – im Wind wiegende Halme (Büschel)
+   -------------------------------------------------------------------
+   Halme = schmale, nach oben spitz zulaufende Dreiecke (clip-path), die
+   um ihren Fußpunkt (transform-origin unten) pendeln. Pro Halm setzt das
+   Template Inline-Custom-Props: Höhe (--gh), Grundneigung (--glean),
+   Schwung (--gr), Tempo (--gdur), Phasen-Delay (--gd) und Spitzenfarbe
+   (--gc). Die gestaffelten Delays lassen eine Wind-Welle durchlaufen.
+   Liegt vor dem Vordergrund-Hügel (z7), wirkt also auf der Wiese. ── */
+[data-theme="candy"] #pmThemeFX .pm-cd-grass {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 0;
+  z-index: 7;
+}
+[data-theme="candy"] #pmThemeFX .pm-cd-blade {
+  position: absolute;
+  bottom: 0;
+  width: var(--gw, 9px);
+  height: var(--gh, 34px);
+  background: linear-gradient(to top, #3E9E54, var(--gc, #74CF83));
+  clip-path: polygon(50% 0%, 100% 100%, 0% 100%);
+  transform-origin: 50% 100%;
+  transform: rotate(var(--glean, 0deg));
+  animation: pm-cd-blade-sway var(--gdur, 4s) ease-in-out var(--gd, 0s) infinite alternate;
+}
+@keyframes pm-cd-blade-sway {
+  from { transform: rotate(calc(var(--glean, 0deg) - var(--gr, 6deg))); }
+  to   { transform: rotate(calc(var(--glean, 0deg) + var(--gr, 6deg))); }
+}
+
+/* ===================================================================
+   EINHÖRNER – hüpfen über die Wiese
+   -------------------------------------------------------------------
+   Zwei verschachtelte Ebenen, damit Lauf und Hüpfen sauber trennbar
+   sind (sonst spränge der Bodenschatten mit in die Luft):
+   · .pm-cd-unicorn       → Wiesen-LAUF (Translate X quer übers Bild) +
+                            Blickrichtung (scaleX) + Bodenschatten (::before)
+   · .pm-cd-unicorn__hop  → SPRING-Hüpfbogen (Translate Y) + Stauchen/
+                            Strecken (scale) + leichtes Vorlehnen (rotate);
+                            trägt das freigestellte Foto-Sprite (<img>)
+   Alle Achsen wieder als @property-Custom-Props, je Ebene in EINEM
+   transform zusammengeführt (gleiche Technik wie bei den Wolken). Schatten
+   und Sprung teilen Dauer/Delay → der Schatten schrumpft synchron zum
+   Scheitel. Nur transform/opacity animiert. ── */
+@property --uni-x   { syntax: '<length>'; inherits: false; initial-value: 0px; }
+@property --uni-y   { syntax: '<length>'; inherits: false; initial-value: 0px; }
+@property --uni-rot { syntax: '<angle>';  inherits: false; initial-value: 0deg; }
+@property --uni-sx  { syntax: '<number>'; inherits: false; initial-value: 1; }
+@property --uni-sy  { syntax: '<number>'; inherits: false; initial-value: 1; }
+
+[data-theme="candy"] #pmThemeFX .pm-cd-unicorn {
+  position: absolute;
+  left: 0;
+  font-size: 12px;
+  width: 9em;
+  /* Foto-Sprites sind hochkant (Reiter sitzt auf dem Einhorn) – die Höhe
+     folgt dem Seitenverhältnis des jeweiligen freigestellten Bildes
+     (Default = candy-unicorn-1; der vordere Reiter überschreibt es). */
+  height: auto;
+  aspect-ratio: 330 / 460;
+  transform: translate3d(var(--uni-x, 0px), 0, 0) scaleX(var(--uni-dir, 1));
+  animation: pm-cd-uni-run var(--uni-run-dur, 34s) linear var(--uni-run-delay, 0s) infinite;
+}
+/* Bodenschatten am Fußpunkt – liegt auf der LAUF-Ebene (nicht der Hüpf-
+   Ebene), bleibt also am Boden und wird beim Sprung kleiner/blasser. */
+[data-theme="candy"] #pmThemeFX .pm-cd-unicorn::before {
+  content: '';
+  position: absolute;
+  left: 50%;
+  bottom: -0.3em;
+  width: 6em;
+  height: 1.5em;
+  margin-left: -3em;
+  border-radius: 50%;
+  background: radial-gradient(closest-side, rgba(60, 120, 75, 0.32), rgba(60, 120, 75, 0) 72%);
+  animation: pm-cd-uni-shadow var(--uni-hop-dur, 1.2s) var(--uni-hop-delay, 0s) infinite;
+}
+[data-theme="candy"] #pmThemeFX .pm-cd-unicorn__hop {
+  width: 100%;
+  height: 100%;
+  transform-origin: 50% 100%;
+  transform:
+    translate3d(0, var(--uni-y, 0px), 0)
+    scale(var(--uni-sx, 1), var(--uni-sy, 1))
+    rotate(var(--uni-rot, 0deg));
+  animation: pm-cd-uni-hop var(--uni-hop-dur, 1.2s) var(--uni-hop-delay, 0s) infinite;
+}
+[data-theme="candy"] #pmThemeFX .pm-cd-uni-img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  /* Foto-Sprite formfüllend, aber unverzerrt; am Fußpunkt ausgerichtet, damit
+     die Hufe auf dem Bodenschatten stehen, egal wie stark contain randelt. */
+  object-fit: contain;
+  object-position: 50% 100%;
+  pointer-events: none;
+  user-select: none;
+  -webkit-user-drag: none;
+  /* dezenter Schlagschatten – hebt das freigestellte Foto vom hellen Himmel
+     ab (kleines Sprite, kein viewportfüllender Blur → Perf unkritisch). */
+  filter: drop-shadow(0 2px 3px rgba(120, 60, 95, 0.28));
+}
+
+/* Hinten: kleiner, läuft nach rechts, vom Vordergrund-Hügel (z7) teils
+   verdeckt → wirkt in der Wiese stehend. */
+[data-theme="candy"] #pmThemeFX .pm-cd-unicorn--mid {
+  z-index: 6;
+  font-size: 9px;
+  bottom: 15.5vh;
+  --uni-dir: 1;
+  --uni-run-dur: 41s;
+  --uni-run-delay: -9s;
+  --uni-hop-dur: 1.35s;
+  --uni-hop-delay: -0.45s;
+}
+/* Vorn: größer, läuft nach links (animation-direction:reverse) und blickt
+   passend nach links (scaleX -1). */
+[data-theme="candy"] #pmThemeFX .pm-cd-unicorn--front {
+  z-index: 8;
+  font-size: 13px;
+  bottom: 7vh;
+  aspect-ratio: 321 / 460;   /* eigenes Seitenverhältnis von candy-unicorn-2 */
+  --uni-dir: -1;
+  --uni-run-dur: 31s;
+  --uni-run-delay: -4s;
+  --uni-hop-dur: 1.15s;
+  --uni-hop-delay: 0s;
+  animation-direction: reverse;
+}
+/* Wiesen-Lauf: einmal komplett quer (beide Enden außerhalb → Loop-Sprung
+   unsichtbar). */
+@keyframes pm-cd-uni-run {
+  from { --uni-x: -22vw; }
+  to   { --uni-x: 122vw; }
+}
+/* Spring-Hüpfbogen mit Squash & Stretch: Anlauf-Stauchung (breit/flach),
+   Absprung-Streckung, schwereloser Scheitel, harte Lande-Stauchung und ein
+   kurzes Nachfedern – fühlt sich elastisch/„springy" an statt nur ballistisch.
+   Stauchen/Strecken über --uni-sx/--uni-sy, Pivot am Fußpunkt (50% 100%). */
+@keyframes pm-cd-uni-hop {
+  0%   { --uni-y: 0px;     --uni-sx: 1;    --uni-sy: 1;    --uni-rot: 0deg;  animation-timing-function: cubic-bezier(0.5, 0, 0.7, 0.25); }
+  8%   { --uni-y: 0px;     --uni-sx: 1.13; --uni-sy: 0.83; --uni-rot: 0deg;  animation-timing-function: cubic-bezier(0.2, 0.75, 0.35, 1); }   /* Anlauf-Stauchung */
+  22%  { --uni-y: -1.1em;  --uni-sx: 0.9;  --uni-sy: 1.14; --uni-rot: -3deg; animation-timing-function: cubic-bezier(0.25, 0.7, 0.45, 1); }  /* Absprung-Streckung */
+  48%  { --uni-y: -3.7em;  --uni-sx: 1;    --uni-sy: 1;    --uni-rot: -5deg; animation-timing-function: cubic-bezier(0.5, 0, 0.7, 0.35); }   /* schwereloser Scheitel */
+  71%  { --uni-y: 0px;     --uni-sx: 1.16; --uni-sy: 0.8;  --uni-rot: 0deg;  animation-timing-function: cubic-bezier(0.34, 1.45, 0.64, 1); } /* harte Landung */
+  83%  { --uni-y: -0.6em;  --uni-sx: 0.97; --uni-sy: 1.05; --uni-rot: 1deg;  animation-timing-function: cubic-bezier(0.4, 0, 0.6, 1); }       /* Nachfedern */
+  92%  { --uni-y: 0px;     --uni-sx: 1.05; --uni-sy: 0.95; --uni-rot: 0deg;  animation-timing-function: cubic-bezier(0.25, 0.6, 0.5, 1); }   /* Mini-Aufprall */
+  100% { --uni-y: 0px;     --uni-sx: 1;    --uni-sy: 1;    --uni-rot: 0deg; }                                                                /* Ruhe vor dem nächsten Satz */
+}
+/* Bodenschatten synchron zum Sprung: breit/dunkel beim Stauchen am Boden,
+   klein/blass am Scheitel; gleiche Phasenpunkte wie der Hüpf-Bogen. */
+@keyframes pm-cd-uni-shadow {
+  0%   { transform: scale(1.04); opacity: 0.88; animation-timing-function: cubic-bezier(0.5, 0, 0.7, 0.25); }
+  8%   { transform: scale(1.16); opacity: 0.92; animation-timing-function: cubic-bezier(0.2, 0.75, 0.35, 1); }
+  48%  { transform: scale(0.48); opacity: 0.32; animation-timing-function: cubic-bezier(0.5, 0, 0.7, 0.35); }
+  71%  { transform: scale(1.18); opacity: 0.92; animation-timing-function: cubic-bezier(0.34, 1.3, 0.64, 1); }
+  83%  { transform: scale(0.86); opacity: 0.66; animation-timing-function: cubic-bezier(0.4, 0, 0.6, 1); }
+  100% { transform: scale(1.04); opacity: 0.88; }
+}
+
 /* Kleine Screens: Deko ausdünnen, damit nichts mit Inhalt drängelt */
 @media (max-width: 640px) {
   [data-theme="candy"] #pmThemeFX .pm-cd-donut,
   [data-theme="candy"] #pmThemeFX .pm-cd-lolli--mint,
   [data-theme="candy"] #pmThemeFX .pm-cd-gumdrop--2,
-  [data-theme="candy"] #pmThemeFX .pm-cd-cloud--4 {
+  [data-theme="candy"] #pmThemeFX .pm-cd-cloud--4,
+  [data-theme="candy"] #pmThemeFX .pm-cd-cloud--6,
+  [data-theme="candy"] #pmThemeFX .pm-cd-cloud--7,
+  [data-theme="candy"] #pmThemeFX .pm-cd-unicorn--mid,
+  [data-theme="candy"] #pmThemeFX .pm-cd-blade:nth-child(even) {
     display: none;
   }
 }
@@ -455,6 +749,16 @@ html[data-theme="candy"] { color-scheme: light; }
     transparent, #FF6FB5 18%, #FFC861 38%, #7DE3B7 58%, #7FB2FF 78%, transparent);
   opacity: 0.9;
 }
+
+/* Putzmeister-Logo (TESTWEISE auf Candy-Farben): Marken-Gelb → Bubblegum-
+   Pink (--pm-yellow #FF6FB5), grauer PM-Elefant → Weiß #FFFFFF. content:url() tauscht NUR unter [data-theme="candy"] das
+   <img>-Bitmap der Sidebar; alle anderen Themes behalten das Original.
+   Asset: assets/logo-candy.png – aus „Social Logo/200 x 200 px.png"
+   umgefärbt (2-Farb-Remap mit erhaltenen Anti-Aliasing-Kanten). */
+[data-theme="candy"] .sidebar__logo-mark,
+[data-theme="candy"] .login-card__mark {
+  content: url("../assets/logo-candy.png");
+}
 [data-theme="candy"] .toast::after {
   background: linear-gradient(90deg, #FF6FB5, #FFC861, #7DE3B7, #7FB2FF);
 }
@@ -520,6 +824,13 @@ html[data-theme="candy"] .bento .b-recent {
   [data-theme="candy"] .btn-icon:hover:not(:disabled) {
     animation: none !important;
   }
+  /* Pseudo-Element-Animationen abschalten – der geteilte themes.css-Block
+     deckt nur `#pmThemeFX *` (Elemente) ab, nicht ::before/::after.
+     Wolken, Gras, Donut + Einhorn-Ebenen sind dort als Elemente erfasst. */
+  [data-theme="candy"] #pmThemeFX .pm-cd-rainbow::after,
+  [data-theme="candy"] #pmThemeFX .pm-cd-unicorn::before {
+    animation: none !important;
+  }
 }
 @media print {
   [data-theme="candy"] .card,
@@ -534,4 +845,16 @@ html[data-theme="candy"] .bento .b-recent {
     -webkit-backdrop-filter: none;
             backdrop-filter: none;
   }
+}
+
+/* ===================================================================
+   WOCHENANSICHT-STUNDEN-SPINNER (analog dark/hyperspace/cmd)
+   -------------------------------------------------------------------
+   Helles Theme: weiße Pille auf weißer Zeile → ohne Rahmen ist die
+   runde Umrandung im Ruhezustand unsichtbar. Dezente dunkle Kante,
+   damit der „Kreis" dauerhaft sichtbar ist (nicht erst beim Editieren;
+   die Fokus-Regel färbt die Kante dann im Akzent). Pills/Schatten sind
+   hier bereits dezent (Standard-Basiswerte) – kein weiterer Eingriff. */
+[data-theme="candy"] body[data-page="wochenansicht"] .time-spinner__input {
+  border-color: rgba(15, 23, 42, 0.20);
 }
