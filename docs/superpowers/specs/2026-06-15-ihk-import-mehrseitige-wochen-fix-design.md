@@ -84,9 +84,14 @@ Datenstruktur bleiben gleich.
    - `WOCHE_RE` (nächste Woche),
    - Abschnitts-Header `Schule:` / `Betrieb:` / `Unterweisung:`.
    So überleben Mi/Do/Fr sowie Folgeseiten-Tage.
-5. **Status** weiterhin best-effort: Keyword-Scan über den Wochenblock
-   (genehmigt/freigegeben/eingereicht/abgelehnt/zurückgegeben). Betrifft nur das
-   Vorschau-Label, nicht den Datenimport (Apply erzwingt unverändert `genehmigt`).
+5. **Status** weiterhin best-effort: Keyword-Scan
+   (genehmigt/freigegeben/eingereicht/abgelehnt/zurückgegeben). **Achtung Ordering:**
+   die Status-Zeile steht im Export **vor** dem `Ausbildungswoche`-Marker (im
+   Kopfbereich „Ausbilder Status … Eingereicht am … freigegeben"). Der Split muss
+   die Kopf-Vorlauf-Zeilen seit der vorigen Woche der **kommenden** Woche zuordnen
+   (Status-Preamble), sonst landet der Status bei der Vorwoche. Betrifft nur das
+   Vorschau-Label, nicht den Datenimport (Apply erzwingt unverändert `genehmigt`;
+   das bestehende `STATUS_RE` matchte am echten Export ohnehin nie).
 
 ### Was unverändert bleibt
 

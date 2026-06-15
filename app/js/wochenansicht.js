@@ -1917,6 +1917,22 @@ document.addEventListener('DOMContentLoaded', async () => {
       }
       const aktuelleWoche = await DB.getWoche(viewAzubiId || user.id, currentKW, currentYear);
       const errors = await validateWoche(aktuelleWoche, monday);
+      // ── TEMP DEBUG (Freigabe-Validierung) – wieder entfernen ──────────
+      console.group('%c[Freigabe-Debug] KW ' + currentKW + '/' + currentYear, 'color:#e8a000;font-weight:bold');
+      console.log('berichtTyp (User):', await getBerichtTyp());
+      console.log('woche.typ:', aktuelleWoche?.typ, '| wochenOrt:', aktuelleWoche?.wochenOrt, '| unterweisungAktiv:', aktuelleWoche?.unterweisungAktiv);
+      console.log('betriebEintrag leer?', htmlIsEmpty(aktuelleWoche?.betriebEintrag || ''),
+                  '| schuleEintrag leer?', htmlIsEmpty(aktuelleWoche?.schuleEintrag || ''),
+                  '| unterweisungEintrag leer?', htmlIsEmpty(aktuelleWoche?.unterweisungEintrag || ''));
+      console.log('monday:', DateUtil.toISODate(monday));
+      console.table((aktuelleWoche?.tage || []).map(t => ({
+        datum: t.datum, anwesenheit: t.anwesenheit, ort: t.ort,
+        stunden: t.stunden, typeofStunden: typeof t.stunden,
+        betriebEintragLeer: htmlIsEmpty(t.betriebEintrag || t.eintrag || ''),
+      })));
+      console.log('ERRORS (' + errors.length + '):', JSON.parse(JSON.stringify(errors)));
+      console.groupEnd();
+      // ── /TEMP DEBUG ──────────────────────────────────────────────────
       if (errors.length > 0) {
         await showValidationErrors(errors);
         return;
