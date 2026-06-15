@@ -215,10 +215,19 @@ const IhkImport = (() => {
     const pdf   = await pdfjsLib.getDocument({ data: new Uint8Array(arrayBuffer) }).promise;
     const pages = [];
     for (let p = 1; p <= pdf.numPages; p++) {
-      const page       = await pdf.getPage(p);
-      const opList     = await page.getOperatorList();
-      const underlines = IhkParser.decodeUnderlineSegments(opList.fnArray, opList.argsArray, pdfjsLib.OPS);
-      const content    = await page.getTextContent();
+      const page = await pdf.getPage(p);
+      // getOperatorList lädt die Fonts (für commonObjs-Namen) und liefert die
+      // Pfad-Ops für die Unterstreichungs-Erkennung. Scheitert das für eine
+      // einzelne Seite (z. B. defekte Seite), trotzdem weiterextrahieren –
+      // Text ohne Formatierung ist besser als ein Totalabbruch des Imports.
+      let underlines = [];
+      try {
+        const opList = await page.getOperatorList();
+        underlines = IhkParser.decodeUnderlineSegments(opList.fnArray, opList.argsArray, pdfjsLib.OPS);
+      } catch (e) {
+        console.warn(`[IhkImport] getOperatorList Seite ${p} fehlgeschlagen:`, e);
+      }
+      const content = await page.getTextContent();
       pages.push(itemsToText(content.items, page, underlines));
       page.cleanup();
     }
