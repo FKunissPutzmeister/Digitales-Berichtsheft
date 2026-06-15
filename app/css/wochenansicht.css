@@ -429,7 +429,7 @@
 }
 .wochen-tage-row {
   display: grid;
-  grid-template-columns: 72px 1fr 1fr 90px;
+  grid-template-columns: 72px 1fr 1fr 185px;
   gap: var(--sp-3);
   align-items: center;
   padding: var(--sp-3) var(--sp-5);
@@ -807,7 +807,7 @@
 
 .tag-tabelle__header {
   display: grid;
-  grid-template-columns: 72px 1fr 1fr 90px 32px;
+  grid-template-columns: 72px 1fr 1fr 185px 32px;
   gap: var(--sp-3);
   align-items: center;
   padding: var(--sp-2) var(--sp-5);
@@ -827,7 +827,7 @@
 
 .tag-row__summary {
   display: grid;
-  grid-template-columns: 72px 1fr 1fr 90px 32px;
+  grid-template-columns: 72px 1fr 1fr 185px 32px;
   gap: var(--sp-3);
   align-items: center;
   padding: var(--sp-3) var(--sp-5);
@@ -1649,7 +1649,7 @@ body[data-page="wochenansicht"] .tag-cards__header {
     /* MUSS exakt dem .tag-row__summary-Raster entsprechen.
        +1px Polsterung gleicht den 1px-Rahmen der Karten aus, damit die
        fr-Spalten dieselbe Restbreite wie in den Zeilen bekommen. */
-    grid-template-columns: 116px minmax(160px, 1.4fr) minmax(160px, 1.4fr) 120px 32px;
+    grid-template-columns: 116px minmax(160px, 1.4fr) minmax(160px, 1.4fr) 190px 32px;
     gap: var(--sp-4) var(--sp-5);
     align-items: end;
     padding: 0 calc(var(--sp-5) + 1px) var(--sp-2);
@@ -1718,7 +1718,7 @@ body[data-page="wochenansicht"] .tag-row__summary {
   /* Std.-Spalte (120px) und Chevron-Spalte (32px) fest, damit Zeilen UND
      die einmalige Überschrift (.tag-cards__header) identische fr-Spalten
      für Anwesenheit/Ort bekommen → exakte Spaltenausrichtung. */
-  grid-template-columns: 116px minmax(160px, 1.4fr) minmax(160px, 1.4fr) 120px 32px;
+  grid-template-columns: 116px minmax(160px, 1.4fr) minmax(160px, 1.4fr) 190px 32px;
   gap: var(--sp-4) var(--sp-5);
   align-items: end;
   padding: var(--sp-4) var(--sp-5) var(--sp-3);
@@ -3320,14 +3320,14 @@ body[data-page="wochenansicht"] select.tag-row__select:not([data-pm-enhanced]):h
   color: #1a1a1a;
   font-weight: 700;
   font-size: var(--text-base);     /* aktive Seite deutlich größer */
-  padding: 8px 28px;
+  padding: 7px 16px;
   box-shadow: var(--shadow-xs);
 }
-/* nicht gewählte Seite bewusst kleiner halten */
+/* nicht gewählte Seite kleiner, aber mit komfortablem Klick-Ziel */
 .dauer-pill[data-dauer="ganztag"] .dauer-pill__opt[data-dauer-set="halbtag"],
 .dauer-pill[data-dauer="halbtag"] .dauer-pill__opt[data-dauer-set="ganztag"] {
-  font-size: var(--text-xs);
-  padding: 5px 10px;
+  font-size: var(--text-sm);
+  padding: 6px 12px;
 }
 .dauer-pill--readonly { opacity: .6; }
 .dauer-pill--readonly .dauer-pill__opt { cursor: default; }

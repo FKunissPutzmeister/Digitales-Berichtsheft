@@ -460,7 +460,6 @@ async function renderAzubiDashboard(user) {
       <section class="b-tile b-tile--dark b-azubi animate-fade-in">
         <div class="b-azubi__head">
           <span class="eyebrow">Ausbildung</span>
-          <span class="b-azubi__lj">Lehrjahr ${lehrjahr} / 3</span>
         </div>
         <div class="b-donut">
           <svg viewBox="0 0 180 180" aria-hidden="true">
