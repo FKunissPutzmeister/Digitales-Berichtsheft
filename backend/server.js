@@ -2,6 +2,7 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
+const os = require('os');
 const session = require('express-session');
 const FileStore = require('session-file-store')(session);
 const { devAuth, DEV_USERS } = require('./middleware/auth');
@@ -24,14 +25,23 @@ app.use(cors({
 }));
 app.use(express.json());
 
-// Sessions auf der Platte ablegen (./sessions/) statt im RAM. So überleben
-// Logins einen Backend-Restart – wichtig für `node --watch` im Dev-Modus,
-// damit nicht jeder Code-Change alle Devs ausloggt.
+// Sessions auf der Platte ablegen statt im RAM. So überleben Logins einen
+// Backend-Restart – wichtig für `node --watch` im Dev-Modus, damit nicht
+// jeder Code-Change alle Devs ausloggt.
+// WICHTIG: Verzeichnis liegt im OS-Temp, NICHT im Projekt. Sonst sieht der
+// VS-Code-Live-Server die Session-Schreibvorgänge (pro Request) als Datei-
+// änderung und lädt die Seite im Dauertakt neu (Flackern/Spam-Refresh).
+const SESSION_DIR = path.join(os.tmpdir(), 'berichtsheft-sessions');
 app.use(session({
   store: new FileStore({
-    path: path.join(__dirname, 'sessions'),
+    path: SESSION_DIR,
     ttl: 60 * 60 * 24 * 7,   // 7 Tage (in Sekunden)
-    retries: 0,              // keine Retry-Logik bei IO-Fehlern (dev-only)
+    // Windows: das atomare Rename beim Session-Schreiben kollidiert sporadisch
+    // mit Datei-Locks (Virenscanner/paralleler Zugriff) → EPERM. Mit retries:0
+    // ging dadurch die frisch gesetzte Session verloren ("Nicht angemeldet"
+    // bei Folge-Requests). Ein paar Retries machen den Login zuverlässig.
+    retries: 5,
+    retryDelay: 60,
     logFn: () => {},         // Store-Logs unterdrücken (sonst sehr spammy)
   }),
   secret: process.env.SESSION_SECRET || 'dev-secret-change-in-prod',
@@ -74,6 +84,7 @@ const zuweisungenRouter    = require('./routes/zuweisungen');
 const kommentareRouter     = require('./routes/kommentare');
 const anhaengeRouter       = require('./routes/anhaenge');
 const benachrichtigungenRouter = require('./routes/benachrichtigungen');
+const fahrtgeldRouter      = require('./routes/fahrtgeld');
 
 app.use('/api/users',               devAuth, usersRouter);
 app.use('/api/wochen',              devAuth, wochenRouter);
@@ -81,6 +92,7 @@ app.use('/api/zuweisungen',         devAuth, zuweisungenRouter);
 app.use('/api/wochen',              devAuth, kommentareRouter);   // POST /api/wochen/:id/kommentare
 app.use('/api/wochen',              devAuth, anhaengeRouter);     // /api/wochen/:id/anhaenge, /api/wochen/anhaenge/:id
 app.use('/api/benachrichtigungen',  devAuth, benachrichtigungenRouter);
+app.use('/api/fahrtgeld',           devAuth, fahrtgeldRouter);
 
 // ── Dev-Hilfsliste: alle verfügbaren Routen ───────────────────────
 if (process.env.NODE_ENV !== 'production') {

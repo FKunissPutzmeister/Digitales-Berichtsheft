@@ -72,7 +72,7 @@ router.post('/', async (req, res) => {
       .input('startDatum',          sql.Date,               startDatum)
       .input('endDatum',            sql.Date,               endDatum)
       .input('status',              sql.NVarChar(20),       status || 'offen')
-      .input('gesamtstunden',       sql.SmallInt,           gesamtstunden || 0)
+      .input('gesamtstunden',       sql.Decimal(5, 2),      gesamtstunden || 0)
       .input('typ',                 sql.NVarChar(20),       typ || null)
       .input('wochenOrt',           sql.NVarChar(20),       wochenOrt || null)
       .input('unterweisungAktiv',   sql.Bit,                unterweisungAktiv ? 1 : 0)
@@ -114,16 +114,16 @@ router.post('/', async (req, res) => {
           .input('anwesenheit',         sql.NVarChar(30),      tag.anwesenheit || null)
           .input('ort',                 sql.NVarChar(30),      tag.ort || null)
           .input('eintrag',             sql.NVarChar(sql.MAX), tag.eintrag || null)
-          .input('stunden',             sql.TinyInt,           tag.stunden || 0)
+          .input('tagdauer',            sql.NVarChar(10),      (tag.tagdauer === 'halbtag' ? 'halbtag' : 'ganztag'))
           .input('betriebEintrag',      sql.NVarChar(sql.MAX), tag.betriebEintrag || null)
           .input('schuleEintrag',       sql.NVarChar(sql.MAX), tag.schuleEintrag || null)
           .input('unterweisungEintrag', sql.NVarChar(sql.MAX), tag.unterweisungEintrag || null)
           .query(`
             INSERT INTO dbo.Tage
-              (WocheId, Datum, Anwesenheit, Ort, Eintrag, Stunden,
+              (WocheId, Datum, Anwesenheit, Ort, Eintrag, Tagdauer,
                BetriebEintrag, SchuleEintrag, UnterweisungEintrag)
             VALUES
-              (@wocheId, @datum, @anwesenheit, @ort, @eintrag, @stunden,
+              (@wocheId, @datum, @anwesenheit, @ort, @eintrag, @tagdauer,
                @betriebEintrag, @schuleEintrag, @unterweisungEintrag)
           `);
       }

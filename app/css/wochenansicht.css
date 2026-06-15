@@ -3281,3 +3281,104 @@ body[data-page="wochenansicht"] select.tag-row__select:not([data-pm-enhanced]):h
    (Block oben für Methode (A) komplett auskommentieren, um den
     klassischen Dropdown-Stil wiederherzustellen.)
    =================================================================== */
+
+/* ===================================================================
+   TAGDAUER-PILL (Ganztag/Halbtag) – Segmented-Control im Stil der
+   Anwesenheit-/Ort-Widgets (PMSelect): schlichte Fläche statt Glas.
+   Die AUSGEWÄHLTE Seite wird größer (mehr Padding) + gelb hervorgehoben,
+   die nicht gewählte bleibt klein/dezent (wie beim V2-Brand-Selector).
+   =================================================================== */
+.dauer-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 3px;
+  border-radius: 999px;            /* Pillenform beibehalten */
+  background: var(--pm-white);
+  border: 1.5px solid var(--pm-grey-200);
+  user-select: none;
+}
+.dauer-pill__opt {
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  border-radius: 999px;            /* runde Segmente (Pille) */
+  padding: 6px 12px;
+  font-family: var(--font-body);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--pm-grey-600);
+  white-space: nowrap;
+  transition: padding .3s var(--ease-out-quart), background .25s, color .25s, box-shadow .25s;
+}
+.dauer-pill__opt:hover { color: var(--pm-grey-900); }
+.dauer-pill__opt:active { transform: scale(0.96); }
+/* aktive Seite: größer + gelb; nicht gewählte Seite klein/dezent */
+.dauer-pill[data-dauer="ganztag"] .dauer-pill__opt[data-dauer-set="ganztag"],
+.dauer-pill[data-dauer="halbtag"] .dauer-pill__opt[data-dauer-set="halbtag"] {
+  background: var(--pm-yellow);
+  color: #1a1a1a;
+  font-weight: 700;
+  font-size: var(--text-base);     /* aktive Seite deutlich größer */
+  padding: 8px 28px;
+  box-shadow: var(--shadow-xs);
+}
+/* nicht gewählte Seite bewusst kleiner halten */
+.dauer-pill[data-dauer="ganztag"] .dauer-pill__opt[data-dauer-set="halbtag"],
+.dauer-pill[data-dauer="halbtag"] .dauer-pill__opt[data-dauer-set="ganztag"] {
+  font-size: var(--text-xs);
+  padding: 5px 10px;
+}
+.dauer-pill--readonly { opacity: .6; }
+.dauer-pill--readonly .dauer-pill__opt { cursor: default; }
+
+[data-theme="dark"] .dauer-pill {
+  background: var(--pm-white);            /* in Dark = #3D3D3D, wie die Selects */
+  border-color: var(--pm-grey-200);
+}
+[data-theme="dark"] .dauer-pill__opt { color: var(--pm-grey-600); }
+[data-theme="dark"] .dauer-pill[data-dauer="ganztag"] .dauer-pill__opt[data-dauer-set="ganztag"],
+[data-theme="dark"] .dauer-pill[data-dauer="halbtag"] .dauer-pill__opt[data-dauer-set="halbtag"] {
+  color: #1a1a1a;                          /* Text auf Gelb bleibt dunkel */
+}
+
+/* ── Per-Komponente-Fehler (statt ganzer Tag rot) ──
+   Volle border-Kurzform + erhöhte Spezifität, damit die rote Umrandung
+   auch die graue Quill-Container-Border sicher überschreibt (border-color
+   allein verlor dagegen). Kräftiger Ring zur klaren Sichtbarkeit. */
+.field-error,
+select.field-error,
+.tag-row__select.field-error,
+.field-error.ql-container,
+.field-error.ql-editor-wrap,
+.field-error .ql-container {
+  /* outline statt border: wird NICHT von Theme-/Quill-border-Regeln
+     überschrieben und rendert sichtbar außerhalb des Elements. */
+  outline: 2px solid var(--color-error) !important;
+  outline-offset: 1px !important;
+  box-shadow: 0 0 0 4px rgba(183, 28, 28, 0.22) !important;
+  border-radius: var(--r-md);
+}
+.tag-row--has-issues { /* dezenter Hinweis, KEINE Vollflächen-Rotfärbung */
+  border-color: color-mix(in srgb, var(--color-error) 35%, var(--pm-grey-200));
+}
+
+/* ===================================================================
+   ANWESENHEIT-/ORT-SELECTS GRÖSSER
+   Die Tag-Selects laufen als .pm-select--sm (Schrift nur --text-xs) und
+   nutzen ihre Button-Höhe kaum. Hier deutlich größere Schrift + etwas
+   mehr Höhe, damit sie zur Dauer-Pille passen und gut lesbar sind.
+   =================================================================== */
+.pm-select.tag-row__select .pm-select__trigger,
+.pm-select.day-card__select .pm-select__trigger {
+  font-size: var(--text-md) !important;   /* 16px statt 11px */
+  height: 42px;
+  font-weight: var(--fw-bold);
+}
+.pm-select.tag-row__select .pm-select__chevron,
+.pm-select.day-card__select .pm-select__chevron { width: 18px; height: 18px; }
+.pm-select.tag-row__select .pm-select__chevron svg,
+.pm-select.day-card__select .pm-select__chevron svg { width: 16px; height: 16px; }
+/* Optionen im Dropdown ebenfalls etwas größer */
+.pm-select.tag-row__select .pm-select__option,
+.pm-select.day-card__select .pm-select__option { font-size: var(--text-base); }

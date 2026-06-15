@@ -878,3 +878,53 @@ html[data-theme="cmd"] .b-wkcard:hover,
 html[data-theme="cmd"] .b-daycard:hover {
   border-color: rgba(0, 230, 77, 0.55);
 }
+
+/* ===================================================================
+   TERMINAL-FEINSCHLIFF (Wunsch: keine Bilder im Dashboard, eckige
+   Controls, ausgewählte Seite als leeres grünes Rechteck)
+   =================================================================== */
+
+/* 1) Dashboard-Bento ohne Hintergrund-Bilder – schlichte Terminal-Flächen */
+html[data-theme="cmd"] .bento .b-hero,
+html[data-theme="cmd"] .bento .b-azubi,
+html[data-theme="cmd"] .bento .b-recent,
+html[data-theme="cmd"] .b-hero,
+html[data-theme="cmd"] .b-azubi,
+html[data-theme="cmd"] .b-recent {
+  background-image: none !important;
+  background-color: var(--pm-white) !important;
+}
+html[data-theme="cmd"] .b-hero::before,
+html[data-theme="cmd"] .b-azubi::before,
+html[data-theme="cmd"] .b-recent::before {
+  background: none !important;
+}
+
+/* 2) Tagdauer-Pille: ausgewählte Seite = leeres grünes Rechteck (kein
+   Fill, keine Rundung) – Terminal-Stil */
+[data-theme="cmd"] .dauer-pill,
+[data-theme="cmd"] .dauer-pill__opt {
+  border-radius: 0;
+}
+[data-theme="cmd"] .dauer-pill {
+  background: var(--pm-white);
+  border-color: var(--pm-grey-300);
+}
+[data-theme="cmd"] .dauer-pill[data-dauer="ganztag"] .dauer-pill__opt[data-dauer-set="ganztag"],
+[data-theme="cmd"] .dauer-pill[data-dauer="halbtag"] .dauer-pill__opt[data-dauer-set="halbtag"] {
+  background: transparent;
+  color: var(--pm-yellow);
+  border: 1px solid var(--pm-yellow);
+  box-shadow: none;
+}
+
+/* 3) Weitere abgerundete Elemente eckig (Terminal): Controls, Buttons,
+   Selects, Status-Pillen. (Avatare/Donut/Dots bleiben rund.) */
+[data-theme="cmd"] .pm-select__trigger,
+[data-theme="cmd"] .pm-select__menu,
+[data-theme="cmd"] .btn,
+[data-theme="cmd"] .b-status,
+[data-theme="cmd"] .b-btn-primary,
+[data-theme="cmd"] .week-bottom-bar__sum-value {
+  border-radius: 0 !important;
+}

@@ -31,6 +31,10 @@ build/
 app-NEW-DESIGN-SYSTEM/
 Putzmeister Design System Package/
 
+# Reverse-Engineering-Scratch (better-ess Bundle-Analyse, Screenshots,
+# Test-Skripte) — reine Arbeitsartefakte, nicht für das geteilte Repo
+.ess-reverse/
+
 # Spezifikationen & Notizen (gehören in SharePoint, nicht ins Code-Repo)
 *.docx
 Fragen die vorab*.txt

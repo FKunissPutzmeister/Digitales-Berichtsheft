@@ -4,9 +4,13 @@
    =================================================================== */
 
 // Live Server (Port 5500) braucht absoluten Pfad, da Frontend und Backend
-// auf verschiedenen Ports laufen. Alle anderen Umgebungen nutzen relativen Pfad.
+// auf verschiedenen Ports laufen. WICHTIG: denselben Hostnamen wie die Seite
+// verwenden – "localhost" und "127.0.0.1" sind für Cookies verschiedene Hosts
+// (cross-site), dann würde das Session-Cookie (SameSite=Lax) nicht
+// mitgeschickt und der Login scheitert. Gleicher Host (z.B. 127.0.0.1:5500 →
+// 127.0.0.1:3000) ist same-site → Cookie wird gesendet.
 const API_BASE = (window.location.port === '5500')
-  ? 'http://localhost:3000/api'
+  ? `http://${window.location.hostname}:3000/api`
   : '/api';
 
 /* ── HTTP-Hilfsfunktionen ─────────────────────────────────────── */
@@ -60,7 +64,7 @@ function normalizeTag(t) {
     anwesenheit: t.Anwesenheit ?? '',
     ort: t.Ort ?? '',
     eintrag: t.Eintrag ?? '',
-    stunden: t.Stunden ?? 0,
+    tagdauer: (t.Tagdauer === 'halbtag' ? 'halbtag' : 'ganztag'),
     betriebEintrag:      t.BetriebEintrag      ?? '',
     schuleEintrag:       t.SchuleEintrag       ?? '',
     unterweisungEintrag: t.UnterweisungEintrag ?? '',
@@ -345,6 +349,100 @@ const DB = {
     await apiFetch(`/wochen/${wocheId}/status`, { method: 'PATCH', body: { status } });
   },
 
+  /* ── Zeitnachweis-Import (ESS) ──
+     Spiegelt die Logik aus data.js, aber async gegen das Backend.
+
+     getTagInfo: Bearbeitungs-Status eines einzelnen Tages für die
+     Import-Vorschau – gehört der Tag zu einer schreibgeschützten Woche
+     (freigegeben/genehmigt) und ist er bereits inhaltlich belegt?
+     `wochen` kann vorab geladen übergeben werden, damit die Vorschau
+     nicht pro Zeile erneut das Backend abfragt. */
+  getTagInfoSync(wochen, datum) {
+    const d  = new Date(datum + 'T00:00:00');
+    const kw = DateUtil.getKW(d);
+    const yr = DateUtil.getKWYear(d);
+    const woche = wochen.find(w => w.kw === kw && w.year === yr) || null;
+    const readonly = !!woche && (woche.status === 'freigegeben' || woche.status === 'genehmigt');
+    const tag = woche?.tage?.find(t => t.datum === datum) || null;
+    const belegt = !!tag
+      && tag.anwesenheit && tag.anwesenheit !== '' && tag.anwesenheit !== 'Wochenende';
+    return { kw, year: yr, exists: !!woche, readonly, belegt, status: woche?.status || null };
+  },
+
+  async getTagInfo(azubiId, datum) {
+    const wochen = await this.getWochenFuerAzubi(azubiId);
+    return this.getTagInfoSync(wochen, datum);
+  },
+
+  /* Übernimmt die ausgewählten Zeitnachweis-Tage ins Berichtsheft.
+     - Gruppiert nach ISO-Kalenderwoche, legt fehlende Wochen an.
+     - Schreibgeschützte Wochen (freigegeben/genehmigt) werden übersprungen
+       (vom Ausbilder abgenommen → unveränderlich).
+     - Setzt NUR anwesenheit/ort/stunden; alle Texteinträge (eintrag,
+       betriebEintrag, schuleEintrag, unterweisungEintrag) bleiben erhalten.
+       Wichtig, weil das Backend beim Speichern alle Tage einer Woche neu
+       schreibt – wir geben deshalb die vollständige, gemergte Tagesliste
+       zurück.
+     `tage`: [{ datum, anwesenheit, ort, stunden }] (bereits gefiltert). */
+  async applyZeitnachweis(azubiId, tage) {
+    const summary = { uebernommen: 0, uebersprungenReadonly: 0, betroffeneWochen: [] };
+
+    // Bestehende Wochen einmal laden (vollständige Tage inkl. Texteinträge).
+    const wochen = await this.getWochenFuerAzubi(azubiId);
+
+    // Importtage nach ISO-Woche gruppieren.
+    const groups = {};
+    (tage || []).forEach(t => {
+      if (!t.datum) return;
+      const d  = new Date(t.datum + 'T00:00:00');
+      const kw = DateUtil.getKW(d);
+      const yr = DateUtil.getKWYear(d);
+      const key = yr + '-' + kw;
+      if (!groups[key]) groups[key] = { kw, year: yr, tage: [] };
+      groups[key].tage.push(t);
+    });
+
+    for (const g of Object.values(groups)) {
+      let woche = wochen.find(w => w.kw === g.kw && w.year === g.year) || null;
+
+      if (woche && (woche.status === 'freigegeben' || woche.status === 'genehmigt')) {
+        summary.uebersprungenReadonly += g.tage.length;
+        continue;
+      }
+
+      if (!woche) {
+        const monday = DateUtil.getMondayOfKW(g.kw, g.year);
+        const sunday = new Date(monday); sunday.setDate(monday.getDate() + 6);
+        woche = {
+          azubiId, kw: g.kw, year: g.year,
+          startDate: DateUtil.toISODate(monday),
+          endDate:   DateUtil.toISODate(sunday),
+          status: 'offen', gesamtstunden: 0, tage: [], kommentare: [],
+        };
+      }
+      if (!Array.isArray(woche.tage)) woche.tage = [];
+
+      g.tage.forEach(t => {
+        let tag = woche.tage.find(x => x.datum === t.datum);
+        if (!tag) {
+          tag = { datum: t.datum, anwesenheit: '', ort: '', eintrag: '', tagdauer: 'ganztag' };
+          woche.tage.push(tag);
+        }
+        // Nur Anwesenheit/Ort überschreiben – Texteinträge unangetastet.
+        // Der ESS-Import kennt keine Halbtage → Anwesenheitstage sind ganztags.
+        tag.anwesenheit = t.anwesenheit;
+        tag.ort         = t.ort || '';
+        if (t.anwesenheit === 'anwesend' && !tag.tagdauer) tag.tagdauer = 'ganztag';
+        summary.uebernommen++;
+      });
+
+      await this.saveWoche(woche);
+      summary.betroffeneWochen.push({ kw: g.kw, year: g.year });
+    }
+
+    return summary;
+  },
+
   async addKommentar(wocheId, kommentar) {
     await apiFetch(`/wochen/${wocheId}/kommentare`, { method: 'POST', body: kommentar });
   },
@@ -372,6 +470,22 @@ const DB = {
 
   anhangDownloadUrl(id) {
     return `${API_BASE}/wochen/anhaenge/${id}/download`;
+  },
+
+  /* Fahrtgelderstattung – Stammdaten des eingeloggten Azubis */
+  async getFahrtgeldKonfig() {
+    return apiFetch('/fahrtgeld/konfig');
+  },
+
+  async saveFahrtgeldKonfig(konfig) {
+    await apiFetch('/fahrtgeld/konfig', { method: 'PUT', body: {
+      name:            konfig.name,
+      persNr:          konfig.persNr,
+      kst:             konfig.kst,
+      vonHaltestelle:  konfig.vonHaltestelle,
+      nachHaltestelle: konfig.nachHaltestelle,
+      betragProTag:    konfig.betragProTag,
+    }});
   },
 
   /* Benachrichtigungen */

@@ -87,46 +87,22 @@ document.addEventListener('DOMContentLoaded', async () => {
     return `${Math.floor(mins / 60)}:${String(mins % 60).padStart(2, '0')}`;
   }
 
-  function renderTimeSpinner(dateStr, stunden, readonly, needsInput) {
-    const mins = Math.round((stunden || 0) * 60);
-    const h    = Math.floor(mins / 60);
-    const m    = mins % 60;
-    const hStr = String(h).padStart(2, '0');
-    const mStr = String(m).padStart(2, '0');
-    const dis  = readonly ? 'disabled' : '';
-    const ro   = readonly ? 'readonly' : '';
-    const cls  = (readonly ? ' time-spinner--readonly' : '')
-               + (needsInput && !readonly ? ' time-spinner--needs-input' : '');
-    const oc   = readonly ? '' : 'onclick="handleSpinnerClick(this)"';
-    const onchg = readonly ? '' : 'onchange="handleSpinnerInput(this)"';
-    // Klare ▲▼-Glyphen mit kräftigerem Stroke und größerer Fläche – ersetzt
-    // die alten dünnen Chevron-Pfeile. Pointer-events:none, damit der Klick
-    // den Button trifft, nicht das innere SVG.
-    const up = `<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;pointer-events:none"><polyline points="18 15 12 9 6 15"/></svg>`;
-    const dn = `<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;pointer-events:none"><polyline points="6 9 12 15 18 9"/></svg>`;
-    return `<div class="time-spinner${cls}" data-field="stunden" data-date="${dateStr}">
-      <div class="time-spinner__unit">
-        <button type="button" class="time-spinner__btn" data-action="up" data-part="h" aria-label="Stunde erhöhen" ${dis} ${oc} tabindex="-1">${up}</button>
-        <input class="time-spinner__input" type="text" inputmode="numeric" data-part="h" value="${hStr}" maxlength="2" aria-label="Stunden" ${ro} ${onchg} onfocus="this.select()">
-        <button type="button" class="time-spinner__btn" data-action="down" data-part="h" aria-label="Stunde verringern" ${dis} ${oc} tabindex="-1">${dn}</button>
-        <span class="time-spinner__unit-label" aria-hidden="true">Std</span>
-      </div>
-      <span class="time-spinner__sep" aria-hidden="true">:</span>
-      <div class="time-spinner__unit">
-        <button type="button" class="time-spinner__btn" data-action="up" data-part="m" aria-label="Minuten erhöhen (5er-Schritte)" ${dis} ${oc} tabindex="-1">${up}</button>
-        <input class="time-spinner__input" type="text" inputmode="numeric" data-part="m" value="${mStr}" maxlength="2" aria-label="Minuten" ${ro} ${onchg} onfocus="this.select()">
-        <button type="button" class="time-spinner__btn" data-action="down" data-part="m" aria-label="Minuten verringern (5er-Schritte)" ${dis} ${oc} tabindex="-1">${dn}</button>
-        <span class="time-spinner__unit-label" aria-hidden="true">Min</span>
-      </div>
+  // Tagdauer-Pill (Ganztag/Halbtag) im Liquid-Glass-Design des V2-Brand-
+  // Selectors. Beide Optionen sind gleich breit → der Glas-Indikator wird
+  // rein per CSS-transform verschoben (data-dauer), kein JS-Messen nötig.
+  function renderDauerPill(dateStr, tagdauer, readonly) {
+    const dauer = tagdauer === 'halbtag' ? 'halbtag' : 'ganztag';
+    const dis = readonly ? 'disabled' : '';
+    const cls = readonly ? ' dauer-pill--readonly' : '';
+    return `<div class="dauer-pill${cls}" data-field="tagdauer" data-date="${dateStr}" data-dauer="${dauer}">
+      <button type="button" class="dauer-pill__opt" data-dauer-set="ganztag" ${dis} onclick="handleDauerClick(this)">Ganztag</button>
+      <button type="button" class="dauer-pill__opt" data-dauer-set="halbtag" ${dis} onclick="handleDauerClick(this)">Halbtag</button>
     </div>`;
   }
 
-  function getSpinnerDecimal(dateStr) {
-    const s = document.querySelector(`.time-spinner[data-date="${dateStr}"]`);
-    if (!s) return 0;
-    const h = parseInt(s.querySelector('input[data-part="h"]')?.value) || 0;
-    const m = parseInt(s.querySelector('input[data-part="m"]')?.value) || 0;
-    return h + m / 60;
+  function getDauerValue(dateStr) {
+    const p = document.querySelector(`.dauer-pill[data-date="${dateStr}"]`);
+    return p && p.dataset.dauer === 'halbtag' ? 'halbtag' : 'ganztag';
   }
 
   function setSpinnerCallback(cb) {
@@ -160,7 +136,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const canRelease = user.role === 'azubi'
       && (!woche || woche.status === 'offen' || woche.status === 'abgelehnt');
     const canWithdraw = user.role === 'azubi' && woche?.status === 'freigegeben';
-    const gesamtstundenDisplay = (woche?.tage || []).reduce((s, t) => s + (t.stunden || 0), 0);
+    const anwesenheitstageDisplay = (woche?.tage || []).filter(t => t.anwesenheit === 'anwesend').length;
 
     // Stammdaten des aktuell sichtbaren Azubis
     const azubiUser = await DB.getUser(azubiId);
@@ -266,8 +242,8 @@ document.addEventListener('DOMContentLoaded', async () => {
 
       <div class="week-bottom-bar">
         <div class="week-bottom-bar__sum">
-          <span class="week-bottom-bar__sum-label">Wochensumme:</span>
-          <span class="week-bottom-bar__sum-value" id="totalHours">${decimalToTimeStr(gesamtstundenDisplay)}</span>
+          <span class="week-bottom-bar__sum-label">Anwesenheitstage:</span>
+          <span class="week-bottom-bar__sum-value" id="totalHours">${anwesenheitstageDisplay} / 5</span>
         </div>
         <div class="week-bottom-bar__actions">
           ${!isReadonly ? `
@@ -517,7 +493,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       const isToday = DateUtil.isToday(dateStr);
 
       const tag = woche?.tage?.find(t => t.datum === dateStr) || {
-        datum: dateStr, anwesenheit: isWE ? 'Wochenende' : '', ort: '', stunden: 0,
+        datum: dateStr, anwesenheit: isWE ? 'Wochenende' : '', ort: isWE ? '' : 'Betrieb', tagdauer: 'ganztag',
       };
 
       // Datenmigration: alte tag.eintrag → tag.betriebEintrag
@@ -587,13 +563,12 @@ document.addEventListener('DOMContentLoaded', async () => {
             </div>
 
             <div class="tag-row__field tag-row__field--time">
-              ${!isWE ? `<label class="tag-row__field-label tag-row__field-label--centered">Std.</label>` : ''}
+              ${!isWE ? `<label class="tag-row__field-label tag-row__field-label--centered">Dauer</label>` : ''}
               ${!isWE
-                ? renderTimeSpinner(
+                ? renderDauerPill(
                     dateStr,
-                    isAbwesend ? 0 : tag.stunden,
-                    isAbwesend || readonly,
-                    !isAbwesend && !readonly && !(tag.stunden > 0)
+                    tag.tagdauer,
+                    isAbwesend || readonly
                   )
                 : `<span class="tag-row__we-marker">WE</span>`}
             </div>
@@ -743,7 +718,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     const isAbwesend = tag.anwesenheit !== 'anwesend';
     if (isAbwesend) return 'absent';
 
-    const hasStunden = (tag.stunden || 0) > 0;
     // Eintrag muss zur Ort-Wahl passen: bei Ort=Schule reicht Schul-Eintrag,
     // bei Ort=Betrieb/Schule müssen BEIDE befüllt sein, etc.
     const visible = getVisibleDaySections(tag.ort);
@@ -761,8 +735,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                        || !htmlIsEmpty(tag.schuleEintrag || '')
                        || !htmlIsEmpty(tag.unterweisungEintrag || '');
 
-    if (hasStunden && tag.ort && hasRequiredEintrag) return 'complete';
-    if (hasStunden || hasAnyEintrag || tag.ort) return 'partial';
+    if (tag.ort && hasRequiredEintrag) return 'complete';
+    if (hasAnyEintrag || tag.ort) return 'partial';
     return 'empty';
   }
 
@@ -786,24 +760,21 @@ document.addEventListener('DOMContentLoaded', async () => {
       const dayLabel = `${dayName} (${DateUtil.formatDateShort(dateStr)})`;
 
       if (!tag || !tag.anwesenheit) {
-        errors.push({ scope: 'tag', dateStr, day: dayLabel, msg: 'Anwesenheit nicht gesetzt' });
+        errors.push({ scope: 'tag', dateStr, day: dayLabel, field: 'anwesenheit', msg: 'Anwesenheit nicht gesetzt' });
         continue;
       }
       if (tag.anwesenheit === 'anwesend') {
-        if (!(tag.stunden > 0)) {
-          errors.push({ scope: 'tag', dateStr, day: dayLabel, msg: 'Keine Arbeitsstunden erfasst' });
-        }
         if (!tag.ort) {
-          errors.push({ scope: 'tag', dateStr, day: dayLabel, msg: 'Ort nicht gewählt' });
+          errors.push({ scope: 'tag', dateStr, day: dayLabel, field: 'ort', msg: 'Ort nicht gewählt' });
         } else {
           const visible = getVisibleDaySections(tag.ort);
           if (visible.has('betrieb')
               && htmlIsEmpty(tag.betriebEintrag || tag.eintrag || '')) {
-            errors.push({ scope: 'tag', dateStr, day: dayLabel, msg: 'Kein Eintrag „Betrieb"' });
+            errors.push({ scope: 'tag', dateStr, day: dayLabel, field: 'betrieb', msg: 'Kein Eintrag „Betrieb"' });
           }
           if (visible.has('schule')
               && htmlIsEmpty(tag.schuleEintrag || '')) {
-            errors.push({ scope: 'tag', dateStr, day: dayLabel, msg: 'Kein Eintrag „Schule"' });
+            errors.push({ scope: 'tag', dateStr, day: dayLabel, field: 'schule', msg: 'Kein Eintrag „Schule"' });
           }
         }
       }
@@ -832,11 +803,8 @@ document.addEventListener('DOMContentLoaded', async () => {
       const dayLabel = `${dayName} (${DateUtil.formatDateShort(dateStr)})`;
 
       if (!tag || !tag.anwesenheit) {
-        errors.push({ scope: 'tag', dateStr, day: dayLabel, msg: 'Anwesenheit nicht gesetzt' });
+        errors.push({ scope: 'tag', dateStr, day: dayLabel, field: 'anwesenheit', msg: 'Anwesenheit nicht gesetzt' });
         continue;
-      }
-      if (tag.anwesenheit === 'anwesend' && !(tag.stunden > 0)) {
-        errors.push({ scope: 'tag', dateStr, day: dayLabel, msg: 'Keine Arbeitsstunden erfasst' });
       }
     }
 
@@ -869,12 +837,29 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   function clearValidationErrors() {
-    document.querySelectorAll('.tag-row--has-error').forEach(r => r.classList.remove('tag-row--has-error'));
+    document.querySelectorAll('.tag-row--has-error, .tag-row--has-issues')
+      .forEach(r => r.classList.remove('tag-row--has-error', 'tag-row--has-issues'));
+    document.querySelectorAll('.field-error').forEach(el => el.classList.remove('field-error'));
     document.querySelectorAll('.tag-row__validation').forEach(e => {
       e.hidden = true;
       e.innerHTML = '';
     });
     document.querySelectorAll('.wochen-kachel--has-error').forEach(k => k.classList.remove('wochen-kachel--has-error'));
+  }
+
+  // Markiert eine einzelne fehlende Komponente eines Tages rot (statt der
+  // ganzen Karte): Anwesenheit-/Ort-Select bzw. den Eintrag-Editor.
+  function markFieldError(dateStr, field) {
+    let el = null;
+    if (field === 'anwesenheit') el = document.querySelector(`select[data-field="anwesenheit"][data-date="${dateStr}"]`);
+    else if (field === 'ort')    el = document.querySelector(`select[data-field="ort"][data-date="${dateStr}"]`);
+    else if (field === 'betrieb') el = document.getElementById(`editorWrap_betrieb_${dateStr}`);
+    else if (field === 'schule')  el = document.getElementById(`editorWrap_schule_${dateStr}`);
+    if (!el) return;
+    // Native <select> werden durch PMSelect (app.js) durch ein eigenes
+    // Widget ersetzt und selbst versteckt → das sichtbare .pm-select-Wrapper-
+    // Element markieren, sonst bliebe die rote Markierung unsichtbar.
+    (el.closest('.pm-select') || el).classList.add('field-error');
   }
 
   async function showValidationErrors(errors) {
@@ -889,7 +874,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         kachelErrors.push(e);
       } else {
         if (!byDate[e.dateStr]) byDate[e.dateStr] = [];
-        byDate[e.dateStr].push(e.msg);
+        byDate[e.dateStr].push(e);   // ganzes Error-Objekt (inkl. field)
       }
     });
 
@@ -897,7 +882,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     for (const dateStr of Object.keys(byDate)) {
       const row = document.getElementById('dayCard_' + dateStr);
       if (row) {
-        row.classList.add('tag-row--has-error', 'expanded');
+        // Karte aufklappen + Hinweisbox zeigen, aber NICHT die ganze Karte
+        // rot färben – nur die einzelnen fehlenden Felder (siehe unten).
+        row.classList.add('expanded', 'tag-row--has-issues');
         const errBox = document.getElementById('validationMsg_' + dateStr);
         if (errBox) {
           errBox.hidden = false;
@@ -907,7 +894,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             </div>
             <div>
               <strong>Bitte ergänzen:</strong>
-              <ul>${byDate[dateStr].map(m => `<li>${escapeHtml(m)}</li>`).join('')}</ul>
+              <ul>${byDate[dateStr].map(e => `<li>${escapeHtml(e.msg)}</li>`).join('')}</ul>
             </div>
           `;
         }
@@ -917,11 +904,14 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (!quillInstances['day_betrieb_' + dateStr]) {
           initSingleDayEditor(dateStr, w, ro);
         }
+        // Einzelne fehlende Komponenten rot markieren
+        byDate[dateStr].forEach(e => markFieldError(dateStr, e.field));
       } else {
-        // Wöchentlich-Format: keine Tageskarte vorhanden – stattdessen
-        // die kompakte Stunden-Tabelle markieren
+        // Wöchentlich-Format: keine Tageskarte vorhanden – kompakte Zeile
+        // markieren und dort, wo möglich, das einzelne Feld.
         const wochenRow = document.querySelector(`.tag-row--compact[data-date="${dateStr}"]`);
-        wochenRow?.classList.add('tag-row--has-error');
+        wochenRow?.classList.add('tag-row--has-issues');
+        byDate[dateStr].forEach(e => markFieldError(dateStr, e.field));
       }
     }
 
@@ -1169,7 +1159,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       const isToday = DateUtil.isToday(dateStr);
 
       const tag = woche?.tage?.find(t => t.datum === dateStr) || {
-        datum: dateStr, anwesenheit: isWE ? 'Wochenende' : '', ort: '', stunden: 0,
+        datum: dateStr, anwesenheit: isWE ? 'Wochenende' : '', ort: isWE ? '' : 'Betrieb', tagdauer: 'ganztag',
       };
       const isAbwesend = tag.anwesenheit && tag.anwesenheit !== 'anwesend' && tag.anwesenheit !== '';
 
@@ -1213,13 +1203,12 @@ document.addEventListener('DOMContentLoaded', async () => {
             </div>
 
             <div class="tag-row__field tag-row__field--time">
-              ${!isWE ? `<label class="tag-row__field-label tag-row__field-label--centered">Std.</label>` : ''}
+              ${!isWE ? `<label class="tag-row__field-label tag-row__field-label--centered">Dauer</label>` : ''}
               ${!isWE
-                ? renderTimeSpinner(
+                ? renderDauerPill(
                     dateStr,
-                    isAbwesend ? 0 : tag.stunden,
-                    isAbwesend || readonly,
-                    !isAbwesend && !readonly && !(tag.stunden > 0)
+                    tag.tagdauer,
+                    isAbwesend || readonly
                   )
                 : `<span class="tag-row__we-marker">WE</span>`}
             </div>
@@ -1621,7 +1610,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (schuleQ)       woche.schuleEintrag        = schuleQ.root.innerHTML;
     if (unterweisungQ) woche.unterweisungEintrag  = unterweisungQ.root.innerHTML;
 
-    woche.gesamtstunden = (woche.tage || []).reduce((s, t) => s + (t.stunden || 0), 0);
+    woche.gesamtstunden = (woche.tage || []).filter(t => t.anwesenheit === 'anwesend').length;
     woche.lastSavedAt = new Date().toISOString();
     await DB.saveWoche(woche);
   }
@@ -1652,7 +1641,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     if (anwesenheitEl) tagData.anwesenheit = anwesenheitEl.value;
     if (ortEl)         tagData.ort = ortEl.value;
-    tagData.stunden = getSpinnerDecimal(dateStr);
+    tagData.tagdauer = getDauerValue(dateStr);
     if (notizEl)       tagData.abwesenheitsnotiz = notizEl.value;
 
     const qBetrieb      = quillInstances['day_betrieb_' + dateStr];
@@ -1668,7 +1657,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (tagIdx >= 0) woche.tage[tagIdx] = tagData;
     else woche.tage.push(tagData);
 
-    woche.gesamtstunden = woche.tage.reduce((s, t) => s + (t.stunden || 0), 0);
+    woche.gesamtstunden = woche.tage.filter(t => t.anwesenheit === 'anwesend').length;
     woche.lastSavedAt = new Date().toISOString();
     await DB.saveWoche(woche);
     updateAutosaveTimestamp();
@@ -1712,7 +1701,16 @@ document.addEventListener('DOMContentLoaded', async () => {
   function clearDayError(dateStr) {
     const row = document.getElementById('dayCard_' + dateStr);
     const errBox = document.getElementById('validationMsg_' + dateStr);
-    if (row) row.classList.remove('tag-row--has-error');
+    if (row) {
+      row.classList.remove('tag-row--has-error', 'tag-row--has-issues');
+      row.querySelectorAll('.field-error').forEach(el => el.classList.remove('field-error'));
+    }
+    // Anwesenheit/Ort-Selects liegen ggf. außerhalb der Karte (Summary-Zeile)
+    // bzw. sind durch PMSelect ersetzt → auch das Wrapper-Widget entmarkieren.
+    document.querySelectorAll(`[data-date="${dateStr}"].field-error`).forEach(el => el.classList.remove('field-error'));
+    document.querySelectorAll(`select[data-date="${dateStr}"]`).forEach(s => {
+      (s.closest('.pm-select') || s).classList.remove('field-error');
+    });
     if (errBox) { errBox.hidden = true; errBox.innerHTML = ''; }
   }
 
@@ -1721,19 +1719,13 @@ document.addEventListener('DOMContentLoaded', async () => {
   let _lastWochenTotal = null;
 
   function updateStundenDisplay() {
-    let total = 0;
-    document.querySelectorAll('.time-spinner[data-date]').forEach(s => {
-      const h = parseInt(s.querySelector('input[data-part="h"]')?.value) || 0;
-      const m = parseInt(s.querySelector('input[data-part="m"]')?.value) || 0;
-      total += h + m / 60;
-    });
-    const val = decimalToTimeStr(total);
+    // „Wochensumme" ist jetzt die Zahl der Anwesenheitstage (Mo–Fr).
+    const selects = document.querySelectorAll('select[data-field="anwesenheit"][data-date]');
+    const total = Array.from(selects).filter(s => s.value === 'anwesend').length;
+    const val = `${total} / 5`;
 
-    /* Richtung gegenüber dem letzten Total. Beim allerersten Aufruf
-       (nach Re-Render) wollen wir KEINE Animation feuern — sonst zuckt
-       die Anzeige beim Öffnen der Seite. */
     let direction = null;
-    if (_lastWochenTotal !== null && Math.abs(total - _lastWochenTotal) > 0.001) {
+    if (_lastWochenTotal !== null && total !== _lastWochenTotal) {
       direction = total > _lastWochenTotal ? 'up' : 'down';
     }
     _lastWochenTotal = total;
@@ -2031,16 +2023,17 @@ document.addEventListener('DOMContentLoaded', async () => {
         const row = document.getElementById('dayCard_' + dateStr);
         if (row) {
           const ortSel = row.querySelector('select[data-field="ort"]');
-          if (ortSel) ortSel.disabled = isAbwesend;
+          if (ortSel) {
+            ortSel.disabled = isAbwesend;
+            // Ort hat einen Standard ("Betrieb") und gilt damit – wie Ganztag –
+            // direkt als ausgefüllt; kein Pflicht-Klick beim Anwesend-Werden.
+            if (!isAbwesend && !ortSel.value) ortSel.value = 'Betrieb';
+          }
 
-          const spinner = row.querySelector('.time-spinner');
-          if (spinner) {
-            spinner.querySelectorAll('.time-spinner__btn').forEach(b => b.disabled = isAbwesend);
-            spinner.querySelectorAll('input.time-spinner__input').forEach(inp => {
-              inp.readOnly = isAbwesend;
-              if (isAbwesend) inp.value = '00';
-            });
-            spinner.classList.toggle('time-spinner--readonly', isAbwesend);
+          const pill = row.querySelector('.dauer-pill');
+          if (pill) {
+            pill.classList.toggle('dauer-pill--readonly', isAbwesend);
+            pill.querySelectorAll('.dauer-pill__opt').forEach(b => b.disabled = isAbwesend);
           }
 
           const editorSec = document.getElementById('editorSection_' + dateStr);
@@ -2150,15 +2143,14 @@ document.addEventListener('DOMContentLoaded', async () => {
       if (anwesenheitSel) {
         anwesenheitSel.addEventListener('change', async () => {
           const isAbwesend = anwesenheitSel.value !== 'anwesend' && anwesenheitSel.value !== '';
-          if (ortSel) ortSel.disabled = isAbwesend;
-          const spinner = row.querySelector('.time-spinner');
-          if (spinner) {
-            spinner.querySelectorAll('.time-spinner__btn').forEach(b => b.disabled = isAbwesend);
-            spinner.querySelectorAll('.time-spinner__input').forEach(inp => {
-              inp.readOnly = isAbwesend;
-              if (isAbwesend) inp.value = '00';
-            });
-            spinner.classList.toggle('time-spinner--readonly', isAbwesend);
+          if (ortSel) {
+            ortSel.disabled = isAbwesend;
+            if (!isAbwesend && !ortSel.value) ortSel.value = 'Betrieb';
+          }
+          const pill = row.querySelector('.dauer-pill');
+          if (pill) {
+            pill.classList.toggle('dauer-pill--readonly', isAbwesend);
+            pill.querySelectorAll('.dauer-pill__opt').forEach(b => b.disabled = isAbwesend);
           }
           await autoSave(dateStr);
           updateStundenDisplay();
@@ -2256,7 +2248,7 @@ function toggleDayCard(dateStr) {
    Klicks auf Form-Controls werden ignoriert, damit der Tag nicht zuklappt
    wenn man einen Select öffnet oder den Spinner bedient. */
 function handleTagRowToggle(e) {
-  if (e.target.closest('select, option, input, textarea, .time-spinner')) return;
+  if (e.target.closest('select, option, input, textarea, .time-spinner, .dauer-pill')) return;
   // Buttons ignorieren – AUSSER dem Aufklapp-Pfeil, der ebenfalls toggeln soll.
   if (e.target.closest('button') && !e.target.closest('.tag-row__chevron')) return;
   const row = e.currentTarget.closest('.tag-row');
@@ -2311,6 +2303,23 @@ function pulseSpinnerInput(inp, direction) {
   inp.classList.remove('spinner-bump-up', 'spinner-bump-down');
   void inp.offsetWidth;
   inp.classList.add('spinner-bump-' + direction);
+}
+
+/* Tagdauer-Pill: Klick auf Ganztag/Halbtag setzt den Wert, verschiebt den
+   Glas-Indikator (per data-dauer/CSS) und löst denselben Auto-Save aus wie
+   früher der Zeit-Spinner (window._spinnerCallback). */
+function handleDauerClick(btn) {
+  if (btn.disabled) return;
+  const pill = btn.closest('.dauer-pill');
+  if (!pill || pill.classList.contains('dauer-pill--readonly')) return;
+  const val = btn.dataset.dauerSet === 'halbtag' ? 'halbtag' : 'ganztag';
+  if (pill.dataset.dauer !== val) {
+    pill.dataset.dauer = val;
+    pill.classList.remove('dauer-pill--morph');
+    void pill.offsetWidth;
+    pill.classList.add('dauer-pill--morph');
+  }
+  window._spinnerCallback?.(pill.dataset.date);
 }
 
 function handleSpinnerClick(btn) {

@@ -21,6 +21,10 @@ const ZeitnachweisUpload = (() => {
   let _parsed = null;
   let _workdays = [];   // gefilterte Werktage (ohne leere Wochenenden)
   let _mode = 'overwrite';
+  // Bestehende Wochen des Azubis, einmal vor der Vorschau geladen. So muss
+  // die Tabelle pro Zeile nicht erneut das (async) Backend abfragen –
+  // getTagInfoSync arbeitet rein lokal auf diesem Cache.
+  let _wochen = [];
 
   // ── kleine Helfer ──────────────────────────────────────────────
   function esc(s) {
@@ -191,6 +195,10 @@ const ZeitnachweisUpload = (() => {
         return;
       }
 
+      // Bestehende Wochen einmal laden, damit die Vorschau den Bearbeitungs-
+      // status (readonly/belegt) ohne Pro-Zeilen-Backend-Aufruf bestimmt.
+      _wochen = await DB.getWochenFuerAzubi(_user.id);
+
       _parsed = parsed;
       _workdays = erkannt;
       _mode = 'overwrite';
@@ -293,7 +301,7 @@ const ZeitnachweisUpload = (() => {
     // Werktage nach KW gruppieren (Reihenfolge wie im PDF erhalten).
     const groups = [];
     _workdays.forEach((t, idx) => {
-      const info = DB.getTagInfo(_user.id, t.datum);
+      const info = DB.getTagInfoSync(_wochen, t.datum);
       const key = `${info.year}-${info.kw}`;
       let g = groups.find(x => x.key === key);
       if (!g) { g = { key, kw: info.kw, year: info.year, readonly: info.readonly, rows: [] }; groups.push(g); }
@@ -380,11 +388,19 @@ const ZeitnachweisUpload = (() => {
   }
 
   // ── 5) Übernahme + Erfolg ──────────────────────────────────────
-  function applySelection() {
+  async function applySelection() {
     const tage = selectedTage();
     if (!tage.length) return;
-    const summary = DB.applyZeitnachweis(_user.id, tage);
-    renderSuccess(summary);
+    const btn = document.getElementById('ztnConfirmBtn');
+    if (btn) { btn.disabled = true; btn.textContent = 'Wird übernommen…'; }
+    try {
+      const summary = await DB.applyZeitnachweis(_user.id, tage);
+      renderSuccess(summary);
+    } catch (err) {
+      console.error('[Zeitnachweis] Übernahme fehlgeschlagen:', err);
+      Toast.error('Übernahme fehlgeschlagen', err.message || 'Die Tage konnten nicht gespeichert werden.');
+      if (btn) { btn.disabled = false; updateConfirmCount(); }
+    }
   }
 
   function renderSuccess(summary) {

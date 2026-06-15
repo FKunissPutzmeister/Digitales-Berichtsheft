@@ -211,6 +211,12 @@ html:not([data-role="ausbilder"]):not([data-role="admin"]) .nav-ausbilder-only {
 html:not([data-role="admin"]) .nav-admin-only {
   display: none;
 }
+/* ESS ist azubi-persönlich (eigener Zeitsaldo + Fahrtgeld) → für
+   Ausbilder/Admin ausgeblendet. Gegenstück zu nav-ausbilder-only. */
+html[data-role="ausbilder"] .nav-azubi-only,
+html[data-role="admin"] .nav-azubi-only {
+  display: none;
+}
 
 .sidebar__footer {
   padding: var(--sp-4);

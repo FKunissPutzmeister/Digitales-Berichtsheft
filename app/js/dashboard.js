@@ -120,8 +120,8 @@ async function renderAzubiDashboard(user) {
   });
 
   const aktStatus = aktuelleWoche ? aktuelleWoche.status : 'offen';
-  const wocheStd  = aktuelleWoche
-    ? (aktuelleWoche.tage || []).reduce((s, t) => s + (t.stunden || 0), 0)
+  const wocheTage = aktuelleWoche
+    ? (aktuelleWoche.tage || []).filter(t => t.anwesenheit === 'anwesend').length
     : 0;
   const statusLbl = { offen: 'Offen', freigegeben: 'Freigegeben', genehmigt: 'Genehmigt', abgelehnt: 'Zurückgegeben' }[aktStatus] || 'Offen';
   const monday    = DateUtil.getMondayOfKW(kw, kwYear);
@@ -157,7 +157,7 @@ async function renderAzubiDashboard(user) {
     if (!w) return 'leer';
     if (w.status === 'freigegeben' || w.status === 'genehmigt') return 'abgegeben';
     const hatInhalt = (w.tage || []).some(t =>
-        (t.stunden > 0) || t.eintrag || t.betriebEintrag || t.schuleEintrag || t.unterweisungEintrag)
+        (t.anwesenheit === 'anwesend') || t.eintrag || t.betriebEintrag || t.schuleEintrag || t.unterweisungEintrag)
       || w.betriebEintrag || w.schuleEintrag || w.unterweisungEintrag;
     return hatInhalt ? 'entwurf' : 'leer';
   }
@@ -212,7 +212,7 @@ async function renderAzubiDashboard(user) {
           ${renderWeekStatusDays(aktuelleWoche, kw, kwYear)}
         </div>
         <div class="dash-hero__foot">
-          <span class="dash-hero__sum">Diese Woche: <strong>${decToTime(wocheStd)} Std.</strong></span>
+          <span class="dash-hero__sum">Diese Woche: <strong>${wocheTage} / 5 Tage</strong></span>
           <a href="wochenansicht.html" class="btn btn-primary" data-goto-kw="${kw}" data-goto-year="${kwYear}">
             Zur aktuellen Woche
             <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="width:16px;height:16px"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
@@ -314,7 +314,7 @@ async function renderAzubiDashboard(user) {
         const wkw = DateUtil.getKW(d), wyr = DateUtil.getKWYear(d);
         const woche = lookupWoche(wkw, wyr);
         const tag = woche ? (woche.tage || []).find(t => t.datum === iso) : null;
-        const hatInhalt = tag && (tag.stunden > 0 || tag.eintrag || tag.betriebEintrag || tag.schuleEintrag || tag.unterweisungEintrag);
+        const hatInhalt = tag && (tag.anwesenheit === 'anwesend' || tag.eintrag || tag.betriebEintrag || tag.schuleEintrag || tag.unterweisungEintrag);
 
         let kind = 'leer';
         let lbl  = 'Leer';
@@ -575,7 +575,7 @@ function renderAzubiPrimaryCta(user, aktuelleWoche, alleWochen, kw, kwYear) {
   // Status der aktuellen Woche bestimmen
   const aktStatus = aktuelleWoche ? aktuelleWoche.status : 'offen';
   const tageCount = aktuelleWoche && Array.isArray(aktuelleWoche.tage)
-    ? aktuelleWoche.tage.filter(t => t.anwesenheit || t.stunden).length
+    ? aktuelleWoche.tage.filter(t => t.anwesenheit).length
     : 0;
 
   // Priorität 4: Genehmigt → DONE
@@ -1120,9 +1120,9 @@ function renderReviewItem(w, idx) {
   sunday.setDate(monday.getDate() + 6);
   const startStr = DateUtil.formatDateShort(DateUtil.toISODate(monday));
   const endStr   = DateUtil.formatDateShort(DateUtil.toISODate(sunday));
-  const tageStunden = (w.tage || []).reduce((s, t) => s + (t.stunden || 0), 0);
-  const stunden = tageStunden > 0 ? tageStunden : (w.gesamtstunden || 0);
-  const stundenStr = `${Math.floor(stunden)}:${String(Math.round((stunden % 1) * 60)).padStart(2, '0')}`;
+  const anwesenheitstage = (w.tage || []).filter(t => t.anwesenheit === 'anwesend').length
+    || (w.gesamtstunden || 0);
+  const stundenStr = `${anwesenheitstage} ${anwesenheitstage === 1 ? 'Tag' : 'Tage'}`;
 
   // Wartedauer berechnen (Endwoche-basiert)
   const today = new Date();
@@ -1152,7 +1152,7 @@ function renderReviewItem(w, idx) {
           <span class="review-item__sep">·</span>
           <span>${startStr} – ${endStr}</span>
           <span class="review-item__sep">·</span>
-          <span class="review-item__hours">${stundenStr} Std.</span>
+          <span class="review-item__hours">${stundenStr}</span>
         </div>
         <div class="review-item__waiting">
           <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" style="width:12px;height:12px"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
@@ -1390,18 +1390,19 @@ function renderWeekStatusDays(woche, kw, year) {
     const isWE = i >= 5;
     const isToday = DateUtil.isToday(dateStr);
 
-    let stunden = 0;
+    let dauer = '';
     let anwesenheit = '';
     if (woche && woche.tage) {
       const tag = woche.tage.find(t => t.datum === dateStr);
-      if (tag) { stunden = tag.stunden || 0; anwesenheit = tag.anwesenheit; }
+      if (tag) { dauer = tag.tagdauer || ''; anwesenheit = tag.anwesenheit; }
     }
 
-    const pct = Math.min((stunden / maxH) * 100, 100);
-    const isFull = stunden >= maxH;
-    const hoursStr = stunden
-      ? stunden + ':00'
-      : (isWE ? '–' : (anwesenheit && anwesenheit !== 'anwesend' ? '–' : '0:00'));
+    const isAnwesend = anwesenheit === 'anwesend';
+    const pct = isAnwesend ? (dauer === 'halbtag' ? 50 : 100) : 0;
+    const isFull = isAnwesend && dauer !== 'halbtag';
+    const hoursStr = isWE ? '–'
+      : (isAnwesend ? (dauer === 'halbtag' ? '½' : 'Tag')
+      : (anwesenheit ? '–' : ''));
 
     html += `
       <div class="week-status-day${isWE ? ' week-status-day--weekend' : ''}${isToday ? ' week-status-day--today' : ''}">
