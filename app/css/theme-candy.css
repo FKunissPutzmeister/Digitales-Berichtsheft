@@ -154,9 +154,52 @@ html[data-theme="candy"] { color-scheme: light; }
           mask-image: linear-gradient(180deg, #000 0%, #000 32%, transparent 50%);
 }
 
+/* ── Regenbogen-Schimmer: weicher heller Lichtkeil (conic-gradient),
+   der via reiner transform:rotate-Animation langsam um den Kreis-
+   mittelpunkt wandert → ein „Glanz" läuft wie eine Welle den Bogen
+   entlang und hebt die Farbbänder nacheinander hervor. Eine radiale
+   Ring-Mask sperrt den Schimmer exakt auf den Farbband-Ring (kein
+   weißer Strahl im transparenten Himmel-Zentrum); die untere Hälfte
+   beschneidet zusätzlich die Bottom-Fade-Mask des Eltern-Elements.
+   Perf: nur Compositing (rotate), kein Repaint des großen Layers. ── */
+[data-theme="candy"] #pmThemeFX .pm-cd-rainbow::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: conic-gradient(from 0deg at 50% 50%,
+    rgba(255, 255, 255, 0) 0deg,
+    rgba(255, 255, 255, 0) 18deg,
+    rgba(255, 255, 255, 0.32) 52deg,
+    rgba(255, 255, 255, 0) 86deg,
+    rgba(255, 255, 255, 0) 360deg);
+  -webkit-mask-image: radial-gradient(closest-side, transparent 0 57%, #000 62% 84%, transparent 86.5%);
+          mask-image: radial-gradient(closest-side, transparent 0 57%, #000 62% 84%, transparent 86.5%);
+  animation: pm-cd-rainbow-shimmer 8s linear infinite;
+}
+@keyframes pm-cd-rainbow-shimmer {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+/* Bei offenem Modal pausieren: der geteilte themes.css-Block stoppt nur
+   `#pmThemeFX *` (Elemente), trifft aber dieses ::before nicht → candy-
+   lokal nachgezogen, damit unter dem geblurrten Modal keine GPU-Dauerlast
+   bleibt. */
+[data-theme="candy"] body:has(.modal-overlay.open) #pmThemeFX .pm-cd-rainbow::before {
+  animation-play-state: paused !important;
+}
+
 /* ── Wolken: klassische CSS-Komposition (Pill + 2 runde Bumps),
-   skaliert über font-size/em pro Variante; SEHR langsames Driften
-   (transform-only, alternate). ── */
+   skaliert über font-size/em pro Variante. Drei UNABHÄNGIGE Bewegungen
+   mit eigenem Tempo lassen sich nicht in eine einzige transform-
+   Keyframe pressen → je eine animierte Custom-Property (Drift X,
+   Wippen Y, Pulsieren scale), die in EINEM transform zusammenlaufen.
+   @property registriert sie als interpolierbar (sonst würden sie hart
+   bei 50% umspringen). Edge/Chromium unterstützt das; ohne Support
+   degradiert es gefahrlos zur statischen Wolke (Initialwerte 0/0/1). ── */
+@property --cd-x     { syntax: '<length>'; inherits: false; initial-value: 0px; }
+@property --cd-y     { syntax: '<length>'; inherits: false; initial-value: 0px; }
+@property --cd-scale { syntax: '<number>'; inherits: false; initial-value: 1; }
 [data-theme="candy"] #pmThemeFX .pm-cd-cloud {
   position: absolute;
   z-index: 2;
@@ -166,7 +209,11 @@ html[data-theme="candy"] { color-scheme: light; }
   border-radius: 10em;
   opacity: 0.92;
   box-shadow: 0 10px 24px rgba(110, 160, 210, 0.16);
-  animation: pm-cd-cloud-drift var(--cd-dur, 120s) ease-in-out var(--cd-delay, 0s) infinite alternate;
+  transform: translate3d(var(--cd-x, 0px), var(--cd-y, 0px), 0) scale(var(--cd-scale, 1));
+  animation:
+    pm-cd-cloud-x var(--cd-dur, 120s) ease-in-out var(--cd-delay, 0s) infinite alternate,
+    pm-cd-cloud-y var(--cd-bob-dur, 8s) ease-in-out var(--cd-bob-delay, 0s) infinite,
+    pm-cd-cloud-s var(--cd-pulse-dur, 6s) ease-in-out var(--cd-pulse-delay, 0s) infinite;
 }
 [data-theme="candy"] #pmThemeFX .pm-cd-cloud::before,
 [data-theme="candy"] #pmThemeFX .pm-cd-cloud::after {
@@ -183,13 +230,24 @@ html[data-theme="candy"] { color-scheme: light; }
   width: 5.6em; height: 5.6em;
   bottom: 1.4em; left: 4.6em;
 }
-[data-theme="candy"] #pmThemeFX .pm-cd-cloud--1 { font-size: 13px; top: 9%;  left: 10%; --cd-dur: 120s; --cd-delay: -30s; }
-[data-theme="candy"] #pmThemeFX .pm-cd-cloud--2 { font-size: 9px;  top: 21%; left: 56%; --cd-dur: 150s; --cd-delay: -70s; opacity: 0.8; }
-[data-theme="candy"] #pmThemeFX .pm-cd-cloud--3 { font-size: 16px; top: 5%;  left: 72%; --cd-dur: 135s; --cd-delay: -10s; }
-[data-theme="candy"] #pmThemeFX .pm-cd-cloud--4 { font-size: 8px;  top: 31%; left: 30%; --cd-dur: 160s; --cd-delay: -90s; opacity: 0.7; }
-@keyframes pm-cd-cloud-drift {
-  from { transform: translate3d(0, 0, 0); }
-  to   { transform: translate3d(7vw, 0, 0); }
+[data-theme="candy"] #pmThemeFX .pm-cd-cloud--1 { font-size: 13px; top: 9%;  left: 10%; --cd-dur: 120s; --cd-delay: -30s; --cd-bob: -1.1em;  --cd-bob-dur: 7.5s; --cd-pulse: 1.04;  --cd-pulse-dur: 6.5s; }
+[data-theme="candy"] #pmThemeFX .pm-cd-cloud--2 { font-size: 9px;  top: 21%; left: 56%; --cd-dur: 150s; --cd-delay: -70s; opacity: 0.8; --cd-bob: -0.9em;  --cd-bob-dur: 10s;  --cd-bob-delay: -3s;   --cd-pulse: 1.03;  --cd-pulse-dur: 8s;   --cd-pulse-delay: -2s; }
+[data-theme="candy"] #pmThemeFX .pm-cd-cloud--3 { font-size: 16px; top: 5%;  left: 72%; --cd-dur: 135s; --cd-delay: -10s; --cd-bob: -1.25em; --cd-bob-dur: 6.5s; --cd-pulse: 1.045; --cd-pulse-dur: 5.5s; --cd-pulse-delay: -1.5s; }
+[data-theme="candy"] #pmThemeFX .pm-cd-cloud--4 { font-size: 8px;  top: 31%; left: 30%; --cd-dur: 160s; --cd-delay: -90s; opacity: 0.7; --cd-bob: -0.8em;  --cd-bob-dur: 9s;   --cd-bob-delay: -4s;   --cd-pulse: 1.03;  --cd-pulse-dur: 7s; }
+/* Drift X (langsam, seitwärts, alternate) · Wippen Y (sanftes Schweben)
+   · Pulsieren scale (minimales „Atmen") – je eine Custom-Property, vom
+   transform der Basisregel zusammengeführt. */
+@keyframes pm-cd-cloud-x {
+  from { --cd-x: 0px; }
+  to   { --cd-x: 7vw; }
+}
+@keyframes pm-cd-cloud-y {
+  0%, 100% { --cd-y: 0px; }
+  50%      { --cd-y: var(--cd-bob, -1em); }
+}
+@keyframes pm-cd-cloud-s {
+  0%, 100% { --cd-scale: 1; }
+  50%      { --cd-scale: var(--cd-pulse, 1.035); }
 }
 
 /* ── Wiese: 3 Lagen gewellter Zuckerguss-Hügel. Jede Lage ist ein
@@ -455,6 +513,16 @@ html[data-theme="candy"] { color-scheme: light; }
     transparent, #FF6FB5 18%, #FFC861 38%, #7DE3B7 58%, #7FB2FF 78%, transparent);
   opacity: 0.9;
 }
+
+/* Putzmeister-Logo (TESTWEISE auf Candy-Farben): Marken-Gelb → Bubblegum-
+   Pink (--pm-yellow #FF6FB5), grauer PM-Elefant → Weiß #FFFFFF. content:url() tauscht NUR unter [data-theme="candy"] das
+   <img>-Bitmap der Sidebar; alle anderen Themes behalten das Original.
+   Asset: assets/logo-candy.png – aus „Social Logo/200 x 200 px.png"
+   umgefärbt (2-Farb-Remap mit erhaltenen Anti-Aliasing-Kanten). */
+[data-theme="candy"] .sidebar__logo-mark,
+[data-theme="candy"] .login-card__mark {
+  content: url("../assets/logo-candy.png");
+}
 [data-theme="candy"] .toast::after {
   background: linear-gradient(90deg, #FF6FB5, #FFC861, #7DE3B7, #7FB2FF);
 }
@@ -520,6 +588,12 @@ html[data-theme="candy"] .bento .b-recent {
   [data-theme="candy"] .btn-icon:hover:not(:disabled) {
     animation: none !important;
   }
+  /* Regenbogen-Schimmer (::before) abschalten – der geteilte themes.css-
+     Block deckt nur `#pmThemeFX *` ab, nicht dieses Pseudo-Element.
+     Wolken sind dort als Elemente bereits erfasst. */
+  [data-theme="candy"] #pmThemeFX .pm-cd-rainbow::before {
+    animation: none !important;
+  }
 }
 @media print {
   [data-theme="candy"] .card,
@@ -534,4 +608,16 @@ html[data-theme="candy"] .bento .b-recent {
     -webkit-backdrop-filter: none;
             backdrop-filter: none;
   }
+}
+
+/* ===================================================================
+   WOCHENANSICHT-STUNDEN-SPINNER (analog dark/hyperspace/cmd)
+   -------------------------------------------------------------------
+   Helles Theme: weiße Pille auf weißer Zeile → ohne Rahmen ist die
+   runde Umrandung im Ruhezustand unsichtbar. Dezente dunkle Kante,
+   damit der „Kreis" dauerhaft sichtbar ist (nicht erst beim Editieren;
+   die Fokus-Regel färbt die Kante dann im Akzent). Pills/Schatten sind
+   hier bereits dezent (Standard-Basiswerte) – kein weiterer Eingriff. */
+[data-theme="candy"] body[data-page="wochenansicht"] .time-spinner__input {
+  border-color: rgba(15, 23, 42, 0.20);
 }
