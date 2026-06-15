@@ -2547,7 +2547,7 @@ body[data-page="wochenansicht"] .btn-lg {
   border-color: rgba(255, 255, 255, 0.06);
 }
 [data-theme="dark"] body[data-page="wochenansicht"] .tag-row--today {
-  border-color: rgba(255, 195, 0, 0.32);
+  border-color: rgba(255, 195, 0, 0.22);
 }
 [data-theme="dark"] body[data-page="wochenansicht"] .tag-row--weekend {
   background: rgba(255, 255, 255, 0.02);
@@ -2977,14 +2977,13 @@ body[data-page="wochenansicht"] .time-spinner__input.spinner-bump-down {
   background: rgba(255, 255, 255, 0.04);
 }
 [data-theme="dark"] body[data-page="wochenansicht"] .tag-row--today {
-  background:
-    linear-gradient(180deg, rgba(255, 195, 0, 0.10) 0%, rgba(255, 195, 0, 0.04) 100%),
-    linear-gradient(180deg, #44444A 0%, #3D3D43 100%);
-  border-color: rgba(255, 195, 0, 0.45);
-  box-shadow:
-    inset 0 1px 0 rgba(255, 195, 0, 0.15),
-    0 0 0 1px rgba(255, 195, 0, 0.10),
-    0 4px 14px -6px rgba(255, 195, 0, 0.25);
+  /* Dezenter heutiger Tag: nur ein zarter gelber Rahmen – kein Flächen-
+     Tint, kein Glow (vormals kräftiger 0.45-Rahmen + gelber Verlauf +
+     dreifacher gelber Schatten). Hintergrund = neutrale Karten-Farbe wie
+     bei normalen Zeilen, damit ausschließlich die Umrandung markiert. */
+  background: var(--pm-white);
+  border-color: rgba(255, 195, 0, 0.22);
+  box-shadow: none;
 }
 [data-theme="dark"] body[data-page="wochenansicht"] .tag-row--weekend {
   background: rgba(255, 255, 255, 0.015);
