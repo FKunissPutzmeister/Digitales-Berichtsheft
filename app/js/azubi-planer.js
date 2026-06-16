@@ -171,9 +171,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         <div class="planer-search">
           <input type="search" id="azubiSearch" class="form-control" placeholder="Azubi suchen …" value="${searchText}">
         </div>
-        <select class="form-control" id="filterVerantw">${buildVerantwOptions()}</select>
-        <select class="form-control" id="filterAbteilung">${buildAbteilungOptions()}</select>
-        <select class="form-control" id="filterLehrjahr">${buildLehrjahrOptions()}</select>
+        <select class="form-control" id="filterVerantw" data-pm-skip>${buildVerantwOptions()}</select>
+        <select class="form-control" id="filterAbteilung" data-pm-skip>${buildAbteilungOptions()}</select>
+        <select class="form-control" id="filterLehrjahr" data-pm-skip>${buildLehrjahrOptions()}</select>
         <label class="planer-quickfilter">
           <input type="checkbox" id="filterNurOhne" ${nurOhneZuweisung ? 'checked' : ''}> nur ohne aktuelle Zuweisung
         </label>
