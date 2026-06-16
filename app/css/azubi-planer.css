@@ -479,3 +479,250 @@
   .planer-toolbar { align-items: stretch; }
   .planer-search { width: 100%; }
 }
+
+/* ===================================================================
+   MASTER-DETAIL-LAYOUT (Phase 3b)
+   =================================================================== */
+
+/* ── Filterleiste ── */
+.planer-filterbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-3);
+  padding: var(--sp-3) var(--sp-4);
+  background: var(--pm-white);
+  border: 1px solid var(--pm-grey-200);
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow-sm);
+  margin-bottom: var(--sp-5);
+}
+.planer-filterbar .planer-search {
+  flex: 1 1 220px;
+  min-width: 180px;
+  max-width: 280px;
+  position: static;  /* override positional override from toolbar context */
+  width: auto;
+}
+.planer-filterbar .form-control {
+  flex: 1 1 160px;
+  min-width: 140px;
+}
+.planer-quickfilter {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  font-size: var(--text-sm);
+  color: var(--pm-grey-700);
+  cursor: pointer;
+  white-space: nowrap;
+}
+.planer-quickfilter input[type="checkbox"] {
+  accent-color: var(--pm-yellow);
+  width: 15px;
+  height: 15px;
+  cursor: pointer;
+}
+
+/* ── Master-Detail-Grid ── */
+.planer-master {
+  display: grid;
+  grid-template-columns: minmax(320px, 0.9fr) 1.4fr;
+  gap: var(--sp-5);
+  align-items: start;
+  margin-bottom: var(--sp-6);
+}
+@media (max-width: 900px) {
+  .planer-master { grid-template-columns: 1fr; }
+}
+
+/* ── Linke Liste ── */
+.planer-list {
+  background: var(--pm-white);
+  border: 1px solid var(--pm-grey-200);
+  border-radius: var(--r-xl);
+  box-shadow: var(--shadow-sm);
+  max-height: 62vh;
+  overflow-y: auto;
+}
+
+.planer-list-item {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  width: 100%;
+  padding: var(--sp-3) var(--sp-4);
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  text-align: left;
+  border-bottom: 1px solid var(--pm-grey-100);
+  border-left: 3px solid transparent;
+  transition: background var(--t-fast), border-color var(--t-fast);
+  font-family: var(--font-body);
+}
+.planer-list-item:last-child { border-bottom: none; }
+.planer-list-item:hover {
+  background: var(--pm-grey-50);
+  border-left-color: var(--pm-grey-300);
+}
+.planer-list-item.selected {
+  background: var(--pm-yellow-pale);
+  border-left-color: var(--pm-yellow);
+}
+
+.planer-list-item__main {
+  flex: 1;
+  min-width: 0;
+}
+.planer-list-item__name {
+  font-size: var(--text-sm);
+  font-weight: var(--fw-bold);
+  color: var(--pm-grey-900);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.planer-list-item__lj {
+  font-size: var(--text-xs);
+  font-weight: var(--fw-regular);
+  color: var(--pm-grey-500);
+  margin-left: var(--sp-1);
+}
+.planer-list-item__sub {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-1);
+  font-size: var(--text-xs);
+  color: var(--pm-grey-500);
+  margin-top: 1px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ── Farbpunkt (wird in Liste und Detailpanel genutzt) ── */
+.planer-dot {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: var(--r-full);
+  flex-shrink: 0;
+}
+
+/* ── Rechtes Detailpanel ── */
+.planer-detail {
+  background: var(--pm-white);
+  border: 1px solid var(--pm-grey-200);
+  border-radius: var(--r-xl);
+  box-shadow: var(--shadow-sm);
+  min-height: 200px;
+  padding: var(--sp-5);
+}
+.planer-detail__empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 160px;
+  color: var(--pm-grey-400);
+  font-size: var(--text-sm);
+  text-align: center;
+}
+.planer-detail__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  margin-bottom: var(--sp-4);
+  padding-bottom: var(--sp-4);
+  border-bottom: 1px solid var(--pm-grey-200);
+}
+.planer-detail__name {
+  font-family: var(--font-heading);
+  font-size: var(--text-lg);
+  font-weight: var(--fw-bold);
+  color: var(--pm-grey-900);
+  margin: 0 0 2px;
+}
+.planer-detail__beruf {
+  font-size: var(--text-sm);
+  color: var(--pm-grey-500);
+  margin: 0;
+}
+
+/* ── Rotationsliste im Detailpanel ── */
+.rotation-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+}
+.rotation-item {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  padding: var(--sp-3) var(--sp-4);
+  background: var(--pm-grey-50);
+  border: 1px solid var(--pm-grey-100);
+  border-radius: var(--r-lg);
+  transition: background var(--t-fast);
+}
+.rotation-item:hover { background: var(--pm-grey-100); }
+.rotation-item__main {
+  flex: 1;
+  min-width: 0;
+}
+.rotation-item__abt {
+  font-size: var(--text-sm);
+  font-weight: var(--fw-bold);
+  color: var(--pm-grey-800);
+}
+.rotation-item__meta {
+  font-size: var(--text-xs);
+  color: var(--pm-grey-500);
+  margin-top: 1px;
+}
+
+/* ── Einklappbarer Gesamt-Gantt ── */
+.planer-gantt-details {
+  margin-top: var(--sp-2);
+}
+.planer-gantt-details > summary {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: var(--sp-3) var(--sp-4);
+  background: var(--pm-white);
+  border: 1px solid var(--pm-grey-200);
+  border-radius: var(--r-lg);
+  font-size: var(--text-sm);
+  font-weight: var(--fw-bold);
+  color: var(--pm-grey-700);
+  cursor: pointer;
+  user-select: none;
+  list-style: none;
+  transition: background var(--t-fast), color var(--t-fast);
+}
+.planer-gantt-details > summary::-webkit-details-marker { display: none; }
+.planer-gantt-details > summary::before {
+  content: '▶';
+  font-size: 10px;
+  color: var(--pm-grey-400);
+  transition: transform var(--t-fast);
+  display: inline-block;
+}
+.planer-gantt-details[open] > summary::before { transform: rotate(90deg); }
+.planer-gantt-details > summary:hover {
+  background: var(--pm-grey-50);
+  color: var(--pm-grey-900);
+}
+.planer-gantt-details > .gantt-wrap {
+  margin-top: var(--sp-3);
+}
+
+/* ── Leer-Zustand ── */
+.planer-empty {
+  padding: var(--sp-6) var(--sp-4);
+  text-align: center;
+  color: var(--pm-grey-400);
+  font-size: var(--text-sm);
+}
