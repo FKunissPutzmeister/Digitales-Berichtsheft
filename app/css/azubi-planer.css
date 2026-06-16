@@ -224,7 +224,7 @@
 .gantt-day--month { border-left: 2px solid var(--pm-grey-300); }
 .gantt-day.current { background: var(--pm-yellow-pale); color: var(--pm-yellow-darker); font-weight: var(--fw-bold); }
 
-.gantt-body { overflow-x: auto; }
+.gantt-body { overflow: visible; }
 .gantt-row {
   display: flex;
   align-items: center;
@@ -778,4 +778,38 @@
   text-align: center;
   color: var(--pm-grey-400);
   font-size: var(--text-sm);
+}
+
+/* Durchsuchbare Combobox (ersetzt sichtbar ein <select>) */
+.combo { position: relative; }
+.combo__input { width: 100%; }
+.combo__panel {
+  position: absolute;
+  top: calc(100% + 2px);
+  left: 0;
+  right: 0;
+  z-index: 100;
+  max-height: 240px;
+  overflow-y: auto;
+  background: var(--pm-white);
+  border: 1px solid var(--pm-grey-300);
+  border-radius: var(--r-md, 8px);
+  box-shadow: 0 6px 20px rgba(0,0,0,0.12);
+  padding: 4px;
+}
+.combo__option {
+  padding: 6px 10px;
+  border-radius: 6px;
+  font-size: var(--text-sm);
+  color: var(--pm-grey-800);
+  cursor: pointer;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.combo__option:hover { background: var(--pm-grey-50); }
+.combo__empty { padding: 8px 10px; color: var(--pm-grey-400); font-size: var(--text-sm); }
+
+/* Filterbar: .combo occupies the same flex slot as a .form-control */
+.planer-filterbar .combo {
+  flex: 1 1 160px;
+  min-width: 140px;
 }

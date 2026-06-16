@@ -42,6 +42,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   let filterAbteilung = '';            // Filter: Abteilung ('' = alle)
   let filterLehrjahr = '';             // Filter: Lehrjahr ('' = alle)
   let nurOhneZuweisung = false;        // Schnellfilter
+  let comboModalAzubi = null, comboModalVerantw = null;
 
   // Einmal aufgelöste Zeilendaten (Azubi-/Ausbilder-Objekte).
   let zuwRowData = [];
@@ -162,7 +163,6 @@ document.addEventListener('DOMContentLoaded', async () => {
           <h1 class="page-title">Azubi-Planer</h1>
           <p class="page-subtitle">Zuweisungen von Auszubildenden zu Verantwortlichen verwalten.</p>
         </div>
-        <button class="btn btn-secondary" id="newZuweisungBtn">+ Zuweisung</button>
       </div>
 
       ${buildKpis()}
@@ -196,8 +196,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     `;
 
     // Events
-    document.getElementById('newZuweisungBtn')?.addEventListener('click', () => openNewZuweisung());
-
     const rerenderList = () => {
       document.getElementById('planerList').innerHTML = buildAzubiListe();
       bindListEvents();
@@ -207,6 +205,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     document.getElementById('filterAbteilung')?.addEventListener('change', (e) => { filterAbteilung = e.target.value; rerenderList(); });
     document.getElementById('filterLehrjahr')?.addEventListener('change', (e) => { filterLehrjahr = e.target.value; rerenderList(); });
     document.getElementById('filterNurOhne')?.addEventListener('change', (e) => { nurOhneZuweisung = e.target.checked; rerenderList(); });
+    makeSearchableSelect(document.getElementById('filterVerantw'));
+    makeSearchableSelect(document.getElementById('filterAbteilung'));
 
     bindListEvents();
     if (selectedAzubiId) bindDetailEvents();
@@ -409,6 +409,70 @@ document.addEventListener('DOMContentLoaded', async () => {
     }));
   }
 
+  // Escape für sicher eingebettete Labels/Values im Panel-HTML.
+  function escHtml(s) {
+    return String(s).replace(/[&<>"]/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[c]));
+  }
+
+  /* Progressive Enhancement: macht ein <select> durchsuchbar. Tippen filtert
+     die Optionen per Wort-Präfix (Vor- ODER Nachname). Das <select> bleibt
+     versteckt als Wert-Quelle und feuert 'change' bei Auswahl. */
+  function makeSearchableSelect(select) {
+    if (!select || select.dataset.comboEnhanced) return null;
+    select.dataset.comboEnhanced = '1';
+    select.style.display = 'none';
+
+    const wrap = document.createElement('div');
+    wrap.className = 'combo';
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.className = 'form-control combo__input';
+    input.autocomplete = 'off';
+    input.setAttribute('role', 'combobox');
+    const panel = document.createElement('div');
+    panel.className = 'combo__panel';
+    panel.hidden = true;
+    wrap.appendChild(input);
+    wrap.appendChild(panel);
+    select.parentNode.insertBefore(wrap, select.nextSibling);
+
+    let options = [];
+    function syncFromSelect() {
+      options = Array.from(select.options).map(o => ({ value: o.value, label: o.textContent }));
+      const cur = select.options[select.selectedIndex];
+      input.value = cur ? cur.textContent : '';
+    }
+    function tokenMatch(label, q) {
+      if (!q) return true;
+      const ql = q.toLowerCase();
+      return label.toLowerCase().split(/\s+/).some(tok => tok.startsWith(ql));
+    }
+    function renderPanel(q) {
+      const matches = options.filter(o => tokenMatch(o.label, q));
+      panel.innerHTML = matches.length
+        ? matches.map(o => `<div class="combo__option" data-value="${escHtml(o.value)}">${escHtml(o.label)}</div>`).join('')
+        : `<div class="combo__empty">Keine Treffer</div>`;
+      panel.hidden = false;
+    }
+    input.addEventListener('focus', () => { input.select(); renderPanel(''); });
+    input.addEventListener('input', () => renderPanel(input.value.trim()));
+    input.addEventListener('keydown', (e) => { if (e.key === 'Escape') { panel.hidden = true; input.blur(); } });
+    // mousedown (vor blur) → Auswahl greift, bevor das Input den Fokus verliert
+    panel.addEventListener('mousedown', (e) => {
+      const opt = e.target.closest('.combo__option');
+      if (!opt) return;
+      e.preventDefault();
+      select.value = opt.dataset.value;
+      select.dispatchEvent(new Event('change', { bubbles: true }));
+      syncFromSelect();
+      panel.hidden = true;
+    });
+    input.addEventListener('blur', () => setTimeout(() => { panel.hidden = true; }, 120));
+
+    syncFromSelect();
+    return { refresh: syncFromSelect };
+  }
+
   function initZuweisungDeleteModal() {
     // Bindung erfolgt einmalig beim ersten Render – das Modal selbst bleibt
     // im DOM stehen, nur pendingDeleteZuweisungId wird pro Klick neu gesetzt.
@@ -427,6 +491,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     const ausbilderSel = document.getElementById('zuweisungAusbilder');
     if (azubiSel) azubiSel.innerHTML = azubis.map(a => `<option value="${a.id}" ${a.id === presetAzubiId ? 'selected' : ''}>${a.name}</option>`).join('');
     if (ausbilderSel) ausbilderSel.innerHTML = ausbilder.map(a => `<option value="${a.id}">${a.name}</option>`).join('');
+    comboModalAzubi?.refresh();
+    comboModalVerantw?.refresh();
     Modal.open('zuweisungModal');
   }
 
@@ -463,6 +529,8 @@ document.addEventListener('DOMContentLoaded', async () => {
   // angehängt, was zu Mehrfach-Einfügungen/-Löschungen führen könnte.
   initZuweisungDeleteModal();
   initZuweisungModal();
+  comboModalAzubi   = makeSearchableSelect(document.getElementById('zuweisungAzubi'));
+  comboModalVerantw = makeSearchableSelect(document.getElementById('zuweisungAusbilder'));
 
   await render();
 });
