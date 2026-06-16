@@ -784,17 +784,14 @@
 .combo { position: relative; }
 .combo__input { width: 100%; }
 .combo__panel {
-  position: absolute;
-  top: calc(100% + 2px);
-  left: 0;
-  right: 0;
-  z-index: 100;
+  position: fixed;
+  z-index: 9999;
   max-height: 240px;
   overflow-y: auto;
   background: var(--pm-white);
   border: 1px solid var(--pm-grey-300);
   border-radius: var(--r-md, 8px);
-  box-shadow: 0 6px 20px rgba(0,0,0,0.12);
+  box-shadow: 0 8px 24px rgba(0,0,0,0.18);
   padding: 4px;
 }
 .combo__option {

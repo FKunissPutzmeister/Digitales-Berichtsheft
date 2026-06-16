@@ -205,6 +205,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     document.getElementById('filterAbteilung')?.addEventListener('change', (e) => { filterAbteilung = e.target.value; rerenderList(); });
     document.getElementById('filterLehrjahr')?.addEventListener('change', (e) => { filterLehrjahr = e.target.value; rerenderList(); });
     document.getElementById('filterNurOhne')?.addEventListener('change', (e) => { nurOhneZuweisung = e.target.checked; rerenderList(); });
+    // Verwaiste Portal-Panels aus früheren Renders entfernen (Filter-Comboboxen
+    // werden neu erzeugt; ihre alten Inputs sind nun nicht mehr im DOM).
+    document.querySelectorAll('.combo__panel').forEach(p => {
+      if (p._comboInput && !p._comboInput.isConnected) p.remove();
+    });
     makeSearchableSelect(document.getElementById('filterVerantw'));
     makeSearchableSelect(document.getElementById('filterAbteilung'));
 
@@ -415,8 +420,10 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   /* Progressive Enhancement: macht ein <select> durchsuchbar. Tippen filtert
-     die Optionen per Wort-Präfix (Vor- ODER Nachname). Das <select> bleibt
-     versteckt als Wert-Quelle und feuert 'change' bei Auswahl. */
+     per Wort-Präfix (Vor- ODER Nachname). Das <select> bleibt versteckte
+     Wert-Quelle und feuert 'change' bei Auswahl. Das Panel wird als PORTAL am
+     <body> gerendert (nicht im Wrapper), damit es nicht vom Modal geclippt wird
+     (.modal hat overflow-y:auto + transform). */
   function makeSearchableSelect(select) {
     if (!select || select.dataset.comboEnhanced) return null;
     select.dataset.comboEnhanced = '1';
@@ -429,12 +436,15 @@ document.addEventListener('DOMContentLoaded', async () => {
     input.className = 'form-control combo__input';
     input.autocomplete = 'off';
     input.setAttribute('role', 'combobox');
+    wrap.appendChild(input);
+    select.parentNode.insertBefore(wrap, select.nextSibling);
+
+    // Panel als Portal am <body> (entkommt overflow/transform des Modals).
     const panel = document.createElement('div');
     panel.className = 'combo__panel';
     panel.hidden = true;
-    wrap.appendChild(input);
-    wrap.appendChild(panel);
-    select.parentNode.insertBefore(wrap, select.nextSibling);
+    panel._comboInput = input;   // Rückreferenz für Orphan-Cleanup
+    document.body.appendChild(panel);
 
     let options = [];
     function syncFromSelect() {
@@ -445,18 +455,37 @@ document.addEventListener('DOMContentLoaded', async () => {
     function tokenMatch(label, q) {
       if (!q) return true;
       const ql = q.toLowerCase();
-      return label.toLowerCase().split(/\s+/).some(tok => tok.startsWith(ql));
+      return label.toLowerCase().split(/\s+/).some(t => t.startsWith(ql));
+    }
+    function position() {
+      const r = input.getBoundingClientRect();
+      panel.style.left = r.left + 'px';
+      panel.style.top = (r.bottom + 2) + 'px';
+      panel.style.width = r.width + 'px';
     }
     function renderPanel(q) {
       const matches = options.filter(o => tokenMatch(o.label, q));
       panel.innerHTML = matches.length
         ? matches.map(o => `<div class="combo__option" data-value="${escHtml(o.value)}">${escHtml(o.label)}</div>`).join('')
         : `<div class="combo__empty">Keine Treffer</div>`;
+      position();
       panel.hidden = false;
     }
-    input.addEventListener('focus', () => { input.select(); renderPanel(''); });
+    const onScrollResize = () => { if (!panel.hidden) position(); };
+    function open() {
+      renderPanel('');
+      window.addEventListener('scroll', onScrollResize, true);
+      window.addEventListener('resize', onScrollResize);
+    }
+    function close() {
+      panel.hidden = true;
+      window.removeEventListener('scroll', onScrollResize, true);
+      window.removeEventListener('resize', onScrollResize);
+    }
+
+    input.addEventListener('focus', () => { input.select(); open(); });
     input.addEventListener('input', () => renderPanel(input.value.trim()));
-    input.addEventListener('keydown', (e) => { if (e.key === 'Escape') { panel.hidden = true; input.blur(); } });
+    input.addEventListener('keydown', (e) => { if (e.key === 'Escape') { close(); input.blur(); } });
     // mousedown (vor blur) → Auswahl greift, bevor das Input den Fokus verliert
     panel.addEventListener('mousedown', (e) => {
       const opt = e.target.closest('.combo__option');
@@ -465,9 +494,9 @@ document.addEventListener('DOMContentLoaded', async () => {
       select.value = opt.dataset.value;
       select.dispatchEvent(new Event('change', { bubbles: true }));
       syncFromSelect();
-      panel.hidden = true;
+      close();
     });
-    input.addEventListener('blur', () => setTimeout(() => { panel.hidden = true; }, 120));
+    input.addEventListener('blur', () => setTimeout(close, 120));
 
     syncFromSelect();
     return { refresh: syncFromSelect };
