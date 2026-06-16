@@ -243,6 +243,80 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
   }
 
+  // Linke Liste: ein Eintrag je (gefiltertem) Azubi mit aktueller Zuweisung/Status.
+  function buildAzubiListe() {
+    const list = gefilterteAzubis();
+    if (!list.length) return `<div class="planer-empty">Keine Azubis für die aktuelle Filterung.</div>`;
+    return list.map(a => {
+      const akt = getAktuelleZuweisung(a.id);
+      const lj = lehrjahrVon(a);
+      let badge, sub;
+      if (!akt) { badge = `<span class="badge badge--abgelehnt">Keine Zuweisung</span>`; sub = '—'; }
+      else {
+        const farbe = getBarColor(colorIndexFor(akt.z.ausbilderId));
+        badge = `<span class="badge ${akt.status.badge}">${akt.status.label}</span>`;
+        sub = `<span class="planer-dot" style="background:${farbe}"></span>${akt.z.abteilung || '–'} · ${akt.ausb?.name || '–'}`;
+      }
+      return `
+        <button class="planer-list-item ${a.id === selectedAzubiId ? 'selected' : ''}" data-azubi-id="${a.id}">
+          <div class="avatar avatar--sm">${a.initials}</div>
+          <div class="planer-list-item__main">
+            <div class="planer-list-item__name">${a.name}${lj ? ` <span class="planer-list-item__lj">${lj}. LJ</span>` : ''}</div>
+            <div class="planer-list-item__sub">${sub}</div>
+          </div>
+          ${badge}
+        </button>`;
+    }).join('');
+  }
+
+  // Rechtes Detailpanel: Rotationsplan des gewählten Azubis.
+  function buildDetail(azubiId) {
+    if (!azubiId) return `<div class="planer-detail__empty">Azubi links auswählen, um den Rotationsplan zu sehen.</div>`;
+    const azubi = azubis.find(a => a.id === azubiId);
+    if (!azubi) return `<div class="planer-detail__empty">Azubi nicht gefunden.</div>`;
+    // Alle Zuweisungen dieses Azubis aus zuwRowData, chronologisch.
+    const rows = zuwRowData.filter(r => r.z.azubiId === azubiId)
+      .sort((a, b) => a.z.von.localeCompare(b.z.von));
+    const liste = rows.length ? rows.map(r => {
+      const farbe = getBarColor(colorIndexFor(r.z.ausbilderId));
+      return `
+        <div class="rotation-item">
+          <span class="planer-dot" style="background:${farbe}"></span>
+          <div class="rotation-item__main">
+            <div class="rotation-item__abt">${r.z.abteilung || '–'}</div>
+            <div class="rotation-item__meta">${r.ausb?.name || '–'} · ${DateUtil.formatDate(r.z.von)} – ${DateUtil.formatDate(r.z.bis)}</div>
+          </div>
+          <span class="badge ${r.status.badge}">${r.status.label}</span>
+          <button class="btn btn-sm btn-ghost detail-delete-btn" data-id="${r.z.id}" title="Löschen">✕</button>
+        </div>`;
+    }).join('') : `<div class="planer-empty">Noch keine Zuweisungen.</div>`;
+    return `
+      <div class="planer-detail__header">
+        <div>
+          <h2 class="planer-detail__name">${azubi.name}</h2>
+          <p class="planer-detail__beruf">${azubi.beruf || ''}</p>
+        </div>
+        <button class="btn btn-sm btn-secondary detail-add-btn" data-azubi-id="${azubiId}">+ Zuweisung</button>
+      </div>
+      <div class="rotation-list">${liste}</div>`;
+  }
+
+  // Detailpanel-Events: Anlegen (vorausgewählt) + Löschen.
+  function bindDetailEvents() {
+    document.querySelector('.detail-add-btn')?.addEventListener('click', (e) => openNewZuweisung(e.currentTarget.dataset.azubiId));
+    document.querySelectorAll('.detail-delete-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        pendingDeleteZuweisungId = parseInt(btn.dataset.id);
+        const row = zuwRowData.find(r => r.z.id === pendingDeleteZuweisungId);
+        const textEl = document.getElementById('zuweisungDeleteText');
+        if (textEl) textEl.textContent = row?.azubi
+          ? `Die Zuweisung von „${row.azubi.name}" wird unwiderruflich entfernt. Möchtest du fortfahren?`
+          : 'Diese Zuweisung wird unwiderruflich entfernt. Möchtest du fortfahren?';
+        Modal.open('zuweisungDeleteModal');
+      });
+    });
+  }
+
   function buildGanttHeader() {
     const monthHeaders = Array.from({ length: MONTHS }, (_, i) => {
       const isCurrent = i === today.getMonth() && planYear === today.getFullYear();
@@ -511,10 +585,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
   }
 
-  function openNewZuweisung() {
+  function openNewZuweisung(presetAzubiId) {
     const azubiSel = document.getElementById('zuweisungAzubi');
     const ausbilderSel = document.getElementById('zuweisungAusbilder');
-    if (azubiSel) azubiSel.innerHTML = azubis.map(a => `<option value="${a.id}">${a.name}</option>`).join('');
+    if (azubiSel) azubiSel.innerHTML = azubis.map(a => `<option value="${a.id}" ${a.id === presetAzubiId ? 'selected' : ''}>${a.name}</option>`).join('');
     if (ausbilderSel) ausbilderSel.innerHTML = ausbilder.map(a => `<option value="${a.id}">${a.name}</option>`).join('');
     Modal.open('zuweisungModal');
   }
