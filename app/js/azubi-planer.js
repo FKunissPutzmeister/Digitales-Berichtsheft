@@ -10,7 +10,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   const user = await initPage('nav-planer', [{ label: 'Azubi-Planer', href: 'azubi-planer.html' }]);
   if (!user) return;
 
-  if (!['ausbilder', 'admin'].includes(user.role)) {
+  if (!user.kannPlanen) {
     window.location.href = 'dashboard.html';
     return;
   }
