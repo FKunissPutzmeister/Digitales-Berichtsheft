@@ -18,7 +18,7 @@ document.addEventListener('DOMContentLoaded', async () => {
      Hinweis im UI. Stattdessen: Fehler abfangen und sichtbar machen,
      damit der Bug nicht mehr stillschweigend passiert. */
   try {
-    if (user.role === 'azubi') {
+    if (user.istAzubi) {
       await renderAzubiDashboard(user);
     } else {
       await renderAusbilderDashboard(user);
@@ -49,7 +49,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   window.addEventListener('pageshow', async (event) => {
     if (!event.persisted) return;
     try {
-      if (user.role === 'azubi') {
+      if (user.istAzubi) {
         await renderAzubiDashboard(user);
       } else {
         await renderAusbilderDashboard(user);
@@ -1102,8 +1102,6 @@ function bindReviewFilterBar(queue) {
 
 /* ── Hilfsfunktionen für Ausbilder-Dashboard ──────────────────── */
 async function getMeineAzubis(user) {
-  if (user.role === 'admin') return await DB.getAzubis();
-
   const heute = new Date().toISOString().split('T')[0];
   const meineZuw = (await DB.getZuweisungenFuerAusbilder(user.id))
     .filter(z => z.von <= heute && z.bis >= heute);
