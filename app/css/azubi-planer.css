@@ -123,6 +123,16 @@
 .planer-search__input { padding-left: 34px; }
 
 /* ── Gantt-Zeitleiste ── */
+.gantt-scroll {
+  overflow-x: auto;
+  background: var(--pm-white);
+  border: 1px solid var(--pm-grey-200);
+  border-radius: var(--r-xl);
+  box-shadow: var(--shadow-sm);
+}
+.gantt-grid { min-width: calc(280px + var(--num-weeks) * var(--week-px)); }
+
+/* Legacy: .gantt-wrap still styled for any remaining non-details usage */
 .gantt-wrap {
   background: var(--pm-white);
   border: 1px solid var(--pm-grey-200);
@@ -149,10 +159,14 @@
   letter-spacing: 0.06em;
   color: var(--pm-grey-500);
   border-right: 1px solid var(--pm-grey-200);
+  position: sticky;
+  left: 0;
+  z-index: 3;
+  background: var(--pm-grey-50);
 }
 .gantt-header__timeline {
-  flex: 1;
-  overflow: hidden;
+  width: calc(var(--num-weeks) * var(--week-px));
+  flex: none;
   display: flex;
   position: relative;   /* Bezug für das einmalige „Heute"-Label */
 }
@@ -174,6 +188,21 @@
 .gantt-header__month.current { color: var(--pm-yellow-darker); background: var(--pm-yellow-pale); }
 /* Quartalsanfang (Jan/Apr/Jul/Okt) stärker betont als die Monatslinien. */
 .gantt-header__month--q { border-left: 2px solid var(--pm-grey-300); }
+
+/* Wochenspalten (KW-Ansicht) */
+.gantt-week {
+  flex: 0 0 var(--week-px);
+  min-width: var(--week-px);
+  padding: var(--sp-3) 0;
+  font-size: 10px;
+  font-weight: var(--fw-bold);
+  color: var(--pm-grey-500);
+  text-align: center;
+  border-right: 1px solid var(--pm-grey-100);
+  white-space: nowrap;
+}
+.gantt-week--month { border-left: 2px solid var(--pm-grey-300); }
+.gantt-week.current { background: var(--pm-yellow-pale); color: var(--pm-yellow-darker); }
 
 .gantt-body { overflow-x: auto; }
 .gantt-row {
@@ -198,7 +227,12 @@
   /* Clippt den Flex-Container, damit der Beruf sauber endet statt in den
      Zeitstrahl zu laufen. Der Name selbst darf bis zu 2 Zeilen umbrechen. */
   overflow: hidden;
+  position: sticky;
+  left: 0;
+  z-index: 2;
+  background: var(--pm-white);
 }
+.gantt-row:hover .gantt-row__info { background: var(--pm-grey-50); }
 .gantt-row__info-text {
   flex: 1;
   min-width: 0;     /* erlaubt Ellipsis/Umbruch im Flex-Child */
@@ -226,32 +260,25 @@
 }
 
 .gantt-row__timeline {
-  flex: 1;
+  width: calc(var(--num-weeks) * var(--week-px));
+  flex: none;
   position: relative;
   height: 64px;
   display: flex;
   align-items: center;
 }
 
-/* Hintergrund-Raster: Quartalslinien deutlich, Monatslinien nur zart
-   angedeutet – entzerrt das vorher sehr dichte Monatsgrid. */
+/* Hintergrund-Raster: wöchentliche Gitternetzlinien in px-Abständen. */
 .gantt-row__timeline::before {
   content: '';
   position: absolute;
   inset: 0;
-  background-image:
-    repeating-linear-gradient(
-      to right,
-      transparent 0,
-      transparent calc(25% - 1px),
-      var(--pm-grey-200) calc(25% - 1px),
-      var(--pm-grey-200) 25%),
-    repeating-linear-gradient(
-      to right,
-      transparent 0,
-      transparent calc(100% / var(--months) - 1px),
-      var(--pm-grey-50) calc(100% / var(--months) - 1px),
-      var(--pm-grey-50) calc(100% / var(--months)));
+  background-image: repeating-linear-gradient(
+    to right,
+    transparent 0,
+    transparent calc(var(--week-px) - 1px),
+    var(--pm-grey-100) calc(var(--week-px) - 1px),
+    var(--pm-grey-100) var(--week-px));
   pointer-events: none;
 }
 
@@ -715,6 +742,7 @@
   background: var(--pm-grey-50);
   color: var(--pm-grey-900);
 }
+.planer-gantt-details > .gantt-scroll,
 .planer-gantt-details > .gantt-wrap {
   margin-top: var(--sp-3);
 }

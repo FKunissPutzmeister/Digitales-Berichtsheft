@@ -28,10 +28,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     'gantt-bar--ausbilder-5',
   ];
 
-  const MONTHS = 12;
   const today = new Date();
   const todayISO = DateUtil.toISODate(today);
   const planYear = today.getFullYear();
+  const jan1 = new Date(planYear, 0, 1);
+  const daysInYear = Math.round((new Date(planYear, 11, 31) - jan1) / 86400000) + 1;
+  const NUM_WEEKS = Math.ceil(daysInYear / 7);
+  const segOf = (d) => Math.floor((d - jan1) / 86400000 / 7);
   let searchText = '';
   let pendingDeleteZuweisungId = null;
   let selectedAzubiId = null;          // im Detailpanel gewählter Azubi
@@ -183,9 +186,11 @@ document.addEventListener('DOMContentLoaded', async () => {
 
       <details class="planer-gantt-details">
         <summary>Gesamt-Timeline (${planYear})</summary>
-        <div class="gantt-wrap">
-          ${buildGanttHeader()}
-          <div class="gantt-body">${ganttRowsHtml}</div>
+        <div class="gantt-scroll">
+          <div class="gantt-grid" style="--num-weeks:${NUM_WEEKS};--week-px:30px">
+            ${buildGanttHeader()}
+            <div class="gantt-body">${ganttRowsHtml}</div>
+          </div>
         </div>
       </details>
     `;
@@ -295,16 +300,22 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   function buildGanttHeader() {
-    const monthHeaders = Array.from({ length: MONTHS }, (_, i) => {
-      const isCurrent = i === today.getMonth() && planYear === today.getFullYear();
-      const isQuarter = i % 3 === 0;   // Q-Start (Jan/Apr/Jul/Okt) – stärkere Linie
-      return `<div class="gantt-header__month${isCurrent ? ' current' : ''}${isQuarter ? ' gantt-header__month--q' : ''}">${DateUtil.MONTHS_SHORT[i]}</div>`;
+    const cols = Array.from({ length: NUM_WEEKS }, (_, i) => {
+      const d = new Date(planYear, 0, 1 + i * 7);
+      const kw = DateUtil.getKW(d);
+      const isMonthStart = d.getDate() <= 7;            // erste Woche eines Monats
+      const segNow = segOf(today);
+      const isCurrent = (today.getFullYear() === planYear) && (i === segNow);
+      return `<div class="gantt-week${isCurrent ? ' current' : ''}${isMonthStart ? ' gantt-week--month' : ''}"
+                   title="KW ${kw} · ${DateUtil.MONTHS_SHORT[d.getMonth()]} ${planYear}"
+                   data-month="${isMonthStart ? DateUtil.MONTHS_SHORT[d.getMonth()] : ''}">
+                <span class="gantt-week__kw">${kw}</span>
+              </div>`;
     }).join('');
-
     return `
       <div class="gantt-header">
         <div class="gantt-header__name-col">Auszubildende/r</div>
-        <div class="gantt-header__timeline">${monthHeaders}${buildTodayMarker()}</div>
+        <div class="gantt-header__timeline">${cols}${buildTodayMarker()}</div>
       </div>
     `;
   }
@@ -313,10 +324,8 @@ document.addEventListener('DOMContentLoaded', async () => {
      Linie pro Zeile (buildTodayLine) bleibt als durchgehende Orientierung,
      trägt aber keinen Text mehr – sonst stünde „Heute" auf jeder Zeile. */
   function buildTodayMarker() {
-    const yearStart = new Date(planYear, 0, 1).getTime();
-    const yearEnd = new Date(planYear + 1, 0, 1).getTime();
     if (today.getFullYear() !== planYear) return '';
-    const pct = (today.getTime() - yearStart) / (yearEnd - yearStart) * 100;
+    const pct = (segOf(today) + 0.5) / NUM_WEEKS * 100;
     return `<div class="gantt-today-marker" style="left:${pct}%">Heute</div>`;
   }
 
@@ -343,7 +352,7 @@ document.addEventListener('DOMContentLoaded', async () => {
               <div class="gantt-row__beruf" title="${azubi.beruf || ''}">${azubi.beruf || ''}</div>
             </div>
           </div>
-          <div class="gantt-row__timeline" style="--months:${MONTHS}">
+          <div class="gantt-row__timeline">
             ${buildTodayLine()}
             ${bars}
           </div>
@@ -355,40 +364,30 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   async function buildGanttBars(zuweisungen) {
-    const yearStart = new Date(planYear, 0, 1).getTime();
-    const yearEnd = new Date(planYear + 1, 0, 1).getTime();
-    const yearDuration = yearEnd - yearStart;
-
     const bars = await Promise.all(zuweisungen.map(async z => {
-      const from = new Date(z.von + 'T00:00:00').getTime();
-      const to = new Date(z.bis + 'T00:00:00').getTime();
-
-      const left = Math.max(0, (from - yearStart) / yearDuration * 100);
-      const right = Math.min(100, (to - yearStart) / yearDuration * 100);
-      const width = right - left;
-
-      if (width <= 0) return '';
-
+      const fromSeg = segOf(new Date(z.von + 'T00:00:00'));
+      const toSeg   = segOf(new Date(z.bis + 'T00:00:00'));
+      const startSeg = Math.max(0, fromSeg);
+      const endSeg   = Math.min(NUM_WEEKS - 1, toSeg);
+      if (endSeg < startSeg) return '';   // Zuweisung liegt außerhalb dieses Jahres
+      const left  = startSeg / NUM_WEEKS * 100;
+      const width = (endSeg - startSeg + 1) / NUM_WEEKS * 100;
       const ausb = await DB.getUser(z.ausbilderId);
-
       return `
         <div class="gantt-bar ${COLORS[colorIndexFor(z.ausbilderId)]}"
              style="left:${left}%;width:${width}%"
              title="${ausb?.name || '–'}: ${DateUtil.formatDate(z.von)} – ${DateUtil.formatDate(z.bis)}"
              data-zuweisung-id="${z.id}">
-          ${width > 8 ? (ausb?.initials || '') : ''}
+          ${width > 6 ? (ausb?.initials || '') : ''}
         </div>
       `;
     }));
-
     return bars.join('');
   }
 
   function buildTodayLine() {
-    const yearStart = new Date(planYear, 0, 1).getTime();
-    const yearEnd = new Date(planYear + 1, 0, 1).getTime();
     if (today.getFullYear() !== planYear) return '';
-    const pct = (today.getTime() - yearStart) / (yearEnd - yearStart) * 100;
+    const pct = (segOf(today) + 0.5) / NUM_WEEKS * 100;
     return `<div class="gantt-today-line" style="left:${pct}%"></div>`;
   }
 
