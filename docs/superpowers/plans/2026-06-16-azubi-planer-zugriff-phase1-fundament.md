@@ -4,28 +4,28 @@
 
 **Goal:** Das fähigkeits- und zuweisungsgetriebene Zugriffsmodell serverseitig einführen und durchsetzen — wer welches Berichtsheft sehen/korrigieren darf — und dabei die heutigen Backend-Sicherheitslücken schließen.
 
-**Architecture:** Reine, unit-getestete Zugriffslogik (`backend/services/zugriff.js`) entscheidet anhand normalisierter Objekte (User/Woche/Zuweisung). Dünne DB-Adapter (`backend/services/zugriffContext.js`) laden die nötigen Daten. Die Routen (`wochen`, `kommentare`, `anhaenge`) rufen beides auf und setzen die Regeln durch. Statische Fähigkeiten (`kannPlanen`, `istAusbilder`) kommen aus einer Konfig-Allowlist und werden über `/api/auth/me` ausgespielt. Eine additive Migration `005` attribuiert Statuswechsel.
+**Architecture:** Reine, unit-getestete Zugriffslogik (`backend/services/zugriff.js`) entscheidet anhand normalisierter Objekte (User/Woche/Zuweisung). Dünne DB-Adapter (`backend/services/zugriffContext.js`) laden die nötigen Daten. Die Routen (`wochen`, `kommentare`, `anhaenge`) rufen beides auf und setzen die Regeln durch. Statische Fähigkeiten (`kannPlanen`, `istAusbilder`) kommen aus einer Konfig-Allowlist und werden über `/api/auth/me` ausgespielt. Eine additive Migration `009` attribuiert Statuswechsel.
 
 **Tech Stack:** Node.js/Express 5, `mssql`, `node:test` + `node:assert/strict` (kolozierte `*.test.js`, Ausführung via `node --test`), SQL Server (`dbo`-Schema).
 
 **Bezug:** [Spec](../specs/2026-06-16-azubi-planer-zugriff-admin-umbau-design.md). Diese Phase deckt Spec-Schritt 1 ab. Phasen 2–5 (Frontend-Gating, Planer-UI, Dashboard, Admin-Entschlackung) erhalten eigene Pläne, sobald Phase 1 gelandet ist.
 
-**Vorbedingung Datenbank:** Migration `005` (Task 1) muss vor dem manuellen Testen der Routen-Tasks (5–8) gegen die Dev-DB `Berichtsheft_Dev` ausgeführt sein, sonst fehlt die Spalte `KorrigiertVon`.
+**Vorbedingung Datenbank:** Migration `009` (Task 1) muss vor dem manuellen Testen der Routen-Tasks (5–8) gegen die Dev-DB `Berichtsheft_Dev` ausgeführt sein, sonst fehlt die Spalte `KorrigiertVon`.
 
 ---
 
-### Task 1: Migration 005 — Korrektur-Attribution
+### Task 1: Migration 009 — Korrektur-Attribution
 
 **Files:**
-- Create: `db/migrations/005_korrektur_attribution.sql`
+- Create: `db/migrations/009_korrektur_attribution.sql`
 
 - [ ] **Step 1: Migrationsdatei anlegen**
 
-`db/migrations/005_korrektur_attribution.sql`:
+`db/migrations/009_korrektur_attribution.sql`:
 
 ```sql
 -- ============================================================
--- Migration 005 – Korrektur-Attribution auf Wochen-Ebene
+-- Migration 009 – Korrektur-Attribution auf Wochen-Ebene
 -- Ausführen gegen: Berichtsheft_Dev
 --
 -- Hintergrund: Wer eine Woche genehmigt/abgelehnt hat, wurde bisher
@@ -54,8 +54,8 @@ Expected: zwei Zeilen `KorrigiertVon`, `KorrigiertAm`.
 - [ ] **Step 3: Commit**
 
 ```bash
-git add db/migrations/005_korrektur_attribution.sql
-git commit -m "feat(db): Migration 005 – KorrigiertVon/KorrigiertAm auf Wochen"
+git add db/migrations/009_korrektur_attribution.sql
+git commit -m "feat(db): Migration 009 – KorrigiertVon/KorrigiertAm auf Wochen"
 ```
 
 ---

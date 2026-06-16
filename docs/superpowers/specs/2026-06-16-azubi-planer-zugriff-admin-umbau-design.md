@@ -75,7 +75,7 @@ Dieselbe Logik wird im **Backend durchgesetzt** und steuert im **Frontend** die 
 **Im Scope:**
 - Fähigkeits-Konfig (`kannPlanen`, `istAusbilder`) via Allowlist; Ausspielen über `/api/auth/me`.
 - Zentrale Backend-Autorisierung (`zugriff.js`), durchgesetzt auf Wochen-, Kommentar-, Status-, Anhang- und Zuweisungs-Routen; schließt zugleich die bestehenden Sicherheitslücken.
-- Migration `005`: Korrektur-Attribution (`KorrigiertVon`/`KorrigiertAm`).
+- Migration `009`: Korrektur-Attribution (`KorrigiertVon`/`KorrigiertAm`).
 - Frontend-Gating auf Fähigkeiten; Azubi-Selektor-Fix; Wochenansicht/Posteingang nach neuen Regeln gefiltert.
 - Azubi-Planer: Verantwortliche/r = alle Nicht-Azubi-Nutzer; UI-Ertüchtigung für 30–60 Azubis (Sticky-Gantt, Lücken-Markierung, Filter/Gruppierung, Dichte-Umschalter, Zeitnavigation).
 - Komponierbares Dashboard mit Planer-Signalkarten (ohne Zuweisung / bald ablaufend / bald beginnend).
@@ -87,7 +87,7 @@ Dieselbe Logik wird im **Backend durchgesetzt** und steuert im **Frontend** die 
 - Drag-to-create von Zuweisungen direkt auf der Timeline (optionales späteres Extra).
 - DB-Rename `AusbilderOid → VerantwortlicherOid` (nur semantische Umdeutung + UI-Label, kein riskantes Spalten-Rename).
 
-**Optional (separat entscheidbar):** verwaltete Abteilungs-Liste statt Freitext (Migration `006`), inkl. Standard-Verantwortliche/r je Abteilung. Kernmodell funktioniert ohne.
+**Optional (separat entscheidbar):** verwaltete Abteilungs-Liste statt Freitext (Migration `010`), inkl. Standard-Verantwortliche/r je Abteilung. Kernmodell funktioniert ohne.
 
 ---
 
@@ -103,7 +103,7 @@ Dieselbe Logik wird im **Backend durchgesetzt** und steuert im **Frontend** die 
 | `backend/routes/kommentare.js` | `POST` nur mit `darfWocheKorrigieren`; `typ` serverseitig aus Nutzer ableiten statt aus Body übernehmen. |
 | `backend/routes/anhaenge.js` | `pruefeBearbeitbar` auf `darfWocheKorrigieren` umstellen (statt `role==='admin'`). |
 | `backend/routes/zuweisungen.js` | `POST`/`DELETE` nur mit `kannPlanen`; ggf. neue Lese-Endpunkte für Planer-Signale. |
-| `db/migrations/005_korrektur_attribution.sql` *(neu)* | `Wochen.KorrigiertVon` (NVARCHAR(36) NULL), `Wochen.KorrigiertAm` (DATETIME2 NULL). |
+| `db/migrations/009_korrektur_attribution.sql` *(neu)* | `Wochen.KorrigiertVon` (NVARCHAR(36) NULL), `Wochen.KorrigiertAm` (DATETIME2 NULL). |
 | `app/js/api.js` | `me`/User um Flags erweitern; `cacheUserRole` → Fähigkeits-Cache; Verantwortlichen-Liste (Nicht-Azubis); Planer-Signal-Helfer spiegeln Backend. |
 | `app/js/sidebar.js`, `app/js/app.js` | Menü-Gating auf Fähigkeiten (`kannPlanen` für Verwaltung; Berichtsheft-Menü für Azubi **oder** korrektur-berechtigt). |
 | `app/js/azubi-planer.js` + `.css` | Verantwortliche/r = Nicht-Azubi-Nutzer; Sticky-Gantt, Lücken-Markierung, Filter/Gruppierung, Dichte, Zeitnavigation. |
@@ -130,7 +130,7 @@ Reine, testbare Funktionen (keine HTTP-/DOM-Abhängigkeit):
 
 Backend ruft diese in den Routen auf; Frontend nutzt eine spiegelgleiche, schlanke Variante für die Anzeige (die echte Durchsetzung bleibt der Server).
 
-### C) Migration 005 — Korrektur-Attribution
+### C) Migration 009 — Korrektur-Attribution
 
 Additiv, abwärtskompatibel:
 ```sql
@@ -191,7 +191,7 @@ GET /api/wochen → serverseitig auf sichtbareAzubis/darfWocheSehen gefiltert
 
 ## Einführung in Schritten
 
-1. **Berechtigungs-Fundament** — Konfig-Allowlist, `/api/auth/me`-Flags, `zugriff.js`, Backend-Gates, Migration 005.
+1. **Berechtigungs-Fundament** — Konfig-Allowlist, `/api/auth/me`-Flags, `zugriff.js`, Backend-Gates, Migration 009.
 2. **Frontend-Gating + Korrektur-Eingrenzung** — Menü auf Fähigkeiten, Azubi-Selektor-Fix, Wochenansicht/Posteingang filtern.
 3. **Planer als Verantwortlichen-Tool** — Dropdown auf Nicht-Azubi-Nutzer, Gantt-Ertüchtigung.
 4. **Komponierbares Dashboard** — Sektionen je Fähigkeit, Planer-Signalkarten.
@@ -214,7 +214,7 @@ Jeder Schritt ist für sich lauffähig und abwärtskompatibel (additive Migratio
 
 ## Risiken & Gegenmaßnahmen
 
-- **„Korrigiert hat" ohne Spur** → Migration 005 attribuiert Statuswechsel; Kommentare tragen `UserOid` schon. Ohne 005 wäre Regel 2 für kommentarlose Genehmigungen lückenhaft.
+- **„Korrigiert hat" ohne Spur** → Migration 009 attribuiert Statuswechsel; Kommentare tragen `UserOid` schon. Ohne 009 wäre Regel 2 für kommentarlose Genehmigungen lückenhaft.
 - **Frontend-/Backend-Regel-Drift** → Regeln zentral in `zugriff.js`; Frontend nur Anzeige, Server ist die Durchsetzung. Bestehende Lücken (alle Wochen ziehbar, beliebige Status-/Kommentar-Schreibzugriffe) werden dabei geschlossen.
 - **Wochengrenze vs. Zuweisungsgrenze** (eine Mo–So-Woche ragt teils über `Von`/`Bis`) → Überschneidungs-Regel macht solche Randwochen für die/den Verantwortliche/n sichtbar; bewusst inklusiv, um Lücken an Übergängen zu vermeiden.
 - **Performance Gantt bei 60 Zeilen** → 60×~12 Spalten ist für DOM unkritisch; Render effizient halten, Virtualisierung nur falls real nötig.
