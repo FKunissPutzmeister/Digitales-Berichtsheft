@@ -1080,6 +1080,17 @@
     }
   } catch (e) {}
 
+  /* ── Fähigkeits-Init-State ──────────────────────────────────────
+     Spiegelt die zuletzt bekannten Fähigkeits-Flags (gesetzt von
+     applyCapabilities() in app.js) synchron auf <html data-*>, damit das
+     fähigkeitsbasierte Nav-Gating schon vor dem ersten Paint stimmt. */
+  try {
+    if (localStorage.getItem('capKannPlanen')   === '1') html.setAttribute('data-kann-planen', '1');
+    if (localStorage.getItem('capIstAusbilder') === '1') html.setAttribute('data-ist-ausbilder', '1');
+    if (localStorage.getItem('capIstAzubi')     === '1') html.setAttribute('data-ist-azubi', '1');
+    if (localStorage.getItem('capKorrektur')    === '1') html.setAttribute('data-korrektur', '1');
+  } catch (e) {}
+
   /* ── Navigations-Übergang ───────────────────────────────────────
      sidebar.js setzt sessionStorage('navTransition') = '1' bevor es
      zu einer inneren Seite navigiert. Wir lesen das Flag hier synchron
