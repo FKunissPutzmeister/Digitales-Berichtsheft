@@ -34,6 +34,11 @@ document.addEventListener('DOMContentLoaded', async () => {
   const planYear = today.getFullYear();
   let searchText = '';
   let pendingDeleteZuweisungId = null;
+  let selectedAzubiId = null;          // im Detailpanel gewählter Azubi
+  let filterVerantw = '';              // Filter: Verantwortliche-OID ('' = alle)
+  let filterAbteilung = '';            // Filter: Abteilung ('' = alle)
+  let filterLehrjahr = '';             // Filter: Lehrjahr ('' = alle)
+  let nurOhneZuweisung = false;        // Schnellfilter
 
   // Sortierzustand der unteren Zuweisungsliste. key='default' = aktuelle
   // zuerst, danach nach Von-Datum; ein Spaltenklick setzt key+dir.
@@ -103,6 +108,34 @@ document.addEventListener('DOMContentLoaded', async () => {
         ${tile(k.ohneZuweisung, 'Ohne aktuelle Zuweisung', k.ohneZuweisung > 0 ? ' planer-kpi--warn' : '')}
         ${tile(k.ausbilderAktiv, 'Verantwortliche aktiv')}
       </div>`;
+  }
+
+  // Aktuell aktive Zuweisung eines Azubis (oder null).
+  function getAktuelleZuweisung(azubiId) {
+    return zuwRowData.find(r => r.z.azubiId === azubiId && r.status.key === 'aktuell') || null;
+  }
+  // Lehrjahr aus ausbildungsBeginn (1..4), wie in der Wochenansicht.
+  function lehrjahrVon(azubi) {
+    if (!azubi?.ausbildungsBeginn) return null;
+    const start = new Date(azubi.ausbildungsBeginn + 'T00:00:00');
+    const m = (today.getFullYear() - start.getFullYear()) * 12 + (today.getMonth() - start.getMonth());
+    return Math.max(1, Math.min(4, Math.floor(m / 12) + 1));
+  }
+  // Alle Abteilungs-Namen (für den Abteilungs-Filter), dedupliziert/sortiert.
+  function alleAbteilungen() {
+    return [...new Set(zuwRowData.map(r => r.z.abteilung).filter(Boolean))].sort();
+  }
+  // Azubi-Liste nach allen aktiven Filtern.
+  function gefilterteAzubis() {
+    return azubis.filter(a => {
+      if (searchText && !(`${a.name} ${a.beruf || ''}`.toLowerCase().includes(searchText))) return false;
+      const akt = getAktuelleZuweisung(a.id);
+      if (nurOhneZuweisung && akt) return false;
+      if (filterVerantw && akt?.z.ausbilderId !== filterVerantw) return false;
+      if (filterAbteilung && akt?.z.abteilung !== filterAbteilung) return false;
+      if (filterLehrjahr && String(lehrjahrVon(a)) !== filterLehrjahr) return false;
+      return true;
+    });
   }
 
   /* ── Roster der Ausbildungsbeauftragten – dient zugleich als Legende
