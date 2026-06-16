@@ -93,3 +93,19 @@ test('aktivVerantwortlichFuer: nur aktive, dedupliziert', () => {
   ]};
   assert.deepEqual(Z.aktivVerantwortlichFuer(user, kontext).sort(), ['AZ']);
 });
+
+// ── Härtung: leere/fehlende OID darf nichts öffnen ─────────────
+test('darfWocheSehen: leere/fehlende OID öffnet nichts', () => {
+  const kontext = { zuweisungen: [], stichtag: '2026-06-15' };
+  assert.equal(Z.darfWocheSehen({ oid: '' }, woche({ azubiOid: '' }), kontext), false);
+  assert.equal(Z.darfWocheSehen({ oid: undefined }, woche({ azubiOid: undefined }), kontext), false);
+});
+test('darfWocheKorrigieren: leere OID/azubiOid öffnet nichts', () => {
+  const kontext = { stichtag: '2026-06-15', zuweisungen: [
+    { azubiOid: '', verantwortlicherOid: '', von: '2026-06-01', bis: '2026-06-30' },
+  ]};
+  assert.equal(Z.darfWocheKorrigieren({ oid: '' }, woche({ azubiOid: '' }), kontext), false);
+});
+test('hatKorrigiert: leere OID öffnet nichts', () => {
+  assert.equal(Z.hatKorrigiert({ oid: '' }, woche({ korrigiertVon: '' })), false);
+});
