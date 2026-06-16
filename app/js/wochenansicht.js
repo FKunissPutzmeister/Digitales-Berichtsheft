@@ -136,7 +136,14 @@ document.addEventListener('DOMContentLoaded', async () => {
     const canRelease = user.role === 'azubi'
       && (!woche || woche.status === 'offen' || woche.status === 'abgelehnt');
     const canWithdraw = user.role === 'azubi' && woche?.status === 'freigegeben';
-    const anwesenheitstageDisplay = (woche?.tage || []).filter(t => t.anwesenheit === 'anwesend').length;
+    // Anwesenheitstage Mo–Fr (Default = anwesend; Wochenende zählt nie mit).
+    // Untouched-Werktage sind ggf. nicht in woche.tage → undefined gilt als anwesend.
+    const anwesenheitstageDisplay = zaehleAnwesenheitstage(
+      Array.from({ length: 5 }, (_, i) => {
+        const d = new Date(monday); d.setDate(monday.getDate() + i);
+        return (woche?.tage || []).find(t => t.datum === DateUtil.toISODate(d))?.anwesenheit;
+      })
+    );
 
     // Stammdaten des aktuell sichtbaren Azubis
     const azubiUser = await DB.getUser(azubiId);
@@ -1718,10 +1725,21 @@ document.addEventListener('DOMContentLoaded', async () => {
      Änderung kennen und die Bump-Animation passend feuern können. */
   let _lastWochenTotal = null;
 
+  // Zählt die Anwesenheitstage (Mo–Fr) aus einer Liste von Anwesenheits-Werten.
+  // Default = anwesend: ein Werktag zählt, solange keine ausdrückliche Abwesenheit
+  // (Urlaub/krank/…) gewählt wurde. Leerwert/undefined gilt als anwesend.
+  // Wochenenden müssen vom Aufrufer bereits ausgeschlossen sein.
+  function zaehleAnwesenheitstage(werktagAnwesenheiten) {
+    return werktagAnwesenheiten.filter(a => !a || a === 'anwesend').length;
+  }
+
   function updateStundenDisplay() {
-    // „Wochensumme" ist jetzt die Zahl der Anwesenheitstage (Mo–Fr).
+    // „Wochensumme" = Zahl der Anwesenheitstage (Mo–Fr). Wochenend-Zeilen
+    // (.tag-row--weekend) zählen nie mit – ihr Select ist nur deaktiviert sichtbar
+    // und fiele sonst auf die erste Option („anwesend") zurück.
     const selects = document.querySelectorAll('select[data-field="anwesenheit"][data-date]');
-    const total = Array.from(selects).filter(s => s.value === 'anwesend').length;
+    const werktage = Array.from(selects).filter(s => !s.closest('.tag-row--weekend'));
+    const total = zaehleAnwesenheitstage(werktage.map(s => s.value));
     const val = `${total} / 5`;
 
     let direction = null;
