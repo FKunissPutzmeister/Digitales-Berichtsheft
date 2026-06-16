@@ -29,12 +29,12 @@ function buildSidebar(activeNavId) {
         <span class="sidebar__link-label">Dashboard</span>
       </a>
 
-      <span class="sidebar__section-label">Berichtsheft</span>
-      <a href="wochenansicht.html" class="sidebar__link" id="nav-wochenansicht">
+      <span class="sidebar__section-label nav-berichtsheft-only">Berichtsheft</span>
+      <a href="wochenansicht.html" class="sidebar__link nav-berichtsheft-only" id="nav-wochenansicht">
         <span class="sidebar__link-icon">${Icon('wochenansicht')}</span>
         <span class="sidebar__link-label">Wochenansicht</span>
       </a>
-      <a href="jahresansicht.html" class="sidebar__link" id="nav-jahresansicht">
+      <a href="jahresansicht.html" class="sidebar__link nav-berichtsheft-only" id="nav-jahresansicht">
         <span class="sidebar__link-icon">${Icon('jahresansicht')}</span>
         <span class="sidebar__link-label">Jahresansicht</span>
       </a>
@@ -45,13 +45,13 @@ function buildSidebar(activeNavId) {
         <span class="sidebar__link-label">Fahrgelderstattung</span>
       </a>
 
-      <div class="sidebar__divider"></div>
-      <span class="sidebar__section-label nav-ausbilder-only">Verwaltung</span>
-      <a href="berichtsheftverwaltung.html" class="sidebar__link nav-ausbilder-only" id="nav-verwaltung">
+      <div class="sidebar__divider nav-planer-only"></div>
+      <span class="sidebar__section-label nav-planer-only">Verwaltung</span>
+      <a href="berichtsheftverwaltung.html" class="sidebar__link nav-planer-only" id="nav-verwaltung">
         <span class="sidebar__link-icon">${Icon('verwaltung')}</span>
         <span class="sidebar__link-label">Berichtsheftverwaltung</span>
       </a>
-      <a href="azubi-planer.html" class="sidebar__link nav-ausbilder-only" id="nav-planer">
+      <a href="azubi-planer.html" class="sidebar__link nav-planer-only" id="nav-planer">
         <span class="sidebar__link-icon">${Icon('planer')}</span>
         <span class="sidebar__link-label">Azubi-Planer</span>
       </a>

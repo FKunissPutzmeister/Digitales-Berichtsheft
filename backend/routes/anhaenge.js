@@ -1,6 +1,8 @@
 const router = require('express').Router();
 const multer = require('multer');
 const { getPool, sql } = require('../db/connection');
+const { darfWocheKorrigieren } = require('../services/zugriff');
+const { ladeKorrekturKontext, ladeWocheFuerZugriff } = require('../services/zugriffContext');
 
 // ── Upload-Konfiguration ──────────────────────────────────────────
 // memoryStorage: die Datei landet als Buffer in req.file.buffer und geht
@@ -34,21 +36,18 @@ function uploadSingle(req, res, next) {
   });
 }
 
-// Prüft, ob der aktuelle User die Woche bearbeiten darf (Eigentümer/Admin
-// UND Woche nicht schreibgeschützt). Liefert { ok } oder { status, error }.
+// Prüft, ob der aktuelle User die Woche bearbeiten darf: Eigentümer (Azubi)
+// ODER aktiv verantwortlich – UND Woche nicht schreibgeschützt.
 async function pruefeBearbeitbar(pool, wocheId, user) {
-  const result = await pool.request()
-    .input('id', sql.Int, wocheId)
-    .query('SELECT AzubiOid, Status FROM dbo.Wochen WHERE Id = @id');
-  const woche = result.recordset[0];
+  const woche = await ladeWocheFuerZugriff(pool, wocheId);
   if (!woche) return { status: 404, error: 'Woche nicht gefunden' };
-  if (woche.Status === 'freigegeben' || woche.Status === 'genehmigt') {
+  if (woche.status === 'freigegeben' || woche.status === 'genehmigt') {
     return { status: 403, error: 'Woche ist schreibgeschützt' };
   }
-  if (woche.AzubiOid !== user.oid && user.role !== 'admin') {
-    return { status: 403, error: 'Keine Berechtigung für diese Woche' };
-  }
-  return { ok: true };
+  if (woche.azubiOid === user.oid) return { ok: true };
+  const kontext = await ladeKorrekturKontext(pool, user.oid);
+  if (darfWocheKorrigieren(user, woche, kontext)) return { ok: true };
+  return { status: 403, error: 'Keine Berechtigung für diese Woche' };
 }
 
 // GET /api/wochen/:wocheId/anhaenge  – Metadaten (ohne Inhalt)

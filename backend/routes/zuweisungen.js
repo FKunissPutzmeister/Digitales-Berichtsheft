@@ -1,6 +1,14 @@
 const router = require('express').Router();
 const { getPool, sql } = require('../db/connection');
 
+// Nur Nutzer mit Planungsrecht dürfen Zuweisungen anlegen/löschen.
+function nurPlaner(req, res, next) {
+  if (!req.user || !req.user.kannPlanen) {
+    return res.status(403).json({ error: 'Kein Planungsrecht.' });
+  }
+  next();
+}
+
 // GET /api/zuweisungen?azubiOid=...&ausbilderOid=...
 router.get('/', async (req, res) => {
   try {
@@ -28,7 +36,7 @@ router.get('/', async (req, res) => {
 });
 
 // POST /api/zuweisungen
-router.post('/', async (req, res) => {
+router.post('/', nurPlaner, async (req, res) => {
   try {
     const { azubiOid, ausbilderOid, abteilung, von, bis } = req.body;
     const pool = await getPool();
@@ -50,7 +58,7 @@ router.post('/', async (req, res) => {
 });
 
 // DELETE /api/zuweisungen/:id
-router.delete('/:id', async (req, res) => {
+router.delete('/:id', nurPlaner, async (req, res) => {
   try {
     const pool = await getPool();
     await pool.request()

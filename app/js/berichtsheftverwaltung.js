@@ -9,14 +9,19 @@ document.addEventListener('DOMContentLoaded', async () => {
      (Override der globalen --content-max-Beschränkung in layout.css). */
   document.body.dataset.page = 'berichtsheftverwaltung';
 
+  if (!user.kannPlanen) {
+    window.location.href = 'dashboard.html';
+    return;
+  }
+
   const main = document.getElementById('mainContent');
 
   const azubisInit = await DB.getAzubis();
-  let selectedAzubiId = user.role === 'azubi' ? user.id : azubisInit[0]?.id;
+  let selectedAzubiId = azubisInit[0]?.id;
   let attachments = [];
 
   async function render() {
-    const isAusbilder = ['ausbilder', 'admin'].includes(user.role);
+    const isAusbilder = user.kannPlanen;  // Verwaltung ist nur für Planer erreichbar → Azubi-Auswahl zeigen
     const azubis = await DB.getAzubis();
     const selectedAzubi = await DB.getUser(selectedAzubiId);
 

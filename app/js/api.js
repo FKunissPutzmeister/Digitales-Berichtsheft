@@ -158,6 +158,10 @@ function cacheUserRole(role) {
     } else {
       localStorage.removeItem('userRole');
       document.documentElement.removeAttribute('data-role');
+      // Fähigkeits-Cache mitleeren (Logout / fehlgeschlagene Auth), damit beim
+      // nächsten Login kein veraltetes Gating pre-paint durchschlägt.
+      ['capKannPlanen', 'capIstAusbilder', 'capIstAzubi', 'capKorrektur'].forEach(k => localStorage.removeItem(k));
+      ['data-kann-planen', 'data-ist-ausbilder', 'data-ist-azubi', 'data-korrektur'].forEach(a => document.documentElement.removeAttribute(a));
     }
   } catch (e) { /* localStorage kann in Privacy-Modi blockieren */ }
 }
@@ -264,6 +268,13 @@ const DB = {
     return data.map(u => normalizeUser(u.oid, u));
   },
 
+  // Verantwortliche/r einer Zuweisung = jeder Nicht-Azubi-Nutzer (Ausbilder,
+  // Personalabteilung, Abteilungs-Verantwortliche …), nicht nur Ausbilder.
+  async getVerantwortliche() {
+    const data = await apiFetch('/users?exclRole=azubi');
+    return data.map(u => normalizeUser(u.oid, u));
+  },
+
   async getUser(oid) {
     if (!oid) return null;
     try {
@@ -294,6 +305,25 @@ const DB = {
     const zuweisungen = await this.getZuweisungenFuerAzubi(azubiId);
     const heute = new Date().toISOString().split('T')[0];
     return zuweisungen.find(z => z.von <= heute && z.bis >= heute) || null;
+  },
+
+  // Azubis, für die der aktuelle Nutzer Verantwortliche/r ist (aktuelle ODER
+  // frühere Zuweisungen). Quelle für den Azubi-Selektor der Wochenansicht –
+  // ersetzt das frühere "alle Azubis". Aktuelle Zuweisungen zuerst.
+  async getBetreuteAzubis() {
+    const me = this.getCurrentUser();
+    if (!me) return [];
+    const heute = new Date().toISOString().split('T')[0];
+    const zuw = await this.getZuweisungenFuerAusbilder(me.id);
+    zuw.sort((a, b) => {
+      const aAktiv = a.von <= heute && a.bis >= heute;
+      const bAktiv = b.von <= heute && b.bis >= heute;
+      if (aAktiv !== bAktiv) return aAktiv ? -1 : 1;
+      return (b.von || '').localeCompare(a.von || '');
+    });
+    const ids = [...new Set(zuw.map(z => z.azubiId))];
+    const users = await Promise.all(ids.map(id => this.getUser(id)));
+    return users.filter(Boolean);
   },
 
   async addZuweisung(zuweisung) {

@@ -18,7 +18,7 @@ document.addEventListener('DOMContentLoaded', async () => {
      Hinweis im UI. Stattdessen: Fehler abfangen und sichtbar machen,
      damit der Bug nicht mehr stillschweigend passiert. */
   try {
-    if (user.role === 'azubi') {
+    if (user.istAzubi) {
       await renderAzubiDashboard(user);
     } else {
       await renderAusbilderDashboard(user);
@@ -49,7 +49,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   window.addEventListener('pageshow', async (event) => {
     if (!event.persisted) return;
     try {
-      if (user.role === 'azubi') {
+      if (user.istAzubi) {
         await renderAzubiDashboard(user);
       } else {
         await renderAusbilderDashboard(user);
@@ -757,6 +757,8 @@ async function renderAusbilderDashboard(user) {
   const kwYear = DateUtil.getKWYear(today);
 
   const meineAzubis = await getMeineAzubis(user);
+  const istKorrektor   = user.istAusbilder || meineAzubis.length > 0;
+  const planerSignale  = user.kannPlanen ? await getPlanerSignale() : null;
 
   // Alle Wochen aller zugewiesenen Azubis
   const allWochen = [];
@@ -795,10 +797,11 @@ async function renderAusbilderDashboard(user) {
     <div class="welcome-banner welcome-banner--ausbilder">
       <div class="welcome-banner__content">
         <p class="welcome-banner__greeting">${getGreeting()}, ${user.name.split(' ')[0]} 👋</p>
-        <h1 class="welcome-banner__title">Ausbilder-Cockpit</h1>
+        <h1 class="welcome-banner__title">${istKorrektor ? 'Ausbilder-Cockpit' : 'Planungs-Cockpit'}</h1>
         <p class="welcome-banner__info">
-          ${meineAzubis.length} Auszubildende
-          ${queue.length > 0 ? ` &nbsp;·&nbsp; <strong style="color:var(--pm-yellow)">${queue.length} ${queue.length === 1 ? 'Eintrag' : 'Einträge'} zur Abnahme</strong>` : ' &nbsp;·&nbsp; Keine offenen Prüfungen'}
+          ${istKorrektor
+            ? `${meineAzubis.length} Auszubildende${queue.length > 0 ? ` &nbsp;·&nbsp; <strong style="color:var(--pm-yellow)">${queue.length} ${queue.length === 1 ? 'Eintrag' : 'Einträge'} zur Abnahme</strong>` : ' &nbsp;·&nbsp; Keine offenen Prüfungen'}`
+            : 'Abteilungsdurchläufe & Zuweisungen verwalten'}
         </p>
       </div>
       <div class="welcome-banner__kw">
@@ -807,6 +810,14 @@ async function renderAusbilderDashboard(user) {
       </div>
     </div>
 
+    ${user.kannPlanen ? `
+    <section class="planer-signals">
+      <h2 class="dashboard-section-title" style="font-size:var(--text-base);margin:var(--sp-5) 0 var(--sp-3)">Planung</h2>
+      ${renderPlanerSignale(planerSignale)}
+    </section>
+    ` : ''}
+
+    ${istKorrektor ? `
     ${renderAusbilderPrimaryCta(queue, meineAzubis.length)}
 
     <div class="stats-grid stats-grid--3">
@@ -817,7 +828,7 @@ async function renderAusbilderDashboard(user) {
         <div class="stat-card__content">
           <div class="stat-card__label">Aktive Azubis</div>
           <div class="stat-card__value">${meineAzubis.length}</div>
-          <div class="stat-card__sub">${user.role === 'admin' ? 'im System' : 'aktuell zugewiesen'}</div>
+          <div class="stat-card__sub">aktuell zugewiesen</div>
         </div>
       </div>
       <div class="stat-card animate-fade-in" style="animation-delay:60ms">
@@ -873,7 +884,7 @@ async function renderAusbilderDashboard(user) {
         <div class="card animate-fade-in">
           <div class="card__header">
             <span class="card__title">Meine Azubis</span>
-            ${user.role === 'admin' || user.role === 'ausbilder' ? `<a href="azubi-planer.html" class="btn btn-sm btn-ghost">Verwalten</a>` : ''}
+            ${user.kannPlanen ? `<a href="azubi-planer.html" class="btn btn-sm btn-ghost">Verwalten</a>` : ''}
           </div>
           <div class="azubi-overview-list">
             ${azubiStats.length > 0 ? azubiStats.map(s => renderAzubiOverviewItem(s)).join('') : `
@@ -896,6 +907,7 @@ async function renderAusbilderDashboard(user) {
         </div>
       </div>
     </div>
+    ` : ''}
   `;
 
   // Klick auf Review-Item: Direkt zur Wochenansicht des Azubis springen
@@ -1101,9 +1113,47 @@ function bindReviewFilterBar(queue) {
 }
 
 /* ── Hilfsfunktionen für Ausbilder-Dashboard ──────────────────── */
-async function getMeineAzubis(user) {
-  if (user.role === 'admin') return await DB.getAzubis();
+/* Planer-Signale: Datenpfad identisch zum Azubi-Planer (DB.getAllZuweisungen
+   + DB.getAzubis). "bald" = innerhalb der nächsten 14 Tage. */
+async function getPlanerSignale() {
+  const heuteD  = new Date();
+  const grenzeD = new Date(); grenzeD.setDate(grenzeD.getDate() + 14);
+  const heute   = heuteD.toISOString().split('T')[0];
+  const grenze  = grenzeD.toISOString().split('T')[0];
+  const [azubis, zuw] = await Promise.all([DB.getAzubis(), DB.getAllZuweisungen()]);
+  const aktiveAzubiIds = new Set(
+    zuw.filter(z => z.von <= heute && z.bis >= heute).map(z => z.azubiId)
+  );
+  return {
+    ohneZuweisung: azubis.filter(a => !aktiveAzubiIds.has(a.id)),
+    baldAblaufend: zuw.filter(z => z.bis >= heute && z.bis <= grenze),
+    baldBeginnend: zuw.filter(z => z.von >  heute && z.von <= grenze),
+  };
+}
 
+/* Drei klickbare Signalkarten (führen in den Planer). Wiederverwendet die
+   stat-card-Styles; Icon('planer') existiert (Sidebar). */
+function renderPlanerSignale(sig) {
+  const card = (count, label, sub, mod) => `
+    <a href="azubi-planer.html" class="stat-card animate-fade-in" style="text-decoration:none">
+      <div class="stat-card__icon stat-card__icon--${mod}">${Icon('planer')}</div>
+      <div class="stat-card__content">
+        <div class="stat-card__label">${label}</div>
+        <div class="stat-card__value">${count}</div>
+        <div class="stat-card__sub">${sub}</div>
+      </div>
+    </a>`;
+  return `
+    <div class="stats-grid stats-grid--3">
+      ${card(sig.ohneZuweisung.length, 'Azubis ohne aktuelle Zuweisung',
+             sig.ohneZuweisung.length ? 'Handlungsbedarf' : 'Alles zugewiesen',
+             sig.ohneZuweisung.length ? 'error' : 'success')}
+      ${card(sig.baldAblaufend.length, 'Zuweisungen enden bald', 'in den nächsten 14 Tagen', 'info')}
+      ${card(sig.baldBeginnend.length, 'Zuweisungen beginnen bald', 'in den nächsten 14 Tagen', 'info')}
+    </div>`;
+}
+
+async function getMeineAzubis(user) {
   const heute = new Date().toISOString().split('T')[0];
   const meineZuw = (await DB.getZuweisungenFuerAusbilder(user.id))
     .filter(z => z.von <= heute && z.bis >= heute);

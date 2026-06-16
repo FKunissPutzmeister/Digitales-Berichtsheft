@@ -6,6 +6,7 @@ const os = require('os');
 const session = require('express-session');
 const FileStore = require('session-file-store')(session);
 const { devAuth, DEV_USERS } = require('./middleware/auth');
+const { faehigkeitenFuer } = require('./config/berechtigungen');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -55,7 +56,7 @@ app.post('/api/auth/login', (req, res) => {
   const { oid } = req.body;
   if (!DEV_USERS[oid]) return res.status(400).json({ error: 'Unbekannte Dev-OID' });
   req.session.userOid = oid;
-  res.json({ user: { oid, ...DEV_USERS[oid] } });
+  res.json({ user: { oid, ...DEV_USERS[oid], ...faehigkeitenFuer(oid), istAzubi: DEV_USERS[oid].role === 'azubi' } });
 });
 
 // Login per E-Mail (Frontend nutzt weiterhin E-Mail-Formular)
@@ -65,7 +66,7 @@ app.post('/api/auth/login-by-email', (req, res) => {
   if (!entry) return res.status(401).json({ error: 'E-Mail nicht gefunden' });
   const [oid, u] = entry;
   req.session.userOid = oid;
-  res.json({ user: { oid, ...u } });
+  res.json({ user: { oid, ...u, ...faehigkeitenFuer(oid), istAzubi: u.role === 'azubi' } });
 });
 
 app.post('/api/auth/logout', (req, res) => {

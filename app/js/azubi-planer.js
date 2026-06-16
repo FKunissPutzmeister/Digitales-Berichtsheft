@@ -10,7 +10,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   const user = await initPage('nav-planer', [{ label: 'Azubi-Planer', href: 'azubi-planer.html' }]);
   if (!user) return;
 
-  if (!['ausbilder', 'admin'].includes(user.role)) {
+  if (!user.kannPlanen) {
     window.location.href = 'dashboard.html';
     return;
   }
@@ -42,7 +42,8 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Umsortieren per Header-Klick ohne erneute DB-Abfragen läuft.
   let zuwRowData = [];
 
-  const ausbilder = await DB.getAusbilder();
+  // Verantwortliche-Auswahl = alle Nicht-Azubi-Nutzer (nicht nur Ausbilder).
+  const ausbilder = await DB.getVerantwortliche();
   const azubis = await DB.getAzubis();
 
   // Ausbilder-Farb-Map: jeder Ausbilder-ID einen STABILEN Paletten-Index
@@ -100,7 +101,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         ${tile(k.azubisTotal, 'Azubis gesamt')}
         ${tile(k.aktiveZuweisungen, 'Aktive Zuweisungen')}
         ${tile(k.ohneZuweisung, 'Ohne aktuelle Zuweisung', k.ohneZuweisung > 0 ? ' planer-kpi--warn' : '')}
-        ${tile(k.ausbilderAktiv, 'Ausbilder/innen aktiv')}
+        ${tile(k.ausbilderAktiv, 'Verantwortliche aktiv')}
       </div>`;
   }
 
@@ -132,7 +133,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       <div class="page-header">
         <div class="page-header__left">
           <h1 class="page-title">Azubi-Planer</h1>
-          <p class="page-subtitle">Zuweisungen von Auszubildenden zu Ausbilder/innen verwalten.</p>
+          <p class="page-subtitle">Zuweisungen von Auszubildenden zu Verantwortlichen verwalten.</p>
         </div>
         <div class="page-header__actions">
           <button class="btn btn-primary" id="newZuweisungBtn">
@@ -384,7 +385,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         <thead>
           <tr>
             ${th('azubi', 'Azubi')}
-            ${th('ausbilder', 'Ausbilder/in')}
+            ${th('ausbilder', 'Verantwortliche/r')}
             ${th('abteilung', 'Abteilung')}
             ${th('von', 'Von')}
             ${th('bis', 'Bis')}

@@ -35,6 +35,37 @@ async function requireRole(...roles) {
   return user;
 }
 
+/* Spiegelt die Fähigkeiten des Nutzers auf <html data-*> (für CSS-Gating),
+   persistiert sie für den Pre-Paint-Read in theme.js (kein Flash beim nächsten
+   Load) und blendet die Nav-Items zusätzlich per JS ein/aus (belt-and-suspenders). */
+function applyCapabilities(caps) {
+  const html = document.documentElement;
+  const attrs = {
+    'data-kann-planen':   caps.kannPlanen,
+    'data-ist-ausbilder': caps.istAusbilder,
+    'data-ist-azubi':     caps.istAzubi,
+    'data-korrektur':     caps.korrektur,
+  };
+  for (const [attr, on] of Object.entries(attrs)) {
+    if (on) html.setAttribute(attr, '1'); else html.removeAttribute(attr);
+  }
+  try {
+    localStorage.setItem('capKannPlanen',   caps.kannPlanen   ? '1' : '0');
+    localStorage.setItem('capIstAusbilder', caps.istAusbilder ? '1' : '0');
+    localStorage.setItem('capIstAzubi',     caps.istAzubi     ? '1' : '0');
+    localStorage.setItem('capKorrektur',    caps.korrektur    ? '1' : '0');
+  } catch (e) { /* localStorage kann blockieren */ }
+  document.querySelectorAll('.nav-planer-only').forEach(el => {
+    el.style.display = caps.kannPlanen ? '' : 'none';
+  });
+  document.querySelectorAll('.nav-berichtsheft-only').forEach(el => {
+    el.style.display = (caps.istAzubi || caps.korrektur) ? '' : 'none';
+  });
+  document.querySelectorAll('.nav-azubi-only').forEach(el => {
+    el.style.display = caps.istAzubi ? '' : 'none';
+  });
+}
+
 /* ── Sidebar & Navigation ── */
 async function initLayout(activeNavId) {
   const user = await requireAuth();
@@ -98,15 +129,22 @@ async function initLayout(activeNavId) {
   if (topbarName) topbarName.textContent = user.name;
   if (topbarInitials) topbarInitials.textContent = user.initials || user.name.split(' ').map(n => n[0]).join('');
 
-  // Rollen-spezifische Navlinks ein-/ausblenden
-  const adminLinks = document.querySelectorAll('.nav-admin-only');
-  const ausbilderLinks = document.querySelectorAll('.nav-ausbilder-only');
-
-  adminLinks.forEach(el => {
-    el.style.display = (user.role === 'admin') ? '' : 'none';
-  });
-  ausbilderLinks.forEach(el => {
-    el.style.display = (['admin', 'ausbilder'].includes(user.role)) ? '' : 'none';
+  // Fähigkeits-Gating der Navigation.
+  // "Korrektur-berechtigt" = Ausbilder ODER hat (aktuelle/frühere) Zuweisungen
+  // als Verantwortliche/r. Pure Planer (kannPlanen, kein Azubi, keine Zuweisung)
+  // sehen daher KEIN Berichtsheft-Menü.
+  let istKorrektor = !!user.istAusbilder;
+  if (!istKorrektor && !user.istAzubi) {
+    try {
+      const z = await DB.getZuweisungenFuerAusbilder(user.id);
+      istKorrektor = Array.isArray(z) && z.length > 0;
+    } catch (e) { /* ohne Zuweisungsdaten: konservativ kein Korrektur-Menü */ }
+  }
+  applyCapabilities({
+    kannPlanen:   !!user.kannPlanen,
+    istAusbilder: !!user.istAusbilder,
+    istAzubi:     !!user.istAzubi,
+    korrektur:    istKorrektor,
   });
 
   // Abmelden-Button via Event-Delegation an document.body. Der Button

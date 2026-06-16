@@ -1,11 +1,11 @@
 const router = require('express').Router();
 const { DEV_USERS } = require('../middleware/auth');
 
-// GET /api/users?role=azubi|ausbilder
+// GET /api/users?role=azubi|ausbilder   ODER  ?exclRole=azubi (alle außer dieser Rolle)
 router.get('/', (req, res) => {
-  const { role } = req.query;
+  const { role, exclRole } = req.query;
   const users = Object.entries(DEV_USERS)
-    .filter(([, u]) => !role || u.role === role)
+    .filter(([, u]) => (!role || u.role === role) && (!exclRole || u.role !== exclRole))
     .map(([oid, u]) => ({ oid, ...u }));
   res.json(users);
 });

@@ -21,7 +21,7 @@ Digitales Ausbildungs-Berichtsheft für Putzmeister-Auszubildende. Ersetzt das k
 | Tablet-Optimierung (Surface Pro & iPad – Performance + Layout) | ✅ erledigt |
 | Dashboard BFCache-Refresh (pageshow-Event) | ✅ erledigt |
 | **Datenbank-Schema (SQL-Migrations-Skripte)** | **⏳ ausstehend — nach Azure-AD-Klärung** |
-| Azure-AD-Anbindung über MSAL | ⏳ offen (Aufgabe: Kollege) |
+| SSO über SAML 2.0 (App-Level, Node als Service Provider) | ⏳ in Arbeit — Enterprise App beim Kollegen, URLs übergeben; SP-Routen im Backend offen |
 | IIS-Reverse-Proxy zu Node.js | ⏳ offen |
 
 ---
@@ -132,7 +132,7 @@ Zielgruppe: Keyboard + Touchpad/Maus. Kein Offline-/PWA-Support, keine Touch-Ges
 | Rich-Text-Editor | Quill 1.3.7 (CDN) |
 | Backend | Node.js + Express 5 + `mssql`-Treiber |
 | Auth (Entwicklung) | Session-basiert + DEV_USERS (X-Dev-OID Header) |
-| Auth (Produktion) | Azure AD / Microsoft Entra ID über MSAL |
+| Auth (Produktion) | Azure AD / Microsoft Entra ID über **SAML 2.0** — App-Level Service Provider (`@node-saml/node-saml`) |
 | Datenbank | SQL Server Express 2022 |
 | Webserver | IIS (Reverse Proxy zu Node.js, geplant) |
 | Hosting | Azure-VM (Putzmeister-intern) |
@@ -249,6 +249,47 @@ Zielgruppe: Keyboard + Touchpad/Maus. Kein Offline-/PWA-Support, keine Touch-Ges
 
 ---
 
+## SSO / SAML-Anbindung (Azure AD / Microsoft Entra ID)
+
+**Entscheidung:** Der Produktiv-Login läuft über **SAML 2.0** als **App-Level**-Integration — das Node/Express-Backend ist selbst der SAML **Service Provider (SP)** und empfängt/validiert die Assertion (geplant mit `@node-saml/node-saml`). **Kein MSAL/OIDC.** Die `devAuth`-Middleware (DEV_USERS) wird im Produktivbetrieb dadurch ersetzt; das Datenmodell bleibt unverändert, da User bereits über die Azure-AD-Object-ID (`oid`, GUID) identifiziert werden.
+
+**Produktions-Host:** `https://berichtsheft.putzmeister.com`
+
+### An den Kollegen übergebene URLs (Enterprise App → Basic SAML Configuration)
+
+| Feld in Azure (Entra) | Wert |
+| --- | --- |
+| Sign on URL | `https://berichtsheft.putzmeister.com/app/index.html` |
+| Reply URL (ACS) — Produktion | `https://berichtsheft.putzmeister.com/api/auth/saml/acs` |
+| Reply URL (ACS) — lokal/Test | `http://localhost:3000/api/auth/saml/acs` |
+| Logout URL | `https://berichtsheft.putzmeister.com/api/auth/saml/logout` |
+
+Die Pfade unter `/api/auth/saml/...` sind frei gewählt und kein Azure-Standard — sie müssen zur Laufzeit **exakt** mit den im Backend implementierten Routen übereinstimmen.
+
+### IdP-Daten von Azure (aus der Federation Metadata)
+
+Die vom Kollegen gelieferte Metadata liegt unter `backend/config/saml/azure-idp-metadata.xml` — **öffentlich, kein Secret** (enthält nur den öffentlichen Signaturschlüssel), darf also ins Repo. Die für `node-saml` relevanten Werte:
+
+| Wert | Inhalt |
+| --- | --- |
+| Tenant-ID | `b5ce0e47-3753-4f10-b705-9d0447ccf182` |
+| IdP Entity-ID (Issuer) | `https://sts.windows.net/b5ce0e47-3753-4f10-b705-9d0447ccf182/` |
+| SSO-Endpoint (`entryPoint`) | `https://login.microsoftonline.com/b5ce0e47-3753-4f10-b705-9d0447ccf182/saml2` |
+| SLO-Endpoint (`logoutUrl`) | `https://login.microsoftonline.com/b5ce0e47-3753-4f10-b705-9d0447ccf182/saml2` |
+| Signaturzertifikat | gültig 2026-06-16 → **2029-06-16** (vor Ablauf rotieren, sonst bricht die Signaturprüfung) |
+| Angebotene Claims | u. a. `objectidentifier` ✅, `emailaddress`, `displayname`, `name`, `givenname`, `surname`, `groups`, `role` |
+
+### Noch offen / zu beachten
+
+- **Identifier (Entity ID):** in Azure Pflichtfeld, noch festzulegen — empfohlen `https://berichtsheft.putzmeister.com` bzw. `…/api/auth/saml/metadata`. Muss später **identisch** in der `node-saml`-Config stehen.
+- **Attribut-Mapping:** Azure muss die Object-ID als Claim `http://schemas.microsoft.com/identity/claims/objectidentifier` liefern, da die App User per GUID-`oid` identifiziert (siehe `backend/middleware/auth.js`). Ohne diese Claim wäre ein Mapping über die E-Mail nötig. Zusätzlich sinnvoll: E-Mail + Anzeigename.
+- **SP-Routen im Backend ausstehend:** `/api/auth/saml/login` (AuthnRequest auslösen), `/api/auth/saml/acs` (Assertion empfangen + Session setzen), `/api/auth/saml/logout` (Single Logout).
+- **Login-Button:** „Mit Microsoft anmelden" in `app/index.html` ist noch Platzhalter (`login.js`, zeigt nur `ssoHint`) — wird später auf `/api/auth/saml/login` verdrahtet.
+- **Session-Cookie:** in Produktion `cookie.secure` auf `true` setzen (aktuell `false` in `backend/server.js`), sonst geht das Session-Cookie nach dem HTTPS-Redirect verloren.
+- **IIS-Reverse-Proxy:** muss `/api/auth/saml/acs` (POST von Azure) ebenfalls an Node auf `localhost:3000` durchreichen.
+
+---
+
 ## Lokales Setup
 
 ### Wichtig: Arbeitsort
@@ -327,9 +368,9 @@ Die SQL-Datenbank existiert auf dem Dev-Server, aber das Schema (Tabellen, Const
 
 **Konvention:** Schema-Änderungen IMMER als nummerierte `.sql`-Migrations-Skripte unter `db/migrations/`. Keine händischen Änderungen in SSMS ohne entsprechendes Skript.
 
-### 2. Azure-AD-Anbindung (MSAL)
+### 2. Azure-AD-Anbindung (SAML, App-Level)
 
-MSAL-Integration in Express zur Token-Validierung für Produktivbetrieb — Aufgabe des Kollegen. Ersetzt die `devAuth`-Middleware vollständig.
+Produktiv-Login über **SAML 2.0**; das Express-Backend ist der Service Provider (`@node-saml/node-saml`) und ersetzt die `devAuth`-Middleware vollständig. Die Enterprise App richtet der Kollege ein — die URLs wurden bereits übergeben (Details im Abschnitt „SSO / SAML-Anbindung"). **Offen auf unserer Seite:** SP-Routen `/api/auth/saml/{login,acs,logout}` im Backend, Entity-ID festlegen, `cookie.secure=true` für Produktion.
 
 ### 3. IIS-Reverse-Proxy-Konfiguration
 
@@ -377,7 +418,7 @@ Falls eine neue KI-Session ohne Vorkontext gestartet wird, hier die wichtigsten 
 5. **DB-Konvention:** Schema-Änderungen IMMER als nummerierte `.sql`-Skripte unter `db/migrations/`. Keine händischen Änderungen in SSMS ohne entsprechendes Skript.
 6. **Backend starten:** `cd backend && npm run dev` → API läuft auf `http://localhost:3000`
 7. **PDF-Parser sind Node-testbar:** `ihk-parser.js` und `zeitnachweis-parser.js` haben keine DOM/pdf.js-Abhängigkeit.
-8. **Dev-Auth:** Im Entwicklungsbetrieb nutzt das Backend `devAuth`-Middleware mit DEV\_USERS (hardcoded OIDs). In Produktion wird MSAL das ersetzen.
+8. **Dev-Auth / SSO:** Im Entwicklungsbetrieb nutzt das Backend `devAuth`-Middleware mit DEV\_USERS (hardcoded OIDs). In Produktion ersetzt **SAML 2.0 (App-Level, `@node-saml/node-saml`)** das — Entscheidung: **kein MSAL/OIDC, sondern SAML**. Details + die an den Kollegen übergebenen Azure-URLs (Sign on / Reply / Logout) stehen im Abschnitt „SSO / SAML-Anbindung".
 9. **Status-Workflow:** `offen` → `freigegeben` (Azubi) → `genehmigt` oder `abgelehnt` (Ausbilder). Beim Zurückgeben muss eine Begründung eingegeben werden — sie wird als Kommentar mit `typ: 'abgelehnt'` gespeichert.
 10. **Tablet-Breakpoints:** 1280px (Sidebar 220px, Hero-KW 64px), 1024px (Icon-Only), 768px (Mobile). Implementiert in `layout.css` und `dashboard.css`.
 11. **Dashboard-Refresh:** `pageshow`-Event mit `event.persisted`-Prüfung in `dashboard.js` — sorgt für frische Daten beim Zurücknavigieren aus der Wochenansicht (BFCache).

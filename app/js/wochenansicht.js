@@ -60,14 +60,16 @@ document.addEventListener('DOMContentLoaded', async () => {
   let activeTransitions = 0;
 
   let pendingDayTagId = null;
-  const isAusbilder = ['ausbilder', 'admin'].includes(user.role);
-  let viewAzubiId = user.role === 'azubi' ? user.id : null;
-  if (savedAzubiId && user.role !== 'azubi') {
+  // Korrektur-Ansicht für alle Nicht-Azubis (Verantwortliche/Ausbilder);
+  // ein Azubi sieht ausschließlich sein eigenes Heft.
+  const isAusbilder = !user.istAzubi;
+  let viewAzubiId = user.istAzubi ? user.id : null;
+  if (savedAzubiId && !user.istAzubi) {
     viewAzubiId = savedAzubiId;
     sessionStorage.removeItem('gotoAzubiId');
-  } else if (user.role !== 'azubi' && !viewAzubiId) {
-    // Ausbilder/Admin ohne Vorauswahl: ersten zugewiesenen Azubi anzeigen
-    const firstAzubi = (await DB.getAzubis())[0];
+  } else if (!user.istAzubi && !viewAzubiId) {
+    // Korrektor ohne Vorauswahl: ersten betreuten Azubi anzeigen
+    const firstAzubi = (await DB.getBetreuteAzubis())[0];
     if (firstAzubi) viewAzubiId = firstAzubi.id;
   }
 
@@ -420,7 +422,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   async function renderAzubiSelector(currentId) {
-    const azubis = await DB.getAzubis();
+    const azubis = await DB.getBetreuteAzubis();
     return `
       <div style="margin-bottom:var(--sp-4);display:flex;align-items:center;gap:var(--sp-3);flex-wrap:wrap">
         <span style="font-size:var(--text-sm);font-weight:700;color:var(--pm-grey-600)">Azubi:</span>
