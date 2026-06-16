@@ -33,8 +33,8 @@ document.addEventListener('DOMContentLoaded', async () => {
   const planYear = today.getFullYear();
   const jan1 = new Date(planYear, 0, 1);
   const daysInYear = Math.round((new Date(planYear, 11, 31) - jan1) / 86400000) + 1;
-  const NUM_WEEKS = Math.ceil(daysInYear / 7);
-  const segOf = (d) => Math.floor((d - jan1) / 86400000 / 7);
+  const NUM_DAYS = daysInYear;
+  const dayOf = (d) => Math.round((d - jan1) / 86400000);
   let searchText = '';
   let pendingDeleteZuweisungId = null;
   let selectedAzubiId = null;          // im Detailpanel gewählter Azubi
@@ -187,7 +187,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       <details class="planer-gantt-details">
         <summary>Gesamt-Timeline (${planYear})</summary>
         <div class="gantt-scroll">
-          <div class="gantt-grid" style="--num-weeks:${NUM_WEEKS};--week-px:30px">
+          <div class="gantt-grid" style="--num-days:${NUM_DAYS};--day-px:22px">
             ${buildGanttHeader()}
             <div class="gantt-body">${ganttRowsHtml}</div>
           </div>
@@ -300,22 +300,31 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   function buildGanttHeader() {
-    const cols = Array.from({ length: NUM_WEEKS }, (_, i) => {
-      const d = new Date(planYear, 0, 1 + i * 7);
-      const kw = DateUtil.getKW(d);
-      const isMonthStart = d.getDate() <= 7;            // erste Woche eines Monats
-      const segNow = segOf(today);
-      const isCurrent = (today.getFullYear() === planYear) && (i === segNow);
-      return `<div class="gantt-week${isCurrent ? ' current' : ''}${isMonthStart ? ' gantt-week--month' : ''}"
-                   title="KW ${kw} · ${DateUtil.MONTHS_SHORT[d.getMonth()]} ${planYear}"
-                   data-month="${isMonthStart ? DateUtil.MONTHS_SHORT[d.getMonth()] : ''}">
-                <span class="gantt-week__kw">${kw}</span>
-              </div>`;
+    // Obere Zeile: je Monat eine Zelle, Breite = Anzahl Tage des Monats.
+    const monate = Array.from({ length: 12 }, (_, m) => {
+      const dim = new Date(planYear, m + 1, 0).getDate();
+      return `<div class="gantt-month" style="width:calc(${dim} * var(--day-px))">${DateUtil.MONTHS[m]} ${planYear}</div>`;
     }).join('');
+    // Untere Zeile: je Kalendertag eine Spalte mit Tageszahl.
+    const tage = [];
+    for (let m = 0; m < 12; m++) {
+      const dim = new Date(planYear, m + 1, 0).getDate();
+      for (let d = 1; d <= dim; d++) {
+        const date = new Date(planYear, m, d);
+        const dow = date.getDay();                 // 0=So, 6=Sa
+        const isWeekend = dow === 0 || dow === 6;
+        const isToday = today.getFullYear() === planYear && today.getMonth() === m && today.getDate() === d;
+        const isMonthStart = d === 1;
+        tage.push(`<div class="gantt-day${isWeekend ? ' gantt-day--weekend' : ''}${isToday ? ' current' : ''}${isMonthStart ? ' gantt-day--month' : ''}" title="${DateUtil.formatDate(`${planYear}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`)}">${d}</div>`);
+      }
+    }
     return `
       <div class="gantt-header">
         <div class="gantt-header__name-col">Auszubildende/r</div>
-        <div class="gantt-header__timeline">${cols}${buildTodayMarker()}</div>
+        <div class="gantt-header__timeline">
+          <div class="gantt-months">${monate}</div>
+          <div class="gantt-days">${tage.join('')}${buildTodayMarker()}</div>
+        </div>
       </div>
     `;
   }
@@ -325,7 +334,7 @@ document.addEventListener('DOMContentLoaded', async () => {
      trägt aber keinen Text mehr – sonst stünde „Heute" auf jeder Zeile. */
   function buildTodayMarker() {
     if (today.getFullYear() !== planYear) return '';
-    const pct = (segOf(today) + 0.5) / NUM_WEEKS * 100;
+    const pct = (dayOf(today) + 0.5) / NUM_DAYS * 100;
     return `<div class="gantt-today-marker" style="left:${pct}%">Heute</div>`;
   }
 
@@ -365,20 +374,20 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   async function buildGanttBars(zuweisungen) {
     const bars = await Promise.all(zuweisungen.map(async z => {
-      const fromSeg = segOf(new Date(z.von + 'T00:00:00'));
-      const toSeg   = segOf(new Date(z.bis + 'T00:00:00'));
-      const startSeg = Math.max(0, fromSeg);
-      const endSeg   = Math.min(NUM_WEEKS - 1, toSeg);
-      if (endSeg < startSeg) return '';   // Zuweisung liegt außerhalb dieses Jahres
-      const left  = startSeg / NUM_WEEKS * 100;
-      const width = (endSeg - startSeg + 1) / NUM_WEEKS * 100;
+      const fromDay = dayOf(new Date(z.von + 'T00:00:00'));
+      const toDay   = dayOf(new Date(z.bis + 'T00:00:00'));
+      const startDay = Math.max(0, fromDay);
+      const endDay   = Math.min(NUM_DAYS - 1, toDay);
+      if (endDay < startDay) return '';            // Zuweisung außerhalb dieses Jahres
+      const left  = startDay / NUM_DAYS * 100;
+      const width = (endDay - startDay + 1) / NUM_DAYS * 100;
       const ausb = await DB.getUser(z.ausbilderId);
       return `
         <div class="gantt-bar ${COLORS[colorIndexFor(z.ausbilderId)]}"
              style="left:${left}%;width:${width}%"
              title="${ausb?.name || '–'}: ${DateUtil.formatDate(z.von)} – ${DateUtil.formatDate(z.bis)}"
              data-zuweisung-id="${z.id}">
-          ${width > 6 ? (ausb?.initials || '') : ''}
+          ${width > 2.5 ? (ausb?.initials || '') : ''}
         </div>
       `;
     }));
@@ -387,7 +396,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   function buildTodayLine() {
     if (today.getFullYear() !== planYear) return '';
-    const pct = (segOf(today) + 0.5) / NUM_WEEKS * 100;
+    const pct = (dayOf(today) + 0.5) / NUM_DAYS * 100;
     return `<div class="gantt-today-line" style="left:${pct}%"></div>`;
   }
 
