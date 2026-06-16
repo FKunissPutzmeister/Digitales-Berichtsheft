@@ -1,7 +1,7 @@
 const router = require('express').Router();
 const multer = require('multer');
 const { getPool, sql } = require('../db/connection');
-const { darfWocheKorrigieren } = require('../services/zugriff');
+const { darfWocheKorrigieren, darfWocheSehen } = require('../services/zugriff');
 const { ladeKorrekturKontext, ladeWocheFuerZugriff } = require('../services/zugriffContext');
 
 // ── Upload-Konfiguration ──────────────────────────────────────────
@@ -50,10 +50,16 @@ async function pruefeBearbeitbar(pool, wocheId, user) {
   return { status: 403, error: 'Keine Berechtigung für diese Woche' };
 }
 
-// GET /api/wochen/:wocheId/anhaenge  – Metadaten (ohne Inhalt)
+// GET /api/wochen/:wocheId/anhaenge  – Metadaten (nur wenn Woche sichtbar)
 router.get('/:wocheId/anhaenge', async (req, res) => {
   try {
     const pool = await getPool();
+    const woche = await ladeWocheFuerZugriff(pool, req.params.wocheId);
+    if (!woche) return res.status(404).json({ error: 'Woche nicht gefunden' });
+    const kontext = await ladeKorrekturKontext(pool, req.user.oid);
+    if (!darfWocheSehen(req.user, woche, kontext)) {
+      return res.status(403).json({ error: 'Keine Berechtigung für diese Woche' });
+    }
     const result = await pool.request()
       .input('wocheId', sql.Int, req.params.wocheId)
       .query(`
@@ -106,15 +112,21 @@ router.post('/:wocheId/anhaenge', uploadSingle, async (req, res) => {
   }
 });
 
-// GET /api/wochen/anhaenge/:id/download  – streamt die Bytes als Download
+// GET /api/wochen/anhaenge/:id/download  – streamt die Bytes (nur wenn Woche sichtbar)
 router.get('/anhaenge/:id/download', async (req, res) => {
   try {
     const pool = await getPool();
     const result = await pool.request()
       .input('id', sql.Int, req.params.id)
-      .query('SELECT Dateiname, MimeTyp, Inhalt FROM dbo.Anhaenge WHERE Id = @id');
+      .query('SELECT WocheId, Dateiname, MimeTyp, Inhalt FROM dbo.Anhaenge WHERE Id = @id');
     const row = result.recordset[0];
     if (!row) return res.status(404).json({ error: 'Anhang nicht gefunden' });
+
+    const woche = await ladeWocheFuerZugriff(pool, row.WocheId);
+    const kontext = await ladeKorrekturKontext(pool, req.user.oid);
+    if (!woche || !darfWocheSehen(req.user, woche, kontext)) {
+      return res.status(403).json({ error: 'Keine Berechtigung für diesen Anhang' });
+    }
 
     const encoded = encodeURIComponent(row.Dateiname);
     res.setHeader('Content-Type', row.MimeTyp || 'application/octet-stream');
