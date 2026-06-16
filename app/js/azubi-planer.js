@@ -40,11 +40,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   let filterLehrjahr = '';             // Filter: Lehrjahr ('' = alle)
   let nurOhneZuweisung = false;        // Schnellfilter
 
-  // Sortierzustand der unteren Zuweisungsliste. key='default' = aktuelle
-  // zuerst, danach nach Von-Datum; ein Spaltenklick setzt key+dir.
-  let tableSort = { key: 'default', dir: 'asc' };
-  // Einmal aufgelöste Zeilendaten (Azubi-/Ausbilder-Objekte), damit das
-  // Umsortieren per Header-Klick ohne erneute DB-Abfragen läuft.
+  // Einmal aufgelöste Zeilendaten (Azubi-/Ausbilder-Objekte).
   let zuwRowData = [];
 
   // Verantwortliche-Auswahl = alle Nicht-Azubi-Nutzer (nicht nur Ausbilder).
@@ -138,24 +134,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
   }
 
-  /* ── Roster der Ausbildungsbeauftragten – dient zugleich als Legende
-     der Balkenfarben (die separate Gantt-Legende entfällt dadurch). ── */
-  function buildRoster() {
-    return `
-      <div class="planer-roster">
-        <span class="planer-roster__label">Ausbildungsbeauftragte</span>
-        <div class="planer-roster__items">
-          ${ausbilder.map((a) => `
-            <span class="planer-roster__item" title="${a.name}${a.abteilung ? ' · ' + a.abteilung : ''}">
-              <span class="planer-roster__dot" style="background:${getBarColor(colorIndexFor(a.id))}"></span>
-              <span class="planer-roster__name">${a.name}</span>
-              ${a.abteilung ? `<span class="planer-roster__abt">${a.abteilung}</span>` : ''}
-            </span>
-          `).join('')}
-        </div>
-      </div>`;
-  }
-
   function buildVerantwOptions() {
     return `<option value="">Alle Verantwortlichen</option>` +
       ausbilder.map(a => `<option value="${a.id}" ${a.id === filterVerantw ? 'selected' : ''}>${a.name}</option>`).join('');
@@ -226,10 +204,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     document.getElementById('filterNurOhne')?.addEventListener('change', (e) => { nurOhneZuweisung = e.target.checked; rerenderList(); });
 
     bindListEvents();
+    if (selectedAzubiId) bindDetailEvents();
     Modal.init();
-    initZuweisungModal();
     Toast.init();
-    // Delete-Modal einmalig (außerhalb render, s. bestehende Bindung am Ende)
   }
 
   function bindListEvents() {
@@ -415,8 +392,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     return `<div class="gantt-today-line" style="left:${pct}%"></div>`;
   }
 
-  /* ── Untere Zuweisungsliste (sortierbar) ────────────────────────── */
-
   async function loadZuwRowData() {
     const alle = await DB.getAllZuweisungen();
     zuwRowData = await Promise.all(alle.map(async z => {
@@ -424,152 +399,6 @@ document.addEventListener('DOMContentLoaded', async () => {
       const ausb  = await DB.getUser(z.ausbilderId);
       return { z, azubi, ausb, status: zuweisungStatus(z) };
     }));
-  }
-
-  function sortedRowData() {
-    const data = [...zuwRowData];
-    const { key, dir } = tableSort;
-    const mul = dir === 'desc' ? -1 : 1;
-    const statusOrder = { aktuell: 0, zukuenftig: 1, beendet: 2 };
-
-    if (key === 'default') {
-      // aktuelle zuerst, danach chronologisch nach Beginn
-      data.sort((a, b) =>
-        (statusOrder[a.status.key] - statusOrder[b.status.key]) ||
-        a.z.von.localeCompare(b.z.von));
-      return data;
-    }
-
-    data.sort((a, b) => {
-      let av, bv;
-      switch (key) {
-        case 'azubi':     av = (a.azubi?.name || '').toLowerCase(); bv = (b.azubi?.name || '').toLowerCase(); break;
-        case 'ausbilder': av = (a.ausb?.name  || '').toLowerCase(); bv = (b.ausb?.name  || '').toLowerCase(); break;
-        case 'abteilung': av = (a.z.abteilung || '').toLowerCase(); bv = (b.z.abteilung || '').toLowerCase(); break;
-        case 'von':       av = a.z.von; bv = b.z.von; break;
-        case 'bis':       av = a.z.bis; bv = b.z.bis; break;
-        case 'status':    av = statusOrder[a.status.key]; bv = statusOrder[b.status.key]; break;
-        default:          av = 0; bv = 0;
-      }
-      if (av < bv) return -1 * mul;
-      if (av > bv) return  1 * mul;
-      return 0;
-    });
-    return data;
-  }
-
-  function buildZuweisungTableHtml() {
-    const data = sortedRowData();
-    if (!data.length) {
-      return '<div style="padding:var(--sp-8);text-align:center;color:var(--pm-grey-400)">Keine Zuweisungen vorhanden.</div>';
-    }
-
-    const arrow = (key) => tableSort.key === key
-      ? `<span class="zuw-th__arrow">${tableSort.dir === 'asc' ? '▲' : '▼'}</span>` : '';
-    const ariaSort = (key) => tableSort.key === key
-      ? (tableSort.dir === 'asc' ? 'ascending' : 'descending') : 'none';
-    const th = (key, label) =>
-      `<th class="zuw-th${tableSort.key === key ? ' is-sorted' : ''}" data-sort="${key}"
-           role="button" tabindex="0" aria-sort="${ariaSort(key)}"
-           title="Nach ${label} sortieren">${label}${arrow(key)}</th>`;
-
-    const rows = data.map(({ z, azubi, ausb, status }) => `
-      <tr${status.key === 'aktuell' ? ' class="zuweisung-row--current"' : ''}>
-        <td>
-          <div class="zuweisung-azubi-cell">
-            <div class="avatar avatar--sm">${azubi?.initials || '?'}</div>
-            <span class="zuweisung-azubi-name">${azubi?.name || '–'}</span>
-          </div>
-        </td>
-        <td>${ausb?.name || '–'}</td>
-        <td>${z.abteilung || '–'}</td>
-        <td class="zuweisung-date">${DateUtil.formatDate(z.von)}</td>
-        <td class="zuweisung-date">${DateUtil.formatDate(z.bis)}</td>
-        <td><span class="badge ${status.badge}">${status.label}</span></td>
-        <td class="zuweisung-action-cell">
-          <button class="btn btn-sm btn-ghost delete-zuweisung-btn" data-id="${z.id}" aria-label="Löschen">
-            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" style="width:16px;height:16px"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
-          </button>
-        </td>
-      </tr>
-    `).join('');
-
-    return `
-      <table class="qual-table zuweisung-table">
-        <colgroup>
-          <col style="width: 27%">
-          <col style="width: 19%">
-          <col style="width: 19%">
-          <col style="width: 11%">
-          <col style="width: 11%">
-          <col style="width: 9%">
-          <col style="width: 4%">
-        </colgroup>
-        <thead>
-          <tr>
-            ${th('azubi', 'Azubi')}
-            ${th('ausbilder', 'Verantwortliche/r')}
-            ${th('abteilung', 'Abteilung')}
-            ${th('von', 'Von')}
-            ${th('bis', 'Bis')}
-            ${th('status', 'Status')}
-            <th aria-label="Aktionen"></th>
-          </tr>
-        </thead>
-        <tbody>
-          ${rows}
-        </tbody>
-      </table>
-    `;
-  }
-
-  function renderZuweisungTable() {
-    const host = document.getElementById('zuweisungTableHost');
-    if (!host) return;
-    host.innerHTML = buildZuweisungTableHtml();
-    bindZuweisungTableEvents();
-    bindSortHeaders();
-  }
-
-  function bindSortHeaders() {
-    document.querySelectorAll('.zuw-th[data-sort]').forEach(th => {
-      const apply = () => {
-        const key = th.dataset.sort;
-        if (tableSort.key === key) {
-          tableSort.dir = tableSort.dir === 'asc' ? 'desc' : 'asc';
-        } else {
-          tableSort.key = key;
-          tableSort.dir = 'asc';
-        }
-        renderZuweisungTable();
-      };
-      th.addEventListener('click', apply);
-      th.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); apply(); }
-      });
-    });
-  }
-
-  function bindZuweisungTableEvents() {
-    document.querySelectorAll('.delete-zuweisung-btn').forEach(btn => {
-      btn.addEventListener('click', async () => {
-        // Zuweisungs-IDs sind Integer (DB-Id), daher hier parseInt korrekt.
-        const id = parseInt(btn.dataset.id);
-        pendingDeleteZuweisungId = id;
-
-        // Modal-Text personalisieren, damit klar ist, was gleich gelöscht wird.
-        const row = zuwRowData.find(r => r.z.id === id);
-        const azubi = row?.azubi || null;
-        const textEl = document.getElementById('zuweisungDeleteText');
-        if (textEl) {
-          textEl.textContent = azubi
-            ? `Die Zuweisung von „${azubi.name}" wird unwiderruflich entfernt. Möchtest du fortfahren?`
-            : 'Diese Zuweisung wird unwiderruflich entfernt. Möchtest du fortfahren?';
-        }
-
-        Modal.open('zuweisungDeleteModal');
-      });
-    });
   }
 
   function initZuweisungDeleteModal() {
@@ -621,10 +450,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     return colors[idx % colors.length];
   }
 
-  // Bestätigungs-Modal für Löschen einmalig binden (Modal-Markup ist statisch
-  // in azubi-planer.html). Innerhalb von render() würden Listener mehrfach
-  // angehängt, was zu Mehrfach-Löschungen führen könnte.
+  // Beide Modal-Inits einmalig binden (Modal-Markup ist statisch in
+  // azubi-planer.html). Innerhalb von render() würden Listener mehrfach
+  // angehängt, was zu Mehrfach-Einfügungen/-Löschungen führen könnte.
   initZuweisungDeleteModal();
+  initZuweisungModal();
 
   await render();
 });
