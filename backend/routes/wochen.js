@@ -1,42 +1,41 @@
 const router = require('express').Router();
 const { getPool, sql } = require('../db/connection');
+const { darfWocheSehen, darfWocheKorrigieren } = require('../services/zugriff');
+const { ladeKorrekturKontext, ladeWocheFuerZugriff } = require('../services/zugriffContext');
 
-// GET /api/wochen?azubiOid=...
+// GET /api/wochen?azubiOid=...  – liefert nur Wochen, die der Nutzer sehen darf
 router.get('/', async (req, res) => {
   try {
     const { azubiOid } = req.query;
+    const user = req.user;
     const pool = await getPool();
-    const request = pool.request();
 
+    const request = pool.request();
+    let whereClause = '';
     if (azubiOid) {
       request.input('azubiOid', sql.NVarChar(36), azubiOid);
-      const wochen = await request.query(`
-        SELECT w.*,
-          (SELECT * FROM dbo.Tage t WHERE t.WocheId = w.Id FOR JSON PATH) AS tageJson,
-          (SELECT * FROM dbo.Kommentare k WHERE k.WocheId = w.Id FOR JSON PATH) AS kommentareJson
-        FROM dbo.Wochen w
-        WHERE w.AzubiOid = @azubiOid
-        ORDER BY w.Jahr DESC, w.KW DESC
-      `);
-      const rows = wochen.recordset.map(parseWoche);
-      return res.json(rows);
+      whereClause = 'WHERE w.AzubiOid = @azubiOid';
     }
-
-    // Ausbilder/Admin: alle Wochen
     const wochen = await request.query(`
       SELECT w.*,
         (SELECT * FROM dbo.Tage t WHERE t.WocheId = w.Id FOR JSON PATH) AS tageJson,
         (SELECT * FROM dbo.Kommentare k WHERE k.WocheId = w.Id FOR JSON PATH) AS kommentareJson
       FROM dbo.Wochen w
+      ${whereClause}
       ORDER BY w.Jahr DESC, w.KW DESC
     `);
-    res.json(wochen.recordset.map(parseWoche));
+    const rows = wochen.recordset.map(parseWoche);
+
+    // Zugriffsfilter: eigenes Heft, aktive Zuweisung (in-Periode) oder Korrektur-Historie.
+    const kontext = await ladeKorrekturKontext(pool, user.oid);
+    const sichtbar = rows.filter(w => darfWocheSehen(user, normWoche(w), kontext));
+    res.json(sichtbar);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
-// GET /api/wochen/:id
+// GET /api/wochen/:id  – nur wenn der Nutzer die Woche sehen darf
 router.get('/:id', async (req, res) => {
   try {
     const pool = await getPool();
@@ -49,7 +48,13 @@ router.get('/:id', async (req, res) => {
         FROM dbo.Wochen w WHERE w.Id = @id
       `);
     if (!result.recordset[0]) return res.status(404).json({ error: 'Woche nicht gefunden' });
-    res.json(parseWoche(result.recordset[0]));
+    const woche = parseWoche(result.recordset[0]);
+
+    const kontext = await ladeKorrekturKontext(pool, req.user.oid);
+    if (!darfWocheSehen(req.user, normWoche(woche), kontext)) {
+      return res.status(403).json({ error: 'Keine Berechtigung für diese Woche' });
+    }
+    res.json(woche);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -136,14 +141,41 @@ router.post('/', async (req, res) => {
 });
 
 // PATCH /api/wochen/:id/status
+// Azubi (eigenes Heft): 'offen'/'freigegeben'. Korrektor (aktiv verantwortlich):
+// 'genehmigt'/'abgelehnt' → setzt KorrigiertVon/KorrigiertAm.
 router.patch('/:id/status', async (req, res) => {
   try {
     const { status } = req.body;
     const pool = await getPool();
-    await pool.request()
-      .input('id',     sql.Int,         req.params.id)
-      .input('status', sql.NVarChar(20), status)
-      .query('UPDATE dbo.Wochen SET Status = @status WHERE Id = @id');
+    const woche = await ladeWocheFuerZugriff(pool, req.params.id);
+    if (!woche) return res.status(404).json({ error: 'Woche nicht gefunden' });
+
+    const user = req.user;
+    const istEigenes = woche.azubiOid === user.oid;
+    const kontext = await ladeKorrekturKontext(pool, user.oid);
+    const istKorrektor = darfWocheKorrigieren(user, woche, kontext);
+
+    const AZUBI_STATUS = ['offen', 'freigegeben'];
+    const KORREKTOR_STATUS = ['genehmigt', 'abgelehnt'];
+
+    let setzeKorrektur = false;
+    if (istEigenes && AZUBI_STATUS.includes(status)) {
+      // Azubi gibt eigenes Heft frei oder nimmt zurück – keine Attribution.
+    } else if (istKorrektor && KORREKTOR_STATUS.includes(status)) {
+      setzeKorrektur = true;
+    } else {
+      return res.status(403).json({ error: 'Keine Berechtigung, diesen Status zu setzen.' });
+    }
+
+    const request = pool.request()
+      .input('id',     sql.Int,          req.params.id)
+      .input('status', sql.NVarChar(20), status);
+    let setClause = 'Status = @status';
+    if (setzeKorrektur) {
+      request.input('korrigiertVon', sql.NVarChar(36), user.oid);
+      setClause += ', KorrigiertVon = @korrigiertVon, KorrigiertAm = SYSUTCDATETIME()';
+    }
+    await request.query(`UPDATE dbo.Wochen SET ${setClause} WHERE Id = @id`);
     res.json({ ok: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -157,6 +189,17 @@ function parseWoche(row) {
     kommentare:  row.kommentareJson  ? JSON.parse(row.kommentareJson)  : [],
     tageJson:       undefined,
     kommentareJson: undefined,
+  };
+}
+
+// parseWoche-Ergebnis → normalisierte Woche für die Zugriffsprüfung.
+function normWoche(w) {
+  return {
+    azubiOid: w.AzubiOid,
+    start: w.StartDatum,
+    ende: w.EndDatum,
+    korrigiertVon: w.KorrigiertVon,
+    kommentarAutoren: (w.kommentare || []).map(k => k.UserOid),
   };
 }
 
