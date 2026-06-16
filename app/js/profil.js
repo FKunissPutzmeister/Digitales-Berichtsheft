@@ -168,8 +168,10 @@ document.addEventListener('DOMContentLoaded', async () => {
             </div>
           </div>`;
 
+    /* Standardmäßig EINGEKLAPPT (kein open): Darstellung/Themes wird selten
+       geändert – die Karte startet kompakt und wird bei Bedarf aufgeklappt. */
     return `
-      <details class="profil-section" open>
+      <details class="profil-section">
         <summary class="profil-section__header">
           <div class="profil-section__icon">
             <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path d="M12 22a10 10 0 1 1 10-10c0 2.21-1.79 3.5-4 3.5h-2.2c-1.1 0-1.8.9-1.8 2 0 .55.2 1.05.55 1.45.35.4.55.9.55 1.45 0 1.1-.9 1.6-2.1 1.6Z"/><circle cx="7.5" cy="11.5" r="1.2" fill="currentColor" stroke="none"/><circle cx="11" cy="7.5" r="1.2" fill="currentColor" stroke="none"/><circle cx="15.5" cy="9" r="1.2" fill="currentColor" stroke="none"/></svg>
