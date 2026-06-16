@@ -782,7 +782,25 @@
 
 /* Durchsuchbare Combobox (ersetzt sichtbar ein <select>) */
 .combo { position: relative; }
-.combo__input { width: 100%; }
+.combo__trigger {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-2);
+  text-align: left;
+  cursor: pointer;
+}
+.combo__value {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.combo__chev { color: var(--pm-grey-500); font-size: 0.7em; flex-shrink: 0; }
+.combo__hl { background: var(--pm-yellow-pale); color: inherit; border-radius: 2px; }
+.combo__option.is-selected { font-weight: var(--fw-bold); }
 .combo__panel {
   position: fixed;
   z-index: 9999;

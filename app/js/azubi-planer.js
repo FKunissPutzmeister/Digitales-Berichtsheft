@@ -212,6 +212,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
     makeSearchableSelect(document.getElementById('filterVerantw'));
     makeSearchableSelect(document.getElementById('filterAbteilung'));
+    makeSearchableSelect(document.getElementById('filterLehrjahr'));
 
     bindListEvents();
     if (selectedAzubiId) bindDetailEvents();
@@ -419,11 +420,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     return String(s).replace(/[&<>"]/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[c]));
   }
 
-  /* Progressive Enhancement: macht ein <select> durchsuchbar. Tippen filtert
-     per Wort-Präfix (Vor- ODER Nachname). Das <select> bleibt versteckte
-     Wert-Quelle und feuert 'change' bei Auswahl. Das Panel wird als PORTAL am
-     <body> gerendert (nicht im Wrapper), damit es nicht vom Modal geclippt wird
-     (.modal hat overflow-y:auto + transform). */
+  /* Custom-Dropdown (kein Textfeld): Trigger-Button zeigt die Auswahl. Beim
+     Öffnen tippt man direkt — die Tasten gehen in einen UNSICHTBAREN Puffer,
+     der die Liste per Wort-Präfix (Vor- ODER Nachname) filtert und den
+     getroffenen Präfix hellgelb markiert. Das <select> bleibt versteckte
+     Wert-Quelle (feuert 'change'). Panel als Body-Portal (kein Clipping). */
   function makeSearchableSelect(select) {
     if (!select || select.dataset.comboEnhanced) return null;
     select.dataset.comboEnhanced = '1';
@@ -431,72 +432,110 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     const wrap = document.createElement('div');
     wrap.className = 'combo';
-    const input = document.createElement('input');
-    input.type = 'text';
-    input.className = 'form-control combo__input';
-    input.autocomplete = 'off';
-    input.setAttribute('role', 'combobox');
-    wrap.appendChild(input);
+    const trigger = document.createElement('button');
+    trigger.type = 'button';
+    trigger.className = 'form-control combo__trigger';
+    trigger.setAttribute('aria-haspopup', 'listbox');
+    trigger.setAttribute('aria-expanded', 'false');
+    trigger.innerHTML = `<span class="combo__value"></span><span class="combo__chev" aria-hidden="true">▾</span>`;
+    wrap.appendChild(trigger);
     select.parentNode.insertBefore(wrap, select.nextSibling);
 
-    // Panel als Portal am <body> (entkommt overflow/transform des Modals).
     const panel = document.createElement('div');
     panel.className = 'combo__panel';
+    panel.setAttribute('role', 'listbox');
     panel.hidden = true;
-    panel._comboInput = input;   // Rückreferenz für Orphan-Cleanup
+    panel._comboInput = trigger;   // Rückreferenz für Orphan-Cleanup
     document.body.appendChild(panel);
 
+    const valueEl = trigger.querySelector('.combo__value');
     let options = [];
+    let query = '';
+    let queryTimer = null;
+
     function syncFromSelect() {
       options = Array.from(select.options).map(o => ({ value: o.value, label: o.textContent }));
       const cur = select.options[select.selectedIndex];
-      input.value = cur ? cur.textContent : '';
+      valueEl.textContent = cur ? cur.textContent : '';
     }
-    function tokenMatch(label, q) {
-      if (!q) return true;
+    // true + hervorgehobenes HTML, wenn ein Wort-Token mit query beginnt.
+    function matchAndHighlight(label, q) {
+      if (!q) return { match: true, html: escHtml(label) };
       const ql = q.toLowerCase();
-      return label.toLowerCase().split(/\s+/).some(t => t.startsWith(ql));
+      let matched = false;
+      const html = label.split(/(\s+)/).map(tok => {
+        if (/^\s+$/.test(tok)) return escHtml(tok);
+        if (tok.toLowerCase().startsWith(ql)) {
+          matched = true;
+          return `<mark class="combo__hl">${escHtml(tok.slice(0, q.length))}</mark>${escHtml(tok.slice(q.length))}`;
+        }
+        return escHtml(tok);
+      }).join('');
+      return { match: matched, html };
     }
     function position() {
-      const r = input.getBoundingClientRect();
+      const r = trigger.getBoundingClientRect();
       panel.style.left = r.left + 'px';
       panel.style.top = (r.bottom + 2) + 'px';
       panel.style.width = r.width + 'px';
     }
-    function renderPanel(q) {
-      const matches = options.filter(o => tokenMatch(o.label, q));
-      panel.innerHTML = matches.length
-        ? matches.map(o => `<div class="combo__option" data-value="${escHtml(o.value)}">${escHtml(o.label)}</div>`).join('')
+    function renderPanel() {
+      const rows = options.map(o => ({ o, ...matchAndHighlight(o.label, query) })).filter(r => r.match);
+      panel.innerHTML = rows.length
+        ? rows.map(r => `<div class="combo__option${r.o.value === select.value ? ' is-selected' : ''}" role="option" data-value="${escHtml(r.o.value)}">${r.html}</div>`).join('')
         : `<div class="combo__empty">Keine Treffer</div>`;
       position();
-      panel.hidden = false;
     }
     const onScrollResize = () => { if (!panel.hidden) position(); };
+    function onDocDown(e) { if (!wrap.contains(e.target) && !panel.contains(e.target)) close(); }
     function open() {
-      renderPanel('');
+      query = '';
+      renderPanel();
+      panel.hidden = false;
+      trigger.setAttribute('aria-expanded', 'true');
       window.addEventListener('scroll', onScrollResize, true);
       window.addEventListener('resize', onScrollResize);
+      document.addEventListener('mousedown', onDocDown, true);
     }
     function close() {
       panel.hidden = true;
+      query = '';
+      clearTimeout(queryTimer);
+      trigger.setAttribute('aria-expanded', 'false');
       window.removeEventListener('scroll', onScrollResize, true);
       window.removeEventListener('resize', onScrollResize);
+      document.removeEventListener('mousedown', onDocDown, true);
+    }
+    function pick(value) {
+      select.value = value;
+      select.dispatchEvent(new Event('change', { bubbles: true }));
+      syncFromSelect();
+      close();
     }
 
-    input.addEventListener('focus', () => { input.select(); open(); });
-    input.addEventListener('input', () => renderPanel(input.value.trim()));
-    input.addEventListener('keydown', (e) => { if (e.key === 'Escape') { close(); input.blur(); } });
-    // mousedown (vor blur) → Auswahl greift, bevor das Input den Fokus verliert
+    trigger.addEventListener('click', () => { panel.hidden ? open() : close(); });
+    trigger.addEventListener('keydown', (e) => {
+      if (panel.hidden) {
+        if (e.key === 'Enter' || e.key === ' ' || e.key === 'ArrowDown') { e.preventDefault(); open(); }
+        return;
+      }
+      if (e.key === 'Escape' || e.key === 'Tab') { close(); return; }
+      if (e.key === 'Enter') { e.preventDefault(); const f = panel.querySelector('.combo__option'); if (f) pick(f.dataset.value); return; }
+      if (e.key === 'Backspace') { e.preventDefault(); query = query.slice(0, -1); renderPanel(); return; }
+      if (e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) {
+        e.preventDefault();
+        query += e.key;
+        clearTimeout(queryTimer);
+        queryTimer = setTimeout(() => { query = ''; if (!panel.hidden) renderPanel(); }, 1500);
+        renderPanel();
+      }
+    });
     panel.addEventListener('mousedown', (e) => {
       const opt = e.target.closest('.combo__option');
       if (!opt) return;
       e.preventDefault();
-      select.value = opt.dataset.value;
-      select.dispatchEvent(new Event('change', { bubbles: true }));
-      syncFromSelect();
-      close();
+      pick(opt.dataset.value);
     });
-    input.addEventListener('blur', () => setTimeout(close, 120));
 
     syncFromSelect();
     return { refresh: syncFromSelect };
