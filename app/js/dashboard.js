@@ -1101,6 +1101,46 @@ function bindReviewFilterBar(queue) {
 }
 
 /* ── Hilfsfunktionen für Ausbilder-Dashboard ──────────────────── */
+/* Planer-Signale: Datenpfad identisch zum Azubi-Planer (DB.getAllZuweisungen
+   + DB.getAzubis). "bald" = innerhalb der nächsten 14 Tage. */
+async function getPlanerSignale() {
+  const heuteD  = new Date();
+  const grenzeD = new Date(); grenzeD.setDate(grenzeD.getDate() + 14);
+  const heute   = heuteD.toISOString().split('T')[0];
+  const grenze  = grenzeD.toISOString().split('T')[0];
+  const [azubis, zuw] = await Promise.all([DB.getAzubis(), DB.getAllZuweisungen()]);
+  const aktiveAzubiIds = new Set(
+    zuw.filter(z => z.von <= heute && z.bis >= heute).map(z => z.azubiId)
+  );
+  return {
+    ohneZuweisung: azubis.filter(a => !aktiveAzubiIds.has(a.id)),
+    baldAblaufend: zuw.filter(z => z.bis >= heute && z.bis <= grenze),
+    baldBeginnend: zuw.filter(z => z.von >  heute && z.von <= grenze),
+  };
+}
+
+/* Drei klickbare Signalkarten (führen in den Planer). Wiederverwendet die
+   stat-card-Styles; Icon('planer') existiert (Sidebar). */
+function renderPlanerSignale(sig) {
+  const card = (count, label, sub, mod) => `
+    <a href="azubi-planer.html" class="stat-card animate-fade-in" style="text-decoration:none">
+      <div class="stat-card__icon stat-card__icon--${mod}">${Icon('planer')}</div>
+      <div class="stat-card__content">
+        <div class="stat-card__label">${label}</div>
+        <div class="stat-card__value">${count}</div>
+        <div class="stat-card__sub">${sub}</div>
+      </div>
+    </a>`;
+  return `
+    <div class="stats-grid stats-grid--3">
+      ${card(sig.ohneZuweisung.length, 'Azubis ohne aktuelle Zuweisung',
+             sig.ohneZuweisung.length ? 'Handlungsbedarf' : 'Alles zugewiesen',
+             sig.ohneZuweisung.length ? 'error' : 'success')}
+      ${card(sig.baldAblaufend.length, 'Zuweisungen enden bald', 'in den nächsten 14 Tagen', 'info')}
+      ${card(sig.baldBeginnend.length, 'Zuweisungen beginnen bald', 'in den nächsten 14 Tagen', 'info')}
+    </div>`;
+}
+
 async function getMeineAzubis(user) {
   const heute = new Date().toISOString().split('T')[0];
   const meineZuw = (await DB.getZuweisungenFuerAusbilder(user.id))
