@@ -10,6 +10,8 @@
    dann wird die OID in der Session gespeichert.
    =================================================================== */
 
+const { faehigkeitenFuer } = require('../config/berechtigungen');
+
 const DEV_USERS = {
   '00000000-0000-0000-0000-000000000001': { name: 'Florian Kuniß',       role: 'azubi',     email: 'florian.kuniss@putzmeister.com',
     beruf: 'Mechatroniker', ausbildungsBeginn: '2024-09-01', ausbildungsEnde: '2027-08-31' },
@@ -32,7 +34,12 @@ function devAuth(req, res, next) {
     return res.status(401).json({ error: 'Nicht angemeldet. X-Dev-OID Header oder /api/auth/login verwenden.' });
   }
 
-  req.user = { oid, ...DEV_USERS[oid] };
+  req.user = {
+    oid,
+    ...DEV_USERS[oid],
+    ...faehigkeitenFuer(oid),
+    istAzubi: DEV_USERS[oid].role === 'azubi',
+  };
   next();
 }
 
