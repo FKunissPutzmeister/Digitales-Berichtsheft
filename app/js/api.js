@@ -158,6 +158,10 @@ function cacheUserRole(role) {
     } else {
       localStorage.removeItem('userRole');
       document.documentElement.removeAttribute('data-role');
+      // Fähigkeits-Cache mitleeren (Logout / fehlgeschlagene Auth), damit beim
+      // nächsten Login kein veraltetes Gating pre-paint durchschlägt.
+      ['capKannPlanen', 'capIstAusbilder', 'capIstAzubi', 'capKorrektur'].forEach(k => localStorage.removeItem(k));
+      ['data-kann-planen', 'data-ist-ausbilder', 'data-ist-azubi', 'data-korrektur'].forEach(a => document.documentElement.removeAttribute(a));
     }
   } catch (e) { /* localStorage kann in Privacy-Modi blockieren */ }
 }
