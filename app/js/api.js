@@ -307,6 +307,25 @@ const DB = {
     return zuweisungen.find(z => z.von <= heute && z.bis >= heute) || null;
   },
 
+  // Azubis, für die der aktuelle Nutzer Verantwortliche/r ist (aktuelle ODER
+  // frühere Zuweisungen). Quelle für den Azubi-Selektor der Wochenansicht –
+  // ersetzt das frühere "alle Azubis". Aktuelle Zuweisungen zuerst.
+  async getBetreuteAzubis() {
+    const me = this.getCurrentUser();
+    if (!me) return [];
+    const heute = new Date().toISOString().split('T')[0];
+    const zuw = await this.getZuweisungenFuerAusbilder(me.id);
+    zuw.sort((a, b) => {
+      const aAktiv = a.von <= heute && a.bis >= heute;
+      const bAktiv = b.von <= heute && b.bis >= heute;
+      if (aAktiv !== bAktiv) return aAktiv ? -1 : 1;
+      return (b.von || '').localeCompare(a.von || '');
+    });
+    const ids = [...new Set(zuw.map(z => z.azubiId))];
+    const users = await Promise.all(ids.map(id => this.getUser(id)));
+    return users.filter(Boolean);
+  },
+
   async addZuweisung(zuweisung) {
     const data = await apiFetch('/zuweisungen', { method: 'POST', body: {
       azubiOid:     zuweisung.azubiId,
