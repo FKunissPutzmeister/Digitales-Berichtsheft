@@ -21,7 +21,7 @@ Digitales Ausbildungs-Berichtsheft für Putzmeister-Auszubildende. Ersetzt das k
 | Tablet-Optimierung (Surface Pro & iPad – Performance + Layout) | ✅ erledigt |
 | Dashboard BFCache-Refresh (pageshow-Event) | ✅ erledigt |
 | **Datenbank-Schema (SQL-Migrations-Skripte)** | **⏳ ausstehend — nach Azure-AD-Klärung** |
-| SSO über SAML 2.0 (App-Level, Node als Service Provider) | ⏳ in Arbeit — Enterprise App beim Kollegen, URLs übergeben; SP-Routen im Backend offen |
+| SSO über SAML 2.0 (App-Level, Node als Service Provider) | ⏳ in Arbeit — Enterprise App + Attribut-Mapping fertig (URLs übergeben); SP-Routen im Backend offen |
 | IIS-Reverse-Proxy zu Node.js | ⏳ offen |
 
 ---
@@ -279,11 +279,23 @@ Die vom Kollegen gelieferte Metadata liegt unter `backend/config/saml/azure-idp-
 | Signaturzertifikat | gültig 2026-06-16 → **2029-06-16** (vor Ablauf rotieren, sonst bricht die Signaturprüfung) |
 | Angebotene Claims | u. a. `objectidentifier` ✅, `emailaddress`, `displayname`, `name`, `givenname`, `surname`, `groups`, `role` |
 
+### Attribut-Mapping (mit Azure abgestimmt)
+
+Die Enterprise App liefert in der Assertion:
+
+| Claim (Name in der Assertion) | Azure-Quelle | Verwendung in der App |
+| --- | --- | --- |
+| `objectid` | `user.objectid` | **Primärschlüssel** → unsere `oid` (GUID) |
+| `…/claims/emailaddress` | `user.mail` | E-Mail |
+| `…/claims/displayname` | `user.displayname` | Anzeigename |
+| Name ID | E-Mail / UPN | nur lesbarer Identifier; die Zuordnung läuft über `objectid` |
+
+**Wichtig:** Die Object-ID wird bewusst unter dem eigenen Claim-Namen **`objectid`** ausgeliefert — **nicht** unter `http://schemas.microsoft.com/identity/claims/objectidentifier`. Dieser URI gehört zu Azures *restricted claim set* und kann nicht als Custom-Claim-Name verwendet werden (Fehlermeldung „This claim type is restricted"). Im Backend wird die GUID daher aus `profile['objectid']` gelesen — nicht aus der NameID.
+
 ### Noch offen / zu beachten
 
 - **Identifier (Entity ID):** in Azure Pflichtfeld, noch festzulegen — empfohlen `https://berichtsheft.putzmeister.com` bzw. `…/api/auth/saml/metadata`. Muss später **identisch** in der `node-saml`-Config stehen.
-- **Attribut-Mapping:** Azure muss die Object-ID als Claim `http://schemas.microsoft.com/identity/claims/objectidentifier` liefern, da die App User per GUID-`oid` identifiziert (siehe `backend/middleware/auth.js`). Ohne diese Claim wäre ein Mapping über die E-Mail nötig. Zusätzlich sinnvoll: E-Mail + Anzeigename.
-- **SP-Routen im Backend ausstehend:** `/api/auth/saml/login` (AuthnRequest auslösen), `/api/auth/saml/acs` (Assertion empfangen + Session setzen), `/api/auth/saml/logout` (Single Logout).
+- **SP-Routen im Backend ausstehend:** `/api/auth/saml/login` (AuthnRequest auslösen), `/api/auth/saml/acs` (Assertion empfangen, Claim `objectid` → `oid` mappen, Session setzen), `/api/auth/saml/logout` (Single Logout).
 - **Login-Button:** „Mit Microsoft anmelden" in `app/index.html` ist noch Platzhalter (`login.js`, zeigt nur `ssoHint`) — wird später auf `/api/auth/saml/login` verdrahtet.
 - **Session-Cookie:** in Produktion `cookie.secure` auf `true` setzen (aktuell `false` in `backend/server.js`), sonst geht das Session-Cookie nach dem HTTPS-Redirect verloren.
 - **IIS-Reverse-Proxy:** muss `/api/auth/saml/acs` (POST von Azure) ebenfalls an Node auf `localhost:3000` durchreichen.
