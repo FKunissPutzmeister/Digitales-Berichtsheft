@@ -156,6 +156,19 @@ document.addEventListener('DOMContentLoaded', async () => {
       </div>`;
   }
 
+  function buildVerantwOptions() {
+    return `<option value="">Alle Verantwortlichen</option>` +
+      ausbilder.map(a => `<option value="${a.id}" ${a.id === filterVerantw ? 'selected' : ''}>${a.name}</option>`).join('');
+  }
+  function buildAbteilungOptions() {
+    return `<option value="">Alle Abteilungen</option>` +
+      alleAbteilungen().map(ab => `<option value="${ab}" ${ab === filterAbteilung ? 'selected' : ''}>${ab}</option>`).join('');
+  }
+  function buildLehrjahrOptions() {
+    return `<option value="">Alle Lehrjahre</option>` +
+      [1,2,3,4].map(j => `<option value="${j}" ${String(j) === filterLehrjahr ? 'selected' : ''}>${j}. Lehrjahr</option>`).join('');
+  }
+
   async function render() {
     const main = document.getElementById('mainContent');
 
@@ -168,63 +181,66 @@ document.addEventListener('DOMContentLoaded', async () => {
           <h1 class="page-title">Azubi-Planer</h1>
           <p class="page-subtitle">Zuweisungen von Auszubildenden zu Verantwortlichen verwalten.</p>
         </div>
-        <div class="page-header__actions">
-          <button class="btn btn-primary" id="newZuweisungBtn">
-            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="width:16px;height:16px"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-            Neue Zuweisung
-          </button>
-        </div>
+        <button class="btn btn-secondary" id="newZuweisungBtn">+ Zuweisung</button>
       </div>
 
-      <!-- ZONE 1: Filter + Auswertung -->
-      <section class="planer-zone planer-zone--top">
-        ${buildKpis()}
-        <div class="planer-toolbar">
-          ${buildRoster()}
-          <div class="planer-search">
-            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" class="planer-search__icon">
-              <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
-            </svg>
-            <input type="text" class="form-control planer-search__input" id="azubiSearch"
-                   placeholder="Azubi suchen…" value="${searchText}">
-          </div>
-        </div>
-      </section>
+      ${buildKpis()}
 
-      <!-- ZONE 2: Timeline -->
-      <section class="planer-zone planer-zone--timeline">
-        <h2 class="planer-zone__title">Zeitliche Zuordnung ${planYear}</h2>
+      <div class="planer-filterbar">
+        <div class="planer-search">
+          <input type="search" id="azubiSearch" class="form-control" placeholder="Azubi suchen …" value="${searchText}">
+        </div>
+        <select class="form-control" id="filterVerantw">${buildVerantwOptions()}</select>
+        <select class="form-control" id="filterAbteilung">${buildAbteilungOptions()}</select>
+        <select class="form-control" id="filterLehrjahr">${buildLehrjahrOptions()}</select>
+        <label class="planer-quickfilter">
+          <input type="checkbox" id="filterNurOhne" ${nurOhneZuweisung ? 'checked' : ''}> nur ohne aktuelle Zuweisung
+        </label>
+      </div>
+
+      <div class="planer-master">
+        <div class="planer-list" id="planerList">${buildAzubiListe()}</div>
+        <div class="planer-detail" id="planerDetail">${buildDetail(selectedAzubiId)}</div>
+      </div>
+
+      <details class="planer-gantt-details">
+        <summary>Gesamt-Timeline (${planYear})</summary>
         <div class="gantt-wrap">
           ${buildGanttHeader()}
-          <div class="gantt-body">
-            ${ganttRowsHtml}
-          </div>
+          <div class="gantt-body">${ganttRowsHtml}</div>
         </div>
-      </section>
-
-      <!-- ZONE 3: Strukturierte Zuweisungsliste -->
-      <section class="planer-zone planer-zone--list">
-        <h2 class="planer-zone__title">Bestehende Zuweisungen</h2>
-        <div class="card">
-          <div class="card__body" style="padding:0">
-            <div id="zuweisungTableHost">${buildZuweisungTableHtml()}</div>
-          </div>
-        </div>
-      </section>
+      </details>
     `;
 
     // Events
-    document.getElementById('newZuweisungBtn')?.addEventListener('click', openNewZuweisung);
-    document.getElementById('azubiSearch')?.addEventListener('input', async (e) => {
-      searchText = e.target.value.toLowerCase();
-      document.querySelector('.gantt-body').innerHTML = await buildGanttRows();
-    });
+    document.getElementById('newZuweisungBtn')?.addEventListener('click', () => openNewZuweisung());
 
-    bindZuweisungTableEvents();
-    bindSortHeaders();
+    const rerenderList = () => {
+      document.getElementById('planerList').innerHTML = buildAzubiListe();
+      bindListEvents();
+    };
+    document.getElementById('azubiSearch')?.addEventListener('input', (e) => { searchText = e.target.value.toLowerCase(); rerenderList(); });
+    document.getElementById('filterVerantw')?.addEventListener('change', (e) => { filterVerantw = e.target.value; rerenderList(); });
+    document.getElementById('filterAbteilung')?.addEventListener('change', (e) => { filterAbteilung = e.target.value; rerenderList(); });
+    document.getElementById('filterLehrjahr')?.addEventListener('change', (e) => { filterLehrjahr = e.target.value; rerenderList(); });
+    document.getElementById('filterNurOhne')?.addEventListener('change', (e) => { nurOhneZuweisung = e.target.checked; rerenderList(); });
+
+    bindListEvents();
     Modal.init();
     initZuweisungModal();
     Toast.init();
+    // Delete-Modal einmalig (außerhalb render, s. bestehende Bindung am Ende)
+  }
+
+  function bindListEvents() {
+    document.querySelectorAll('.planer-list-item[data-azubi-id]').forEach(el => {
+      el.addEventListener('click', () => {
+        selectedAzubiId = el.dataset.azubiId;
+        document.getElementById('planerDetail').innerHTML = buildDetail(selectedAzubiId);
+        bindDetailEvents();
+        document.querySelectorAll('.planer-list-item').forEach(x => x.classList.toggle('selected', x.dataset.azubiId === selectedAzubiId));
+      });
+    });
   }
 
   function buildGanttHeader() {
