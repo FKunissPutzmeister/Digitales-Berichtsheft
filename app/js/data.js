@@ -369,8 +369,11 @@ const DB = {
   /* Übernimmt die ausgewählten Zeitnachweis-Tage ins Berichtsheft.
      - Gruppiert nach ISO-Kalenderwoche, legt fehlende Wochen an.
      - Schreibgeschützte Wochen (freigegeben/genehmigt) werden übersprungen.
-     - Setzt nur anwesenheit/ort/stunden; Texteinträge bleiben unangetastet.
-     `tage`: [{ datum, anwesenheit, ort, stunden }] (bereits gefiltert/ausgewählt). */
+     - Setzt nur anwesenheit/ort; die Tagdauer/Zeit wird NICHT mehr aus dem
+       Zeitnachweis befüllt (bleibt beim Standard bzw. der manuellen Wahl).
+       Texteinträge bleiben unangetastet.
+     `tage`: [{ datum, anwesenheit, ort }] (ein evtl. mitgeliefertes `stunden`
+       wird bewusst ignoriert – der Import füllt die Zeit nicht mehr aus). */
   applyZeitnachweis(azubiId, tage) {
     const summary = { uebernommen: 0, uebersprungenReadonly: 0, betroffeneWochen: [] };
     const groups = {};
@@ -405,16 +408,19 @@ const DB = {
       g.tage.forEach(t => {
         let tag = woche.tage.find(x => x.datum === t.datum);
         if (!tag) {
-          tag = { datum: t.datum, anwesenheit: '', ort: '', stunden: 0 };
+          tag = { datum: t.datum, anwesenheit: '', ort: '', tagdauer: 'ganztag' };
           woche.tage.push(tag);
         }
         tag.anwesenheit = t.anwesenheit;
         tag.ort         = t.ort || '';
-        tag.stunden     = t.stunden || 0;
+        // Tagdauer/Zeit wird bewusst NICHT aus dem Zeitnachweis gesetzt –
+        // der Import befüllt die Zeit nicht mehr automatisch. Eine bestehende
+        // (manuell gewählte) Tagdauer bleibt damit erhalten.
         summary.uebernommen++;
       });
 
-      woche.gesamtstunden = woche.tage.reduce((s, x) => s + (x.stunden || 0), 0);
+      // Wochensumme = Anzahl der Anwesenheitstage (Tagdauer-Modell), keine Stundensumme.
+      woche.gesamtstunden = woche.tage.filter(x => x.anwesenheit === 'anwesend').length;
       woche.lastSavedAt = Date.now();
       this.saveWoche(woche);
       summary.betroffeneWochen.push({ kw: g.kw, year: g.year });

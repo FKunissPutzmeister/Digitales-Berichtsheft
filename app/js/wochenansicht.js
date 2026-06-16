@@ -563,7 +563,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             </div>
 
             <div class="tag-row__field tag-row__field--time">
-              ${!isWE ? `<label class="tag-row__field-label tag-row__field-label--centered">Dauer</label>` : ''}
+              ${!isWE ? `<label class="tag-row__field-label tag-row__field-label--centered">ArbZ</label>` : ''}
               ${!isWE
                 ? renderDauerPill(
                     dateStr,
@@ -637,7 +637,7 @@ document.addEventListener('DOMContentLoaded', async () => {
           <span class="tag-cards__header-spacer"></span>
           <span class="tag-cards__header-label">Anwesenheit</span>
           <span class="tag-cards__header-label">Ort</span>
-          <span class="tag-cards__header-label tag-cards__header-label--center">Std.</span>
+          <span class="tag-cards__header-label tag-cards__header-label--center">ArbZ</span>
           <span class="tag-cards__header-spacer"></span>
         </div>
         ${rows.join('')}
@@ -1203,7 +1203,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             </div>
 
             <div class="tag-row__field tag-row__field--time">
-              ${!isWE ? `<label class="tag-row__field-label tag-row__field-label--centered">Dauer</label>` : ''}
+              ${!isWE ? `<label class="tag-row__field-label tag-row__field-label--centered">ArbZ</label>` : ''}
               ${!isWE
                 ? renderDauerPill(
                     dateStr,
@@ -1224,7 +1224,7 @@ document.addEventListener('DOMContentLoaded', async () => {
           <span class="tag-cards__header-spacer"></span>
           <span class="tag-cards__header-label">Anwesenheit</span>
           <span class="tag-cards__header-label">Ort</span>
-          <span class="tag-cards__header-label tag-cards__header-label--center">Std.</span>
+          <span class="tag-cards__header-label tag-cards__header-label--center">ArbZ</span>
           <span class="tag-cards__header-spacer"></span>
         </div>
         ${rows.join('')}

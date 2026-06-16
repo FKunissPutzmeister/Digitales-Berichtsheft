@@ -45,8 +45,9 @@ const IhkImport = (() => {
         <div class="profil-section__body-wrap"><div class="profil-section__body">
           <p class="ztn-intro">
             Lade deinen <strong>IHK-Ausbildungsnachweis</strong> als PDF hoch – alle erkannten
-            Wochen werden mit Anwesenheit, Ort, Stunden und Tätigkeitsbeschreibungen
-            (Betrieb, Schule, Unterweisung) ins Berichtsheft übernommen.
+            Wochen werden mit Anwesenheit, Ort, Tagdauer und Tätigkeitsbeschreibungen
+            (Betrieb, Schule, Unterweisung) ins Berichtsheft übernommen. Anwesende
+            Tage werden dabei standardmäßig als Ganztag übernommen.
           </p>
 
           <details class="ztn-tutorial">
@@ -439,19 +440,22 @@ const IhkImport = (() => {
 
       if (!Array.isArray(woche.tage)) woche.tage = [];
 
-      // Anwesenheit/Ort/Stunden schreiben; bestehende eintrag-Texte erhalten
+      // Anwesenheit/Ort/Tagdauer schreiben; bestehende eintrag-Texte erhalten.
+      // Exakte Stunden aus dem PDF werden NICHT mehr übernommen (Tagdauer-Modell):
+      // jeder anwesende Tag gilt standardmäßig als Ganztag.
       pw.tage.forEach(pt => {
         let tag = woche.tage.find(t => t.datum === pt.datum);
         if (!tag) {
-          tag = { datum: pt.datum, anwesenheit: '', ort: '', stunden: 0, eintrag: '' };
+          tag = { datum: pt.datum, anwesenheit: '', ort: '', tagdauer: 'ganztag', eintrag: '' };
           woche.tage.push(tag);
         }
         tag.anwesenheit = pt.anwesenheit;
         tag.ort         = pt.ort;
-        tag.stunden     = pt.stunden;
+        tag.tagdauer    = 'ganztag';
       });
 
-      woche.gesamtstunden = woche.tage.reduce((s, t) => s + (t.stunden || 0), 0);
+      // Wochensumme = Anzahl der Anwesenheitstage (Tagdauer-Modell), keine Stundensumme.
+      woche.gesamtstunden = woche.tage.filter(t => t.anwesenheit === 'anwesend').length;
       await DB.saveWoche(woche);
       summary.uebernommen++;
       summary.betroffeneWochen.push({ kw: pw.kw, year: pw.year });
