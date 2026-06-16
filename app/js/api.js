@@ -268,6 +268,13 @@ const DB = {
     return data.map(u => normalizeUser(u.oid, u));
   },
 
+  // Verantwortliche/r einer Zuweisung = jeder Nicht-Azubi-Nutzer (Ausbilder,
+  // Personalabteilung, Abteilungs-Verantwortliche …), nicht nur Ausbilder.
+  async getVerantwortliche() {
+    const data = await apiFetch('/users?exclRole=azubi');
+    return data.map(u => normalizeUser(u.oid, u));
+  },
+
   async getUser(oid) {
     if (!oid) return null;
     try {
