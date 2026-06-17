@@ -789,7 +789,7 @@
 }
 
 /* Azubi-Durchlaufansicht (read-only) */
-.durchlauf-list { display: flex; flex-direction: column; gap: var(--sp-4); max-width: 720px; }
+.durchlauf-list { display: flex; flex-direction: column; gap: var(--sp-5); margin-top: var(--sp-8); max-width: 720px; }
 .durchlauf-card {
   position: relative;
   background: var(--pm-white);
