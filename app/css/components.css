@@ -1099,6 +1099,8 @@ select.form-control {
   color: var(--pm-grey-500);
   font-style: italic;
 }
+.pm-select__hl { background: var(--pm-yellow-pale); color: inherit; border-radius: 2px; }
+.pm-select__option[hidden] { display: none; }
 
 /* Kompakte Variante für Tag-Tabellen-Zeilen */
 .pm-select--sm .pm-select__trigger {

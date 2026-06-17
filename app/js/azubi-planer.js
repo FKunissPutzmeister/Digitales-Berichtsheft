@@ -42,8 +42,6 @@ document.addEventListener('DOMContentLoaded', async () => {
   let filterAbteilung = '';            // Filter: Abteilung ('' = alle)
   let filterLehrjahr = '';             // Filter: Lehrjahr ('' = alle)
   let nurOhneZuweisung = false;        // Schnellfilter
-  let comboModalAzubi = null, comboModalVerantw = null;
-
   // Einmal aufgelöste Zeilendaten (Azubi-/Ausbilder-Objekte).
   let zuwRowData = [];
 
@@ -171,9 +169,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         <div class="planer-search">
           <input type="search" id="azubiSearch" class="form-control" placeholder="Azubi suchen …" value="${searchText}">
         </div>
-        <select class="form-control" id="filterVerantw" data-pm-skip>${buildVerantwOptions()}</select>
-        <select class="form-control" id="filterAbteilung" data-pm-skip>${buildAbteilungOptions()}</select>
-        <select class="form-control" id="filterLehrjahr" data-pm-skip>${buildLehrjahrOptions()}</select>
+        <select class="form-control" id="filterVerantw">${buildVerantwOptions()}</select>
+        <select class="form-control" id="filterAbteilung">${buildAbteilungOptions()}</select>
+        <select class="form-control" id="filterLehrjahr">${buildLehrjahrOptions()}</select>
         <label class="planer-quickfilter">
           <input type="checkbox" id="filterNurOhne" ${nurOhneZuweisung ? 'checked' : ''}> nur ohne aktuelle Zuweisung
         </label>
@@ -205,14 +203,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     document.getElementById('filterAbteilung')?.addEventListener('change', (e) => { filterAbteilung = e.target.value; rerenderList(); });
     document.getElementById('filterLehrjahr')?.addEventListener('change', (e) => { filterLehrjahr = e.target.value; rerenderList(); });
     document.getElementById('filterNurOhne')?.addEventListener('change', (e) => { nurOhneZuweisung = e.target.checked; rerenderList(); });
-    // Verwaiste Portal-Panels aus früheren Renders entfernen (Filter-Comboboxen
-    // werden neu erzeugt; ihre alten Inputs sind nun nicht mehr im DOM).
-    document.querySelectorAll('.combo__panel').forEach(p => {
-      if (p._comboInput && !p._comboInput.isConnected) p.remove();
-    });
-    makeSearchableSelect(document.getElementById('filterVerantw'));
-    makeSearchableSelect(document.getElementById('filterAbteilung'));
-    makeSearchableSelect(document.getElementById('filterLehrjahr'));
 
     bindListEvents();
     if (selectedAzubiId) bindDetailEvents();
@@ -415,132 +405,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     }));
   }
 
-  // Escape für sicher eingebettete Labels/Values im Panel-HTML.
-  function escHtml(s) {
-    return String(s).replace(/[&<>"]/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[c]));
-  }
-
-  /* Custom-Dropdown (kein Textfeld): Trigger-Button zeigt die Auswahl. Beim
-     Öffnen tippt man direkt — die Tasten gehen in einen UNSICHTBAREN Puffer,
-     der die Liste per Wort-Präfix (Vor- ODER Nachname) filtert und den
-     getroffenen Präfix hellgelb markiert. Das <select> bleibt versteckte
-     Wert-Quelle (feuert 'change'). Panel als Body-Portal (kein Clipping). */
-  function makeSearchableSelect(select) {
-    if (!select || select.dataset.comboEnhanced) return null;
-    select.dataset.comboEnhanced = '1';
-    select.style.display = 'none';
-
-    const wrap = document.createElement('div');
-    wrap.className = 'combo';
-    const trigger = document.createElement('button');
-    trigger.type = 'button';
-    trigger.className = 'form-control combo__trigger';
-    trigger.setAttribute('aria-haspopup', 'listbox');
-    trigger.setAttribute('aria-expanded', 'false');
-    trigger.innerHTML = `<span class="combo__value"></span><span class="combo__chev" aria-hidden="true">▾</span>`;
-    wrap.appendChild(trigger);
-    select.parentNode.insertBefore(wrap, select.nextSibling);
-
-    const panel = document.createElement('div');
-    panel.className = 'combo__panel';
-    panel.setAttribute('role', 'listbox');
-    panel.hidden = true;
-    panel._comboInput = trigger;   // Rückreferenz für Orphan-Cleanup
-    document.body.appendChild(panel);
-
-    const valueEl = trigger.querySelector('.combo__value');
-    let options = [];
-    let query = '';
-    let queryTimer = null;
-
-    function syncFromSelect() {
-      options = Array.from(select.options).map(o => ({ value: o.value, label: o.textContent }));
-      const cur = select.options[select.selectedIndex];
-      valueEl.textContent = cur ? cur.textContent : '';
-    }
-    // true + hervorgehobenes HTML, wenn ein Wort-Token mit query beginnt.
-    function matchAndHighlight(label, q) {
-      if (!q) return { match: true, html: escHtml(label) };
-      const ql = q.toLowerCase();
-      let matched = false;
-      const html = label.split(/(\s+)/).map(tok => {
-        if (/^\s+$/.test(tok)) return escHtml(tok);
-        if (tok.toLowerCase().startsWith(ql)) {
-          matched = true;
-          return `<mark class="combo__hl">${escHtml(tok.slice(0, q.length))}</mark>${escHtml(tok.slice(q.length))}`;
-        }
-        return escHtml(tok);
-      }).join('');
-      return { match: matched, html };
-    }
-    function position() {
-      const r = trigger.getBoundingClientRect();
-      panel.style.left = r.left + 'px';
-      panel.style.top = (r.bottom + 2) + 'px';
-      panel.style.width = r.width + 'px';
-    }
-    function renderPanel() {
-      const rows = options.map(o => ({ o, ...matchAndHighlight(o.label, query) })).filter(r => r.match);
-      panel.innerHTML = rows.length
-        ? rows.map(r => `<div class="combo__option${r.o.value === select.value ? ' is-selected' : ''}" role="option" data-value="${escHtml(r.o.value)}">${r.html}</div>`).join('')
-        : `<div class="combo__empty">Keine Treffer</div>`;
-      position();
-    }
-    const onScrollResize = () => { if (!panel.hidden) position(); };
-    function onDocDown(e) { if (!wrap.contains(e.target) && !panel.contains(e.target)) close(); }
-    function open() {
-      query = '';
-      renderPanel();
-      panel.hidden = false;
-      trigger.setAttribute('aria-expanded', 'true');
-      window.addEventListener('scroll', onScrollResize, true);
-      window.addEventListener('resize', onScrollResize);
-      document.addEventListener('mousedown', onDocDown, true);
-    }
-    function close() {
-      panel.hidden = true;
-      query = '';
-      clearTimeout(queryTimer);
-      trigger.setAttribute('aria-expanded', 'false');
-      window.removeEventListener('scroll', onScrollResize, true);
-      window.removeEventListener('resize', onScrollResize);
-      document.removeEventListener('mousedown', onDocDown, true);
-    }
-    function pick(value) {
-      select.value = value;
-      select.dispatchEvent(new Event('change', { bubbles: true }));
-      syncFromSelect();
-      close();
-    }
-
-    trigger.addEventListener('click', () => { panel.hidden ? open() : close(); });
-    trigger.addEventListener('keydown', (e) => {
-      if (panel.hidden) {
-        if (e.key === 'Enter' || e.key === ' ' || e.key === 'ArrowDown') { e.preventDefault(); open(); }
-        return;
-      }
-      if (e.key === 'Escape' || e.key === 'Tab') { close(); return; }
-      if (e.key === 'Enter') { e.preventDefault(); const f = panel.querySelector('.combo__option'); if (f) pick(f.dataset.value); return; }
-      if (e.key === 'Backspace') { e.preventDefault(); query = query.slice(0, -1); renderPanel(); return; }
-      if (e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) {
-        e.preventDefault();
-        query += e.key;
-        clearTimeout(queryTimer);
-        queryTimer = setTimeout(() => { query = ''; if (!panel.hidden) renderPanel(); }, 1500);
-        renderPanel();
-      }
-    });
-    panel.addEventListener('mousedown', (e) => {
-      const opt = e.target.closest('.combo__option');
-      if (!opt) return;
-      e.preventDefault();
-      pick(opt.dataset.value);
-    });
-
-    syncFromSelect();
-    return { refresh: syncFromSelect };
-  }
-
   function initZuweisungDeleteModal() {
     // Bindung erfolgt einmalig beim ersten Render – das Modal selbst bleibt
     // im DOM stehen, nur pendingDeleteZuweisungId wird pro Klick neu gesetzt.
@@ -559,8 +423,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     const ausbilderSel = document.getElementById('zuweisungAusbilder');
     if (azubiSel) azubiSel.innerHTML = azubis.map(a => `<option value="${a.id}" ${a.id === presetAzubiId ? 'selected' : ''}>${a.name}</option>`).join('');
     if (ausbilderSel) ausbilderSel.innerHTML = ausbilder.map(a => `<option value="${a.id}">${a.name}</option>`).join('');
-    comboModalAzubi?.refresh();
-    comboModalVerantw?.refresh();
     Modal.open('zuweisungModal');
   }
 
@@ -597,8 +459,6 @@ document.addEventListener('DOMContentLoaded', async () => {
   // angehängt, was zu Mehrfach-Einfügungen/-Löschungen führen könnte.
   initZuweisungDeleteModal();
   initZuweisungModal();
-  comboModalAzubi   = makeSearchableSelect(document.getElementById('zuweisungAzubi'));
-  comboModalVerantw = makeSearchableSelect(document.getElementById('zuweisungAusbilder'));
 
   await render();
 });

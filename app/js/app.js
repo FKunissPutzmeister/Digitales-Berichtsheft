@@ -582,10 +582,16 @@ const Icons = {
 /* ===================================================================
    PMSelect – moderner Dropdown-Ersatz für native <select>
    =================================================================== */
+function _pmEscapeHtml(s) {
+  return String(s).replace(/[&<>"]/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[c]));
+}
+
 class PMSelect {
   constructor(nativeSelect) {
     this.native = nativeSelect;
     this.native.dataset.pmEnhanced = 'true';
+    this.query = '';
+    this.queryTimer = null;
 
     this.wrapper = document.createElement('div');
     this.wrapper.className = 'pm-select';
@@ -633,6 +639,7 @@ class PMSelect {
   }
 
   rebuildOptions() {
+    this.query = '';
     this.menu.innerHTML = '';
     Array.from(this.native.options).forEach((opt, idx) => {
       const btn = document.createElement('button');
@@ -653,11 +660,55 @@ class PMSelect {
       const text = document.createElement('span');
       text.className = 'pm-select__option-text';
       text.textContent = opt.textContent;
+      btn._pmLabel = opt.textContent;
+      btn.hidden = false;
 
       btn.appendChild(check);
       btn.appendChild(text);
       this.menu.appendChild(btn);
     });
+  }
+
+  // Filtert die Optionen per Wort-Präfix (Vor- ODER Nachname) und hebt den
+  // getroffenen Präfix hellgelb hervor. Leere Query → alle sichtbar, kein Markup.
+  filterByQuery() {
+    const q = this.query;
+    const ql = q.toLowerCase();
+    this.menu.querySelectorAll('.pm-select__option').forEach(btn => {
+      const textEl = btn.querySelector('.pm-select__option-text');
+      const label = (btn._pmLabel != null) ? btn._pmLabel : textEl.textContent;
+      if (!q) { textEl.textContent = label; btn.hidden = false; return; }
+      let matched = false;
+      const html = label.split(/(\s+)/).map(tok => {
+        if (/^\s+$/.test(tok)) return _pmEscapeHtml(tok);
+        if (tok.toLowerCase().startsWith(ql)) {
+          matched = true;
+          return `<mark class="pm-select__hl">${_pmEscapeHtml(tok.slice(0, q.length))}</mark>${_pmEscapeHtml(tok.slice(q.length))}`;
+        }
+        return _pmEscapeHtml(tok);
+      }).join('');
+      btn.hidden = !matched;
+      if (matched) textEl.innerHTML = html;
+    });
+  }
+  // Tippen sammelt sich in einem unsichtbaren Puffer (verfällt nach 1,5 s).
+  // Space NICHT abfangen (bleibt Auswahl/öffnen). Liefert true, wenn behandelt.
+  typeAhead(e) {
+    if (e.key === 'Backspace') { e.preventDefault(); this.query = this.query.slice(0, -1); this._afterQuery(); return true; }
+    if (e.key.length === 1 && e.key !== ' ' && !e.ctrlKey && !e.metaKey && !e.altKey) {
+      e.preventDefault();
+      this.query += e.key;
+      this._afterQuery();
+      return true;
+    }
+    return false;
+  }
+  _afterQuery() {
+    clearTimeout(this.queryTimer);
+    this.queryTimer = setTimeout(() => { this.query = ''; this.filterByQuery(); }, 1500);
+    this.filterByQuery();
+    const fv = this.menu.querySelector('.pm-select__option:not(:disabled):not([hidden])');
+    if (fv) fv.focus();
   }
 
   attachEvents() {
@@ -673,6 +724,10 @@ class PMSelect {
         if (this.menu.hidden) this.open();
         this.focusFirst();
       }
+      if (this.menu.hidden && e.key.length === 1 && e.key !== ' ' && !e.ctrlKey && !e.metaKey && !e.altKey) {
+        this.open();
+        this.typeAhead(e);
+      }
     });
 
     this.menu.addEventListener('click', (e) => {
@@ -684,8 +739,9 @@ class PMSelect {
     });
 
     this.menu.addEventListener('keydown', (e) => {
+      if (this.typeAhead(e)) return;
       const focused = document.activeElement;
-      const options = Array.from(this.menu.querySelectorAll('.pm-select__option:not(:disabled)'));
+      const options = Array.from(this.menu.querySelectorAll('.pm-select__option:not(:disabled):not([hidden])'));
       if (!options.length) return;
       const idx = options.indexOf(focused);
 
@@ -776,6 +832,8 @@ class PMSelect {
     PMSelect.closeAll();
     document.body.appendChild(this.menu);
     this.menu.hidden = false;
+    this.query = '';
+    this.filterByQuery();
     this.position();
     this.trigger.setAttribute('aria-expanded', 'true');
     this.wrapper.classList.add('pm-select--open');
@@ -789,6 +847,7 @@ class PMSelect {
 
   close() {
     if (this.menu.hidden) return;
+    this.query = '';
     this.menu.hidden = true;
     this.trigger.setAttribute('aria-expanded', 'false');
     this.wrapper.classList.remove('pm-select--open');
