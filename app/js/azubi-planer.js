@@ -6,12 +6,60 @@
      2. Mitte  – Timeline (Gantt)
      3. Unten  – strukturierte, sortierbare Zuweisungsliste
    =================================================================== */
+
+/* Read-only Sicht für Azubis: zeigt ausschließlich die eigenen Zuweisungen –
+   pro Eintrag Abteilung, Zeitraum und Ansprechpartner/Verantwortliche/r. */
+async function renderAzubiDurchlauf(user) {
+  // Aktiven Nav-Punkt korrigieren (der Azubi erreicht die Seite über „Abteilungsplan").
+  document.getElementById('nav-planer')?.classList.remove('active');
+  document.getElementById('nav-abteilungsplan')?.classList.add('active');
+
+  const main = document.getElementById('mainContent');
+  const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[c]));
+  const heute = new Date().toISOString().split('T')[0];
+
+  const zuwRaw = await DB.getZuweisungenFuerAzubi(user.id);
+  const zuw = zuwRaw.slice().sort((a, b) => (a.von || '').localeCompare(b.von || ''));
+  const rows = await Promise.all(zuw.map(async z => {
+    const v = await DB.getUser(z.ausbilderId);
+    let status;
+    if (z.bis < heute)       status = { label: 'Beendet',    badge: 'badge--grey' };
+    else if (z.von > heute)  status = { label: 'Zukünftig', badge: 'badge--freigegeben' };
+    else                     status = { label: 'Aktuell',   badge: 'badge--genehmigt' };
+    return { z, v, status };
+  }));
+
+  const card = r => `
+    <div class="durchlauf-card${r.status.label === 'Aktuell' ? ' durchlauf-card--current' : ''}">
+      <span class="badge ${r.status.badge} durchlauf-card__badge">${r.status.label}</span>
+      <div class="durchlauf-card__abt">${esc(r.z.abteilung) || '–'}</div>
+      <div class="durchlauf-card__zeit">${DateUtil.formatDate(r.z.von)} – ${DateUtil.formatDate(r.z.bis)}</div>
+      <div class="durchlauf-card__verantw">Ansprechpartner: <strong>${esc(r.v && r.v.name) || '–'}</strong></div>
+    </div>`;
+
+  main.innerHTML = `
+    <div class="page-header">
+      <div class="page-header__left">
+        <h1 class="page-title">Mein Abteilungs-Durchlauf</h1>
+        <p class="page-subtitle">Deine Abteilungen, Zeiträume und Ansprechpartner.</p>
+      </div>
+    </div>
+    ${rows.length
+      ? `<div class="durchlauf-list">${rows.map(card).join('')}</div>`
+      : `<div class="durchlauf-empty">Dir ist aktuell keine Abteilung zugewiesen.</div>`}
+  `;
+}
+
 document.addEventListener('DOMContentLoaded', async () => {
   const user = await initPage('nav-planer', [{ label: 'Azubi-Planer', href: 'azubi-planer.html' }]);
   if (!user) return;
 
   if (!user.kannPlanen) {
-    window.location.href = 'dashboard.html';
+    if (user.istAzubi) {
+      await renderAzubiDurchlauf(user);   // read-only Sicht: eigene Abteilungs-Durchläufe
+    } else {
+      window.location.href = 'dashboard.html';
+    }
     return;
   }
 
