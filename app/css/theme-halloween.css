@@ -6,16 +6,17 @@
    Basis, Modal-FX-Pause, prefers-reduced-motion, print).
    Diese Datei gehört EXKLUSIV dem Halloween-Designer.
 
-   Szene (FX-Layer #pmThemeFX, Template "halloween" in js/theme.js),
-   hinten → vorne: Nachthimmel-Verlauf + Sterne + Vollmond mit Halo,
-   zwei vor dem Mond ziehende Wolken, zwei Reihen kahler Wald-Silhouetten,
-   eine schiefe Geisterhaus-Silhouette mit warm flackernden Fenstern,
-   Grabsteine, ein <canvas class="pm-hw-fog"> mit horizontal driftenden
-   Nebelschwaden (Engine PMHalloweenFog in js/theme.js – start/stop am
-   FX-Lebenszyklus, prefers-reduced-motion → Standbild, Pause bei
-   Modal/verstecktem Tab) und – dezent an den unteren Rändern – Kürbisse,
-   Kerzen mit flackernder Flamme, vereinzelt flatternde Fledermäuse und
-   eine sich von oben abseilende Spinne.
+   Szene (FX-Layer #pmThemeFX, Template "halloween" in js/theme.js):
+   Basis ist ein fertiges Hintergrundbild (assets/halloween-bg.png –
+   Geisterhaus im Wald mit Mond, Toren, Grabsteinen, Kürbissen, Kerzen).
+   Darüber liegen, hinten → vorne, nur noch die animierten Layer:
+   • .pm-hw-moonglow  – weiches, pulsierendes Schimmern über dem Mond
+   • .pm-hw-winflicker – warmes Flackern über den Fenstern/Türen des Hauses
+     (beide mix-blend-mode:screen → hellen das Bild nur stellenweise auf)
+   • <canvas class="pm-hw-fog"> – horizontal driftende Nebelschwaden
+     (Engine PMHalloweenFog in js/theme.js, start/stop am FX-Lebenszyklus,
+     prefers-reduced-motion → Standbild, Pause bei Modal/verstecktem Tab)
+   • vereinzelt flatternde Fledermäuse und eine sich abseilende Spinne.
 
    Kontrast-Strategie wie bei hyperspace/cmd: die komplette --pm-grey-
    Skala wird auf dunkel gekippt, das Marken-Gelb auf Kürbis-Orange
@@ -168,185 +169,74 @@ html[data-theme="halloween"] { color-scheme: dark; }
    vom Container. Animiert wird ausschließlich transform/opacity.
    =================================================================== */
 
-/* ── Nachthimmel ── */
-[data-theme="halloween"] .pm-hw-sky {
+/* ── Hintergrundbild (komplette Szene als ein Bild) ──
+   Ersetzt die früher per CSS/SVG gebaute Szene. Mond (oben rechts),
+   Geisterhaus mit beleuchteten Fenstern (Mitte), Wald, Tore, Grabsteine,
+   Kürbisse und Kerzen sind im Bild enthalten; darüber liegen nur noch die
+   animierten Layer: Mond-Schimmern, Fenster-/Tür-Flackern, Nebel-Canvas,
+   Fledermäuse und die abseilende Spinne. Cover-skaliert + zentriert. */
+[data-theme="halloween"] .pm-hw-bg {
   position: absolute; inset: 0;
-  background:
-    radial-gradient(58% 42% at 80% 20%, rgba(255, 150, 50, 0.12), transparent 62%),
-    radial-gradient(120% 80% at 50% 100%, rgba(60, 24, 70, 0.55), transparent 70%),
-    linear-gradient(180deg, #090512 0%, #150a1f 42%, #1e0f26 68%, #0a0510 100%);
+  background: #0a0610 center center / cover no-repeat
+    url("../assets/halloween-bg.png");
 }
 
-/* ── Sterne (gekacheltes SVG, sanftes Funkeln) ── */
-[data-theme="halloween"] .pm-hw-stars {
-  position: absolute; inset: 0;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cg fill='%23ffffff'%3E%3Ccircle cx='18' cy='28' r='1'/%3E%3Ccircle cx='86' cy='58' r='1.4'/%3E%3Ccircle cx='148' cy='22' r='1'/%3E%3Ccircle cx='198' cy='92' r='1.2'/%3E%3Ccircle cx='52' cy='128' r='1'/%3E%3Ccircle cx='118' cy='158' r='1.3'/%3E%3Ccircle cx='32' cy='188' r='1'/%3E%3Ccircle cx='176' cy='176' r='1'/%3E%3Ccircle cx='208' cy='40' r='0.9'/%3E%3Ccircle cx='96' cy='110' r='0.9'/%3E%3C/g%3E%3C/svg%3E");
-  background-repeat: repeat;
-  opacity: 0.5;
-  animation: pm-hw-twinkle 6s ease-in-out infinite;
-}
-@keyframes pm-hw-twinkle {
-  0%, 100% { opacity: 0.36; }
-  50%      { opacity: 0.62; }
-}
-
-/* ── Vollmond mit Halo ── */
-[data-theme="halloween"] .pm-hw-moon {
-  position: absolute; top: 7%; right: 9%;
-  width: 122px; height: 122px; border-radius: 50%;
-  background:
-    radial-gradient(circle at 64% 60%, rgba(120, 90, 60, 0.30) 0%, rgba(120, 90, 60, 0) 36%),
-    radial-gradient(circle at 38% 36%, #fff7e6 0%, #f4e6b6 46%, #dcc680 74%, #c4ac60 100%);
-  box-shadow:
-    0 0 40px 12px rgba(255, 226, 156, 0.26),
-    0 0 130px 46px rgba(255, 196, 120, 0.12);
-}
-/* zwei dezente Krater */
-[data-theme="halloween"] .pm-hw-moon::before {
-  content: ''; position: absolute;
-  top: 30%; left: 52%; width: 20px; height: 16px; border-radius: 50%;
-  background: rgba(150, 120, 80, 0.22);
-  box-shadow: -22px 26px 0 -4px rgba(150, 120, 80, 0.18),
-              6px 40px 0 -6px rgba(150, 120, 80, 0.16);
-}
-
-/* ── Wolken vor dem Mond ── */
-[data-theme="halloween"] .pm-hw-cloud {
-  position: absolute;
-  height: 60px; width: 320px;
-  background:
-    radial-gradient(40px 26px at 30% 60%, rgba(18, 12, 24, 0.85), transparent 70%),
-    radial-gradient(60px 34px at 52% 50%, rgba(18, 12, 24, 0.92), transparent 72%),
-    radial-gradient(46px 28px at 72% 62%, rgba(18, 12, 24, 0.85), transparent 70%);
-  filter: none;
-  opacity: 0.0;
-}
-[data-theme="halloween"] .pm-hw-cloud--1 {
-  top: 12%;
-  animation: pm-hw-cloud-a 64s linear infinite;
-}
-[data-theme="halloween"] .pm-hw-cloud--2 {
-  top: 22%;
-  transform: scale(0.8);
-  animation: pm-hw-cloud-b 92s linear infinite;
-  animation-delay: -30s;
-}
-@keyframes pm-hw-cloud-a {
-  0%   { transform: translateX(105vw); opacity: 0; }
-  12%  { opacity: 0.7; }
-  88%  { opacity: 0.7; }
-  100% { transform: translateX(-40vw); opacity: 0; }
-}
-@keyframes pm-hw-cloud-b {
-  0%   { transform: translateX(110vw) scale(0.8); opacity: 0; }
-  14%  { opacity: 0.55; }
-  86%  { opacity: 0.55; }
-  100% { transform: translateX(-45vw) scale(0.8); opacity: 0; }
-}
-
-/* ── Wald-Silhouetten (kahle Bäume, zwei Tiefen) ──
-   Gestauchtes SVG aus stroked Ästen + Bodenwelle, am unteren Rand
-   verankert; back = höher/heller, front = tiefer/dunkler. */
-[data-theme="halloween"] .pm-hw-forest {
-  position: absolute; left: 0; right: 0; bottom: 0;
-  background-repeat: repeat-x;
-  background-position: bottom center;
-}
-[data-theme="halloween"] .pm-hw-forest--back {
-  height: 34vh; bottom: 6vh; opacity: 0.85;
-  background-size: auto 26vh;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='900' height='320' fill='none'%3E%3Cpath d='M0 320 L0 250 Q160 224 320 244 Q520 268 700 240 Q820 222 900 246 L900 320 Z' fill='%230c0816'/%3E%3Cg stroke='%230c0816' stroke-width='5' stroke-linecap='round'%3E%3Cpath d='M120 252 L120 150 M120 188 L96 162 M120 188 L146 158 M120 168 L104 146 M120 168 L138 142'/%3E%3Cpath d='M300 250 L300 168 M300 198 L280 176 M300 198 L322 172 M300 182 L286 164'/%3E%3Cpath d='M520 250 L520 132 M520 176 L494 150 M520 176 L548 146 M520 156 L502 134 M520 156 L540 130'/%3E%3Cpath d='M700 250 L700 176 M700 202 L680 182 M700 202 L722 180'/%3E%3C/g%3E%3C/svg%3E");
-}
-[data-theme="halloween"] .pm-hw-forest--front {
-  height: 40vh; opacity: 1;
-  background-size: auto 30vh;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='1000' height='360' fill='none'%3E%3Cpath d='M0 360 L0 286 Q200 256 420 280 Q640 304 820 274 Q920 258 1000 282 L1000 360 Z' fill='%23060310'/%3E%3Cg stroke='%23060310' stroke-width='8' stroke-linecap='round'%3E%3Cpath d='M150 300 L150 150 M150 198 L116 162 M150 198 L188 160 M150 172 L128 144 M150 172 L176 140 M150 150 L138 128 M150 150 L164 126'/%3E%3Cpath d='M430 300 L430 176 M430 214 L404 186 M430 214 L458 184 M430 192 L412 168'/%3E%3Cpath d='M820 300 L820 138 M820 184 L788 152 M820 184 L856 150 M820 160 L800 136 M820 160 L842 132'/%3E%3C/g%3E%3C/svg%3E");
-}
-
-/* ── Geisterhaus (Silhouette + warm leuchtende Fenster) ── */
-[data-theme="halloween"] .pm-hw-house {
-  position: absolute; bottom: 14vh; left: 50%;
-  width: 300px; height: 270px;
-  transform: translateX(-58%);
-  background: center bottom / contain no-repeat
-    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 340 300'%3E%3Cg fill='%23080510' stroke='%231f1430' stroke-width='2'%3E%3Cpolygon points='44,300 44,196 70,196 70,170 104,170 104,196 110,196 110,300'/%3E%3Cpolygon points='38,172 74,128 110,172'/%3E%3Crect x='86' y='150' width='150' height='150'/%3E%3Cpolygon points='74,152 161,86 248,152'/%3E%3Crect x='150' y='96' width='16' height='40'/%3E%3Crect x='232' y='120' width='62' height='180'/%3E%3Cpolygon points='222,124 263,40 304,124'/%3E%3C/g%3E%3Cline x1='263' y1='40' x2='263' y2='18' stroke='%231f1430' stroke-width='3'/%3E%3Cpolygon points='263,18 281,30 263,30' fill='%23ff7518'/%3E%3Cg%3E%3Cellipse cx='124' cy='206' rx='26' ry='24' fill='%23ff7518' opacity='0.22'/%3E%3Cellipse cx='196' cy='206' rx='26' ry='24' fill='%23ff7518' opacity='0.22'/%3E%3Cellipse cx='261' cy='176' rx='20' ry='20' fill='%23ff7518' opacity='0.20'/%3E%3Cellipse cx='161' cy='118' rx='16' ry='16' fill='%23ff8f3c' opacity='0.20'/%3E%3C/g%3E%3Cg fill='%23ffb454'%3E%3Cpath d='M114 196 h20 a0 0 0 0 1 0 0 v22 h-20 z M114 196 a10 10 0 0 1 20 0' /%3E%3Cpath d='M186 196 h20 v22 h-20 z M186 196 a10 10 0 0 1 20 0'/%3E%3Crect x='253' y='168' width='16' height='18' rx='2'/%3E%3Ccircle cx='161' cy='118' r='8'/%3E%3C/g%3E%3Cpath d='M150 261 a11 11 0 0 1 22 0 v39 h-22 z' fill='%2340220c'/%3E%3C/svg%3E");
-}
-/* Fenster-Flackern: warmer Glühschein über dem Fenster-Cluster */
-[data-theme="halloween"] .pm-hw-house::after {
-  content: ''; position: absolute;
-  left: 24%; right: 6%; top: 40%; bottom: 6%;
-  background:
-    radial-gradient(40% 36% at 36% 50%, rgba(255, 138, 40, 0.34), transparent 70%),
-    radial-gradient(34% 30% at 78% 36%, rgba(255, 138, 40, 0.28), transparent 72%);
+/* ── Mond-Schimmern ── weiches, pulsierendes Glühen ÜBER dem Mond
+   (oben rechts). mix-blend-mode:screen hellt nur auf → der Mond
+   schimmert, transparente Bereiche bleiben unberührt. Zentrum auf die
+   Mond-Position im Bild (~89% x / 16% y) gelegt; ein weiches Glühen
+   verträgt die leichte Cover-Verschiebung über Seitenverhältnisse. */
+[data-theme="halloween"] .pm-hw-moonglow {
+  position: absolute; right: 11%; top: 16%;
+  width: 30vw; max-width: 420px; aspect-ratio: 1 / 1;
+  transform: translate(50%, -50%);
+  border-radius: 50%;
+  background: radial-gradient(circle at 50% 50%,
+    rgba(255, 246, 218, 0.50) 0%,
+    rgba(255, 234, 180, 0.24) 24%,
+    rgba(255, 216, 150, 0.10) 46%,
+    transparent 66%);
   pointer-events: none;
-  animation: pm-hw-flicker 3.7s ease-in-out infinite;
+  mix-blend-mode: screen;
+  animation: pm-hw-moonshimmer 5.5s ease-in-out infinite;
 }
-@keyframes pm-hw-flicker {
-  0%   { opacity: 0.85; }
-  14%  { opacity: 0.55; }
-  22%  { opacity: 0.92; }
-  41%  { opacity: 0.62; }
-  55%  { opacity: 1; }
-  62%  { opacity: 0.5; }
-  78%  { opacity: 0.88; }
-  90%  { opacity: 0.66; }
-  100% { opacity: 0.85; }
+@keyframes pm-hw-moonshimmer {
+  0%, 100% { opacity: 0.55; transform: translate(50%, -50%) scale(0.99); }
+  50%      { opacity: 1;    transform: translate(50%, -50%) scale(1.05); }
 }
 
-/* ── Grabsteine ── */
-[data-theme="halloween"] .pm-hw-graves {
-  position: absolute; bottom: 9vh; left: calc(50% + 96px);
-  width: 280px; height: 120px;
-  background: left bottom / contain no-repeat
-    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 300 140'%3E%3Cg fill='%23090512' stroke='%23231634' stroke-width='2'%3E%3Cpath d='M28 140 V70 a26 26 0 0 1 52 0 V140 Z'/%3E%3Crect x='128' y='44' width='20' height='96'/%3E%3Crect x='104' y='66' width='68' height='18'/%3E%3Cpath d='M212 140 V58 a22 22 0 0 1 44 0 V140 Z'/%3E%3C/g%3E%3Cg fill='none' stroke='%23463156' stroke-width='2' opacity='0.7'%3E%3Cpath d='M30 70 a24 24 0 0 1 48 0'/%3E%3Cpath d='M214 58 a20 20 0 0 1 40 0'/%3E%3C/g%3E%3Cg fill='%236a5278' opacity='0.55' font-family='Georgia,serif' font-size='13' text-anchor='middle'%3E%3Ctext x='54' y='104'%3ERIP%3C/text%3E%3Ctext x='234' y='98'%3ERIP%3C/text%3E%3C/g%3E%3C/svg%3E");
+/* ── Fenster-/Tür-Flackern ── warmes, unregelmäßig pulsierendes Glühen
+   über den beleuchteten Fenstern/Türen des Hauses (Bildmitte). Haus ist
+   horizontal zentriert und vertikal kaum beschnitten → Position trackt
+   gut über Seitenverhältnisse. */
+[data-theme="halloween"] .pm-hw-winflicker {
+  position: absolute; left: 50%; top: 80%;
+  width: 13vw; max-width: 200px; height: 15vh; max-height: 150px;
+  transform: translate(-50%, -50%);
+  background: radial-gradient(50% 50% at 50% 50%,
+    rgba(255, 150, 45, 0.42) 0%,
+    rgba(255, 130, 35, 0.20) 45%,
+    transparent 72%);
+  pointer-events: none;
+  mix-blend-mode: screen;
+  animation: pm-hw-winflicker-anim 3.7s ease-in-out infinite;
+}
+@keyframes pm-hw-winflicker-anim {
+  0%   { opacity: 0.85; }
+  14%  { opacity: 0.5; }
+  22%  { opacity: 0.95; }
+  41%  { opacity: 0.6; }
+  55%  { opacity: 1; }
+  62%  { opacity: 0.48; }
+  78%  { opacity: 0.9; }
+  90%  { opacity: 0.64; }
+  100% { opacity: 0.85; }
 }
 
 /* ── Nebel-Canvas (Engine: PMHalloweenFog, js/theme.js) ── */
 [data-theme="halloween"] .pm-hw-fog {
   position: absolute; inset: 0;
   display: block; width: 100%; height: 100%;
-}
-
-/* ── Vordergrund: Kürbisse (unten, rechts neben der Sidebar) ──
-   left so gewählt, dass die Kürbisse die (opake) Sidebar nicht
-   überlappen, aber im sichtbaren unteren Szenen-Streifen sitzen. */
-[data-theme="halloween"] .pm-hw-pumpkins {
-  position: absolute; left: 19vw; bottom: 0;
-  width: 240px; height: 150px;
-  background: left bottom / contain no-repeat
-    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 260 170'%3E%3Cg%3E%3Cpath d='M86 150 q-58 6 -58 -34 q0 -30 26 -32' fill='none' stroke='%23163a16' stroke-width='5'/%3E%3C/g%3E%3Cg%3E%3Cellipse cx='74' cy='126' rx='66' ry='40' fill='%23c85a12'/%3E%3Cellipse cx='44' cy='126' rx='30' ry='40' fill='%23a8480c'/%3E%3Cellipse cx='104' cy='126' rx='30' ry='40' fill='%23a8480c'/%3E%3Cellipse cx='74' cy='126' rx='34' ry='42' fill='%23e0701a'/%3E%3Crect x='69' y='78' width='10' height='14' fill='%23245a20'/%3E%3Cpolygon points='58,124 44,140 72,140' fill='%23241204'/%3E%3Cpolygon points='90,124 76,140 104,140' fill='%23241204'/%3E%3Cpolygon points='74,128 64,142 84,142' fill='%23241204'/%3E%3Cpath d='M50 150 h48 l-7 -10 -6 8 -6 -10 -6 10 -6 -8 -5 8 z' fill='%23241204'/%3E%3C/g%3E%3Cg%3E%3Cellipse cx='176' cy='140' rx='46' ry='28' fill='%23b85410'/%3E%3Cellipse cx='176' cy='140' rx='24' ry='29' fill='%23d2671a'/%3E%3Crect x='172' y='106' width='8' height='10' fill='%23245a20'/%3E%3Cpolygon points='166,138 156,150 176,150' fill='%23221103'/%3E%3Cpolygon points='186,138 176,150 196,150' fill='%23221103'/%3E%3Cpath d='M162 152 h28 l-5 -7 -5 6 -4 -7 -5 7 z' fill='%23221103'/%3E%3C/g%3E%3C/svg%3E");
-}
-[data-theme="halloween"] .pm-hw-pumpkins::after {
-  content: ''; position: absolute;
-  left: 2%; bottom: 8%; width: 60%; height: 60%;
-  background: radial-gradient(50% 50% at 40% 60%, rgba(255, 140, 30, 0.30), transparent 72%);
-  pointer-events: none;
-  animation: pm-hw-flicker 4.3s ease-in-out infinite;
-}
-
-/* ── Vordergrund: Kerzen (unten rechts) ── */
-[data-theme="halloween"] .pm-hw-candles {
-  position: absolute; right: 2vw; bottom: 0;
-  width: 150px; height: 150px;
-  background: right bottom / contain no-repeat
-    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 180 170'%3E%3Cg%3E%3Crect x='44' y='70' width='26' height='100' rx='5' fill='%23ece3d2'/%3E%3Crect x='44' y='70' width='9' height='100' rx='4' fill='%23fff7ea'/%3E%3Cpath d='M44 78 q6 10 13 0 q7 -8 13 2 v-12 h-26 z' fill='%23d8cdb8'/%3E%3Crect x='55' y='52' width='4' height='16' fill='%23241204'/%3E%3Cellipse cx='57' cy='44' rx='7' ry='12' fill='%23ff8f1f'/%3E%3Cellipse cx='57' cy='46' rx='3.4' ry='7' fill='%23ffd66b'/%3E%3C/g%3E%3Cg%3E%3Crect x='96' y='100' width='22' height='70' rx='5' fill='%23e6dcc8'/%3E%3Crect x='96' y='100' width='8' height='70' rx='4' fill='%23fff3e2'/%3E%3Crect x='105' y='84' width='4' height='14' fill='%23241204'/%3E%3Cellipse cx='107' cy='78' rx='6' ry='10' fill='%23ff8f1f'/%3E%3Cellipse cx='107' cy='80' rx='3' ry='6' fill='%23ffd66b'/%3E%3C/g%3E%3C/svg%3E");
-}
-[data-theme="halloween"] .pm-hw-candles::after {
-  content: ''; position: absolute;
-  right: 12%; bottom: 42%; width: 80%; height: 50%;
-  background:
-    radial-gradient(30% 36% at 38% 40%, rgba(255, 160, 50, 0.40), transparent 72%),
-    radial-gradient(26% 30% at 70% 28%, rgba(255, 160, 50, 0.34), transparent 74%);
-  pointer-events: none;
-  transform-origin: 50% 100%;
-  animation: pm-hw-flame 1.6s ease-in-out infinite;
-}
-@keyframes pm-hw-flame {
-  0%   { opacity: 0.78; transform: scaleY(1)    scaleX(1);    }
-  25%  { opacity: 1;    transform: scaleY(1.08) scaleX(0.96); }
-  50%  { opacity: 0.7;  transform: scaleY(0.95) scaleX(1.04); }
-  75%  { opacity: 0.96; transform: scaleY(1.05) scaleX(0.98); }
-  100% { opacity: 0.78; transform: scaleY(1)    scaleX(1);    }
 }
 
 /* ── Spinne, die sich von oben abseilt (im rechten Rand-Spalt, damit
@@ -421,13 +311,11 @@ html[data-theme="halloween"] { color-scheme: dark; }
      motion gar nicht erst geloopt, sondern als Standbild gezeichnet.
      Die übrigen CSS-Animationen stellt themes.css ohnehin still – hier
      blenden wir die zeitabhängig ein-/ausgeblendeten Layer fest sichtbar
-     ein, damit sie nicht bei opacity:0 „verschwinden". */
-  [data-theme="halloween"] .pm-hw-cloud--1,
-  [data-theme="halloween"] .pm-hw-cloud--2 { opacity: 0.5; }
+     ein, damit sie nicht bei opacity:0 „verschwinden". Mond-Schimmern und
+     Fenster-Flackern bleiben als ruhiges Dauer-Glühen stehen. */
   [data-theme="halloween"] .pm-hw-bat { opacity: 0.7; }
-  [data-theme="halloween"] .pm-hw-house::after,
-  [data-theme="halloween"] .pm-hw-pumpkins::after,
-  [data-theme="halloween"] .pm-hw-candles::after { opacity: 0.85; }
+  [data-theme="halloween"] .pm-hw-moonglow { opacity: 0.8; }
+  [data-theme="halloween"] .pm-hw-winflicker { opacity: 0.85; }
 }
 @media print {
   [data-theme="halloween"] body { background: #fff !important; }

@@ -129,30 +129,21 @@
       '<canvas class="pm-is-bg" aria-hidden="true"></canvas>',
 
     /* ── FX-Template: halloween (wird vom Theme-Designer befüllt) ──
-       Düstere „Geisterhaus im Wald"-Szene als CSS/SVG-Layer (Klassen
-       pm-hw-* zur Kollisionsvermeidung), hinten → vorne gestapelt:
-       Nachthimmel-Verlauf + Vollmond mit Halo, zwei vor dem Mond
-       durchziehende Wolken, zwei Reihen kahler Wald-Silhouetten, eine
-       schiefe Geisterhaus-Silhouette mit warm flackernden Fenstern,
-       Grabsteine, dann ein <canvas class="pm-hw-fog"> mit horizontal
-       driftenden Nebelschwaden (Engine = PMHalloweenFog unten;
-       ensureThemeFX startet/stoppt ihn am FX-Lebenszyklus) und – dezent
-       an den unteren Rändern – Kürbisse, Kerzen mit flackernder Flamme,
+       Basis ist ein fertiges Hintergrundbild (.pm-hw-bg →
+       assets/halloween-bg.png: Geisterhaus im Wald mit Mond, Toren,
+       Grabsteinen, Kürbissen, Kerzen). Darüber, hinten → vorne, nur noch
+       die animierten Layer (Klassen pm-hw-* zur Kollisionsvermeidung):
+       Mond-Schimmern (.pm-hw-moonglow) und Fenster-/Tür-Flackern
+       (.pm-hw-winflicker) als screen-Glühen, ein <canvas class="pm-hw-fog">
+       mit horizontal driftenden Nebelschwaden (Engine = PMHalloweenFog
+       unten; ensureThemeFX startet/stoppt ihn am FX-Lebenszyklus),
        vereinzelt flatternde Fledermäuse und eine sich abseilende Spinne.
        Styling/Keyframes liegen in css/theme-halloween.css. */
     halloween:
-      '<div class="pm-hw-sky"></div>' +
-      '<div class="pm-hw-stars"></div>' +
-      '<div class="pm-hw-moon"></div>' +
-      '<div class="pm-hw-cloud pm-hw-cloud--1"></div>' +
-      '<div class="pm-hw-cloud pm-hw-cloud--2"></div>' +
-      '<div class="pm-hw-forest pm-hw-forest--back"></div>' +
-      '<div class="pm-hw-house"></div>' +
-      '<div class="pm-hw-graves"></div>' +
-      '<div class="pm-hw-forest pm-hw-forest--front"></div>' +
+      '<div class="pm-hw-bg"></div>' +
+      '<div class="pm-hw-moonglow"></div>' +
+      '<div class="pm-hw-winflicker"></div>' +
       '<canvas class="pm-hw-fog" aria-hidden="true"></canvas>' +
-      '<div class="pm-hw-pumpkins"></div>' +
-      '<div class="pm-hw-candles"></div>' +
       '<div class="pm-hw-bat pm-hw-bat--1"></div>' +
       '<div class="pm-hw-bat pm-hw-bat--2"></div>' +
       '<div class="pm-hw-bat pm-hw-bat--3"></div>' +
