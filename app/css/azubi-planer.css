@@ -310,7 +310,8 @@
 .gantt-bar {
   position: absolute;
   height: 28px;
-  border-radius: var(--r-full);
+  border-radius: 2px;          /* kantig statt Pille → Kanten fluchten mit den Tagesspalten */
+  box-sizing: border-box;      /* Innen-Padding schiebt die Balkenbreite nicht über die Spalten hinaus */
   display: flex;
   align-items: center;
   padding: 0 var(--sp-3);
