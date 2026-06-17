@@ -7,6 +7,72 @@
      3. Unten  – strukturierte, sortierbare Zuweisungsliste
    =================================================================== */
 
+function escHtml(s) {
+  return String(s ?? '').replace(/[&<>"]/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[c]));
+}
+
+/* Eigenständige, einzeilige Timeline für die Azubi-Ansicht (gleiche .gantt-*-Styles
+   wie der Planer). Zeigt die Abteilungen des Azubis als farbige Balken mit Abteilungsname. */
+function azubiTimelineHtml(zuw, planYear) {
+  const jan1 = new Date(planYear, 0, 1);
+  const daysInYear = Math.round((new Date(planYear, 11, 31) - jan1) / 86400000) + 1;
+  const dayOf = d => Math.round((d - jan1) / 86400000);
+  const now = new Date();
+  const COLORS = ['gantt-bar--ausbilder-1','gantt-bar--ausbilder-2','gantt-bar--ausbilder-3','gantt-bar--ausbilder-4','gantt-bar--ausbilder-5'];
+
+  const monate = Array.from({ length: 12 }, (_, m) => {
+    const dim = new Date(planYear, m + 1, 0).getDate();
+    return `<div class="gantt-month" style="width:calc(${dim} * var(--day-px))">${DateUtil.MONTHS[m]} ${planYear}</div>`;
+  }).join('');
+  const tage = [];
+  for (let m = 0; m < 12; m++) {
+    const dim = new Date(planYear, m + 1, 0).getDate();
+    for (let d = 1; d <= dim; d++) {
+      const date = new Date(planYear, m, d);
+      const dow = date.getDay();
+      const isWe = dow === 0 || dow === 6;
+      const isToday = now.getFullYear() === planYear && now.getMonth() === m && now.getDate() === d;
+      const isMonthStart = d === 1;
+      tage.push(`<div class="gantt-day${isWe ? ' gantt-day--weekend' : ''}${isToday ? ' current' : ''}${isMonthStart ? ' gantt-day--month' : ''}">${d}</div>`);
+    }
+  }
+  const bars = zuw.map((z, i) => {
+    if (!z.von || !z.bis) return '';
+    const fromDay = dayOf(new Date(z.von + 'T00:00:00'));
+    const toDay   = dayOf(new Date(z.bis + 'T00:00:00'));
+    const startDay = Math.max(0, fromDay);
+    const endDay   = Math.min(daysInYear - 1, toDay);
+    if (endDay < startDay) return '';
+    const left  = startDay / daysInYear * 100;
+    const width = (endDay - startDay + 1) / daysInYear * 100;
+    return `<div class="gantt-bar ${COLORS[i % COLORS.length]}" style="left:${left}%;width:${width}%"
+              title="${escHtml(z.abteilung || '–')} (${DateUtil.formatDate(z.von)} – ${DateUtil.formatDate(z.bis)})">
+              <span class="gantt-bar__label">${escHtml(z.abteilung || '')}</span>
+            </div>`;
+  }).join('');
+  const todayPct = now.getFullYear() === planYear ? (dayOf(now) + 0.5) / daysInYear * 100 : null;
+  const todayLine = todayPct != null ? `<div class="gantt-today-line" style="left:${todayPct}%"></div>` : '';
+
+  return `
+    <div class="gantt-scroll" id="azubiGanttScroll">
+      <div class="gantt-grid" style="--num-days:${daysInYear};--day-px:22px">
+        <div class="gantt-header">
+          <div class="gantt-header__name-col">${planYear}</div>
+          <div class="gantt-header__timeline">
+            <div class="gantt-months">${monate}</div>
+            <div class="gantt-days">${tage.join('')}</div>
+          </div>
+        </div>
+        <div class="gantt-body">
+          <div class="gantt-row">
+            <div class="gantt-row__info"><span class="gantt-row__name">Abteilungen</span></div>
+            <div class="gantt-row__timeline">${todayLine}${bars}</div>
+          </div>
+        </div>
+      </div>
+    </div>`;
+}
+
 /* Read-only Sicht für Azubis: zeigt ausschließlich die eigenen Zuweisungen –
    pro Eintrag Abteilung, Zeitraum und Ansprechpartner/Verantwortliche/r. */
 async function renderAzubiDurchlauf(user) {
@@ -19,6 +85,7 @@ async function renderAzubiDurchlauf(user) {
 
   try {
     const heute = DateUtil.toISODate(new Date());
+    const planYearAz = new Date().getFullYear();
 
     const zuwRaw = await DB.getZuweisungenFuerAzubi(user.id);
     const zuw = zuwRaw.slice().sort((a, b) => (a.von || '').localeCompare(b.von || ''));
@@ -47,10 +114,18 @@ async function renderAzubiDurchlauf(user) {
         <p class="page-subtitle">Deine Abteilungen, Zeiträume und Ansprechpartner.</p>
       </div>
     </div>
+    ${zuw.length ? azubiTimelineHtml(zuw, planYearAz) : ''}
     ${rows.length
       ? `<div class="durchlauf-list">${rows.map(card).join('')}</div>`
       : `<div class="durchlauf-empty">Dir ist aktuell keine Abteilung zugewiesen.</div>`}
   `;
+
+    const azTs = document.getElementById('azubiGanttScroll');
+    if (azTs) {
+      const jan1Az = new Date(planYearAz, 0, 1);
+      const dayIdx = Math.round((new Date() - jan1Az) / 86400000);
+      requestAnimationFrame(() => { azTs.scrollLeft = Math.max(0, (dayIdx - 3) * 22); });
+    }
   } catch (err) {
     main.innerHTML = `<div class="durchlauf-empty">Abteilungsplan konnte nicht geladen werden.</div>`;
     if (window.Toast && typeof Toast.error === 'function') Toast.error('Fehler', 'Abteilungsplan konnte nicht geladen werden.');
@@ -269,6 +344,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     document.getElementById('filterLehrjahr')?.addEventListener('change', (e) => { filterLehrjahr = e.target.value; rerenderList(); });
     document.getElementById('filterNurOhne')?.addEventListener('change', (e) => { nurOhneZuweisung = e.target.checked; rerenderList(); });
 
+    const ganttDetails = document.querySelector('.planer-gantt-details');
+    if (ganttDetails) {
+      ganttDetails.addEventListener('toggle', () => {
+        if (ganttDetails.open) scrollGanttToToday(ganttDetails.querySelector('.gantt-scroll'));
+      });
+    }
+
     bindListEvents();
     if (selectedAzubiId) bindDetailEvents();
     Modal.init();
@@ -446,9 +528,9 @@ document.addEventListener('DOMContentLoaded', async () => {
       return `
         <div class="gantt-bar ${COLORS[colorIndexFor(z.ausbilderId)]}"
              style="left:${left}%;width:${width}%"
-             title="${ausb?.name || '–'}: ${DateUtil.formatDate(z.von)} – ${DateUtil.formatDate(z.bis)}"
+             title="${escHtml(z.abteilung || '–')} · ${escHtml((ausb && ausb.name) || '–')} (${DateUtil.formatDate(z.von)} – ${DateUtil.formatDate(z.bis)})"
              data-zuweisung-id="${z.id}">
-          ${width > 2.5 ? (ausb?.initials || '') : ''}
+          <span class="gantt-bar__label">${escHtml(z.abteilung || '')}</span>
         </div>
       `;
     }));
@@ -459,6 +541,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (today.getFullYear() !== planYear) return '';
     const pct = (dayOf(today) + 0.5) / NUM_DAYS * 100;
     return `<div class="gantt-today-line" style="left:${pct}%"></div>`;
+  }
+
+  // Scrollt den Gantt so, dass die aktuelle Woche sichtbar ist (heute ~3 Tage vom linken Rand).
+  function scrollGanttToToday(scrollEl) {
+    if (!scrollEl || today.getFullYear() !== planYear) return;
+    requestAnimationFrame(() => { scrollEl.scrollLeft = Math.max(0, (dayOf(today) - 3) * 22); });
   }
 
   async function loadZuwRowData() {

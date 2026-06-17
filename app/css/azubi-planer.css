@@ -344,6 +344,14 @@
 .gantt-bar--ausbilder-4 { background: #D8835A; color: #fff; }
 .gantt-bar--ausbilder-5 { background: #9B7BC4; color: #fff; }
 
+.gantt-bar__label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .gantt-today-line {
   position: absolute;
   top: 0;
