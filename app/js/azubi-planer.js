@@ -152,6 +152,16 @@ document.addEventListener('DOMContentLoaded', async () => {
   async function render() {
     const main = document.getElementById('mainContent');
 
+    // Alte PMSelect-Instanzen im Hauptbereich aufräumen, bevor innerHTML ersetzt
+    // wird: offenes Menü schließen + MutationObserver trennen (sonst lecken sie
+    // auf detachten <select>-Nodes und ein offenes Menü bliebe als Body-Orphan).
+    if (typeof PMSelect !== 'undefined') {
+      PMSelect.closeAll();
+      main.querySelectorAll('select[data-pm-enhanced]').forEach(s => {
+        try { s._pmInstance && s._pmInstance.destroy(); } catch (e) { /* defensiv */ }
+      });
+    }
+
     await loadZuwRowData();
     const ganttRowsHtml = await buildGanttRows();
 

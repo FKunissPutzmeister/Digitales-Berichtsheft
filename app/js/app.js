@@ -590,6 +590,7 @@ class PMSelect {
   constructor(nativeSelect) {
     this.native = nativeSelect;
     this.native.dataset.pmEnhanced = 'true';
+    this.native._pmInstance = this;
     this.query = '';
     this.queryTimer = null;
 
@@ -847,6 +848,7 @@ class PMSelect {
 
   close() {
     if (this.menu.hidden) return;
+    clearTimeout(this.queryTimer);
     this.query = '';
     this.menu.hidden = true;
     this.trigger.setAttribute('aria-expanded', 'false');
@@ -861,6 +863,13 @@ class PMSelect {
     document.removeEventListener('keydown', this.escapeHandler);
     window.removeEventListener('scroll', this.repositionHandler, { capture: true });
     window.removeEventListener('resize', this.repositionHandler);
+  }
+
+  destroy() {
+    this.close();
+    if (this.optionsObserver) this.optionsObserver.disconnect();
+    if (this.disabledObserver) this.disabledObserver.disconnect();
+    clearTimeout(this.queryTimer);
   }
 
   toggle() {
