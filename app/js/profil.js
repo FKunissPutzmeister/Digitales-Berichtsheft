@@ -128,6 +128,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     { id: 'cmd',        name: 'CMD',        sub: 'Terminal, Grün auf Schwarz' },
     { id: 'candy',      name: 'Candy Land', sub: 'Pastell & Regenbogen' },
     { id: 'iceland',    name: 'Iceland',    sub: 'Schnee, Eis & Iglu' },
+    { id: 'silk',       name: 'Silk',       sub: 'Liquid Glass · futuristisch' },
   ];
 
   function buildDarstellung() {

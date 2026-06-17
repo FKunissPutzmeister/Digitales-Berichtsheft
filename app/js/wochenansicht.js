@@ -44,6 +44,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     sessionStorage.removeItem('gotoKW');
     sessionStorage.removeItem('gotoYear');
   }
+  // Direktsprung auf einen einzelnen Tag (z.B. Klick auf eine Tages-Pill im
+  // Dashboard-Hero). Einmalig: nach dem ersten render() wird der Tag aufgeklappt
+  // und in den Blick gescrollt.
+  let gotoDateOnce = sessionStorage.getItem('gotoDate') || null;
+  if (gotoDateOnce) sessionStorage.removeItem('gotoDate');
 
   // Beim nächsten render(): Richtung der gerade laufenden KW-Wechsel-Animation.
   // Wird von transitionedRender() gesetzt und im Markup direkt als
@@ -2268,7 +2273,31 @@ document.addEventListener('DOMContentLoaded', async () => {
      siehe Markup unten. Dadurch braucht's keinen Delegation-Listener
      und der Klick feuert verlässlich auch zwischen den Form-Controls. */
 
+  // Tag öffnen + hinscrollen (Direktsprung von einer Tages-Pill). Nur im
+  // Tages-Modus relevant – dort existiert dayCard_<datum>; sonst No-op.
+  function openDayCard(dateStr) {
+    // Voll-Modus: id="dayCard_<datum>" + aufklappbar. Kompakt-/Wochen-Modus:
+    // nur .tag-row[data-date] (nicht inline-aufklappbar) → nur hinscrollen.
+    const card = document.getElementById('dayCard_' + dateStr)
+      || document.querySelector(`.tag-row[data-date="${dateStr}"]`);
+    if (!card) return;
+    if (!card.classList.contains('tag-row--compact') && card.querySelector('.tag-row__body')) {
+      card.classList.add('expanded');
+      const chev = card.querySelector('.tag-row__chevron');
+      if (chev) { chev.setAttribute('aria-expanded', 'true'); chev.setAttribute('aria-label', 'Tag zuklappen'); }
+    }
+    card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    // Kurzes Highlight, damit der Ziel-Tag sofort erkennbar ist.
+    card.style.transition = 'box-shadow .3s ease';
+    card.style.boxShadow = '0 0 0 2px var(--pm-yellow, #FFC300)';
+    setTimeout(() => { card.style.boxShadow = ''; }, 1800);
+  }
+
   await render();
+  if (gotoDateOnce) {
+    const dd = gotoDateOnce; gotoDateOnce = null;
+    requestAnimationFrame(() => requestAnimationFrame(() => openDayCard(dd)));
+  }
 });
 
 // ── Globale Hilfsfunktionen ───────────────────────────────────────

@@ -24,7 +24,7 @@
      NICHT nochmal ausgeführt werden sollen. */
   const SHARED = new Set([
     'api.js', 'icons.js', 'topbar-ds.js', 'app.js',
-    'sidebar.js', 'router.js', 'theme.js',
+    'sidebar.js', 'router.js', 'theme.js', 'react-theme-layer.js',
   ]);
 
   /* Lokale Scripts, die bereits als <script>-Tag in den DOM injiziert
@@ -102,6 +102,18 @@
         document.head.appendChild(el);
       }
     }
+
+    /* Theme-Stylesheets IMMER ans Ende holen: das oben evtl. nachgeladene
+       Seiten-CSS (z.B. dashboard.css) würde sonst – weil später injiziert –
+       die Theme-Overrides (theme-*.css/themes.css) bei gleicher Spezifität
+       überschreiben (genau dieser Bug ließ die Bento-Bilder im silk-Theme
+       nach SPA-Navigation wieder auftauchen). appendChild verschiebt den
+       vorhandenen <link> ans Ende; Reihenfolge bleibt: themes.css zuletzt. */
+    ['theme-hyperspace', 'theme-cmd', 'theme-candy', 'theme-iceland', 'theme-silk', 'themes'].forEach(function (n) {
+      const l = Array.from(document.querySelectorAll('link[rel="stylesheet"]'))
+        .find(function (x) { return x.href.indexOf('/css/' + n + '.css') !== -1; });
+      if (l) document.head.appendChild(l);
+    });
 
     /* Scripts der neuen Seite ermitteln (Reihenfolge beibehalten) */
     const pageScripts = Array.from(doc.querySelectorAll('body script[src]'))
@@ -194,6 +206,13 @@
     /* addEventListener nach einem Tick zurücksetzen —
        DOMContentLoaded-Microtasks laufen zuerst durch. */
     setTimeout(() => { document.addEventListener = origAddEL; }, 0);
+
+    /* Additives Signal nach dem Content-Tausch: nur der React-Theme-Layer
+       (js/react-theme-layer.js) lauscht darauf und re-scannt seine
+       Verschönerungen. Für alle Nicht-React-Themes ein No-op. */
+    try {
+      window.dispatchEvent(new CustomEvent('pm-page-rendered', { detail: _currentPage }));
+    } catch (e) { /* defensiv */ }
 
     _busy = false;
   }

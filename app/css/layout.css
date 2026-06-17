@@ -378,6 +378,7 @@ html:not([data-ist-azubi="1"]) .nav-azubi-only {
 .sidebar.collapsed .sidebar__link {
   justify-content: center;
   padding: 0;
+  gap: 0;
 }
 .sidebar.collapsed .sidebar__link::before { display: none; }
 .sidebar.collapsed .sidebar__link.active {
@@ -635,7 +636,8 @@ body[data-page="jahresansicht"] .main-content,
 body[data-page="ausbildungsstand"] .main-content,
 body[data-page="berichtsheftverwaltung"] .main-content,
 body[data-page="azubi-planer"] .main-content,
-body[data-page="profil"] .main-content {
+body[data-page="profil"] .main-content,
+body[data-page="fahrgelderstattung"] .main-content {
   max-width: min(2200px, 100%);
 }
 

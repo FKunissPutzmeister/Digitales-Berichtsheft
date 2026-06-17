@@ -263,7 +263,9 @@ async function renderAzubiDashboard(user) {
                 : isWE    ? 'b-day--weekend'
                 : isPast  ? 'b-day--past'
                 :           '';
-      html += `<div class="b-day ${cls}"><span class="dn">${days[i]}</span><span class="dnum">${d.getDate()}</span></div>`;
+      html += `<div class="b-day ${cls}" role="button" tabindex="0" style="cursor:pointer"
+        data-goto-kw="${kw}" data-goto-year="${kwYear}" data-goto-date="${iso}"
+        aria-label="Zum ${days[i]}, ${d.getDate()}."><span class="dn">${days[i]}</span><span class="dnum">${d.getDate()}</span></div>`;
     }
     return html;
   }
@@ -431,10 +433,6 @@ async function renderAzubiDashboard(user) {
       <!-- HERO: Aktuelle Woche -->
       <section class="b-tile b-tile--glass b-hero animate-fade-in">
         <div class="b-hero__top">
-          <div class="b-hero__eyebrow">
-            <span class="b-live"></span>
-            ${['Sonntag','Montag','Dienstag','Mittwoch','Donnerstag','Freitag','Samstag'][today.getDay()]}, ${today.getDate()}. ${DateUtil.MONTHS[today.getMonth()]}
-          </div>
           <span class="b-status b-status--${bentoStatusClass(aktStatus)}">
             <span class="dot"></span>${bentoStatusLabel(aktStatus)}
           </span>
@@ -519,11 +517,19 @@ async function renderAzubiDashboard(user) {
   // Sprung-Navigation: jede Kachel/Zeile mit data-goto-kw merkt sich die
   // Ziel-Woche; <a> navigiert per href, andere Elemente per JS.
   main.querySelectorAll('[data-goto-kw]').forEach(el => {
-    el.addEventListener('click', () => {
+    const go = () => {
       sessionStorage.setItem('gotoKW', el.dataset.gotoKw);
       sessionStorage.setItem('gotoYear', el.dataset.gotoYear);
+      if (el.dataset.gotoDate) sessionStorage.setItem('gotoDate', el.dataset.gotoDate);
       if (el.tagName !== 'A') window.location.href = 'wochenansicht.html';
-    });
+    };
+    el.addEventListener('click', go);
+    // Tastatur für nicht-<a>-Sprungziele (z.B. die Tages-Pills im Hero)
+    if (el.getAttribute('role') === 'button') {
+      el.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); go(); }
+      });
+    }
   });
 
   // Fortschritts-Ring von 0 % hochfüllen. Start-Leerzustand (dashoffset =
