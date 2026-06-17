@@ -1,0 +1,872 @@
+/* ===================================================================
+   THEME-HALLOWEEN.CSS – „Geisterhaus im Wald", düster, Kürbis-Orange
+   -------------------------------------------------------------------
+   Wird von jeder HTML-Seite als eigenes <link>-Stylesheet DIREKT VOR
+   themes.css geladen (dort liegen die geteilten Blöcke: #pmThemeFX-
+   Basis, Modal-FX-Pause, prefers-reduced-motion, print).
+   Diese Datei gehört EXKLUSIV dem Halloween-Designer.
+
+   Szene (FX-Layer #pmThemeFX, Template "halloween" in js/theme.js),
+   hinten → vorne: Nachthimmel-Verlauf + Sterne + Vollmond mit Halo,
+   zwei vor dem Mond ziehende Wolken, zwei Reihen kahler Wald-Silhouetten,
+   eine schiefe Geisterhaus-Silhouette mit warm flackernden Fenstern,
+   Grabsteine, ein <canvas class="pm-hw-fog"> mit horizontal driftenden
+   Nebelschwaden (Engine PMHalloweenFog in js/theme.js – start/stop am
+   FX-Lebenszyklus, prefers-reduced-motion → Standbild, Pause bei
+   Modal/verstecktem Tab) und – dezent an den unteren Rändern – Kürbisse,
+   Kerzen mit flackernder Flamme, vereinzelt flatternde Fledermäuse und
+   eine sich von oben abseilende Spinne.
+
+   Kontrast-Strategie wie bei hyperspace/cmd: die komplette --pm-grey-
+   Skala wird auf dunkel gekippt, das Marken-Gelb auf Kürbis-Orange
+   umgefärbt. Komponenten-Regeln, die in anderen Dateien hart an
+   [data-theme="dark"] hängen, werden unten gespiegelt (sie würden hier
+   sonst mit ihren Light-Werten laufen) – inhaltlich identisch zum
+   hyperspace/cmd-Spiegelblock, nur Akzent/Flächen auf die Halloween-
+   Palette umgefärbt.
+   =================================================================== */
+html[data-theme="halloween"] { color-scheme: dark; }
+
+/* ===================================================================
+   1 · TOKEN-BLOCK – düstere Nacht + Kürbis-Orange
+   =================================================================== */
+[data-theme="halloween"] {
+  /* Akzent: Kürbis-Orange ersetzt das Brand-Gelb */
+  --pm-yellow:          #FF7518;
+  --pm-yellow-dark:     #FF9442;   /* heller in Dark – Hover-State */
+  --pm-yellow-darker:   #FF7518;   /* Akzent konsistent */
+  --pm-yellow-light:    #FFB066;
+  --pm-yellow-pale:     rgba(255, 117, 24, 0.24);
+  --pm-yellow-bg:       rgba(255, 117, 24, 0.14);
+  --on-yellow-text:     #1A0E03;   /* dunkel auf Orange (≥ 7:1) */
+
+  /* Grau-Skala → warmes Nacht-Anthrazit mit Hauch Lila (Karten heller
+     als Body). Die drei Surface-Stufen sind TRANSLUZENT (rgba), damit
+     die Szene (#pmThemeFX) hinter Karten/Toolbars dezent durchscheint;
+     Alpha bleibt hoch genug für Text-Kontrast >= 4.5:1. */
+  --pm-white:           rgba(36, 26, 44, 0.88);   /* Karten / Modal / Form-Control */
+  --pm-grey-50:         rgba(16, 10, 22, 0.70);   /* Body-Hintergrund */
+  --pm-grey-100:        rgba(128, 96, 150, 0.26); /* sub-surface / Hover-BG */
+  --pm-grey-200:        #3A2E46;                  /* Default-Borders */
+  --pm-grey-300:        #534462;                  /* stärkere Borders / Icons */
+  --pm-grey-400:        #9C8DAC;                  /* Mute (≥ 4.5:1 auf Body) */
+  --pm-grey-500:        #BBADC8;                  /* Sekundär-Text */
+  --pm-grey-600:        #D2C7DE;                  /* Sekundär-Text (emphasized) */
+  --pm-grey-700:        #E4DCEE;                  /* Body-Text */
+  --pm-grey-800:        #F0EBF7;                  /* Strong-Text */
+  --pm-grey-900:        #FBF8FF;                  /* Headings */
+
+  /* Status-Tints als Overlays (wie Dark-Mode); Mid-Töne heller, damit
+     auf dunklem Body lesbar (vgl. hyperspace). */
+  --color-success-light: rgba(67, 168, 86, 0.18);
+  --color-error-light:   rgba(229, 57, 53, 0.20);
+  --color-info-light:    rgba(25, 118, 210, 0.22);
+  --color-warning-light: rgba(244, 81, 30, 0.20);
+  --color-error-mid:     #FF7A6B;
+  --color-info-mid:      #69B6F2;
+  --status-offen-bg:        rgba(160, 150, 175, 0.18);
+  --status-freigegeben-bg:  rgba(25, 118, 210, 0.24);
+  --status-genehmigt-bg:    rgba(67, 168, 86, 0.20);
+  --status-abgelehnt-bg:    rgba(229, 57, 53, 0.24);
+
+  /* Schatten tief; Akzent-Schatten/Ringe glühen warm-orange */
+  --shadow-xs:  0 1px 2px rgba(0, 0, 0, 0.50);
+  --shadow-sm:  0 1px 2px rgba(0, 0, 0, 0.45), 0 1px 3px rgba(0, 0, 0, 0.55);
+  --shadow-md:  0 2px 4px rgba(0, 0, 0, 0.45), 0 6px 14px rgba(0, 0, 0, 0.55);
+  --shadow-lg:  0 4px 10px rgba(0, 0, 0, 0.50), 0 14px 28px rgba(0, 0, 0, 0.58);
+  --shadow-xl:  0 8px 16px rgba(0, 0, 0, 0.55), 0 24px 48px rgba(0, 0, 0, 0.68);
+  --shadow-yellow:    0 4px 18px rgba(255, 117, 24, 0.38), 0 0 26px rgba(255, 117, 24, 0.26);
+  --shadow-yellow-lg: 0 8px 34px rgba(255, 117, 24, 0.46), 0 0 44px rgba(255, 117, 24, 0.30);
+  --ring-yellow:    0 0 0 3px rgba(255, 117, 24, 0.36), 0 0 18px rgba(255, 117, 24, 0.40);
+  --ring-yellow-sm: 0 0 0 2px rgba(255, 117, 24, 0.32), 0 0 12px rgba(255, 117, 24, 0.34);
+  --ring-error:     0 0 0 3px rgba(229, 57, 53, 0.32);
+  --ring-info:      0 0 0 3px rgba(25, 118, 210, 0.30);
+
+  /* Inverse Surfaces / Topbar / Overlay */
+  --sidebar-bg:           #160E1E;
+  --inverse-surface:      #160E1E;
+  --inverse-surface-soft: #221730;
+  --inverse-surface-mid:  #2E2140;
+  --topbar-bg-glass:      rgba(22, 14, 30, 0.80);
+  --surface-overlay:      rgba(6, 3, 10, 0.62);
+
+  /* Glass-Token (glass.css) – dunkles Glas, warmer Rand */
+  --glass-bg:           rgba(34, 24, 44, 0.55);
+  --glass-bg-strong:    rgba(34, 24, 44, 0.82);
+  --glass-bg-tint:      rgba(74, 34, 22, 0.40);
+  --glass-border:       rgba(255, 180, 120, 0.16);
+  --glass-border-soft:  rgba(255, 180, 120, 0.08);
+  --glass-highlight:    rgba(255, 214, 176, 0.12);
+  --glass-shadow:       0 1px 0 rgba(255, 214, 176, 0.08) inset,
+                        0 -1px 0 rgba(0, 0, 0, 0.40) inset,
+                        0 14px 36px rgba(0, 0, 0, 0.52),
+                        0 2px 8px rgba(0, 0, 0, 0.42);
+  --ambient-yellow:     rgba(255, 117, 24, 0.10);
+  --ambient-yellow-2:   rgba(150, 70, 200, 0.06);
+  --ambient-neutral:    rgba(120, 80, 160, 0.07);
+
+  /* App-Hintergrund AUS – die Szene (#pmThemeFX) übernimmt. */
+  --app-bg-image:       none;
+  --app-bg-overlay:     none;
+  --app-bg-vignette:    none;
+  --sidebar-bg-image:   linear-gradient(180deg, rgba(28, 18, 38, 0.82) 0%, rgba(16, 10, 24, 0.90) 100%);
+  --sidebar-glass:      rgba(20, 12, 28, 0.74);
+  --sidebar-glass-deep: rgba(14, 8, 20, 0.90);
+  --sidebar-line:       rgba(255, 117, 24, 0.32);
+
+  /* Liquid-Glass-Pill-Token (Floating Sidebar) */
+  --lg-tint:           rgba(34, 24, 44, 0.62);
+  --lg-tint-strong:    rgba(42, 30, 54, 0.82);
+  --lg-tint-soft:      rgba(34, 24, 44, 0.42);
+  --lg-tint-warm:      rgba(74, 34, 22, 0.42);
+  --lg-sidebar:        rgba(20, 12, 30, 0.76);
+  --lg-border:         rgba(255, 180, 120, 0.16);
+  --lg-border-soft:    rgba(255, 180, 120, 0.08);
+  --lg-edge:           rgba(0, 0, 0, 0.45);
+  --lg-spec:           rgba(255, 210, 170, 0.28);
+  --lg-spec-soft:      rgba(255, 210, 170, 0.10);
+  --lg-shadow:
+    0 1px 0 rgba(255, 210, 170, 0.10) inset,
+    0 -1px 0 rgba(0, 0, 0, 0.42) inset,
+    0 1px 3px rgba(0, 0, 0, 0.50),
+    0 10px 28px rgba(0, 0, 0, 0.50),
+    0 36px 72px rgba(0, 0, 0, 0.55);
+  --lg-shadow-lift:
+    0 1px 0 rgba(255, 210, 170, 0.12) inset,
+    0 -1px 0 rgba(0, 0, 0, 0.50) inset,
+    0 2px 6px rgba(0, 0, 0, 0.55),
+    0 18px 42px rgba(0, 0, 0, 0.60),
+    0 48px 96px rgba(0, 0, 0, 0.65);
+  --lg-shadow-pill:
+    0 1px 0 rgba(255, 210, 170, 0.10) inset,
+    0 2px 6px rgba(0, 0, 0, 0.50),
+    0 14px 36px rgba(0, 0, 0, 0.55),
+    0 40px 80px rgba(0, 0, 0, 0.60);
+  --lg-mesh-1: rgba(255, 117, 24, 0.10);
+  --lg-mesh-2: rgba(124, 58, 200, 0.10);
+  --lg-mesh-3: rgba(232, 120, 40, 0.07);
+  --lg-mesh-4: rgba(90, 50, 160, 0.07);
+  --lg-mesh-base: #0C0716;
+}
+
+/* ===================================================================
+   2 · BODY / AMBIENT AUS – die Szene übernimmt
+   =================================================================== */
+[data-theme="halloween"] body::before,
+[data-theme="halloween"] body::after { display: none; }
+[data-theme="halloween"] body:not(.login-page) { background-color: #0a0610; }
+
+[data-theme="halloween"] #pmThemeFX {
+  background: #0a0610;   /* Basiston, überbrückt bis Layer/Canvas gezeichnet sind */
+}
+
+/* ===================================================================
+   3 · FX-SZENE (#pmThemeFX) – „Geisterhaus im Wald"
+   -------------------------------------------------------------------
+   Alle Layer position:absolute; Stapelung = DOM-Reihenfolge
+   (FX_TEMPLATES.halloween in js/theme.js). pointer-events:none erbt
+   vom Container. Animiert wird ausschließlich transform/opacity.
+   =================================================================== */
+
+/* ── Nachthimmel ── */
+[data-theme="halloween"] .pm-hw-sky {
+  position: absolute; inset: 0;
+  background:
+    radial-gradient(58% 42% at 80% 20%, rgba(255, 150, 50, 0.12), transparent 62%),
+    radial-gradient(120% 80% at 50% 100%, rgba(60, 24, 70, 0.55), transparent 70%),
+    linear-gradient(180deg, #090512 0%, #150a1f 42%, #1e0f26 68%, #0a0510 100%);
+}
+
+/* ── Sterne (gekacheltes SVG, sanftes Funkeln) ── */
+[data-theme="halloween"] .pm-hw-stars {
+  position: absolute; inset: 0;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cg fill='%23ffffff'%3E%3Ccircle cx='18' cy='28' r='1'/%3E%3Ccircle cx='86' cy='58' r='1.4'/%3E%3Ccircle cx='148' cy='22' r='1'/%3E%3Ccircle cx='198' cy='92' r='1.2'/%3E%3Ccircle cx='52' cy='128' r='1'/%3E%3Ccircle cx='118' cy='158' r='1.3'/%3E%3Ccircle cx='32' cy='188' r='1'/%3E%3Ccircle cx='176' cy='176' r='1'/%3E%3Ccircle cx='208' cy='40' r='0.9'/%3E%3Ccircle cx='96' cy='110' r='0.9'/%3E%3C/g%3E%3C/svg%3E");
+  background-repeat: repeat;
+  opacity: 0.5;
+  animation: pm-hw-twinkle 6s ease-in-out infinite;
+}
+@keyframes pm-hw-twinkle {
+  0%, 100% { opacity: 0.36; }
+  50%      { opacity: 0.62; }
+}
+
+/* ── Vollmond mit Halo ── */
+[data-theme="halloween"] .pm-hw-moon {
+  position: absolute; top: 7%; right: 9%;
+  width: 122px; height: 122px; border-radius: 50%;
+  background:
+    radial-gradient(circle at 64% 60%, rgba(120, 90, 60, 0.30) 0%, rgba(120, 90, 60, 0) 36%),
+    radial-gradient(circle at 38% 36%, #fff7e6 0%, #f4e6b6 46%, #dcc680 74%, #c4ac60 100%);
+  box-shadow:
+    0 0 40px 12px rgba(255, 226, 156, 0.26),
+    0 0 130px 46px rgba(255, 196, 120, 0.12);
+}
+/* zwei dezente Krater */
+[data-theme="halloween"] .pm-hw-moon::before {
+  content: ''; position: absolute;
+  top: 30%; left: 52%; width: 20px; height: 16px; border-radius: 50%;
+  background: rgba(150, 120, 80, 0.22);
+  box-shadow: -22px 26px 0 -4px rgba(150, 120, 80, 0.18),
+              6px 40px 0 -6px rgba(150, 120, 80, 0.16);
+}
+
+/* ── Wolken vor dem Mond ── */
+[data-theme="halloween"] .pm-hw-cloud {
+  position: absolute;
+  height: 60px; width: 320px;
+  background:
+    radial-gradient(40px 26px at 30% 60%, rgba(18, 12, 24, 0.85), transparent 70%),
+    radial-gradient(60px 34px at 52% 50%, rgba(18, 12, 24, 0.92), transparent 72%),
+    radial-gradient(46px 28px at 72% 62%, rgba(18, 12, 24, 0.85), transparent 70%);
+  filter: none;
+  opacity: 0.0;
+}
+[data-theme="halloween"] .pm-hw-cloud--1 {
+  top: 12%;
+  animation: pm-hw-cloud-a 64s linear infinite;
+}
+[data-theme="halloween"] .pm-hw-cloud--2 {
+  top: 22%;
+  transform: scale(0.8);
+  animation: pm-hw-cloud-b 92s linear infinite;
+  animation-delay: -30s;
+}
+@keyframes pm-hw-cloud-a {
+  0%   { transform: translateX(105vw); opacity: 0; }
+  12%  { opacity: 0.7; }
+  88%  { opacity: 0.7; }
+  100% { transform: translateX(-40vw); opacity: 0; }
+}
+@keyframes pm-hw-cloud-b {
+  0%   { transform: translateX(110vw) scale(0.8); opacity: 0; }
+  14%  { opacity: 0.55; }
+  86%  { opacity: 0.55; }
+  100% { transform: translateX(-45vw) scale(0.8); opacity: 0; }
+}
+
+/* ── Wald-Silhouetten (kahle Bäume, zwei Tiefen) ──
+   Gestauchtes SVG aus stroked Ästen + Bodenwelle, am unteren Rand
+   verankert; back = höher/heller, front = tiefer/dunkler. */
+[data-theme="halloween"] .pm-hw-forest {
+  position: absolute; left: 0; right: 0; bottom: 0;
+  background-repeat: repeat-x;
+  background-position: bottom center;
+}
+[data-theme="halloween"] .pm-hw-forest--back {
+  height: 34vh; bottom: 6vh; opacity: 0.85;
+  background-size: auto 26vh;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='900' height='320' fill='none'%3E%3Cpath d='M0 320 L0 250 Q160 224 320 244 Q520 268 700 240 Q820 222 900 246 L900 320 Z' fill='%230c0816'/%3E%3Cg stroke='%230c0816' stroke-width='5' stroke-linecap='round'%3E%3Cpath d='M120 252 L120 150 M120 188 L96 162 M120 188 L146 158 M120 168 L104 146 M120 168 L138 142'/%3E%3Cpath d='M300 250 L300 168 M300 198 L280 176 M300 198 L322 172 M300 182 L286 164'/%3E%3Cpath d='M520 250 L520 132 M520 176 L494 150 M520 176 L548 146 M520 156 L502 134 M520 156 L540 130'/%3E%3Cpath d='M700 250 L700 176 M700 202 L680 182 M700 202 L722 180'/%3E%3C/g%3E%3C/svg%3E");
+}
+[data-theme="halloween"] .pm-hw-forest--front {
+  height: 40vh; opacity: 1;
+  background-size: auto 30vh;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='1000' height='360' fill='none'%3E%3Cpath d='M0 360 L0 286 Q200 256 420 280 Q640 304 820 274 Q920 258 1000 282 L1000 360 Z' fill='%23060310'/%3E%3Cg stroke='%23060310' stroke-width='8' stroke-linecap='round'%3E%3Cpath d='M150 300 L150 150 M150 198 L116 162 M150 198 L188 160 M150 172 L128 144 M150 172 L176 140 M150 150 L138 128 M150 150 L164 126'/%3E%3Cpath d='M430 300 L430 176 M430 214 L404 186 M430 214 L458 184 M430 192 L412 168'/%3E%3Cpath d='M820 300 L820 138 M820 184 L788 152 M820 184 L856 150 M820 160 L800 136 M820 160 L842 132'/%3E%3C/g%3E%3C/svg%3E");
+}
+
+/* ── Geisterhaus (Silhouette + warm leuchtende Fenster) ── */
+[data-theme="halloween"] .pm-hw-house {
+  position: absolute; bottom: 14vh; left: 50%;
+  width: 300px; height: 270px;
+  transform: translateX(-58%);
+  background: center bottom / contain no-repeat
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 340 300'%3E%3Cg fill='%23080510' stroke='%231f1430' stroke-width='2'%3E%3Cpolygon points='44,300 44,196 70,196 70,170 104,170 104,196 110,196 110,300'/%3E%3Cpolygon points='38,172 74,128 110,172'/%3E%3Crect x='86' y='150' width='150' height='150'/%3E%3Cpolygon points='74,152 161,86 248,152'/%3E%3Crect x='150' y='96' width='16' height='40'/%3E%3Crect x='232' y='120' width='62' height='180'/%3E%3Cpolygon points='222,124 263,40 304,124'/%3E%3C/g%3E%3Cline x1='263' y1='40' x2='263' y2='18' stroke='%231f1430' stroke-width='3'/%3E%3Cpolygon points='263,18 281,30 263,30' fill='%23ff7518'/%3E%3Cg%3E%3Cellipse cx='124' cy='206' rx='26' ry='24' fill='%23ff7518' opacity='0.22'/%3E%3Cellipse cx='196' cy='206' rx='26' ry='24' fill='%23ff7518' opacity='0.22'/%3E%3Cellipse cx='261' cy='176' rx='20' ry='20' fill='%23ff7518' opacity='0.20'/%3E%3Cellipse cx='161' cy='118' rx='16' ry='16' fill='%23ff8f3c' opacity='0.20'/%3E%3C/g%3E%3Cg fill='%23ffb454'%3E%3Cpath d='M114 196 h20 a0 0 0 0 1 0 0 v22 h-20 z M114 196 a10 10 0 0 1 20 0' /%3E%3Cpath d='M186 196 h20 v22 h-20 z M186 196 a10 10 0 0 1 20 0'/%3E%3Crect x='253' y='168' width='16' height='18' rx='2'/%3E%3Ccircle cx='161' cy='118' r='8'/%3E%3C/g%3E%3Cpath d='M150 261 a11 11 0 0 1 22 0 v39 h-22 z' fill='%2340220c'/%3E%3C/svg%3E");
+}
+/* Fenster-Flackern: warmer Glühschein über dem Fenster-Cluster */
+[data-theme="halloween"] .pm-hw-house::after {
+  content: ''; position: absolute;
+  left: 24%; right: 6%; top: 40%; bottom: 6%;
+  background:
+    radial-gradient(40% 36% at 36% 50%, rgba(255, 138, 40, 0.34), transparent 70%),
+    radial-gradient(34% 30% at 78% 36%, rgba(255, 138, 40, 0.28), transparent 72%);
+  pointer-events: none;
+  animation: pm-hw-flicker 3.7s ease-in-out infinite;
+}
+@keyframes pm-hw-flicker {
+  0%   { opacity: 0.85; }
+  14%  { opacity: 0.55; }
+  22%  { opacity: 0.92; }
+  41%  { opacity: 0.62; }
+  55%  { opacity: 1; }
+  62%  { opacity: 0.5; }
+  78%  { opacity: 0.88; }
+  90%  { opacity: 0.66; }
+  100% { opacity: 0.85; }
+}
+
+/* ── Grabsteine ── */
+[data-theme="halloween"] .pm-hw-graves {
+  position: absolute; bottom: 9vh; left: calc(50% + 96px);
+  width: 280px; height: 120px;
+  background: left bottom / contain no-repeat
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 300 140'%3E%3Cg fill='%23090512' stroke='%23231634' stroke-width='2'%3E%3Cpath d='M28 140 V70 a26 26 0 0 1 52 0 V140 Z'/%3E%3Crect x='128' y='44' width='20' height='96'/%3E%3Crect x='104' y='66' width='68' height='18'/%3E%3Cpath d='M212 140 V58 a22 22 0 0 1 44 0 V140 Z'/%3E%3C/g%3E%3Cg fill='none' stroke='%23463156' stroke-width='2' opacity='0.7'%3E%3Cpath d='M30 70 a24 24 0 0 1 48 0'/%3E%3Cpath d='M214 58 a20 20 0 0 1 40 0'/%3E%3C/g%3E%3Cg fill='%236a5278' opacity='0.55' font-family='Georgia,serif' font-size='13' text-anchor='middle'%3E%3Ctext x='54' y='104'%3ERIP%3C/text%3E%3Ctext x='234' y='98'%3ERIP%3C/text%3E%3C/g%3E%3C/svg%3E");
+}
+
+/* ── Nebel-Canvas (Engine: PMHalloweenFog, js/theme.js) ── */
+[data-theme="halloween"] .pm-hw-fog {
+  position: absolute; inset: 0;
+  display: block; width: 100%; height: 100%;
+}
+
+/* ── Vordergrund: Kürbisse (unten, rechts neben der Sidebar) ──
+   left so gewählt, dass die Kürbisse die (opake) Sidebar nicht
+   überlappen, aber im sichtbaren unteren Szenen-Streifen sitzen. */
+[data-theme="halloween"] .pm-hw-pumpkins {
+  position: absolute; left: 19vw; bottom: 0;
+  width: 240px; height: 150px;
+  background: left bottom / contain no-repeat
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 260 170'%3E%3Cg%3E%3Cpath d='M86 150 q-58 6 -58 -34 q0 -30 26 -32' fill='none' stroke='%23163a16' stroke-width='5'/%3E%3C/g%3E%3Cg%3E%3Cellipse cx='74' cy='126' rx='66' ry='40' fill='%23c85a12'/%3E%3Cellipse cx='44' cy='126' rx='30' ry='40' fill='%23a8480c'/%3E%3Cellipse cx='104' cy='126' rx='30' ry='40' fill='%23a8480c'/%3E%3Cellipse cx='74' cy='126' rx='34' ry='42' fill='%23e0701a'/%3E%3Crect x='69' y='78' width='10' height='14' fill='%23245a20'/%3E%3Cpolygon points='58,124 44,140 72,140' fill='%23241204'/%3E%3Cpolygon points='90,124 76,140 104,140' fill='%23241204'/%3E%3Cpolygon points='74,128 64,142 84,142' fill='%23241204'/%3E%3Cpath d='M50 150 h48 l-7 -10 -6 8 -6 -10 -6 10 -6 -8 -5 8 z' fill='%23241204'/%3E%3C/g%3E%3Cg%3E%3Cellipse cx='176' cy='140' rx='46' ry='28' fill='%23b85410'/%3E%3Cellipse cx='176' cy='140' rx='24' ry='29' fill='%23d2671a'/%3E%3Crect x='172' y='106' width='8' height='10' fill='%23245a20'/%3E%3Cpolygon points='166,138 156,150 176,150' fill='%23221103'/%3E%3Cpolygon points='186,138 176,150 196,150' fill='%23221103'/%3E%3Cpath d='M162 152 h28 l-5 -7 -5 6 -4 -7 -5 7 z' fill='%23221103'/%3E%3C/g%3E%3C/svg%3E");
+}
+[data-theme="halloween"] .pm-hw-pumpkins::after {
+  content: ''; position: absolute;
+  left: 2%; bottom: 8%; width: 60%; height: 60%;
+  background: radial-gradient(50% 50% at 40% 60%, rgba(255, 140, 30, 0.30), transparent 72%);
+  pointer-events: none;
+  animation: pm-hw-flicker 4.3s ease-in-out infinite;
+}
+
+/* ── Vordergrund: Kerzen (unten rechts) ── */
+[data-theme="halloween"] .pm-hw-candles {
+  position: absolute; right: 2vw; bottom: 0;
+  width: 150px; height: 150px;
+  background: right bottom / contain no-repeat
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 180 170'%3E%3Cg%3E%3Crect x='44' y='70' width='26' height='100' rx='5' fill='%23ece3d2'/%3E%3Crect x='44' y='70' width='9' height='100' rx='4' fill='%23fff7ea'/%3E%3Cpath d='M44 78 q6 10 13 0 q7 -8 13 2 v-12 h-26 z' fill='%23d8cdb8'/%3E%3Crect x='55' y='52' width='4' height='16' fill='%23241204'/%3E%3Cellipse cx='57' cy='44' rx='7' ry='12' fill='%23ff8f1f'/%3E%3Cellipse cx='57' cy='46' rx='3.4' ry='7' fill='%23ffd66b'/%3E%3C/g%3E%3Cg%3E%3Crect x='96' y='100' width='22' height='70' rx='5' fill='%23e6dcc8'/%3E%3Crect x='96' y='100' width='8' height='70' rx='4' fill='%23fff3e2'/%3E%3Crect x='105' y='84' width='4' height='14' fill='%23241204'/%3E%3Cellipse cx='107' cy='78' rx='6' ry='10' fill='%23ff8f1f'/%3E%3Cellipse cx='107' cy='80' rx='3' ry='6' fill='%23ffd66b'/%3E%3C/g%3E%3C/svg%3E");
+}
+[data-theme="halloween"] .pm-hw-candles::after {
+  content: ''; position: absolute;
+  right: 12%; bottom: 42%; width: 80%; height: 50%;
+  background:
+    radial-gradient(30% 36% at 38% 40%, rgba(255, 160, 50, 0.40), transparent 72%),
+    radial-gradient(26% 30% at 70% 28%, rgba(255, 160, 50, 0.34), transparent 74%);
+  pointer-events: none;
+  transform-origin: 50% 100%;
+  animation: pm-hw-flame 1.6s ease-in-out infinite;
+}
+@keyframes pm-hw-flame {
+  0%   { opacity: 0.78; transform: scaleY(1)    scaleX(1);    }
+  25%  { opacity: 1;    transform: scaleY(1.08) scaleX(0.96); }
+  50%  { opacity: 0.7;  transform: scaleY(0.95) scaleX(1.04); }
+  75%  { opacity: 0.96; transform: scaleY(1.05) scaleX(0.98); }
+  100% { opacity: 0.78; transform: scaleY(1)    scaleX(1);    }
+}
+
+/* ── Spinne, die sich von oben abseilt (im rechten Rand-Spalt, damit
+   sie nicht hinter dem zentrierten Inhalt verschwindet) ── */
+[data-theme="halloween"] .pm-hw-spider {
+  position: absolute; top: 0; right: 4%;
+  width: 46px; height: 340px;
+  transform-origin: top center;
+  animation: pm-hw-spider-sway 6s ease-in-out infinite;
+}
+[data-theme="halloween"] .pm-hw-spider__thread {
+  position: absolute; top: 0; left: 50%;
+  width: 1px; height: 100%;
+  background: linear-gradient(180deg, rgba(220, 220, 230, 0.45), rgba(220, 220, 230, 0.10));
+}
+[data-theme="halloween"] .pm-hw-spider__body {
+  position: absolute; left: 50%; top: 248px;
+  width: 46px; height: 46px;
+  margin-left: -23px;
+  background: center / contain no-repeat
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 80 80'%3E%3Cg stroke='%23070409' stroke-width='4' fill='none' stroke-linecap='round'%3E%3Cpath d='M40 42 C26 36 22 30 12 30 M40 42 C26 44 20 50 12 56 M40 42 C30 48 26 56 22 66 M40 42 C34 38 30 30 26 22'/%3E%3Cpath d='M40 42 C54 36 58 30 68 30 M40 42 C54 44 60 50 68 56 M40 42 C50 48 54 56 58 66 M40 42 C46 38 50 30 54 22'/%3E%3C/g%3E%3Cellipse cx='40' cy='46' rx='15' ry='17' fill='%23070409'/%3E%3Ccircle cx='40' cy='30' r='9' fill='%23070409'/%3E%3Ccircle cx='36' cy='29' r='2' fill='%23ff7518'/%3E%3Ccircle cx='44' cy='29' r='2' fill='%23ff7518'/%3E%3C/svg%3E");
+  animation: pm-hw-spider-drop 9s ease-in-out infinite;
+}
+@keyframes pm-hw-spider-drop {
+  0%   { transform: translateY(-150px); }
+  45%  { transform: translateY(0); }
+  55%  { transform: translateY(0); }
+  100% { transform: translateY(-150px); }
+}
+@keyframes pm-hw-spider-sway {
+  0%, 100% { transform: rotate(-3deg); }
+  50%      { transform: rotate(3deg); }
+}
+
+/* ── Fledermäuse (flattern über den Schirm) ── */
+[data-theme="halloween"] .pm-hw-bat {
+  position: absolute;
+  width: 42px; height: 22px;
+  background: center / contain no-repeat
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 60 30'%3E%3Cpath d='M30 8 C26 2 22 2 20 8 C16 4 8 4 2 14 C10 12 12 16 16 16 C12 20 12 24 14 26 C18 20 24 20 26 22 C27 24 33 24 34 22 C36 20 42 20 46 26 C48 24 48 20 44 16 C48 16 50 12 58 14 C52 4 44 4 40 8 C38 2 34 2 30 8 Z' fill='%23080510'/%3E%3C/svg%3E");
+  opacity: 0.0;
+  transform-origin: center;
+}
+[data-theme="halloween"] .pm-hw-bat--1 { top: 16%; animation: pm-hw-bat-a 18s linear infinite, pm-hw-bat-flap 0.5s steps(2) infinite; }
+[data-theme="halloween"] .pm-hw-bat--2 { top: 26%; transform: scale(0.7); animation: pm-hw-bat-b 24s linear infinite, pm-hw-bat-flap 0.42s steps(2) infinite; animation-delay: -8s, 0s; }
+[data-theme="halloween"] .pm-hw-bat--3 { top: 10%; transform: scale(0.55); animation: pm-hw-bat-a 30s linear infinite, pm-hw-bat-flap 0.6s steps(2) infinite; animation-delay: -16s, 0s; }
+@keyframes pm-hw-bat-a {
+  0%   { left: -8%;  opacity: 0; transform: translateY(0); }
+  10%  { opacity: 0.85; }
+  50%  { transform: translateY(-30px); }
+  90%  { opacity: 0.85; }
+  100% { left: 108%; opacity: 0; transform: translateY(10px); }
+}
+@keyframes pm-hw-bat-b {
+  0%   { left: 106%; opacity: 0; transform: translateY(0) scale(0.7); }
+  12%  { opacity: 0.7; }
+  50%  { transform: translateY(26px) scale(0.7); }
+  88%  { opacity: 0.7; }
+  100% { left: -10%; opacity: 0; transform: translateY(-12px) scale(0.7); }
+}
+@keyframes pm-hw-bat-flap {
+  0%   { transform: scaleY(1); }
+  100% { transform: scaleY(0.6); }
+}
+
+/* ===================================================================
+   4 · REDUCED MOTION / PRINT (Halloween-spezifisch; FX-Layer-
+       Animationen + Print-Ausblendung übernimmt themes.css)
+   =================================================================== */
+@media (prefers-reduced-motion: reduce) {
+  /* Der Nebel-Canvas wird vom PMHalloweenFog-Controller bei reduced-
+     motion gar nicht erst geloopt, sondern als Standbild gezeichnet.
+     Die übrigen CSS-Animationen stellt themes.css ohnehin still – hier
+     blenden wir die zeitabhängig ein-/ausgeblendeten Layer fest sichtbar
+     ein, damit sie nicht bei opacity:0 „verschwinden". */
+  [data-theme="halloween"] .pm-hw-cloud--1,
+  [data-theme="halloween"] .pm-hw-cloud--2 { opacity: 0.5; }
+  [data-theme="halloween"] .pm-hw-bat { opacity: 0.7; }
+  [data-theme="halloween"] .pm-hw-house::after,
+  [data-theme="halloween"] .pm-hw-pumpkins::after,
+  [data-theme="halloween"] .pm-hw-candles::after { opacity: 0.85; }
+}
+@media print {
+  [data-theme="halloween"] body { background: #fff !important; }
+}
+
+/* ===================================================================
+   5 · KREATIVE UI-AKZENTE (nur Halloween)
+   =================================================================== */
+
+/* Seitentitel: dezenter Kürbis-Glow */
+[data-theme="halloween"] .page-title {
+  text-shadow:
+    0 0 10px rgba(255, 117, 24, 0.38),
+    0 0 28px rgba(255, 117, 24, 0.16);
+}
+
+/* Primär-Buttons: warmer „Kürbis-Glow" (animiert NUR opacity eines
+   Pseudo-Glow-Layers – GPU-freundlich). Die Füllung kommt bereits aus
+   dem Token --pm-yellow (Orange); hier nur das Leuchten + Verlauf. */
+[data-theme="halloween"] .btn-primary {
+  position: relative;
+  background: linear-gradient(180deg, #FF9442 0%, #FF7518 55%, #E85D04 100%);
+  border-color: rgba(255, 140, 60, 0.55);
+}
+[data-theme="halloween"] .btn-primary::after {
+  content: '';
+  position: absolute;
+  inset: -3px;
+  border-radius: inherit;
+  pointer-events: none;
+  opacity: 0;
+  box-shadow:
+    0 0 16px rgba(255, 117, 24, 0.55),
+    0 0 34px rgba(255, 90, 10, 0.22);
+  transition: opacity var(--t-fast);
+}
+[data-theme="halloween"] .btn-primary:hover:not(:disabled)::after {
+  opacity: 1;
+  animation: pm-hw-pulse 1.8s ease-in-out infinite;
+}
+@keyframes pm-hw-pulse {
+  0%, 100% { opacity: 0.55; }
+  50%      { opacity: 1; }
+}
+
+/* Outline/Ghost: leise warme Aura beim Hover */
+[data-theme="halloween"] .btn-outline:hover:not(:disabled),
+[data-theme="halloween"] .btn-ghost:hover:not(:disabled) {
+  box-shadow: 0 0 12px rgba(255, 117, 24, 0.20);
+}
+
+/* Scrollbar: Verlauf Orange → Lila */
+[data-theme="halloween"] ::-webkit-scrollbar-track { background: rgba(255, 255, 255, 0.03); }
+[data-theme="halloween"] ::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, rgba(255, 117, 24, 0.70), rgba(150, 70, 200, 0.70));
+}
+[data-theme="halloween"] ::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(180deg, rgba(255, 117, 24, 0.95), rgba(150, 70, 200, 0.95));
+}
+
+/* Interaktive Karten: warme Kante beim Hover */
+[data-theme="halloween"] .card--interactive:hover {
+  border-color: rgba(255, 117, 24, 0.35);
+}
+
+/* Dashboard-Hero-CTA – Kürbis-Glow analog .btn-primary */
+[data-theme="halloween"] .b-btn-primary {
+  position: relative;
+  background: linear-gradient(180deg, #FF9442 0%, #FF7518 55%, #E85D04 100%);
+  color: var(--on-yellow-text);
+}
+[data-theme="halloween"] .b-btn-primary:hover {
+  box-shadow: var(--shadow-yellow);
+}
+
+/* ===================================================================
+   6 · KOMPONENTEN-SPIEGELUNGEN für das DUNKLE Custom-Theme
+   -------------------------------------------------------------------
+   Diese Regeln existieren in components.css/glass.css/layout.css/
+   dashboard.css/wochenansicht.css nur unter [data-theme="dark"] und
+   würden hier sonst mit ihren Light-Werten laufen. Inhaltlich identisch
+   zum Spiegelblock in theme-hyperspace.css / theme-cmd.css, nur Akzent
+   (Cyan → Orange) und Flächen (Weltraum-Violett → Nacht-Plum) umgefärbt.
+   =================================================================== */
+
+/* Text auf Akzent-Flächen bleibt dunkel (vgl. components.css §dark) */
+[data-theme="halloween"] .btn-primary,
+[data-theme="halloween"] .avatar {
+  color: var(--on-yellow-text);
+}
+[data-theme="halloween"] .pm-select__option--selected {
+  color: var(--pm-yellow);
+}
+[data-theme="halloween"] ::selection {
+  background: var(--pm-yellow);
+  color: var(--on-yellow-text);
+}
+[data-theme="halloween"] .btn-outline-yellow:hover:not(:disabled) {
+  color: var(--pm-yellow);
+}
+
+/* Sidebar (Floating-Pill, Light-Defaults nutzen rgba(0,0,0,…)) */
+[data-theme="halloween"] .sidebar__link { color: var(--pm-grey-600); }
+[data-theme="halloween"] .sidebar__link:hover {
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--pm-grey-900);
+}
+[data-theme="halloween"] .sidebar__link.active {
+  background: rgba(255, 117, 24, 0.16);
+  color: var(--pm-yellow-dark);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.08) inset,
+              0 0 14px rgba(255, 117, 24, 0.30),
+              0 2px 8px rgba(0, 0, 0, 0.40);
+}
+[data-theme="halloween"] .sidebar__divider { background: rgba(255, 255, 255, 0.08); }
+[data-theme="halloween"] .sidebar__footer { border-top-color: rgba(255, 255, 255, 0.06); }
+[data-theme="halloween"] .sidebar__user-link { background: rgba(255, 255, 255, 0.06); }
+[data-theme="halloween"] .sidebar__user-link:hover { background: rgba(255, 255, 255, 0.10); }
+[data-theme="halloween"] .sidebar__icon-btn {
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--pm-grey-700);
+}
+[data-theme="halloween"] .sidebar__icon-btn:hover { background: rgba(255, 255, 255, 0.12); }
+[data-theme="halloween"] .sidebar__toggle:hover { background: rgba(255, 255, 255, 0.08); }
+[data-theme="halloween"] .sidebar__nav::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.10); }
+[data-theme="halloween"] .sidebar.collapsed .sidebar__toggle { color: rgba(255, 255, 255, 0.70); }
+[data-theme="halloween"] .role-badge {
+  background: rgba(255, 255, 255, 0.10);
+  color: var(--pm-grey-700);
+}
+[data-theme="halloween"] .role-badge[data-role="azubi"] {
+  background: rgba(255, 160, 80, 0.18);
+  color: #FFC089;
+}
+[data-theme="halloween"] .role-badge[data-role="ausbilder"] {
+  background: rgba(255, 117, 24, 0.20);
+  color: var(--pm-yellow);
+}
+
+/* Theme-Toggle-Icon: dunkle Custom-Themes zeigen den Mond */
+[data-theme="halloween"] .sidebar__theme-icon--sun { display: none; }
+[data-theme="halloween"] .sidebar__theme-icon--moon { display: block; }
+
+/* Karten: Light-Sheen aus glass.css ist auf dunklen Surfaces zu hart */
+[data-theme="halloween"] .card,
+[data-theme="halloween"] .stat-card,
+[data-theme="halloween"] .accordion__item {
+  background-image: linear-gradient(180deg, rgba(255, 255, 255, 0.04) 0%, rgba(255, 255, 255, 0) 35%);
+  box-shadow: var(--elev-rest), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+[data-theme="halloween"] .card:hover,
+[data-theme="halloween"] .stat-card:hover,
+[data-theme="halloween"] .accordion__item:hover {
+  box-shadow: var(--elev-hover), inset 0 1px 0 rgba(255, 255, 255, 0.07);
+}
+[data-theme="halloween"] .stat-card::after {
+  background: linear-gradient(115deg, transparent 30%, rgba(255, 255, 255, 0.06) 50%, transparent 70%);
+}
+[data-theme="halloween"] .card,
+[data-theme="halloween"] .stat-card,
+[data-theme="halloween"] .accordion__item,
+[data-theme="halloween"] .profil-section,
+[data-theme="halloween"] .verwaltung-panel {
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+/* Modal-Sheen dämpfen + warmer „Kürbisrand": Orange-Hairline innen,
+   weiche Außen-Aura statt neutraler Glas-Kante */
+[data-theme="halloween"] .modal {
+  background-image: linear-gradient(180deg, rgba(255, 255, 255, 0.05) 0%, rgba(255, 255, 255, 0) 30%);
+  box-shadow: var(--shadow-xl),
+              0 0 34px rgba(255, 117, 24, 0.16),
+              inset 0 1px 0 rgba(255, 255, 255, 0.06),
+              inset 0 0 0 1px rgba(255, 117, 24, 0.26);
+}
+
+/* Toast braucht auf dunklem Body eine Hairline */
+[data-theme="halloween"] .toast {
+  background: var(--inverse-surface-soft);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+/* Dropdown: Danger-Eintrag heller */
+[data-theme="halloween"] .dropdown__item--danger { color: var(--color-error-mid); }
+[data-theme="halloween"] .dropdown__item--danger:hover {
+  background: rgba(229, 57, 53, 0.14);
+  color: #F79188;
+}
+
+/* Status-Badges: hellere Textfarben auf Tint-Hintergründen */
+[data-theme="halloween"] .badge--offen        { color: var(--pm-grey-600); }
+[data-theme="halloween"] .badge--freigegeben  { color: #6FB1F2; }
+[data-theme="halloween"] .badge--genehmigt    { color: #6BD089; }
+[data-theme="halloween"] .badge--abgelehnt    { color: #F79188; }
+[data-theme="halloween"] .badge--grey         { color: var(--pm-grey-700); }
+
+/* Stat-Card-Icons als Tint-Overlays */
+[data-theme="halloween"] .stat-card__icon--yellow  { background: var(--pm-yellow-bg); color: var(--pm-yellow); }
+[data-theme="halloween"] .stat-card__icon--success { background: rgba(67, 168, 86, 0.18); color: #6BD089; }
+[data-theme="halloween"] .stat-card__icon--info    { background: rgba(25, 118, 210, 0.20); color: #6FB1F2; }
+[data-theme="halloween"] .stat-card__icon--error   { background: rgba(229, 57, 53, 0.20); color: #F79188; }
+
+/* Form-Hover: sichtbarer Surface-Lift statt rgba(0,0,0,…) */
+[data-theme="halloween"] .form-control:hover:not(:focus):not(:disabled) {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+/* Week-Toolbar (wochenansicht, in glass.css hart auf dark gemünzt) */
+[data-theme="halloween"] .week-toolbar {
+  background: var(--pm-white);
+  border-color: rgba(255, 255, 255, 0.06);
+  box-shadow: var(--elev-rest), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+/* Topbar-Scroll-Schatten dunkel statt hell */
+[data-theme="halloween"] .topbar.is-scrolled {
+  box-shadow: inset 0 1px 0 var(--glass-highlight),
+              0 1px 0 rgba(255, 255, 255, 0.06),
+              0 10px 28px rgba(0, 0, 0, 0.5);
+}
+
+/* Profil-Logout-Karte (profil.css spiegelt nur dark) */
+[data-theme="halloween"] .profil-logout {
+  background: rgba(255, 255, 255, 0.03);
+  border-color: rgba(255, 255, 255, 0.08);
+  border-left-color: var(--color-error-mid);
+}
+
+/* ── Bento-Dashboard (dashboard.css spiegelt nur [data-theme="dark"]) ──
+   1:1-Spiegelung der Dark-.b-*-Regeln (dunkle PNG-Tiles + Flächen). */
+[data-theme="halloween"] .b-tile--glass {
+  background: linear-gradient(180deg, rgba(34, 26, 42, 0.74) 0%, rgba(22, 16, 30, 0.64) 100%);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.06),
+    0 1px 2px rgba(0, 0, 0, 0.4),
+    0 12px 32px -8px rgba(0, 0, 0, 0.55);
+}
+html[data-theme="halloween"] .b-hero {
+  background-image:
+    linear-gradient(105deg, rgba(8, 5, 14, 0.22) 0%, rgba(8, 5, 14, 0.08) 44%, rgba(8, 5, 14, 0.00) 100%),
+    url("../assets/backgrounds/tile-series-week-dark.png?v=20260602-series");
+}
+html[data-theme="halloween"] .b-hero::before {
+  background:
+    radial-gradient(ellipse 32% 56% at 24% 56%, rgba(8, 5, 14, 0.48), rgba(8, 5, 14, 0.12) 58%, transparent 76%),
+    radial-gradient(ellipse 28% 38% at 78% 58%, rgba(8, 5, 14, 0.10), transparent 70%);
+}
+html[data-theme="halloween"] .b-hero__eyebrow,
+html[data-theme="halloween"] .b-hero__kw small {
+  color: rgba(255, 255, 255, 0.62);
+}
+html[data-theme="halloween"] .b-hero__kw { color: #fff; }
+[data-theme="halloween"] .b-status--offen { background: rgba(255, 255, 255, 0.08); color: rgba(255, 255, 255, 0.85); border-color: transparent; }
+[data-theme="halloween"] .b-hero__bottom { border-top-color: rgba(255, 255, 255, 0.08); }
+
+html[data-theme="halloween"] .b-azubi::before {
+  background:
+    radial-gradient(circle at 50% 44%, rgba(10, 7, 16, 0.72) 0%, rgba(10, 7, 16, 0.54) 24%, rgba(10, 7, 16, 0.10) 42%, transparent 56%),
+    linear-gradient(180deg, rgba(10, 7, 16, 0.10) 0%, transparent 34%, transparent 66%, rgba(10, 7, 16, 0.18) 100%);
+}
+html[data-theme="halloween"] .b-azubi {
+  background-image:
+    linear-gradient(160deg, rgba(10, 7, 16, 0.16) 0%, rgba(10, 7, 16, 0.00) 100%),
+    url("../assets/backgrounds/tile-series-training-dark.png?v=20260602-series");
+  color: #fff;
+  border-color: rgba(255, 255, 255, 0.08);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.08),
+    0 12px 32px -8px rgba(14, 10, 20, 0.4);
+}
+html[data-theme="halloween"] .b-azubi__head .eyebrow { color: rgba(255, 255, 255, 0.55); }
+html[data-theme="halloween"] .b-azubi__lj {
+  color: var(--pm-yellow);
+  background: rgba(255, 117, 24, 0.14);
+  border-color: rgba(255, 117, 24, 0.30);
+}
+html[data-theme="halloween"] .b-donut circle:first-child { stroke: rgba(255, 255, 255, 0.08); }
+html[data-theme="halloween"] .b-donut__pct { color: #fff; }
+html[data-theme="halloween"] .b-donut__pct small { color: rgba(255, 255, 255, 0.45); }
+html[data-theme="halloween"] .b-donut__label { color: rgba(255, 255, 255, 0.45); }
+html[data-theme="halloween"] .b-azubi__foot strong { color: #fff; }
+html[data-theme="halloween"] .b-azubi__foot .muted { color: rgba(255, 255, 255, 0.5); }
+html[data-theme="halloween"] .b-azubi__segs span { background: rgba(255, 255, 255, 0.08); }
+
+html[data-theme="halloween"] .b-recent {
+  background-image:
+    linear-gradient(105deg, rgba(8, 5, 14, 0.18) 0%, rgba(8, 5, 14, 0.06) 42%, rgba(8, 5, 14, 0.00) 100%),
+    url("../assets/backgrounds/tile-series-recent-dark.png?v=20260602-series");
+}
+html[data-theme="halloween"] .b-recent::before {
+  background:
+    linear-gradient(180deg, rgba(8, 5, 14, 0.10) 0%, transparent 34%),
+    radial-gradient(ellipse 82% 54% at 48% 78%, rgba(8, 5, 14, 0.18), rgba(8, 5, 14, 0.04) 58%, transparent 78%);
+}
+
+[data-theme="halloween"] .b-wkcard {
+  background: rgba(255, 255, 255, 0.04);
+  border-color: rgba(255, 255, 255, 0.08);
+  color: #fff;
+}
+[data-theme="halloween"] .b-wkcard__kw { color: #fff; }
+[data-theme="halloween"] .b-wkcard:hover { border-color: rgba(255, 255, 255, 0.18); }
+[data-theme="halloween"] .b-daycard {
+  background: rgba(255, 255, 255, 0.04);
+  border-color: rgba(255, 255, 255, 0.08);
+  color: #fff;
+}
+[data-theme="halloween"] .b-daycard__num { color: #fff; }
+[data-theme="halloween"] .b-daycard:hover { border-color: rgba(255, 255, 255, 0.18); }
+
+[data-theme="halloween"] .b-hero__kw,
+[data-theme="halloween"] .b-recent__head h3,
+[data-theme="halloween"] .b-stats__foot .big {
+  color: #fff;
+}
+[data-theme="halloween"] .b-hero__range strong { color: rgba(255, 255, 255, 0.9); }
+[data-theme="halloween"] .b-day {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.08);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+[data-theme="halloween"] .b-day .dn { color: rgba(255, 255, 255, 0.5); }
+[data-theme="halloween"] .b-day .dnum { color: rgba(255, 255, 255, 0.85); }
+[data-theme="halloween"] .b-day--past .dnum, [data-theme="halloween"] .b-day--weekend .dnum { color: rgba(255, 255, 255, 0.35); }
+
+/* Finaler Material-Layer (dashboard.css §Ende, !important wie dort) */
+html[data-theme="halloween"] .bento .b-hero {
+  background-image:
+    linear-gradient(105deg, rgba(4, 2, 9, 0.10) 0%, rgba(4, 2, 9, 0.02) 44%, rgba(4, 2, 9, 0.00) 100%),
+    url("../assets/backgrounds/tile-material-week-dark.png?v=20260602-materialdark2") !important;
+  background-size: cover, cover !important;
+  background-position: center, center !important;
+}
+html[data-theme="halloween"] .bento .b-azubi {
+  background-image:
+    linear-gradient(160deg, rgba(4, 2, 9, 0.08) 0%, rgba(4, 2, 9, 0.00) 100%),
+    url("../assets/backgrounds/tile-material-training-dark.png?v=20260602-materialdark2") !important;
+  background-size: cover, cover !important;
+  background-position: center, center !important;
+}
+html[data-theme="halloween"] .bento .b-recent {
+  background-image:
+    linear-gradient(105deg, rgba(4, 2, 9, 0.08) 0%, rgba(4, 2, 9, 0.02) 42%, rgba(4, 2, 9, 0.00) 100%),
+    url("../assets/backgrounds/tile-material-recent-dark.png?v=20260602-materialdark2") !important;
+  background-size: cover, cover !important;
+  background-position: center, center !important;
+}
+
+/* Welcome-Hero (dashboard.css ~2164): eigene, fast deckende Nacht-Fläche */
+[data-theme="halloween"] .welcome-hero {
+  background-image:
+    linear-gradient(100deg, rgba(6, 3, 12, 0.78) 0%, rgba(6, 3, 12, 0.55) 48%, rgba(6, 3, 12, 0.38) 100%),
+    linear-gradient(180deg, rgba(42, 26, 54, 0.90) 0%, rgba(20, 12, 28, 0.88) 100%);
+}
+
+/* ── Wochenansicht-Tag-Rows (wochenansicht.css spiegelt nur dark) ──
+   Flächen auf Nacht-Plum, Today-/Expanded-Akzent auf Orange. */
+[data-theme="halloween"] body[data-page="wochenansicht"] .tag-row {
+  background: linear-gradient(180deg, #2A1C36 0%, #21162C 100%);
+  border-color: rgba(255, 255, 255, 0.10);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.05),
+    0 1px 2px rgba(0, 0, 0, 0.35);
+}
+[data-theme="halloween"] body[data-page="wochenansicht"] .tag-row + .tag-row { margin-top: 8px; }
+[data-theme="halloween"] body[data-page="wochenansicht"] .tag-row:hover {
+  border-color: rgba(255, 255, 255, 0.10);
+}
+[data-theme="halloween"] body[data-page="wochenansicht"] .tag-row__summary:hover {
+  background: rgba(255, 255, 255, 0.04);
+}
+[data-theme="halloween"] body[data-page="wochenansicht"] .tag-row--today {
+  background:
+    linear-gradient(180deg, rgba(255, 117, 24, 0.12) 0%, rgba(255, 117, 24, 0.04) 100%),
+    linear-gradient(180deg, #2A1C36 0%, #21162C 100%);
+  border-color: rgba(255, 117, 24, 0.45);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 117, 24, 0.15),
+    0 0 0 1px rgba(255, 117, 24, 0.10),
+    0 4px 14px -6px rgba(255, 117, 24, 0.25);
+}
+[data-theme="halloween"] body[data-page="wochenansicht"] .tag-row--weekend {
+  background: rgba(255, 255, 255, 0.015);
+  border-color: rgba(255, 255, 255, 0.06);
+  box-shadow: none;
+}
+[data-theme="halloween"] body[data-page="wochenansicht"] .tag-row.expanded {
+  border-color: rgba(255, 117, 24, 0.32);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.06),
+    0 0 0 1px rgba(255, 117, 24, 0.18),
+    0 8px 24px -10px rgba(0, 0, 0, 0.55);
+}
+[data-theme="halloween"] body[data-page="wochenansicht"] .tag-row__body {
+  background: rgba(0, 0, 0, 0.25);
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+/* Wochenansicht-Pill-Selects */
+[data-theme="halloween"] body[data-page="wochenansicht"] .pm-select.tag-row__select .pm-select__trigger,
+[data-theme="halloween"] body[data-page="wochenansicht"] .pm-select.wochen-options__select .pm-select__trigger {
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--pm-grey-800);
+  box-shadow:
+    0 1px 2px rgba(0, 0, 0, 0.40),
+    0 4px 12px rgba(0, 0, 0, 0.45);
+}
+[data-theme="halloween"] body[data-page="wochenansicht"] .pm-select.tag-row__select .pm-select__trigger:hover:not(:disabled),
+[data-theme="halloween"] body[data-page="wochenansicht"] .pm-select.wochen-options__select .pm-select__trigger:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.10);
+  box-shadow:
+    0 2px 4px rgba(0, 0, 0, 0.45),
+    0 8px 20px rgba(0, 0, 0, 0.55);
+}
+[data-theme="halloween"] body[data-page="wochenansicht"] .pm-select.tag-row__select--needs-input .pm-select__trigger {
+  background: var(--pm-yellow-bg);
+  border-color: var(--pm-yellow);
+}
+[data-theme="halloween"] body[data-page="wochenansicht"] select.tag-row__select:not([data-pm-enhanced]) {
+  background-color: rgba(255, 255, 255, 0.06);
+  box-shadow:
+    0 1px 2px rgba(0, 0, 0, 0.40),
+    0 4px 12px rgba(0, 0, 0, 0.45);
+}
+
+/* Wochenansicht-Stunden-Spinner (analog dark/hyperspace/cmd) */
+[data-theme="halloween"] body[data-page="wochenansicht"] .time-spinner__input {
+  border-color: rgba(255, 255, 255, 0.18);
+}
+
+/* ===================================================================
+   7 · PUTZMEISTER-LOGO – Kürbis-Orange + kleiner Hexenhut
+   -------------------------------------------------------------------
+   content:url() tauscht NUR unter [data-theme="halloween"] das <img>-
+   Bitmap – Sidebar (.sidebar__logo-mark) UND Login-Karte
+   (.login-card__mark). Asset assets/logo-halloween.png (PM-Elefant per
+   2-Farb-Remap auf Orange/Dunkel umgefärbt + aufgesetzter Hexenhut). */
+[data-theme="halloween"] .sidebar__logo-mark,
+[data-theme="halloween"] .login-card__mark {
+  content: url("../assets/logo-halloween.png");
+}

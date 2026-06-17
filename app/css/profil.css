@@ -417,6 +417,24 @@ details.profil-section .profil-section__body-wrap > .profil-section__body {
   border-bottom: none;
 }
 
+/* Halloween: Nachthimmel, Vollmond, Kürbis-Glühen am Boden */
+.theme-tile__swatch--halloween {
+  background:
+    radial-gradient(circle at 78% 26%, #fff2cc 0 5px, rgba(255, 242, 204, 0) 7px),
+    radial-gradient(62% 52% at 50% 122%, rgba(255, 117, 24, 0.50), transparent 70%),
+    linear-gradient(180deg, #0b0714 0%, #1d0f26 58%, #0a0510 100%);
+}
+.theme-tile__swatch--halloween::after {
+  content: '';
+  position: absolute;
+  left: 50%; bottom: -7px;
+  width: 24px; height: 20px;
+  transform: translateX(-50%);
+  border-radius: 50% 50% 46% 46%;
+  background: radial-gradient(circle at 50% 38%, #ff9442, #d2671a);
+  box-shadow: 0 0 10px 2px rgba(255, 117, 24, 0.45);
+}
+
 @media (max-width: 600px) {
   .theme-tiles { grid-template-columns: repeat(2, 1fr); }
   .theme-mode-row { width: 100%; }

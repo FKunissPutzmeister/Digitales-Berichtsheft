@@ -115,7 +115,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   /* ── Darstellung & Themes ──────────────────────────────────────
      Einstellungs-Karte: Standard-Modus (Hell/Dunkel) + Custom-Designs
-     (Hyperspace, CMD, Candy Land, Iceland). theme.js ist ein SHARED-
+     (Hyperspace, CMD, Candy Land, Iceland, Halloween). theme.js ist ein SHARED-
      Script (der SPA-Router führt es bei Navigationen nicht erneut aus)
      und exponiert das globale window.PMTheme-API – hier wird nur
      gerufen, nie neu initialisiert.
@@ -128,6 +128,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     { id: 'cmd',        name: 'CMD',        sub: 'Terminal, Grün auf Schwarz' },
     { id: 'candy',      name: 'Candy Land', sub: 'Pastell & Regenbogen' },
     { id: 'iceland',    name: 'Iceland',    sub: 'Schnee, Eis & Iglu' },
+    { id: 'halloween',  name: 'Halloween',  sub: 'Geisterhaus & Nebel' },
   ];
 
   function buildDarstellung() {
