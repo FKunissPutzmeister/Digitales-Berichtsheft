@@ -81,6 +81,8 @@ async function renderAzubiDurchlauf(user) {
   document.getElementById('nav-abteilungsplan')?.classList.add('active');
 
   const main = document.getElementById('mainContent');
+  // Volle Seitenbreite (gleicher Marker wie der Planer) – die Timeline nutzt so den ganzen Platz.
+  document.body.dataset.page = 'azubi-planer';
   const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[c]));
 
   try {
