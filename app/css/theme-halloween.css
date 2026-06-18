@@ -389,62 +389,66 @@ html[data-theme="halloween"] { color-scheme: dark; }
 }
 
 /* ===================================================================
-   3b · DEKO ÜBER DEM APP-INHALT (Spinnennetz + krabbelnde Spinnen)
+   3b · DEKO ÜBER DEM APP-INHALT (Spinnennetz + krabbelnde Spinne)
    -------------------------------------------------------------------
    Diese Elemente müssen VOR dem Inhalt liegen (nicht im #pmThemeFX-Layer
    dahinter) → als halloween-gescopete Pseudo-Elemente auf App-Inhalt.
-   Hosts bewusst gewählt, weil dort sonst KEIN ::before/::after benutzt
-   wird (.app-shell::before, .b-azubi::after, .b-recent::after).
+   Hosts mit sonst freiem Pseudo: .sidebar__header::before (Netz),
+   body[data-page="wochenansicht"] .tag-row:first-of-type::after (Spinne).
    =================================================================== */
 
-/* Spinnennetz in der oberen linken Ecke (über der Sidebar/Navigation).
-   position:fixed an der Viewport-Ecke, z-index über der Sidebar (z 100),
-   aber unter Modals (z 200); pointer-events:none → blockiert keine Klicks. */
-[data-theme="halloween"] .app-shell::before {
+/* Spinnennetz IN die Navigations-Sidebar eingewoben (kein loses Eck-
+   Overlay): Pseudo am Sidebar-Header, absolut zur Sidebar verankert
+   (die Sidebar ist position:fixed). Da die Sidebar overflow:hidden +
+   runde Ecken hat, wird das Netz an die Pillenform geclippt und sitzt
+   damit in der Ecke der Nav-Leiste; Fäden spannen oben und links die
+   Kante entlang. pointer-events:none → blockiert keine Klicks. */
+[data-theme="halloween"] .sidebar__header::before {
   content: '';
-  position: fixed; top: 0; left: 0;
-  width: 150px; height: 150px;
-  z-index: 130;
+  position: absolute; top: 0; left: 0;
+  width: 150px; height: 165px;
+  z-index: 4;
   pointer-events: none;
-  opacity: 0.55;
-  background: top left / contain no-repeat
-    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 120'%3E%3Cg stroke='%23e2e5ee' stroke-width='0.9' fill='none' opacity='0.85'%3E%3Cline x1='0' y1='0' x2='120' y2='6'/%3E%3Cline x1='0' y1='0' x2='98' y2='44'/%3E%3Cline x1='0' y1='0' x2='72' y2='72'/%3E%3Cline x1='0' y1='0' x2='44' y2='98'/%3E%3Cline x1='0' y1='0' x2='6' y2='120'/%3E%3Cpath d='M26 2 Q20 20 2 26'/%3E%3Cpath d='M52 3 Q40 40 3 52'/%3E%3Cpath d='M82 5 Q60 60 5 82'/%3E%3Cpath d='M112 7 Q84 84 7 112'/%3E%3C/g%3E%3Cg stroke='%230a0609' stroke-width='1.6' fill='none' stroke-linecap='round'%3E%3Cpath d='M70 40 C66 36 64 33 60 33 M70 40 C66 41 63 44 60 46 M70 40 C67 43 66 47 64 51 M70 40 C68 37 68 33 67 30'/%3E%3Cpath d='M70 40 C74 36 76 33 80 33 M70 40 C74 41 77 44 80 46 M70 40 C73 43 74 47 76 51 M70 40 C72 37 72 33 73 30'/%3E%3C/g%3E%3Cellipse cx='70' cy='41' rx='5' ry='6' fill='%230a0609'/%3E%3Cline x1='70' y1='6' x2='70' y2='34' stroke='%23e2e5ee' stroke-width='0.7' opacity='0.7'/%3E%3C/svg%3E");
+  opacity: 0.5;
+  background: top left / 100% 100% no-repeat
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 150 165'%3E%3Cg stroke='%23e3e6ef' stroke-width='0.9' fill='none' opacity='0.85'%3E%3Cline x1='0' y1='0' x2='150' y2='12'/%3E%3Cline x1='0' y1='0' x2='128' y2='54'/%3E%3Cline x1='0' y1='0' x2='96' y2='96'/%3E%3Cline x1='0' y1='0' x2='52' y2='132'/%3E%3Cline x1='0' y1='0' x2='12' y2='165'/%3E%3Cpath d='M32 4 Q24 26 4 32'/%3E%3Cpath d='M64 6 Q50 50 6 64'/%3E%3Cpath d='M100 9 Q76 78 9 100'/%3E%3Cpath d='M138 12 Q102 104 12 140'/%3E%3C/g%3E%3Cg stroke='%230a0609' stroke-width='1.4' fill='none' stroke-linecap='round'%3E%3Cpath d='M88 72 C84 68 82 65 78 65 M88 72 C84 73 81 76 78 78 M88 72 C85 75 84 79 82 83 M88 72 C86 69 86 65 85 62'/%3E%3Cpath d='M88 72 C92 68 94 65 98 65 M88 72 C92 73 95 76 98 78 M88 72 C91 75 92 79 94 83 M88 72 C90 69 90 65 91 62'/%3E%3C/g%3E%3Cellipse cx='88' cy='73' rx='4.5' ry='5.5' fill='%230a0609'/%3E%3Ccircle cx='88' cy='65' r='3.3' fill='%230a0609'/%3E%3C/svg%3E");
 }
 
-/* Krabbelnde Spinnen auf einzelnen Bento-Kacheln (Dashboard).
-   Pseudo sitzt absolut in der Kachel (Kacheln sind position:relative für
-   ihre ::before-Overlays) und wandert oben hin und her (translate + leichtes
-   Drehen = scuttling). pointer-events:none. */
-[data-theme="halloween"] .b-azubi::after,
-[data-theme="halloween"] .b-recent::after {
+/* Krabbelnde Spinne am oberen Rand der ersten Wochenansicht-Kachel
+   (Tag-Zeile). ECHTE Krabbel-Animation aus ZWEI Animationen:
+   • pm-hw-crawl-move – wandert am oberen Rand hin und her (responsives
+     left-% + Wippen/Kippen via transform)
+   • pm-hw-crawl-legs – tauscht im schnellen Wechsel zwei Bein-Posen
+     (background-image, steps) → die Beine „laufen".
+   Beide animieren verschiedene Eigenschaften (left/transform vs.
+   background-image) und überlagern sich daher sauber. */
+[data-theme="halloween"] body[data-page="wochenansicht"] .tag-row { position: relative; }
+[data-theme="halloween"] body[data-page="wochenansicht"] .tag-row:first-of-type::after {
   content: '';
-  position: absolute; top: 8px; left: 0;
-  width: 24px; height: 24px;
-  z-index: 6;
+  position: absolute; top: -8px; left: 3%;
+  width: 26px; height: 26px;
+  z-index: 4;
   pointer-events: none;
-  will-change: transform;
-  /* dunkle Spinne auf dunkler Kachel → dezenter warmer Rand-Schein, damit
-     sie sichtbar wird (als finge sie das Kürbis-Licht ein). */
-  filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.55))
+  background: center / contain no-repeat;
+  filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.5))
           drop-shadow(0 0 3px rgba(255, 150, 50, 0.55));
-  background: center / contain no-repeat
-    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'%3E%3Cg stroke='%230a0609' stroke-width='2.2' fill='none' stroke-linecap='round'%3E%3Cpath d='M20 22 C12 18 9 13 3 12 M20 22 C12 22 8 27 3 30 M20 22 C13 26 11 32 8 38 M20 22 C16 18 14 12 11 7'/%3E%3Cpath d='M20 22 C28 18 31 13 37 12 M20 22 C28 22 32 27 37 30 M20 22 C27 26 29 32 32 38 M20 22 C24 18 26 12 29 7'/%3E%3C/g%3E%3Cellipse cx='20' cy='24' rx='7' ry='8' fill='%230a0609'/%3E%3Ccircle cx='20' cy='15' r='4.5' fill='%230a0609'/%3E%3Ccircle cx='18' cy='14' r='1.2' fill='%23ff7518'/%3E%3Ccircle cx='22' cy='14' r='1.2' fill='%23ff7518'/%3E%3C/svg%3E");
+  animation: pm-hw-crawl-move 13s ease-in-out infinite,
+             pm-hw-crawl-legs 0.26s steps(1) infinite;
 }
-[data-theme="halloween"] .b-azubi::after  { animation: pm-hw-crawl-a 14s ease-in-out infinite; }
-[data-theme="halloween"] .b-recent::after { animation: pm-hw-crawl-b 17s ease-in-out infinite; animation-delay: -5s; }
-@keyframes pm-hw-crawl-a {
-  0%   { transform: translate(10px, 2px)  rotate(10deg); }
-  25%  { transform: translate(64px, 12px) rotate(-8deg); }
-  50%  { transform: translate(126px, 4px) rotate(12deg); }
-  75%  { transform: translate(72px, 16px) rotate(-9deg); }
-  100% { transform: translate(10px, 2px)  rotate(10deg); }
+@keyframes pm-hw-crawl-move {
+  0%   { left: 3%;  transform: translateY(0)   rotate(6deg); }
+  25%  { left: 34%; transform: translateY(4px) rotate(-5deg); }
+  50%  { left: 72%; transform: translateY(0)   rotate(7deg); }
+  75%  { left: 36%; transform: translateY(5px) rotate(-6deg); }
+  100% { left: 3%;  transform: translateY(0)   rotate(6deg); }
 }
-@keyframes pm-hw-crawl-b {
-  0%   { transform: translate(150px, 6px) rotate(-9deg); }
-  30%  { transform: translate(80px, 18px) rotate(9deg); }
-  55%  { transform: translate(24px, 4px)  rotate(-7deg); }
-  80%  { transform: translate(96px, 14px) rotate(8deg); }
-  100% { transform: translate(150px, 6px) rotate(-9deg); }
+@keyframes pm-hw-crawl-legs {
+  0%, 50% {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'%3E%3Cg stroke='%230a0609' stroke-width='2.2' fill='none' stroke-linecap='round'%3E%3Cpath d='M20 22 C12 17 9 12 4 10 M20 22 C12 22 8 26 3 29 M20 22 C13 26 11 32 9 38 M20 22 C16 18 15 12 13 6'/%3E%3Cpath d='M20 22 C28 19 31 14 36 14 M20 22 C28 23 32 28 37 31 M20 22 C27 26 29 32 30 38 M20 22 C24 18 25 12 26 7'/%3E%3C/g%3E%3Cellipse cx='20' cy='24' rx='7' ry='8' fill='%230a0609'/%3E%3Ccircle cx='20' cy='15' r='4.5' fill='%230a0609'/%3E%3Ccircle cx='18' cy='14' r='1.2' fill='%23ff7518'/%3E%3Ccircle cx='22' cy='14' r='1.2' fill='%23ff7518'/%3E%3C/svg%3E");
+  }
+  50.01%, 100% {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'%3E%3Cg stroke='%230a0609' stroke-width='2.2' fill='none' stroke-linecap='round'%3E%3Cpath d='M20 22 C12 19 9 15 4 15 M20 22 C12 23 8 28 3 31 M20 22 C13 27 11 33 9 38 M20 22 C16 18 15 12 13 7'/%3E%3Cpath d='M20 22 C28 17 31 12 36 10 M20 22 C28 22 32 26 37 28 M20 22 C27 25 29 31 30 37 M20 22 C24 18 25 12 26 6'/%3E%3C/g%3E%3Cellipse cx='20' cy='24' rx='7' ry='8' fill='%230a0609'/%3E%3Ccircle cx='20' cy='15' r='4.5' fill='%230a0609'/%3E%3Ccircle cx='18' cy='14' r='1.2' fill='%23ff7518'/%3E%3Ccircle cx='22' cy='14' r='1.2' fill='%23ff7518'/%3E%3C/svg%3E");
+  }
 }
 
 /* ===================================================================
@@ -462,16 +466,14 @@ html[data-theme="halloween"] { color-scheme: dark; }
   [data-theme="halloween"] .pm-hw-moonglow { opacity: 0.8; }
   [data-theme="halloween"] .pm-hw-winflicker { opacity: 0.85; }
   [data-theme="halloween"] .pm-hw-ghost { opacity: 0.7; }
-  /* Krabbel-Spinnen (außerhalb #pmThemeFX → von themes.css nicht erfasst):
-     anhalten, ruhen in der Ecke. */
-  [data-theme="halloween"] .b-azubi::after,
-  [data-theme="halloween"] .b-recent::after { animation: none; }
+  /* Krabbel-Spinne (außerhalb #pmThemeFX → von themes.css nicht erfasst):
+     anhalten. */
+  [data-theme="halloween"] body[data-page="wochenansicht"] .tag-row:first-of-type::after { animation: none; }
 }
 @media print {
   [data-theme="halloween"] body { background: #fff !important; }
-  [data-theme="halloween"] .app-shell::before,
-  [data-theme="halloween"] .b-azubi::after,
-  [data-theme="halloween"] .b-recent::after { display: none !important; }
+  [data-theme="halloween"] .sidebar__header::before,
+  [data-theme="halloween"] body[data-page="wochenansicht"] .tag-row:first-of-type::after { display: none !important; }
 }
 
 /* ===================================================================
@@ -709,13 +711,12 @@ html[data-theme="halloween"] { color-scheme: dark; }
 }
 html[data-theme="halloween"] .b-hero {
   background-image:
-    linear-gradient(105deg, rgba(8, 5, 14, 0.22) 0%, rgba(8, 5, 14, 0.08) 44%, rgba(8, 5, 14, 0.00) 100%),
-    url("../assets/backgrounds/tile-series-week-dark.png?v=20260602-series");
+    radial-gradient(130% 160% at 84% 6%, rgba(255, 117, 24, 0.13), transparent 55%),
+    linear-gradient(135deg, #2c1d3a 0%, #1b1027 55%, #0f0918 100%);
 }
 html[data-theme="halloween"] .b-hero::before {
   background:
-    radial-gradient(ellipse 32% 56% at 24% 56%, rgba(8, 5, 14, 0.48), rgba(8, 5, 14, 0.12) 58%, transparent 76%),
-    radial-gradient(ellipse 28% 38% at 78% 58%, rgba(8, 5, 14, 0.10), transparent 70%);
+    radial-gradient(ellipse 36% 60% at 22% 60%, rgba(6, 3, 12, 0.42), transparent 72%);
 }
 html[data-theme="halloween"] .b-hero__eyebrow,
 html[data-theme="halloween"] .b-hero__kw small {
@@ -727,13 +728,12 @@ html[data-theme="halloween"] .b-hero__kw { color: #fff; }
 
 html[data-theme="halloween"] .b-azubi::before {
   background:
-    radial-gradient(circle at 50% 44%, rgba(10, 7, 16, 0.72) 0%, rgba(10, 7, 16, 0.54) 24%, rgba(10, 7, 16, 0.10) 42%, transparent 56%),
-    linear-gradient(180deg, rgba(10, 7, 16, 0.10) 0%, transparent 34%, transparent 66%, rgba(10, 7, 16, 0.18) 100%);
+    radial-gradient(circle at 50% 40%, rgba(8, 5, 14, 0.42) 0%, rgba(8, 5, 14, 0.16) 34%, transparent 58%);
 }
 html[data-theme="halloween"] .b-azubi {
   background-image:
-    linear-gradient(160deg, rgba(10, 7, 16, 0.16) 0%, rgba(10, 7, 16, 0.00) 100%),
-    url("../assets/backgrounds/tile-series-training-dark.png?v=20260602-series");
+    radial-gradient(95% 95% at 50% 24%, rgba(124, 58, 200, 0.18), transparent 60%),
+    linear-gradient(160deg, #281a36 0%, #150d20 100%);
   color: #fff;
   border-color: rgba(255, 255, 255, 0.08);
   box-shadow:
@@ -756,13 +756,12 @@ html[data-theme="halloween"] .b-azubi__segs span { background: rgba(255, 255, 25
 
 html[data-theme="halloween"] .b-recent {
   background-image:
-    linear-gradient(105deg, rgba(8, 5, 14, 0.18) 0%, rgba(8, 5, 14, 0.06) 42%, rgba(8, 5, 14, 0.00) 100%),
-    url("../assets/backgrounds/tile-series-recent-dark.png?v=20260602-series");
+    radial-gradient(130% 140% at 12% 16%, rgba(255, 117, 24, 0.10), transparent 55%),
+    linear-gradient(120deg, #261834 0%, #130c1e 100%);
 }
 html[data-theme="halloween"] .b-recent::before {
   background:
-    linear-gradient(180deg, rgba(8, 5, 14, 0.10) 0%, transparent 34%),
-    radial-gradient(ellipse 82% 54% at 48% 78%, rgba(8, 5, 14, 0.18), rgba(8, 5, 14, 0.04) 58%, transparent 78%);
+    radial-gradient(ellipse 86% 58% at 50% 82%, rgba(6, 3, 12, 0.30), transparent 78%);
 }
 
 [data-theme="halloween"] .b-wkcard {
@@ -795,25 +794,27 @@ html[data-theme="halloween"] .b-recent::before {
 [data-theme="halloween"] .b-day .dnum { color: rgba(255, 255, 255, 0.85); }
 [data-theme="halloween"] .b-day--past .dnum, [data-theme="halloween"] .b-day--weekend .dnum { color: rgba(255, 255, 255, 0.35); }
 
-/* Finaler Material-Layer (dashboard.css §Ende, !important wie dort) */
+/* Finaler Material-Layer: in dashboard.css mit !important auf dunkle PNG-
+   Tiles gemünzt → hier mit !important auf Halloween-Verläufe übersteuern
+   (keine Foto-Texturen mehr, sondern düstere Plum/Orange-Verläufe). */
 html[data-theme="halloween"] .bento .b-hero {
   background-image:
-    linear-gradient(105deg, rgba(4, 2, 9, 0.10) 0%, rgba(4, 2, 9, 0.02) 44%, rgba(4, 2, 9, 0.00) 100%),
-    url("../assets/backgrounds/tile-material-week-dark.png?v=20260602-materialdark2") !important;
+    radial-gradient(130% 160% at 84% 6%, rgba(255, 117, 24, 0.13), transparent 55%),
+    linear-gradient(135deg, #2c1d3a 0%, #1b1027 55%, #0f0918 100%) !important;
   background-size: cover, cover !important;
   background-position: center, center !important;
 }
 html[data-theme="halloween"] .bento .b-azubi {
   background-image:
-    linear-gradient(160deg, rgba(4, 2, 9, 0.08) 0%, rgba(4, 2, 9, 0.00) 100%),
-    url("../assets/backgrounds/tile-material-training-dark.png?v=20260602-materialdark2") !important;
+    radial-gradient(95% 95% at 50% 24%, rgba(124, 58, 200, 0.18), transparent 60%),
+    linear-gradient(160deg, #281a36 0%, #150d20 100%) !important;
   background-size: cover, cover !important;
   background-position: center, center !important;
 }
 html[data-theme="halloween"] .bento .b-recent {
   background-image:
-    linear-gradient(105deg, rgba(4, 2, 9, 0.08) 0%, rgba(4, 2, 9, 0.02) 42%, rgba(4, 2, 9, 0.00) 100%),
-    url("../assets/backgrounds/tile-material-recent-dark.png?v=20260602-materialdark2") !important;
+    radial-gradient(130% 140% at 12% 16%, rgba(255, 117, 24, 0.10), transparent 55%),
+    linear-gradient(120deg, #261834 0%, #130c1e 100%) !important;
   background-size: cover, cover !important;
   background-position: center, center !important;
 }
@@ -823,6 +824,22 @@ html[data-theme="halloween"] .bento .b-recent {
   background-image:
     linear-gradient(100deg, rgba(6, 3, 12, 0.78) 0%, rgba(6, 3, 12, 0.55) 48%, rgba(6, 3, 12, 0.38) 100%),
     linear-gradient(180deg, rgba(42, 26, 54, 0.90) 0%, rgba(20, 12, 28, 0.88) 100%);
+}
+
+/* ── Jahresansicht-Legende (jahresansicht.css spiegelt nur [data-theme=
+   "dark"]) ── Die Light-Basis nutzt eine HELLE Leiste
+   (rgba(255,255,255,0.72)); zusammen mit der hellen Halloween-Textfarbe
+   (--pm-grey-600) ergäbe das hell-auf-hell → unlesbar (genau der gemeldete
+   Bug). Dunkle Glas-Leiste → helle Labels werden lesbar; die sonst dunklen
+   Status-Punkte (offen/frei) werden aufgehellt, damit sie sichtbar sind. */
+[data-theme="halloween"] .year-legend {
+  background: rgba(28, 18, 38, 0.82);
+  border-color: rgba(255, 180, 120, 0.16);
+}
+[data-theme="halloween"] .legend-dot--offen { background: var(--pm-grey-400); }
+[data-theme="halloween"] .legend-dot--frei {
+  background: rgba(255, 255, 255, 0.10);
+  border-color: var(--pm-grey-400);
 }
 
 /* ── Wochenansicht-Tag-Rows (wochenansicht.css spiegelt nur dark) ──
