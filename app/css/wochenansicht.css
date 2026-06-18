@@ -2051,14 +2051,16 @@ body[data-page="wochenansicht"] .day-section--collapsible:not(.day-section--expa
 /* Quill-Editor in den Tageskarten: schlanker Look, integriert */
 body[data-page="wochenansicht"] .day-section .ql-editor-wrap {
   border: 1px solid var(--pm-grey-200);
+  border-top: none;                 /* obere Kante liefert die Toolbar */
   border-radius: 0 0 var(--r-xl) var(--r-xl);
   background: var(--pm-white);
   overflow: hidden;
 }
+/* Toolbar mit umrandet, gleicher (weißer) Grund wie die Textbox. */
 body[data-page="wochenansicht"] .day-section .ql-toolbar.ql-snow {
-  border: none !important;
+  border: 1px solid var(--pm-grey-200) !important;
   border-bottom: 1px solid var(--pm-grey-200) !important;
-  background: var(--pm-grey-50);
+  background: var(--pm-white);
   border-radius: var(--r-xl) var(--r-xl) 0 0;
 }
 body[data-page="wochenansicht"] .day-section .ql-container.ql-snow {
@@ -2284,24 +2286,24 @@ body[data-page="wochenansicht"] .wochen-kacheln {
   gap: var(--sp-4);
   margin-bottom: var(--sp-5);
 }
+/* EINE Kachel = EIN Rahmen. Der gerundete Rahmen umschließt die ganze
+   Kachel (beginnt also über dem Begriff „Betrieb"/„Schule"/…). Kopf,
+   Toolbar und Textbox liegen alle innerhalb dieses Rahmens und teilen
+   sich denselben (weißen) Grund – getrennt nur durch dünne Divider. */
 body[data-page="wochenansicht"] .wochen-kachel {
-  background: transparent;
-  border: none;
-  border-radius: 0;
-  overflow: visible;
-  box-shadow: none;
+  background: var(--pm-white);
+  border: 1px solid var(--pm-grey-300);
+  border-radius: var(--r-xl);
+  overflow: hidden;
+  box-shadow: var(--shadow-sm);
   display: flex;
   flex-direction: column;
 }
 body[data-page="wochenansicht"] .wochen-kachel__header {
-  /* Solider, opaker Kopf (kein Durchscheinen) – sitzt FLUSH direkt auf dem
-     Editor, KEIN Zwischenraum (margin-bottom:0). --pm-white ist in jedem Theme
-     opak (light=#fff, dark/silk=solides Dunkel). */
-  background: var(--pm-white);
-  border: 1px solid var(--pm-grey-300);
-  border-bottom: none;
-  border-radius: var(--r-xl) var(--r-xl) 0 0;
-  padding: var(--sp-2) var(--sp-4) var(--sp-1);
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  padding: var(--sp-3) var(--sp-4) var(--sp-2);
   margin-bottom: 0;
   display: flex;
   align-items: baseline;
@@ -2320,27 +2322,30 @@ body[data-page="wochenansicht"] .wochen-kachel__hint {
   font-size: var(--text-xs);
   color: var(--pm-grey-500);
 }
+/* Textbox: kein eigener Rahmen/Radius – der Kachelrahmen umschließt alles. */
 body[data-page="wochenansicht"] .wochen-kachel .ql-editor-wrap {
-  border: 1px solid var(--pm-grey-300);
-  border-top: none;                                 /* flush an den Kopf, kein Doppelrand */
-  border-radius: 0 0 var(--r-xl) var(--r-xl);
-  background: var(--pm-white);
+  border: none;
+  border-radius: 0;
+  background: transparent;
   overflow: hidden;
   min-height: 140px;
   flex: none;
 }
+/* Toolbar bindet sich nahtlos ein: keine eigenen Ränder, gerade Ecken,
+   gleicher Grund wie die Textbox – nur eine schmale Divider-Linie trennt
+   die Formatierungs-Buttons vom Schreibbereich. */
 body[data-page="wochenansicht"] .wochen-kachel .ql-toolbar.ql-snow {
   border: none !important;
   border-bottom: 1px solid var(--pm-grey-200) !important;
-  background: var(--pm-grey-50);
-  border-radius: 0 !important;                       /* eckig: Kopf liefert die Rundung oben */
+  background: transparent;
+  border-radius: 0 !important;
 }
 body[data-page="wochenansicht"] .wochen-kachel .ql-container.ql-snow {
   border: none !important;
   min-height: 140px;
 }
 body[data-page="wochenansicht"] .wochen-kachel .day-card__footer {
-  padding: var(--sp-2) 0 0;
+  padding: var(--sp-2) var(--sp-4) var(--sp-3);
   margin: 0;
   border: none;
   display: flex;
@@ -2687,10 +2692,14 @@ body[data-page="wochenansicht"] .btn-lg {
 }
 
 /* Quill-Editor Hintergrund anpassen */
-[data-theme="dark"] body[data-page="wochenansicht"] .day-section .ql-editor-wrap,
-[data-theme="dark"] body[data-page="wochenansicht"] .wochen-kachel .ql-editor-wrap {
+[data-theme="dark"] body[data-page="wochenansicht"] .day-section .ql-editor-wrap {
   background: rgba(255, 255, 255, 0.02);
   border-color: rgba(255, 255, 255, 0.08);
+}
+/* Wochen-Kachel: Textbox transparent – der (opake) Kachelrahmen liefert
+   den Grund, damit Kopf, Toolbar und Textbox exakt gleich aussehen. */
+[data-theme="dark"] body[data-page="wochenansicht"] .wochen-kachel .ql-editor-wrap {
+  background: transparent;
 }
 /* Freigegebene Woche: Rahmen + Header-Trennlinie der ganzen Kachel im
    Dark Mode an die übrigen Karten angleichen. */
@@ -2702,10 +2711,16 @@ body[data-page="wochenansicht"] .btn-lg {
   background: rgba(255, 255, 255, 0.04);
   border-bottom-color: rgba(255, 255, 255, 0.08);
 }
-[data-theme="dark"] body[data-page="wochenansicht"] .day-section .ql-toolbar.ql-snow,
+[data-theme="dark"] body[data-page="wochenansicht"] .day-section .ql-toolbar.ql-snow {
+  /* Gleicher Grund wie die Textbox (rgba .02) – Toolbar bindet sich in den
+     Kachelrahmen ein; Rahmenfarbe an die übrigen Kanten angeglichen. */
+  background: rgba(255, 255, 255, 0.02);
+  border-color: rgba(255, 255, 255, 0.08) !important;
+}
+/* Wochen-Kachel-Toolbar: transparent (zeigt den opaken Kachelgrund),
+   nur die Divider-Linie sichtbar. */
 [data-theme="dark"] body[data-page="wochenansicht"] .wochen-kachel .ql-toolbar.ql-snow {
-  background: rgba(255, 255, 255, 0.04);
-  border-radius: var(--r-xl) var(--r-xl) 0 0;
+  background: transparent;
   border-bottom-color: rgba(255, 255, 255, 0.08) !important;
 }
 
@@ -3230,7 +3245,23 @@ body[data-page="wochenansicht"] .pm-select.wochen-options__select .pm-select__tr
   background: var(--pm-grey-100);
   box-shadow: none;
   transform: none;
-  border-color: transparent;
+  border-color: var(--pm-grey-200);
+  /* Deutlich „inaktiv": stärker gedimmt + gegraute Schrift + Sperr-Cursor,
+     damit ein abwesender Tag (Anwesenheit ≠ „anwesend") klar als nicht
+     bearbeitbar erkennbar ist. */
+  opacity: .55;
+  color: var(--pm-grey-500);
+  cursor: not-allowed;
+}
+body[data-page="wochenansicht"] .pm-select.tag-row__select .pm-select__trigger:disabled .pm-select__label,
+body[data-page="wochenansicht"] .pm-select.wochen-options__select .pm-select__trigger:disabled .pm-select__label {
+  color: var(--pm-grey-500);
+}
+[data-theme="dark"] body[data-page="wochenansicht"] .pm-select.tag-row__select .pm-select__trigger:disabled,
+[data-theme="dark"] body[data-page="wochenansicht"] .pm-select.wochen-options__select .pm-select__trigger:disabled {
+  background: rgba(255, 255, 255, 0.03);
+  border-color: rgba(255, 255, 255, 0.08);
+  opacity: .5;
 }
 /* Pflichtfeld-Hinweis (--needs-input): gelbe Pille statt grauer.
    (Die randlose Optik wird zentral in glass.css erzwungen, !important.) */
@@ -3374,8 +3405,31 @@ body[data-page="wochenansicht"] select.tag-row__select:not([data-pm-enhanced]):h
   font-size: var(--text-sm);
   padding: 6px 12px;
 }
-.dauer-pill--readonly { opacity: .6; }
-.dauer-pill--readonly .dauer-pill__opt { cursor: default; }
+/* Inaktive Arbeitszeit-Auswahl (abwesender Tag oder gesperrte Woche):
+   deutlicher ausgegraut – gedämpfter Grund, gegraute aktive Seite und
+   stärkere Transparenz, Sperr-Cursor. Die Auswahl bleibt erkennbar. */
+.dauer-pill--readonly {
+  opacity: .5;
+  background: var(--pm-grey-100);
+  border-color: var(--pm-grey-200);
+}
+.dauer-pill--readonly .dauer-pill__opt { cursor: not-allowed; }
+.dauer-pill--readonly .dauer-pill__opt:hover { color: var(--pm-grey-600); }
+.dauer-pill--readonly[data-dauer="ganztag"] .dauer-pill__opt[data-dauer-set="ganztag"],
+.dauer-pill--readonly[data-dauer="halbtag"] .dauer-pill__opt[data-dauer-set="halbtag"] {
+  background: var(--pm-grey-300);
+  color: var(--pm-grey-700);
+  box-shadow: none;
+}
+[data-theme="dark"] .dauer-pill--readonly {
+  background: rgba(255, 255, 255, 0.03);
+  border-color: rgba(255, 255, 255, 0.08);
+}
+[data-theme="dark"] .dauer-pill--readonly[data-dauer="ganztag"] .dauer-pill__opt[data-dauer-set="ganztag"],
+[data-theme="dark"] .dauer-pill--readonly[data-dauer="halbtag"] .dauer-pill__opt[data-dauer-set="halbtag"] {
+  background: rgba(255, 255, 255, 0.12);
+  color: var(--pm-grey-700);
+}
 
 [data-theme="dark"] .dauer-pill {
   background: var(--pm-white);            /* in Dark = #3D3D3D, wie die Selects */
