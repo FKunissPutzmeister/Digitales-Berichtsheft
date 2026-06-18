@@ -52,22 +52,6 @@
      laufenden vorderen Reiter macht scaleX in css/theme-candy.css
      (dort auch Wiesen-Lauf + Spring-Hüpfen). */
 
-  /* Bone-Rig-Markup der wandelnden Untoten (halloween): für alle drei
-     Figuren identisch – Skelett vs. Zombie unterscheidet nur die Klasse
-     auf .pm-hw-walker. Schichtung per DOM-Reihenfolge: Hinterbein › Torso
-     (Hinterarm, Kopf, Vorderarm) › Vorderbein. Styling/Gelenk-Animationen
-     in css/theme-halloween.css. */
-  var HW_RIG =
-    '<div class="pm-hw-walker__scale"><div class="pm-hw-rig">' +
-      '<div class="pm-hw-leg pm-hw-leg--back"><div class="pm-hw-shin"></div></div>' +
-      '<div class="pm-hw-torso">' +
-        '<div class="pm-hw-arm pm-hw-arm--back"><div class="pm-hw-forearm"></div></div>' +
-        '<div class="pm-hw-head"></div>' +
-        '<div class="pm-hw-arm pm-hw-arm--front"><div class="pm-hw-forearm"></div></div>' +
-      '</div>' +
-      '<div class="pm-hw-leg pm-hw-leg--front"><div class="pm-hw-shin"></div></div>' +
-    '</div></div>';
-
   var FX_TEMPLATES = {
     /* ── FX-Template: hyperspace (wird vom Theme-Designer befüllt) ──
        3D-Sternentunnel nach CodePen „Hyperspace" (Noah Blon, DpNRyR):
@@ -153,23 +137,23 @@
        (.pm-hw-winflicker) als screen-Glühen, ein <canvas class="pm-hw-fog">
        mit horizontal driftenden Nebelschwaden (Engine = PMHalloweenFog
        unten; ensureThemeFX startet/stoppt ihn am FX-Lebenszyklus),
-       vereinzelt flatternde Fledermäuse, eine sich abseilende Spinne sowie
-       – zur Belebung – unten hin und her wandelnde Skelette/Zombies
-       (.pm-hw-walker mit innerem __fig fürs Geh-Wippen), ein schwebender
-       Geist (.pm-hw-ghost) und blinzelnde glühende Augenpaare (.pm-hw-eyes).
-       Styling/Keyframes liegen in css/theme-halloween.css. */
+       Fledermäuse mit natürlichem Flatter-Flug (äußeres .pm-hw-bat = Flug-
+       bahn, inneres __body = Flügelschlag), eine sich abseilende Spinne,
+       ein oben um die Hausspitzen schwebender Geist (.pm-hw-ghost) und
+       blinzelnde glühende Augenpaare (.pm-hw-eyes) bei Bäumen/Grabsteinen.
+       Styling/Keyframes liegen in css/theme-halloween.css.
+       (Spinnennetz an der Sidebar + krabbelnde Spinnen auf den Bento-Kacheln
+       liegen NICHT hier, sondern als Pseudo-Elemente in der CSS, weil sie
+       ÜBER dem App-Inhalt sitzen müssen, nicht im FX-Layer dahinter.) */
     halloween:
       '<div class="pm-hw-bg"></div>' +
       '<div class="pm-hw-moonglow"></div>' +
       '<div class="pm-hw-winflicker"></div>' +
       '<canvas class="pm-hw-fog" aria-hidden="true"></canvas>' +
-      '<div class="pm-hw-bat pm-hw-bat--1"></div>' +
-      '<div class="pm-hw-bat pm-hw-bat--2"></div>' +
-      '<div class="pm-hw-bat pm-hw-bat--3"></div>' +
+      '<div class="pm-hw-bat pm-hw-bat--1"><i class="pm-hw-bat__body"></i></div>' +
+      '<div class="pm-hw-bat pm-hw-bat--2"><i class="pm-hw-bat__body"></i></div>' +
+      '<div class="pm-hw-bat pm-hw-bat--3"><i class="pm-hw-bat__body"></i></div>' +
       '<div class="pm-hw-spider"><i class="pm-hw-spider__thread"></i><i class="pm-hw-spider__body"></i></div>' +
-      '<div class="pm-hw-walker pm-hw-walker--a pm-hw-skeleton">' + HW_RIG + '</div>' +
-      '<div class="pm-hw-walker pm-hw-walker--b pm-hw-zombie">' + HW_RIG + '</div>' +
-      '<div class="pm-hw-walker pm-hw-walker--c pm-hw-skeleton">' + HW_RIG + '</div>' +
       '<div class="pm-hw-ghost"></div>' +
       '<div class="pm-hw-eyes pm-hw-eyes--1"></div>' +
       '<div class="pm-hw-eyes pm-hw-eyes--2"></div>' +

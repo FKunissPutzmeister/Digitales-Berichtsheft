@@ -16,10 +16,14 @@
    • <canvas class="pm-hw-fog"> – horizontal driftende Nebelschwaden
      (Engine PMHalloweenFog in js/theme.js, start/stop am FX-Lebenszyklus,
      prefers-reduced-motion → Standbild, Pause bei Modal/verstecktem Tab)
-   • vereinzelt flatternde Fledermäuse und eine sich abseilende Spinne
-   • .pm-hw-walker – unten hin und her wandelnde Skelette/Zombies
-   • .pm-hw-ghost – schwebender Geist (driftet, wippt, blendet ein/aus)
-   • .pm-hw-eyes – glühende, blinzelnde Augenpaare im Dunkeln.
+   • .pm-hw-bat – Fledermäuse mit welligem Flatter-Flug (Wrapper = Bahn,
+     __body = Flügelschlag) und eine sich abseilende Spinne
+   • .pm-hw-ghost – ätherischer Geist, schwebt OBEN um die Hausspitzen
+   • .pm-hw-eyes – glühende, blinzelnde Augenpaare bei Bäumen/Grabsteinen.
+   Zusätzlich liegen ÜBER dem App-Inhalt (Abschnitt 3b, als Pseudo-
+   Elemente, NICHT im FX-Layer): ein Spinnennetz an der Sidebar
+   (.app-shell::before) und krabbelnde Spinnen auf einzelnen Bento-Kacheln
+   (.b-azubi::after / .b-recent::after).
 
    Kontrast-Strategie wie bei hyperspace/cmd: die komplette --pm-grey-
    Skala wird auf dunkel gekippt, das Marken-Gelb auf Kürbis-Orange
@@ -274,248 +278,106 @@ html[data-theme="halloween"] { color-scheme: dark; }
   50%      { transform: rotate(3deg); }
 }
 
-/* ── Fledermäuse (flattern über den Schirm) ── */
+/* ── Fledermäuse mit natürlichem Flatter-Flug ──
+   Äußeres .pm-hw-bat = Flugbahn (left% + wellige translateY + leichtes
+   Kippen), inneres .pm-hw-bat__body = Flügelschlag (scaleY). Zwei Ebenen,
+   weil Flugbahn und Flügelschlag sonst um dieselbe transform-Eigenschaft
+   konkurrieren würden – dann „gewinnt" eine und die Bahn wirkt stur
+   geradlinig. So überlagern sich Auf/Ab-Wellen, Kippen und Flügelschlag. */
 [data-theme="halloween"] .pm-hw-bat {
   position: absolute;
   width: 42px; height: 22px;
+  opacity: 0;
+  will-change: transform, left, opacity;
+}
+[data-theme="halloween"] .pm-hw-bat__body {
+  display: block; width: 100%; height: 100%;
+  transform-origin: center;
   background: center / contain no-repeat
     url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 60 30'%3E%3Cpath d='M30 8 C26 2 22 2 20 8 C16 4 8 4 2 14 C10 12 12 16 16 16 C12 20 12 24 14 26 C18 20 24 20 26 22 C27 24 33 24 34 22 C36 20 42 20 46 26 C48 24 48 20 44 16 C48 16 50 12 58 14 C52 4 44 4 40 8 C38 2 34 2 30 8 Z' fill='%23080510'/%3E%3C/svg%3E");
-  opacity: 0.0;
-  transform-origin: center;
+  animation: pm-hw-bat-flap 0.34s ease-in-out infinite;
 }
-[data-theme="halloween"] .pm-hw-bat--1 { top: 16%; animation: pm-hw-bat-a 18s linear infinite, pm-hw-bat-flap 0.5s steps(2) infinite; }
-[data-theme="halloween"] .pm-hw-bat--2 { top: 26%; transform: scale(0.7); animation: pm-hw-bat-b 24s linear infinite, pm-hw-bat-flap 0.42s steps(2) infinite; animation-delay: -8s, 0s; }
-[data-theme="halloween"] .pm-hw-bat--3 { top: 10%; transform: scale(0.55); animation: pm-hw-bat-a 30s linear infinite, pm-hw-bat-flap 0.6s steps(2) infinite; animation-delay: -16s, 0s; }
+[data-theme="halloween"] .pm-hw-bat--1 { top: 15%; width: 44px; height: 23px; animation: pm-hw-bat-a 16s linear infinite; }
+[data-theme="halloween"] .pm-hw-bat--2 { top: 30%; width: 30px; height: 16px; animation: pm-hw-bat-b 22s linear infinite; animation-delay: -7s; }
+[data-theme="halloween"] .pm-hw-bat--3 { top: 9%;  width: 24px; height: 13px; animation: pm-hw-bat-a 28s linear infinite; animation-delay: -15s; }
+[data-theme="halloween"] .pm-hw-bat--2 .pm-hw-bat__body { animation-duration: 0.3s; }
+[data-theme="halloween"] .pm-hw-bat--3 .pm-hw-bat__body { animation-duration: 0.42s; }
 @keyframes pm-hw-bat-a {
-  0%   { left: -8%;  opacity: 0; transform: translateY(0); }
-  10%  { opacity: 0.85; }
-  50%  { transform: translateY(-30px); }
-  90%  { opacity: 0.85; }
-  100% { left: 108%; opacity: 0; transform: translateY(10px); }
+  0%   { left: -10%; opacity: 0; transform: translateY(0)    rotate(-4deg); }
+  8%   { opacity: 0.85; }
+  22%  { transform: translateY(-34px) rotate(9deg); }
+  38%  { transform: translateY(10px)  rotate(-6deg); }
+  54%  { transform: translateY(-26px) rotate(8deg); }
+  70%  { transform: translateY(16px)  rotate(-5deg); }
+  86%  { opacity: 0.85; transform: translateY(-14px) rotate(6deg); }
+  100% { left: 110%; opacity: 0; transform: translateY(0) rotate(-3deg); }
 }
 @keyframes pm-hw-bat-b {
-  0%   { left: 106%; opacity: 0; transform: translateY(0) scale(0.7); }
-  12%  { opacity: 0.7; }
-  50%  { transform: translateY(26px) scale(0.7); }
-  88%  { opacity: 0.7; }
-  100% { left: -10%; opacity: 0; transform: translateY(-12px) scale(0.7); }
+  0%   { left: 110%; opacity: 0; transform: translateY(0)    rotate(4deg); }
+  8%   { opacity: 0.8; }
+  24%  { transform: translateY(24px)  rotate(-8deg); }
+  40%  { transform: translateY(-16px) rotate(6deg); }
+  56%  { transform: translateY(26px)  rotate(-6deg); }
+  72%  { transform: translateY(-10px) rotate(8deg); }
+  88%  { opacity: 0.8; transform: translateY(18px) rotate(-5deg); }
+  100% { left: -10%; opacity: 0; transform: translateY(0) rotate(3deg); }
 }
 @keyframes pm-hw-bat-flap {
-  0%   { transform: scaleY(1); }
-  100% { transform: scaleY(0.6); }
+  0%, 100% { transform: scaleY(1); }
+  50%      { transform: scaleY(0.5); }
 }
 
-/* ── Wandelnde Untote (Skelette & Zombies) – CSS-Bone-Rig ──
-   „Skelett-Animation" von Hand: jede Figur ist aus einzelnen Gliedmaßen
-   aufgebaut, jedes Segment rotiert um sein Gelenk (transform-origin am
-   Drehpunkt). Ein echter Lauf-Zyklus entsteht durch phasenversetzte
-   Rotationen (Vorder-/Hinterbein um eine halbe Schrittlänge versetzt,
-   Arme gegenläufig, Knie knicken beim Anheben, Körper wippt).
-   Drei verschachtelte Ebenen halten die transform-Animationen getrennt:
-   .pm-hw-walker (Gang über den Boden: translateX + scaleX-Flip beim
-   Wenden) › .pm-hw-walker__scale (Größe je Figur) › .pm-hw-rig (Körper-
-   Wippen) › Gliedmaßen (Gelenk-Rotationen). Dezent: 2–3 kleine, langsame. */
-[data-theme="halloween"] .pm-hw-walker {
-  position: absolute; bottom: 4%;
-  width: 60px; height: 96px;
-  transform-origin: bottom center;
-  will-change: transform;
-}
-[data-theme="halloween"] .pm-hw-walker__scale {
-  position: absolute; inset: 0;
-  transform: scale(var(--s, 1));
-  transform-origin: bottom center;
-}
-[data-theme="halloween"] .pm-hw-rig {
-  position: absolute; inset: 0;
-  animation: pm-hw-bodybob 1.2s ease-in-out infinite;
-}
-/* Gemeinsame Segment-Basis */
-[data-theme="halloween"] .pm-hw-rig div { position: absolute; }
-[data-theme="halloween"] .pm-hw-torso {
-  left: 23px; top: 22px; width: 14px; height: 32px;
-  transform-origin: 50% 100%;
-  border-radius: 6px;
-}
-[data-theme="halloween"] .pm-hw-head {
-  left: -2px; top: -16px; width: 18px; height: 18px;
-  border-radius: 50%;
-}
-[data-theme="halloween"] .pm-hw-arm {
-  width: 5px; height: 17px; top: 3px;
-  transform-origin: 50% 2px; border-radius: 3px;
-  animation: pm-hw-arm 1.2s ease-in-out infinite;
-}
-[data-theme="halloween"] .pm-hw-arm--back  { left: 2px; }
-[data-theme="halloween"] .pm-hw-arm--front { left: 7px; animation-delay: -0.6s; }
-[data-theme="halloween"] .pm-hw-forearm {
-  left: 0px; top: 15px; width: 5px; height: 15px;
-  transform-origin: 50% 2px; border-radius: 3px;
-  animation: pm-hw-forearm 1.2s ease-in-out infinite;
-}
-[data-theme="halloween"] .pm-hw-arm--front .pm-hw-forearm { animation-delay: -0.6s; }
-[data-theme="halloween"] .pm-hw-leg {
-  top: 50px; width: 6px; height: 24px;
-  transform-origin: 50% 2px; border-radius: 3px;
-  animation: pm-hw-thigh 1.2s ease-in-out infinite;
-}
-[data-theme="halloween"] .pm-hw-leg--back  { left: 26px; }
-[data-theme="halloween"] .pm-hw-leg--front { left: 28px; animation-delay: -0.6s; }
-[data-theme="halloween"] .pm-hw-shin {
-  left: 0px; top: 21px; width: 6px; height: 23px;
-  transform-origin: 50% 2px; border-radius: 3px;
-  animation: pm-hw-shin 1.2s ease-in-out infinite;
-}
-[data-theme="halloween"] .pm-hw-leg--front .pm-hw-shin { animation-delay: -0.6s; }
-[data-theme="halloween"] .pm-hw-shin::after {   /* Fuß */
-  content: ''; position: absolute; bottom: -1px; left: -2px;
-  width: 12px; height: 5px; border-radius: 3px; background: inherit;
-}
-/* Tiefe: hintere Gliedmaßen abgedunkelt + (per DOM-Reihenfolge) hinten */
-[data-theme="halloween"] .pm-hw-arm--back,
-[data-theme="halloween"] .pm-hw-leg--back { filter: brightness(0.8); }
-
-/* Skelett: Knochen-Weiß, Schädel mit Augenhöhlen, Rippen-Bänder */
-[data-theme="halloween"] .pm-hw-skeleton .pm-hw-arm,
-[data-theme="halloween"] .pm-hw-skeleton .pm-hw-forearm,
-[data-theme="halloween"] .pm-hw-skeleton .pm-hw-leg,
-[data-theme="halloween"] .pm-hw-skeleton .pm-hw-shin,
-[data-theme="halloween"] .pm-hw-skeleton .pm-hw-head { background: #e9e4d4; }
-[data-theme="halloween"] .pm-hw-skeleton .pm-hw-torso {
-  width: 12px; left: 24px;   /* schmaler = knochiger Brustkorb */
-  background: repeating-linear-gradient(180deg, #e9e4d4 0 2px, #a59c7c 2px 3.6px);
-}
-/* Augenhöhlen (ein Pseudo + box-shadow = beide Augen) + Kiefer */
-[data-theme="halloween"] .pm-hw-skeleton .pm-hw-head::before {
-  content: ''; position: absolute; top: 5px; left: 3px;
-  width: 4.5px; height: 5.5px; background: #19110f; border-radius: 50%;
-  box-shadow: 7px 0 0 #19110f;
-}
-[data-theme="halloween"] .pm-hw-skeleton .pm-hw-head::after {
-  content: ''; position: absolute; bottom: -3px; left: 4px;
-  width: 10px; height: 6px; background: #e9e4d4; border-radius: 0 0 4px 4px;
-}
-
-/* Zombie: kränkliches Grün, vorgebeugt, lolling head, glühendes Auge */
-[data-theme="halloween"] .pm-hw-zombie .pm-hw-arm,
-[data-theme="halloween"] .pm-hw-zombie .pm-hw-forearm,
-[data-theme="halloween"] .pm-hw-zombie .pm-hw-leg,
-[data-theme="halloween"] .pm-hw-zombie .pm-hw-shin,
-[data-theme="halloween"] .pm-hw-zombie .pm-hw-head,
-[data-theme="halloween"] .pm-hw-zombie .pm-hw-torso { background: #7a9b55; }
-[data-theme="halloween"] .pm-hw-zombie .pm-hw-torso { transform: rotate(8deg); }
-[data-theme="halloween"] .pm-hw-zombie .pm-hw-head  { transform: rotate(12deg); }
-[data-theme="halloween"] .pm-hw-zombie .pm-hw-head::before {
-  content: ''; position: absolute; top: 8px; left: 5px;
-  width: 4px; height: 4px; background: #c7ff63; border-radius: 50%;
-  box-shadow: 0 0 5px 1px rgba(150, 255, 90, 0.7);
-}
-/* Zombie-Arme stocksteif nach vorn gestreckt (statt lockerem Schwung) */
-[data-theme="halloween"] .pm-hw-zombie .pm-hw-arm { animation-name: pm-hw-arm-zombie; }
-[data-theme="halloween"] .pm-hw-zombie .pm-hw-forearm { animation: none; transform: rotate(-8deg); }
-
-[data-theme="halloween"] .pm-hw-walker--a { left: 21vw; --s: 0.9;  animation: pm-hw-walk-a 18s linear infinite; }
-[data-theme="halloween"] .pm-hw-walker--b { left: 50vw; --s: 1.05; animation: pm-hw-walk-b 23s linear infinite; animation-delay: -6s; }
-[data-theme="halloween"] .pm-hw-walker--c { left: 68vw; --s: 0.82; animation: pm-hw-walk-c 20s linear infinite; animation-delay: -11s; }
-
-/* Gelenk-Zyklen (vorne = Delay 0, hinten = -0.6s = halbe Schrittlänge) */
-@keyframes pm-hw-bodybob {
-  0%, 100% { transform: translateY(0); }
-  25%      { transform: translateY(-2px); }
-  50%      { transform: translateY(0); }
-  75%      { transform: translateY(-2px); }
-}
-@keyframes pm-hw-thigh {
-  0%   { transform: rotate(-24deg); }
-  25%  { transform: rotate(-6deg); }
-  50%  { transform: rotate(20deg); }
-  75%  { transform: rotate(2deg); }
-  100% { transform: rotate(-24deg); }
-}
-@keyframes pm-hw-shin {
-  0%   { transform: rotate(6deg); }
-  20%  { transform: rotate(4deg); }
-  50%  { transform: rotate(14deg); }
-  65%  { transform: rotate(54deg); }
-  85%  { transform: rotate(18deg); }
-  100% { transform: rotate(6deg); }
-}
-@keyframes pm-hw-arm {
-  0%   { transform: rotate(22deg); }
-  50%  { transform: rotate(-26deg); }
-  100% { transform: rotate(22deg); }
-}
-@keyframes pm-hw-arm-zombie {
-  0%, 100% { transform: rotate(-58deg); }
-  50%      { transform: rotate(-44deg); }
-}
-@keyframes pm-hw-forearm {
-  0%   { transform: rotate(14deg); }
-  50%  { transform: rotate(30deg); }
-  100% { transform: rotate(14deg); }
-}
-@keyframes pm-hw-walk-a {
-  0%   { transform: translateX(0)     scaleX(1); }
-  47%  { transform: translateX(150px) scaleX(1); }
-  50%  { transform: translateX(150px) scaleX(-1); }
-  97%  { transform: translateX(0)     scaleX(-1); }
-  100% { transform: translateX(0)     scaleX(1); }
-}
-@keyframes pm-hw-walk-b {
-  0%   { transform: translateX(0)      scaleX(-1); }
-  47%  { transform: translateX(-170px) scaleX(-1); }
-  50%  { transform: translateX(-170px) scaleX(1); }
-  97%  { transform: translateX(0)      scaleX(1); }
-  100% { transform: translateX(0)      scaleX(-1); }
-}
-@keyframes pm-hw-walk-c {
-  0%   { transform: translateX(0)     scaleX(1); }
-  47%  { transform: translateX(128px) scaleX(1); }
-  50%  { transform: translateX(128px) scaleX(-1); }
-  97%  { transform: translateX(0)     scaleX(-1); }
-  100% { transform: translateX(0)     scaleX(1); }
-}
-
-/* ── Schwebender Geist – fliegt weit oben ums Haus (Türme/Dach), wippt,
-   blendet ein/aus. Basis hoch angesetzt (bottom ~52%), die Drift-Kurve
-   bewegt ihn in einem Bogen um die oberen Hausspitzen. ── */
+/* ── Schwebender Geist – ernster/ätherischer Wraith, schwebt OBEN im Bild
+   (über den Hausspitzen) in einem wandernden Bogen umher. Statt Cartoon-
+   Geist: ein durchscheinender Schemen, der nach unten in Schwaden ausfranst
+   (SVG-Verlauf → transparent), nur angedeutete Augenhöhlen, weicher Schein
+   (drop-shadow). Niedrige Spitzen-Deckkraft = ätherisch, zum Hintergrund
+   passend. ── */
 [data-theme="halloween"] .pm-hw-ghost {
-  position: absolute; left: 40%; bottom: 52%;
-  width: 60px; height: 74px;
+  position: absolute; left: 38%; bottom: 64%;
+  width: 58px; height: 78px;
   background: center / contain no-repeat
-    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 80 96'%3E%3Cpath d='M40 5 C21 5 13 21 13 41 V85 q6 8 12 0 q6 -8 12 0 q6 8 12 0 q6 -8 12 0 q6 8 12 0 V41 C67 21 59 5 40 5 Z' fill='%23ffffff' fill-opacity='0.88'/%3E%3Cellipse cx='31' cy='36' rx='4' ry='6' fill='%231a1018'/%3E%3Cellipse cx='49' cy='36' rx='4' ry='6' fill='%231a1018'/%3E%3Cellipse cx='40' cy='52' rx='5' ry='7' fill='%231a1018' fill-opacity='0.5'/%3E%3C/svg%3E");
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 130'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='0' y2='1'%3E%3Cstop offset='0' stop-color='%23d4dce6' stop-opacity='0.92'/%3E%3Cstop offset='0.5' stop-color='%23aeb9c8' stop-opacity='0.55'/%3E%3Cstop offset='1' stop-color='%238493a6' stop-opacity='0'/%3E%3C/linearGradient%3E%3C/defs%3E%3Cpath d='M50 6 C30 6 21 24 21 46 C21 72 17 94 12 114 C18 120 23 106 29 112 C34 118 40 102 46 110 C51 117 57 102 63 110 C69 118 75 106 80 112 C83 94 79 72 79 46 C79 24 70 6 50 6 Z' fill='url(%23g)'/%3E%3Cellipse cx='40' cy='44' rx='4.5' ry='8' fill='%232a2f38' fill-opacity='0.42'/%3E%3Cellipse cx='60' cy='44' rx='4.5' ry='8' fill='%232a2f38' fill-opacity='0.42'/%3E%3C/svg%3E");
   opacity: 0;
+  filter: drop-shadow(0 0 7px rgba(200, 212, 228, 0.30));
   will-change: transform, opacity;
-  animation: pm-hw-ghost-drift 18s ease-in-out infinite;
+  animation: pm-hw-ghost-drift 20s ease-in-out infinite;
 }
 @keyframes pm-hw-ghost-drift {
-  0%   { transform: translate(-60px, 16px);  opacity: 0; }
-  14%  { opacity: 0.72; }
-  32%  { transform: translate(30px, -26px);  }
-  50%  { transform: translate(150px, 4px);   opacity: 0.8; }
-  68%  { transform: translate(80px, -30px);  }
-  86%  { opacity: 0.58; }
-  100% { transform: translate(-50px, 18px);  opacity: 0; }
+  0%   { transform: translate(0, 0);         opacity: 0; }
+  10%  { opacity: 0.6; }
+  25%  { transform: translate(70px, -16px);  }
+  42%  { transform: translate(150px, 4px);   opacity: 0.66; }
+  58%  { transform: translate(110px, -24px); }
+  75%  { transform: translate(30px, -8px);   opacity: 0.58; }
+  90%  { opacity: 0.16; }
+  100% { transform: translate(0, 0);         opacity: 0; }
 }
 
-/* ── Glühende Augenpaare – blinzeln im Dunkeln zwischen Bäumen/Büschen ── */
+/* ── Glühende Augenpaare – blinzeln tief am Boden bei Bäumen & Grabsteinen
+   (NICHT über dem Zaun oder im Fenster): rechts am Baumfuß, sowie links und
+   rechts neben dem Haus auf Höhe der Grabsteine. Weit genug unten (kleiner
+   bottom-%) → sie sitzen im Dunkel der Büsche/Gräber, nicht in der Luft. ── */
 [data-theme="halloween"] .pm-hw-eyes {
   position: absolute;
-  width: 30px; height: 12px;
+  width: 28px; height: 11px;
   pointer-events: none;
   background:
-    radial-gradient(circle at 26% 50%, rgba(255, 150, 40, 0.95) 0 2.4px, rgba(255, 150, 40, 0.25) 3.6px, transparent 7px),
-    radial-gradient(circle at 74% 50%, rgba(255, 150, 40, 0.95) 0 2.4px, rgba(255, 150, 40, 0.25) 3.6px, transparent 7px);
+    radial-gradient(circle at 26% 50%, rgba(255, 150, 40, 0.95) 0 2.3px, rgba(255, 150, 40, 0.25) 3.4px, transparent 7px),
+    radial-gradient(circle at 74% 50%, rgba(255, 150, 40, 0.95) 0 2.3px, rgba(255, 150, 40, 0.25) 3.4px, transparent 7px);
   animation: pm-hw-blink 5.5s ease-in-out infinite;
 }
-[data-theme="halloween"] .pm-hw-eyes--1 { left: 12vw; bottom: 21%; }
+/* Grabsteine rechts neben dem Haus */
+[data-theme="halloween"] .pm-hw-eyes--1 { right: 25vw; bottom: 10%; }
+/* Fuß des großen Baums rechts (giftgrün) */
 [data-theme="halloween"] .pm-hw-eyes--2 {
-  right: 16vw; bottom: 27%; animation-delay: -2.3s;
+  right: 5vw; bottom: 18%; animation-delay: -2.3s;
   background:
-    radial-gradient(circle at 26% 50%, rgba(150, 255, 90, 0.95) 0 2.2px, rgba(150, 255, 90, 0.25) 3.4px, transparent 7px),
-    radial-gradient(circle at 74% 50%, rgba(150, 255, 90, 0.95) 0 2.2px, rgba(150, 255, 90, 0.25) 3.4px, transparent 7px);
+    radial-gradient(circle at 26% 50%, rgba(150, 255, 90, 0.95) 0 2.1px, rgba(150, 255, 90, 0.25) 3.2px, transparent 7px),
+    radial-gradient(circle at 74% 50%, rgba(150, 255, 90, 0.95) 0 2.1px, rgba(150, 255, 90, 0.25) 3.2px, transparent 7px);
 }
-[data-theme="halloween"] .pm-hw-eyes--3 { left: 43vw; bottom: 12%; width: 24px; animation-delay: -4s; }
+/* Grabsteine links neben dem Haus (frei von der Sidebar) */
+[data-theme="halloween"] .pm-hw-eyes--3 { left: 31vw; bottom: 9%; width: 22px; animation-delay: -4s; }
 @keyframes pm-hw-blink {
   0%, 36%  { opacity: 0.9; }
   39%      { opacity: 0.06; }
@@ -524,6 +386,65 @@ html[data-theme="halloween"] { color-scheme: dark; }
   72%      { opacity: 0.06; }
   75%      { opacity: 0.9; }
   100%     { opacity: 0.9; }
+}
+
+/* ===================================================================
+   3b · DEKO ÜBER DEM APP-INHALT (Spinnennetz + krabbelnde Spinnen)
+   -------------------------------------------------------------------
+   Diese Elemente müssen VOR dem Inhalt liegen (nicht im #pmThemeFX-Layer
+   dahinter) → als halloween-gescopete Pseudo-Elemente auf App-Inhalt.
+   Hosts bewusst gewählt, weil dort sonst KEIN ::before/::after benutzt
+   wird (.app-shell::before, .b-azubi::after, .b-recent::after).
+   =================================================================== */
+
+/* Spinnennetz in der oberen linken Ecke (über der Sidebar/Navigation).
+   position:fixed an der Viewport-Ecke, z-index über der Sidebar (z 100),
+   aber unter Modals (z 200); pointer-events:none → blockiert keine Klicks. */
+[data-theme="halloween"] .app-shell::before {
+  content: '';
+  position: fixed; top: 0; left: 0;
+  width: 150px; height: 150px;
+  z-index: 130;
+  pointer-events: none;
+  opacity: 0.55;
+  background: top left / contain no-repeat
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 120'%3E%3Cg stroke='%23e2e5ee' stroke-width='0.9' fill='none' opacity='0.85'%3E%3Cline x1='0' y1='0' x2='120' y2='6'/%3E%3Cline x1='0' y1='0' x2='98' y2='44'/%3E%3Cline x1='0' y1='0' x2='72' y2='72'/%3E%3Cline x1='0' y1='0' x2='44' y2='98'/%3E%3Cline x1='0' y1='0' x2='6' y2='120'/%3E%3Cpath d='M26 2 Q20 20 2 26'/%3E%3Cpath d='M52 3 Q40 40 3 52'/%3E%3Cpath d='M82 5 Q60 60 5 82'/%3E%3Cpath d='M112 7 Q84 84 7 112'/%3E%3C/g%3E%3Cg stroke='%230a0609' stroke-width='1.6' fill='none' stroke-linecap='round'%3E%3Cpath d='M70 40 C66 36 64 33 60 33 M70 40 C66 41 63 44 60 46 M70 40 C67 43 66 47 64 51 M70 40 C68 37 68 33 67 30'/%3E%3Cpath d='M70 40 C74 36 76 33 80 33 M70 40 C74 41 77 44 80 46 M70 40 C73 43 74 47 76 51 M70 40 C72 37 72 33 73 30'/%3E%3C/g%3E%3Cellipse cx='70' cy='41' rx='5' ry='6' fill='%230a0609'/%3E%3Cline x1='70' y1='6' x2='70' y2='34' stroke='%23e2e5ee' stroke-width='0.7' opacity='0.7'/%3E%3C/svg%3E");
+}
+
+/* Krabbelnde Spinnen auf einzelnen Bento-Kacheln (Dashboard).
+   Pseudo sitzt absolut in der Kachel (Kacheln sind position:relative für
+   ihre ::before-Overlays) und wandert oben hin und her (translate + leichtes
+   Drehen = scuttling). pointer-events:none. */
+[data-theme="halloween"] .b-azubi::after,
+[data-theme="halloween"] .b-recent::after {
+  content: '';
+  position: absolute; top: 8px; left: 0;
+  width: 24px; height: 24px;
+  z-index: 6;
+  pointer-events: none;
+  will-change: transform;
+  /* dunkle Spinne auf dunkler Kachel → dezenter warmer Rand-Schein, damit
+     sie sichtbar wird (als finge sie das Kürbis-Licht ein). */
+  filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.55))
+          drop-shadow(0 0 3px rgba(255, 150, 50, 0.55));
+  background: center / contain no-repeat
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'%3E%3Cg stroke='%230a0609' stroke-width='2.2' fill='none' stroke-linecap='round'%3E%3Cpath d='M20 22 C12 18 9 13 3 12 M20 22 C12 22 8 27 3 30 M20 22 C13 26 11 32 8 38 M20 22 C16 18 14 12 11 7'/%3E%3Cpath d='M20 22 C28 18 31 13 37 12 M20 22 C28 22 32 27 37 30 M20 22 C27 26 29 32 32 38 M20 22 C24 18 26 12 29 7'/%3E%3C/g%3E%3Cellipse cx='20' cy='24' rx='7' ry='8' fill='%230a0609'/%3E%3Ccircle cx='20' cy='15' r='4.5' fill='%230a0609'/%3E%3Ccircle cx='18' cy='14' r='1.2' fill='%23ff7518'/%3E%3Ccircle cx='22' cy='14' r='1.2' fill='%23ff7518'/%3E%3C/svg%3E");
+}
+[data-theme="halloween"] .b-azubi::after  { animation: pm-hw-crawl-a 14s ease-in-out infinite; }
+[data-theme="halloween"] .b-recent::after { animation: pm-hw-crawl-b 17s ease-in-out infinite; animation-delay: -5s; }
+@keyframes pm-hw-crawl-a {
+  0%   { transform: translate(10px, 2px)  rotate(10deg); }
+  25%  { transform: translate(64px, 12px) rotate(-8deg); }
+  50%  { transform: translate(126px, 4px) rotate(12deg); }
+  75%  { transform: translate(72px, 16px) rotate(-9deg); }
+  100% { transform: translate(10px, 2px)  rotate(10deg); }
+}
+@keyframes pm-hw-crawl-b {
+  0%   { transform: translate(150px, 6px) rotate(-9deg); }
+  30%  { transform: translate(80px, 18px) rotate(9deg); }
+  55%  { transform: translate(24px, 4px)  rotate(-7deg); }
+  80%  { transform: translate(96px, 14px) rotate(8deg); }
+  100% { transform: translate(150px, 6px) rotate(-9deg); }
 }
 
 /* ===================================================================
@@ -541,9 +462,16 @@ html[data-theme="halloween"] { color-scheme: dark; }
   [data-theme="halloween"] .pm-hw-moonglow { opacity: 0.8; }
   [data-theme="halloween"] .pm-hw-winflicker { opacity: 0.85; }
   [data-theme="halloween"] .pm-hw-ghost { opacity: 0.7; }
+  /* Krabbel-Spinnen (außerhalb #pmThemeFX → von themes.css nicht erfasst):
+     anhalten, ruhen in der Ecke. */
+  [data-theme="halloween"] .b-azubi::after,
+  [data-theme="halloween"] .b-recent::after { animation: none; }
 }
 @media print {
   [data-theme="halloween"] body { background: #fff !important; }
+  [data-theme="halloween"] .app-shell::before,
+  [data-theme="halloween"] .b-azubi::after,
+  [data-theme="halloween"] .b-recent::after { display: none !important; }
 }
 
 /* ===================================================================
