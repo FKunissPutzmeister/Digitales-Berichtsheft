@@ -1238,7 +1238,7 @@ body.login-page::after {
 .sidebar.collapsed .sidebar__section-label { opacity: 0; max-height: 0; padding: 0; }
 .sidebar.collapsed .sidebar__link-label    { opacity: 0; max-width: 0; flex: none; }
 .sidebar.collapsed .sidebar__link-badge    { opacity: 0; max-width: 0; }
-.sidebar.collapsed .sidebar__link          { justify-content: center; padding: 0; }
+.sidebar.collapsed .sidebar__link          { justify-content: center; padding: 0; gap: 0; }
 .sidebar.collapsed .sidebar__user-name     { opacity: 0; max-width: 0; }
 .sidebar.collapsed .sidebar__footer        { flex-direction: column; padding: 10px 8px 12px; gap: 8px; }
 .sidebar.collapsed .sidebar__user-link     { flex: none; justify-content: center; padding: 4px; gap: 0; background: transparent; }
@@ -1275,7 +1275,7 @@ html.sidebar-init-collapsed .sidebar__logo-text,
 html.sidebar-init-collapsed .sidebar__logo-sub { opacity: 0; max-width: 0; }
 html.sidebar-init-collapsed .sidebar__section-label { opacity: 0; max-height: 0; padding: 0; }
 html.sidebar-init-collapsed .sidebar__link-label   { opacity: 0; max-width: 0; flex: none; }
-html.sidebar-init-collapsed .sidebar__link         { justify-content: center; padding: 0; }
+html.sidebar-init-collapsed .sidebar__link         { justify-content: center; padding: 0; gap: 0; }
 html.sidebar-init-collapsed .sidebar__logo-mark    { width: 0; opacity: 0; }
 html.sidebar-init-collapsed .sidebar__header       { justify-content: center; }
 html.sidebar-init-collapsed .sidebar__toggle       { background: transparent; border-color: transparent; box-shadow: none; }

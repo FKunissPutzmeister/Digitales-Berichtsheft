@@ -70,6 +70,22 @@
 }
 
 /* ===================================================================
+   SIDEBAR-HELL/DUNKEL-UMSCHALTER bei aktivem Custom-Design AUSBLENDEN
+   -------------------------------------------------------------------
+   Sobald ein Nicht-Standard-Theme aktiv ist (eines der Custom-Designs
+   oder ein React-Skin via data-skin), ergibt der Hell/Dunkel-Toggle
+   keinen Sinn → ausblenden. Standard-Modus wird dann über die Profil-
+   Seite (Darstellung & Themes → „Standard") gewechselt.
+   =================================================================== */
+html[data-theme="hyperspace"] .sidebar__theme-toggle,
+html[data-theme="cmd"]        .sidebar__theme-toggle,
+html[data-theme="candy"]      .sidebar__theme-toggle,
+html[data-theme="iceland"]    .sidebar__theme-toggle,
+html[data-skin]               .sidebar__theme-toggle {
+  display: none !important;
+}
+
+/* ===================================================================
    FX-PAUSE BEI OFFENEM MODAL
    -------------------------------------------------------------------
    js/app.js (Modal.open) schaltet das Overlay über die Klasse

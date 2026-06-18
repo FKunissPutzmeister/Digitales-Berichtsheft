@@ -1,0 +1,401 @@
+/* ===================================================================
+   THEME-SILK.CSS – futuristisches Liquid-Glass (echte ReactBits)
+   -------------------------------------------------------------------
+   silk = React-Skin auf dem DUNKLEN Basismodus: js/theme.js setzt
+   data-theme="dark" + data-skin="silk". Diese Datei legt unter
+   [data-skin="silk"] NUR die Skin-Ebene über das (lesbare) Dark-Theme:
+   echter Silk-WebGL-Hintergrund (#5227FF), Glas auf Panels/Buttons,
+   leuchtende Hover-Kanten (BorderGlow), Indigo-Akzent, Space Grotesk.
+   Standard-/Dark-Theme und die 4 anderen Themes bleiben unverändert.
+   =================================================================== */
+
+@font-face {
+  font-family: 'Space Grotesk';
+  src: url('../assets/fonts/space-grotesk-variable.woff2') format('woff2-variations');
+  font-weight: 300 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+html[data-skin="silk"] { color-scheme: dark; }
+
+/* ── 1 · Skin-Tokens: Indigo-Akzent (#5227FF) + indigo getöntes Dunkel ── */
+[data-skin="silk"] {
+  --pm-yellow:          #7C5CFF;
+  --pm-yellow-dark:     #9B82FF;
+  --pm-yellow-darker:   #7C5CFF;
+  --pm-yellow-light:    #B9A8FF;
+  --pm-yellow-pale:     rgba(124, 92, 255, 0.22);
+  --pm-yellow-bg:       rgba(124, 92, 255, 0.14);
+  --on-yellow-text:     #0B0420;
+
+  --pm-white:           #2A2350;
+  --pm-grey-50:         #1E1840;
+  --pm-grey-100:        #2E2850;
+  --pm-grey-200:        #423B66;
+  --pm-grey-300:        #5B5384;
+  --pm-grey-400:        #8E84B4;
+  --pm-grey-500:        #ADA3D2;
+  --pm-grey-600:        #C4BBE6;
+  --pm-grey-700:        #D6CFF2;
+  --pm-grey-800:        #E7E3FB;
+  --pm-grey-900:        #F4F2FF;
+
+  --shadow-yellow:    0 4px 18px rgba(124, 92, 255, 0.40), 0 0 26px rgba(124, 92, 255, 0.26);
+  --shadow-yellow-lg: 0 8px 34px rgba(124, 92, 255, 0.48), 0 0 44px rgba(124, 92, 255, 0.30);
+  --ring-yellow:    0 0 0 3px rgba(124, 92, 255, 0.42), 0 0 16px rgba(124, 92, 255, 0.36);
+  --ring-yellow-sm: 0 0 0 2px rgba(124, 92, 255, 0.36), 0 0 12px rgba(124, 92, 255, 0.30);
+
+  --sidebar-bg:           rgba(30, 24, 64, 0.40);
+  --topbar-bg-glass:      rgba(30, 24, 64, 0.40);
+  --surface-overlay:      rgba(14, 8, 40, 0.55);
+
+  --glass-bg:           rgba(36, 30, 72, 0.42);
+  --glass-bg-strong:    rgba(36, 30, 72, 0.62);
+  --glass-bg-tint:      rgba(60, 44, 120, 0.40);
+  --glass-border:       rgba(150, 130, 255, 0.18);
+  --glass-border-soft:  rgba(150, 130, 255, 0.09);
+  --glass-highlight:    rgba(200, 188, 255, 0.14);
+
+  --app-bg-image:       none;
+  --app-bg-overlay:     none;
+  --app-bg-vignette:    none;
+  --sidebar-bg-image:   none;
+  --sidebar-glass:      rgba(36, 30, 72, 0.40);
+  --sidebar-glass-deep: rgba(24, 18, 56, 0.55);
+  --sidebar-line:       rgba(124, 92, 255, 0.45);
+
+  --lg-tint:           rgba(36, 30, 72, 0.42);
+  --lg-tint-strong:    rgba(42, 35, 80, 0.62);
+  --lg-tint-soft:      rgba(36, 30, 72, 0.28);
+  --lg-tint-warm:      rgba(60, 44, 120, 0.40);
+  --lg-sidebar:        rgba(30, 24, 64, 0.44);
+  --lg-border:         rgba(150, 130, 255, 0.20);
+  --lg-border-soft:    rgba(150, 130, 255, 0.10);
+  --lg-edge:           rgba(8, 4, 30, 0.45);
+  --lg-spec:           rgba(200, 188, 255, 0.32);
+  --lg-spec-soft:      rgba(200, 188, 255, 0.10);
+  --lg-mesh-1: rgba(124, 92, 255, 0.14);
+  --lg-mesh-2: rgba(82, 39, 255, 0.12);
+  --lg-mesh-3: rgba(200, 188, 255, 0.10);
+  --lg-mesh-4: rgba(60, 40, 160, 0.10);
+  --lg-mesh-base: #2A2350;
+
+  --font-heading: 'Space Grotesk', 'Libre Franklin', 'Segoe UI', Arial, sans-serif;
+  --font-body:    'Space Grotesk', 'Open Sans', 'Segoe UI', Arial, sans-serif;
+}
+
+/* ── 2 · Body: dunkles Indigo als FOUC-Fallback (Silk = #5227FF) ──── */
+[data-skin="silk"] body:not(.login-page) {
+  background: #2E1E70 !important;
+  background-image: none !important;
+}
+[data-skin="silk"] body:not(.login-page)::before,
+[data-skin="silk"] body:not(.login-page)::after { display: none; }
+
+/* Perf: Silk wird bei halber Auflösung gerendert und per transform:scale(2)
+   auf den Viewport hochskaliert (Silk ist weich → Upscale unsichtbar,
+   aber nur ~1/4 der Shader-Pixel pro Frame). */
+#silk-react-root {
+  position: fixed; top: 0; left: 0;
+  width: 50%; height: 50%;
+  transform: scale(2);
+  transform-origin: 0 0;
+  z-index: 0; pointer-events: none;
+  opacity: 0; transition: opacity 650ms ease;
+}
+#silk-react-root.is-ready { opacity: 1; }
+#silk-react-root > div,
+#silk-react-root canvas { display: block; width: 100% !important; height: 100% !important; }
+
+/* ── 3 · ALLE Standard-Theme-Hintergrundbilder entfernen ──────────
+   (Bento-Kacheln + ihre Overlay-Pseudoelemente). Unter Silk übernimmt
+   das Glas; keine PNG-Tiles mehr. */
+/* ALLE Bento-Bild-Layer killen: dashboard.css legt das Tile-Bild auf
+   .b-* (Basis), ::before, ::after UND html[data-theme="dark"] .b-* — jede
+   Ebene braucht eine spezifitäts-gleiche html[data-skin]-Regel mit
+   passendem Pseudo, sonst gewinnt der Dark-!important-Layer. */
+html[data-skin="silk"][data-theme="dark"] .b-hero,
+html[data-skin="silk"][data-theme="dark"] .b-azubi,
+html[data-skin="silk"][data-theme="dark"] .b-recent,
+html[data-skin="silk"][data-theme="dark"] .b-tile,
+html[data-skin="silk"][data-theme="dark"] .b-hero::before,
+html[data-skin="silk"][data-theme="dark"] .b-azubi::before,
+html[data-skin="silk"][data-theme="dark"] .b-recent::before,
+html[data-skin="silk"][data-theme="dark"] .bento .b-hero,
+html[data-skin="silk"][data-theme="dark"] .bento .b-azubi,
+html[data-skin="silk"][data-theme="dark"] .bento .b-recent {
+  background-image: none !important;
+}
+
+/* Gelben Donut-Ring (hardcodierter SVG-Gradient #bentoRingGrad in
+   dashboard.js, endet auf #FFC300) auf Indigo umfärben. */
+[data-skin="silk"] #bentoRingGrad stop { stop-color: #5227FF; }
+[data-skin="silk"] #bentoRingGrad stop:last-child { stop-color: #B9A8FF; }
+
+/* ── 4 · Glas (CSS) + Border-Spotlight ──────────────────────────────
+   Frosted-Glass-Look wie das ReactBits-Glass-Design: transluzent (Silk
+   scheint durch) + Frost-Blur + helle Kante + oberes Highlight. KEIN
+   GlassSurface-SVG-Displacement (Perf), KEIN BorderGlow (dessen
+   center-conic-Glow blühte große Panels von der Mitte auf). */
+[data-skin="silk"] .silk-host {
+  position: relative;
+  isolation: isolate;
+  /* dichter (0.62) → Inhalte gut lesbar, bleibt aber sichtbar Glas. */
+  background: rgba(32, 26, 70, 0.62) !important;
+  background-image: none !important;
+  border: 1px solid rgba(190, 172, 255, 0.28);
+  box-shadow:
+    inset 0 1px 0 rgba(235, 228, 255, 0.30),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.05),
+    inset 0 -12px 34px rgba(10, 6, 30, 0.22),
+    0 10px 34px rgba(8, 4, 26, 0.42);
+}
+/* Frost-Blur nur auf Haupt-Panels; NICHT auf .flat (Perf) und NICHT auf
+   Buttons (die tragen das echte GlassSurface). */
+[data-skin="silk"] .silk-host:not(.silk-host--flat):not(.silk-host--btn) {
+  -webkit-backdrop-filter: blur(14px) saturate(1.4);
+  backdrop-filter: blur(14px) saturate(1.4);
+}
+[data-skin="silk"] .silk-host--flat { background: rgba(32, 26, 70, 0.56) !important; }
+
+/* Tageszeilen/-karten der Wochen- & Tagesansicht: NICHT durchscheinend.
+   Solider Indigo-Verlauf (statt 0.56-Glas), damit die einzelnen Tage klar
+   lesbar sind. Border-Glow + Hover bleiben vom .silk-host erhalten. */
+[data-skin="silk"] .tag-row.silk-host,
+[data-skin="silk"] .day-card.silk-host {
+  background: linear-gradient(180deg, rgba(48, 41, 96, 0.95) 0%, rgba(40, 34, 82, 0.95) 100%) !important;
+}
+[data-skin="silk"] .tag-row.silk-host--flat,
+[data-skin="silk"] .day-card.silk-host--flat {
+  -webkit-backdrop-filter: blur(2px);
+  backdrop-filter: blur(2px);
+}
+
+/* Buttons: transparent – das echte GlassSurface-Backing IST das Glas.
+   INDIGO getönt (nicht neutralweiß → sonst „grau" über dunklen Panels),
+   heller Text. Ergebnis: lila Liquid-Glass-Pill wie das Demo. */
+[data-skin="silk"] .silk-host--btn {
+  background: transparent !important;
+  border-color: transparent !important;
+  box-shadow: none !important;
+  color: #F2EFFF !important;
+  /* isolation:isolate → eigener Stacking-Context, damit das z-index:-1
+     Glas-Backing HINTER dem Button-Text, aber VOR dem (halbopaken) Panel
+     liegt. Ohne das versinkt es hinter der b-hero-Fläche → Button „weg". */
+  position: relative !important;
+  isolation: isolate;
+}
+[data-skin="silk"] .silk-host--btn .pm-select__value,
+[data-skin="silk"] .silk-host--btn span,
+[data-skin="silk"] .silk-host--btn small { color: inherit !important; }
+[data-skin="silk"] .silk-host--btn svg { color: #E6DEFF !important; }
+/* color-scheme:light → helle Kanten/Inset-Highlights des GlassSurface
+   (die „Liquid-Glass"-Ränder). Die Fläche tönen wir aber INDIGO statt
+   weiß, damit es nicht grau wirkt. */
+[data-skin="silk"] .silk-glassbtn {
+  position: absolute; inset: 0; z-index: -1;
+  pointer-events: none; border-radius: inherit;
+  color-scheme: light;
+}
+/* Das WebGL/SVG-GlassSurface-Backing darf NIEMALS Klicks abfangen — sonst
+   landet der zweite Klick auf einem Dropdown-Trigger im Canvas statt im
+   Button und das Menü lässt sich nicht mehr schließen/öffnen. */
+[data-skin="silk"] .silk-glassbtn * { pointer-events: none !important; }
+
+/* .silk-host erzwingt position:relative (0,2,0) und überschreibt damit das
+   per JS an <body> portierte Menü, das position:fixed braucht (PMSelect setzt
+   feste Viewport-Koordinaten als top/left). Ohne diesen Fix erscheint das
+   Dropdown im Silk-Theme nicht am Trigger, sondern verschoben am Seitenende. */
+[data-skin="silk"] .pm-select__menu.silk-host { position: fixed; }
+[data-skin="silk"] .silk-glassbtn > .glass-surface {
+  width: 100% !important; height: 100% !important; border-radius: inherit;
+  background: rgba(96, 66, 230, 0.34) !important;   /* Indigo-Frost statt neutral */
+}
+/* Primär-Button: kräftigeres Indigo → Aktionshierarchie. */
+[data-skin="silk"] .btn-primary .silk-glassbtn > .glass-surface,
+[data-skin="silk"] .b-btn-primary .silk-glassbtn > .glass-surface {
+  background: rgba(110, 78, 245, 0.52) !important;
+}
+
+/* Border-Spotlight: NUR der Rand leuchtet und folgt dem Cursor. Maske =
+   Rahmen (content-box xor border-box); Glow = radialer Lichtfleck am
+   Cursor. Controller setzt --silk-mx/--silk-my + .silk-hover. */
+[data-skin="silk"] .silk-host::after {
+  content: '';
+  display: block;                 /* hebt base .b-hero::after{display:none} auf */
+  position: absolute; inset: 0; z-index: 4;
+  border-radius: inherit; pointer-events: none;
+  padding: 2px;                   /* Rand-Dicke des Glows */
+  background: radial-gradient(300px circle at var(--silk-mx, 50%) var(--silk-my, 50%),
+              #FFFFFF, rgba(206, 188, 255, 1) 16%, rgba(150, 118, 255, 0.88) 44%,
+              rgba(124, 92, 255, 0.34) 72%, transparent 85%);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+          mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor; mask-composite: exclude;
+  /* drop-shadow blüht den maskierten Rand-Ring nach außen → kräftiger,
+     leuchtender Glow statt dünner Linie (nur on-hover gerendert). */
+  filter: drop-shadow(0 0 6px rgba(150, 118, 255, 0.90)) drop-shadow(0 0 13px rgba(124, 92, 255, 0.55));
+  opacity: 0; transition: opacity 200ms ease;
+}
+[data-skin="silk"] .silk-host.silk-hover::after { opacity: 1; }
+
+/* ── 4b · Ausbildung-Donut: Redesign passend zum Theme ──────────────
+   Glas-Card (oben via .silk-host) + glühender Indigo-Ring + Indigo-Akzente. */
+/* Basis hat filter: drop-shadow(... rgba(255,195,0,0.35)) auf .b-donut svg
+   → gelber Schein um den Donut. Auf Indigo umfärben (DAS ist der Gelb-Glare). */
+[data-skin="silk"] .b-donut svg {
+  overflow: visible;
+  filter: drop-shadow(0 0 12px rgba(124, 92, 255, 0.40)) !important;
+}
+[data-skin="silk"] .b-donut circle:first-child { stroke: rgba(255, 255, 255, 0.10) !important; }
+[data-skin="silk"] .b-donut circle:last-child {
+  filter: drop-shadow(0 0 5px rgba(124, 92, 255, 0.75)) drop-shadow(0 0 14px rgba(124, 92, 255, 0.45));
+}
+[data-skin="silk"] .b-azubi__lj {
+  color: #CFC2FF !important;
+  background: rgba(124, 92, 255, 0.18) !important;
+  border-color: rgba(124, 92, 255, 0.38) !important;
+}
+[data-skin="silk"] .b-azubi__segs span { background: rgba(124, 92, 255, 0.22) !important; }
+[data-skin="silk"] .b-azubi__segs span:first-child {
+  background: linear-gradient(90deg, #5227FF, #9B82FF) !important;
+}
+[data-skin="silk"] .b-donut__pct small,
+[data-skin="silk"] .b-donut__label { color: rgba(220, 212, 255, 0.55) !important; }
+
+/* ── 4b' · Aktueller Tag in der Wochen-Mini-Leiste markieren ──────────
+   Basisregel `.b-day--today` (gelbe Pille) wird vom Dark-Base
+   `[data-theme="dark"] .b-day` (höhere Spezifität) plattgemacht → unter
+   silk eigene, spezifischere Indigo-Glas-Pille. */
+html[data-skin="silk"] .b-day--today {
+  background: linear-gradient(135deg, rgba(124, 92, 255, 0.55), rgba(82, 39, 255, 0.38)) !important;
+  border: 1px solid rgba(172, 152, 255, 0.45) !important;
+  box-shadow: inset 0 1px 0 rgba(235, 228, 255, 0.30), 0 4px 16px rgba(82, 39, 255, 0.45) !important;
+}
+html[data-skin="silk"] .b-day--today .dn   { color: rgba(235, 228, 255, 0.78) !important; }
+html[data-skin="silk"] .b-day--today .dnum { color: #FFFFFF !important; }
+
+/* ── 4c · Wochenansicht & Co.: nicht mehr grau – Glas/Indigo ────────
+   Die .silk-host-Glasregeln greifen bereits (Controller markiert
+   day-card/tag-row/selects/buttons). Hier nur Feinheiten, die sonst aus
+   dem Dark-Theme grau blieben. */
+[data-skin="silk"] .day-card__header:hover,
+[data-skin="silk"] .tag-row__summary:hover { background: rgba(124, 92, 255, 0.10) !important; }
+[data-skin="silk"] .day-card.has-entry,
+[data-skin="silk"] .day-card--today { border-color: rgba(124, 92, 255, 0.40) !important; }
+[data-skin="silk"] .week-status-bar__sep { background: rgba(172, 152, 255, 0.22) !important; }
+
+/* ── 4d · Berichtsheft-Textfeld-Köpfe: NICHT durchsichtig ───────────
+   Spalten-/Abschnitts-Überschriften der Eintrags-Textfelder bekommen eine
+   DECKENDE Fläche (kein Glas, kein Durchscheinen). */
+[data-skin="silk"] .tag-cards__header {
+  background: #221b46 !important;
+  border-radius: 12px;
+}
+[data-skin="silk"] .tag-cards__header-label { color: #ECE7FB !important; }
+[data-skin="silk"] .day-section,
+[data-skin="silk"] .day-section__header {
+  background: #221b46 !important;   /* deckend */
+  backdrop-filter: none !important;
+  border-color: rgba(140, 120, 220, 0.30) !important;
+}
+[data-skin="silk"] .day-section__header--toggle:hover { background: #2b2356 !important; }
+/* Quill-Editor-Toolbar + Eingabefläche ebenfalls deckend (kein Silk durch). */
+[data-skin="silk"] .ql-toolbar,
+[data-skin="silk"] .ql-container,
+[data-skin="silk"] .day-section .ql-editor { background: #1d1740 !important; }
+
+/* ── 5 · Welcome-Hero: ebenfalls Glas (etwas dichter, weil weißer Text). */
+[data-skin="silk"] .welcome-hero.silk-host {
+  background: rgba(28, 22, 64, 0.60) !important;
+}
+
+/* ── 6 · Text-Komponenten: Original sr-only, echte React-Variante ── */
+[data-skin="silk"] .silk-sr-only {
+  position: absolute !important; width: 1px; height: 1px;
+  padding: 0; margin: -1px; overflow: hidden;
+  clip: rect(0 0 0 0); white-space: nowrap; border: 0;
+}
+[data-skin="silk"] .silk-text-host { display: block; }
+[data-skin="silk"] .silk-text-host p { margin: 0; }
+/* GradientText-Wrapper für Headings entschärfen (kein Pill/Blur/Center). */
+[data-skin="silk"] .silk-text-host--grad .animated-gradient-text {
+  backdrop-filter: none !important;
+  border-radius: 0 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  max-width: none !important;
+  cursor: inherit !important;
+  display: inline-flex;
+}
+
+/* ── 7 · Login: DotField statt Brand-Gelb ───────────────────────── */
+[data-skin="silk"] body.login-page {
+  background: #15103A !important;
+  background-image:
+    radial-gradient(120% 90% at 50% 0%, rgba(82, 39, 255, 0.28), transparent 60%),
+    linear-gradient(160deg, #211953 0%, #120E30 100%) !important;
+}
+[data-skin="silk"] .login-orb { display: none; }
+
+/* ── 7b · Sidebar: aktives Item glasig (nicht grau) ─────────────────
+   glass.css gibt dem aktiven Link unter dark einen gelben Tint (0.18) →
+   wirkt grau. Hier: indigo Glas-Pill mit heller Kante + Glow. */
+[data-skin="silk"] .sidebar__link.active {
+  background: linear-gradient(135deg, rgba(124,92,255,0.42), rgba(82,39,255,0.28)) !important;
+  color: #EDE8FF !important;
+  border: 1px solid rgba(172,152,255,0.32);
+  box-shadow:
+    inset 0 1px 0 rgba(235,228,255,0.22),
+    0 4px 16px rgba(82,39,255,0.30) !important;
+}
+[data-skin="silk"] .sidebar__link.active .sidebar__link-icon,
+[data-skin="silk"] .sidebar__link.active .sidebar__link-icon svg { color: #CFC2FF !important; }
+
+/* ── 7c · Putzmeister-Logo im Theme-Gradient ────────────────────────
+   Der Controller blendet das gelbe <img> aus und legt diese Span an: die
+   Logo-Silhouette als Maske, Theme-Gradient als Füllung → Logo im Verlauf. */
+[data-skin="silk"] .silk-logo-grad {
+  display: inline-block;
+  flex-shrink: 0;
+  background: linear-gradient(135deg, #5227FF 0%, #9B82FF 48%, #C9B8F0 100%);
+  -webkit-mask-size: contain; mask-size: contain;
+  -webkit-mask-repeat: no-repeat; mask-repeat: no-repeat;
+  -webkit-mask-position: center; mask-position: center;
+}
+/* Eingeklappte Sidebar: das getönte Silk-Logo genauso ausblenden wie das
+   Original-<img> (.sidebar__logo-mark), sonst bleibt der Logo-Verlauf stehen
+   und schiebt den Toggle-Pfeil aus der Mitte. Gilt für alle Themes via Silk. */
+.sidebar.collapsed .silk-logo-grad { display: none !important; }
+.light-rays-container { width: 100%; height: 100%; overflow: hidden; }
+#silk-login-bg {
+  position: fixed; inset: 0; z-index: 0; pointer-events: none;
+  opacity: 0; transition: opacity 650ms ease;
+}
+#silk-login-bg canvas { display: block; width: 100%; height: 100%; }
+#silk-login-bg.is-ready { opacity: 1; }
+#silk-login-bg .dot-field-container { width: 100%; height: 100%; }
+
+/* ── 8 · Profil-Vorschau-Swatch (global, klassenspezifisch) ─────── */
+.theme-tile__swatch--silk {
+  background:
+    radial-gradient(circle at 25% 30%, rgba(185, 168, 255, 0.6) 0 20%, transparent 30%),
+    radial-gradient(circle at 75% 70%, rgba(82, 39, 255, 0.7) 0 18%, transparent 28%),
+    linear-gradient(150deg, #5227FF 0%, #1E1840 100%);
+}
+.theme-tile__swatch--silk::after {
+  content: '';
+  position: absolute; left: 0; right: 0; bottom: 0; height: 8px;
+  background: linear-gradient(90deg, #5227FF, #B497CF, #FF9FFC, #7C5CFF);
+}
+
+/* ── 9 · Reduced Motion / Print ─────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  #silk-react-root, #silk-login-bg { opacity: 1; }
+}
+@media print {
+  #silk-react-root, #silk-login-bg { display: none !important; }
+  [data-skin="silk"] .silk-glass,
+  [data-skin="silk"] .silk-glow { display: none !important; }
+}

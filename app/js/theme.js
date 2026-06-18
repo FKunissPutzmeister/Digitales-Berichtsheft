@@ -26,8 +26,27 @@
 (function () {
   var STORAGE_KEY = 'theme';        // Standard-Modus: 'light' | 'dark'
   var CUSTOM_KEY  = 'customTheme';  // Custom-Design oder nicht gesetzt
-  var CUSTOM_THEMES = ['hyperspace', 'cmd', 'candy', 'iceland'];
+  var CUSTOM_THEMES = ['hyperspace', 'cmd', 'candy', 'iceland', 'silk'];
   var html = document.documentElement;
+
+  /* React-„Skins": Custom-Themes, die auf einem Basismodus (light|dark)
+     AUFSETZEN, statt eine eigene Palette zu pflegen. Sie erben damit die
+     komplette, lesbare Komponenten-Stilistik des Basismodus; ihre eigene
+     theme-*.css legt nur die Skin-Ebene (Hintergrund, Glas, Akzent) unter
+     [data-skin="<name>"] darüber. data-theme bleibt der Basismodus, damit
+     ALLE [data-theme="dark"]-Regeln greifen; die Identität steckt in
+     data-skin und in localStorage('customTheme'). */
+  var REACT_SKIN_BASE = { silk: 'dark' };
+  function setThemeAttrs(theme) {
+    var base = REACT_SKIN_BASE[theme];
+    if (base) {
+      html.setAttribute('data-theme', base);
+      html.setAttribute('data-skin', theme);
+    } else {
+      html.setAttribute('data-theme', theme);
+      html.removeAttribute('data-skin');
+    }
+  }
 
   /* ── FX-Layer-Engine ─────────────────────────────────────────────
      Custom-Themes können echte DOM-Hintergrund-Layer bekommen (z.B.
@@ -880,9 +899,12 @@
 
     var tpl = FX_TEMPLATES[theme] || '';   // light/dark/unbekannt → ''
     if (!tpl) return;
-    /* Login-Seite: kein FX (dort sind auch die ::before/::after-
-       Ambient-Layer via glass.css deaktiviert) */
-    if (document.body.classList.contains('login-page')) return;
+    /* Login-Seite: kein FX – AUSNAHME cmd-Theme: dort soll der Terminal-
+       Matrix-Regen als Hintergrund laufen (statt der grünen Brand-Fläche,
+       die --pm-yellow im cmd-Theme erzeugt). Die übrigen Custom-Themes
+       bleiben auf Login aus (deren ::before/::after-Ambient sind via
+       glass.css ohnehin deaktiviert). */
+    if (document.body.classList.contains('login-page') && theme !== 'cmd') return;
 
     var el = document.createElement('div');
     el.id = 'pmThemeFX';
@@ -928,7 +950,7 @@
   /* data-theme setzen + FX-Layer syncen + Event feuern
      (eine zentrale Apply-Stelle) */
   function apply(theme) {
-    html.setAttribute('data-theme', theme);
+    setThemeAttrs(theme);
     ensureThemeFX(theme);
     try {
       window.dispatchEvent(new CustomEvent('pm-theme-change', { detail: theme }));
@@ -940,7 +962,7 @@
   // ensureThemeFX() läuft hier im <head> → verschiebt sich selbst auf
   // DOMContentLoaded, sobald document.body existiert.
   var theme = readStoredCustom() || readStored() || readSystem();
-  html.setAttribute('data-theme', theme);
+  setThemeAttrs(theme);
   ensureThemeFX(theme);
 
   // Globales Theme-API

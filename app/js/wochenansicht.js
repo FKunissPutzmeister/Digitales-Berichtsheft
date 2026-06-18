@@ -33,6 +33,8 @@ document.addEventListener('DOMContentLoaded', async () => {
   const today = new Date();
   let currentKW = DateUtil.getKW(today);
   let currentYear = DateUtil.getKWYear(today);
+  const todayKW   = currentKW;   // für „Diese Woche"-Button (Seite lädt täglich neu)
+  const todayYear = currentYear;
 
   // Navigation von Jahresansicht oder Ausbilder-Cockpit übernehmen
   const savedKW      = sessionStorage.getItem('gotoKW');
@@ -44,6 +46,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     sessionStorage.removeItem('gotoKW');
     sessionStorage.removeItem('gotoYear');
   }
+  // Direktsprung auf einen einzelnen Tag (z.B. Klick auf eine Tages-Pill im
+  // Dashboard-Hero). Einmalig: nach dem ersten render() wird der Tag aufgeklappt
+  // und in den Blick gescrollt.
+  let gotoDateOnce = sessionStorage.getItem('gotoDate') || null;
+  if (gotoDateOnce) sessionStorage.removeItem('gotoDate');
 
   // Beim nächsten render(): Richtung der gerade laufenden KW-Wechsel-Animation.
   // Wird von transitionedRender() gesetzt und im Markup direkt als
@@ -51,6 +58,14 @@ document.addEventListener('DOMContentLoaded', async () => {
   // nach dem Lesen genullt, damit normale Re-Renders (Autosave, Kommentare)
   // keine Enter-Anim auslösen.
   let pendingEnterDir = null;
+  // Ausweich-Animation: bei sehr schnellem KW-Klicken wird der schwere
+  // Spring-Slide übersprungen, stattdessen nur ein kurzer Fade gerendert.
+  let pendingQuickFade = false;
+  let weekBurstTimer = null;
+  // Render-Sequenz: bei mehreren parallelen render()-Aufrufen (schnelles
+  // Klicken → mehrere DB.getWoche-Fetches) gewinnt nur der jüngste; ältere,
+  // verspätet zurückkommende Renders verwerfen sich selbst (kein Out-of-order-Paint).
+  let renderSeq = 0;
 
   // Zähler für gerade laufende KW-Wechsel-Animationen. mainContent.overflow
   // wird erst zurückgesetzt, wenn der Zähler wieder bei 0 ist – verhindert,
@@ -121,9 +136,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     // wir die --entering-Klasse + data-dir direkt ans Markup. So ist die
     // Enter-Animation schon beim allerersten Paint scharf – kein Frame
     // mit "neuer Pane voll sichtbar ohne Anim".
+    const mySeq = ++renderSeq;
     const enterDir = pendingEnterDir;
     pendingEnterDir = null;
-    const paneCls  = 'week-pane'           + (enterDir ? ' week-pane--entering' : '');
+    const quickFade = pendingQuickFade;
+    pendingQuickFade = false;
+    const paneCls  = 'week-pane'           + (enterDir ? ' week-pane--entering' : (quickFade ? ' week-pane--quickfade' : ''));
     const kwCoreCls = 'week-kw-block__core' + (enterDir ? ' week-kw-block__core--entering' : '');
     const enterAttr = enterDir ? ` data-dir="${enterDir}"` : '';
 
@@ -190,6 +208,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             </div>`
           : '');
 
+    if (mySeq !== renderSeq) return;   // neuerer Render hat übernommen → diesen verwerfen
     const main = document.getElementById('mainContent');
     main.innerHTML = `
       ${azubiSelectorHtml}
@@ -233,6 +252,10 @@ document.addEventListener('DOMContentLoaded', async () => {
           ` : ''}
         </div>
         <div class="week-toolbar__right">
+          <button class="btn btn-outline week-today-btn${currentKW === todayKW && currentYear === todayYear ? ' is-hidden' : ''}" id="thisWeekBtn" type="button">
+            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="width:15px;height:15px"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 14"/></svg>
+            Diese Woche
+          </button>
           <div class="week-kw-block" role="group" aria-label="Kalenderwoche">
             <button class="week-kw-block__nav" id="prevWeekBtn" aria-label="Vorherige Woche">
               <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg>
@@ -424,6 +447,44 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (mainContent) mainContent.style.removeProperty('overflow');
       }
     }, 620);
+  }
+
+  // Counter + Datumsbereich + „Diese Woche"-Button SOFORT aktualisieren,
+  // entkoppelt vom (netzgebundenen, async) render(). So springt die KW-Zahl
+  // beim schnellen Klicken sofort mit, statt erst nach dem DB-Fetch.
+  function patchWeekHeader() {
+    const monday = DateUtil.getMondayOfKW(currentKW, currentYear);
+    const sunday = new Date(monday); sunday.setDate(monday.getDate() + 6);
+    const kwEl = document.querySelector('.week-kw-block__kw');
+    if (kwEl) kwEl.textContent = `KW ${currentKW}`;
+    const rangeEl = document.querySelector('.week-kw-block__range');
+    if (rangeEl) rangeEl.textContent =
+      `${DateUtil.formatDateShort(DateUtil.toISODate(monday))} – ${DateUtil.formatDateShort(DateUtil.toISODate(sunday))}`;
+    const tw = document.getElementById('thisWeekBtn');
+    if (tw) tw.classList.toggle('is-hidden', currentKW === todayKW && currentYear === todayYear);
+  }
+
+  // Wechsel ausführen (State ist bereits mutiert). Einzelklick → voller
+  // Spring-Slide. Schnelles Klicken (läuft noch eine Anim/ein Burst) →
+  // Ausweich-Pfad: Slide überspringen, Header sofort patchen, Renders zu
+  // EINEM finalen Quick-Fade zusammenfassen (entlastet Backend + Animation).
+  function commitWeekSwitch(dir) {
+    if (activeTransitions > 0 || weekBurstTimer) {
+      patchWeekHeader();
+      pendingQuickFade = true;
+      clearTimeout(weekBurstTimer);
+      weekBurstTimer = setTimeout(() => { weekBurstTimer = null; render(); }, 150);
+    } else {
+      transitionedRender(dir);
+    }
+  }
+
+  function navigateWeeks(deltaWeeks, dir) {
+    const m = DateUtil.getMondayOfKW(currentKW, currentYear);
+    m.setDate(m.getDate() + deltaWeeks * 7);
+    currentKW = DateUtil.getKW(m);
+    currentYear = DateUtil.getKWYear(m);
+    commitWeekSwitch(dir);
   }
 
   async function renderAzubiSelector(currentId) {
@@ -1810,19 +1871,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     currentBerichtTyp = berichtTyp;
 
     // Navigation
-    document.getElementById('prevWeekBtn')?.addEventListener('click', () => {
-      const prev = DateUtil.getMondayOfKW(currentKW, currentYear);
-      prev.setDate(prev.getDate() - 7);
-      currentKW = DateUtil.getKW(prev);
-      currentYear = DateUtil.getKWYear(prev);
-      transitionedRender('prev');
-    });
-    document.getElementById('nextWeekBtn')?.addEventListener('click', () => {
-      const next = DateUtil.getMondayOfKW(currentKW, currentYear);
-      next.setDate(next.getDate() + 7);
-      currentKW = DateUtil.getKW(next);
-      currentYear = DateUtil.getKWYear(next);
-      transitionedRender('next');
+    document.getElementById('prevWeekBtn')?.addEventListener('click', () => navigateWeeks(-1, 'prev'));
+    document.getElementById('nextWeekBtn')?.addEventListener('click', () => navigateWeeks(1, 'next'));
+    document.getElementById('thisWeekBtn')?.addEventListener('click', () => {
+      if (currentKW === todayKW && currentYear === todayYear) return;
+      const dir = DateUtil.getMondayOfKW(todayKW, todayYear) > DateUtil.getMondayOfKW(currentKW, currentYear) ? 'next' : 'prev';
+      currentKW = todayKW; currentYear = todayYear;
+      commitWeekSwitch(dir);
     });
 
     // Azubi-Wechsel (Ausbilder)
@@ -2279,7 +2334,31 @@ document.addEventListener('DOMContentLoaded', async () => {
      siehe Markup unten. Dadurch braucht's keinen Delegation-Listener
      und der Klick feuert verlässlich auch zwischen den Form-Controls. */
 
+  // Tag öffnen + hinscrollen (Direktsprung von einer Tages-Pill). Nur im
+  // Tages-Modus relevant – dort existiert dayCard_<datum>; sonst No-op.
+  function openDayCard(dateStr) {
+    // Voll-Modus: id="dayCard_<datum>" + aufklappbar. Kompakt-/Wochen-Modus:
+    // nur .tag-row[data-date] (nicht inline-aufklappbar) → nur hinscrollen.
+    const card = document.getElementById('dayCard_' + dateStr)
+      || document.querySelector(`.tag-row[data-date="${dateStr}"]`);
+    if (!card) return;
+    if (!card.classList.contains('tag-row--compact') && card.querySelector('.tag-row__body')) {
+      card.classList.add('expanded');
+      const chev = card.querySelector('.tag-row__chevron');
+      if (chev) { chev.setAttribute('aria-expanded', 'true'); chev.setAttribute('aria-label', 'Tag zuklappen'); }
+    }
+    card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    // Kurzes Highlight, damit der Ziel-Tag sofort erkennbar ist.
+    card.style.transition = 'box-shadow .3s ease';
+    card.style.boxShadow = '0 0 0 2px var(--pm-yellow, #FFC300)';
+    setTimeout(() => { card.style.boxShadow = ''; }, 1800);
+  }
+
   await render();
+  if (gotoDateOnce) {
+    const dd = gotoDateOnce; gotoDateOnce = null;
+    requestAnimationFrame(() => requestAnimationFrame(() => openDayCard(dd)));
+  }
 });
 
 // ── Globale Hilfsfunktionen ───────────────────────────────────────

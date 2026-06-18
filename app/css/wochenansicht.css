@@ -1336,6 +1336,11 @@
 }
 .week-toolbar__autosave--lock svg { color: var(--pm-grey-400); }
 
+/* „Diese Woche"-Sprungbutton – erscheint nur, wenn nicht auf der aktuellen
+   KW (Sichtbarkeit toggelt JS via .is-hidden). Höhe = KW-Nav (44px). */
+.week-today-btn { height: 44px; white-space: nowrap; gap: var(--sp-2); }
+.week-today-btn.is-hidden { display: none; }
+
 /* KW-Block rechts: ‹ [KW 20 / Datum] ›
    Wie im Screenshot: 3 separate boxed Buttons, der mittlere mit Text. */
 .week-kw-block {
@@ -1461,6 +1466,11 @@
 .week-kw-block__core--entering[data-dir="next"] { animation: week-kw-in-next 520ms cubic-bezier(.34, 1.45, .5, 1) 80ms both; }
 .week-kw-block__core--entering[data-dir="prev"] { animation: week-kw-in-prev 520ms cubic-bezier(.34, 1.45, .5, 1) 80ms both; }
 
+/* Ausweich-Animation bei schnellem Mehrfach-Klick: leichter Fade statt
+   Spring-Slide (richtungsneutral, schnell, kein Clone/Stage nötig). */
+@keyframes week-pane-quickfade { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+.week-pane--quickfade { animation: week-pane-quickfade 160ms ease-out both; will-change: transform, opacity; }
+
 /* Die Kinder der Pane (Wochen-Kacheln, Tagkarten, Editor-Bodies) haben
    jeweils eine eigene `animation: fadeIn` mit translateY(8 px) -> 0. Die
    schießt bei jedem render() los und überlagert die Pane-Spring-Anim mit
@@ -1487,7 +1497,7 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .week-pane--leaving, .week-pane--entering,
+  .week-pane--leaving, .week-pane--entering, .week-pane--quickfade,
   .week-kw-block__core--leaving, .week-kw-block__core--entering {
     animation: none;
   }
