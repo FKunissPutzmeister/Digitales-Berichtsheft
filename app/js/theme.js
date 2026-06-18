@@ -137,7 +137,10 @@
        (.pm-hw-winflicker) als screen-Glühen, ein <canvas class="pm-hw-fog">
        mit horizontal driftenden Nebelschwaden (Engine = PMHalloweenFog
        unten; ensureThemeFX startet/stoppt ihn am FX-Lebenszyklus),
-       vereinzelt flatternde Fledermäuse und eine sich abseilende Spinne.
+       vereinzelt flatternde Fledermäuse, eine sich abseilende Spinne sowie
+       – zur Belebung – unten hin und her wandelnde Skelette/Zombies
+       (.pm-hw-walker mit innerem __fig fürs Geh-Wippen), ein schwebender
+       Geist (.pm-hw-ghost) und blinzelnde glühende Augenpaare (.pm-hw-eyes).
        Styling/Keyframes liegen in css/theme-halloween.css. */
     halloween:
       '<div class="pm-hw-bg"></div>' +
@@ -147,7 +150,14 @@
       '<div class="pm-hw-bat pm-hw-bat--1"></div>' +
       '<div class="pm-hw-bat pm-hw-bat--2"></div>' +
       '<div class="pm-hw-bat pm-hw-bat--3"></div>' +
-      '<div class="pm-hw-spider"><i class="pm-hw-spider__thread"></i><i class="pm-hw-spider__body"></i></div>'
+      '<div class="pm-hw-spider"><i class="pm-hw-spider__thread"></i><i class="pm-hw-spider__body"></i></div>' +
+      '<div class="pm-hw-walker pm-hw-walker--a"><i class="pm-hw-walker__fig pm-hw-skeleton"></i></div>' +
+      '<div class="pm-hw-walker pm-hw-walker--b"><i class="pm-hw-walker__fig pm-hw-zombie"></i></div>' +
+      '<div class="pm-hw-walker pm-hw-walker--c"><i class="pm-hw-walker__fig pm-hw-skeleton"></i></div>' +
+      '<div class="pm-hw-ghost"></div>' +
+      '<div class="pm-hw-eyes pm-hw-eyes--1"></div>' +
+      '<div class="pm-hw-eyes pm-hw-eyes--2"></div>' +
+      '<div class="pm-hw-eyes pm-hw-eyes--3"></div>'
   };
 
   /* ── Iceland-FX: Canvas-Schneesturm-Engine ───────────────────────

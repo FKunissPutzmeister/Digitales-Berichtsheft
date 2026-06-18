@@ -16,7 +16,10 @@
    • <canvas class="pm-hw-fog"> – horizontal driftende Nebelschwaden
      (Engine PMHalloweenFog in js/theme.js, start/stop am FX-Lebenszyklus,
      prefers-reduced-motion → Standbild, Pause bei Modal/verstecktem Tab)
-   • vereinzelt flatternde Fledermäuse und eine sich abseilende Spinne.
+   • vereinzelt flatternde Fledermäuse und eine sich abseilende Spinne
+   • .pm-hw-walker – unten hin und her wandelnde Skelette/Zombies
+   • .pm-hw-ghost – schwebender Geist (driftet, wippt, blendet ein/aus)
+   • .pm-hw-eyes – glühende, blinzelnde Augenpaare im Dunkeln.
 
    Kontrast-Strategie wie bei hyperspace/cmd: die komplette --pm-grey-
    Skala wird auf dunkel gekippt, das Marken-Gelb auf Kürbis-Orange
@@ -302,6 +305,105 @@ html[data-theme="halloween"] { color-scheme: dark; }
   100% { transform: scaleY(0.6); }
 }
 
+/* ── Wandelnde Untote (Skelette & Zombies) ──
+   Helle/grüne Silhouetten (gegen den dunklen Friedhof sichtbar), die unten
+   langsam hin und her laufen. Aufbau: äußeres .pm-hw-walker macht den Gang
+   (translateX + scaleX-Flip beim Wenden), inneres .pm-hw-walker__fig das
+   Geh-Wippen (translateY) – zwei Ebenen, damit beide transform-Animationen
+   sich überlagern statt zu kollidieren. Dezent: 2–3 kleine, langsame Figuren. */
+[data-theme="halloween"] .pm-hw-walker {
+  position: absolute; bottom: 4%;
+  width: 60px; height: 90px;
+  will-change: transform;
+}
+[data-theme="halloween"] .pm-hw-walker__fig {
+  display: block; width: 100%; height: 100%;
+  background: center bottom / contain no-repeat;
+  animation: pm-hw-bob 0.72s ease-in-out infinite;
+}
+@keyframes pm-hw-bob {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(-3px); }
+}
+[data-theme="halloween"] .pm-hw-skeleton {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 132'%3E%3Cg fill='%23e9e4d4'%3E%3Cellipse cx='32' cy='15' rx='13' ry='14'/%3E%3Crect x='25' y='26' width='14' height='7' rx='3'/%3E%3Crect x='29' y='31' width='6' height='32'/%3E%3Cpath d='M18 38 Q32 32 46 38 L44 60 Q32 66 20 60 Z'/%3E%3Cpath d='M22 63 L42 63 L38 76 L26 76 Z'/%3E%3Crect x='9' y='38' width='6' height='34' rx='3'/%3E%3Crect x='49' y='38' width='6' height='34' rx='3'/%3E%3Crect x='23' y='76' width='6' height='46' rx='3'/%3E%3Crect x='35' y='76' width='6' height='46' rx='3'/%3E%3Crect x='20' y='120' width='13' height='6' rx='3'/%3E%3Crect x='31' y='120' width='13' height='6' rx='3'/%3E%3C/g%3E%3Cg fill='%231a1018'%3E%3Cellipse cx='27' cy='15' rx='3.4' ry='4.2'/%3E%3Cellipse cx='37' cy='15' rx='3.4' ry='4.2'/%3E%3C/g%3E%3Cg stroke='%23bdb59c' stroke-width='1.6'%3E%3Cline x1='23' y1='44' x2='41' y2='44'/%3E%3Cline x1='22' y1='50' x2='42' y2='50'/%3E%3Cline x1='23' y1='56' x2='41' y2='56'/%3E%3C/g%3E%3C/svg%3E");
+}
+[data-theme="halloween"] .pm-hw-zombie {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 76 130'%3E%3Cg fill='%237a9b55'%3E%3Cellipse cx='46' cy='22' rx='12' ry='13'/%3E%3Cpath d='M26 32 Q40 27 52 34 L54 74 Q38 82 24 73 Z'/%3E%3Crect x='50' y='40' width='26' height='8' rx='4' transform='rotate(7 50 44)'/%3E%3Crect x='50' y='54' width='23' height='8' rx='4' transform='rotate(-5 50 58)'/%3E%3Crect x='27' y='74' width='8' height='44' rx='3' transform='rotate(-9 31 74)'/%3E%3Crect x='41' y='74' width='8' height='46' rx='3' transform='rotate(7 45 74)'/%3E%3C/g%3E%3Cpath d='M24 66 l6 11 l5 -9 l5 10 l5 -8 l5 9 l4 -7 v9 H24 Z' fill='%233f5a2e'/%3E%3Ccircle cx='49' cy='21' r='2.4' fill='%23b6ff5a'/%3E%3C/svg%3E");
+}
+[data-theme="halloween"] .pm-hw-walker--a { left: 21vw; width: 56px; height: 84px; animation: pm-hw-walk-a 18s linear infinite; }
+[data-theme="halloween"] .pm-hw-walker--b { left: 50vw; width: 66px; height: 94px; animation: pm-hw-walk-b 23s linear infinite; animation-delay: -6s; }
+[data-theme="halloween"] .pm-hw-walker--c { left: 68vw; width: 52px; height: 78px; animation: pm-hw-walk-c 20s linear infinite; animation-delay: -11s; }
+@keyframes pm-hw-walk-a {
+  0%   { transform: translateX(0)     scaleX(1); }
+  47%  { transform: translateX(150px) scaleX(1); }
+  50%  { transform: translateX(150px) scaleX(-1); }
+  97%  { transform: translateX(0)     scaleX(-1); }
+  100% { transform: translateX(0)     scaleX(1); }
+}
+@keyframes pm-hw-walk-b {
+  0%   { transform: translateX(0)      scaleX(-1); }
+  47%  { transform: translateX(-170px) scaleX(-1); }
+  50%  { transform: translateX(-170px) scaleX(1); }
+  97%  { transform: translateX(0)      scaleX(1); }
+  100% { transform: translateX(0)      scaleX(-1); }
+}
+@keyframes pm-hw-walk-c {
+  0%   { transform: translateX(0)     scaleX(1); }
+  47%  { transform: translateX(128px) scaleX(1); }
+  50%  { transform: translateX(128px) scaleX(-1); }
+  97%  { transform: translateX(0)     scaleX(-1); }
+  100% { transform: translateX(0)     scaleX(1); }
+}
+
+/* ── Schwebender Geist – driftet ums Haus, wippt, blendet ein/aus ── */
+[data-theme="halloween"] .pm-hw-ghost {
+  position: absolute; left: 46%; bottom: 17%;
+  width: 64px; height: 78px;
+  background: center / contain no-repeat
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 80 96'%3E%3Cpath d='M40 5 C21 5 13 21 13 41 V85 q6 8 12 0 q6 -8 12 0 q6 8 12 0 q6 -8 12 0 q6 8 12 0 V41 C67 21 59 5 40 5 Z' fill='%23ffffff' fill-opacity='0.88'/%3E%3Cellipse cx='31' cy='36' rx='4' ry='6' fill='%231a1018'/%3E%3Cellipse cx='49' cy='36' rx='4' ry='6' fill='%231a1018'/%3E%3Cellipse cx='40' cy='52' rx='5' ry='7' fill='%231a1018' fill-opacity='0.5'/%3E%3C/svg%3E");
+  opacity: 0;
+  will-change: transform, opacity;
+  animation: pm-hw-ghost-drift 17s ease-in-out infinite;
+}
+@keyframes pm-hw-ghost-drift {
+  0%   { transform: translate(-30px, 8px);   opacity: 0; }
+  12%  { opacity: 0.72; }
+  30%  { transform: translate(40px, -22px);  }
+  50%  { transform: translate(120px, 6px);   opacity: 0.78; }
+  70%  { transform: translate(190px, -18px); }
+  88%  { opacity: 0.62; }
+  100% { transform: translate(250px, 4px);   opacity: 0; }
+}
+
+/* ── Glühende Augenpaare – blinzeln im Dunkeln zwischen Bäumen/Büschen ── */
+[data-theme="halloween"] .pm-hw-eyes {
+  position: absolute;
+  width: 30px; height: 12px;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at 26% 50%, rgba(255, 150, 40, 0.95) 0 2.4px, rgba(255, 150, 40, 0.25) 3.6px, transparent 7px),
+    radial-gradient(circle at 74% 50%, rgba(255, 150, 40, 0.95) 0 2.4px, rgba(255, 150, 40, 0.25) 3.6px, transparent 7px);
+  animation: pm-hw-blink 5.5s ease-in-out infinite;
+}
+[data-theme="halloween"] .pm-hw-eyes--1 { left: 12vw; bottom: 21%; }
+[data-theme="halloween"] .pm-hw-eyes--2 {
+  right: 16vw; bottom: 27%; animation-delay: -2.3s;
+  background:
+    radial-gradient(circle at 26% 50%, rgba(150, 255, 90, 0.95) 0 2.2px, rgba(150, 255, 90, 0.25) 3.4px, transparent 7px),
+    radial-gradient(circle at 74% 50%, rgba(150, 255, 90, 0.95) 0 2.2px, rgba(150, 255, 90, 0.25) 3.4px, transparent 7px);
+}
+[data-theme="halloween"] .pm-hw-eyes--3 { left: 43vw; bottom: 12%; width: 24px; animation-delay: -4s; }
+@keyframes pm-hw-blink {
+  0%, 36%  { opacity: 0.9; }
+  39%      { opacity: 0.06; }
+  42%      { opacity: 0.9; }
+  68%, 70% { opacity: 0.9; }
+  72%      { opacity: 0.06; }
+  75%      { opacity: 0.9; }
+  100%     { opacity: 0.9; }
+}
+
 /* ===================================================================
    4 · REDUCED MOTION / PRINT (Halloween-spezifisch; FX-Layer-
        Animationen + Print-Ausblendung übernimmt themes.css)
@@ -316,6 +418,7 @@ html[data-theme="halloween"] { color-scheme: dark; }
   [data-theme="halloween"] .pm-hw-bat { opacity: 0.7; }
   [data-theme="halloween"] .pm-hw-moonglow { opacity: 0.8; }
   [data-theme="halloween"] .pm-hw-winflicker { opacity: 0.85; }
+  [data-theme="halloween"] .pm-hw-ghost { opacity: 0.7; }
 }
 @media print {
   [data-theme="halloween"] body { background: #fff !important; }
