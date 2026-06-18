@@ -293,6 +293,12 @@
      macht das Scrollen „smoother/weicher". Nutzt die CSS-Eigenschaft
      `translate` (komponiert mit vorhandenem transform/Hover — kein Clobbering),
      rAF-gedrosselt, passiv. reduced-motion → komplett aus. */
+  // Bewusst NICHT die Wochenansicht-Inhalte (.day-card/.tag-row/.week-toolbar/
+  // .week-bottom-bar): das sind dichte Listen + eine slide-animierte, häufig
+  // neu gerenderte Pane. Per-Item-Parallax versetzt jede Karte um ein anderes
+  // Y → ungleiche Abstände (sieht aus wie Fehlausrichtung) und springt nach
+  // jedem KW-Wechsel (verschiebt das UI auf der Y-Achse). Parallax passt zu
+  // weit gesetzten Hero-Sektionen, nicht zu einer Tagesliste.
   var PARALLAX_TIERS = [
     { sel: '.welcome-hero, .b-hero, .page-header, .login-card', f: 0.06 },
     { sel: '.card, .b-tile, .stat-card, .b-azubi, .b-recent, .b-daycard, .b-wkcard', f: 0.03 }
