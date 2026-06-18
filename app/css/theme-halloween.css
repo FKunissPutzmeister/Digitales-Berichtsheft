@@ -196,7 +196,7 @@ html[data-theme="halloween"] { color-scheme: dark; }
    Asset: assets/halloween-web.svg (prozedural generiert). */
 [data-theme="halloween"] .pm-hw-web {
   position: absolute; top: 0; left: 0;
-  width: 50vw; max-width: 820px;
+  width: 37vw; max-width: 600px;
   aspect-ratio: 1 / 1;
   background: top left / contain no-repeat
     url("../assets/halloween-web.svg");
