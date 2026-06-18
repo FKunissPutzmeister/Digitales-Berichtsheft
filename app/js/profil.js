@@ -129,6 +129,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     { id: 'candy',      name: 'Candy Land', sub: 'Pastell & Regenbogen' },
     { id: 'iceland',    name: 'Iceland',    sub: 'Schnee, Eis & Iglu' },
     { id: 'silk',       name: 'Silk',       sub: 'Liquid Glass · futuristisch' },
+    { id: 'halloween',  name: 'Halloween',  sub: 'Geisterhaus & Nebel' },
   ];
 
   function buildDarstellung() {

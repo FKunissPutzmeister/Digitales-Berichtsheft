@@ -26,7 +26,7 @@
 (function () {
   var STORAGE_KEY = 'theme';        // Standard-Modus: 'light' | 'dark'
   var CUSTOM_KEY  = 'customTheme';  // Custom-Design oder nicht gesetzt
-  var CUSTOM_THEMES = ['hyperspace', 'cmd', 'candy', 'iceland', 'silk'];
+  var CUSTOM_THEMES = ['hyperspace', 'cmd', 'candy', 'iceland', 'silk', 'halloween'];
   var html = document.documentElement;
 
   /* React-„Skins": Custom-Themes, die auf einem Basismodus (light|dark)
@@ -145,7 +145,39 @@
        gesteuert; ensureThemeFX() startet/stoppt ihn am FX-Lebenszyklus.
        Styling/Fallback-Farbe in css/theme-iceland.css (.pm-is-bg). */
     iceland:
-      '<canvas class="pm-is-bg" aria-hidden="true"></canvas>'
+      '<canvas class="pm-is-bg" aria-hidden="true"></canvas>',
+
+    /* ── FX-Template: halloween (wird vom Theme-Designer befüllt) ──
+       Basis ist ein fertiges Hintergrundbild (.pm-hw-bg →
+       assets/halloween-bg.png: Geisterhaus im Wald mit Mond, Toren,
+       Grabsteinen, Kürbissen, Kerzen). Darüber, hinten → vorne, nur noch
+       die animierten Layer (Klassen pm-hw-* zur Kollisionsvermeidung):
+       Mond-Schimmern (.pm-hw-moonglow) und Fenster-/Tür-Flackern
+       (.pm-hw-winflicker) als screen-Glühen, ein <canvas class="pm-hw-fog">
+       mit horizontal driftenden Nebelschwaden (Engine = PMHalloweenFog
+       unten; ensureThemeFX startet/stoppt ihn am FX-Lebenszyklus),
+       Fledermäuse mit natürlichem Flatter-Flug (äußeres .pm-hw-bat = Flug-
+       bahn, inneres __body = Flügelschlag), eine sich abseilende Spinne,
+       ein oben um die Hausspitzen schwebender Geist (.pm-hw-ghost),
+       blinzelnde glühende Augenpaare (.pm-hw-eyes) bei Bäumen/Grabsteinen
+       sowie ein großes Spinnennetz in der oberen LINKEN Ecke (.pm-hw-web),
+       das hinter dem App-Inhalt sitzt und neben der Nav-Leiste / hinter dem
+       Anfang der Kacheln durchscheint. Styling/Keyframes in
+       css/theme-halloween.css. */
+    halloween:
+      '<div class="pm-hw-bg"></div>' +
+      '<div class="pm-hw-web"></div>' +
+      '<div class="pm-hw-moonglow"></div>' +
+      '<div class="pm-hw-winflicker"></div>' +
+      '<canvas class="pm-hw-fog" aria-hidden="true"></canvas>' +
+      '<div class="pm-hw-bat pm-hw-bat--1"><i class="pm-hw-bat__body"></i></div>' +
+      '<div class="pm-hw-bat pm-hw-bat--2"><i class="pm-hw-bat__body"></i></div>' +
+      '<div class="pm-hw-bat pm-hw-bat--3"><i class="pm-hw-bat__body"></i></div>' +
+      '<div class="pm-hw-spider"><i class="pm-hw-spider__thread"></i><i class="pm-hw-spider__body"></i></div>' +
+      '<div class="pm-hw-ghost"></div>' +
+      '<div class="pm-hw-eyes pm-hw-eyes--1"></div>' +
+      '<div class="pm-hw-eyes pm-hw-eyes--2"></div>' +
+      '<div class="pm-hw-eyes pm-hw-eyes--3"></div>'
   };
 
   /* ── Iceland-FX: Canvas-Schneesturm-Engine ───────────────────────
@@ -826,6 +858,126 @@
     return { start: start, stop: stop };
   })();
 
+  /* ── Halloween-FX: Canvas-Nebel-Engine ────────────────────────────
+     Der „leichte Nebel, der über den Bildschirm zieht" ist – wie bei
+     iceland/cmd/candy – ein <canvas> mit requestAnimationFrame-Loop,
+     bewusst statt einem CSS-filter:blur-Layer (Perf-Regel in themes.css:
+     keine großen blur-Filter auf viewportfüllenden fixed Layern). Mehrere
+     weiche, halbtransparente Nebelschwaden (radiale Verläufe, daher
+     inhärent weich – kein Blur nötig) driften horizontal über die Szene,
+     wabern in der Deckkraft und tauchen nach dem rechten Rand links wieder
+     auf. Tief angesetzt (untere Bildhälfte) → Bodennebel vor Haus/Gräbern.
+     Konventionen wie bei den übrigen FX-Engines:
+       • prefers-reduced-motion → ein statisches Standbild, kein Loop
+       • verstecktes Tab / offenes Modal → Loop pausiert (GPU sparen).
+     Styling/Fallback des <canvas> in css/theme-halloween.css (.pm-hw-fog). */
+  var PMHalloweenFog = (function () {
+    var FOG = [188, 180, 200];      // kühles, entsättigtes Grau-Lila
+    var reduceMotion = !!(window.matchMedia &&
+      window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+
+    var canvas = null, ctx = null;
+    var raf = 0, running = false;
+    var W = 0, H = 0, DPR = 1, last = 0, t = 0;
+    var puffs = [];
+
+    function rand(a, b) { return a + Math.random() * (b - a); }
+
+    /* Nebelschwaden aufbauen (lazy, pro resize neu an die Größe angepasst).
+       y im unteren Bereich → Bodennebel; vx nur nach rechts (px pro ms). */
+    function build() {
+      puffs.length = 0;
+      var n = Math.max(6, Math.round(W / 240));
+      for (var i = 0; i < n; i++) {
+        var r = rand(H * 0.18, H * 0.40);
+        puffs.push({
+          x: rand(-r, W + r),
+          y: rand(H * 0.46, H * 0.94),
+          r: r,
+          vx: rand(0.004, 0.013),
+          a: rand(0.05, 0.11),
+          phase: rand(0, Math.PI * 2),
+          sw: rand(0.0003, 0.0008)
+        });
+      }
+    }
+
+    function resize() {
+      if (!canvas || !ctx) return;
+      DPR = Math.min(window.devicePixelRatio || 1, 2);
+      W = window.innerWidth; H = window.innerHeight;
+      canvas.width = Math.floor(W * DPR);
+      canvas.height = Math.floor(H * DPR);
+      canvas.style.width = W + 'px'; canvas.style.height = H + 'px';
+      ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+      build();
+      if (reduceMotion) render();    // kein Loop → Standbild neu zeichnen
+    }
+
+    function drawPuff(p, alpha) {
+      var g = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, p.r);
+      g.addColorStop(0,   'rgba(' + FOG[0] + ',' + FOG[1] + ',' + FOG[2] + ',' + alpha + ')');
+      g.addColorStop(0.55,'rgba(' + FOG[0] + ',' + FOG[1] + ',' + FOG[2] + ',' + (alpha * 0.42) + ')');
+      g.addColorStop(1,   'rgba(' + FOG[0] + ',' + FOG[1] + ',' + FOG[2] + ',0)');
+      ctx.fillStyle = g;
+      ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2); ctx.fill();
+    }
+
+    function render() {
+      ctx.clearRect(0, 0, W, H);
+      for (var i = 0; i < puffs.length; i++) {
+        var p = puffs[i];
+        var a = p.a * (0.55 + 0.45 * Math.sin(p.phase + t * p.sw));
+        if (a > 0) drawPuff(p, a);
+      }
+    }
+
+    function isPaused() {
+      if (document.hidden) return true;
+      if (document.querySelector('.modal-overlay.open')) return true;
+      return false;
+    }
+
+    function frame(now) {
+      if (!running) return;
+      if (isPaused()) { last = now; raf = requestAnimationFrame(frame); return; }
+      var dt = Math.min(now - last, 50);
+      last = now; t += dt;
+      for (var i = 0; i < puffs.length; i++) {
+        var p = puffs[i];
+        p.x += p.vx * dt;
+        if (p.x - p.r > W) { p.x = -p.r; p.y = rand(H * 0.46, H * 0.94); }   // rechts raus → links neu
+      }
+      render();
+      raf = requestAnimationFrame(frame);
+    }
+
+    function start(cv) {
+      stop();                 // idempotent
+      if (!cv) return;
+      canvas = cv;
+      ctx = canvas.getContext('2d');   // transparent über der Szene
+      if (!ctx) { canvas = null; return; }
+      resize();
+      window.addEventListener('resize', resize);
+      if (reduceMotion) { render(); return; }   // Standbild, kein Loop
+      running = true;
+      last = (window.performance && performance.now) ? performance.now() : 0;
+      t = 0;
+      raf = requestAnimationFrame(frame);
+    }
+
+    function stop() {
+      running = false;
+      if (raf) { cancelAnimationFrame(raf); raf = 0; }
+      window.removeEventListener('resize', resize);
+      puffs.length = 0;
+      canvas = null; ctx = null;
+    }
+
+    return { start: start, stop: stop };
+  })();
+
   /* ── Candy: Vordergrund-Charakterwechsel beim Rand-Austritt ───────
      „Wenn ein Einhorn den Bildschirmrand verlassen hat, wechselt, welcher
      Charakter im Vordergrund läuft." Umgesetzt rein über das CSS-
@@ -891,11 +1043,12 @@
     var existing = document.getElementById('pmThemeFX');
     if (existing && existing.parentNode) existing.parentNode.removeChild(existing);
     /* Beim Neuaufbau/Teardown evtl. laufende Canvas-Loops (iceland, cmd,
-       candy-Seifenblasen) sauber beenden – sonst rendern sie nach dem
-       Theme-Wechsel weiter. Alle stop() sind idempotent. */
+       candy-Seifenblasen, halloween-Nebel) sauber beenden – sonst rendern
+       sie nach dem Theme-Wechsel weiter. Alle stop() sind idempotent. */
     PMIcelandFX.stop();
     PMCmdFX.stop();
     PMCandyBubbles.stop();
+    PMHalloweenFog.stop();
 
     var tpl = FX_TEMPLATES[theme] || '';   // light/dark/unbekannt → ''
     if (!tpl) return;
@@ -912,8 +1065,8 @@
     el.innerHTML = tpl;
     document.body.appendChild(el);
 
-    /* iceland/cmd/candy: Canvas-Loop am frisch eingehängten <canvas>
-       starten (alle übrigen Themes sind rein CSS/SVG → kein JS-Loop). */
+    /* iceland/cmd/candy/halloween: Canvas-Loop am frisch eingehängten
+       <canvas> starten (alle übrigen Layer sind rein CSS/SVG → kein Loop). */
     if (theme === 'iceland') {
       var isCanvas = el.querySelector('.pm-is-bg');
       if (isCanvas) PMIcelandFX.start(isCanvas);
@@ -924,6 +1077,9 @@
       var bubbleCanvas = el.querySelector('.pm-cd-bubbles');
       if (bubbleCanvas) PMCandyBubbles.start(bubbleCanvas);
       wireCandyUnicornSwap(el);
+    } else if (theme === 'halloween') {
+      var fogCanvas = el.querySelector('.pm-hw-fog');
+      if (fogCanvas) PMHalloweenFog.start(fogCanvas);
     }
   }
 
