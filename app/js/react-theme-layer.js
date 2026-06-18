@@ -52,7 +52,6 @@
   var activeTheme = null, api = null, bundlePromise = null, cssInjected = false;
   var bgRoot = null, loginRoot = null;
   var textRoots = [];        // [{ root, host, el }] – nur blur/grad (React)
-  var btnRoots = [];         // [{ root, host, el }] – echtes GlassSurface-Backing der Buttons
   var pageObserver = null, scanning = false;
   var pointerBound = false, lastHost = null, lastMove = 0;
 
@@ -76,6 +75,24 @@
   function fadeIn(el) {
     requestAnimationFrame(function () { requestAnimationFrame(function () { el.classList.add('is-ready'); }); });
   }
+
+  // Aktueller Silk-Hue (von theme.js/PMTheme gesetzt) → Farbe für den
+  // WebGL-Silk-Hintergrund + die Login-Strahlen, abgeleitet aus demselben
+  // Hue wie die CSS-Palette (hsl(var(--silk-hue,252) …)).
+  function silkHue() {
+    return (window.PMTheme && PMTheme.getSilkHue) ? PMTheme.getSilkHue() : 252;
+  }
+  function hslToHex(h, s, l) {
+    s /= 100; l /= 100;
+    var a = s * Math.min(l, 1 - l);
+    function f(n) {
+      var k = (n + h / 30) % 12;
+      var c = l - a * Math.max(-1, Math.min(k - 3, 9 - k, 1));
+      return Math.round(255 * c).toString(16).padStart(2, '0');
+    }
+    return '#' + f(0) + f(8) + f(4);
+  }
+
   function mountBackground() {
     if (document.body.classList.contains('login-page')) {
       if (loginRoot) return;
@@ -90,7 +107,7 @@
       import(new URL('./light-rays.js', SCRIPT_SRC).href).then(function (LR) {
         if (!loginRoot || loginRoot.el !== lel) return; // inzwischen Theme verlassen
         loginRoot.cleanup = LR.mount(lel, {
-          raysOrigin: 'top-center', raysColor: '#cdbcff', raysSpeed: 1.2,
+          raysOrigin: 'top-center', raysColor: hslToHex(silkHue(), 100, 86), raysSpeed: 1.2,
           lightSpread: 1.0, rayLength: 1.6, followMouse: true, mouseInfluence: 0.15,
           noiseAmount: 0.06, distortion: 0.05, saturation: 1.0, fadeDistance: 1.1
         });
@@ -103,9 +120,38 @@
       var bel = document.createElement('div');
       bel.id = 'silk-react-root'; bel.setAttribute('aria-hidden', 'true');
       document.body.insertBefore(bel, document.body.firstChild);
-      bgRoot = { root: api.mountSilk(bel, {}), el: bel };
+      bgRoot = { root: api.mountSilk(bel, { color: hslToHex(silkHue(), 100, 58) }), el: bel };
       fadeIn(bel);
     }
+  }
+
+  // Silk-Grundfarbe gewechselt (pm-silk-color-change) → WebGL-Hintergrund
+  // bzw. Login-Strahlen mit der neuen Farbe neu mounten. (CSS-Palette zieht
+  // automatisch über --silk-hue mit; nur das WebGL braucht den expliziten
+  // Re-Mount, weil die Farbe ein Shader-Uniform ist.)
+  function recolorSilk() {
+    if (loginRoot) {
+      try { if (loginRoot.cleanup) loginRoot.cleanup(); else if (loginRoot.root) loginRoot.root.unmount(); } catch (_) {}
+      if (loginRoot.el && loginRoot.el.parentNode) loginRoot.el.parentNode.removeChild(loginRoot.el);
+      loginRoot = null;
+    }
+    if (bgRoot) {
+      try { bgRoot.root.unmount(); } catch (_) {}
+      if (bgRoot.el && bgRoot.el.parentNode) bgRoot.el.parentNode.removeChild(bgRoot.el);
+      bgRoot = null;
+    }
+    // Gradient/Blur-Headings tragen ihre Farbe aus dem React-Mount → abräumen
+    // und per scan() mit dem neuen Hue neu aufbauen (Glas-Panels brauchen das
+    // nicht, deren Farben kommen live über --silk-hue aus dem CSS).
+    for (var i = 0; i < textRoots.length; i++) {
+      var e = textRoots[i];
+      try { if (e.root) e.root.unmount(); } catch (_) {}
+      if (e.el && e.el.parentNode) e.el.parentNode.removeChild(e.el);
+      if (e.host) { e.host.classList.remove('silk-sr-only'); e.host.__silk = false; }
+    }
+    textRoots = [];
+    mountBackground();
+    scan();
   }
 
   /* Das PM-Logo ist ein OPAKES Quadrat (grauer Elefant auf gelbem Grund),
@@ -175,26 +221,18 @@
     }
   }
 
-  function radiusOf(el) {
-    var r = parseInt(getComputedStyle(el).borderRadius, 10);
-    return isNaN(r) ? 12 : r;
-  }
-
-  /* Panels = CSS-Glas. Buttons = echtes ReactBits-GlassSurface als Backing
-     (das vom User gewünschte Glass-Button-Design); wenige/kleine Buttons
-     → backdrop-filter-Kosten bleiben begrenzt. */
+  /* Panels UND Buttons = reines CSS-Glas (Klasse silk-host / --flat / --btn,
+     Styling in theme-silk.css). Buttons trugen früher pro Stück ein React-
+     GlassSurface-Backing; das mountete async als heller --fallback und
+     flippte per useEffect auf --svg → weiß→indigo-Blitz, der bei jedem
+     Re-Scan (Refresh/Wochenwechsel/Slide-Clone) neu auftrat. CSS-Glas ist
+     synchron, mountet nie neu und flackert nicht. */
   function decorate(el, kind) {
     if (el.__silk) return;
     el.__silk = true;
     el.classList.add('silk-host');
     if (kind === 'flat') { el.classList.add('silk-host--flat'); return; }
-    if (kind === 'btn') {
-      el.classList.add('silk-host--btn');
-      var g = document.createElement('span');
-      g.className = 'silk-glassbtn'; g.setAttribute('aria-hidden', 'true');
-      el.appendChild(g);
-      btnRoots.push({ root: api.mountGlassButton(g, { radius: radiusOf(el) }), host: el, el: g });
-    }
+    if (kind === 'btn') el.classList.add('silk-host--btn');
   }
 
   /* Headings: Original sr-only (a11y) + echte React-Variante daneben. */
@@ -212,7 +250,18 @@
     host.style.fontWeight = cs.fontWeight; host.style.lineHeight = cs.lineHeight;
     host.style.letterSpacing = cs.letterSpacing; host.style.color = cs.color;
     el.parentNode.insertBefore(host, el.nextSibling);
-    var root = kind === 'grad' ? api.mountGradientText(host, { text: text }) : api.mountBlurText(host, { text: text });
+    var root;
+    if (kind === 'grad') {
+      // GradientText-Farben aus dem aktuellen Silk-Hue ableiten (Default im
+      // Bundle ist fix indigo/pink → bliebe sonst lila bei anderer Farbe).
+      var gh = silkHue();
+      root = api.mountGradientText(host, {
+        text: text,
+        colors: [hslToHex(gh, 100, 62), hslToHex((gh + 35) % 360, 100, 76), hslToHex(gh, 70, 82)]
+      });
+    } else {
+      root = api.mountBlurText(host, { text: text });
+    }
     textRoots.push({ root: root, host: el, el: host });
   }
 
@@ -224,7 +273,7 @@
       return false;
     });
   }
-  function gcDetachedText() { textRoots = gcArr(textRoots); btnRoots = gcArr(btnRoots); }
+  function gcDetachedText() { textRoots = gcArr(textRoots); }
 
   function scan() {
     if (!api || scanning) return;
@@ -392,11 +441,6 @@
       if (e.host) e.host.classList.remove('silk-sr-only');
     }
     textRoots = [];
-    for (var b = 0; b < btnRoots.length; b++) {
-      try { if (btnRoots[b].root) btnRoots[b].root.unmount(); } catch (_) {}
-      if (btnRoots[b].el && btnRoots[b].el.parentNode) btnRoots[b].el.parentNode.removeChild(btnRoots[b].el);
-    }
-    btnRoots = [];
     var hosts = document.querySelectorAll('.silk-host');
     for (var k = 0; k < hosts.length; k++) {
       hosts[k].classList.remove('silk-host', 'silk-host--flat', 'silk-host--btn', 'silk-hover');
@@ -417,6 +461,7 @@
   }
 
   window.addEventListener('pm-theme-change', function (e) { sync(e && e.detail); });
+  window.addEventListener('pm-silk-color-change', function () { if (activeTheme && api) recolorSilk(); });
   window.addEventListener('pm-page-rendered', function () { if (activeTheme && api) scan(); });
 
   function init() {

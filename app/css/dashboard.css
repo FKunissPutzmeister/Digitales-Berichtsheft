@@ -1938,7 +1938,11 @@ html[data-theme="dark"] .b-recent::before {
 }
 .b-wkcard {
   position: relative;
-  background: #fff;
+  /* Signal-Wash: dezenter Verlauf in der Status-Farbe (--sig) über die Kachel,
+     stärker als nur der 3px-Balken. Pro Theme wird das überschrieben. */
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--sig, transparent) 12%, transparent) 0%, transparent 48%),
+    #fff;
   border: 1px solid var(--pm-grey-200);
   border-radius: 14px;
   padding: 16px 16px 14px;
@@ -1948,15 +1952,18 @@ html[data-theme="dark"] .b-recent::before {
   color: inherit;
   overflow: hidden;
 }
+/* Status-Signalfarbe zentral pro Karte (genutzt von Balken, Wash, Gradient).
+   freigegeben = Theme-Akzent (--pm-yellow zieht pro Theme mit), offen = blau,
+   zurückgewiesen = rot, genehmigt = grün. */
+.b-wkcard--ok    { --sig: var(--color-success, #00A26B); }   /* genehmigt */
+.b-wkcard--fr    { --sig: var(--pm-yellow); }                /* freigegeben → Theme-Farbe */
+.b-wkcard--er    { --sig: var(--color-error, #E03B3B); }     /* zurückgewiesen */
+.b-wkcard--draft { --sig: var(--info, #2C82F0); }            /* offen → blau */
 .b-wkcard::before {
   content: ""; position: absolute;
-  top: 0; left: 0; right: 0; height: 3px;
-  background: var(--pm-grey-300);
+  top: 0; left: 0; right: 0; height: 4px;
+  background: var(--sig, var(--pm-grey-300));
 }
-.b-wkcard--ok::before { background: var(--color-success, #00A26B); }
-.b-wkcard--fr::before { background: var(--info, #2C82F0); }
-.b-wkcard--er::before { background: var(--color-error, #E03B3B); }
-.b-wkcard--draft::before { background: var(--pm-yellow); }
 .b-wkcard:hover {
   transform: translateY(-2px);
   box-shadow: 0 1px 2px rgba(14,17,22,0.04), 0 8px 28px rgba(14,17,22,0.08);
@@ -1964,11 +1971,20 @@ html[data-theme="dark"] .b-recent::before {
 }
 .b-wkcard__kw {
   display: block;
-  font-weight: 700; font-size: 24px; line-height: 1;
-  letter-spacing: -0.025em;
+  font-family: var(--font-heading);
+  font-weight: 800; font-size: 30px; line-height: 1;
+  letter-spacing: -0.03em;
   color: var(--pm-grey-900);
-  margin-bottom: 4px;
+  margin-bottom: 6px;
   font-feature-settings: "tnum";
+  /* „Schwebend": weicher Kontakt- + Ambient-Schatten hebt die Zahl von der
+     Kachel ab. (CMD überschreibt mit text-shadow:none → flach.) */
+  text-shadow: 0 2px 3px rgba(0, 0, 0, 0.16), 0 7px 16px rgba(0, 0, 0, 0.30);
+  transition: transform .2s ease, text-shadow .2s ease;
+}
+.b-wkcard:hover .b-wkcard__kw {
+  transform: translateY(-1px);
+  text-shadow: 0 3px 5px rgba(0, 0, 0, 0.18), 0 12px 24px rgba(0, 0, 0, 0.36);
 }
 .b-wkcard__kw small {
   font-weight: 500; font-size: 11px; line-height: 1;
@@ -1987,25 +2003,23 @@ html[data-theme="dark"] .b-recent::before {
   display: inline-flex; align-items: center; gap: 6px;
   font-weight: 600; font-size: 11px; line-height: 1;
 }
-.b-wkcard__status .d {
-  width: 6px; height: 6px; border-radius: 50%;
-  background: var(--pm-grey-300);
-}
-.b-wkcard--ok .b-wkcard__status, .b-wkcard--ok .b-wkcard__status .d { color: var(--color-success, #00A26B); }
-.b-wkcard--ok .b-wkcard__status .d { background: var(--color-success, #00A26B); }
-.b-wkcard--fr .b-wkcard__status, .b-wkcard--fr .b-wkcard__status .d { color: var(--info, #2C82F0); }
-.b-wkcard--fr .b-wkcard__status .d { background: var(--info, #2C82F0); }
-.b-wkcard--er .b-wkcard__status, .b-wkcard--er .b-wkcard__status .d { color: var(--color-error, #E03B3B); }
-.b-wkcard--er .b-wkcard__status .d { background: var(--color-error, #E03B3B); }
-.b-wkcard--draft .b-wkcard__status { color: var(--pm-yellow-darker, #C58E00); }
-.b-wkcard--draft .b-wkcard__status .d { background: var(--pm-yellow); }
+/* Status-Dot entfernt (alle Themes, beide Kartentypen) – Status steht im Text
+   + Signalfarbe der Kachel, der Punkt war redundant. */
+.b-wkcard__status .d,
+.b-daycard__status .d { display: none; }
+/* Status-Text folgt der Signalfarbe; nur freigegeben (Theme-Akzent) nutzt die
+   dunklere Akzentvariante, damit es auf hellem Grund lesbar bleibt. */
+.b-wkcard__status { color: var(--sig, var(--pm-grey-500)); }
+.b-wkcard--fr .b-wkcard__status { color: var(--pm-yellow-darker, #C58E00); }
 [data-theme="dark"] .b-wkcard {
-  background: rgba(255,255,255,0.04);
-  border-color: rgba(255,255,255,0.08);
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--sig, transparent) 22%, transparent) 0%, rgba(255,255,255,0.04) 55%),
+    rgba(255,255,255,0.04);
+  border-color: color-mix(in srgb, var(--sig, transparent) 32%, rgba(255,255,255,0.08));
   color: #fff;
 }
 [data-theme="dark"] .b-wkcard__kw { color: #fff; }
-[data-theme="dark"] .b-wkcard:hover { border-color: rgba(255,255,255,0.18); }
+[data-theme="dark"] .b-wkcard:hover { border-color: color-mix(in srgb, var(--sig, #ffffff) 48%, transparent); }
 
 /* ── Day-Card: kompakte Variante für gewerbliche Azubis (täglich).
    Layout: Wochentag groß, Datum klein darunter, Status am Fuß.

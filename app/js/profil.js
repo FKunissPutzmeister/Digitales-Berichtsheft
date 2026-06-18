@@ -135,6 +135,8 @@ document.addEventListener('DOMContentLoaded', async () => {
   function buildDarstellung() {
     const mode   = window.PMTheme?.getMode?.()   || 'light';
     const custom = window.PMTheme?.getCustom?.() || '';
+    const silkColor  = window.PMTheme?.getSilkColor?.() || 'indigo';
+    const silkColors = window.PMTheme?.SILK_COLORS || [];
 
     const modeBtn = (val, label, icon) => `
       <button type="button" class="theme-mode-btn ${mode === val ? 'active' : ''}"
@@ -167,6 +169,17 @@ document.addEventListener('DOMContentLoaded', async () => {
                   <span class="theme-tile__sub">${d.sub}</span>
                 </button>
               `).join('')}
+            </div>
+            <div class="silk-colors ${custom === 'silk' ? 'is-visible' : ''}" id="silkColorRow">
+              <div class="theme-group__label" style="margin-top:var(--sp-4)">Silk-Farbe</div>
+              <p class="theme-group__hint">Grundton des Silk-Designs – Hintergrund, Glas, Strahlen und Akzente wechseln mit.</p>
+              <div class="silk-swatches">
+                ${silkColors.map(c => `
+                  <button type="button" class="silk-swatch ${silkColor === c.id ? 'active' : ''}" data-silk-color="${c.id}" style="--sw-hue:${c.hue}" title="${c.label}" aria-label="${c.label}" aria-pressed="${silkColor === c.id}">
+                    <span class="silk-swatch__dot" aria-hidden="true"></span>
+                  </button>
+                `).join('')}
+              </div>
             </div>
           </div>`;
 
@@ -211,6 +224,15 @@ document.addEventListener('DOMContentLoaded', async () => {
       tile.classList.toggle('active', on);
       tile.setAttribute('aria-pressed', String(on));
     });
+    // Silk-Farb-Swatches: Reihe nur bei aktivem Silk zeigen, aktive Farbe markieren.
+    const silkColor = window.PMTheme.getSilkColor ? window.PMTheme.getSilkColor() : 'indigo';
+    const silkRow = document.getElementById('silkColorRow');
+    if (silkRow) silkRow.classList.toggle('is-visible', custom === 'silk');
+    document.querySelectorAll('[data-silk-color]').forEach(sw => {
+      const on = sw.dataset.silkColor === silkColor;
+      sw.classList.toggle('active', on);
+      sw.setAttribute('aria-pressed', String(on));
+    });
   }
 
   function bindDarstellung() {
@@ -225,13 +247,20 @@ document.addEventListener('DOMContentLoaded', async () => {
         window.PMTheme.setCustom(tile.dataset.themeDesign || null);
       });
     });
+    document.querySelectorAll('[data-silk-color]').forEach(sw => {
+      sw.addEventListener('click', () => {
+        window.PMTheme.setSilkColor?.(sw.dataset.silkColor);
+      });
+    });
     /* Listener deduplizieren: profil.js läuft bei jeder SPA-Navigation
        auf die Profil-Seite erneut – alten Handler vorher abhängen. */
     if (window.__pmThemeCardSync) {
       window.removeEventListener('pm-theme-change', window.__pmThemeCardSync);
+      window.removeEventListener('pm-silk-color-change', window.__pmThemeCardSync);
     }
     window.__pmThemeCardSync = syncDarstellung;
     window.addEventListener('pm-theme-change', syncDarstellung);
+    window.addEventListener('pm-silk-color-change', syncDarstellung);
   }
 
   function buildAusbildungsDaten() {

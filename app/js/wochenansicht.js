@@ -225,18 +225,10 @@ document.addEventListener('DOMContentLoaded', async () => {
           ` : ''}
           ${!canRelease && !canApprove && woche ? `<span class="badge badge--${woche.status}">${getStatusLabel(woche.status)}</span>` : ''}
           ${canWithdraw ? `
-            <div class="dropdown" id="weitereAktionenDropdown">
-              <button class="btn btn-outline" id="weitereAktionenBtn" type="button" aria-haspopup="menu" aria-expanded="false">
-                Weitere Aktionen
-                <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="width:14px;height:14px;margin-left:var(--sp-1)"><polyline points="6 9 12 15 18 9"/></svg>
-              </button>
-              <div class="dropdown__menu" role="menu">
-                <button class="dropdown__item" id="withdrawBtn" type="button" role="menuitem">
-                  <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 0 0-2 2v11a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2v-5"/><path stroke-linecap="round" stroke-linejoin="round" d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-                  Woche bearbeiten
-                </button>
-              </div>
-            </div>
+            <button class="btn btn-outline" id="withdrawBtn" type="button">
+              <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" style="width:16px;height:16px"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 0 0-2 2v11a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2v-5"/><path stroke-linecap="round" stroke-linejoin="round" d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+              Woche bearbeiten
+            </button>
           ` : ''}
           ${!isReadonly && user.role === 'azubi' ? `
             <span class="week-toolbar__autosave" title="Letzte Speicherung: ${lastSavedStr || 'noch keine'}">
@@ -1921,28 +1913,10 @@ document.addEventListener('DOMContentLoaded', async () => {
       render();
     });
 
-    // „Weitere Aktionen"-Dropdown – Toggle + Außenklick schließt
-    const weitereAktionenBtn = document.getElementById('weitereAktionenBtn');
-    const weitereAktionenDropdown = document.getElementById('weitereAktionenDropdown');
-    const weitereAktionenMenu = weitereAktionenDropdown?.querySelector('.dropdown__menu');
-    weitereAktionenBtn?.addEventListener('click', (e) => {
-      e.stopPropagation();
-      const isOpen = weitereAktionenMenu?.classList.contains('open');
-      document.querySelectorAll('.dropdown__menu.open').forEach(m => m.classList.remove('open'));
-      if (!isOpen) {
-        weitereAktionenMenu?.classList.add('open');
-        weitereAktionenBtn.setAttribute('aria-expanded', 'true');
-      } else {
-        weitereAktionenBtn.setAttribute('aria-expanded', 'false');
-      }
-    });
-    // Außenklick-Schließen ist EINMALIG global in bindShellEvents() gebunden
-    // (sonst pro render() ein weiterer document-Listener).
-
-    // „Woche bearbeiten" – zieht die Freigabe zurück (öffnet nur das Modal;
-    // der Confirm-Handler ist einmalig in bindShellEvents() gebunden).
+    // „Woche bearbeiten" – zieht die Freigabe zurück (eigener Button statt
+    // „Weitere Aktionen"-Dropdown, da nur diese eine Aktion dahinter lag; der
+    // Confirm-Handler ist einmalig in bindShellEvents() gebunden).
     document.getElementById('withdrawBtn')?.addEventListener('click', () => {
-      weitereAktionenMenu?.classList.remove('open');
       Modal.open('withdrawModal');
     });
 

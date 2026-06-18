@@ -29,6 +29,36 @@
   var CUSTOM_THEMES = ['hyperspace', 'cmd', 'candy', 'iceland', 'silk', 'halloween'];
   var html = document.documentElement;
 
+  /* ── Silk-Farbvarianten ───────────────────────────────────────────
+     Ein einziger Hue steuert die GESAMTE Silk-Palette: theme-silk.css
+     nutzt überall hsl(var(--silk-hue,252) …). Pro Variante nur ein
+     Hue-Wert; WebGL-Hintergrund + Login-Strahlen leiten ihre Farbe in
+     react-theme-layer.js aus demselben Hue ab. Default = Indigo (252). */
+  var SILK_COLOR_KEY = 'silkColor';
+  var SILK_COLORS = [
+    { id: 'indigo',  label: 'Indigo',  hue: 252 },
+    { id: 'blau',    label: 'Blau',    hue: 214 },
+    { id: 'tuerkis', label: 'Türkis',  hue: 188 },
+    { id: 'gruen',   label: 'Grün',    hue: 145 },
+    { id: 'gelb',    label: 'PM-Gelb', hue: 45  },
+    { id: 'orange',  label: 'Orange',  hue: 24  },
+    { id: 'rot',     label: 'Rot',     hue: 2   },
+    { id: 'pink',    label: 'Pink',    hue: 322 }
+  ];
+  function silkHueOf(id) {
+    for (var i = 0; i < SILK_COLORS.length; i++) if (SILK_COLORS[i].id === id) return SILK_COLORS[i].hue;
+    return 252;
+  }
+  function readSilkColor() {
+    try {
+      var v = localStorage.getItem(SILK_COLOR_KEY);
+      return SILK_COLORS.some(function (c) { return c.id === v; }) ? v : 'indigo';
+    } catch (e) { return 'indigo'; }
+  }
+  function applySilkHue() {
+    try { html.style.setProperty('--silk-hue', String(silkHueOf(readSilkColor()))); } catch (e) {}
+  }
+
   /* React-„Skins": Custom-Themes, die auf einem Basismodus (light|dark)
      AUFSETZEN, statt eine eigene Palette zu pflegen. Sie erben damit die
      komplette, lesbare Komponenten-Stilistik des Basismodus; ihre eigene
@@ -1107,6 +1137,7 @@
      (eine zentrale Apply-Stelle) */
   function apply(theme) {
     setThemeAttrs(theme);
+    applySilkHue();
     ensureThemeFX(theme);
     try {
       window.dispatchEvent(new CustomEvent('pm-theme-change', { detail: theme }));
@@ -1119,6 +1150,7 @@
   // DOMContentLoaded, sobald document.body existiert.
   var theme = readStoredCustom() || readStored() || readSystem();
   setThemeAttrs(theme);
+  applySilkHue();
   ensureThemeFX(theme);
 
   // Globales Theme-API
@@ -1140,6 +1172,19 @@
     /** Aktives Custom-Design oder null. */
     getCustom: function () {
       return readStoredCustom();
+    },
+
+    /** Silk-Farbvarianten (für UI-Aufbau) + aktive Farbe/Hue. */
+    SILK_COLORS: SILK_COLORS.map(function (c) { return { id: c.id, label: c.label, hue: c.hue }; }),
+    getSilkColor: function () { return readSilkColor(); },
+    getSilkHue: function () { return silkHueOf(readSilkColor()); },
+    /** Silk-Grundfarbe wählen: setzt --silk-hue (CSS) + feuert
+        'pm-silk-color-change' (react-theme-layer färbt WebGL + Strahlen um). */
+    setSilkColor: function (id) {
+      if (!SILK_COLORS.some(function (c) { return c.id === id; })) return;
+      try { localStorage.setItem(SILK_COLOR_KEY, id); } catch (e) {}
+      applySilkHue();
+      try { window.dispatchEvent(new CustomEvent('pm-silk-color-change', { detail: id })); } catch (e) {}
     },
 
     /** Standard-Modus setzen (aus der Profil-Einstellungs-Karte).

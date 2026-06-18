@@ -4,7 +4,7 @@
    silk = React-Skin auf dem DUNKLEN Basismodus: js/theme.js setzt
    data-theme="dark" + data-skin="silk". Diese Datei legt unter
    [data-skin="silk"] NUR die Skin-Ebene über das (lesbare) Dark-Theme:
-   echter Silk-WebGL-Hintergrund (#5227FF), Glas auf Panels/Buttons,
+   echter Silk-WebGL-Hintergrund (hsl(var(--silk-hue,252) 100% 58%)), Glas auf Panels/Buttons,
    leuchtende Hover-Kanten (BorderGlow), Indigo-Akzent, Space Grotesk.
    Standard-/Dark-Theme und die 4 anderen Themes bleiben unverändert.
    =================================================================== */
@@ -19,75 +19,75 @@
 
 html[data-skin="silk"] { color-scheme: dark; }
 
-/* ── 1 · Skin-Tokens: Indigo-Akzent (#5227FF) + indigo getöntes Dunkel ── */
+/* ── 1 · Skin-Tokens: Indigo-Akzent (hsl(var(--silk-hue,252) 100% 58%)) + indigo getöntes Dunkel ── */
 [data-skin="silk"] {
-  --pm-yellow:          #7C5CFF;
-  --pm-yellow-dark:     #9B82FF;
-  --pm-yellow-darker:   #7C5CFF;
-  --pm-yellow-light:    #B9A8FF;
-  --pm-yellow-pale:     rgba(124, 92, 255, 0.22);
-  --pm-yellow-bg:       rgba(124, 92, 255, 0.14);
-  --on-yellow-text:     #0B0420;
+  --pm-yellow:          hsl(var(--silk-hue,252) 100% 68%);
+  --pm-yellow-dark:     hsl(var(--silk-hue,252) 100% 75%);
+  --pm-yellow-darker:   hsl(var(--silk-hue,252) 100% 68%);
+  --pm-yellow-light:    hsl(var(--silk-hue,252) 100% 83%);
+  --pm-yellow-pale:     hsl(var(--silk-hue,252) 100% 68% / 0.22);
+  --pm-yellow-bg:       hsl(var(--silk-hue,252) 100% 68% / 0.14);
+  --on-yellow-text:     hsl(var(--silk-hue,252) 78% 7%);
 
-  --pm-white:           #2A2350;
-  --pm-grey-50:         #1E1840;
-  --pm-grey-100:        #2E2850;
-  --pm-grey-200:        #423B66;
-  --pm-grey-300:        #5B5384;
-  --pm-grey-400:        #8E84B4;
-  --pm-grey-500:        #ADA3D2;
-  --pm-grey-600:        #C4BBE6;
-  --pm-grey-700:        #D6CFF2;
-  --pm-grey-800:        #E7E3FB;
-  --pm-grey-900:        #F4F2FF;
+  --pm-white:           hsl(var(--silk-hue,252) 39% 23%);
+  --pm-grey-50:         hsl(var(--silk-hue,252) 45% 17%);
+  --pm-grey-100:        hsl(var(--silk-hue,252) 33% 24%);
+  --pm-grey-200:        hsl(var(--silk-hue,252) 27% 32%);
+  --pm-grey-300:        hsl(var(--silk-hue,252) 23% 42%);
+  --pm-grey-400:        hsl(var(--silk-hue,252) 24% 61%);
+  --pm-grey-500:        hsl(var(--silk-hue,252) 34% 73%);
+  --pm-grey-600:        hsl(var(--silk-hue,252) 46% 82%);
+  --pm-grey-700:        hsl(var(--silk-hue,252) 57% 88%);
+  --pm-grey-800:        hsl(var(--silk-hue,252) 75% 94%);
+  --pm-grey-900:        hsl(var(--silk-hue,252) 100% 97%);
 
-  --shadow-yellow:    0 4px 18px rgba(124, 92, 255, 0.40), 0 0 26px rgba(124, 92, 255, 0.26);
-  --shadow-yellow-lg: 0 8px 34px rgba(124, 92, 255, 0.48), 0 0 44px rgba(124, 92, 255, 0.30);
-  --ring-yellow:    0 0 0 3px rgba(124, 92, 255, 0.42), 0 0 16px rgba(124, 92, 255, 0.36);
-  --ring-yellow-sm: 0 0 0 2px rgba(124, 92, 255, 0.36), 0 0 12px rgba(124, 92, 255, 0.30);
+  --shadow-yellow:    0 4px 18px hsl(var(--silk-hue,252) 100% 68% / 0.40), 0 0 26px hsl(var(--silk-hue,252) 100% 68% / 0.26);
+  --shadow-yellow-lg: 0 8px 34px hsl(var(--silk-hue,252) 100% 68% / 0.48), 0 0 44px hsl(var(--silk-hue,252) 100% 68% / 0.30);
+  --ring-yellow:    0 0 0 3px hsl(var(--silk-hue,252) 100% 68% / 0.42), 0 0 16px hsl(var(--silk-hue,252) 100% 68% / 0.36);
+  --ring-yellow-sm: 0 0 0 2px hsl(var(--silk-hue,252) 100% 68% / 0.36), 0 0 12px hsl(var(--silk-hue,252) 100% 68% / 0.30);
 
-  --sidebar-bg:           rgba(30, 24, 64, 0.40);
-  --topbar-bg-glass:      rgba(30, 24, 64, 0.40);
-  --surface-overlay:      rgba(14, 8, 40, 0.55);
+  --sidebar-bg:           hsl(var(--silk-hue,252) 45% 17% / 0.40);
+  --topbar-bg-glass:      hsl(var(--silk-hue,252) 45% 17% / 0.40);
+  --surface-overlay:      hsl(var(--silk-hue,252) 67% 9% / 0.55);
 
-  --glass-bg:           rgba(36, 30, 72, 0.42);
-  --glass-bg-strong:    rgba(36, 30, 72, 0.62);
-  --glass-bg-tint:      rgba(60, 44, 120, 0.40);
-  --glass-border:       rgba(150, 130, 255, 0.18);
-  --glass-border-soft:  rgba(150, 130, 255, 0.09);
-  --glass-highlight:    rgba(200, 188, 255, 0.14);
+  --glass-bg:           hsl(var(--silk-hue,252) 41% 20% / 0.42);
+  --glass-bg-strong:    hsl(var(--silk-hue,252) 41% 20% / 0.62);
+  --glass-bg-tint:      hsl(var(--silk-hue,252) 46% 32% / 0.40);
+  --glass-border:       hsl(var(--silk-hue,252) 100% 75% / 0.18);
+  --glass-border-soft:  hsl(var(--silk-hue,252) 100% 75% / 0.09);
+  --glass-highlight:    hsl(var(--silk-hue,252) 100% 87% / 0.14);
 
   --app-bg-image:       none;
   --app-bg-overlay:     none;
   --app-bg-vignette:    none;
   --sidebar-bg-image:   none;
-  --sidebar-glass:      rgba(36, 30, 72, 0.40);
-  --sidebar-glass-deep: rgba(24, 18, 56, 0.55);
-  --sidebar-line:       rgba(124, 92, 255, 0.45);
+  --sidebar-glass:      hsl(var(--silk-hue,252) 41% 20% / 0.40);
+  --sidebar-glass-deep: hsl(var(--silk-hue,252) 51% 15% / 0.55);
+  --sidebar-line:       hsl(var(--silk-hue,252) 100% 68% / 0.45);
 
-  --lg-tint:           rgba(36, 30, 72, 0.42);
-  --lg-tint-strong:    rgba(42, 35, 80, 0.62);
-  --lg-tint-soft:      rgba(36, 30, 72, 0.28);
-  --lg-tint-warm:      rgba(60, 44, 120, 0.40);
-  --lg-sidebar:        rgba(30, 24, 64, 0.44);
-  --lg-border:         rgba(150, 130, 255, 0.20);
-  --lg-border-soft:    rgba(150, 130, 255, 0.10);
-  --lg-edge:           rgba(8, 4, 30, 0.45);
-  --lg-spec:           rgba(200, 188, 255, 0.32);
-  --lg-spec-soft:      rgba(200, 188, 255, 0.10);
-  --lg-mesh-1: rgba(124, 92, 255, 0.14);
-  --lg-mesh-2: rgba(82, 39, 255, 0.12);
-  --lg-mesh-3: rgba(200, 188, 255, 0.10);
-  --lg-mesh-4: rgba(60, 40, 160, 0.10);
-  --lg-mesh-base: #2A2350;
+  --lg-tint:           hsl(var(--silk-hue,252) 41% 20% / 0.42);
+  --lg-tint-strong:    hsl(var(--silk-hue,252) 39% 23% / 0.62);
+  --lg-tint-soft:      hsl(var(--silk-hue,252) 41% 20% / 0.28);
+  --lg-tint-warm:      hsl(var(--silk-hue,252) 46% 32% / 0.40);
+  --lg-sidebar:        hsl(var(--silk-hue,252) 45% 17% / 0.44);
+  --lg-border:         hsl(var(--silk-hue,252) 100% 75% / 0.20);
+  --lg-border-soft:    hsl(var(--silk-hue,252) 100% 75% / 0.10);
+  --lg-edge:           hsl(var(--silk-hue,252) 76% 7% / 0.45);
+  --lg-spec:           hsl(var(--silk-hue,252) 100% 87% / 0.32);
+  --lg-spec-soft:      hsl(var(--silk-hue,252) 100% 87% / 0.10);
+  --lg-mesh-1: hsl(var(--silk-hue,252) 100% 68% / 0.14);
+  --lg-mesh-2: hsl(var(--silk-hue,252) 100% 58% / 0.12);
+  --lg-mesh-3: hsl(var(--silk-hue,252) 100% 87% / 0.10);
+  --lg-mesh-4: hsl(var(--silk-hue,252) 60% 39% / 0.10);
+  --lg-mesh-base: hsl(var(--silk-hue,252) 39% 23%);
 
   --font-heading: 'Space Grotesk', 'Libre Franklin', 'Segoe UI', Arial, sans-serif;
   --font-body:    'Space Grotesk', 'Open Sans', 'Segoe UI', Arial, sans-serif;
 }
 
-/* ── 2 · Body: dunkles Indigo als FOUC-Fallback (Silk = #5227FF) ──── */
+/* ── 2 · Body: dunkles Indigo als FOUC-Fallback (Silk = hsl(var(--silk-hue,252) 100% 58%)) ──── */
 [data-skin="silk"] body:not(.login-page) {
-  background: #2E1E70 !important;
+  background: hsl(var(--silk-hue,252) 58% 28%) !important;
   background-image: none !important;
 }
 [data-skin="silk"] body:not(.login-page)::before,
@@ -130,8 +130,8 @@ html[data-skin="silk"][data-theme="dark"] .bento .b-recent {
 
 /* Gelben Donut-Ring (hardcodierter SVG-Gradient #bentoRingGrad in
    dashboard.js, endet auf #FFC300) auf Indigo umfärben. */
-[data-skin="silk"] #bentoRingGrad stop { stop-color: #5227FF; }
-[data-skin="silk"] #bentoRingGrad stop:last-child { stop-color: #B9A8FF; }
+[data-skin="silk"] #bentoRingGrad stop { stop-color: hsl(var(--silk-hue,252) 100% 58%); }
+[data-skin="silk"] #bentoRingGrad stop:last-child { stop-color: hsl(var(--silk-hue,252) 100% 83%); }
 
 /* ── 4 · Glas (CSS) + Border-Spotlight ──────────────────────────────
    Frosted-Glass-Look wie das ReactBits-Glass-Design: transluzent (Silk
@@ -142,14 +142,14 @@ html[data-skin="silk"][data-theme="dark"] .bento .b-recent {
   position: relative;
   isolation: isolate;
   /* dichter (0.62) → Inhalte gut lesbar, bleibt aber sichtbar Glas. */
-  background: rgba(32, 26, 70, 0.62) !important;
+  background: hsl(var(--silk-hue,252) 46% 19% / 0.62) !important;
   background-image: none !important;
-  border: 1px solid rgba(190, 172, 255, 0.28);
+  border: 1px solid hsl(var(--silk-hue,252) 100% 84% / 0.28);
   box-shadow:
-    inset 0 1px 0 rgba(235, 228, 255, 0.30),
+    inset 0 1px 0 hsl(var(--silk-hue,252) 100% 95% / 0.30),
     inset 0 0 0 1px rgba(255, 255, 255, 0.05),
-    inset 0 -12px 34px rgba(10, 6, 30, 0.22),
-    0 10px 34px rgba(8, 4, 26, 0.42);
+    inset 0 -12px 34px hsl(var(--silk-hue,252) 67% 7% / 0.22),
+    0 10px 34px hsl(var(--silk-hue,252) 73% 6% / 0.42);
 }
 /* Frost-Blur nur auf Haupt-Panels; NICHT auf .flat (Perf) und NICHT auf
    Buttons (die tragen das echte GlassSurface). */
@@ -157,14 +157,14 @@ html[data-skin="silk"][data-theme="dark"] .bento .b-recent {
   -webkit-backdrop-filter: blur(14px) saturate(1.4);
   backdrop-filter: blur(14px) saturate(1.4);
 }
-[data-skin="silk"] .silk-host--flat { background: rgba(32, 26, 70, 0.56) !important; }
+[data-skin="silk"] .silk-host--flat { background: hsl(var(--silk-hue,252) 46% 19% / 0.56) !important; }
 
 /* Tageszeilen/-karten der Wochen- & Tagesansicht: NICHT durchscheinend.
    Solider Indigo-Verlauf (statt 0.56-Glas), damit die einzelnen Tage klar
    lesbar sind. Border-Glow + Hover bleiben vom .silk-host erhalten. */
 [data-skin="silk"] .tag-row.silk-host,
 [data-skin="silk"] .day-card.silk-host {
-  background: linear-gradient(180deg, rgba(48, 41, 96, 0.95) 0%, rgba(40, 34, 82, 0.95) 100%) !important;
+  background: linear-gradient(180deg, hsl(var(--silk-hue,252) 40% 27% / 0.95) 0%, hsl(var(--silk-hue,252) 41% 23% / 0.95) 100%) !important;
 }
 [data-skin="silk"] .tag-row.silk-host--flat,
 [data-skin="silk"] .day-card.silk-host--flat {
@@ -172,14 +172,14 @@ html[data-skin="silk"][data-theme="dark"] .bento .b-recent {
   backdrop-filter: blur(2px);
 }
 
-/* Buttons: transparent – das echte GlassSurface-Backing IST das Glas.
+/* Buttons: transparent – das CSS-::before-Backing IST das Glas.
    INDIGO getönt (nicht neutralweiß → sonst „grau" über dunklen Panels),
    heller Text. Ergebnis: lila Liquid-Glass-Pill wie das Demo. */
 [data-skin="silk"] .silk-host--btn {
   background: transparent !important;
   border-color: transparent !important;
   box-shadow: none !important;
-  color: #F2EFFF !important;
+  color: hsl(var(--silk-hue,252) 100% 97%) !important;
   /* isolation:isolate → eigener Stacking-Context, damit das z-index:-1
      Glas-Backing HINTER dem Button-Text, aber VOR dem (halbopaken) Panel
      liegt. Ohne das versinkt es hinter der b-hero-Fläche → Button „weg". */
@@ -189,34 +189,39 @@ html[data-skin="silk"][data-theme="dark"] .bento .b-recent {
 [data-skin="silk"] .silk-host--btn .pm-select__value,
 [data-skin="silk"] .silk-host--btn span,
 [data-skin="silk"] .silk-host--btn small { color: inherit !important; }
-[data-skin="silk"] .silk-host--btn svg { color: #E6DEFF !important; }
-/* color-scheme:light → helle Kanten/Inset-Highlights des GlassSurface
-   (die „Liquid-Glass"-Ränder). Die Fläche tönen wir aber INDIGO statt
-   weiß, damit es nicht grau wirkt. */
-[data-skin="silk"] .silk-glassbtn {
+[data-skin="silk"] .silk-host--btn svg { color: hsl(var(--silk-hue,252) 100% 94%) !important; }
+/* Button-Glas = reines CSS-::before (KEIN React-GlassSurface mehr): ein
+   indigo-getöntes Frost-Backing hinter Text/Icon (z-index:-1, vom
+   isolation:isolate des Hosts vor das Panel gehoben). Grund: das pro Button
+   gemountete React-GlassSurface startete bei JEDEM Mount als heller
+   --fallback und flippte erst per useEffect auf --svg → weiß→indigo-Blitz;
+   beim Bundle-Load (Refresh) und bei JEDEM Re-Scan nach Wochenwechsel/Slide-
+   Clone wurde es für alle Buttons neu gemountet → die flackernden Buttons.
+   Reines CSS ist synchron, mountet nie neu und überlebt Clones flimmerfrei
+   (gleiche Entscheidung wie bei den Panels oben; nimmt Klicks nie ab). */
+[data-skin="silk"] .silk-host--btn::before {
+  content: '';
   position: absolute; inset: 0; z-index: -1;
-  pointer-events: none; border-radius: inherit;
-  color-scheme: light;
+  border-radius: inherit; pointer-events: none;
+  background: hsl(var(--silk-hue,252) 77% 58% / 0.34);   /* Indigo-Frost */
+  -webkit-backdrop-filter: blur(11px) saturate(1.4);
+  backdrop-filter: blur(11px) saturate(1.4);
+  box-shadow:
+    inset 0 1px 0 hsl(var(--silk-hue,252) 100% 95% / 0.45),
+    inset 0 0 0 1px hsl(var(--silk-hue,252) 100% 84% / 0.30),
+    0 4px 14px hsl(var(--silk-hue,252) 73% 6% / 0.40);
 }
-/* Das WebGL/SVG-GlassSurface-Backing darf NIEMALS Klicks abfangen — sonst
-   landet der zweite Klick auf einem Dropdown-Trigger im Canvas statt im
-   Button und das Menü lässt sich nicht mehr schließen/öffnen. */
-[data-skin="silk"] .silk-glassbtn * { pointer-events: none !important; }
+/* Primär-Button: kräftigeres Indigo → Aktionshierarchie. */
+[data-skin="silk"] .btn-primary.silk-host--btn::before,
+[data-skin="silk"] .b-btn-primary.silk-host--btn::before {
+  background: hsl(var(--silk-hue,252) 89% 63% / 0.52);
+}
 
 /* .silk-host erzwingt position:relative (0,2,0) und überschreibt damit das
    per JS an <body> portierte Menü, das position:fixed braucht (PMSelect setzt
    feste Viewport-Koordinaten als top/left). Ohne diesen Fix erscheint das
    Dropdown im Silk-Theme nicht am Trigger, sondern verschoben am Seitenende. */
 [data-skin="silk"] .pm-select__menu.silk-host { position: fixed; }
-[data-skin="silk"] .silk-glassbtn > .glass-surface {
-  width: 100% !important; height: 100% !important; border-radius: inherit;
-  background: rgba(96, 66, 230, 0.34) !important;   /* Indigo-Frost statt neutral */
-}
-/* Primär-Button: kräftigeres Indigo → Aktionshierarchie. */
-[data-skin="silk"] .btn-primary .silk-glassbtn > .glass-surface,
-[data-skin="silk"] .b-btn-primary .silk-glassbtn > .glass-surface {
-  background: rgba(110, 78, 245, 0.52) !important;
-}
 
 /* Border-Spotlight: NUR der Rand leuchtet und folgt dem Cursor. Maske =
    Rahmen (content-box xor border-box); Glow = radialer Lichtfleck am
@@ -228,14 +233,14 @@ html[data-skin="silk"][data-theme="dark"] .bento .b-recent {
   border-radius: inherit; pointer-events: none;
   padding: 2px;                   /* Rand-Dicke des Glows */
   background: radial-gradient(300px circle at var(--silk-mx, 50%) var(--silk-my, 50%),
-              #FFFFFF, rgba(206, 188, 255, 1) 16%, rgba(150, 118, 255, 0.88) 44%,
-              rgba(124, 92, 255, 0.34) 72%, transparent 85%);
+              #FFFFFF, hsl(var(--silk-hue,252) 100% 87% / 1) 16%, hsl(var(--silk-hue,252) 100% 73% / 0.88) 44%,
+              hsl(var(--silk-hue,252) 100% 68% / 0.34) 72%, transparent 85%);
   -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
           mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
   -webkit-mask-composite: xor; mask-composite: exclude;
   /* drop-shadow blüht den maskierten Rand-Ring nach außen → kräftiger,
      leuchtender Glow statt dünner Linie (nur on-hover gerendert). */
-  filter: drop-shadow(0 0 6px rgba(150, 118, 255, 0.90)) drop-shadow(0 0 13px rgba(124, 92, 255, 0.55));
+  filter: drop-shadow(0 0 6px hsl(var(--silk-hue,252) 100% 73% / 0.90)) drop-shadow(0 0 13px hsl(var(--silk-hue,252) 100% 68% / 0.55));
   opacity: 0; transition: opacity 200ms ease;
 }
 [data-skin="silk"] .silk-host.silk-hover::after { opacity: 1; }
@@ -246,34 +251,34 @@ html[data-skin="silk"][data-theme="dark"] .bento .b-recent {
    → gelber Schein um den Donut. Auf Indigo umfärben (DAS ist der Gelb-Glare). */
 [data-skin="silk"] .b-donut svg {
   overflow: visible;
-  filter: drop-shadow(0 0 12px rgba(124, 92, 255, 0.40)) !important;
+  filter: drop-shadow(0 0 12px hsl(var(--silk-hue,252) 100% 68% / 0.40)) !important;
 }
 [data-skin="silk"] .b-donut circle:first-child { stroke: rgba(255, 255, 255, 0.10) !important; }
 [data-skin="silk"] .b-donut circle:last-child {
-  filter: drop-shadow(0 0 5px rgba(124, 92, 255, 0.75)) drop-shadow(0 0 14px rgba(124, 92, 255, 0.45));
+  filter: drop-shadow(0 0 5px hsl(var(--silk-hue,252) 100% 68% / 0.75)) drop-shadow(0 0 14px hsl(var(--silk-hue,252) 100% 68% / 0.45));
 }
 [data-skin="silk"] .b-azubi__lj {
-  color: #CFC2FF !important;
-  background: rgba(124, 92, 255, 0.18) !important;
-  border-color: rgba(124, 92, 255, 0.38) !important;
+  color: hsl(var(--silk-hue,252) 100% 88%) !important;
+  background: hsl(var(--silk-hue,252) 100% 68% / 0.18) !important;
+  border-color: hsl(var(--silk-hue,252) 100% 68% / 0.38) !important;
 }
-[data-skin="silk"] .b-azubi__segs span { background: rgba(124, 92, 255, 0.22) !important; }
+[data-skin="silk"] .b-azubi__segs span { background: hsl(var(--silk-hue,252) 100% 68% / 0.22) !important; }
 [data-skin="silk"] .b-azubi__segs span:first-child {
-  background: linear-gradient(90deg, #5227FF, #9B82FF) !important;
+  background: linear-gradient(90deg, hsl(var(--silk-hue,252) 100% 58%), hsl(var(--silk-hue,252) 100% 75%)) !important;
 }
 [data-skin="silk"] .b-donut__pct small,
-[data-skin="silk"] .b-donut__label { color: rgba(220, 212, 255, 0.55) !important; }
+[data-skin="silk"] .b-donut__label { color: hsl(var(--silk-hue,252) 100% 92% / 0.55) !important; }
 
 /* ── 4b' · Aktueller Tag in der Wochen-Mini-Leiste markieren ──────────
    Basisregel `.b-day--today` (gelbe Pille) wird vom Dark-Base
    `[data-theme="dark"] .b-day` (höhere Spezifität) plattgemacht → unter
    silk eigene, spezifischere Indigo-Glas-Pille. */
 html[data-skin="silk"] .b-day--today {
-  background: linear-gradient(135deg, rgba(124, 92, 255, 0.55), rgba(82, 39, 255, 0.38)) !important;
-  border: 1px solid rgba(172, 152, 255, 0.45) !important;
-  box-shadow: inset 0 1px 0 rgba(235, 228, 255, 0.30), 0 4px 16px rgba(82, 39, 255, 0.45) !important;
+  background: linear-gradient(135deg, hsl(var(--silk-hue,252) 100% 68% / 0.55), hsl(var(--silk-hue,252) 100% 58% / 0.38)) !important;
+  border: 1px solid hsl(var(--silk-hue,252) 100% 80% / 0.45) !important;
+  box-shadow: inset 0 1px 0 hsl(var(--silk-hue,252) 100% 95% / 0.30), 0 4px 16px hsl(var(--silk-hue,252) 100% 58% / 0.45) !important;
 }
-html[data-skin="silk"] .b-day--today .dn   { color: rgba(235, 228, 255, 0.78) !important; }
+html[data-skin="silk"] .b-day--today .dn   { color: hsl(var(--silk-hue,252) 100% 95% / 0.78) !important; }
 html[data-skin="silk"] .b-day--today .dnum { color: #FFFFFF !important; }
 
 /* ── 4c · Wochenansicht & Co.: nicht mehr grau – Glas/Indigo ────────
@@ -281,34 +286,34 @@ html[data-skin="silk"] .b-day--today .dnum { color: #FFFFFF !important; }
    day-card/tag-row/selects/buttons). Hier nur Feinheiten, die sonst aus
    dem Dark-Theme grau blieben. */
 [data-skin="silk"] .day-card__header:hover,
-[data-skin="silk"] .tag-row__summary:hover { background: rgba(124, 92, 255, 0.10) !important; }
+[data-skin="silk"] .tag-row__summary:hover { background: hsl(var(--silk-hue,252) 100% 68% / 0.10) !important; }
 [data-skin="silk"] .day-card.has-entry,
-[data-skin="silk"] .day-card--today { border-color: rgba(124, 92, 255, 0.40) !important; }
-[data-skin="silk"] .week-status-bar__sep { background: rgba(172, 152, 255, 0.22) !important; }
+[data-skin="silk"] .day-card--today { border-color: hsl(var(--silk-hue,252) 100% 68% / 0.40) !important; }
+[data-skin="silk"] .week-status-bar__sep { background: hsl(var(--silk-hue,252) 100% 80% / 0.22) !important; }
 
 /* ── 4d · Berichtsheft-Textfeld-Köpfe: NICHT durchsichtig ───────────
    Spalten-/Abschnitts-Überschriften der Eintrags-Textfelder bekommen eine
    DECKENDE Fläche (kein Glas, kein Durchscheinen). */
 [data-skin="silk"] .tag-cards__header {
-  background: #221b46 !important;
+  background: hsl(var(--silk-hue,252) 44% 19%) !important;
   border-radius: 12px;
 }
-[data-skin="silk"] .tag-cards__header-label { color: #ECE7FB !important; }
+[data-skin="silk"] .tag-cards__header-label { color: hsl(var(--silk-hue,252) 71% 95%) !important; }
 [data-skin="silk"] .day-section,
 [data-skin="silk"] .day-section__header {
-  background: #221b46 !important;   /* deckend */
+  background: hsl(var(--silk-hue,252) 44% 19%) !important;   /* deckend */
   backdrop-filter: none !important;
-  border-color: rgba(140, 120, 220, 0.30) !important;
+  border-color: hsl(var(--silk-hue,252) 59% 67% / 0.30) !important;
 }
-[data-skin="silk"] .day-section__header--toggle:hover { background: #2b2356 !important; }
+[data-skin="silk"] .day-section__header--toggle:hover { background: hsl(var(--silk-hue,252) 42% 24%) !important; }
 /* Quill-Editor-Toolbar + Eingabefläche ebenfalls deckend (kein Silk durch). */
 [data-skin="silk"] .ql-toolbar,
 [data-skin="silk"] .ql-container,
-[data-skin="silk"] .day-section .ql-editor { background: #1d1740 !important; }
+[data-skin="silk"] .day-section .ql-editor { background: hsl(var(--silk-hue,252) 47% 17%) !important; }
 
 /* ── 5 · Welcome-Hero: ebenfalls Glas (etwas dichter, weil weißer Text). */
 [data-skin="silk"] .welcome-hero.silk-host {
-  background: rgba(28, 22, 64, 0.60) !important;
+  background: hsl(var(--silk-hue,252) 49% 17% / 0.60) !important;
 }
 
 /* ── 6 · Text-Komponenten: Original sr-only, echte React-Variante ── */
@@ -332,10 +337,10 @@ html[data-skin="silk"] .b-day--today .dnum { color: #FFFFFF !important; }
 
 /* ── 7 · Login: DotField statt Brand-Gelb ───────────────────────── */
 [data-skin="silk"] body.login-page {
-  background: #15103A !important;
+  background: hsl(var(--silk-hue,252) 57% 15%) !important;
   background-image:
-    radial-gradient(120% 90% at 50% 0%, rgba(82, 39, 255, 0.28), transparent 60%),
-    linear-gradient(160deg, #211953 0%, #120E30 100%) !important;
+    radial-gradient(120% 90% at 50% 0%, hsl(var(--silk-hue,252) 100% 58% / 0.28), transparent 60%),
+    linear-gradient(160deg, hsl(var(--silk-hue,252) 54% 21%) 0%, hsl(var(--silk-hue,252) 55% 12%) 100%) !important;
 }
 [data-skin="silk"] .login-orb { display: none; }
 
@@ -343,15 +348,15 @@ html[data-skin="silk"] .b-day--today .dnum { color: #FFFFFF !important; }
    glass.css gibt dem aktiven Link unter dark einen gelben Tint (0.18) →
    wirkt grau. Hier: indigo Glas-Pill mit heller Kante + Glow. */
 [data-skin="silk"] .sidebar__link.active {
-  background: linear-gradient(135deg, rgba(124,92,255,0.42), rgba(82,39,255,0.28)) !important;
-  color: #EDE8FF !important;
-  border: 1px solid rgba(172,152,255,0.32);
+  background: linear-gradient(135deg, hsl(var(--silk-hue,252) 100% 68% / 0.42), hsl(var(--silk-hue,252) 100% 58% / 0.28)) !important;
+  color: hsl(var(--silk-hue,252) 100% 95%) !important;
+  border: 1px solid hsl(var(--silk-hue,252) 100% 80% / 0.32);
   box-shadow:
-    inset 0 1px 0 rgba(235,228,255,0.22),
-    0 4px 16px rgba(82,39,255,0.30) !important;
+    inset 0 1px 0 hsl(var(--silk-hue,252) 100% 95% / 0.22),
+    0 4px 16px hsl(var(--silk-hue,252) 100% 58% / 0.30) !important;
 }
 [data-skin="silk"] .sidebar__link.active .sidebar__link-icon,
-[data-skin="silk"] .sidebar__link.active .sidebar__link-icon svg { color: #CFC2FF !important; }
+[data-skin="silk"] .sidebar__link.active .sidebar__link-icon svg { color: hsl(var(--silk-hue,252) 100% 88%) !important; }
 
 /* ── 7c · Putzmeister-Logo im Theme-Gradient ────────────────────────
    Der Controller blendet das gelbe <img> aus und legt diese Span an: die
@@ -359,7 +364,7 @@ html[data-skin="silk"] .b-day--today .dnum { color: #FFFFFF !important; }
 [data-skin="silk"] .silk-logo-grad {
   display: inline-block;
   flex-shrink: 0;
-  background: linear-gradient(135deg, #5227FF 0%, #9B82FF 48%, #C9B8F0 100%);
+  background: linear-gradient(135deg, hsl(var(--silk-hue,252) 100% 58%) 0%, hsl(var(--silk-hue,252) 100% 75%) 48%, hsl(var(--silk-hue,252) 65% 83%) 100%);
   -webkit-mask-size: contain; mask-size: contain;
   -webkit-mask-repeat: no-repeat; mask-repeat: no-repeat;
   -webkit-mask-position: center; mask-position: center;
@@ -380,14 +385,53 @@ html[data-skin="silk"] .b-day--today .dnum { color: #FFFFFF !important; }
 /* ── 8 · Profil-Vorschau-Swatch (global, klassenspezifisch) ─────── */
 .theme-tile__swatch--silk {
   background:
-    radial-gradient(circle at 25% 30%, rgba(185, 168, 255, 0.6) 0 20%, transparent 30%),
-    radial-gradient(circle at 75% 70%, rgba(82, 39, 255, 0.7) 0 18%, transparent 28%),
-    linear-gradient(150deg, #5227FF 0%, #1E1840 100%);
+    radial-gradient(circle at 25% 30%, hsl(var(--silk-hue,252) 100% 83% / 0.6) 0 20%, transparent 30%),
+    radial-gradient(circle at 75% 70%, hsl(var(--silk-hue,252) 100% 58% / 0.7) 0 18%, transparent 28%),
+    linear-gradient(150deg, hsl(var(--silk-hue,252) 100% 58%) 0%, hsl(var(--silk-hue,252) 45% 17%) 100%);
 }
 .theme-tile__swatch--silk::after {
   content: '';
   position: absolute; left: 0; right: 0; bottom: 0; height: 8px;
-  background: linear-gradient(90deg, #5227FF, #B497CF, #FF9FFC, #7C5CFF);
+  background: linear-gradient(90deg, hsl(var(--silk-hue,252) 100% 58%), hsl(var(--silk-hue,252) 37% 70%), #FF9FFC, hsl(var(--silk-hue,252) 100% 68%));
+}
+
+/* ── 7d · „Zuletzt"-Kacheln: voller Signal-Gradient statt nur Top-Balken ──
+   Die ganze Kachel tönt diagonal in der Status-Signalfarbe (--sig: grün/blau/
+   rot/gelb) über dem dunklen Glas; KW-Zahl als 3D-Popout mit dunkler Akzent-
+   Extrusion. !important schlägt das generische .silk-host--flat-Glas. */
+[data-skin="silk"] .b-wkcard {
+  background:
+    linear-gradient(150deg,
+      color-mix(in srgb, var(--sig, transparent) 60%, transparent) 0%,
+      color-mix(in srgb, var(--sig, transparent) 16%, transparent) 46%,
+      transparent 100%),
+    hsl(var(--silk-hue,252) 41% 18% / 0.66) !important;
+  border: 1px solid color-mix(in srgb, var(--sig, transparent) 55%, hsl(var(--silk-hue,252) 100% 78% / 0.22)) !important;
+}
+[data-skin="silk"] .b-wkcard::before { display: none !important; }   /* Gradient ersetzt den Balken */
+[data-skin="silk"] .b-wkcard__kw { color: hsl(var(--silk-hue,252) 100% 96%) !important; }
+[data-skin="silk"] .b-wkcard__status { color: hsl(var(--silk-hue,252) 100% 92%) !important; }
+
+/* ── 8b · Silk-Farbwähler (Profil → Darstellung), nur bei aktivem Silk ── */
+.silk-colors { display: none; }
+.silk-colors.is-visible { display: block; }
+.silk-swatches { display: flex; flex-wrap: wrap; gap: 10px; margin-top: var(--sp-2); }
+.silk-swatch {
+  width: 34px; height: 34px; padding: 0; border-radius: 50%;
+  border: 2px solid transparent; background: transparent; cursor: pointer;
+  display: grid; place-items: center;
+  transition: transform .12s ease, border-color .12s ease;
+}
+.silk-swatch:hover { transform: scale(1.08); }
+.silk-swatch__dot {
+  width: 24px; height: 24px; border-radius: 50%;
+  background: hsl(var(--sw-hue) 85% 58%);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.30), 0 2px 6px rgba(0, 0, 0, 0.35);
+}
+.silk-swatch.active { border-color: currentColor; }
+.silk-swatch.active .silk-swatch__dot {
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.45),
+              0 0 0 2px hsl(var(--sw-hue) 85% 58% / 0.5);
 }
 
 /* ── 9 · Reduced Motion / Print ─────────────────────────────────── */

@@ -427,11 +427,17 @@ html[data-theme="cmd"] .b-recent::before {
 /* Wochen-/Tages-Karten */
 [data-theme="cmd"] .b-wkcard {
   background: rgba(255,255,255,0.04);
-  border-color: rgba(255,255,255,0.08);
+  /* Terminal-Look: eckige Signal-Umrandung statt Gradient/Balken. */
+  border: 1px solid var(--sig, rgba(255,255,255,0.18));
+  border-radius: 0;
   color: #fff;
 }
-[data-theme="cmd"] .b-wkcard__kw { color: #fff; }
-[data-theme="cmd"] .b-wkcard:hover { border-color: rgba(255,255,255,0.18); }
+[data-theme="cmd"] .b-wkcard::before { display: none; }
+[data-theme="cmd"] .b-wkcard__kw { color: #fff; text-shadow: none; }   /* flach, kein 3D-Popout (passt nicht zum Terminal) */
+[data-theme="cmd"] .b-wkcard:hover {
+  border-color: var(--sig, rgba(255,255,255,0.4));
+  box-shadow: 0 0 0 1px var(--sig, transparent);
+}
 [data-theme="cmd"] .b-daycard {
   background: rgba(255,255,255,0.04);
   border-color: rgba(255,255,255,0.08);
