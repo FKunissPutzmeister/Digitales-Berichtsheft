@@ -1769,6 +1769,62 @@ html[data-theme="dark"] .b-azubi::before {
   position: relative;
   z-index: 1;
 }
+
+/* ── Mitteilungszentrale (ersetzt das Ausbildung-Donut; eigener Grid-Slot,
+   dunkle Kachel + weißer Text kommen von .b-tile--dark) ── */
+.b-mitteilungen {
+  grid-column: span 4;
+  grid-row: span 3;
+  display: flex; flex-direction: column;
+  padding: 26px 26px 22px;
+  gap: var(--sp-3);
+}
+.b-mitteilungen__badge {
+  font-weight: 700; font-size: 11px; line-height: 1;
+  min-width: 20px; height: 20px; padding: 0 6px;
+  display: inline-flex; align-items: center; justify-content: center;
+  border-radius: 999px;
+  background: var(--pm-yellow); color: var(--pm-grey-900);
+}
+.b-mitteilungen__list {
+  flex: 1; min-height: 0; overflow-y: auto;
+  display: flex; flex-direction: column; gap: var(--sp-2);
+  margin: 0 -6px; padding: 2px 6px 0;
+}
+.b-mitteilungen__empty {
+  color: rgba(255,255,255,0.5); font-size: var(--text-sm);
+  margin: auto 0; text-align: center;
+}
+.b-mitteilung {
+  display: flex; align-items: flex-start; gap: var(--sp-3);
+  padding: var(--sp-3); border-radius: var(--r-md);
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.08);
+  color: inherit; text-decoration: none;
+  position: relative;
+  transition: background var(--t-fast), border-color var(--t-fast), transform var(--t-fast);
+}
+.b-mitteilung:hover { background: rgba(255,255,255,0.11); transform: translateY(-1px); }
+.b-mitteilung__icon {
+  flex-shrink: 0; width: 32px; height: 32px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+}
+.b-mitteilung__icon svg { width: 18px; height: 18px; }
+.b-mitteilung__icon--ok  { background: rgba(34,197,94,0.18); color: #4ade80; }
+.b-mitteilung__icon--er  { background: rgba(239,68,68,0.18); color: #f87171; }
+.b-mitteilung__icon--rem { background: rgba(255,195,0,0.18); color: var(--pm-yellow); }
+.b-mitteilung__body { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1; }
+.b-mitteilung__title { font-weight: 600; font-size: var(--text-sm); }
+.b-mitteilung__meta { font-size: 12px; color: rgba(255,255,255,0.5); }
+.b-mitteilung__preview {
+  font-size: 12px; color: rgba(255,255,255,0.7); margin-top: 2px;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%;
+}
+.b-mitteilung__dot {
+  position: absolute; top: 10px; right: 10px;
+  width: 8px; height: 8px; border-radius: 50%; background: var(--pm-yellow);
+}
+.b-mitteilung--unread { border-color: rgba(255,195,0,0.30); }
 html[data-theme="dark"] .b-azubi {
   background-image:
     linear-gradient(160deg, rgba(10,12,16,0.16) 0%, rgba(10,12,16,0.00) 100%),
@@ -1934,7 +1990,7 @@ html[data-theme="dark"] .b-recent::before {
   /* Volle Breite → 6 Cards in einer Reihe (war vorher span 8). */
   display: grid;
   grid-template-columns: repeat(6, 1fr);
-  gap: 14px;
+  gap: 16px;   /* gleicher Abstand wie das Bento-Grid */
 }
 .b-wkcard {
   position: relative;
@@ -2183,13 +2239,13 @@ html[data-theme="dark"] .b-recent::before {
 /* Responsiv */
 @media (max-width: 1180px) {
   .b-hero { grid-column: span 12; grid-row: span 3; }
-  .b-azubi { grid-column: span 6; grid-row: span 3; }
+  .b-azubi, .b-mitteilungen { grid-column: span 6; grid-row: span 3; }
   .b-recent { grid-column: span 12; }
   .b-stats { grid-column: span 6; grid-row: span 1; }
 }
 @media (max-width: 720px) {
   .bento { gap: 12px; }
-  .b-azubi { grid-column: span 12; }
+  .b-azubi, .b-mitteilungen { grid-column: span 12; }
   .b-stats { grid-column: span 12; }
   .b-recent__grid { grid-template-columns: repeat(3, 1fr); }
   .b-hero__middle { grid-template-columns: 1fr; gap: 18px; }
@@ -2260,7 +2316,7 @@ html[data-theme="dark"] .b-recent::before {
    keine gelbe Linie. Gelb erscheint einmal, dezent, am KW-Label. */
 .welcome-hero {
   position: relative;
-  margin: var(--sp-6) 0 var(--sp-5);
+  margin: var(--sp-6) 0 16px;   /* unten = Bento-Gap (16px), damit alle Kachel-Abstände gleich sind */
   border-radius: 24px;
   overflow: hidden;
   isolation: isolate;

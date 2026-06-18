@@ -144,6 +144,25 @@
   gap: var(--sp-5);
 }
 
+/* Jahreswechsel-Slide (analog Wochenwechsel): die ganze Kalender-Ebene
+   rutscht raus/rein. switchYear() in jahresansicht.js setzt --leaving/
+   --entering + data-dir. Während des Slides die Per-Monats-Einblendung
+   unterdrücken, damit der Kalender als EIN Block gleitet (wie die week-pane). */
+@keyframes year-cal-out-next { to { opacity: 0; transform: translateX(-70px); } }
+@keyframes year-cal-out-prev { to { opacity: 0; transform: translateX(70px); } }
+@keyframes year-cal-in-next  { from { opacity: 0; transform: translateX(70px); }  to { opacity: 1; transform: translateX(0); } }
+@keyframes year-cal-in-prev  { from { opacity: 0; transform: translateX(-70px); } to { opacity: 1; transform: translateX(0); } }
+.year-calendar--leaving { will-change: transform, opacity; }
+.year-calendar--leaving[data-dir="next"] { animation: year-cal-out-next 180ms ease-in both; }
+.year-calendar--leaving[data-dir="prev"] { animation: year-cal-out-prev 180ms ease-in both; }
+.year-calendar--entering[data-dir="next"] { animation: year-cal-in-next 480ms cubic-bezier(.34, 1.45, .5, 1) both; }
+.year-calendar--entering[data-dir="prev"] { animation: year-cal-in-prev 480ms cubic-bezier(.34, 1.45, .5, 1) both; }
+.year-calendar--leaving .month-block,
+.year-calendar--entering .month-block { animation: none; }
+@media (prefers-reduced-motion: reduce) {
+  .year-calendar--leaving, .year-calendar--entering { animation: none; }
+}
+
 .month-block {
   background: var(--pm-white);
   border: 1px solid var(--pm-grey-200);

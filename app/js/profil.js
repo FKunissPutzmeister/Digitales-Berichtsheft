@@ -165,7 +165,6 @@ document.addEventListener('DOMContentLoaded', async () => {
                         data-theme-design="${d.id}" aria-pressed="${custom === d.id}">
                   <span class="theme-tile__swatch theme-tile__swatch--${d.id || 'standard'}" aria-hidden="true"></span>
                   <span class="theme-tile__name">${d.name}</span>
-                  <span class="theme-tile__sub">${d.sub}</span>
                 </button>
               `).join('')}
             </div>
@@ -589,7 +588,6 @@ document.addEventListener('DOMContentLoaded', async () => {
       <div class="page-header">
         <div class="page-header__left">
           <h1 class="page-title">Mein Profil</h1>
-          <p class="page-subtitle">Persönliche Daten und Ausbildungsinformationen.</p>
         </div>
       </div>
 

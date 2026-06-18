@@ -286,28 +286,6 @@ async function renderAzubiDashboard(user) {
     ? renderBentoRecentDays
     : renderBentoRecentWeeks;
 
-  /* Ausbildung: Monate vergangen / Gesamt, plus Lehrjahr-Index. */
-  let monatsVergangen = 0, monatsTotal = 0, lehrjahr = 1, donutPct = 0;
-  if (hasProgress) {
-    const beg = new Date(user.ausbildungsBeginn);
-    const end = new Date(user.ausbildungsEnde);
-    const jetzt = new Date();
-    const monthsBetween = (a, b) =>
-      (b.getFullYear() - a.getFullYear()) * 12 + (b.getMonth() - a.getMonth());
-    monatsTotal     = monthsBetween(beg, end);
-    monatsVergangen = Math.max(0, Math.min(monatsTotal, monthsBetween(beg, jetzt)));
-    lehrjahr = Math.min(3, Math.max(1, Math.floor(monatsVergangen / 12) + 1));
-    donutPct = monatsTotal > 0 ? Math.round((monatsVergangen / monatsTotal) * 100) : 0;
-  }
-  // SVG-Ring: Kreisumfang bei r=76 → 2π·76 ≈ 477.5. Offset proportional.
-  const ringCirc = 2 * Math.PI * 76;
-  const ringOffset = ringCirc * (1 - donutPct / 100);
-
-  /* Lehrjahr-Segmente: vorherige sind "done", laufendes ist "now" mit
-     Prozent-Wert (innerhalb des Lehrjahrs). */
-  const segPctInYear = monatsVergangen % 12 === 0 && lehrjahr > 1
-    ? 100 : Math.min(100, Math.round(((monatsVergangen % 12) / 12) * 100));
-
   /* Stats-Sparkline: 12 jüngste Wochen, Höhe pseudo-zufällig moduliert
      für visuelle Variation. Echtdaten haben keine "Tagesstunden-Höhe"
      (siehe Memory), Höhe steht hier symbolisch für "Aktivität". */
@@ -356,6 +334,84 @@ async function renderAzubiDashboard(user) {
   const heroEyebrow = DateUtil.MONTHS_SHORT[today.getMonth()];
   const heroNum = String(today.getDate()).padStart(2, '0');
 
+  // ── Mitteilungszentrale (ersetzt das frühere Ausbildung-Donut) ───────
+  // Quelle = bestehender Benachrichtigungs-Feed (genehmigt/zurückgegeben
+  // durch Ausbilder/in) + zeitbasierter Fahrgeld-Reminder nach dem letzten
+  // Berufsschultag (Tag mit Ort „Schule") des aktuellen Monats.
+  const MT_ICON_OK = '<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>';
+  const MT_ICON_ER = '<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>';
+  const MT_ICON_REM = '<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="9"/><path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l2.5 1.5"/></svg>';
+  const mtEsc = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  const mtRelTime = ts => {
+    if (!ts) return '';
+    const s = Math.floor((Date.now() - ts) / 1000);
+    if (s < 60) return 'gerade eben';
+    if (s < 3600) return `vor ${Math.floor(s / 60)} Min.`;
+    if (s < 86400) return `vor ${Math.floor(s / 3600)} Std.`;
+    if (s < 86400 * 2) return 'gestern';
+    if (s < 86400 * 7) return `vor ${Math.floor(s / 86400)} Tagen`;
+    return new Date(ts).toLocaleDateString('de-DE');
+  };
+  function computeFahrgeldReminder() {
+    const y = today.getFullYear(), mo = today.getMonth();
+    let last = null;
+    for (const w of alleWochen) {
+      const wSchule = (w.wochenOrt || '').includes('Schule');
+      for (const t of (w.tage || [])) {
+        const ort = t.ort || (wSchule ? 'Schule' : '');
+        if (!ort.includes('Schule')) continue;
+        const d = new Date((t.datum || '') + 'T00:00:00');
+        if (isNaN(d.getTime()) || d.getFullYear() !== y || d.getMonth() !== mo) continue;
+        if (!last || d > last) last = d;
+      }
+    }
+    if (!last) return null;
+    const todayMid = new Date(y, mo, today.getDate());
+    if (todayMid < last) return null;   // letzter Berufsschultag noch nicht vorbei
+    return { month: DateUtil.MONTHS[mo], date: DateUtil.toISODate(last) };
+  }
+  const mtItems = await DB.getBenachrichtigungenFuerUser(user.id);
+  const mtUnread = mtItems.filter(b => !b.gelesen).length;
+  const mtFahrgeld = computeFahrgeldReminder();
+  const mtFahrgeldHtml = mtFahrgeld ? `
+          <a class="b-mitteilung b-mitteilung--reminder" href="fahrgelderstattung.html">
+            <span class="b-mitteilung__icon b-mitteilung__icon--rem">${MT_ICON_REM}</span>
+            <span class="b-mitteilung__body">
+              <span class="b-mitteilung__title">Fahrgelderstattung ${mtFahrgeld.month} nicht vergessen</span>
+              <span class="b-mitteilung__meta">Letzter Berufsschultag war am ${DateUtil.formatDateShort(mtFahrgeld.date)}</span>
+            </span>
+          </a>` : '';
+  const mtNotifHtml = mtItems.slice(0, 6).map(b => {
+    const ok = b.type === 'genehmigt';
+    const title = ok ? `KW ${b.kw}/${b.year} genehmigt` : `KW ${b.kw}/${b.year} zurückgegeben`;
+    const prev = (!ok && b.kommentar) ? `<span class="b-mitteilung__preview">${mtEsc(b.kommentar)}</span>` : '';
+    return `
+          <a class="b-mitteilung${b.gelesen ? '' : ' b-mitteilung--unread'}" href="wochenansicht.html"
+             data-notif-id="${b.id}" data-kw="${b.kw}" data-year="${b.year}"${b.azubiId ? ` data-azubi="${b.azubiId}"` : ''}>
+            <span class="b-mitteilung__icon b-mitteilung__icon--${ok ? 'ok' : 'er'}">${ok ? MT_ICON_OK : MT_ICON_ER}</span>
+            <span class="b-mitteilung__body">
+              <span class="b-mitteilung__title">${title}</span>
+              <span class="b-mitteilung__meta">${mtRelTime(b.timestamp)}</span>
+              ${prev}
+            </span>
+            ${b.gelesen ? '' : '<span class="b-mitteilung__dot" aria-hidden="true"></span>'}
+          </a>`;
+  }).join('');
+  const mtEmptyHtml = (!mtNotifHtml && !mtFahrgeldHtml)
+    ? '<div class="b-mitteilungen__empty">Keine neuen Mitteilungen</div>' : '';
+  const mitteilungenSectionHtml = `
+      <section class="b-tile b-tile--dark b-mitteilungen animate-fade-in">
+        <div class="b-azubi__head">
+          <span class="eyebrow">Mitteilungen</span>
+          ${mtUnread > 0 ? `<span class="b-mitteilungen__badge">${mtUnread > 9 ? '9+' : mtUnread}</span>` : ''}
+        </div>
+        <div class="b-mitteilungen__list">
+          ${mtFahrgeldHtml}
+          ${mtNotifHtml}
+          ${mtEmptyHtml}
+        </div>
+      </section>`;
+
   main.innerHTML = `
     <section class="welcome-hero">
       <div class="welcome-hero__body">
@@ -393,51 +449,8 @@ async function renderAzubiDashboard(user) {
         </div>
       </section>
 
-      <!-- AUSBILDUNG: Dark Tile mit SVG-Donut -->
-      ${hasProgress ? `
-      <section class="b-tile b-tile--dark b-azubi animate-fade-in">
-        <div class="b-azubi__head">
-          <span class="eyebrow">Ausbildung</span>
-        </div>
-        <div class="b-donut">
-          <svg viewBox="0 0 180 180" aria-hidden="true">
-            <circle cx="90" cy="90" r="76" fill="none" stroke="rgba(255,255,255,0.08)" stroke-width="14"/>
-            <circle cx="90" cy="90" r="76" fill="none" stroke="url(#bentoRingGrad)" stroke-width="14"
-                    stroke-linecap="round" stroke-dasharray="${ringCirc.toFixed(1)}" stroke-dashoffset="${ringOffset.toFixed(1)}"/>
-            <defs>
-              <linearGradient id="bentoRingGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-                <stop offset="0%" stop-color="#FFE780"/>
-                <stop offset="100%" stop-color="#FFC300"/>
-              </linearGradient>
-            </defs>
-          </svg>
-          <div class="b-donut__center">
-            <div class="b-donut__pct">${monatsVergangen}<small>/${monatsTotal}</small></div>
-            <div class="b-donut__label">Monate · LJ ${lehrjahr}</div>
-          </div>
-        </div>
-        <div class="b-azubi__foot">
-          <strong>${user.beruf || 'Ausbildung'}</strong>
-          <span class="muted">${monatsTotal - monatsVergangen} Monate offen · bis ${DateUtil.formatDate(user.ausbildungsEnde)}</span>
-          <div class="b-azubi__segs">
-            <span class="${lehrjahr > 1 ? 'done' : (lehrjahr === 1 ? 'now' : '')}"
-                  style="--seg-pct:${lehrjahr === 1 ? segPctInYear : 100}%"></span>
-            <span class="${lehrjahr > 2 ? 'done' : (lehrjahr === 2 ? 'now' : '')}"
-                  style="--seg-pct:${lehrjahr === 2 ? segPctInYear : (lehrjahr > 2 ? 100 : 0)}%"></span>
-            <span class="${lehrjahr > 3 ? 'done' : (lehrjahr === 3 ? 'now' : '')}"
-                  style="--seg-pct:${lehrjahr === 3 ? segPctInYear : (lehrjahr > 3 ? 100 : 0)}%"></span>
-          </div>
-        </div>
-      </section>` : `
-      <section class="b-tile b-tile--dark b-azubi animate-fade-in">
-        <div class="b-azubi__head">
-          <span class="eyebrow">Ausbildung</span>
-        </div>
-        <div class="b-azubi__foot">
-          <strong>${user.beruf || 'Ausbildung'}</strong>
-          <span class="muted">Kein Ausbildungszeitraum hinterlegt</span>
-        </div>
-      </section>`}
+      <!-- MITTEILUNGEN: Benachrichtigungen + Fahrgeld-Reminder -->
+      ${mitteilungenSectionHtml}
 
       <!-- RECENT: Wochen-Cards -->
       <section class="b-tile b-tile--glass b-recent animate-fade-in">
@@ -470,6 +483,21 @@ async function renderAzubiDashboard(user) {
         if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); go(); }
       });
     }
+  });
+
+  // Mitteilungszentrale: Klick markiert die Benachrichtigung als gelesen und
+  // springt zur betroffenen Woche (eigenes Handling, weil mark-read VOR der
+  // Navigation laufen muss).
+  main.querySelectorAll('.b-mitteilung[data-notif-id]').forEach(el => {
+    el.addEventListener('click', async (e) => {
+      e.preventDefault();
+      const id = parseInt(el.dataset.notifId, 10);
+      if (!isNaN(id)) { try { await DB.markBenachrichtigungGelesen(id); } catch (_) {} }
+      if (el.dataset.kw)    sessionStorage.setItem('gotoKW', el.dataset.kw);
+      if (el.dataset.year)  sessionStorage.setItem('gotoYear', el.dataset.year);
+      if (el.dataset.azubi) sessionStorage.setItem('gotoAzubiId', el.dataset.azubi);
+      window.location.href = 'wochenansicht.html';
+    });
   });
 
   // Fortschritts-Ring von 0 % hochfüllen. Start-Leerzustand (dashoffset =

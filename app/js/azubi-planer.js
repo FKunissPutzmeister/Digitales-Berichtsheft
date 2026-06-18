@@ -133,7 +133,6 @@ async function renderAzubiDurchlauf(user) {
     <div class="page-header">
       <div class="page-header__left">
         <h1 class="page-title">Mein Abteilungsdurchlauf</h1>
-        <p class="page-subtitle">Deine Abteilungen, Zeiträume und Ansprechpartner.</p>
       </div>
     </div>
     ${zuw.length ? azubiTimelineHtml(zuw, planYearAz) : ''}
@@ -321,7 +320,6 @@ document.addEventListener('DOMContentLoaded', async () => {
       <div class="page-header">
         <div class="page-header__left">
           <h1 class="page-title">Azubi-Planer</h1>
-          <p class="page-subtitle">Zuweisungen von Auszubildenden zu Verantwortlichen verwalten.</p>
         </div>
       </div>
 

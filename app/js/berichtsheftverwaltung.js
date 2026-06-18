@@ -29,7 +29,6 @@ document.addEventListener('DOMContentLoaded', async () => {
       <div class="page-header">
         <div class="page-header__left">
           <h1 class="page-title">Berichtsheftverwaltung</h1>
-          <p class="page-subtitle">Export, Anhänge und Daten deines Berichtshefts.</p>
         </div>
       </div>
 

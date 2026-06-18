@@ -325,15 +325,28 @@
     host.style.setProperty('--silk-my', (e.clientY - rect.top).toFixed(1) + 'px');
     host.classList.add('silk-hover');
   }
+  // Cursor verlässt das Fenster (pointerout mit relatedTarget=null) oder der
+  // Tab verliert den Fokus (blur): Hover-Glow abräumen. Ohne das bleibt der
+  // Border-Spotlight am zuletzt überfahrenen Button „kleben" (= die manchmal
+  // verbuggte Umrandung), weil onPointerMove nur beim Wechsel auf ein ANDERES
+  // Element räumt – beim Rausfahren kommt kein weiteres pointermove mehr.
+  function onLeaveWindow(e) {
+    if (e && e.type === 'pointerout' && e.relatedTarget) return;
+    clearHost(lastHost); lastHost = null;
+  }
   function bindPointer() {
     if (pointerBound) return;
     pointerBound = true;
     document.addEventListener('pointermove', onPointerMove, { passive: true });
+    document.addEventListener('pointerout', onLeaveWindow, { passive: true });
+    window.addEventListener('blur', onLeaveWindow);
   }
   function unbindPointer() {
     if (!pointerBound) return;
     pointerBound = false;
     document.removeEventListener('pointermove', onPointerMove);
+    document.removeEventListener('pointerout', onLeaveWindow);
+    window.removeEventListener('blur', onLeaveWindow);
     clearHost(lastHost); lastHost = null;
   }
 
@@ -425,7 +438,10 @@
       scan();
       bindPointer();
       startPageObserver();
-      bindParallax();
+      // Scroll-Parallax deaktiviert: das Per-Element-translate verschob die
+      // dicht gepackten Bento-Kacheln (und welcome-hero) um je ein anderes Y
+      // → ungleiche Abstände im Dashboard. Gleiches Problem wie zuvor in der
+      // Wochenansicht; jetzt ganz aus statt nur dort ausgeschlossen.
     }).catch(function (err) { if (window.console) console.warn('[react-theme-layer] Bundle-Ladefehler:', err); });
   }
 

@@ -131,6 +131,31 @@ document.addEventListener('DOMContentLoaded', async () => {
     window._spinnerCallback = cb;
   }
 
+  /* ── Tagesliste-Entrance via IntersectionObserver ───────────────────
+     Nachbau der React-Bits <AnimatedList> (useInView, triggerOnce:false):
+     jede Tag-Zeile poppt mit scale(0.7)→1 + opacity 0→1 herein, sobald sie
+     zu ≥50 % ins Sichtfeld scrollt, und fährt beim Rausscrollen wieder
+     zurück – also bei JEDEM erneuten Erscheinen, nicht nur beim Laden. Rein
+     vanilla (kein React/motion in der No-Build-App). Die Verstecken-Klasse
+     (.tag-row--io) wird SYNCHRON nach main.innerHTML gesetzt (vor dem ersten
+     Paint → kein Aufblitzen); der Observer ergänzt/entfernt .tag-row--in je
+     nach Sichtbarkeit. reduced-motion → komplett aus (Zeilen bleiben sichtbar). */
+  let tagRowObserver = null;
+  function observeTagRows() {
+    if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    if (typeof IntersectionObserver === 'undefined') return;
+    if (!tagRowObserver) {
+      tagRowObserver = new IntersectionObserver(entries => {
+        entries.forEach(e => e.target.classList.toggle('tag-row--in', e.intersectionRatio >= 0.5));
+      }, { threshold: [0, 0.5, 1] });
+    }
+    tagRowObserver.disconnect();   // alte (jetzt entfernte) Zeilen lösen
+    document.querySelectorAll('.tag-cards .tag-row').forEach(row => {
+      row.classList.add('tag-row--io');   // versteckter Startzustand, vor Paint
+      tagRowObserver.observe(row);
+    });
+  }
+
   async function render() {
     // Wenn dieser Render durch einen KW-Wechsel ausgelöst wurde, hängen
     // wir die --entering-Klasse + data-dir direkt ans Markup. So ist die
@@ -295,6 +320,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     `;
 
     bindEvents(woche, azubiId, berichtTyp, monday);
+
+    // Tag-Zeilen für die Scroll-Entrance beobachten (jeder Render neu, da
+    // die Zeilen neu erzeugt wurden). SYNCHRON hier, damit der versteckte
+    // Startzustand vor dem ersten Paint sitzt.
+    observeTagRows();
   }
 
   // Wrapper um render(), der die KW-Wechsel-Animation (Spring Slide + Parallax)

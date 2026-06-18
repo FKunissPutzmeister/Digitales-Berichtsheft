@@ -282,7 +282,6 @@ document.addEventListener('DOMContentLoaded', async () => {
       <div class="page-header" style="margin-bottom:var(--sp-6)">
         <div class="page-header__left">
           <h1 class="page-title">Fahrgelderstattung</h1>
-          <p class="page-subtitle">Erstelle die monatliche Fahrgelderstattung aus deinen Berufsschultagen.</p>
         </div>
       </div>
       ${needsSetup

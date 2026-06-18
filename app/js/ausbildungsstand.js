@@ -28,7 +28,6 @@ document.addEventListener('DOMContentLoaded', async () => {
       <div class="page-header">
         <div class="page-header__left">
           <h1 class="page-title">Ausbildungsstand</h1>
-          <p class="page-subtitle">Übersicht über Anwesenheit und Ausbildungsfortschritt.</p>
         </div>
         ${isAusbilder ? `
         <div class="page-header__actions">

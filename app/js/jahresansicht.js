@@ -47,7 +47,6 @@ document.addEventListener('DOMContentLoaded', async () => {
       <div class="page-header">
         <div class="page-header__left">
           <h1 class="page-title">Jahresansicht</h1>
-          <p class="page-subtitle">Alle Kalenderwochen des Jahres ${currentYear} im Überblick.</p>
         </div>
       </div>
 
@@ -82,27 +81,28 @@ document.addEventListener('DOMContentLoaded', async () => {
       </div>
     `;
 
-    document.getElementById('prevYearBtn')?.addEventListener('click', () => { currentYear--; render(); });
-    document.getElementById('nextYearBtn')?.addEventListener('click', () => { currentYear++; render(); });
+    document.getElementById('prevYearBtn')?.addEventListener('click', () => switchYear(-1, 'prev'));
+    document.getElementById('nextYearBtn')?.addEventListener('click', () => switchYear(1, 'next'));
 
-    document.getElementById('yearTodayBtn')?.addEventListener('click', () => {
-      const today = new Date();
-      const realYear = today.getFullYear();
+    document.getElementById('yearTodayBtn')?.addEventListener('click', async () => {
+      const realYear = new Date().getFullYear();
       if (currentYear !== realYear) {
-        currentYear = realYear;
-        render();
-        // Nach dem Re-Render hat das DOM die neuen Elemente
-        requestAnimationFrame(() => scrollToCurrentWeek());
-      } else {
-        scrollToCurrentWeek();
+        await switchYear(realYear - currentYear, realYear > currentYear ? 'next' : 'prev');
       }
+      scrollToCurrentWeek();
     });
 
     document.querySelectorAll('.ausbilder-chip[data-azubi-id]').forEach(btn => {
       btn.addEventListener('click', () => { viewAzubiId = btn.dataset.azubiId; render(); });
     });
 
-    // Wochenzeile klickbar → Wochenansicht
+    bindWeekRows();
+  }
+
+  // Wochenzeile klickbar → Wochenansicht. Eigene Funktion, weil sie nach
+  // jedem Kalender-Neuaufbau (auch beim animierten Jahreswechsel) neu
+  // gebunden werden muss.
+  function bindWeekRows() {
     document.querySelectorAll('.week-row[data-kw]').forEach(el => {
       el.addEventListener('click', () => {
         sessionStorage.setItem('gotoKW', el.dataset.kw);
@@ -111,6 +111,50 @@ document.addEventListener('DOMContentLoaded', async () => {
         window.location.href = 'wochenansicht.html';
       });
     });
+  }
+
+  // Jahreswechsel mit Slide-Animation (analog Wochenwechsel): NUR die
+  // #yearCalendar-Ebene wird neu gerendert und horizontal geslidet — Header,
+  // Jahres-Nav und Legende bleiben stehen (deshalb kein Y-Springen mehr).
+  // reduced-motion → harter Swap ohne Animation.
+  let yearAnimating = false;
+  async function switchYear(delta, dir) {
+    if (yearAnimating || !delta) return;
+    yearAnimating = true;
+    currentYear += delta;
+    const yEl = document.querySelector('.year-nav__year');
+    if (yEl) yEl.textContent = currentYear;
+
+    const cal = document.getElementById('yearCalendar');
+    const azubiId = viewAzubiId || user.id;
+    const wochenP = DB.getWochenFuerAzubi(azubiId);
+    const reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+    if (!cal || reduce) {
+      const wochen = await wochenP;
+      if (cal) { cal.innerHTML = buildYearCalendar(currentYear, wochen); bindWeekRows(); }
+      yearAnimating = false;
+      return;
+    }
+
+    const main = document.getElementById('mainContent');
+    if (main) main.style.overflowX = 'hidden';
+    cal.dataset.dir = dir;
+    cal.classList.add('year-calendar--leaving');
+
+    // Daten holen UND die Exit-Animation (180ms) abwarten, dann erst swappen.
+    const [wochen] = await Promise.all([wochenP, new Promise(r => setTimeout(r, 180))]);
+    cal.innerHTML = buildYearCalendar(currentYear, wochen);
+    cal.classList.remove('year-calendar--leaving');
+    cal.classList.add('year-calendar--entering');
+    bindWeekRows();
+
+    setTimeout(() => {
+      cal.classList.remove('year-calendar--entering');
+      cal.removeAttribute('data-dir');
+      if (main) main.style.removeProperty('overflow-x');
+      yearAnimating = false;
+    }, 500);
   }
 
   async function renderAzubiSelector(currentId) {
