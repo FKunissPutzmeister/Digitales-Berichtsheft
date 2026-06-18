@@ -2,19 +2,6 @@
    APP.JS – Auth-Guard, Sidebar, Toast, globale Hilfsfunktionen
    =================================================================== */
 
-/**
- * Verzögert fn-Aufrufe – verhindert übermäßige Ausführung bei Resize/Input.
- * @param {Function} fn
- * @param {number} delay - Millisekunden
- */
-function debounce(fn, delay = 150) {
-  let timer;
-  return (...args) => {
-    clearTimeout(timer);
-    timer = setTimeout(() => fn.apply(this, args), delay);
-  };
-}
-
 /* ── Auth Guard ── */
 async function requireAuth() {
   const user = await DB.fetchCurrentUser();
@@ -194,54 +181,9 @@ async function initLayout(activeNavId) {
     onScroll();
   }
 
-  // Theme-Toggle wandert in die DS-Topbar (js/topbar-ds.js) — alter
-  // Button neben dem Mitteilungssymbol entfällt damit.
-  // initThemeToggle();
+  // Theme-Toggle sitzt in der DS-Topbar (js/topbar-ds.js).
 
   return user;
-}
-
-/* ── Theme-Toggle (Dark/Light) ────────────────────────────────────────
-   Fügt einen Button in die Topbar ein. Theme-Init + Persistierung
-   passiert in js/theme.js (im <head> geladen). */
-function initThemeToggle() {
-  const actions = document.querySelector('.topbar__actions');
-  if (!actions || document.getElementById('themeToggleBtn')) return;
-  if (!window.PMTheme) return;
-
-  const SUN = `<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>`;
-  const MOON = `<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>`;
-
-  const btn = document.createElement('button');
-  btn.id = 'themeToggleBtn';
-  btn.className = 'topbar__action-btn theme-toggle';
-  btn.type = 'button';
-  btn.setAttribute('aria-pressed', String(window.PMTheme.get() === 'dark'));
-
-  function syncIcon() {
-    const isDark = window.PMTheme.get() === 'dark';
-    btn.innerHTML = isDark ? SUN : MOON;
-    btn.setAttribute('aria-label',
-      isDark ? 'Helles Design aktivieren' : 'Dunkles Design aktivieren');
-    btn.setAttribute('data-tooltip',
-      isDark ? 'Helles Design' : 'Dunkles Design');
-    btn.setAttribute('aria-pressed', String(isDark));
-  }
-  syncIcon();
-
-  btn.addEventListener('click', () => {
-    window.PMTheme.toggle();
-    syncIcon();
-  });
-
-  // Auf Theme-Änderungen aus anderen Quellen (Tab-Sync, System) reagieren
-  window.addEventListener('pm-theme-change', syncIcon);
-  if (window.matchMedia) {
-    window.matchMedia('(prefers-color-scheme: dark)').addEventListener?.('change', syncIcon);
-  }
-
-  // An den Anfang der Topbar-Aktionen einsetzen (links neben Notifications)
-  actions.insertBefore(btn, actions.firstChild);
 }
 
 /* ── Benachrichtigungen ───────────────────────────────────────────────
@@ -470,23 +412,6 @@ const Modal = {
   }
 };
 
-/* ── Tab-System ── */
-function initTabs(containerSelector) {
-  const containers = document.querySelectorAll(containerSelector || '.tabs-container');
-  containers.forEach(container => {
-    const btns = container.querySelectorAll('.tab-btn');
-    const panels = container.querySelectorAll('.tab-panel');
-    btns.forEach((btn, i) => {
-      btn.addEventListener('click', () => {
-        btns.forEach(b => b.classList.remove('active'));
-        panels.forEach(p => p.classList.remove('active'));
-        btn.classList.add('active');
-        panels[i]?.classList.add('active');
-      });
-    });
-  });
-}
-
 /* ── Konstanten ── */
 const ROLE_LABELS = {
   azubi:     'Auszubildende/r',
@@ -500,29 +425,6 @@ const ANWESENHEIT_OPTS = [
 ];
 
 const ORT_OPTS = ['', 'Betrieb', 'Schule', 'Betrieb/Schule', 'Zuhause', 'Dienstreise'];
-
-/* ── Format-Hilfsfunktionen ── */
-function formatHours(minuten) {
-  const h = Math.floor(minuten / 60);
-  const m = minuten % 60;
-  return m > 0 ? `${h}:${String(m).padStart(2, '0')} Std.` : `${h} Std.`;
-}
-
-function formatHoursDecimal(dezimal) {
-  const h = Math.floor(dezimal);
-  const m = Math.round((dezimal - h) * 60);
-  if (m === 0) return `${h}:00 Std.`;
-  return `${h}:${String(m).padStart(2, '0')} Std.`;
-}
-
-function formatStunden(raw) {
-  if (!raw && raw !== 0) return '–';
-  const str = String(raw);
-  if (str.length <= 2) return str + ':00';
-  const h = str.slice(0, -2);
-  const m = str.slice(-2);
-  return `${parseInt(h, 10)}:${m}`;
-}
 
 function getStatusLabel(status) {
   const map = {
@@ -540,44 +442,6 @@ function getGreeting() {
   if (h < 17) return 'Guten Tag';
   return 'Guten Abend';
 }
-
-/* ── SVG Icons (zentral) ── */
-const Icons = {
-  home: `<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>`,
-  book: `<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/></svg>`,
-  calendar: `<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>`,
-  chart: `<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>`,
-  folder: `<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>`,
-  users: `<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path stroke-linecap="round" stroke-linejoin="round" d="M23 21v-2a4 4 0 0 0-3-3.87"/><path stroke-linecap="round" stroke-linejoin="round" d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>`,
-  user: `<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>`,
-  logout: `<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>`,
-  bell: `<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/></svg>`,
-  chevronLeft: `<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg>`,
-  chevronRight: `<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>`,
-  chevronDown: `<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>`,
-  menu: `<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>`,
-  check: `<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>`,
-  x: `<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>`,
-  plus: `<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>`,
-  download: `<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>`,
-  upload: `<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>`,
-  save: `<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>`,
-  settings: `<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path stroke-linecap="round" stroke-linejoin="round" d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>`,
-  info: `<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>`,
-  eye: `<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>`,
-  trash: `<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>`,
-  edit: `<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>`,
-  filter: `<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>`,
-  search: `<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>`,
-  lock: `<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>`,
-  mail: `<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>`,
-  building: `<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>`,
-  clock: `<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>`,
-  arrowRight: `<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>`,
-  collapse: `<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/><polyline points="9 18 3 12 9 6"/></svg>`,
-  expand: `<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/><polyline points="15 18 21 12 15 6"/></svg>`,
-  paperclip: `<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>`,
-};
 
 /* ===================================================================
    PMSelect – moderner Dropdown-Ersatz für native <select>
@@ -724,9 +588,17 @@ class PMSelect {
         e.preventDefault();
         if (this.menu.hidden) this.open();
         this.focusFirst();
+        return;
       }
-      if (this.menu.hidden && e.key.length === 1 && e.key !== ' ' && !e.ctrlKey && !e.metaKey && !e.altKey) {
-        this.open();
+      // Type-ahead: druckbare Taste (oder Backspace) filtert – egal ob das Menü
+      // per Tastatur ODER per Mausklick geöffnet wurde. Nach einem Klick behält
+      // der Trigger den Fokus; die alte `this.menu.hidden`-Bedingung verschluckte
+      // dann jede Eingabe, sodass die Suche im offenen Menü nicht ankam.
+      const isPrintable = e.key.length === 1 && e.key !== ' ' && !e.ctrlKey && !e.metaKey && !e.altKey;
+      if (isPrintable) {
+        if (this.menu.hidden) this.open();
+        this.typeAhead(e);
+      } else if (e.key === 'Backspace' && !this.menu.hidden) {
         this.typeAhead(e);
       }
     });

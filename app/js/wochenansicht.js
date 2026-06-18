@@ -75,6 +75,18 @@ document.addEventListener('DOMContentLoaded', async () => {
   let activeTransitions = 0;
 
   let pendingDayTagId = null;
+
+  // Aktueller Render-Stand für die EINMALIG gebundenen Modal-Confirm-Handler.
+  // Die Confirm-Buttons leben im persistenten HTML-Shell (wochenansicht.html),
+  // werden also NICHT pro render() neu erzeugt. Würde man ihre Listener in
+  // bindEvents() (läuft pro render) anhängen, stapelten sie sich und ein Klick
+  // feuerte N-mal (→ mehrere Wochen freigegeben, mehrere Toasts). Deshalb
+  // binden wir sie genau einmal und lesen den jeweils aktuellen Stand hier.
+  let currentWoche = null;
+  let currentMonday = null;
+  let currentBerichtTyp = null;
+  let shellEventsBound = false;
+
   // Korrektur-Ansicht für alle Nicht-Azubis (Verantwortliche/Ausbilder);
   // ein Azubi sieht ausschließlich sein eigenes Heft.
   const isAusbilder = !user.istAzubi;
@@ -95,13 +107,6 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   async function getCurrentWoche() {
     return await DB.getWoche(viewAzubiId || user.id, currentKW, currentYear);
-  }
-
-  // ── Zeit-Spinner Hilfsfunktionen ──────────────────────────────────
-
-  function decimalToTimeStr(decimal) {
-    const mins = Math.round((decimal || 0) * 60);
-    return `${Math.floor(mins / 60)}:${String(mins % 60).padStart(2, '0')}`;
   }
 
   // Tagdauer-Pill (Ganztag/Halbtag) im Liquid-Glass-Design des V2-Brand-
@@ -821,23 +826,22 @@ document.addEventListener('DOMContentLoaded', async () => {
       const dayName = ['Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag'][i];
       const dayLabel = `${dayName} (${DateUtil.formatDateShort(dateStr)})`;
 
-      if (!tag || !tag.anwesenheit) {
-        errors.push({ scope: 'tag', dateStr, day: dayLabel, field: 'anwesenheit', msg: 'Anwesenheit nicht gesetzt' });
-        continue;
-      }
-      if (tag.anwesenheit === 'anwesend') {
-        if (!tag.ort) {
-          errors.push({ scope: 'tag', dateStr, day: dayLabel, field: 'ort', msg: 'Ort nicht gewählt' });
-        } else {
-          const visible = getVisibleDaySections(tag.ort);
-          if (visible.has('betrieb')
-              && htmlIsEmpty(tag.betriebEintrag || tag.eintrag || '')) {
-            errors.push({ scope: 'tag', dateStr, day: dayLabel, field: 'betrieb', msg: 'Kein Eintrag „Betrieb"' });
-          }
-          if (visible.has('schule')
-              && htmlIsEmpty(tag.schuleEintrag || '')) {
-            errors.push({ scope: 'tag', dateStr, day: dayLabel, field: 'schule', msg: 'Kein Eintrag „Schule"' });
-          }
+      // Anwesenheit & Ort haben sichtbare UI-Defaults (anwesend / Betrieb), die
+      // ohne Klick als gesetzt gelten – siehe zaehleAnwesenheitstage() und den
+      // Anwesenheit-Live-Toggle. Untouched-Werktage stehen ggf. gar nicht in
+      // woche.tage; die Validierung muss dieselben Defaults annehmen, sonst
+      // meckert sie über Felder, die im UI längst befüllt aussehen.
+      const anwesenheit = tag?.anwesenheit || 'anwesend';
+      if (anwesenheit === 'anwesend') {
+        const ort = tag?.ort || 'Betrieb';
+        const visible = getVisibleDaySections(ort);
+        if (visible.has('betrieb')
+            && htmlIsEmpty(tag?.betriebEintrag || tag?.eintrag || '')) {
+          errors.push({ scope: 'tag', dateStr, day: dayLabel, field: 'betrieb', msg: 'Kein Eintrag „Betrieb"' });
+        }
+        if (visible.has('schule')
+            && htmlIsEmpty(tag?.schuleEintrag || '')) {
+          errors.push({ scope: 'tag', dateStr, day: dayLabel, field: 'schule', msg: 'Kein Eintrag „Schule"' });
         }
       }
     }
@@ -854,24 +858,13 @@ document.addEventListener('DOMContentLoaded', async () => {
   function validateWocheWoechentlich(woche, monday) {
     const errors = [];
 
-    // 1) Stunden / Anwesenheit pro Werktag (gleiche Logik wie täglich,
-    //    aber ohne Eintrags-Pflicht pro Tag)
-    for (let i = 0; i < 5; i++) {
-      const date = new Date(monday);
-      date.setDate(monday.getDate() + i);
-      const dateStr = DateUtil.toISODate(date);
-      const tag = woche?.tage?.find(t => t.datum === dateStr);
-      const dayName = ['Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag'][i];
-      const dayLabel = `${dayName} (${DateUtil.formatDateShort(dateStr)})`;
+    // Hinweis: Pro Werktag wird im Wochen-Modus KEINE Anwesenheit erzwungen –
+    // Leerwert/undefined gilt als „anwesend" (siehe zaehleAnwesenheitstage),
+    // ein untouched Werktag ist damit gültig. Pflicht sind nur die Wochen-
+    // Kacheln (Betrieb / Schule / Unterweisung) weiter unten.
 
-      if (!tag || !tag.anwesenheit) {
-        errors.push({ scope: 'tag', dateStr, day: dayLabel, field: 'anwesenheit', msg: 'Anwesenheit nicht gesetzt' });
-        continue;
-      }
-    }
-
-    // 2) Wochen-Kacheln: Betrieb ist Pflicht, Schule + Unterweisung
-    //    nur wenn die jeweiligen Optionen aktiv sind.
+    // Wochen-Kacheln: Betrieb ist Pflicht, Schule + Unterweisung
+    // nur wenn die jeweiligen Optionen aktiv sind.
     const ort = woche?.wochenOrt || 'betrieb';
     const unterweisung = !!woche?.unterweisungAktiv;
 
@@ -906,7 +899,6 @@ document.addEventListener('DOMContentLoaded', async () => {
       e.hidden = true;
       e.innerHTML = '';
     });
-    document.querySelectorAll('.wochen-kachel--has-error').forEach(k => k.classList.remove('wochen-kachel--has-error'));
   }
 
   // Markiert eine einzelne fehlende Komponente eines Tages rot (statt der
@@ -977,11 +969,11 @@ document.addEventListener('DOMContentLoaded', async () => {
       }
     }
 
-    // ── Wochen-Kachel-Errors markieren (nur wöchentlich-Format) ──
+    // ── Wochen-Kachel-Errors (nur wöchentlich-Format): das fehlende
+    //    Pflichtfeld – also den Editor selbst – rot umranden (.field-error
+    //    rendert ein rotes Outline, identisch zu den Tages-Editoren). ──
     kachelErrors.forEach(e => {
-      const wrap = document.getElementById('wochenEditorWrap_' + e.kachelId);
-      const kachel = wrap?.closest('.wochen-kachel');
-      kachel?.classList.add('wochen-kachel--has-error');
+      document.getElementById('wochenEditorWrap_' + e.kachelId)?.classList.add('field-error');
     });
 
     // Zum ersten Fehler scrollen – Tag bevorzugt, sonst erste Kachel
@@ -1313,7 +1305,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   function wochenKachelHtml(id, readonly) {
     const meta = WOCHEN_TILE_META[id];
     return `
-      <div class="wochen-kachel" data-kachel-id="${id}">
+      <div class="wochen-kachel${readonly ? ' wochen-kachel--readonly' : ''}" data-kachel-id="${id}">
         <div class="wochen-kachel__header">
           <span class="wochen-kachel__title">${meta.label}</span>
           <span class="wochen-kachel__hint">${meta.hint}</span>
@@ -1467,10 +1459,6 @@ document.addEventListener('DOMContentLoaded', async () => {
       }
     };
     node.addEventListener('transitionend', done);
-  }
-
-  function bindWochenEditorEvents() {
-    // Events handled by Quill instances in initWochenQuillEditors
   }
 
   // ── Wochen-Anhänge ────────────────────────────────────────────────
@@ -1869,6 +1857,11 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   function bindEvents(woche, azubiId, berichtTyp, monday) {
+    // Aktuellen Stand für die einmalig gebundenen Shell-Handler aktualisieren.
+    currentWoche = woche;
+    currentMonday = monday;
+    currentBerichtTyp = berichtTyp;
+
     // Navigation
     document.getElementById('prevWeekBtn')?.addEventListener('click', () => navigateWeeks(-1, 'prev'));
     document.getElementById('nextWeekBtn')?.addEventListener('click', () => navigateWeeks(1, 'next'));
@@ -1921,15 +1914,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
 
     // „Woche bearbeiten" – zieht die Freigabe zurück (eigener Button statt
-    // Dropdown, da nur diese eine Aktion dahinter lag)
+    // „Weitere Aktionen"-Dropdown, da nur diese eine Aktion dahinter lag; der
+    // Confirm-Handler ist einmalig in bindShellEvents() gebunden).
     document.getElementById('withdrawBtn')?.addEventListener('click', () => {
       Modal.open('withdrawModal');
-    });
-    document.getElementById('withdrawConfirmBtn')?.addEventListener('click', async () => {
-      await DB.setWocheStatus(woche.id, 'offen');
-      Modal.closeAll();
-      Toast.info('Bearbeitung freigegeben', `KW ${currentKW} kann wieder bearbeitet werden.`);
-      render();
     });
 
     // Freigabe – mit Pflichtfeld-Validierung. Der Freigabe-Button sitzt jetzt
@@ -1954,35 +1942,12 @@ document.addEventListener('DOMContentLoaded', async () => {
       }
       const aktuelleWoche = await DB.getWoche(viewAzubiId || user.id, currentKW, currentYear);
       const errors = await validateWoche(aktuelleWoche, monday);
-      // ── TEMP DEBUG (Freigabe-Validierung) – wieder entfernen ──────────
-      console.group('%c[Freigabe-Debug] KW ' + currentKW + '/' + currentYear, 'color:#e8a000;font-weight:bold');
-      console.log('berichtTyp (User):', await getBerichtTyp());
-      console.log('woche.typ:', aktuelleWoche?.typ, '| wochenOrt:', aktuelleWoche?.wochenOrt, '| unterweisungAktiv:', aktuelleWoche?.unterweisungAktiv);
-      console.log('betriebEintrag leer?', htmlIsEmpty(aktuelleWoche?.betriebEintrag || ''),
-                  '| schuleEintrag leer?', htmlIsEmpty(aktuelleWoche?.schuleEintrag || ''),
-                  '| unterweisungEintrag leer?', htmlIsEmpty(aktuelleWoche?.unterweisungEintrag || ''));
-      console.log('monday:', DateUtil.toISODate(monday));
-      console.table((aktuelleWoche?.tage || []).map(t => ({
-        datum: t.datum, anwesenheit: t.anwesenheit, ort: t.ort,
-        stunden: t.stunden, typeofStunden: typeof t.stunden,
-        betriebEintragLeer: htmlIsEmpty(t.betriebEintrag || t.eintrag || ''),
-      })));
-      console.log('ERRORS (' + errors.length + '):', JSON.parse(JSON.stringify(errors)));
-      console.groupEnd();
-      // ── /TEMP DEBUG ──────────────────────────────────────────────────
       if (errors.length > 0) {
         await showValidationErrors(errors);
         return;
       }
       clearValidationErrors();
       Modal.open('releaseModal');
-    });
-    document.getElementById('releaseConfirmBtn')?.addEventListener('click', async () => {
-      if (!woche) { Toast.warning('Keine Einträge', 'Bitte zuerst Einträge erfassen.'); Modal.closeAll(); return; }
-      await DB.setWocheStatus(woche.id, 'freigegeben');
-      Modal.closeAll();
-      Toast.success('Freigegeben', `KW ${currentKW} wurde zur Abnahme freigegeben.`);
-      render();
     });
 
     document.getElementById('approveBtn')?.addEventListener('click', () => {
@@ -1991,7 +1956,70 @@ document.addEventListener('DOMContentLoaded', async () => {
         '<p style="color:var(--pm-grey-500);font-size:var(--text-sm);margin:0">Möchtest du diese Woche genehmigen?</p>';
       Modal.open('approveModal');
     });
+    document.getElementById('rejectBtn')?.addEventListener('click', () => {
+      document.getElementById('rejectReason').value = '';
+      Modal.open('rejectModal');
+    });
+
+    document.getElementById('addCommentBtn')?.addEventListener('click', () => {
+      pendingDayTagId = null;
+      document.getElementById('commentText').value = '';
+      Modal.open('commentModal');
+    });
+    document.querySelectorAll('.tag-row__add-day-comment').forEach(btn => {
+      btn.addEventListener('click', () => {
+        pendingDayTagId = parseInt(btn.dataset.addDayComment);
+        document.getElementById('commentText').value = '';
+        Modal.open('commentModal');
+      });
+    });
+
+    Modal.init();
+
+    // Persistente Shell-Handler (Modal-Confirm-Buttons + Außenklick) genau
+    // EINMAL binden – sie leben außerhalb von #mainContent und würden sonst
+    // pro render() einen weiteren Listener bekommen.
+    if (!shellEventsBound) {
+      shellEventsBound = true;
+      bindShellEvents();
+    }
+  }
+
+  // Handler für Elemente im persistenten HTML-Shell (Modals, document).
+  // Nur EINMAL gebunden; lesen den aktuellen Render-Stand über currentWoche/
+  // currentMonday/currentBerichtTyp statt über eine (sonst veraltende) Closure.
+  function bindShellEvents() {
+    // Außenklick schließt jedes offene „Weitere Aktionen"-Dropdown.
+    document.addEventListener('click', () => {
+      document.querySelectorAll('.dropdown__menu.open').forEach(menu => {
+        menu.classList.remove('open');
+        menu.closest('.dropdown')?.querySelector('[aria-haspopup]')
+          ?.setAttribute('aria-expanded', 'false');
+      });
+    });
+
+    // „Woche bearbeiten" bestätigen – Freigabe zurückziehen.
+    document.getElementById('withdrawConfirmBtn')?.addEventListener('click', async () => {
+      if (!currentWoche) return;
+      await DB.setWocheStatus(currentWoche.id, 'offen');
+      Modal.closeAll();
+      Toast.info('Bearbeitung freigegeben', `KW ${currentKW} kann wieder bearbeitet werden.`);
+      render();
+    });
+
+    // Freigabe bestätigen.
+    document.getElementById('releaseConfirmBtn')?.addEventListener('click', async () => {
+      if (!currentWoche) { Toast.warning('Keine Einträge', 'Bitte zuerst Einträge erfassen.'); Modal.closeAll(); return; }
+      await DB.setWocheStatus(currentWoche.id, 'freigegeben');
+      Modal.closeAll();
+      Toast.success('Freigegeben', `KW ${currentKW} wurde zur Abnahme freigegeben.`);
+      render();
+    });
+
+    // Genehmigen bestätigen (Ausbilder) – inkl. optionaler Tages-Kommentare.
     document.getElementById('approveConfirmBtn')?.addEventListener('click', async () => {
+      const woche = currentWoche;
+      if (!woche) return;
       const dayCommentInputs = document.querySelectorAll('#approveDayComments [data-day-comment]');
       for (const input of dayCommentInputs) {
         const text = input.value.trim();
@@ -2017,11 +2045,10 @@ document.addEventListener('DOMContentLoaded', async () => {
       Toast.success('Genehmigt', `KW ${currentKW} wurde genehmigt.`);
       render();
     });
-    document.getElementById('rejectBtn')?.addEventListener('click', () => {
-      document.getElementById('rejectReason').value = '';
-      Modal.open('rejectModal');
-    });
+
+    // Zurückgeben bestätigen (Ausbilder) – Begründung Pflicht.
     document.getElementById('rejectConfirmBtn')?.addEventListener('click', async () => {
+      const woche = currentWoche;
       const reason = document.getElementById('rejectReason').value.trim();
       if (!reason) { Toast.error('Pflichtfeld', 'Bitte eine Begründung eingeben.'); return; }
       if (!woche) return;
@@ -2044,19 +2071,9 @@ document.addEventListener('DOMContentLoaded', async () => {
       render();
     });
 
-    document.getElementById('addCommentBtn')?.addEventListener('click', () => {
-      pendingDayTagId = null;
-      document.getElementById('commentText').value = '';
-      Modal.open('commentModal');
-    });
-    document.querySelectorAll('.tag-row__add-day-comment').forEach(btn => {
-      btn.addEventListener('click', () => {
-        pendingDayTagId = parseInt(btn.dataset.addDayComment);
-        document.getElementById('commentText').value = '';
-        Modal.open('commentModal');
-      });
-    });
+    // Kommentar speichern (Ausbilder) – Wochen- oder Tages-Kommentar.
     document.getElementById('commentSubmitBtn')?.addEventListener('click', async () => {
+      const woche = currentWoche;
       const text = document.getElementById('commentText').value.trim();
       if (!text) { Toast.error('Pflichtfeld', 'Bitte einen Kommentar eingeben.'); return; }
       if (!woche) return;
@@ -2068,8 +2085,6 @@ document.addEventListener('DOMContentLoaded', async () => {
       Toast.success('Kommentar', 'Kommentar wurde gespeichert.');
       render();
     });
-
-    Modal.init();
   }
 
   function bindDayCardEvents() {
@@ -2322,11 +2337,6 @@ document.addEventListener('DOMContentLoaded', async () => {
 
 // ── Globale Hilfsfunktionen ───────────────────────────────────────
 
-function toggleDayCard(dateStr) {
-  const card = document.getElementById('dayCard_' + dateStr);
-  card?.classList.toggle('expanded');
-}
-
 /* Inline-Handler, am .tag-row__summary verkabelt. Robuster als ein
    delegierter document-Listener, weil das click-Event direkt am Element
    feuert und nicht durch fehlgeleitete Bubbling-Pfade verschluckt wird.
@@ -2380,16 +2390,6 @@ function escapeHtml(str) {
   return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
-/* Visuelle Quittung am Spinner-Input: leichter Bump in der jeweiligen
-   Richtung. Vor jedem Trigger die Animation-Klassen entfernen und einen
-   Reflow erzwingen, sonst feuert die Animation beim wiederholten Klick
-   in dieselbe Richtung nicht mehr. */
-function pulseSpinnerInput(inp, direction) {
-  inp.classList.remove('spinner-bump-up', 'spinner-bump-down');
-  void inp.offsetWidth;
-  inp.classList.add('spinner-bump-' + direction);
-}
-
 /* Tagdauer-Pill: Klick auf Ganztag/Halbtag setzt den Wert, verschiebt den
    Glas-Indikator (per data-dauer/CSS) und löst denselben Auto-Save aus wie
    früher der Zeit-Spinner (window._spinnerCallback). */
@@ -2405,43 +2405,4 @@ function handleDauerClick(btn) {
     pill.classList.add('dauer-pill--morph');
   }
   window._spinnerCallback?.(pill.dataset.date);
-}
-
-function handleSpinnerClick(btn) {
-  if (btn.disabled) return;
-  const spinner = btn.closest('.time-spinner');
-  if (!spinner || spinner.classList.contains('time-spinner--readonly')) return;
-  const dateStr = spinner.dataset.date;
-  const part = btn.dataset.part;
-  const inp = spinner.querySelector(`.time-spinner__input[data-part="${part}"]`);
-  if (!inp) return;
-  const oldV = parseInt(inp.value) || 0;
-  let v = oldV;
-  if (btn.dataset.action === 'up') {
-    v = part === 'h' ? Math.min(23, v + 1) : (v + 5 >= 60 ? 0 : v + 5);
-  } else {
-    v = part === 'h' ? Math.max(0, v - 1) : (v - 5 < 0 ? 55 : v - 5);
-  }
-  if (v !== oldV) {
-    pulseSpinnerInput(inp, btn.dataset.action === 'up' ? 'up' : 'down');
-  }
-  inp.value = String(v).padStart(2, '0');
-  window._spinnerCallback?.(dateStr);
-}
-
-function handleSpinnerInput(inp) {
-  if (inp.readOnly) return;
-  const spinner = inp.closest('.time-spinner');
-  if (!spinner || spinner.classList.contains('time-spinner--readonly')) return;
-  const dateStr = spinner.dataset.date;
-  const part = inp.dataset.part;
-  const oldV = parseInt(inp.dataset.lastValue) || 0;
-  let v = parseInt(inp.value) || 0;
-  v = part === 'h' ? Math.min(23, Math.max(0, v)) : Math.min(59, Math.max(0, v));
-  if (v !== oldV) {
-    pulseSpinnerInput(inp, v > oldV ? 'up' : 'down');
-  }
-  inp.value = String(v).padStart(2, '0');
-  inp.dataset.lastValue = String(v);
-  window._spinnerCallback?.(dateStr);
 }

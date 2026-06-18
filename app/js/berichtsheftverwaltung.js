@@ -179,14 +179,8 @@ document.addEventListener('DOMContentLoaded', async () => {
       handleFiles(e.dataTransfer.files);
     });
 
-    // Delete Anhang
-    document.querySelectorAll('.attachment-item__delete').forEach((btn, i) => {
-      btn.addEventListener('click', () => {
-        attachments.splice(i, 1);
-        document.getElementById('attachmentList').innerHTML = renderAttachments();
-        bindDeleteEvents();
-      });
-    });
+    // Delete Anhang (identische Verdrahtung wie nach jedem Re-Render)
+    bindDeleteEvents();
 
     Toast.init();
   }
