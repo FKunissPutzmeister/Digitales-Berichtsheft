@@ -50,3 +50,6 @@ backend/.env
 # Persistente Express-Sessions (session-file-store) — lokale Login-Cookies,
 # überleben Backend-Restarts. Gehören NICHT ins Repo.
 backend/sessions/
+
+# Claude Code – lokale Agent-Worktrees & Arbeitsdateien (nicht versionieren)
+.claude/
