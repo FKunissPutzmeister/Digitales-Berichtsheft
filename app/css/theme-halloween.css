@@ -393,25 +393,28 @@ html[data-theme="halloween"] { color-scheme: dark; }
    -------------------------------------------------------------------
    Diese Elemente müssen VOR dem Inhalt liegen (nicht im #pmThemeFX-Layer
    dahinter) → als halloween-gescopete Pseudo-Elemente auf App-Inhalt.
-   Hosts mit sonst freiem Pseudo: .sidebar__header::before (Netz),
-   body[data-page="wochenansicht"] .tag-row:first-of-type::after (Spinne).
+   Hosts mit sonst freiem Pseudo: .sidebar__nav::before (rundes Netz),
+   body[data-page="wochenansicht"] .tag-cards__header + .tag-row::after
+   (krabbelnde Spinne).
    =================================================================== */
 
-/* Spinnennetz IN die Navigations-Sidebar eingewoben (kein loses Eck-
-   Overlay): Pseudo am Sidebar-Header, absolut zur Sidebar verankert
-   (die Sidebar ist position:fixed). Da die Sidebar overflow:hidden +
-   runde Ecken hat, wird das Netz an die Pillenform geclippt und sitzt
-   damit in der Ecke der Nav-Leiste; Fäden spannen oben und links die
-   Kante entlang. pointer-events:none → blockiert keine Klicks. */
-[data-theme="halloween"] .sidebar__header::before {
+/* Rundes Spinnennetz HINTER den Nav-Elementen: Pseudo am Navigations-
+   Scroll-Container, z-index:-1 → liegt über dem Sidebar-Glas, aber HINTER
+   den Menüpunkten (die im Fluss darüber gezeichnet werden, da das negative
+   z nur bis zum Stacking-Context der Sidebar zurückfällt). Dezente
+   Deckkraft, damit die Links lesbar bleiben. Eigene SVG-Datei (echtes
+   rundes Netz: 12 Speichen + 4 gebogene Ringe + kleine Spinne). */
+[data-theme="halloween"] .sidebar__nav { position: relative; }
+[data-theme="halloween"] .sidebar__nav::before {
   content: '';
-  position: absolute; top: 0; left: 0;
-  width: 150px; height: 165px;
-  z-index: 4;
+  position: absolute; top: 2px; left: 50%;
+  width: 215px; height: 215px;
+  transform: translateX(-50%);
+  z-index: -1;
   pointer-events: none;
-  opacity: 0.5;
-  background: top left / 100% 100% no-repeat
-    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 150 165'%3E%3Cg stroke='%23e3e6ef' stroke-width='0.9' fill='none' opacity='0.85'%3E%3Cline x1='0' y1='0' x2='150' y2='12'/%3E%3Cline x1='0' y1='0' x2='128' y2='54'/%3E%3Cline x1='0' y1='0' x2='96' y2='96'/%3E%3Cline x1='0' y1='0' x2='52' y2='132'/%3E%3Cline x1='0' y1='0' x2='12' y2='165'/%3E%3Cpath d='M32 4 Q24 26 4 32'/%3E%3Cpath d='M64 6 Q50 50 6 64'/%3E%3Cpath d='M100 9 Q76 78 9 100'/%3E%3Cpath d='M138 12 Q102 104 12 140'/%3E%3C/g%3E%3Cg stroke='%230a0609' stroke-width='1.4' fill='none' stroke-linecap='round'%3E%3Cpath d='M88 72 C84 68 82 65 78 65 M88 72 C84 73 81 76 78 78 M88 72 C85 75 84 79 82 83 M88 72 C86 69 86 65 85 62'/%3E%3Cpath d='M88 72 C92 68 94 65 98 65 M88 72 C92 73 95 76 98 78 M88 72 C91 75 92 79 94 83 M88 72 C90 69 90 65 91 62'/%3E%3C/g%3E%3Cellipse cx='88' cy='73' rx='4.5' ry='5.5' fill='%230a0609'/%3E%3Ccircle cx='88' cy='65' r='3.3' fill='%230a0609'/%3E%3C/svg%3E");
+  opacity: 0.42;
+  background: center top / contain no-repeat
+    url("../assets/halloween-web.svg");
 }
 
 /* Krabbelnde Spinne am oberen Rand der ersten Wochenansicht-Kachel
@@ -422,18 +425,25 @@ html[data-theme="halloween"] { color-scheme: dark; }
      (background-image, steps) → die Beine „laufen".
    Beide animieren verschiedene Eigenschaften (left/transform vs.
    background-image) und überlagern sich daher sauber. */
-[data-theme="halloween"] body[data-page="wochenansicht"] .tag-row { position: relative; }
-[data-theme="halloween"] body[data-page="wochenansicht"] .tag-row:first-of-type::after {
+/* Wichtig: `:first-of-type` greift NICHT, weil die erste Kachel im
+   .tag-cards-Container ein .tag-cards__header-DIV ist (also ist KEINE
+   .tag-row das „erste Element ihres Typs"). Stattdessen die Tag-Zeile
+   direkt NACH dem Header adressieren = die erste echte Tageskachel. */
+[data-theme="halloween"] body[data-page="wochenansicht"] .tag-cards__header + .tag-row { position: relative; }
+[data-theme="halloween"] body[data-page="wochenansicht"] .tag-cards__header + .tag-row::after {
   content: '';
-  position: absolute; top: -8px; left: 3%;
+  position: absolute; top: -9px; left: 3%;
   width: 26px; height: 26px;
-  z-index: 4;
+  z-index: 6;
   pointer-events: none;
-  background: center / contain no-repeat;
+  /* Basis-Pose IMMER gesetzt → Spinne ist auch sichtbar, falls der
+     Bein-Wechsel (background-image-Animation) mal nicht greift. */
+  background: center / contain no-repeat
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'%3E%3Cg stroke='%230a0609' stroke-width='2.2' fill='none' stroke-linecap='round'%3E%3Cpath d='M20 22 C12 17 9 12 4 10 M20 22 C12 22 8 26 3 29 M20 22 C13 26 11 32 9 38 M20 22 C16 18 15 12 13 6'/%3E%3Cpath d='M20 22 C28 19 31 14 36 14 M20 22 C28 23 32 28 37 31 M20 22 C27 26 29 32 30 38 M20 22 C24 18 25 12 26 7'/%3E%3C/g%3E%3Cellipse cx='20' cy='24' rx='7' ry='8' fill='%230a0609'/%3E%3Ccircle cx='20' cy='15' r='4.5' fill='%230a0609'/%3E%3Ccircle cx='18' cy='14' r='1.2' fill='%23ff7518'/%3E%3Ccircle cx='22' cy='14' r='1.2' fill='%23ff7518'/%3E%3C/svg%3E");
   filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.5))
-          drop-shadow(0 0 3px rgba(255, 150, 50, 0.55));
+          drop-shadow(0 0 3px rgba(255, 150, 50, 0.6));
   animation: pm-hw-crawl-move 13s ease-in-out infinite,
-             pm-hw-crawl-legs 0.26s steps(1) infinite;
+             pm-hw-crawl-legs 0.45s infinite;
 }
 @keyframes pm-hw-crawl-move {
   0%   { left: 3%;  transform: translateY(0)   rotate(6deg); }
@@ -468,12 +478,12 @@ html[data-theme="halloween"] { color-scheme: dark; }
   [data-theme="halloween"] .pm-hw-ghost { opacity: 0.7; }
   /* Krabbel-Spinne (außerhalb #pmThemeFX → von themes.css nicht erfasst):
      anhalten. */
-  [data-theme="halloween"] body[data-page="wochenansicht"] .tag-row:first-of-type::after { animation: none; }
+  [data-theme="halloween"] body[data-page="wochenansicht"] .tag-cards__header + .tag-row::after { animation: none; }
 }
 @media print {
   [data-theme="halloween"] body { background: #fff !important; }
-  [data-theme="halloween"] .sidebar__header::before,
-  [data-theme="halloween"] body[data-page="wochenansicht"] .tag-row:first-of-type::after { display: none !important; }
+  [data-theme="halloween"] .sidebar__nav::before,
+  [data-theme="halloween"] body[data-page="wochenansicht"] .tag-cards__header + .tag-row::after { display: none !important; }
 }
 
 /* ===================================================================
