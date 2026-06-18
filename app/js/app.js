@@ -724,9 +724,17 @@ class PMSelect {
         e.preventDefault();
         if (this.menu.hidden) this.open();
         this.focusFirst();
+        return;
       }
-      if (this.menu.hidden && e.key.length === 1 && e.key !== ' ' && !e.ctrlKey && !e.metaKey && !e.altKey) {
-        this.open();
+      // Type-ahead: druckbare Taste (oder Backspace) filtert – egal ob das Menü
+      // per Tastatur ODER per Mausklick geöffnet wurde. Nach einem Klick behält
+      // der Trigger den Fokus; die alte `this.menu.hidden`-Bedingung verschluckte
+      // dann jede Eingabe, sodass die Suche im offenen Menü nicht ankam.
+      const isPrintable = e.key.length === 1 && e.key !== ' ' && !e.ctrlKey && !e.metaKey && !e.altKey;
+      if (isPrintable) {
+        if (this.menu.hidden) this.open();
+        this.typeAhead(e);
+      } else if (e.key === 'Backspace' && !this.menu.hidden) {
         this.typeAhead(e);
       }
     });

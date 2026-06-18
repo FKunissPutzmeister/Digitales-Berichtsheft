@@ -1121,35 +1121,76 @@ async function getPlanerSignale() {
   const heute   = heuteD.toISOString().split('T')[0];
   const grenze  = grenzeD.toISOString().split('T')[0];
   const [azubis, zuw] = await Promise.all([DB.getAzubis(), DB.getAllZuweisungen()]);
+  const nameVon = id => (azubis.find(a => a.id === id)?.name) || 'Unbekannt';
   const aktiveAzubiIds = new Set(
     zuw.filter(z => z.von <= heute && z.bis >= heute).map(z => z.azubiId)
   );
+  // Nach dem relevanten Datum sortiert, damit die dringendsten Einträge
+  // zuerst in der Kachel-Vorschau stehen.
+  const ablaufend = zuw.filter(z => z.bis >= heute && z.bis <= grenze)
+                       .sort((a, b) => a.bis.localeCompare(b.bis));
+  const beginnend = zuw.filter(z => z.von >  heute && z.von <= grenze)
+                       .sort((a, b) => a.von.localeCompare(b.von));
+  // Jede Liste trägt die Zeilen-Daten für die Mini-Vorschau; `.length` bleibt
+  // die Kennzahl der Kachel.
   return {
-    ohneZuweisung: azubis.filter(a => !aktiveAzubiIds.has(a.id)),
-    baldAblaufend: zuw.filter(z => z.bis >= heute && z.bis <= grenze),
-    baldBeginnend: zuw.filter(z => z.von >  heute && z.von <= grenze),
+    ohneZuweisung: azubis.filter(a => !aktiveAzubiIds.has(a.id))
+                         .map(a => ({ name: a.name })),
+    baldAblaufend: ablaufend.map(z => ({ name: nameVon(z.azubiId), abteilung: z.abteilung, von: z.von, bis: z.bis })),
+    baldBeginnend: beginnend.map(z => ({ name: nameVon(z.azubiId), abteilung: z.abteilung, von: z.von, bis: z.bis })),
   };
 }
 
 /* Drei klickbare Signalkarten (führen in den Planer). Wiederverwendet die
    stat-card-Styles; Icon('planer') existiert (Sidebar). */
+/* Drei Spalten: je eine große Signal-Kachel (Kennzahl) mit den passenden
+   Azubi-Detail-Kacheln direkt darunter. "Ohne Zuweisung" zeigt nur den
+   Namen, die übrigen zusätzlich Abteilung und Zeitraum. Max. MAX Kacheln
+   je Spalte, der Rest verweist in den Planer. */
 function renderPlanerSignale(sig) {
-  const card = (count, label, sub, mod) => `
-    <a href="azubi-planer.html" class="stat-card animate-fade-in" style="text-decoration:none">
-      <div class="stat-card__icon stat-card__icon--${mod}">${Icon('planer')}</div>
-      <div class="stat-card__content">
-        <div class="stat-card__label">${label}</div>
-        <div class="stat-card__value">${count}</div>
-        <div class="stat-card__sub">${sub}</div>
-      </div>
-    </a>`;
+  const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[c]));
+  const MAX = 8;
+  const zeitraum = r => (r.von || r.bis)
+    ? `${DateUtil.formatDateShort(r.von)} – ${DateUtil.formatDateShort(r.bis)}` : '';
+  const kachel = r => {
+    const abt  = r.abteilung ? `<div class="signal-tile__abt">${esc(r.abteilung)}</div>` : '';
+    const zeit = zeitraum(r) ? `<div class="signal-tile__zeit">${zeitraum(r)}</div>` : '';
+    return `<div class="signal-tile">
+              <div class="signal-tile__name">${esc(r.name)}</div>
+              ${abt}${zeit}
+            </div>`;
+  };
+  const kacheln = (rows, leer) => {
+    if (!rows.length) return `<p class="signal-col__empty">${leer}</p>`;
+    const tiles = rows.slice(0, MAX).map(kachel).join('');
+    const rest = rows.length - MAX;
+    const mehr = rest > 0
+      ? `<a href="azubi-planer.html" class="signal-tile signal-tile--more">+${rest} weitere im Planer →</a>`
+      : '';
+    return `<div class="signal-tiles">${tiles}${mehr}</div>`;
+  };
+  const spalte = (rows, label, sub, mod, leer) => `
+    <div class="signal-col signal-col--${mod}">
+      <a href="azubi-planer.html" class="stat-card animate-fade-in" style="text-decoration:none">
+        <div class="stat-card__icon stat-card__icon--${mod}">${Icon('planer')}</div>
+        <div class="stat-card__content">
+          <div class="stat-card__label">${label}</div>
+          <div class="stat-card__value">${rows.length}</div>
+          <div class="stat-card__sub">${sub}</div>
+        </div>
+      </a>
+      ${kacheln(rows, leer)}
+    </div>`;
   return `
-    <div class="stats-grid stats-grid--3">
-      ${card(sig.ohneZuweisung.length, 'Azubis ohne aktuelle Zuweisung',
-             sig.ohneZuweisung.length ? 'Handlungsbedarf' : 'Alles zugewiesen',
-             sig.ohneZuweisung.length ? 'error' : 'success')}
-      ${card(sig.baldAblaufend.length, 'Zuweisungen enden bald', 'in den nächsten 14 Tagen', 'info')}
-      ${card(sig.baldBeginnend.length, 'Zuweisungen beginnen bald', 'in den nächsten 14 Tagen', 'info')}
+    <div class="signal-cols">
+      ${spalte(sig.ohneZuweisung, 'Azubis ohne aktuelle Zuweisung',
+               sig.ohneZuweisung.length ? 'Handlungsbedarf' : 'Alles zugewiesen',
+               sig.ohneZuweisung.length ? 'error' : 'success',
+               'Alle Azubis sind aktuell zugewiesen.')}
+      ${spalte(sig.baldAblaufend, 'Zuweisungen enden bald', 'in den nächsten 14 Tagen', 'info',
+               'Keine Zuweisung endet in den nächsten 14 Tagen.')}
+      ${spalte(sig.baldBeginnend, 'Zuweisungen beginnen bald', 'in den nächsten 14 Tagen', 'info',
+               'Keine Zuweisung beginnt in den nächsten 14 Tagen.')}
     </div>`;
 }
 

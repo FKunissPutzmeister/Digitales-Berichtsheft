@@ -40,6 +40,31 @@ router.post('/', nurPlaner, async (req, res) => {
   try {
     const { azubiOid, ausbilderOid, abteilung, von, bis } = req.body;
     const pool = await getPool();
+
+    // Überschneidung mit bestehender Zuweisung desselben Azubis verbindlich
+    // verhindern. Intervalltest: @von <= vorhandenes Bis UND vorhandenes Von
+    // <= @bis. NULL-Bis (offene Zuweisung) zählt als unbegrenzt.
+    const overlap = await pool.request()
+      .input('azubiOid', sql.NVarChar(36), azubiOid)
+      .input('von',      sql.Date,         von)
+      .input('bis',      sql.Date,         bis)
+      .query(`
+        SELECT TOP 1 Abteilung, Von, Bis
+        FROM dbo.Zuweisungen
+        WHERE AzubiOid = @azubiOid
+          AND @von <= ISNULL(Bis, '9999-12-31')
+          AND Von  <= ISNULL(@bis, '9999-12-31')
+        ORDER BY Von
+      `);
+    if (overlap.recordset.length) {
+      const c = overlap.recordset[0];
+      const fmt = d => d ? new Date(d).toLocaleDateString('de-DE') : 'offen';
+      const abt = c.Abteilung || 'ohne Abteilung';
+      return res.status(409).json({
+        error: `In diesem Zeitraum besteht für diesen Azubi bereits eine Zuweisung (${abt}, ${fmt(c.Von)}–${fmt(c.Bis)}).`
+      });
+    }
+
     const result = await pool.request()
       .input('azubiOid',     sql.NVarChar(36),  azubiOid)
       .input('ausbilderOid', sql.NVarChar(36),  ausbilderOid)

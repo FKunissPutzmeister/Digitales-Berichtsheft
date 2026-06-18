@@ -620,6 +620,89 @@
   color: var(--pm-grey-900);
 }
 
+/* ── Planer-Signal-Spalten: große Kennzahl-Kachel + Detail-Kacheln ──
+   Drei Spalten; je Spalte oben die Signal-Kachel, direkt darunter die
+   zugehörigen Azubi-Kacheln (vertikal gestapelt, damit sie sauber unter
+   der jeweiligen Kachel sitzen). Tokens spiegeln die stat-card, damit
+   Dark-/Custom-Themes automatisch greifen. */
+.signal-cols {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--sp-4);
+  align-items: start;
+  margin-bottom: var(--sp-6);
+}
+.signal-col {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+  min-width: 0;
+}
+.signal-col__empty {
+  margin: 0;
+  padding: 0 var(--sp-1);
+  font-size: var(--text-sm);
+  color: var(--pm-grey-500);
+  font-style: italic;
+}
+.signal-tiles {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+}
+.signal-tile {
+  background: var(--pm-white);
+  border: 1px solid var(--pm-grey-200);
+  border-radius: var(--r-md);
+  padding: var(--sp-3) var(--sp-4);
+  box-shadow: var(--elev-rest);
+  min-width: 0;
+}
+.signal-col--error .signal-tile { border-left: 3px solid var(--color-error); }
+.signal-col--info  .signal-tile { border-left: 3px solid var(--color-info); }
+.signal-tile__name {
+  font-size: var(--text-sm);
+  font-weight: var(--fw-bold);
+  color: var(--pm-grey-900);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.signal-tile__abt {
+  font-size: var(--text-xs);
+  color: var(--pm-grey-700);
+  margin-top: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.signal-tile__zeit {
+  font-size: var(--text-xs);
+  color: var(--pm-grey-500);
+  margin-top: 2px;
+}
+.signal-tile--more {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  font-size: var(--text-sm);
+  font-weight: var(--fw-medium);
+  color: var(--color-info);
+  text-decoration: none;
+  background: var(--pm-grey-50);
+}
+.signal-col--error .signal-tile--more,
+.signal-col--info  .signal-tile--more { border-left-color: var(--pm-grey-300); }
+.signal-tile--more:hover { background: var(--pm-grey-100); }
+
+@media (max-width: 1200px) {
+  .signal-cols { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 768px) {
+  .signal-cols { grid-template-columns: 1fr; }
+}
+
 /* ── Review-Filter-Bar: Suche, Status, Sortierung ────────────────
    Sitzt zwischen Inbox-Header und Liste. Layout: Suchfeld nimmt die
    Hauptbreite, daneben kompakte Selects + Trefferzähler. */

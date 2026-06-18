@@ -132,6 +132,30 @@
 }
 .gantt-grid { min-width: calc(280px + var(--num-days) * var(--day-px)); }
 
+/* Dickerer horizontaler Scrollbalken NUR in der Azubi-Timeline, damit er
+   leichter zu greifen ist (global sind es nur 6px – siehe base.css). Der
+   transparente Rand + background-clip lassen den sichtbaren Daumen etwas
+   eingerückt wirken, während die Trefferfläche die vollen 14px nutzt. */
+#azubiGanttScroll {
+  scrollbar-width: auto;                                   /* Firefox */
+  scrollbar-color: var(--pm-grey-400) var(--pm-grey-50);
+}
+#azubiGanttScroll::-webkit-scrollbar { height: 14px; }
+#azubiGanttScroll::-webkit-scrollbar-track {
+  background: var(--pm-grey-50);
+  border-radius: var(--r-full);
+}
+#azubiGanttScroll::-webkit-scrollbar-thumb {
+  background: var(--pm-grey-400);
+  border-radius: var(--r-full);
+  border: 3px solid transparent;
+  background-clip: padding-box;
+}
+#azubiGanttScroll::-webkit-scrollbar-thumb:hover {
+  background: var(--pm-grey-500);
+  background-clip: padding-box;
+}
+
 /* Legacy: .gantt-wrap still styled for any remaining non-details usage */
 .gantt-wrap {
   background: var(--pm-white);
@@ -351,6 +375,33 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+/* ── Größere Timeline-Variante (Azubi-Durchlauf) ───────────────────
+   Skaliert Monats-/Tageskopf, Zeilen- und Balkenhöhe zum breiteren
+   --day-px (30px statt 22px) mit, damit die Timeline kräftig und
+   gleichmäßig proportioniert wirkt statt wie ein dünner, langgezogener
+   Streifen. Greift nur in der Azubi-Ansicht (Klasse am .gantt-grid). */
+.gantt--lg .gantt-month        { font-size: var(--text-sm); padding: var(--sp-3) 0; }
+.gantt--lg .gantt-day          { font-size: var(--text-xs); padding: var(--sp-1) 0; }
+.gantt--lg .gantt-row          { min-height: 96px; }
+.gantt--lg .gantt-row__timeline { height: 96px; }
+.gantt--lg .gantt-bar {
+  height: 46px;
+  font-size: var(--text-sm);
+  border-radius: 3px;
+  padding: 0 var(--sp-4);
+}
+.gantt--lg .gantt-bar__label   { font-size: var(--text-sm); }
+/* Azubi-Timeline hat nur eine Zeile ("Abteilungen") – das Label füllt die
+   ganze Personenspalte: horizontal + vertikal mittig und größer. */
+.gantt--lg .gantt-row__info { justify-content: center; }
+.gantt--lg .gantt-row__name {
+  display: block;
+  -webkit-line-clamp: unset;
+  font-size: var(--text-xl);
+  text-align: center;
+  width: 100%;
 }
 
 .gantt-today-line {

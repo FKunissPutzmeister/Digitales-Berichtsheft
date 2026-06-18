@@ -11,6 +11,23 @@ function escHtml(s) {
   return String(s ?? '').replace(/[&<>"]/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[c]));
 }
 
+/* Intervalltest: zwei Zeiträume desselben Azubis überschneiden sich, wenn
+   neu.von ≤ vorhanden.bis UND vorhanden.von ≤ neu.bis. Leeres Bis = offen
+   (unbegrenzt). Gleicher Tag zählt bewusst als Überschneidung. */
+function zeitraeumeUeberschneiden(neuVon, neuBis, exVon, exBis) {
+  const nBis = neuBis || '9999-12-31';
+  const eBis = exBis || '9999-12-31';
+  return neuVon <= eBis && exVon <= nBis;
+}
+
+/* Meldungstext für eine überschneidende Zuweisung (Abteilung + Zeitraum). */
+function zuwKonfliktText(z) {
+  const vonS = DateUtil.formatDateShort(z.von);
+  const bisS = z.bis ? DateUtil.formatDateShort(z.bis) : 'offen';
+  const abt  = z.abteilung ? z.abteilung : 'ohne Abteilung';
+  return `In diesem Zeitraum besteht bereits eine Zuweisung (${abt}, ${vonS}–${bisS}). Bitte einen freien Zeitraum wählen.`;
+}
+
 /* Eigenständige, einzeilige Timeline für die Azubi-Ansicht (gleiche .gantt-*-Styles
    wie der Planer). Zeigt die Abteilungen des Azubis als farbige Balken mit Abteilungsname. */
 function azubiTimelineHtml(zuw, planYear) {
@@ -51,11 +68,14 @@ function azubiTimelineHtml(zuw, planYear) {
             </div>`;
   }).join('');
   const todayPct = now.getFullYear() === planYear ? (dayOf(now) + 0.5) / daysInYear * 100 : null;
-  const todayLine = todayPct != null ? `<div class="gantt-today-line" style="left:${todayPct}%"></div>` : '';
+  const todayLine = todayPct != null
+    ? `<div class="gantt-today-line" style="left:${todayPct}%"></div>
+       <div class="gantt-today-marker" style="left:${todayPct}%">Heute</div>`
+    : '';
 
   return `
     <div class="gantt-scroll" id="azubiGanttScroll">
-      <div class="gantt-grid" style="--num-days:${daysInYear};--day-px:22px">
+      <div class="gantt-grid gantt--lg" style="--num-days:${daysInYear};--day-px:30px">
         <div class="gantt-header">
           <div class="gantt-header__name-col">${planYear}</div>
           <div class="gantt-header__timeline">
@@ -76,7 +96,7 @@ function azubiTimelineHtml(zuw, planYear) {
 /* Read-only Sicht für Azubis: zeigt ausschließlich die eigenen Zuweisungen –
    pro Eintrag Abteilung, Zeitraum und Ansprechpartner/Verantwortliche/r. */
 async function renderAzubiDurchlauf(user) {
-  // Aktiven Nav-Punkt korrigieren (der Azubi erreicht die Seite über „Abteilungsplan").
+  // Aktiven Nav-Punkt korrigieren (der Azubi erreicht die Seite über „Abteilungsdurchlauf").
   document.getElementById('nav-planer')?.classList.remove('active');
   document.getElementById('nav-abteilungsplan')?.classList.add('active');
 
@@ -112,7 +132,7 @@ async function renderAzubiDurchlauf(user) {
     main.innerHTML = `
     <div class="page-header">
       <div class="page-header__left">
-        <h1 class="page-title">Mein Abteilungs-Durchlauf</h1>
+        <h1 class="page-title">Mein Abteilungsdurchlauf</h1>
         <p class="page-subtitle">Deine Abteilungen, Zeiträume und Ansprechpartner.</p>
       </div>
     </div>
@@ -126,11 +146,11 @@ async function renderAzubiDurchlauf(user) {
     if (azTs) {
       const jan1Az = new Date(planYearAz, 0, 1);
       const dayIdx = Math.round((new Date() - jan1Az) / 86400000);
-      requestAnimationFrame(() => { azTs.scrollLeft = Math.max(0, (dayIdx - 3) * 22); });
+      requestAnimationFrame(() => { azTs.scrollLeft = Math.max(0, (dayIdx - 3) * 30); });
     }
   } catch (err) {
-    main.innerHTML = `<div class="durchlauf-empty">Abteilungsplan konnte nicht geladen werden.</div>`;
-    if (window.Toast && typeof Toast.error === 'function') Toast.error('Fehler', 'Abteilungsplan konnte nicht geladen werden.');
+    main.innerHTML = `<div class="durchlauf-empty">Abteilungsdurchlauf konnte nicht geladen werden.</div>`;
+    if (window.Toast && typeof Toast.error === 'function') Toast.error('Fehler', 'Abteilungsdurchlauf konnte nicht geladen werden.');
   }
 }
 
@@ -324,7 +344,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         <div class="planer-detail" id="planerDetail">${buildDetail(selectedAzubiId)}</div>
       </div>
 
-      <details class="planer-gantt-details">
+      <details class="planer-gantt-details" open>
         <summary>Gesamt-Timeline (${planYear})</summary>
         <div class="gantt-scroll">
           <div class="gantt-grid" style="--num-days:${NUM_DAYS};--day-px:22px">
@@ -351,6 +371,9 @@ document.addEventListener('DOMContentLoaded', async () => {
       ganttDetails.addEventListener('toggle', () => {
         if (ganttDetails.open) scrollGanttToToday(ganttDetails.querySelector('.gantt-scroll'));
       });
+      // Standardmäßig ausgeklappt: einmal initial auf "heute" scrollen – das
+      // toggle-Event feuert beim bereits offenen <details> nicht.
+      if (ganttDetails.open) scrollGanttToToday(ganttDetails.querySelector('.gantt-scroll'));
     }
 
     bindListEvents();
@@ -594,7 +617,21 @@ document.addEventListener('DOMContentLoaded', async () => {
       if (!von || !bis) { Toast.error('Pflichtfeld', 'Bitte Zeitraum angeben.'); return; }
       if (von > bis) { Toast.error('Ungültiger Zeitraum', 'Startdatum muss vor Enddatum liegen.'); return; }
 
-      await DB.addZuweisung({ azubiId, ausbilderId, von, bis, abteilung });
+      // Überschneidung mit bestehender Zuweisung desselben Azubis verhindern.
+      // Frisch laden (kein Cache), damit auch zwischenzeitlich angelegte zählen.
+      try {
+        const bestehende = await DB.getZuweisungenFuerAzubi(azubiId);
+        const konflikt = bestehende.find(z => zeitraeumeUeberschneiden(von, bis, z.von, z.bis));
+        if (konflikt) { Toast.error('Überschneidung', zuwKonfliktText(konflikt)); return; }
+      } catch (_) { /* Pre-Check optional – das Backend prüft ohnehin verbindlich */ }
+
+      try {
+        await DB.addZuweisung({ azubiId, ausbilderId, von, bis, abteilung });
+      } catch (e) {
+        // Backend lehnt Überschneidungen mit 409 ab (deckt Race/Direktaufruf ab).
+        Toast.error('Nicht möglich', e.message || 'Zuweisung konnte nicht gespeichert werden.');
+        return;
+      }
       Modal.closeAll();
       Toast.success('Gespeichert', 'Neue Zuweisung wurde angelegt.');
       await render();
