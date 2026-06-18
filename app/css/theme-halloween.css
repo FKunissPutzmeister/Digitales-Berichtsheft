@@ -305,35 +305,155 @@ html[data-theme="halloween"] { color-scheme: dark; }
   100% { transform: scaleY(0.6); }
 }
 
-/* ── Wandelnde Untote (Skelette & Zombies) ──
-   Helle/grüne Silhouetten (gegen den dunklen Friedhof sichtbar), die unten
-   langsam hin und her laufen. Aufbau: äußeres .pm-hw-walker macht den Gang
-   (translateX + scaleX-Flip beim Wenden), inneres .pm-hw-walker__fig das
-   Geh-Wippen (translateY) – zwei Ebenen, damit beide transform-Animationen
-   sich überlagern statt zu kollidieren. Dezent: 2–3 kleine, langsame Figuren. */
+/* ── Wandelnde Untote (Skelette & Zombies) – CSS-Bone-Rig ──
+   „Skelett-Animation" von Hand: jede Figur ist aus einzelnen Gliedmaßen
+   aufgebaut, jedes Segment rotiert um sein Gelenk (transform-origin am
+   Drehpunkt). Ein echter Lauf-Zyklus entsteht durch phasenversetzte
+   Rotationen (Vorder-/Hinterbein um eine halbe Schrittlänge versetzt,
+   Arme gegenläufig, Knie knicken beim Anheben, Körper wippt).
+   Drei verschachtelte Ebenen halten die transform-Animationen getrennt:
+   .pm-hw-walker (Gang über den Boden: translateX + scaleX-Flip beim
+   Wenden) › .pm-hw-walker__scale (Größe je Figur) › .pm-hw-rig (Körper-
+   Wippen) › Gliedmaßen (Gelenk-Rotationen). Dezent: 2–3 kleine, langsame. */
 [data-theme="halloween"] .pm-hw-walker {
   position: absolute; bottom: 4%;
-  width: 60px; height: 90px;
+  width: 60px; height: 96px;
+  transform-origin: bottom center;
   will-change: transform;
 }
-[data-theme="halloween"] .pm-hw-walker__fig {
-  display: block; width: 100%; height: 100%;
-  background: center bottom / contain no-repeat;
-  animation: pm-hw-bob 0.72s ease-in-out infinite;
+[data-theme="halloween"] .pm-hw-walker__scale {
+  position: absolute; inset: 0;
+  transform: scale(var(--s, 1));
+  transform-origin: bottom center;
 }
-@keyframes pm-hw-bob {
+[data-theme="halloween"] .pm-hw-rig {
+  position: absolute; inset: 0;
+  animation: pm-hw-bodybob 1.2s ease-in-out infinite;
+}
+/* Gemeinsame Segment-Basis */
+[data-theme="halloween"] .pm-hw-rig div { position: absolute; }
+[data-theme="halloween"] .pm-hw-torso {
+  left: 23px; top: 22px; width: 14px; height: 32px;
+  transform-origin: 50% 100%;
+  border-radius: 6px;
+}
+[data-theme="halloween"] .pm-hw-head {
+  left: -2px; top: -16px; width: 18px; height: 18px;
+  border-radius: 50%;
+}
+[data-theme="halloween"] .pm-hw-arm {
+  width: 5px; height: 17px; top: 3px;
+  transform-origin: 50% 2px; border-radius: 3px;
+  animation: pm-hw-arm 1.2s ease-in-out infinite;
+}
+[data-theme="halloween"] .pm-hw-arm--back  { left: 2px; }
+[data-theme="halloween"] .pm-hw-arm--front { left: 7px; animation-delay: -0.6s; }
+[data-theme="halloween"] .pm-hw-forearm {
+  left: 0px; top: 15px; width: 5px; height: 15px;
+  transform-origin: 50% 2px; border-radius: 3px;
+  animation: pm-hw-forearm 1.2s ease-in-out infinite;
+}
+[data-theme="halloween"] .pm-hw-arm--front .pm-hw-forearm { animation-delay: -0.6s; }
+[data-theme="halloween"] .pm-hw-leg {
+  top: 50px; width: 6px; height: 24px;
+  transform-origin: 50% 2px; border-radius: 3px;
+  animation: pm-hw-thigh 1.2s ease-in-out infinite;
+}
+[data-theme="halloween"] .pm-hw-leg--back  { left: 26px; }
+[data-theme="halloween"] .pm-hw-leg--front { left: 28px; animation-delay: -0.6s; }
+[data-theme="halloween"] .pm-hw-shin {
+  left: 0px; top: 21px; width: 6px; height: 23px;
+  transform-origin: 50% 2px; border-radius: 3px;
+  animation: pm-hw-shin 1.2s ease-in-out infinite;
+}
+[data-theme="halloween"] .pm-hw-leg--front .pm-hw-shin { animation-delay: -0.6s; }
+[data-theme="halloween"] .pm-hw-shin::after {   /* Fuß */
+  content: ''; position: absolute; bottom: -1px; left: -2px;
+  width: 12px; height: 5px; border-radius: 3px; background: inherit;
+}
+/* Tiefe: hintere Gliedmaßen abgedunkelt + (per DOM-Reihenfolge) hinten */
+[data-theme="halloween"] .pm-hw-arm--back,
+[data-theme="halloween"] .pm-hw-leg--back { filter: brightness(0.8); }
+
+/* Skelett: Knochen-Weiß, Schädel mit Augenhöhlen, Rippen-Bänder */
+[data-theme="halloween"] .pm-hw-skeleton .pm-hw-arm,
+[data-theme="halloween"] .pm-hw-skeleton .pm-hw-forearm,
+[data-theme="halloween"] .pm-hw-skeleton .pm-hw-leg,
+[data-theme="halloween"] .pm-hw-skeleton .pm-hw-shin,
+[data-theme="halloween"] .pm-hw-skeleton .pm-hw-head { background: #e9e4d4; }
+[data-theme="halloween"] .pm-hw-skeleton .pm-hw-torso {
+  width: 12px; left: 24px;   /* schmaler = knochiger Brustkorb */
+  background: repeating-linear-gradient(180deg, #e9e4d4 0 2px, #a59c7c 2px 3.6px);
+}
+/* Augenhöhlen (ein Pseudo + box-shadow = beide Augen) + Kiefer */
+[data-theme="halloween"] .pm-hw-skeleton .pm-hw-head::before {
+  content: ''; position: absolute; top: 5px; left: 3px;
+  width: 4.5px; height: 5.5px; background: #19110f; border-radius: 50%;
+  box-shadow: 7px 0 0 #19110f;
+}
+[data-theme="halloween"] .pm-hw-skeleton .pm-hw-head::after {
+  content: ''; position: absolute; bottom: -3px; left: 4px;
+  width: 10px; height: 6px; background: #e9e4d4; border-radius: 0 0 4px 4px;
+}
+
+/* Zombie: kränkliches Grün, vorgebeugt, lolling head, glühendes Auge */
+[data-theme="halloween"] .pm-hw-zombie .pm-hw-arm,
+[data-theme="halloween"] .pm-hw-zombie .pm-hw-forearm,
+[data-theme="halloween"] .pm-hw-zombie .pm-hw-leg,
+[data-theme="halloween"] .pm-hw-zombie .pm-hw-shin,
+[data-theme="halloween"] .pm-hw-zombie .pm-hw-head,
+[data-theme="halloween"] .pm-hw-zombie .pm-hw-torso { background: #7a9b55; }
+[data-theme="halloween"] .pm-hw-zombie .pm-hw-torso { transform: rotate(8deg); }
+[data-theme="halloween"] .pm-hw-zombie .pm-hw-head  { transform: rotate(12deg); }
+[data-theme="halloween"] .pm-hw-zombie .pm-hw-head::before {
+  content: ''; position: absolute; top: 8px; left: 5px;
+  width: 4px; height: 4px; background: #c7ff63; border-radius: 50%;
+  box-shadow: 0 0 5px 1px rgba(150, 255, 90, 0.7);
+}
+/* Zombie-Arme stocksteif nach vorn gestreckt (statt lockerem Schwung) */
+[data-theme="halloween"] .pm-hw-zombie .pm-hw-arm { animation-name: pm-hw-arm-zombie; }
+[data-theme="halloween"] .pm-hw-zombie .pm-hw-forearm { animation: none; transform: rotate(-8deg); }
+
+[data-theme="halloween"] .pm-hw-walker--a { left: 21vw; --s: 0.9;  animation: pm-hw-walk-a 18s linear infinite; }
+[data-theme="halloween"] .pm-hw-walker--b { left: 50vw; --s: 1.05; animation: pm-hw-walk-b 23s linear infinite; animation-delay: -6s; }
+[data-theme="halloween"] .pm-hw-walker--c { left: 68vw; --s: 0.82; animation: pm-hw-walk-c 20s linear infinite; animation-delay: -11s; }
+
+/* Gelenk-Zyklen (vorne = Delay 0, hinten = -0.6s = halbe Schrittlänge) */
+@keyframes pm-hw-bodybob {
   0%, 100% { transform: translateY(0); }
-  50%      { transform: translateY(-3px); }
+  25%      { transform: translateY(-2px); }
+  50%      { transform: translateY(0); }
+  75%      { transform: translateY(-2px); }
 }
-[data-theme="halloween"] .pm-hw-skeleton {
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 132'%3E%3Cg fill='%23e9e4d4'%3E%3Cellipse cx='32' cy='15' rx='13' ry='14'/%3E%3Crect x='25' y='26' width='14' height='7' rx='3'/%3E%3Crect x='29' y='31' width='6' height='32'/%3E%3Cpath d='M18 38 Q32 32 46 38 L44 60 Q32 66 20 60 Z'/%3E%3Cpath d='M22 63 L42 63 L38 76 L26 76 Z'/%3E%3Crect x='9' y='38' width='6' height='34' rx='3'/%3E%3Crect x='49' y='38' width='6' height='34' rx='3'/%3E%3Crect x='23' y='76' width='6' height='46' rx='3'/%3E%3Crect x='35' y='76' width='6' height='46' rx='3'/%3E%3Crect x='20' y='120' width='13' height='6' rx='3'/%3E%3Crect x='31' y='120' width='13' height='6' rx='3'/%3E%3C/g%3E%3Cg fill='%231a1018'%3E%3Cellipse cx='27' cy='15' rx='3.4' ry='4.2'/%3E%3Cellipse cx='37' cy='15' rx='3.4' ry='4.2'/%3E%3C/g%3E%3Cg stroke='%23bdb59c' stroke-width='1.6'%3E%3Cline x1='23' y1='44' x2='41' y2='44'/%3E%3Cline x1='22' y1='50' x2='42' y2='50'/%3E%3Cline x1='23' y1='56' x2='41' y2='56'/%3E%3C/g%3E%3C/svg%3E");
+@keyframes pm-hw-thigh {
+  0%   { transform: rotate(-24deg); }
+  25%  { transform: rotate(-6deg); }
+  50%  { transform: rotate(20deg); }
+  75%  { transform: rotate(2deg); }
+  100% { transform: rotate(-24deg); }
 }
-[data-theme="halloween"] .pm-hw-zombie {
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 76 130'%3E%3Cg fill='%237a9b55'%3E%3Cellipse cx='46' cy='22' rx='12' ry='13'/%3E%3Cpath d='M26 32 Q40 27 52 34 L54 74 Q38 82 24 73 Z'/%3E%3Crect x='50' y='40' width='26' height='8' rx='4' transform='rotate(7 50 44)'/%3E%3Crect x='50' y='54' width='23' height='8' rx='4' transform='rotate(-5 50 58)'/%3E%3Crect x='27' y='74' width='8' height='44' rx='3' transform='rotate(-9 31 74)'/%3E%3Crect x='41' y='74' width='8' height='46' rx='3' transform='rotate(7 45 74)'/%3E%3C/g%3E%3Cpath d='M24 66 l6 11 l5 -9 l5 10 l5 -8 l5 9 l4 -7 v9 H24 Z' fill='%233f5a2e'/%3E%3Ccircle cx='49' cy='21' r='2.4' fill='%23b6ff5a'/%3E%3C/svg%3E");
+@keyframes pm-hw-shin {
+  0%   { transform: rotate(6deg); }
+  20%  { transform: rotate(4deg); }
+  50%  { transform: rotate(14deg); }
+  65%  { transform: rotate(54deg); }
+  85%  { transform: rotate(18deg); }
+  100% { transform: rotate(6deg); }
 }
-[data-theme="halloween"] .pm-hw-walker--a { left: 21vw; width: 56px; height: 84px; animation: pm-hw-walk-a 18s linear infinite; }
-[data-theme="halloween"] .pm-hw-walker--b { left: 50vw; width: 66px; height: 94px; animation: pm-hw-walk-b 23s linear infinite; animation-delay: -6s; }
-[data-theme="halloween"] .pm-hw-walker--c { left: 68vw; width: 52px; height: 78px; animation: pm-hw-walk-c 20s linear infinite; animation-delay: -11s; }
+@keyframes pm-hw-arm {
+  0%   { transform: rotate(22deg); }
+  50%  { transform: rotate(-26deg); }
+  100% { transform: rotate(22deg); }
+}
+@keyframes pm-hw-arm-zombie {
+  0%, 100% { transform: rotate(-58deg); }
+  50%      { transform: rotate(-44deg); }
+}
+@keyframes pm-hw-forearm {
+  0%   { transform: rotate(14deg); }
+  50%  { transform: rotate(30deg); }
+  100% { transform: rotate(14deg); }
+}
 @keyframes pm-hw-walk-a {
   0%   { transform: translateX(0)     scaleX(1); }
   47%  { transform: translateX(150px) scaleX(1); }
@@ -356,24 +476,26 @@ html[data-theme="halloween"] { color-scheme: dark; }
   100% { transform: translateX(0)     scaleX(1); }
 }
 
-/* ── Schwebender Geist – driftet ums Haus, wippt, blendet ein/aus ── */
+/* ── Schwebender Geist – fliegt weit oben ums Haus (Türme/Dach), wippt,
+   blendet ein/aus. Basis hoch angesetzt (bottom ~52%), die Drift-Kurve
+   bewegt ihn in einem Bogen um die oberen Hausspitzen. ── */
 [data-theme="halloween"] .pm-hw-ghost {
-  position: absolute; left: 46%; bottom: 17%;
-  width: 64px; height: 78px;
+  position: absolute; left: 40%; bottom: 52%;
+  width: 60px; height: 74px;
   background: center / contain no-repeat
     url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 80 96'%3E%3Cpath d='M40 5 C21 5 13 21 13 41 V85 q6 8 12 0 q6 -8 12 0 q6 8 12 0 q6 -8 12 0 q6 8 12 0 V41 C67 21 59 5 40 5 Z' fill='%23ffffff' fill-opacity='0.88'/%3E%3Cellipse cx='31' cy='36' rx='4' ry='6' fill='%231a1018'/%3E%3Cellipse cx='49' cy='36' rx='4' ry='6' fill='%231a1018'/%3E%3Cellipse cx='40' cy='52' rx='5' ry='7' fill='%231a1018' fill-opacity='0.5'/%3E%3C/svg%3E");
   opacity: 0;
   will-change: transform, opacity;
-  animation: pm-hw-ghost-drift 17s ease-in-out infinite;
+  animation: pm-hw-ghost-drift 18s ease-in-out infinite;
 }
 @keyframes pm-hw-ghost-drift {
-  0%   { transform: translate(-30px, 8px);   opacity: 0; }
-  12%  { opacity: 0.72; }
-  30%  { transform: translate(40px, -22px);  }
-  50%  { transform: translate(120px, 6px);   opacity: 0.78; }
-  70%  { transform: translate(190px, -18px); }
-  88%  { opacity: 0.62; }
-  100% { transform: translate(250px, 4px);   opacity: 0; }
+  0%   { transform: translate(-60px, 16px);  opacity: 0; }
+  14%  { opacity: 0.72; }
+  32%  { transform: translate(30px, -26px);  }
+  50%  { transform: translate(150px, 4px);   opacity: 0.8; }
+  68%  { transform: translate(80px, -30px);  }
+  86%  { opacity: 0.58; }
+  100% { transform: translate(-50px, 18px);  opacity: 0; }
 }
 
 /* ── Glühende Augenpaare – blinzeln im Dunkeln zwischen Bäumen/Büschen ── */

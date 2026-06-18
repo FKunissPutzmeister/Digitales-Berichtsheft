@@ -52,6 +52,22 @@
      laufenden vorderen Reiter macht scaleX in css/theme-candy.css
      (dort auch Wiesen-Lauf + Spring-Hüpfen). */
 
+  /* Bone-Rig-Markup der wandelnden Untoten (halloween): für alle drei
+     Figuren identisch – Skelett vs. Zombie unterscheidet nur die Klasse
+     auf .pm-hw-walker. Schichtung per DOM-Reihenfolge: Hinterbein › Torso
+     (Hinterarm, Kopf, Vorderarm) › Vorderbein. Styling/Gelenk-Animationen
+     in css/theme-halloween.css. */
+  var HW_RIG =
+    '<div class="pm-hw-walker__scale"><div class="pm-hw-rig">' +
+      '<div class="pm-hw-leg pm-hw-leg--back"><div class="pm-hw-shin"></div></div>' +
+      '<div class="pm-hw-torso">' +
+        '<div class="pm-hw-arm pm-hw-arm--back"><div class="pm-hw-forearm"></div></div>' +
+        '<div class="pm-hw-head"></div>' +
+        '<div class="pm-hw-arm pm-hw-arm--front"><div class="pm-hw-forearm"></div></div>' +
+      '</div>' +
+      '<div class="pm-hw-leg pm-hw-leg--front"><div class="pm-hw-shin"></div></div>' +
+    '</div></div>';
+
   var FX_TEMPLATES = {
     /* ── FX-Template: hyperspace (wird vom Theme-Designer befüllt) ──
        3D-Sternentunnel nach CodePen „Hyperspace" (Noah Blon, DpNRyR):
@@ -151,9 +167,9 @@
       '<div class="pm-hw-bat pm-hw-bat--2"></div>' +
       '<div class="pm-hw-bat pm-hw-bat--3"></div>' +
       '<div class="pm-hw-spider"><i class="pm-hw-spider__thread"></i><i class="pm-hw-spider__body"></i></div>' +
-      '<div class="pm-hw-walker pm-hw-walker--a"><i class="pm-hw-walker__fig pm-hw-skeleton"></i></div>' +
-      '<div class="pm-hw-walker pm-hw-walker--b"><i class="pm-hw-walker__fig pm-hw-zombie"></i></div>' +
-      '<div class="pm-hw-walker pm-hw-walker--c"><i class="pm-hw-walker__fig pm-hw-skeleton"></i></div>' +
+      '<div class="pm-hw-walker pm-hw-walker--a pm-hw-skeleton">' + HW_RIG + '</div>' +
+      '<div class="pm-hw-walker pm-hw-walker--b pm-hw-zombie">' + HW_RIG + '</div>' +
+      '<div class="pm-hw-walker pm-hw-walker--c pm-hw-skeleton">' + HW_RIG + '</div>' +
       '<div class="pm-hw-ghost"></div>' +
       '<div class="pm-hw-eyes pm-hw-eyes--1"></div>' +
       '<div class="pm-hw-eyes pm-hw-eyes--2"></div>' +
