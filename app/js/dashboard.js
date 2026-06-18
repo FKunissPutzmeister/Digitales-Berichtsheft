@@ -68,9 +68,6 @@ async function renderAzubiDashboard(user) {
 
   const alleWochen = await DB.getWochenFuerAzubi(user.id);
   const aktuelleWoche = await DB.getWoche(user.id, kw, kwYear);
-  const offeneWochen = alleWochen.filter(w => w.status === 'offen').length;
-  const genehmigte = alleWochen.filter(w => w.status === 'genehmigt').length;
-  const gesamtStunden = alleWochen.reduce((s, w) => s + (w.gesamtstunden || 0), 0);
 
   /* Sync-Lookup statt DB.getWoche-Promise-Aufrufen im Render-Pfad.
      DB.getWoche ist async und wurde an mehreren Stellen ohne await
@@ -79,45 +76,7 @@ async function renderAzubiDashboard(user) {
   const wocheLookup = new Map(alleWochen.map(w => [`${w.year}-${w.kw}`, w]));
   const lookupWoche = (wkw, wyr) => wocheLookup.get(`${wyr}-${wkw}`) || null;
 
-  let fortschritt = 0;
-  if (user.ausbildungsBeginn && user.ausbildungsEnde) {
-    const start = new Date(user.ausbildungsBeginn);
-    const ende = new Date(user.ausbildungsEnde);
-    const jetzt = new Date();
-    const gesamt = ende - start;
-    const vergangen = Math.min(jetzt - start, gesamt);
-    fortschritt = Math.round((vergangen / gesamt) * 100);
-  }
-
-  const zuw = await DB.getAktuellerAusbilder(user.id);
-  const ausbilder = zuw ? await DB.getUser(zuw.ausbilderId) : null;
-
   const main = document.getElementById('mainContent');
-
-  // "Ausstehend" = vergangene, noch nicht abgegebene Wochen im jüngeren
-  // Zeitfenster. Auch Wochen OHNE Datensatz (= leer) zählen – sonst wirken
-  // nie begonnene Wochen fälschlich als erledigt. Aktuelle Woche steckt
-  // bereits im Hero, daher hier nur vergangene Wochen.
-  const OUT_WINDOW = 8;
-  const curMonday = DateUtil.getMondayOfKW(kw, kwYear);
-  const ausstehend = [];
-  for (let i = 1; i <= OUT_WINDOW; i++) {
-    const mo = new Date(curMonday); mo.setDate(curMonday.getDate() - i * 7);
-    const su = new Date(mo); su.setDate(mo.getDate() + 6);
-    // Wochen komplett vor Ausbildungsbeginn überspringen.
-    if (user.ausbildungsBeginn && DateUtil.toISODate(su) < user.ausbildungsBeginn) continue;
-    const wkw = DateUtil.getKW(mo), wyr = DateUtil.getKWYear(mo);
-    const rec = lookupWoche(wkw, wyr);
-    const st = weekState(rec);
-    if (st !== 'abgegeben') {
-      ausstehend.push({ kw: wkw, year: wyr, monday: mo, status: rec ? rec.status : null, state: st });
-    }
-  }
-  ausstehend.sort((a, b) => {
-    const ra = a.status === 'abgelehnt' ? 0 : 1;
-    const rb = b.status === 'abgelehnt' ? 0 : 1;
-    return ra - rb || (a.year - b.year) || (a.kw - b.kw);
-  });
 
   const aktStatus = aktuelleWoche ? aktuelleWoche.status : 'offen';
   const wocheTage = aktuelleWoche
@@ -128,25 +87,6 @@ async function renderAzubiDashboard(user) {
   const sunday    = new Date(monday); sunday.setDate(monday.getDate() + 6);
   const hasProgress = user.ausbildungsBeginn && user.ausbildungsEnde;
   const range = `${DateUtil.formatDateShort(DateUtil.toISODate(monday))} – ${DateUtil.formatDateShort(DateUtil.toISODate(sunday))}`;
-
-  function decToTime(dec) {
-    const m = Math.round((dec || 0) * 60);
-    return `${Math.floor(m / 60)}:${String(m % 60).padStart(2, '0')}`;
-  }
-
-  function renderOutstandingItem(w) {
-    const mo = w.monday || DateUtil.getMondayOfKW(w.kw, w.year);
-    const su = new Date(mo); su.setDate(mo.getDate() + 6);
-    const cls = w.status === 'abgelehnt' ? 'abgelehnt' : (w.state === 'entwurf' ? 'entwurf' : 'leer');
-    const lbl = { abgelehnt: 'Zurückgegeben', entwurf: 'Entwurf', leer: 'Leer' }[cls];
-    return `
-      <a href="wochenansicht.html" class="dash-out-item dash-out-item--${cls}" data-goto-kw="${w.kw}" data-goto-year="${w.year}">
-        <span class="dash-out-item__kw">KW ${w.kw}</span>
-        <span class="dash-out-item__range">${DateUtil.formatDateShort(DateUtil.toISODate(mo))} – ${DateUtil.formatDateShort(DateUtil.toISODate(su))}</span>
-        <span class="dash-out-badge dash-out-badge--${cls}">${lbl}</span>
-        <svg class="dash-out-item__arrow" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
-      </a>`;
-  }
 
   // Berichtstyp steuert den Hero: 'täglich' (gewerblich) → aktuelle Woche
   // mit Tagen; 'wöchentlich' (kaufmännisch) → Übersicht der letzten KWs.
@@ -534,92 +474,6 @@ async function renderAzubiDashboard(user) {
       c.style.strokeDashoffset = (2 * Math.PI * 52) * (1 - pct / 100);
     });
   }, 120);
-}
-
-/* ── Primärer CTA: Azubi-Sicht ────────────────────────────────
-   Bestimmt den „Was muss ich jetzt tun?"-Block basierend auf dem
-   Status der aktuellen und vergangener Wochen. Priorität:
-     1) Zurückgegebene Wochen (abgelehnt) → URGENT
-     2) Aktuelle Woche offen / leer       → ACTION
-     3) Aktuelle Woche freigegeben        → WAITING (info)
-     4) Aktuelle Woche genehmigt          → DONE
-*/
-function renderAzubiPrimaryCta(user, aktuelleWoche, alleWochen, kw, kwYear) {
-  const abgelehnt = alleWochen.filter(w => w.status === 'abgelehnt');
-
-  // Priorität 1: Zurückgegebene Wochen
-  if (abgelehnt.length > 0) {
-    // Älteste zurückgegebene Woche zuerst öffnen
-    const aelteste = abgelehnt
-      .slice()
-      .sort((a, b) => (a.year - b.year) || (a.kw - b.kw))[0];
-    const count = abgelehnt.length;
-    const title = count === 1
-      ? `KW ${aelteste.kw} überarbeiten`
-      : `${count} Wochen überarbeiten`;
-    const sub = count === 1
-      ? 'Eine Woche wurde zur Korrektur zurückgegeben. Kommentar des Ausbilders prüfen.'
-      : `${count} Wochen wurden zur Korrektur zurückgegeben – jetzt überarbeiten.`;
-    return ctaTemplate({
-      variant: 'urgent',
-      eyebrow: 'Handlung erforderlich',
-      title,
-      sub,
-      icon: iconAlert(),
-      gotoKW: aelteste.kw,
-      gotoYear: aelteste.year,
-    });
-  }
-
-  // Status der aktuellen Woche bestimmen
-  const aktStatus = aktuelleWoche ? aktuelleWoche.status : 'offen';
-  const tageCount = aktuelleWoche && Array.isArray(aktuelleWoche.tage)
-    ? aktuelleWoche.tage.filter(t => t.anwesenheit).length
-    : 0;
-
-  // Priorität 4: Genehmigt → DONE
-  if (aktStatus === 'genehmigt') {
-    return ctaTemplate({
-      variant: 'done',
-      eyebrow: 'Alles erledigt',
-      title: `KW ${kw} ist abgeschlossen`,
-      sub: 'Diese Woche wurde genehmigt. Sehr gut – weiter so!',
-      icon: iconCheck(),
-    });
-  }
-
-  // Priorität 3: Freigegeben → WAITING
-  if (aktStatus === 'freigegeben') {
-    return ctaTemplate({
-      variant: 'waiting',
-      eyebrow: 'Wartet auf Prüfung',
-      title: `KW ${kw} freigegeben`,
-      sub: 'Dein Eintrag liegt zur Prüfung bei deinem Ausbilder. Du wirst informiert.',
-      icon: iconHourglass(),
-      gotoKW: kw,
-      gotoYear: kwYear,
-    });
-  }
-
-  // Priorität 2: Offen / leer → ACTION
-  const restTage = restlicheArbeitstage(kw, kwYear);
-  let sub;
-  if (tageCount === 0) {
-    sub = restTage > 0
-      ? `Noch keine Einträge in dieser Woche. ${restTage} ${restTage === 1 ? 'Werktag verbleibt' : 'Werktage verbleiben'}.`
-      : 'Noch keine Einträge in dieser Woche – jetzt nachtragen.';
-  } else {
-    sub = `${tageCount} von 5 Werktagen erfasst. Jetzt die fehlenden Tage ergänzen und freigeben.`;
-  }
-  return ctaTemplate({
-    variant: 'action',
-    eyebrow: 'Nächster Schritt',
-    title: `KW ${kw} jetzt eintragen`,
-    sub,
-    icon: iconPen(),
-    gotoKW: kw,
-    gotoYear: kwYear,
-  });
 }
 
 /* ── Primärer CTA: Ausbilder-Sicht ──────────────────────────── */

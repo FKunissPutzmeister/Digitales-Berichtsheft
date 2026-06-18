@@ -103,7 +103,7 @@ async function renderAzubiDurchlauf(user) {
   const main = document.getElementById('mainContent');
   // Volle Seitenbreite (gleicher Marker wie der Planer) – die Timeline nutzt so den ganzen Platz.
   document.body.dataset.page = 'azubi-planer';
-  const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[c]));
+  const esc = escHtml;  // identisch zur Datei-Funktion escHtml – kein dupliziertes Escape-Regex
 
   try {
     const heute = DateUtil.toISODate(new Date());

@@ -627,15 +627,6 @@
   transition: border-color var(--t-fast), box-shadow var(--t-fast);
   contain: layout style;
 }
-/* Validierungs-Fehler: Kachel rot umranden + leichter Tint im Header,
-   damit der Azubi sieht, welcher Wocheneintrag noch fehlt. */
-.wochen-kachel--has-error {
-  border-color: var(--color-error);
-  box-shadow: 0 0 0 3px rgba(183, 28, 28, 0.10);
-}
-.wochen-kachel--has-error .wochen-kachel__header {
-  background: var(--color-error-light);
-}
 /* Stunden-Tabelle: einzelne Zeile mit fehlender Anwesenheit/Stunden im
    wöchentlich-Format markieren. */
 .wochen-tage-row--error {
@@ -2338,6 +2329,32 @@ body[data-page="wochenansicht"] .wochen-kachel .day-card__footer {
   justify-content: space-between;
 }
 
+/* ── Freigegebene Woche (readonly) ──────────────────────────────────
+   Ohne Toolbar wirkt der Editor-Rahmen oben „abgeschnitten" und die
+   Überschrift schwebt darüber. Im readonly-Zustand bekommt deshalb die
+   ganze Kachel EINEN Rahmen: Header + Text + Footer lesen sich als ein
+   zusammenhängendes Card-Element. Der Editor-Wrap verliert seinen
+   eigenen Rahmen/Radius, damit keine Doppelkante entsteht. */
+body[data-page="wochenansicht"] .wochen-kachel--readonly {
+  border: 1px solid var(--pm-grey-300);
+  border-radius: var(--r-xl);
+  background: var(--pm-white);
+  overflow: hidden;
+  box-shadow: var(--shadow-sm);
+}
+body[data-page="wochenansicht"] .wochen-kachel--readonly .wochen-kachel__header {
+  padding: var(--sp-3) var(--sp-4);
+  background: var(--pm-grey-50);
+  border-bottom: 1px solid var(--pm-grey-200);
+}
+body[data-page="wochenansicht"] .wochen-kachel--readonly .ql-editor-wrap {
+  border: none;
+  border-radius: 0;
+}
+body[data-page="wochenansicht"] .wochen-kachel--readonly .day-card__footer {
+  padding: var(--sp-2) var(--sp-4) var(--sp-3);
+}
+
 /* Tag-Übersicht im Wochen-Modus: kompakter Stil ohne Border-Wrapper */
 body[data-page="wochenansicht"] .wochen-tage-tabelle {
   background: transparent;
@@ -2656,6 +2673,16 @@ body[data-page="wochenansicht"] .btn-lg {
 [data-theme="dark"] body[data-page="wochenansicht"] .wochen-kachel .ql-editor-wrap {
   background: rgba(255, 255, 255, 0.02);
   border-color: rgba(255, 255, 255, 0.08);
+}
+/* Freigegebene Woche: Rahmen + Header-Trennlinie der ganzen Kachel im
+   Dark Mode an die übrigen Karten angleichen. */
+[data-theme="dark"] body[data-page="wochenansicht"] .wochen-kachel--readonly {
+  border-color: rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.02);
+}
+[data-theme="dark"] body[data-page="wochenansicht"] .wochen-kachel--readonly .wochen-kachel__header {
+  background: rgba(255, 255, 255, 0.04);
+  border-bottom-color: rgba(255, 255, 255, 0.08);
 }
 [data-theme="dark"] body[data-page="wochenansicht"] .day-section .ql-toolbar.ql-snow,
 [data-theme="dark"] body[data-page="wochenansicht"] .wochen-kachel .ql-toolbar.ql-snow {

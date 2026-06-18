@@ -257,7 +257,6 @@
   transition: background var(--t-fast);
 }
 .gantt-row:last-child { border-bottom: none; }
-.gantt-row:hover { background: var(--pm-grey-50); }
 
 .gantt-row__info {
   width: 280px;
@@ -268,6 +267,10 @@
   align-items: center;
   gap: var(--sp-3);
   flex-shrink: 0;
+  /* Volle Zeilenhöhe: die Spalte ist sticky und überdeckt beim horizontalen
+     Scrollen das Tagesraster. Ohne stretch ist sie nur so hoch wie ihr Inhalt
+     (vertikal zentriert) → oben/unten schimmert der Kalender durch. */
+  align-self: stretch;
   /* Clippt den Flex-Container, damit der Beruf sauber endet statt in den
      Zeitstrahl zu laufen. Der Name selbst darf bis zu 2 Zeilen umbrechen. */
   overflow: hidden;
@@ -276,7 +279,6 @@
   z-index: 2;
   background: var(--pm-white);
 }
-.gantt-row:hover .gantt-row__info { background: var(--pm-grey-50); }
 .gantt-row__info-text {
   flex: 1;
   min-width: 0;     /* erlaubt Ellipsis/Umbruch im Flex-Child */
