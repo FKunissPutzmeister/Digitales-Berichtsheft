@@ -39,6 +39,23 @@
   function initRouter(sidebar) {
     history.replaceState({ spa: true, page: _currentPage }, '', location.href);
 
+    /* Die Scripts der ZUERST per Voll-Load geladenen Seite hat der Browser
+       bereits im Global-Scope ausgeführt (const/let/function global gesetzt).
+       Sie müssen daher als „bereits geladen" gelten – sonst würde der Router
+       bei einer SPA-Rückkehr auf genau diese Ursprungsseite ihr Script ein
+       ZWEITES Mal als <script>-Tag injizieren und an der Neu-Deklaration der
+       Top-Level-const (z. B. quillInstances) mit SyntaxError scheitern: der
+       Seiten-Init läuft nicht, #mainContent bleibt leer und der Nav-Link
+       reagiert (wegen _currentPage-Guard) nicht mehr. Hier vorab als geladen
+       markieren → Rückkehr nutzt den isolierten new-Function-Pfad. */
+    Array.from(document.querySelectorAll('script[src]')).forEach(function (s) {
+      const raw = s.getAttribute('src') || '';
+      if (!raw || raw.startsWith('http://') || raw.startsWith('https://') || raw.startsWith('//')) return;
+      const name = raw.split('/').pop().split('?')[0];
+      if (SHARED.has(name)) return;
+      _loadedLocalScripts.add(new URL(raw.split('?')[0], location.href).href);
+    });
+
     sidebar.addEventListener('click', function (e) {
       const a = e.target.closest('a[href]');
       if (!a) return;
