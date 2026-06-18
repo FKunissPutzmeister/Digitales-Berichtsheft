@@ -139,14 +139,15 @@
        unten; ensureThemeFX startet/stoppt ihn am FX-Lebenszyklus),
        Fledermäuse mit natürlichem Flatter-Flug (äußeres .pm-hw-bat = Flug-
        bahn, inneres __body = Flügelschlag), eine sich abseilende Spinne,
-       ein oben um die Hausspitzen schwebender Geist (.pm-hw-ghost) und
-       blinzelnde glühende Augenpaare (.pm-hw-eyes) bei Bäumen/Grabsteinen.
-       Styling/Keyframes liegen in css/theme-halloween.css.
-       (Spinnennetz an der Sidebar + krabbelnde Spinnen auf den Bento-Kacheln
-       liegen NICHT hier, sondern als Pseudo-Elemente in der CSS, weil sie
-       ÜBER dem App-Inhalt sitzen müssen, nicht im FX-Layer dahinter.) */
+       ein oben um die Hausspitzen schwebender Geist (.pm-hw-ghost),
+       blinzelnde glühende Augenpaare (.pm-hw-eyes) bei Bäumen/Grabsteinen
+       sowie ein großes Spinnennetz in der oberen LINKEN Ecke (.pm-hw-web),
+       das hinter dem App-Inhalt sitzt und neben der Nav-Leiste / hinter dem
+       Anfang der Kacheln durchscheint. Styling/Keyframes in
+       css/theme-halloween.css. */
     halloween:
       '<div class="pm-hw-bg"></div>' +
+      '<div class="pm-hw-web"></div>' +
       '<div class="pm-hw-moonglow"></div>' +
       '<div class="pm-hw-winflicker"></div>' +
       '<canvas class="pm-hw-fog" aria-hidden="true"></canvas>' +
