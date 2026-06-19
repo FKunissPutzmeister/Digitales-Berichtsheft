@@ -552,3 +552,33 @@ html[data-theme="christmas"] .bento .b-recent {
 [data-theme="christmas"] body[data-page="wochenansicht"] .time-spinner__input {
   border-color: rgba(255, 255, 255, 0.18);
 }
+
+/* ===================================================================
+   BAUM-LICHTER – pulsierendes Glühen (mix-blend-mode: screen)
+   Positionen relativ zum Viewport; an die Lage des Baums im Bild getunt
+   (oben rechts). Feintuning per Augenmaß im Browser.
+   =================================================================== */
+[data-theme="christmas"] .pm-xm-treeglow {
+  position: fixed; z-index: 1; pointer-events: none;
+  border-radius: 50%; mix-blend-mode: screen; filter: blur(6px);
+  will-change: opacity, transform;
+}
+[data-theme="christmas"] .pm-xm-treeglow--1 {
+  top: 12%; right: 6%; width: 16vw; height: 26vh;
+  background: radial-gradient(circle, rgba(255,210,120,0.55) 0%, rgba(255,170,60,0) 70%);
+  animation: pm-xm-twinkle 3.1s ease-in-out infinite;
+}
+[data-theme="christmas"] .pm-xm-treeglow--2 {
+  top: 20%; right: 9%; width: 10vw; height: 16vh;
+  background: radial-gradient(circle, rgba(120,200,255,0.5) 0%, rgba(80,150,255,0) 70%);
+  animation: pm-xm-twinkle 2.3s ease-in-out infinite 0.6s;
+}
+[data-theme="christmas"] .pm-xm-treeglow--3 {
+  top: 8%; right: 3%; width: 8vw; height: 12vh;
+  background: radial-gradient(circle, rgba(255,120,140,0.5) 0%, rgba(255,80,110,0) 70%);
+  animation: pm-xm-twinkle 3.7s ease-in-out infinite 1.2s;
+}
+@keyframes pm-xm-twinkle {
+  0%, 100% { opacity: 0.35; transform: scale(0.95); }
+  50%      { opacity: 0.95; transform: scale(1.05); }
+}
