@@ -821,7 +821,8 @@ html[data-theme="candy"] .bento .b-hero {
   background-size: cover, cover !important;
   background-position: center, 72% center !important;
 }
-html[data-theme="candy"] .bento .b-azubi {
+html[data-theme="candy"] .bento .b-azubi,
+html[data-theme="candy"] .bento .b-mitteilungen {
   background-image:
     linear-gradient(160deg, rgba(255,255,255,0.28) 0%, rgba(255,255,255,0.08) 100%),
     url("../assets/backgrounds/tile-series-training-light.png?v=20260602-darkfix") !important;

@@ -185,26 +185,52 @@
 
   /* Logo im Theme-Gradient einfärben: Silhouette als Maske über .silk-logo-grad
      (Gradient-Span), Original-img ausblenden. Async; bei Fehler bleibt Original. */
+  /* Den getönten Gradient-Span aus einer fertigen Masken-data-URL einhängen
+     und das Roh-<img> ausblenden. */
+  function applyLogoMask(img, mask) {
+    if (!img.__silkTint) return;                  // inzwischen Theme verlassen
+    var cs = getComputedStyle(img);
+    var span = document.createElement('span');
+    span.className = 'silk-logo-grad';
+    span.setAttribute('aria-hidden', 'true');
+    span.style.width = (img.offsetWidth || parseInt(cs.width, 10) || 36) + 'px';
+    span.style.height = (img.offsetHeight || parseInt(cs.height, 10) || 36) + 'px';
+    span.style.webkitMaskImage = 'url("' + mask + '")';
+    span.style.maskImage = 'url("' + mask + '")';
+    img.style.display = 'none';
+    img.parentNode.insertBefore(span, img.nextSibling);
+    img.__silkSpan = span;
+  }
+
+  /* Silhouetten-Maske je Logo-Quelle cachen: die Maske ist hue-UNABHÄNGIG
+     (die Farbe liefert allein der CSS-Gradient) und ändert sich nur, wenn die
+     Logo-PNG selbst wechselt → pro src einmal bauen, dann aus localStorage
+     wiederverwenden. So entfällt beim Reload der async Bild-Load+Canvas und der
+     getönte Span steht praktisch sofort (kein „leeres Logo"-Moment mehr). */
+  function maskCacheKey(src) { return 'pmSilkLogoMask:' + (src || ''); }
+
   function tintLogo() {
     var marks = document.querySelectorAll('.sidebar__logo-mark, .login-card__mark');
     for (var i = 0; i < marks.length; i++) {
       (function (img) {
         if (img.__silkTint) return;
         img.__silkTint = true;
-        buildLogoSilhouette(img.getAttribute('src'), function (mask) {
+        var src = img.getAttribute('src');
+        var cached = null;
+        try { cached = localStorage.getItem(maskCacheKey(src)); } catch (e) {}
+        if (cached) { applyLogoMask(img, cached); return; }   // synchron → flash-frei
+        buildLogoSilhouette(src, function (mask) {
           if (!img.__silkTint) return;            // inzwischen Theme verlassen
-          if (!mask) { img.__silkTint = false; return; }  // Fallback: Original
-          var cs = getComputedStyle(img);
-          var span = document.createElement('span');
-          span.className = 'silk-logo-grad';
-          span.setAttribute('aria-hidden', 'true');
-          span.style.width = (img.offsetWidth || parseInt(cs.width, 10) || 36) + 'px';
-          span.style.height = (img.offsetHeight || parseInt(cs.height, 10) || 36) + 'px';
-          span.style.webkitMaskImage = 'url("' + mask + '")';
-          span.style.maskImage = 'url("' + mask + '")';
-          img.style.display = 'none';
-          img.parentNode.insertBefore(span, img.nextSibling);
-          img.__silkSpan = span;
+          if (!mask) {                            // Fallback: Silhouette-Bau fehlgeschlagen
+            img.__silkTint = false;
+            /* theme-silk.css versteckt das Roh-<img> pre-paint (visibility:hidden);
+               ohne getönten Span muss es wieder sichtbar werden, sonst fehlt das
+               Logo ganz. */
+            img.style.visibility = 'visible';
+            return;
+          }
+          try { localStorage.setItem(maskCacheKey(src), mask); } catch (e) {}
+          applyLogoMask(img, mask);
         });
       })(marks[i]);
     }
@@ -428,6 +454,13 @@
 
   function activate(theme) {
     activeTheme = theme;
+    /* Logo SOFORT tönen – unabhängig vom (schweren) React/WebGL-Bundle.
+       tintLogo() braucht nur Canvas, kein React; früher lief es erst nach
+       loadBundle().then→scan(), wodurch beim Reload sekundenbruchteillang das
+       gelbe Standard-Logo sichtbar war. Vor dem reduceMotion-Return, damit
+       auch reduced-motion-Nutzer das getönte Logo bekommen. (Idempotent via
+       img.__silkTint → der spätere scan()-Aufruf ist ein No-op.) */
+    tintLogo();
     if (reduceMotion) return;
     var cfg = cfgFor(theme);
     if (!cfg) return;
@@ -479,6 +512,10 @@
   window.addEventListener('pm-theme-change', function (e) { sync(e && e.detail); });
   window.addEventListener('pm-silk-color-change', function () { if (activeTheme && api) recolorSilk(); });
   window.addEventListener('pm-page-rendered', function () { if (activeTheme && api) scan(); });
+  /* Sidebar komplett neu aufgebaut (buildSidebar in sidebar.js) → das frische
+     Logo-<img> erneut tönen. Unabhängig vom React-Bundle (tintLogo braucht nur
+     Canvas); mit gecachter Maske synchron → kein „leeres/Standard-Logo"-Frame. */
+  window.addEventListener('pm-sidebar-rendered', function () { if (activeTheme && cfgFor(activeTheme)) tintLogo(); });
 
   function init() {
     var pm = window.PMTheme;

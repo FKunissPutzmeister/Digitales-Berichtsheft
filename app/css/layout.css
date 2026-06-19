@@ -220,6 +220,15 @@ html:not([data-ist-azubi="1"]):not([data-korrektur="1"]) .nav-berichtsheft-only 
 html:not([data-ist-azubi="1"]) .nav-azubi-only {
   display: none;
 }
+/* Ausbilder/Verwaltung: das STATISCHE Platzhalter-Nav in den HTML-Seiten
+   (z.B. dashboard.html) bringt eine „Verwaltung"-Sektion mit Klasse
+   .nav-ausbilder-only mit, die buildSidebar() später durch die kanonische
+   Nav ersetzt. Ohne dieses Pre-Paint-Gating blitzte die Verwaltung beim
+   Reload kurz bei Nicht-Ausbildern (z.B. Azubis) auf, bevor der JS-Rebuild
+   sie entfernt. Sichtbar nur, wenn theme.js data-ist-ausbilder="1" gesetzt hat. */
+html:not([data-ist-ausbilder="1"]) .nav-ausbilder-only {
+  display: none;
+}
 
 .sidebar__footer {
   padding: var(--sp-4);

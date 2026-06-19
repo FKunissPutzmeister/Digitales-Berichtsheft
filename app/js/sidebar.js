@@ -110,6 +110,12 @@ function buildSidebar(activeNavId) {
   setupSidebarTooltips(sidebar);
   setupSidebarThemeToggle();
   if (typeof window.initRouter === 'function') window.initRouter(sidebar);
+
+  /* Sidebar wurde komplett neu aufgebaut (innerHTML ersetzt) → das frische
+     Logo-<img> ist wieder das gelbe Original. react-theme-layer.js lauscht
+     hierauf und tönt das Logo (silk) erneut – mit gecachter Maske synchron,
+     also ohne dass das Standard-Logo sichtbar wird. */
+  try { window.dispatchEvent(new CustomEvent('pm-sidebar-rendered')); } catch (e) {}
 }
 
 /* Theme-Toggle im Sidebar-Footer.

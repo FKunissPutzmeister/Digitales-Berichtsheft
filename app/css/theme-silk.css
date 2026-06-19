@@ -370,6 +370,17 @@ html[data-skin="silk"] .b-day--today .dnum { color: #FFFFFF !important; }
 /* ── 7c · Putzmeister-Logo im Theme-Gradient ────────────────────────
    Der Controller blendet das gelbe <img> aus und legt diese Span an: die
    Logo-Silhouette als Maske, Theme-Gradient als Füllung → Logo im Verlauf. */
+
+/* Pre-Paint-Hide: das gelbe Standard-<img> bei aktivem Silk gar nicht erst
+   zeigen. react-theme-layer.js ersetzt es per tintLogo() durch .silk-logo-grad,
+   das aber (Bundle-/Canvas-async) erst ein paar Frames später steht – ohne
+   dieses Hide blitzte beim Reload kurz das Standard-Logo auf. visibility statt
+   display, damit der 36px-Platz reserviert bleibt (kein Layout-Sprung); der
+   getönte Span ist davon nicht betroffen. Schlägt der Silhouetten-Bau fehl,
+   stellt tintLogo() die Sichtbarkeit per Inline-Style wieder her (Fallback). */
+[data-skin="silk"] .sidebar__logo-mark,
+[data-skin="silk"] .login-card__mark { visibility: hidden; }
+
 [data-skin="silk"] .silk-logo-grad {
   display: inline-block;
   flex-shrink: 0;

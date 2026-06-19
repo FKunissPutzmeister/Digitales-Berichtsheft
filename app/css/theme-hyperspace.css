@@ -528,7 +528,8 @@ html[data-theme="hyperspace"] .b-azubi::before {
     radial-gradient(circle at 50% 44%, rgba(10,12,16,0.70) 0%, rgba(10,12,16,0.54) 24%, rgba(10,12,16,0.10) 42%, transparent 56%),
     linear-gradient(180deg, rgba(10,12,16,0.10) 0%, transparent 34%, transparent 66%, rgba(10,12,16,0.18) 100%);
 }
-html[data-theme="hyperspace"] .b-azubi {
+html[data-theme="hyperspace"] .b-azubi,
+html[data-theme="hyperspace"] .b-mitteilungen {
   background-image:
     linear-gradient(160deg, rgba(10,12,16,0.16) 0%, rgba(10,12,16,0.00) 100%),
     url("../assets/backgrounds/tile-series-training-dark.png?v=20260602-series");
@@ -605,7 +606,8 @@ html[data-theme="hyperspace"] .bento .b-hero {
   background-size: cover, cover !important;
   background-position: center, center !important;
 }
-html[data-theme="hyperspace"] .bento .b-azubi {
+html[data-theme="hyperspace"] .bento .b-azubi,
+html[data-theme="hyperspace"] .bento .b-mitteilungen {
   background-image:
     linear-gradient(160deg, rgba(4,6,9,0.08) 0%, rgba(4,6,9,0.00) 100%),
     url("../assets/backgrounds/tile-material-training-dark.png?v=20260602-materialdark2") !important;

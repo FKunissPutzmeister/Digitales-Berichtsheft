@@ -872,6 +872,7 @@ html[data-theme="cmd"] .bento .b-recent {
      html[data-theme="cmd"]-Dark-Spiegelungen weiter oben) — */
 html[data-theme="cmd"] .b-tile--glass,
 html[data-theme="cmd"] .b-azubi,
+html[data-theme="cmd"] .b-mitteilungen,
 html[data-theme="cmd"] .b-wkcard,
 html[data-theme="cmd"] .b-daycard,
 html[data-theme="cmd"] .b-day {
@@ -890,15 +891,18 @@ html[data-theme="cmd"] .b-daycard:hover {
 /* 1) Dashboard-Bento ohne Hintergrund-Bilder – schlichte Terminal-Flächen */
 html[data-theme="cmd"] .bento .b-hero,
 html[data-theme="cmd"] .bento .b-azubi,
+html[data-theme="cmd"] .bento .b-mitteilungen,
 html[data-theme="cmd"] .bento .b-recent,
 html[data-theme="cmd"] .b-hero,
 html[data-theme="cmd"] .b-azubi,
+html[data-theme="cmd"] .b-mitteilungen,
 html[data-theme="cmd"] .b-recent {
   background-image: none !important;
   background-color: var(--pm-white) !important;
 }
 html[data-theme="cmd"] .b-hero::before,
 html[data-theme="cmd"] .b-azubi::before,
+html[data-theme="cmd"] .b-mitteilungen::before,
 html[data-theme="cmd"] .b-recent::before {
   background: none !important;
 }
