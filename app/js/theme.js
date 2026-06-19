@@ -1169,103 +1169,6 @@
     return { start: start, stop: stop };
   })();
 
-  /* ── Halloween-Hintergrundmusik ───────────────────────────────────
-     Stimmungs-Loop (assets/music/Halloween-Backgroundmusic.mp3), der NUR
-     im Halloween-Theme läuft. Wie die FX-Engines wird er am FX-Lebens-
-     zyklus gesteuert (start im halloween-Zweig von ensureThemeFX, stop
-     beim Theme-Wechsel/Teardown) und überlebt damit SPA-Navigationen.
-
-     Autoplay-Politik der Browser: Ton ohne Nutzergeste ist blockiert,
-     STUMME Wiedergabe aber erlaubt. Der Loop startet daher bewusst
-     gemutet und läuft sofort (muted autoplay) – der Nutzer hebt die
-     Stummschaltung über den kleinen Button unten rechts auf (ein Klick =
-     Nutzergeste → Ton sofort hörbar, da bereits laufend). Standard ist
-     also IMMER stumm; eine Reload-übergreifende Merk-Logik gibt es
-     bewusst NICHT (sonst würde der Browser unmuted-Autoplay nach einem
-     echten Page-Load erneut blockieren und der Loop bliebe stumm stehen).
-
-     <audio> + Button hängen DIREKT am <body> (NICHT in #pmThemeFX – der
-     ist aria-hidden + pointer-events:none, der Button muss aber klickbar
-     sein). router.js fasst nur `body > .modal-overlay` an → beide
-     überleben Seitenwechsel. Styling des Buttons in
-     css/theme-halloween.css (.pm-hw-music-btn). */
-  var PMHalloweenMusic = (function () {
-    var SRC      = 'assets/music/Halloween-Backgroundmusic.mp3';
-    var AUDIO_ID = 'pmHwMusicAudio';
-    var BTN_ID   = 'pmHwMusicBtn';
-    var audio = null, btn = null;
-
-    /* Lautsprecher-Triangel (gefüllt) + Schallwellen / X (gestrichelt).
-       Attribute inline, damit die Icons unabhängig vom CSS korrekt füllen. */
-    var ICON_ON =
-      '<svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" focusable="false">' +
-        '<path d="M4 9v6h4l5 4V5L8 9H4z" fill="currentColor"/>' +
-        '<path d="M16 8.5a5 5 0 0 1 0 7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>' +
-        '<path d="M18.7 6a8.5 8.5 0 0 1 0 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>' +
-      '</svg>';
-    var ICON_MUTED =
-      '<svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" focusable="false">' +
-        '<path d="M4 9v6h4l5 4V5L8 9H4z" fill="currentColor"/>' +
-        '<path d="m16 9 5 6M21 9l-5 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>' +
-      '</svg>';
-
-    function render() {
-      if (!btn || !audio) return;
-      var muted = audio.muted;
-      btn.innerHTML = muted ? ICON_MUTED : ICON_ON;
-      btn.setAttribute('data-muted', muted ? 'true' : 'false');
-      btn.setAttribute('aria-pressed', muted ? 'false' : 'true');
-      var label = muted ? 'Hintergrundmusik einschalten' : 'Hintergrundmusik stummschalten';
-      btn.setAttribute('aria-label', label);
-      btn.setAttribute('title', label);
-    }
-
-    function toggle() {
-      if (!audio) return;
-      audio.muted = !audio.muted;
-      /* Beim Einschalten sicherstellen, dass der Loop wirklich läuft –
-         jetzt liegt eine Nutzergeste vor, falls der stumme Autoplay zuvor
-         verweigert wurde. */
-      if (!audio.muted && audio.paused) { try { audio.play(); } catch (e) {} }
-      render();
-    }
-
-    function start() {
-      stop();   // idempotent: evtl. Reste aus einem früheren Aufbau entfernen
-      if (!document.body) return;
-
-      audio = document.createElement('audio');
-      audio.id = AUDIO_ID;
-      audio.src = SRC;
-      audio.loop = true;
-      audio.muted = true;          // Standard: stumm
-      audio.preload = 'auto';
-      audio.setAttribute('aria-hidden', 'true');
-      document.body.appendChild(audio);
-      try { var p = audio.play(); if (p && p.catch) p.catch(function () {}); } catch (e) {}
-
-      btn = document.createElement('button');
-      btn.id = BTN_ID;
-      btn.type = 'button';
-      btn.className = 'pm-hw-music-btn';
-      btn.addEventListener('click', toggle);
-      document.body.appendChild(btn);
-      render();
-    }
-
-    function stop() {
-      var oldBtn = document.getElementById(BTN_ID);
-      if (oldBtn && oldBtn.parentNode) oldBtn.parentNode.removeChild(oldBtn);
-      var oldAudio = document.getElementById(AUDIO_ID);
-      if (oldAudio) {
-        try { oldAudio.pause(); } catch (e) {}
-        if (oldAudio.parentNode) oldAudio.parentNode.removeChild(oldAudio);
-      }
-      audio = null; btn = null;
-    }
-
-    return { start: start, stop: stop };
-  })();
 
   /* ── Candy: Vordergrund-Charakterwechsel beim Rand-Austritt ───────
      „Wenn ein Einhorn den Bildschirmrand verlassen hat, wechselt, welcher
@@ -1339,7 +1242,6 @@
     PMCandyBubbles.stop();
     PMHalloweenFog.stop();
     PMChristmasSnow.stop();
-    PMHalloweenMusic.stop();
 
     var tpl = FX_TEMPLATES[theme] || '';   // light/dark/unbekannt → ''
     if (!tpl) return;
@@ -1371,7 +1273,6 @@
     } else if (theme === 'halloween') {
       var fogCanvas = el.querySelector('.pm-hw-fog');
       if (fogCanvas) PMHalloweenFog.start(fogCanvas);
-      PMHalloweenMusic.start();   // gemuteter Stimmungs-Loop + Unmute-Button
     } else if (theme === 'christmas') {
       var snowCanvas = el.querySelector('.pm-xm-snow');
       if (snowCanvas) PMChristmasSnow.start(snowCanvas);

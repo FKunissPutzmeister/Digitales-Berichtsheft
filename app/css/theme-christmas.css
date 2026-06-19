@@ -636,6 +636,7 @@ html[data-theme="christmas"] .bento .b-recent {
 
 [data-theme="christmas"] .topbar::after,
 [data-theme="christmas"] .b-hero::after {
+  display: block;
   content: ""; position: absolute; left: 0; right: 0; top: 0; height: 14px;
   pointer-events: none; z-index: 5;
   background-repeat: repeat-x;
@@ -658,5 +659,6 @@ html[data-theme="christmas"] .bento .b-recent {
 
 @media (prefers-reduced-motion: reduce) {
   [data-theme="christmas"] .topbar::after,
-  [data-theme="christmas"] .b-hero::after { animation: none !important; }
+  [data-theme="christmas"] .b-hero::after,
+  [data-theme="christmas"] .btn-primary:hover:not(:disabled)::after { animation: none !important; }
 }
