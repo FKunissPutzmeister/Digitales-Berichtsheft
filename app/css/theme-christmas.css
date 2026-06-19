@@ -632,7 +632,6 @@ html[data-theme="christmas"] .bento .b-recent {
 /* ===================================================================
    LICHTERKETTE – blinkendes Birnchen-Band (Topbar + Dashboard-Hero)
    =================================================================== */
-[data-theme="christmas"] .topbar,
 [data-theme="christmas"] .b-hero { position: relative; }
 
 [data-theme="christmas"] .topbar::after,
