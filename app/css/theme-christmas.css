@@ -715,29 +715,46 @@ html[data-theme="christmas"] .bento .b-recent {
   pointer-events: none; z-index: 5;
   /* gleiche Tropfen-Birnchen wie an der Nav (horizontaler Strang) */
   background: left top / auto 30px repeat-x url("../assets/xmas-strand-top.png");
-  animation: pm-xm-lights 1.7s steps(1) infinite;
+  /* Lauflicht: ein heller Fensterbereich (Maske) wandert horizontal über den
+     Strang → die Birnchen leuchten EINZELN NACHEINANDER auf (dazwischen
+     gedimmt, nicht ganz aus). Maskenperiode = Birnchen-Abstand (52px). */
+  -webkit-mask: repeating-linear-gradient(90deg, #000 0 14px, rgba(0,0,0,0.28) 30px 48px, #000 52px);
+          mask: repeating-linear-gradient(90deg, #000 0 14px, rgba(0,0,0,0.28) 30px 48px, #000 52px);
+  animation: pm-xm-chase-x 1.5s linear infinite;
 }
-
-@keyframes pm-xm-lights {
-  0%   { filter: brightness(1);   }
-  50%  { filter: brightness(0.55);}
-  100% { filter: brightness(1);   }
+@keyframes pm-xm-chase-x {
+  to { -webkit-mask-position: 52px 0; mask-position: 52px 0; }
 }
 
 /* ===================================================================
-   NAV-LICHTERKETTE – Birnchen-Strang, der sich über die Nav-Kachel schlängelt
+   NAV-LICHTERKETTE – Tropfen-Birnchen, um die ganze Nav-Kachel gewickelt
    -------------------------------------------------------------------
-   Ein gewellter (Sinus-)Birnchen-Strang läuft von oben nach unten serpentinen-
-   förmig über die Sidebar (PNG xmas-strand-snake.png, vertikal nahtlos kachel-
-   bar → repeat-y). Liegt auf .sidebar::after (überschreibt unter christmas den
-   Glas-Ambient-::after von glass.css). pointer-events:none → Nav-Links bleiben
-   klickbar; gemeinsames Blinken. */
+   Vier Birnchen-Stränge rahmen alle vier Kanten der Sidebar (oben/unten
+   repeat-x, links/rechts repeat-y; hängen nach innen, von .sidebar
+   overflow:hidden nicht abgeschnitten). Lauflicht: ein heller Bogen
+   (conic-gradient-Maske) rotiert um die Kachel → die Birnchen leuchten der
+   Reihe nach auf (dazwischen gedimmt, nicht aus). Liegt auf .sidebar::after
+   (überschreibt unter christmas den Glas-::after von glass.css).
+   pointer-events:none → Nav-Links bleiben klickbar. */
 [data-theme="christmas"] .sidebar::after {
   content: ""; position: absolute; inset: 0; z-index: 6;
   pointer-events: none;
-  background: top center / 100% auto repeat-y url("../assets/xmas-strand-snake.png");
-  animation: pm-xm-lights 2.1s steps(1) infinite;
+  background-image:
+    url("../assets/xmas-strand-top.png"),
+    url("../assets/xmas-strand-bottom.png"),
+    url("../assets/xmas-strand-left.png"),
+    url("../assets/xmas-strand-right.png");
+  background-repeat: repeat-x, repeat-x, repeat-y, repeat-y;
+  background-position: left top, left bottom, left top, right top;
+  background-size: auto 24px, auto 24px, 24px auto, 24px auto;
+  -webkit-mask: conic-gradient(from var(--pm-xm-angle) at 50% 50%,
+                  #000 0deg 26deg, rgba(0,0,0,0.28) 70deg 290deg, #000 334deg 360deg);
+          mask: conic-gradient(from var(--pm-xm-angle) at 50% 50%,
+                  #000 0deg 26deg, rgba(0,0,0,0.28) 70deg 290deg, #000 334deg 360deg);
+  animation: pm-xm-chase-rot 3.6s linear infinite;
 }
+@property --pm-xm-angle { syntax: "<angle>"; inherits: false; initial-value: 0deg; }
+@keyframes pm-xm-chase-rot { to { --pm-xm-angle: 360deg; } }
 
 @media (prefers-reduced-motion: reduce) {
   [data-theme="christmas"] .topbar::after,
@@ -745,4 +762,8 @@ html[data-theme="christmas"] .bento .b-recent {
   [data-theme="christmas"] .sidebar::after,
   [data-theme="christmas"] .sidebar__user-link .avatar::before,
   [data-theme="christmas"] .btn-primary:hover:not(:disabled)::after { animation: none !important; }
+  /* Statisch: volle Stränge ohne Lauflicht-Maske zeigen */
+  [data-theme="christmas"] .topbar::after,
+  [data-theme="christmas"] .b-hero::after,
+  [data-theme="christmas"] .sidebar::after { -webkit-mask: none !important; mask: none !important; }
 }
