@@ -444,6 +444,19 @@ html[data-skin="silk"] body[data-page="wochenansicht"] {
 html[data-skin="silk"] body[data-page="wochenansicht"] #silk-react-root {
   opacity: 0.28 !important;
 }
+/* Weil der Background hier abgedunkelt ist, die Eingabe-/Textfelder wieder
+   etwas heller ziehen, damit sie sich klar vom dunklen Grund abheben (gilt nur
+   für Silk + Wochenansicht, höhere Spezifität schlägt die Basisregeln in
+   theme-silk.css §4d). */
+html[data-skin="silk"] body[data-page="wochenansicht"] .day-section,
+html[data-skin="silk"] body[data-page="wochenansicht"] .day-section__header {
+  background: hsl(var(--silk-hue,252) 42% 27%) !important;
+}
+html[data-skin="silk"] body[data-page="wochenansicht"] .ql-toolbar,
+html[data-skin="silk"] body[data-page="wochenansicht"] .ql-container,
+html[data-skin="silk"] body[data-page="wochenansicht"] .day-section .ql-editor {
+  background: hsl(var(--silk-hue,252) 44% 25%) !important;
+}
 .wochen-tage-row {
   display: grid;
   grid-template-columns: 72px 1fr 1fr 185px;
