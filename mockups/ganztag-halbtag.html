@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="de" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ganztag / Halbtag – Brand-Selector-Pill</title>
+<style>
+  :root{
+    --nav-accent: 255, 205, 0;             /* exakt wie V2 Putzmeister-Gelb */
+    --ease: cubic-bezier(0.16, 1, 0.3, 1);
+    --spring: cubic-bezier(0.22, 1.2, 0.36, 1);
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:-apple-system,system-ui,"Segoe UI",Roboto,sans-serif;color:#1a1a1a;
+    background:#eceef2;transition:background .4s,color .4s;padding:40px 24px 80px}
+  [data-theme="dark"] body{}
+  .wrap{max-width:980px;margin:0 auto}
+  h1{font-size:26px;font-weight:800;letter-spacing:-.02em;margin:0 0 6px}
+  h1 b{color:#caa400}
+  .lead{color:#5b6068;margin:0 0 28px;font-size:15px;line-height:1.5;max-width:64ch}
+  .theme-btn{position:fixed;top:18px;right:18px;z-index:20;border:1px solid rgba(0,0,0,.15);background:#fff;
+    border-radius:999px;padding:8px 15px;font-size:13px;font-weight:600;cursor:pointer}
+  .stage{border-radius:22px;padding:54px 24px;margin-bottom:22px;position:relative;overflow:hidden}
+  .stage__tag{position:absolute;top:14px;left:18px;font-size:11px;font-weight:800;letter-spacing:.08em;
+    text-transform:uppercase;opacity:.5}
+  .stage--light{background:linear-gradient(180deg,#fafbfc,#eef0f4);color:#1a1a1a}
+  .stage--dark{background:radial-gradient(900px 500px at 80% -20%,rgba(255,205,0,.10),transparent 60%),#12141a;color:#e8eaf0}
+  .stage--card{background:#f3f4f7;display:flex;justify-content:center}
+
+  /* ===== EXAKT: Brand-Selector Liquid-Glass-Pill (aus V2 produkte.html) ===== */
+  .brand-selector{padding:0;background:transparent;display:flex;justify-content:center}
+  .brand-selector__inner{
+    display:inline-flex;align-items:center;gap:0;padding:4px 6px;position:relative;
+    background:rgba(0,0,0,0.07);border:1px solid rgba(0,0,0,0.12);border-radius:999px;
+    box-shadow:0 4px 24px rgba(0,0,0,0.12),0 1px 6px rgba(0,0,0,0.08),
+      inset 0 1px 0 rgba(255,255,255,0.8),inset 0 -1px 0 rgba(0,0,0,0.05);
+    backdrop-filter:blur(20px) saturate(1.4);-webkit-backdrop-filter:blur(20px) saturate(1.4);
+    --brand-mouse-x:50%;--brand-mouse-y:50%;
+  }
+  .brand-selector__inner::before{content:'';position:absolute;top:0;left:10%;right:10%;height:1px;border-radius:999px;
+    background:linear-gradient(90deg,transparent,rgba(255,255,255,0.8) 30%,rgba(255,255,255,1) 50%,rgba(255,255,255,0.8) 70%,transparent);
+    pointer-events:none;z-index:5}
+  .brand-selector__inner::after{content:'';position:absolute;inset:0;border-radius:inherit;pointer-events:none;z-index:4;
+    background:radial-gradient(ellipse 260px 80px at var(--brand-mouse-x) var(--brand-mouse-y),rgba(0,0,0,0.04) 0%,rgba(0,0,0,0.01) 50%,transparent 70%);
+    opacity:0;transition:opacity .4s}
+  .brand-selector__inner:hover::after{opacity:1}
+
+  .brand__hover-pill{position:absolute;top:8px;height:calc(100% - 16px);border-radius:999px;pointer-events:none;z-index:0;
+    left:6px;width:100px;opacity:0;
+    transition:left .25s var(--ease),width .25s var(--ease),opacity .15s ease}
+  .brand__hover-pill-glass{position:absolute;inset:0;border-radius:inherit;overflow:hidden;background:rgba(0,0,0,0.05);
+    box-shadow:inset 0 1px 0 rgba(255,255,255,0.4),inset 0 -1px 0 rgba(0,0,0,0.03),0 0 0 1px rgba(0,0,0,0.06)}
+
+  .brand__indicator{position:absolute;top:8px;height:calc(100% - 16px);border-radius:999px;pointer-events:none;z-index:1;
+    left:6px;width:100px;transition:left .55s var(--spring),width .55s var(--spring)}
+  .brand__indicator-glass{position:absolute;inset:0;border-radius:inherit;overflow:hidden;isolation:isolate}
+  .brand__indicator-glass::before{content:'';position:absolute;inset:0;border-radius:inherit;
+    background:rgba(var(--nav-accent),0.3);
+    backdrop-filter:blur(16px) saturate(1.6) brightness(1.15) contrast(1.08);
+    -webkit-backdrop-filter:blur(16px) saturate(1.6) brightness(1.15) contrast(1.08);
+    box-shadow:0 0 0 1px rgba(var(--nav-accent),0.4),0 2px 12px rgba(var(--nav-accent),0.2),
+      inset 0 1px 0 rgba(255,255,255,0.30),inset 0 -1px 0 rgba(255,255,255,0.06),
+      inset 1px 0 0 rgba(255,255,255,0.12),inset -1px 0 0 rgba(255,255,255,0.06),
+      inset 0 0 24px -6px rgba(var(--nav-accent),0.3)}
+  .brand__indicator-specular{position:absolute;top:0;left:12%;right:12%;height:1px;border-radius:999px;
+    background:linear-gradient(90deg,transparent,rgba(255,255,255,0.9) 25%,rgba(255,255,255,1) 50%,rgba(255,255,255,0.9) 75%,transparent);z-index:3}
+  .brand__indicator-edge{position:absolute;inset:1px;border-radius:calc(999px - 1px);border:1px solid rgba(var(--nav-accent),0.25);background:transparent;pointer-events:none;z-index:2}
+  .brand__indicator.is-morphing .brand__indicator-glass{animation:lg-blob-morph .55s var(--spring) forwards}
+
+  .brand-card{position:relative;display:flex;align-items:center;justify-content:center;
+    padding:0.7rem 1.6rem;border-radius:999px;cursor:pointer;transition:all .35s var(--ease);
+    border:none;background:transparent;z-index:3;overflow:hidden;flex:0 0 auto;min-width:120px}
+  .brand-card.is-active{padding:0.7rem 2.2rem}
+  .brand-card:hover{transform:translateY(-1px)}
+  .brand-card:active{transform:scale(0.94);transition:transform .1s}
+  .brand-card__txt{font-size:0.98rem;font-weight:700;letter-spacing:.01em;white-space:nowrap;
+    color:#1a1a1a;opacity:.5;transition:opacity .35s,color .35s}
+  .brand-card:hover .brand-card__txt{opacity:.8}
+  .brand-card.is-active .brand-card__txt{opacity:1;color:#3d3100}
+
+  .lg-ripple{position:absolute;border-radius:50%;pointer-events:none;z-index:10;
+    transform:scale(0) translate(-50%,-50%);transform-origin:0 0;
+    background:radial-gradient(circle,rgba(255,255,255,0.30) 0%,rgba(var(--nav-accent),0.18) 40%,transparent 72%);
+    box-shadow:0 0 0 1px rgba(255,255,255,0.25),inset 0 0 8px rgba(var(--nav-accent),0.15);
+    animation:lg-ripple-expand .65s var(--ease) forwards}
+  @keyframes lg-ripple-expand{0%{transform:scale(0) translate(-50%,-50%);opacity:.9}60%{opacity:.5}100%{transform:scale(1) translate(-50%,-50%);opacity:0}}
+  @keyframes lg-blob-morph{0%{transform:scaleY(1) scaleX(1)}20%{transform:scaleY(0.88) scaleX(1.08)}55%{transform:scaleY(1.04) scaleX(0.97)}100%{transform:scaleY(1) scaleX(1)}}
+
+  /* Dark-Stage: nur die Basis-Glasschicht invertiert (für den Dark-Mode der App),
+     Indikator/Akzent bleiben identisch. */
+  .stage--dark .brand-selector__inner{
+    background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);
+    box-shadow:0 4px 24px rgba(0,0,0,0.4),0 1px 6px rgba(0,0,0,0.3),
+      inset 0 1px 0 rgba(255,255,255,0.18),inset 0 -1px 0 rgba(0,0,0,0.25)}
+  .stage--dark .brand-card__txt{color:#e8eaf0}
+  .stage--dark .brand-card.is-active .brand-card__txt{color:#1a1a1a}
+
+  /* Tageskarten-Kontext */
+  .daycard{width:340px;background:#fff;border:1px solid #e3e6ec;border-radius:16px;
+    box-shadow:0 1px 3px rgba(15,23,42,.06);padding:18px 18px 22px}
+  .daycard__head{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px}
+  .daycard__day{font-weight:800;font-size:15px}
+  .daycard__date{color:#8a909c;font-size:12px;font-weight:600}
+  .daycard__row{font-size:12px;color:#8a909c;font-weight:700;text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px}
+</style>
+</head>
+<body>
+<button class="theme-btn" id="themeBtn">☀︎ / ☾ Seiten-Hintergrund</button>
+<div class="wrap">
+  <h1>Ganztag / <b>Halbtag</b> — im Brand-Selector-Design</h1>
+  <p class="lead">Exakt die Liquid-Glass-Pill von der V2-Produkte-Seite (gleitender Glas-Indikator mit Blob-Morph, Hover-Pill, Ripple, Maus-Glow). „Ganztag" ist Standard. Anklicken zum Umschalten.</p>
+
+  <div class="stage stage--light">
+    <span class="stage__tag">So auf der V2-Seite (hell)</span>
+    <div class="brand-selector">
+      <div class="brand-selector__inner" data-pill>
+        <div class="brand__hover-pill"><div class="brand__hover-pill-glass"></div></div>
+        <div class="brand__indicator"><div class="brand__indicator-glass"></div><div class="brand__indicator-specular"></div><div class="brand__indicator-edge"></div></div>
+        <div class="brand-card is-active" tabindex="0"><span class="brand-card__txt">Ganztag</span></div>
+        <div class="brand-card" tabindex="0"><span class="brand-card__txt">Halbtag</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="stage stage--dark">
+    <span class="stage__tag">Im Dark-Mode der App (Basis invertiert, Akzent gleich)</span>
+    <div class="brand-selector">
+      <div class="brand-selector__inner" data-pill>
+        <div class="brand__hover-pill"><div class="brand__hover-pill-glass"></div></div>
+        <div class="brand__indicator"><div class="brand__indicator-glass"></div><div class="brand__indicator-specular"></div><div class="brand__indicator-edge"></div></div>
+        <div class="brand-card is-active" tabindex="0"><span class="brand-card__txt">Ganztag</span></div>
+        <div class="brand-card" tabindex="0"><span class="brand-card__txt">Halbtag</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="stage stage--card">
+    <span class="stage__tag">Im Tageskarten-Kontext</span>
+    <div class="daycard">
+      <div class="daycard__head"><span class="daycard__day">Montag</span><span class="daycard__date">02.06.</span></div>
+      <div class="daycard__row">Anwesenheit</div>
+      <div class="brand-selector" style="justify-content:flex-start">
+        <div class="brand-selector__inner" data-pill>
+          <div class="brand__hover-pill"><div class="brand__hover-pill-glass"></div></div>
+          <div class="brand__indicator"><div class="brand__indicator-glass"></div><div class="brand__indicator-specular"></div><div class="brand__indicator-edge"></div></div>
+          <div class="brand-card is-active" tabindex="0"><span class="brand-card__txt">Ganztag</span></div>
+          <div class="brand-card" tabindex="0"><span class="brand-card__txt">Halbtag</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+function initPill(pill){
+  const indicator = pill.querySelector('.brand__indicator');
+  const hover = pill.querySelector('.brand__hover-pill');
+  const cards = Array.from(pill.querySelectorAll('.brand-card'));
+  let active = cards.find(c=>c.classList.contains('is-active')) || cards[0];
+  let morphTimer=null;
+
+  function move(card, instant){
+    const pr=pill.getBoundingClientRect(), cr=card.getBoundingClientRect();
+    if(instant) indicator.style.transition='none';
+    indicator.style.left=(cr.left-pr.left)+'px';
+    indicator.style.width=cr.width+'px';
+    if(instant){ indicator.getBoundingClientRect(); indicator.style.transition=''; }
+  }
+  function morph(){
+    clearTimeout(morphTimer); indicator.classList.remove('is-morphing');
+    requestAnimationFrame(()=>requestAnimationFrame(()=>{
+      indicator.classList.add('is-morphing');
+      morphTimer=setTimeout(()=>indicator.classList.remove('is-morphing'),560);
+    }));
+  }
+  function ripple(el,e){
+    const r=el.getBoundingClientRect(), d=Math.max(r.width,r.height)*2.4, s=document.createElement('span');
+    s.className='lg-ripple';
+    s.style.cssText=`left:${e.clientX-r.left}px;top:${e.clientY-r.top}px;width:${d}px;height:${d}px;`;
+    el.appendChild(s); s.addEventListener('animationend',()=>s.remove(),{once:true});
+  }
+  function moveHover(card){const pr=pill.getBoundingClientRect(),cr=card.getBoundingClientRect();hover.style.left=(cr.left-pr.left)+'px';hover.style.width=cr.width+'px';}
+
+  cards.forEach(card=>{
+    card.addEventListener('click',e=>{
+      if(card===active){ ripple(card,e); return; }
+      active.classList.remove('is-active'); card.classList.add('is-active'); active=card;
+      morph(); setTimeout(()=>move(active,false),50); ripple(card,e); hover.style.opacity='0';
+    });
+    card.addEventListener('mouseenter',()=>{ if(card===active){hover.style.opacity='0';return;} moveHover(card); hover.style.opacity='1'; });
+  });
+  pill.addEventListener('mouseleave',()=>hover.style.opacity='0');
+  pill.addEventListener('mousemove',e=>{const r=pill.getBoundingClientRect();
+    pill.style.setProperty('--brand-mouse-x',((e.clientX-r.left)/r.width*100).toFixed(1)+'%');
+    pill.style.setProperty('--brand-mouse-y',((e.clientY-r.top)/r.height*100).toFixed(1)+'%');});
+  window.addEventListener('resize',()=>move(active,true));
+  requestAnimationFrame(()=>move(active,true));
+}
+document.querySelectorAll('[data-pill]').forEach(initPill);
+document.getElementById('themeBtn').addEventListener('click',()=>{
+  const h=document.documentElement; h.dataset.theme = h.dataset.theme==='dark'?'light':'dark';
+  document.body.style.background = h.dataset.theme==='dark' ? '#0d0f14' : '#eceef2';
+  document.body.style.color = h.dataset.theme==='dark' ? '#e8eaf0' : '#1a1a1a';
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,24 @@
+{
+  "name": "silk-react",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "description": "React theme-layer (ReactBits components) for the 'silk' theme of the Berichtsheft app. Build emits a self-contained bundle into ../app/silk/.",
+  "scripts": {
+    "build": "vite build",
+    "dev": "vite"
+  },
+  "dependencies": {
+    "@react-three/fiber": "8.17.10",
+    "gsap": "3.13.0",
+    "motion": "11.18.2",
+    "react": "18.3.1",
+    "react-dom": "18.3.1",
+    "three": "0.169.0"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "4.3.4",
+    "playwright": "^1.61.0",
+    "vite": "5.4.11"
+  }
+}

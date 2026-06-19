@@ -142,18 +142,28 @@ document.addEventListener('DOMContentLoaded', async () => {
      nach Sichtbarkeit. reduced-motion → komplett aus (Zeilen bleiben sichtbar). */
   let tagRowObserver = null;
   function observeTagRows() {
+    if (tagRowObserver) { tagRowObserver.disconnect(); tagRowObserver = null; }
     if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
     if (typeof IntersectionObserver === 'undefined') return;
-    if (!tagRowObserver) {
-      tagRowObserver = new IntersectionObserver(entries => {
-        entries.forEach(e => e.target.classList.toggle('tag-row--in', e.intersectionRatio >= 0.5));
-      }, { threshold: [0, 0.5, 1] });
-    }
-    tagRowObserver.disconnect();   // alte (jetzt entfernte) Zeilen lösen
+    // NUR Zeilen, die beim Laden komplett UNTER dem Fold liegen, bekommen den
+    // versteckten Startzustand und blenden beim Hinscrollen einmalig ein.
+    // Bereits sichtbare Zeilen bleiben unangetastet (kein Pop, kein Verdecken).
+    // Hidden-Base SYNCHRON vor dem ersten Paint setzen → kein Aufblitzen.
+    const vh = window.innerHeight || document.documentElement.clientHeight;
+    const hidden = [];
     document.querySelectorAll('.tag-cards .tag-row').forEach(row => {
-      row.classList.add('tag-row--io');   // versteckter Startzustand, vor Paint
-      tagRowObserver.observe(row);
+      if (row.getBoundingClientRect().top >= vh) {
+        row.classList.add('tag-row--io');
+        hidden.push(row);
+      }
     });
+    if (!hidden.length) return;
+    tagRowObserver = new IntersectionObserver((entries, obs) => {
+      entries.forEach(e => {
+        if (e.isIntersecting) { e.target.classList.add('tag-row--in'); obs.unobserve(e.target); }
+      });
+    }, { threshold: 0.2 });
+    hidden.forEach(row => tagRowObserver.observe(row));
   }
 
   async function render() {
@@ -269,7 +279,7 @@ document.addEventListener('DOMContentLoaded', async () => {
           ` : ''}
         </div>
         <div class="week-toolbar__right">
-          <button class="btn btn-outline week-today-btn${currentKW === todayKW && currentYear === todayYear ? ' is-hidden' : ''}" id="thisWeekBtn" type="button">
+          <button class="btn btn-ghost week-today-btn${currentKW === todayKW && currentYear === todayYear ? ' is-hidden' : ''}" id="thisWeekBtn" type="button">
             <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="width:15px;height:15px"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 14"/></svg>
             Diese Woche
           </button>
@@ -325,6 +335,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     // die Zeilen neu erzeugt wurden). SYNCHRON hier, damit der versteckte
     // Startzustand vor dem ersten Paint sitzt.
     observeTagRows();
+
+    // Silk-Skin SYNCHRON über die frisch gerenderten Buttons/Panels laufen
+    // lassen (scan() ist synchron + idempotent). Sonst taggt nur der 90 ms-
+    // debounced MutationObserver → frische .btn blitzen erst als nackte
+    // btn-outline-Border auf, bis silk-host--btn die Border transparent setzt
+    // (= das Rand-Flackern beim Wochenwechsel).
+    window.dispatchEvent(new CustomEvent('pm-page-rendered', { detail: 'wochenansicht' }));
   }
 
   // Wrapper um render(), der die KW-Wechsel-Animation (Spring Slide + Parallax)
@@ -1693,6 +1710,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     woche.gesamtstunden = (woche.tage || []).filter(t => t.anwesenheit === 'anwesend').length;
     woche.lastSavedAt = new Date().toISOString();
     await DB.saveWoche(woche);
+    updateAutosaveTimestamp();
   }
 
   async function autoSave(dateStr) {
@@ -1747,11 +1765,15 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   function updateAutosaveTimestamp() {
-    const el = document.querySelector('.week-toolbar__autosave strong');
+    // Text-Span der Autosave-Anzeige (nicht die Lock-Variante). Baut den
+    // Inhalt inkl. <strong> neu, damit auch der allererste Save einer noch
+    // nie gespeicherten Woche die Uhrzeit sofort zeigt (da fehlt <strong> noch).
+    const wrap = document.querySelector('.week-toolbar__autosave:not(.week-toolbar__autosave--lock)');
+    const el = wrap?.querySelector('span:last-child');
     if (!el) return;
     const now = new Date();
     const ts = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')}`;
-    el.textContent = `${ts} Uhr`;
+    el.innerHTML = `Automatische Speicherung aktiv · letzte Speicherung: <strong>${ts} Uhr</strong>`;
   }
 
   async function updateDayCompletion(dateStr) {
@@ -1895,6 +1917,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Navigation
     document.getElementById('prevWeekBtn')?.addEventListener('click', () => navigateWeeks(-1, 'prev'));
     document.getElementById('nextWeekBtn')?.addEventListener('click', () => navigateWeeks(1, 'next'));
+    document.querySelector('.week-kw-block__core')?.addEventListener('click', () => {
+      if (viewAzubiId) sessionStorage.setItem('gotoAzubiId', viewAzubiId);
+      location.href = 'jahresansicht.html';
+    });
     document.getElementById('thisWeekBtn')?.addEventListener('click', () => {
       if (currentKW === todayKW && currentYear === todayYear) return;
       const dir = DateUtil.getMondayOfKW(todayKW, todayYear) > DateUtil.getMondayOfKW(currentKW, currentYear) ? 'next' : 'prev';

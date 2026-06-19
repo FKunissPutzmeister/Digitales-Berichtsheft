@@ -1371,7 +1371,12 @@
       '<div class="pm-hw-spider pm-hw-spider--login"><i class="pm-hw-spider__thread"></i><i class="pm-hw-spider__body"></i></div>' +
       '<div class="pm-hw-spider pm-hw-spider--login-2"><i class="pm-hw-spider__thread"></i><i class="pm-hw-spider__body"></i></div>' +
       '<div class="pm-hw-spider pm-hw-spider--login-3"><i class="pm-hw-spider__thread"></i><i class="pm-hw-spider__body"></i></div>' +
-      '<div class="pm-hw-spider pm-hw-spider--login-4"><i class="pm-hw-spider__thread"></i><i class="pm-hw-spider__body"></i></div>'
+      '<div class="pm-hw-spider pm-hw-spider--login-4"><i class="pm-hw-spider__thread"></i><i class="pm-hw-spider__body"></i></div>' +
+      '<div class="pm-hw-eyes pm-hw-eyes--lg1"></div>' +
+      '<div class="pm-hw-eyes pm-hw-eyes--lg2 pm-hw-eyes--green"></div>' +
+      '<div class="pm-hw-eyes pm-hw-eyes--lg3"></div>' +
+      '<div class="pm-hw-eyes pm-hw-eyes--lg4"></div>' +
+      '<div class="pm-hw-eyes pm-hw-eyes--lg5 pm-hw-eyes--green"></div>'
   };
 
   /* FX-Container für das übergebene Theme (neu) aufbauen.

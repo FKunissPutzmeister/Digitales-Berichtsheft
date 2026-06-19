@@ -105,6 +105,12 @@ html[data-skin="silk"] { color-scheme: dark; }
   opacity: 0; transition: opacity 650ms ease;
 }
 #silk-react-root.is-ready { opacity: 1; }
+/* Body-BG-Wechsel genauso weich (650ms) wie der Silk-Opacity-Fade, damit die
+   seiten-spezifische Abdunkelung (z.B. Wochenansicht: #silk-react-root opacity
+   + dunkler body-bg) bei SPA-Wechsel in BEIDE Richtungen smooth überblendet –
+   nicht nur beim Betreten (vorher schnappte der body-bg beim Verlassen instant
+   hell, weil das transluzente Silk ihn nicht mehr verdeckte). */
+[data-skin="silk"] body { transition: background-color 650ms ease; }
 #silk-react-root > div,
 #silk-react-root canvas { display: block; width: 100% !important; height: 100% !important; }
 
@@ -215,6 +221,14 @@ html[data-skin="silk"][data-theme="dark"] .bento .b-recent {
 [data-skin="silk"] .btn-primary.silk-host--btn::before,
 [data-skin="silk"] .b-btn-primary.silk-host--btn::before {
   background: hsl(var(--silk-hue,252) 89% 63% / 0.52);
+}
+/* „Diese Woche" = niedrige Hierarchie: kein gefülltes Glas-Backing, nur Text
+   + Hover-Border-Glow (silk-host::after). Quiet/transparent statt Pille. */
+[data-skin="silk"] .week-today-btn.silk-host--btn::before {
+  background: transparent;
+  box-shadow: none;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
 }
 
 /* .silk-host erzwingt position:relative (0,2,0) und überschreibt damit das
@@ -402,18 +416,8 @@ html[data-skin="silk"] .b-day--today .dnum { color: #FFFFFF !important; }
 #silk-login-bg.is-ready { opacity: 1; }
 #silk-login-bg .dot-field-container { width: 100%; height: 100%; }
 
-/* ── 8 · Profil-Vorschau-Swatch (global, klassenspezifisch) ─────── */
-.theme-tile__swatch--silk {
-  background:
-    radial-gradient(circle at 25% 30%, hsl(var(--silk-hue,252) 100% 83% / 0.6) 0 20%, transparent 30%),
-    radial-gradient(circle at 75% 70%, hsl(var(--silk-hue,252) 100% 58% / 0.7) 0 18%, transparent 28%),
-    linear-gradient(150deg, hsl(var(--silk-hue,252) 100% 58%) 0%, hsl(var(--silk-hue,252) 45% 17%) 100%);
-}
-.theme-tile__swatch--silk::after {
-  content: '';
-  position: absolute; left: 0; right: 0; bottom: 0; height: 8px;
-  background: linear-gradient(90deg, hsl(var(--silk-hue,252) 100% 58%), hsl(var(--silk-hue,252) 37% 70%), #FF9FFC, hsl(var(--silk-hue,252) 100% 68%));
-}
+/* Profil-Vorschau-Swatch für Silk: kein CSS-Gradient-Override mehr – der echte
+   Screenshot (assets/themes/silk.png, in profil.css) soll durchscheinen. */
 
 /* ── 7d · „Zuletzt"-Kacheln: voller Signal-Gradient statt nur Top-Balken ──
    Die ganze Kachel tönt diagonal in der Status-Signalfarbe (--sig: grün/blau/
