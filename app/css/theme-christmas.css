@@ -106,7 +106,10 @@ html[data-theme="christmas"] { color-scheme: dark; }
 
 [data-theme="christmas"] .pm-xm-bg {
   position: fixed; inset: 0; z-index: 0;
-  background: center / cover no-repeat
+  /* „right center": der Weihnachtsbaum (rechts im Bild) bleibt bei cover
+     immer sichtbar und sitzt am rechten Rand → die Baum-Bulbs (rechts %)
+     treffen ihn zuverlässig. */
+  background: right center / cover no-repeat
     url("../assets/backgrounds/Christmas Background.jpeg");
 }
 /* Dezenter Abdunkel-Overlay für Lesbarkeit über dem hellen Himmel */
@@ -554,69 +557,109 @@ html[data-theme="christmas"] .bento .b-recent {
 }
 
 /* ===================================================================
-   BAUM-LICHTER – pulsierendes Glühen (mix-blend-mode: screen)
-   Positionen relativ zum Viewport; an die Lage des Baums im Bild getunt
-   (oben rechts). Feintuning per Augenmaß im Browser.
+   BAUM-LICHTER – Cluster einzeln blinkender Bulbs über der Baumkrone
+   -------------------------------------------------------------------
+   Der Baum liegt im Bild rechts; .pm-xm-bg ist auf „right center"
+   verankert (s.o.), damit der Baum nie weggeschnitten wird und die
+   Bulbs zuverlässig rechts sitzen. Jeder Bulb ist ein kleiner, heller
+   Glow-Punkt (mix-blend-mode:screen → leuchtet über dem dunkleren
+   Tannengrün; über hellem Himmel würde screen verschwinden, daher
+   sitzen die Bulbs über der Krone, nicht im Himmel). Einzeln gestaffelte
+   Blink-Animation → „leicht blinkende" Lichterkette am Baum.
+   Positionen sind per Augenmaß auf das Bild getunt (Desktop) und ggf.
+   im Browser nachzujustieren.
    =================================================================== */
-[data-theme="christmas"] .pm-xm-treeglow {
-  position: fixed; z-index: 1; pointer-events: none;
-  border-radius: 50%; mix-blend-mode: screen; filter: blur(6px);
+[data-theme="christmas"] .pm-xm-treelights {
+  position: fixed; inset: 0; z-index: 1; pointer-events: none;
+}
+[data-theme="christmas"] .pm-xm-bulb {
+  position: absolute;
+  width: clamp(7px, 1.15vw, 15px); aspect-ratio: 1; border-radius: 50%;
+  mix-blend-mode: screen; filter: blur(0.5px);
   will-change: opacity, transform;
+  animation: pm-xm-blink 2s ease-in-out infinite;
 }
-[data-theme="christmas"] .pm-xm-treeglow--1 {
-  top: 12%; right: 6%; width: 16vw; height: 26vh;
-  background: radial-gradient(circle, rgba(255,210,120,0.55) 0%, rgba(255,170,60,0) 70%);
-  animation: pm-xm-twinkle 3.1s ease-in-out infinite;
+/* color helper: bright core + soft halo via box-shadow (blends via screen) */
+[data-theme="christmas"] .pm-xm-bulb--1 { right: 5.5%;  top: 22%; background: #ff5a5f; box-shadow: 0 0 10px 3px rgba(255,90,95,0.85);  animation-duration: 1.9s; }
+[data-theme="christmas"] .pm-xm-bulb--2 { right: 11%;   top: 26%; background: #74c0ff; box-shadow: 0 0 10px 3px rgba(116,192,255,0.85); animation-duration: 2.4s; animation-delay: .3s; }
+[data-theme="christmas"] .pm-xm-bulb--3 { right: 3%;    top: 31%; background: #7bED9F; box-shadow: 0 0 10px 3px rgba(123,237,159,0.8);  animation-duration: 1.6s; animation-delay: .7s; }
+[data-theme="christmas"] .pm-xm-bulb--4 { right: 9%;    top: 35%; background: #ffd24d; box-shadow: 0 0 11px 3px rgba(255,210,77,0.9);  animation-duration: 2.1s; animation-delay: .15s; }
+[data-theme="christmas"] .pm-xm-bulb--5 { right: 14.5%; top: 40%; background: #ff5a5f; box-shadow: 0 0 10px 3px rgba(255,90,95,0.85);  animation-duration: 2.7s; animation-delay: .9s; }
+[data-theme="christmas"] .pm-xm-bulb--6 { right: 5%;    top: 45%; background: #fff4d6; box-shadow: 0 0 11px 3px rgba(255,244,214,0.9); animation-duration: 1.8s; animation-delay: .5s; }
+[data-theme="christmas"] .pm-xm-bulb--7 { right: 11.5%; top: 50%; background: #74c0ff; box-shadow: 0 0 10px 3px rgba(116,192,255,0.85); animation-duration: 2.3s; animation-delay: 1.1s; }
+[data-theme="christmas"] .pm-xm-bulb--8 { right: 7%;    top: 55%; background: #ffd24d; box-shadow: 0 0 10px 3px rgba(255,210,77,0.85); animation-duration: 2.0s; animation-delay: .4s; }
+/* the star at the very top of the tree – larger, warm-white glow */
+[data-theme="christmas"] .pm-xm-bulb--star {
+  right: 7%; top: 12%;
+  width: clamp(12px, 2vw, 26px);
+  background: #fff7e0;
+  box-shadow: 0 0 18px 6px rgba(255,238,180,0.95);
+  animation: pm-xm-blink 3.4s ease-in-out infinite;
 }
-[data-theme="christmas"] .pm-xm-treeglow--2 {
-  top: 20%; right: 9%; width: 10vw; height: 16vh;
-  background: radial-gradient(circle, rgba(120,200,255,0.5) 0%, rgba(80,150,255,0) 70%);
-  animation: pm-xm-twinkle 2.3s ease-in-out infinite 0.6s;
-}
-[data-theme="christmas"] .pm-xm-treeglow--3 {
-  top: 8%; right: 3%; width: 8vw; height: 12vh;
-  background: radial-gradient(circle, rgba(255,120,140,0.5) 0%, rgba(255,80,110,0) 70%);
-  animation: pm-xm-twinkle 3.7s ease-in-out infinite 1.2s;
-}
-@keyframes pm-xm-twinkle {
-  0%, 100% { opacity: 0.35; transform: scale(0.95); }
-  50%      { opacity: 0.95; transform: scale(1.05); }
-}
-
-/* ===================================================================
-   PUTZMEISTER-LOGO – Santa-Mütze (Overlay, Original-Logo bleibt)
-   ::after auf dem WRAPPER (nicht auf dem <img> – dort rendern keine
-   Pseudo-Elemente). Mütze sitzt schräg auf der oberen Ecke des Logos.
-   =================================================================== */
-[data-theme="christmas"] .sidebar__logo-wrap { position: relative; }
-[data-theme="christmas"] .sidebar__logo-wrap::after,
-[data-theme="christmas"] .login-card__ident::after {
-  content: ""; position: absolute; z-index: 3; pointer-events: none;
-  background: center / contain no-repeat url("../assets/santa-hat.svg");
-  transform: rotate(-18deg);
-}
-/* Sidebar: Mütze auf der oberen rechten Ecke des Logo-Marks */
-[data-theme="christmas"] .sidebar__logo-wrap::after {
-  width: 26px; height: 21px; left: 20px; top: -8px;
-}
-/* Login-Karte: größeres Logo → größere Mütze */
-[data-theme="christmas"] .login-card__ident { position: relative; }
-[data-theme="christmas"] .login-card__ident::after {
-  width: 42px; height: 34px; left: 30px; top: -14px;
+@keyframes pm-xm-blink {
+  0%, 100% { opacity: 0.35; transform: scale(0.88); }
+  50%      { opacity: 1;    transform: scale(1.12); }
 }
 
 /* ===================================================================
-   PRIMÄR-BUTTONS – Schneekappe + Mütze auf der Ecke
+   PUTZMEISTER-LOGO – weihnachtlich umgefärbt + aufgesetzte Santa-Mütze
+   -------------------------------------------------------------------
+   content:url() tauscht NUR unter [data-theme="christmas"] das <img>-
+   Bitmap – Sidebar (.sidebar__logo-mark) UND Login-Karte
+   (.login-card__mark). Asset assets/logo-christmas.png: PM-Elefant per
+   2-Farb-Remap (Brand-Gelb → Tannengrün, Grau → Creme) + direkt auf den
+   Kopf des Elefanten gerenderte Santa-Mütze. Damit sitzt die Mütze in
+   jeder Größe korrekt (kein separates ::after-Overlay mehr nötig).
    =================================================================== */
-/* Overflow visible damit Schneekappe (::before) leicht über die Oberkante hinausragt */
+[data-theme="christmas"] .sidebar__logo-mark,
+[data-theme="christmas"] .login-card__mark {
+  content: url("../assets/logo-christmas.png");
+}
+
+/* ===================================================================
+   PROFIL-AVATAR (Sidebar-Footer) – wird zur Geschenk-Box
+   -------------------------------------------------------------------
+   Der Initialen-Avatar unten links wird zu einem verpackten Geschenk:
+   rote Box, goldenes Band + Schleife. Initialen ausgeblendet
+   (color:transparent), runder Avatar clippt die Box zum Kreis.
+   (Analog zum Halloween-Kürbis.)
+   =================================================================== */
+[data-theme="christmas"] .sidebar__user-link .avatar {
+  color: transparent;
+  border: none;
+  box-shadow: 0 0 10px rgba(200,16,46,0.45),
+              inset 0 0 0 1px rgba(242,193,78,0.45);
+  background: #14223a center / cover no-repeat
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48'%3E%3Crect width='48' height='48' fill='%2314223a'/%3E%3Crect x='8' y='22' width='32' height='19' rx='2' fill='%23c8102e'/%3E%3Crect x='6' y='17' width='36' height='8' rx='2' fill='%23e23a4f'/%3E%3Crect x='20.5' y='17' width='7' height='24' fill='%23f2c14e'/%3E%3Cpath d='M24 17 C19 8 9 9 13 15 C15.5 18 21 17 24 17 Z' fill='%23f2c14e'/%3E%3Cpath d='M24 17 C29 8 39 9 35 15 C32.5 18 27 17 24 17 Z' fill='%23f2c14e'/%3E%3Ccircle cx='24' cy='16' r='3.2' fill='%23ffd97a'/%3E%3C/svg%3E");
+}
+
+/* ===================================================================
+   PRIMÄR-BUTTONS – natürlich angeschneite Schneeschicht + Schmelz-Tropfen
+   -------------------------------------------------------------------
+   Kein flacher weißer Strich mehr: eine gewölbte Schneedecke mit
+   unebener Oberkante (mehrere Mound-Bumps) liegt auf der Button-
+   Oberkante, darunter hängen ein paar Schmelz-Tropfen über die Kante
+   (radiale Verläufe). (::after ist durch den Glow-Ring belegt → alles
+   im ::before, mehrere Background-Layer.)
+   =================================================================== */
 [data-theme="christmas"] .btn-primary { overflow: visible; }
-/* Dünne Schneekappe an der Oberkante (::after ist bereits durch den Glow-Ring belegt) */
 [data-theme="christmas"] .btn-primary::before {
-  content: ""; position: absolute; left: 6px; right: 6px; top: -3px; height: 7px;
-  border-radius: 6px 6px 4px 4px;
-  background: linear-gradient(180deg, #ffffff 0%, #e8f0fb 100%);
-  box-shadow: 0 1px 2px rgba(0,0,0,0.25);
-  pointer-events: none;
+  content: ""; position: absolute; left: -3px; right: -3px; top: -11px; height: 26px;
+  pointer-events: none; z-index: 2;
+  background:
+    /* Schmelz-Tropfen, die als Zungen über die Schneekante nach unten laufen */
+    radial-gradient(4px 9px at 21% 17px,  #f3f8ff 70%, rgba(243,248,255,0) 73%),
+    radial-gradient(4.5px 12px at 49% 20px, #f3f8ff 70%, rgba(243,248,255,0) 73%),
+    radial-gradient(4px 8px at 77% 16px,  #f3f8ff 70%, rgba(243,248,255,0) 73%),
+    /* unebene Mound-Bumps an der OBERKANTE (aufgetürmter Schnee) */
+    radial-gradient(13px 11px at 16% 9px, #ffffff 70%, rgba(255,255,255,0) 73%),
+    radial-gradient(16px 13px at 40% 8px, #ffffff 70%, rgba(255,255,255,0) 73%),
+    radial-gradient(15px 12px at 64% 9px, #ffffff 70%, rgba(255,255,255,0) 73%),
+    radial-gradient(13px 11px at 87% 8px, #ffffff 70%, rgba(255,255,255,0) 73%),
+    /* deckendes Schneeband oben mit harter Unterkante (kein langer Verlauf) */
+    linear-gradient(180deg, #ffffff 0 11px, #eaf2fc 11px 13px, rgba(255,255,255,0) 13px);
+  background-repeat: no-repeat;
+  filter: drop-shadow(0 2px 1px rgba(60,90,130,0.35));
 }
 
 /* Dashboard-Hero-CTA: kleine schräge Mütze auf der rechten oberen Ecke */
