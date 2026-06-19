@@ -1030,6 +1030,243 @@
     return { start: start, stop: stop };
   })();
 
+  /* ── Christmas-FX: Canvas-Schneefall-Engine ───────────────────────
+     Wind-getragene, DICKE Flocken in geringer Dichte (leicht). Anders als
+     PMIcelandFX (opakes Schnee-Sturm-Bild) zeichnet diese Engine auf ein
+     TRANSPARENTES Canvas ÜBER dem Winterbild (.pm-xm-bg). Starker
+     horizontaler Wind mit Böen + per-Flocke-Sway → Flocken treiben seitlich
+     statt senkrecht zu fallen. Konventionen wie die übrigen Engines:
+       • prefers-reduced-motion → statisches Standbild, kein Loop
+       • verstecktes Tab / offenes Modal → Loop pausiert (GPU sparen). */
+  var PMChristmasSnow = (function () {
+    var WIND = 1.4;            // Grund-Seitenwind (px/Frame bei intensity 1)
+    var COUNT_DIVISOR = 26000; // Fläche/Divisor = Flockenzahl (gering = leicht)
+    var MAX_FLAKES = 90;
+
+    var reduceMotion = !!(window.matchMedia &&
+      window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+
+    var SPRITE = null;
+    function makeFlakeSprite(size) {
+      var c = document.createElement('canvas');
+      c.width = c.height = size;
+      var x = c.getContext('2d'), r = size / 2;
+      var g = x.createRadialGradient(r, r, 0, r, r, r);
+      g.addColorStop(0,   'rgba(255,255,255,1)');
+      g.addColorStop(0.5, 'rgba(255,255,255,0.9)');
+      g.addColorStop(0.8, 'rgba(235,244,255,0.35)');
+      g.addColorStop(1,   'rgba(235,244,255,0)');
+      x.fillStyle = g;
+      x.beginPath(); x.arc(r, r, r, 0, Math.PI * 2); x.fill();
+      return c;
+    }
+    function ensureSprite() { if (!SPRITE) SPRITE = makeFlakeSprite(64); }
+
+    var canvas = null, ctx = null;
+    var raf = 0, running = false;
+    var W = 0, H = 0, DPR = 1, last = 0, windT = 0;
+    var flakes = [];
+
+    function makeFlake() {
+      return {
+        x: Math.random() * W,
+        y: Math.random() * H,
+        s: Math.random() * 10 + 8,        // 8–18px: dicke Flocken
+        speed: Math.random() * 0.5 + 0.35, // langsames Sinken (leicht)
+        drift: Math.random() * 0.7 + 0.5,  // Empfindlichkeit für Wind
+        sway: Math.random() * 6.28,
+        swaySpeed: Math.random() * 0.02 + 0.008,
+        swayAmp: Math.random() * 1.2 + 0.6,
+        alpha: Math.random() * 0.4 + 0.55
+      };
+    }
+    function rebuild() {
+      var n = Math.min(MAX_FLAKES, Math.max(20, Math.round((W * H) / COUNT_DIVISOR)));
+      flakes.length = 0;
+      for (var i = 0; i < n; i++) flakes.push(makeFlake());
+    }
+
+    function resize() {
+      if (!canvas || !ctx) return;
+      DPR = Math.min(window.devicePixelRatio || 1, 2);
+      W = window.innerWidth; H = window.innerHeight;
+      canvas.width = Math.floor(W * DPR);
+      canvas.height = Math.floor(H * DPR);
+      canvas.style.width = W + 'px'; canvas.style.height = H + 'px';
+      ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+      rebuild();
+      if (reduceMotion) renderOnce();
+    }
+
+    function windAt(t) {
+      var gust = Math.sin(t * 0.0005) * 0.5 + Math.sin(t * 0.0013 + 1.7) * 0.3;
+      return WIND * (1 + gust);
+    }
+    function recycle(f) {
+      if (f.y > H + f.s) { f.y = -f.s; f.x = Math.random() * W; }
+      if (f.x > W + f.s) f.x -= W + f.s * 2;
+      if (f.x < -f.s)    f.x += W + f.s * 2;
+    }
+    function renderOnce() {
+      ctx.clearRect(0, 0, W, H);
+      var wind = windAt(windT);
+      for (var i = 0; i < flakes.length; i++) {
+        var f = flakes[i];
+        ctx.globalAlpha = f.alpha;
+        ctx.drawImage(SPRITE, f.x - f.s / 2, f.y - f.s / 2, f.s, f.s);
+      }
+      ctx.globalAlpha = 1;
+      return wind;
+    }
+
+    function isPaused() {
+      if (document.hidden) return true;
+      if (document.querySelector('.modal-overlay.open')) return true;
+      return false;
+    }
+    function frame(now) {
+      if (!running) return;
+      if (isPaused()) { last = now; raf = requestAnimationFrame(frame); return; }
+      var dt = Math.min(now - last, 50);
+      last = now; windT += dt;
+      var wind = windAt(windT);
+      ctx.clearRect(0, 0, W, H);
+      for (var i = 0; i < flakes.length; i++) {
+        var f = flakes[i];
+        f.sway += f.swaySpeed;
+        f.x += wind * f.drift + Math.sin(f.sway) * f.swayAmp;
+        f.y += f.speed;
+        recycle(f);
+        ctx.globalAlpha = f.alpha;
+        ctx.drawImage(SPRITE, f.x - f.s / 2, f.y - f.s / 2, f.s, f.s);
+      }
+      ctx.globalAlpha = 1;
+      raf = requestAnimationFrame(frame);
+    }
+
+    function start(cv) {
+      stop();
+      if (!cv) return;
+      canvas = cv;
+      ctx = canvas.getContext('2d');   // transparent über dem Bild
+      if (!ctx) { canvas = null; return; }
+      ensureSprite();
+      resize();
+      window.addEventListener('resize', resize);
+      if (reduceMotion) return;        // Standbild, kein Loop
+      running = true;
+      last = (window.performance && performance.now) ? performance.now() : 0;
+      raf = requestAnimationFrame(frame);
+    }
+    function stop() {
+      running = false;
+      if (raf) { cancelAnimationFrame(raf); raf = 0; }
+      window.removeEventListener('resize', resize);
+      flakes.length = 0;
+      canvas = null; ctx = null;
+    }
+
+    return { start: start, stop: stop };
+  })();
+
+  /* ── Halloween-Hintergrundmusik ───────────────────────────────────
+     Stimmungs-Loop (assets/music/Halloween-Backgroundmusic.mp3), der NUR
+     im Halloween-Theme läuft. Wie die FX-Engines wird er am FX-Lebens-
+     zyklus gesteuert (start im halloween-Zweig von ensureThemeFX, stop
+     beim Theme-Wechsel/Teardown) und überlebt damit SPA-Navigationen.
+
+     Autoplay-Politik der Browser: Ton ohne Nutzergeste ist blockiert,
+     STUMME Wiedergabe aber erlaubt. Der Loop startet daher bewusst
+     gemutet und läuft sofort (muted autoplay) – der Nutzer hebt die
+     Stummschaltung über den kleinen Button unten rechts auf (ein Klick =
+     Nutzergeste → Ton sofort hörbar, da bereits laufend). Standard ist
+     also IMMER stumm; eine Reload-übergreifende Merk-Logik gibt es
+     bewusst NICHT (sonst würde der Browser unmuted-Autoplay nach einem
+     echten Page-Load erneut blockieren und der Loop bliebe stumm stehen).
+
+     <audio> + Button hängen DIREKT am <body> (NICHT in #pmThemeFX – der
+     ist aria-hidden + pointer-events:none, der Button muss aber klickbar
+     sein). router.js fasst nur `body > .modal-overlay` an → beide
+     überleben Seitenwechsel. Styling des Buttons in
+     css/theme-halloween.css (.pm-hw-music-btn). */
+  var PMHalloweenMusic = (function () {
+    var SRC      = 'assets/music/Halloween-Backgroundmusic.mp3';
+    var AUDIO_ID = 'pmHwMusicAudio';
+    var BTN_ID   = 'pmHwMusicBtn';
+    var audio = null, btn = null;
+
+    /* Lautsprecher-Triangel (gefüllt) + Schallwellen / X (gestrichelt).
+       Attribute inline, damit die Icons unabhängig vom CSS korrekt füllen. */
+    var ICON_ON =
+      '<svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" focusable="false">' +
+        '<path d="M4 9v6h4l5 4V5L8 9H4z" fill="currentColor"/>' +
+        '<path d="M16 8.5a5 5 0 0 1 0 7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>' +
+        '<path d="M18.7 6a8.5 8.5 0 0 1 0 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>' +
+      '</svg>';
+    var ICON_MUTED =
+      '<svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" focusable="false">' +
+        '<path d="M4 9v6h4l5 4V5L8 9H4z" fill="currentColor"/>' +
+        '<path d="m16 9 5 6M21 9l-5 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>' +
+      '</svg>';
+
+    function render() {
+      if (!btn || !audio) return;
+      var muted = audio.muted;
+      btn.innerHTML = muted ? ICON_MUTED : ICON_ON;
+      btn.setAttribute('data-muted', muted ? 'true' : 'false');
+      btn.setAttribute('aria-pressed', muted ? 'false' : 'true');
+      var label = muted ? 'Hintergrundmusik einschalten' : 'Hintergrundmusik stummschalten';
+      btn.setAttribute('aria-label', label);
+      btn.setAttribute('title', label);
+    }
+
+    function toggle() {
+      if (!audio) return;
+      audio.muted = !audio.muted;
+      /* Beim Einschalten sicherstellen, dass der Loop wirklich läuft –
+         jetzt liegt eine Nutzergeste vor, falls der stumme Autoplay zuvor
+         verweigert wurde. */
+      if (!audio.muted && audio.paused) { try { audio.play(); } catch (e) {} }
+      render();
+    }
+
+    function start() {
+      stop();   // idempotent: evtl. Reste aus einem früheren Aufbau entfernen
+      if (!document.body) return;
+
+      audio = document.createElement('audio');
+      audio.id = AUDIO_ID;
+      audio.src = SRC;
+      audio.loop = true;
+      audio.muted = true;          // Standard: stumm
+      audio.preload = 'auto';
+      audio.setAttribute('aria-hidden', 'true');
+      document.body.appendChild(audio);
+      try { var p = audio.play(); if (p && p.catch) p.catch(function () {}); } catch (e) {}
+
+      btn = document.createElement('button');
+      btn.id = BTN_ID;
+      btn.type = 'button';
+      btn.className = 'pm-hw-music-btn';
+      btn.addEventListener('click', toggle);
+      document.body.appendChild(btn);
+      render();
+    }
+
+    function stop() {
+      var oldBtn = document.getElementById(BTN_ID);
+      if (oldBtn && oldBtn.parentNode) oldBtn.parentNode.removeChild(oldBtn);
+      var oldAudio = document.getElementById(AUDIO_ID);
+      if (oldAudio) {
+        try { oldAudio.pause(); } catch (e) {}
+        if (oldAudio.parentNode) oldAudio.parentNode.removeChild(oldAudio);
+      }
+      audio = null; btn = null;
+    }
+
+    return { start: start, stop: stop };
+  })();
+
   /* ── Candy: Vordergrund-Charakterwechsel beim Rand-Austritt ───────
      „Wenn ein Einhorn den Bildschirmrand verlassen hat, wechselt, welcher
      Charakter im Vordergrund läuft." Umgesetzt rein über das CSS-
@@ -1101,6 +1338,8 @@
     PMCmdFX.stop();
     PMCandyBubbles.stop();
     PMHalloweenFog.stop();
+    PMChristmasSnow.stop();
+    PMHalloweenMusic.stop();
 
     var tpl = FX_TEMPLATES[theme] || '';   // light/dark/unbekannt → ''
     if (!tpl) return;
@@ -1132,6 +1371,10 @@
     } else if (theme === 'halloween') {
       var fogCanvas = el.querySelector('.pm-hw-fog');
       if (fogCanvas) PMHalloweenFog.start(fogCanvas);
+      PMHalloweenMusic.start();   // gemuteter Stimmungs-Loop + Unmute-Button
+    } else if (theme === 'christmas') {
+      var snowCanvas = el.querySelector('.pm-xm-snow');
+      if (snowCanvas) PMChristmasSnow.start(snowCanvas);
     }
   }
 
