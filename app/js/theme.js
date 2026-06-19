@@ -217,6 +217,7 @@
        css/theme-christmas.css. */
     christmas:
       '<div class="pm-xm-bg"></div>' +
+      '<div class="pm-xm-bus" aria-hidden="true"></div>' +
       '<div class="pm-xm-treelights">' +
         '<i class="pm-xm-bulb pm-xm-bulb--1"></i>' +
         '<i class="pm-xm-bulb pm-xm-bulb--2"></i>' +
