@@ -98,3 +98,457 @@ html[data-theme="christmas"] { color-scheme: dark; }
   --lg-sidebar:     rgba(12, 20, 34, 0.76);
   --lg-border:      rgba(170, 200, 230, 0.16);
 }
+
+/* ===================================================================
+   SZENE (#pmThemeFX-Kinder)
+   =================================================================== */
+[data-theme="christmas"] #pmThemeFX { background: #0A1019; }
+
+[data-theme="christmas"] .pm-xm-bg {
+  position: fixed; inset: 0; z-index: 0;
+  background: center / cover no-repeat
+    url("../assets/backgrounds/Christmas Background.jpeg");
+}
+/* Dezenter Abdunkel-Overlay für Lesbarkeit über dem hellen Himmel */
+[data-theme="christmas"] .pm-xm-bg::after {
+  content: ""; position: absolute; inset: 0;
+  background: linear-gradient(180deg, rgba(8,14,26,0.30) 0%, rgba(8,14,26,0.55) 100%);
+}
+[data-theme="christmas"] .pm-xm-snow {
+  position: fixed; inset: 0; z-index: 2; pointer-events: none;
+}
+
+/* ===================================================================
+   KREATIVE UI-AKZENTE (nur Christmas)
+   =================================================================== */
+
+/* Seitentitel: dezenter Weihnachts-Rot-Glow */
+[data-theme="christmas"] .page-title {
+  text-shadow:
+    0 0 10px rgba(200, 16, 46, 0.38),
+    0 0 28px rgba(200, 16, 46, 0.16);
+}
+
+/* Primär-Buttons: warmer „Weihnachts-Glow" */
+[data-theme="christmas"] .btn-primary {
+  position: relative;
+  background: linear-gradient(180deg, #E2384F 0%, #C8102E 55%, #A00D25 100%);
+  border-color: rgba(200, 16, 46, 0.55);
+}
+[data-theme="christmas"] .btn-primary::after {
+  content: '';
+  position: absolute;
+  inset: -3px;
+  border-radius: inherit;
+  pointer-events: none;
+  opacity: 0;
+  box-shadow:
+    0 0 16px rgba(200, 16, 46, 0.55),
+    0 0 34px rgba(30, 123, 60, 0.22);
+  transition: opacity var(--t-fast);
+}
+[data-theme="christmas"] .btn-primary:hover:not(:disabled)::after {
+  opacity: 1;
+  animation: pm-xm-pulse 1.8s ease-in-out infinite;
+}
+@keyframes pm-xm-pulse {
+  0%, 100% { opacity: 0.55; }
+  50%      { opacity: 1; }
+}
+
+/* Outline/Ghost: leise rote Aura beim Hover */
+[data-theme="christmas"] .btn-outline:hover:not(:disabled),
+[data-theme="christmas"] .btn-ghost:hover:not(:disabled) {
+  box-shadow: 0 0 12px rgba(200, 16, 46, 0.20);
+}
+
+/* Scrollbar: Verlauf Rot → Grün */
+[data-theme="christmas"] ::-webkit-scrollbar-track { background: rgba(255, 255, 255, 0.03); }
+[data-theme="christmas"] ::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, rgba(200, 16, 46, 0.70), rgba(30, 123, 60, 0.70));
+}
+[data-theme="christmas"] ::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(180deg, rgba(200, 16, 46, 0.95), rgba(30, 123, 60, 0.95));
+}
+
+/* Interaktive Karten: rote Kante beim Hover */
+[data-theme="christmas"] .card--interactive:hover {
+  border-color: rgba(200, 16, 46, 0.35);
+}
+
+/* Dashboard-Hero-CTA – Weihnachts-Rot */
+[data-theme="christmas"] .b-btn-primary {
+  position: relative;
+  background: linear-gradient(180deg, #E2384F 0%, #C8102E 55%, #A00D25 100%);
+  color: var(--on-yellow-text);
+}
+[data-theme="christmas"] .b-btn-primary:hover {
+  box-shadow: var(--shadow-yellow);
+}
+
+/* ===================================================================
+   KOMPONENTEN-SPIEGELUNGEN für das DUNKLE Custom-Theme
+   -------------------------------------------------------------------
+   Diese Regeln existieren in components.css/glass.css/layout.css/
+   dashboard.css/wochenansicht.css nur unter [data-theme="dark"] und
+   würden hier sonst mit ihren Light-Werten laufen. Inhaltlich identisch
+   zum Spiegelblock in theme-halloween.css, nur Akzent (Orange → Rot)
+   und Flächen (Nacht-Plum → Blau-Nacht) angepasst.
+   =================================================================== */
+
+/* Text auf Akzent-Flächen */
+[data-theme="christmas"] .btn-primary,
+[data-theme="christmas"] .avatar {
+  color: var(--on-yellow-text);
+}
+[data-theme="christmas"] .pm-select__option--selected {
+  color: var(--pm-yellow);
+}
+[data-theme="christmas"] ::selection {
+  background: var(--pm-yellow);
+  color: var(--on-yellow-text);
+}
+[data-theme="christmas"] .btn-outline-yellow:hover:not(:disabled) {
+  color: var(--pm-yellow);
+}
+
+/* Sidebar (Floating-Pill, Light-Defaults nutzen rgba(0,0,0,…)) */
+[data-theme="christmas"] .sidebar__link { color: var(--pm-grey-600); }
+[data-theme="christmas"] .sidebar__link:hover {
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--pm-grey-900);
+}
+[data-theme="christmas"] .sidebar__link.active {
+  background: rgba(200, 16, 46, 0.16);
+  color: var(--pm-yellow-dark);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.08) inset,
+              0 0 14px rgba(200, 16, 46, 0.30),
+              0 2px 8px rgba(0, 0, 0, 0.40);
+}
+[data-theme="christmas"] .sidebar__divider { background: rgba(255, 255, 255, 0.08); }
+[data-theme="christmas"] .sidebar__footer { border-top-color: rgba(255, 255, 255, 0.06); }
+[data-theme="christmas"] .sidebar__user-link { background: rgba(255, 255, 255, 0.06); }
+[data-theme="christmas"] .sidebar__user-link:hover { background: rgba(255, 255, 255, 0.10); }
+[data-theme="christmas"] .sidebar__icon-btn {
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--pm-grey-700);
+}
+[data-theme="christmas"] .sidebar__icon-btn:hover { background: rgba(255, 255, 255, 0.12); }
+[data-theme="christmas"] .sidebar__toggle:hover { background: rgba(255, 255, 255, 0.08); }
+[data-theme="christmas"] .sidebar__nav::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.10); }
+[data-theme="christmas"] .sidebar.collapsed .sidebar__toggle { color: rgba(255, 255, 255, 0.70); }
+[data-theme="christmas"] .role-badge {
+  background: rgba(255, 255, 255, 0.10);
+  color: var(--pm-grey-700);
+}
+[data-theme="christmas"] .role-badge[data-role="azubi"] {
+  background: rgba(200, 16, 46, 0.18);
+  color: #F2667A;
+}
+[data-theme="christmas"] .role-badge[data-role="ausbilder"] {
+  background: rgba(200, 16, 46, 0.20);
+  color: var(--pm-yellow);
+}
+
+/* Theme-Toggle-Icon: dunkle Custom-Themes zeigen den Mond */
+[data-theme="christmas"] .sidebar__theme-icon--sun { display: none; }
+[data-theme="christmas"] .sidebar__theme-icon--moon { display: block; }
+
+/* Karten: Light-Sheen aus glass.css ist auf dunklen Surfaces zu hart */
+[data-theme="christmas"] .card,
+[data-theme="christmas"] .stat-card,
+[data-theme="christmas"] .accordion__item {
+  background-image: linear-gradient(180deg, rgba(255, 255, 255, 0.04) 0%, rgba(255, 255, 255, 0) 35%);
+  box-shadow: var(--elev-rest), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+[data-theme="christmas"] .card:hover,
+[data-theme="christmas"] .stat-card:hover,
+[data-theme="christmas"] .accordion__item:hover {
+  box-shadow: var(--elev-hover), inset 0 1px 0 rgba(255, 255, 255, 0.07);
+}
+[data-theme="christmas"] .stat-card::after {
+  background: linear-gradient(115deg, transparent 30%, rgba(255, 255, 255, 0.06) 50%, transparent 70%);
+}
+[data-theme="christmas"] .card,
+[data-theme="christmas"] .stat-card,
+[data-theme="christmas"] .accordion__item,
+[data-theme="christmas"] .profil-section,
+[data-theme="christmas"] .verwaltung-panel {
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+/* Modal-Sheen dämpfen + „Weihnachts-Rot-Rand" */
+[data-theme="christmas"] .modal {
+  background-image: linear-gradient(180deg, rgba(255, 255, 255, 0.05) 0%, rgba(255, 255, 255, 0) 30%);
+  box-shadow: var(--shadow-xl),
+              0 0 34px rgba(200, 16, 46, 0.16),
+              inset 0 1px 0 rgba(255, 255, 255, 0.06),
+              inset 0 0 0 1px rgba(200, 16, 46, 0.26);
+}
+
+/* Toast braucht auf dunklem Body eine Hairline */
+[data-theme="christmas"] .toast {
+  background: var(--inverse-surface-soft);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+/* Dropdown: Danger-Eintrag heller */
+[data-theme="christmas"] .dropdown__item--danger { color: var(--color-error-mid); }
+[data-theme="christmas"] .dropdown__item--danger:hover {
+  background: rgba(229, 57, 53, 0.14);
+  color: #F79188;
+}
+
+/* Status-Badges: hellere Textfarben auf Tint-Hintergründen */
+[data-theme="christmas"] .badge--offen        { color: var(--pm-grey-600); }
+[data-theme="christmas"] .badge--freigegeben  { color: #6FB1F2; }
+[data-theme="christmas"] .badge--genehmigt    { color: #6BD089; }
+[data-theme="christmas"] .badge--abgelehnt    { color: #F79188; }
+[data-theme="christmas"] .badge--grey         { color: var(--pm-grey-700); }
+
+/* Stat-Card-Icons als Tint-Overlays */
+[data-theme="christmas"] .stat-card__icon--yellow  { background: var(--pm-yellow-bg); color: var(--pm-yellow); }
+[data-theme="christmas"] .stat-card__icon--success { background: rgba(67, 168, 86, 0.18); color: #6BD089; }
+[data-theme="christmas"] .stat-card__icon--info    { background: rgba(25, 118, 210, 0.20); color: #6FB1F2; }
+[data-theme="christmas"] .stat-card__icon--error   { background: rgba(229, 57, 53, 0.20); color: #F79188; }
+
+/* Form-Hover: sichtbarer Surface-Lift statt rgba(0,0,0,…) */
+[data-theme="christmas"] .form-control:hover:not(:focus):not(:disabled) {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+/* Week-Toolbar (wochenansicht, in glass.css hart auf dark gemünzt) */
+[data-theme="christmas"] .week-toolbar {
+  background: var(--pm-white);
+  border-color: rgba(255, 255, 255, 0.06);
+  box-shadow: var(--elev-rest), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+/* Topbar-Scroll-Schatten dunkel statt hell */
+[data-theme="christmas"] .topbar.is-scrolled {
+  box-shadow: inset 0 1px 0 var(--glass-highlight),
+              0 1px 0 rgba(255, 255, 255, 0.06),
+              0 10px 28px rgba(0, 0, 0, 0.5);
+}
+
+/* Profil-Logout-Karte (profil.css spiegelt nur dark) */
+[data-theme="christmas"] .profil-logout {
+  background: rgba(255, 255, 255, 0.03);
+  border-color: rgba(255, 255, 255, 0.08);
+  border-left-color: var(--color-error-mid);
+}
+
+/* ── Bento-Dashboard (dashboard.css spiegelt nur [data-theme="dark"]) ──
+   Kühle Blau-Nacht-Verläufe statt Plum/Orange. */
+[data-theme="christmas"] .b-tile--glass {
+  background: linear-gradient(180deg, rgba(22, 34, 54, 0.74) 0%, rgba(12, 20, 34, 0.64) 100%);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.06),
+    0 1px 2px rgba(0, 0, 0, 0.4),
+    0 12px 32px -8px rgba(0, 0, 0, 0.55);
+}
+html[data-theme="christmas"] .b-hero {
+  background-image:
+    radial-gradient(130% 160% at 84% 6%, rgba(200, 16, 46, 0.13), transparent 55%),
+    linear-gradient(135deg, #0E1A2E 0%, #091220 55%, #050D18 100%);
+}
+html[data-theme="christmas"] .b-hero::before {
+  background:
+    radial-gradient(ellipse 36% 60% at 22% 60%, rgba(4, 8, 18, 0.42), transparent 72%);
+}
+html[data-theme="christmas"] .b-hero__eyebrow,
+html[data-theme="christmas"] .b-hero__kw small {
+  color: rgba(255, 255, 255, 0.62);
+}
+html[data-theme="christmas"] .b-hero__kw { color: #fff; }
+[data-theme="christmas"] .b-status--offen { background: rgba(255, 255, 255, 0.08); color: rgba(255, 255, 255, 0.85); border-color: transparent; }
+[data-theme="christmas"] .b-hero__bottom { border-top-color: rgba(255, 255, 255, 0.08); }
+
+html[data-theme="christmas"] .b-azubi::before {
+  background:
+    radial-gradient(circle at 50% 40%, rgba(6, 10, 20, 0.42) 0%, rgba(6, 10, 20, 0.16) 34%, transparent 58%);
+}
+html[data-theme="christmas"] .b-azubi,
+html[data-theme="christmas"] .b-mitteilungen {
+  background-image:
+    radial-gradient(95% 95% at 50% 24%, rgba(30, 123, 60, 0.16), transparent 60%),
+    linear-gradient(160deg, #0E1C30 0%, #080F1C 100%);
+  color: #fff;
+  border-color: rgba(255, 255, 255, 0.08);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.08),
+    0 12px 32px -8px rgba(8, 14, 26, 0.4);
+}
+html[data-theme="christmas"] .b-azubi__head .eyebrow { color: rgba(255, 255, 255, 0.55); }
+html[data-theme="christmas"] .b-azubi__lj {
+  color: var(--pm-yellow);
+  background: rgba(200, 16, 46, 0.14);
+  border-color: rgba(200, 16, 46, 0.30);
+}
+html[data-theme="christmas"] .b-donut circle:first-child { stroke: rgba(255, 255, 255, 0.08); }
+html[data-theme="christmas"] .b-donut__pct { color: #fff; }
+html[data-theme="christmas"] .b-donut__pct small { color: rgba(255, 255, 255, 0.45); }
+html[data-theme="christmas"] .b-donut__label { color: rgba(255, 255, 255, 0.45); }
+html[data-theme="christmas"] .b-azubi__foot strong { color: #fff; }
+html[data-theme="christmas"] .b-azubi__foot .muted { color: rgba(255, 255, 255, 0.5); }
+html[data-theme="christmas"] .b-azubi__segs span { background: rgba(255, 255, 255, 0.08); }
+
+html[data-theme="christmas"] .b-recent {
+  background-image:
+    radial-gradient(130% 140% at 12% 16%, rgba(200, 16, 46, 0.10), transparent 55%),
+    linear-gradient(120deg, #0E1A2C 0%, #070F1C 100%);
+}
+html[data-theme="christmas"] .b-recent::before {
+  background:
+    radial-gradient(ellipse 86% 58% at 50% 82%, rgba(4, 8, 18, 0.30), transparent 78%);
+}
+
+[data-theme="christmas"] .b-wkcard {
+  background: rgba(255, 255, 255, 0.04);
+  border-color: rgba(255, 255, 255, 0.08);
+  color: #fff;
+}
+[data-theme="christmas"] .b-wkcard__kw { color: #fff; }
+[data-theme="christmas"] .b-wkcard:hover { border-color: rgba(255, 255, 255, 0.18); }
+[data-theme="christmas"] .b-daycard {
+  background: rgba(255, 255, 255, 0.04);
+  border-color: rgba(255, 255, 255, 0.08);
+  color: #fff;
+}
+[data-theme="christmas"] .b-daycard__num { color: #fff; }
+[data-theme="christmas"] .b-daycard:hover { border-color: rgba(255, 255, 255, 0.18); }
+
+[data-theme="christmas"] .b-hero__kw,
+[data-theme="christmas"] .b-recent__head h3,
+[data-theme="christmas"] .b-stats__foot .big {
+  color: #fff;
+}
+[data-theme="christmas"] .b-hero__range strong { color: rgba(255, 255, 255, 0.9); }
+[data-theme="christmas"] .b-day {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.08);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+[data-theme="christmas"] .b-day .dn { color: rgba(255, 255, 255, 0.5); }
+[data-theme="christmas"] .b-day .dnum { color: rgba(255, 255, 255, 0.85); }
+[data-theme="christmas"] .b-day--past .dnum, [data-theme="christmas"] .b-day--weekend .dnum { color: rgba(255, 255, 255, 0.35); }
+
+/* Finaler Material-Layer: in dashboard.css mit !important auf dunkle PNG-
+   Tiles gemünzt → hier mit !important auf Christmas-Verläufe übersteuern */
+html[data-theme="christmas"] .bento .b-hero {
+  background-image:
+    radial-gradient(130% 160% at 84% 6%, rgba(200, 16, 46, 0.13), transparent 55%),
+    linear-gradient(135deg, #0E1A2E 0%, #091220 55%, #050D18 100%) !important;
+  background-size: cover, cover !important;
+  background-position: center, center !important;
+}
+html[data-theme="christmas"] .bento .b-azubi,
+html[data-theme="christmas"] .bento .b-mitteilungen {
+  background-image:
+    radial-gradient(95% 95% at 50% 24%, rgba(30, 123, 60, 0.16), transparent 60%),
+    linear-gradient(160deg, #0E1C30 0%, #080F1C 100%) !important;
+  background-size: cover, cover !important;
+  background-position: center, center !important;
+}
+html[data-theme="christmas"] .bento .b-recent {
+  background-image:
+    radial-gradient(130% 140% at 12% 16%, rgba(200, 16, 46, 0.10), transparent 55%),
+    linear-gradient(120deg, #0E1A2C 0%, #070F1C 100%) !important;
+  background-size: cover, cover !important;
+  background-position: center, center !important;
+}
+
+/* Welcome-Hero: kühle Blau-Nacht-Fläche */
+[data-theme="christmas"] .welcome-hero {
+  background-image:
+    linear-gradient(100deg, rgba(4, 8, 18, 0.78) 0%, rgba(4, 8, 18, 0.55) 48%, rgba(4, 8, 18, 0.38) 100%),
+    linear-gradient(180deg, rgba(14, 26, 46, 0.90) 0%, rgba(8, 14, 26, 0.88) 100%);
+}
+
+/* ── Jahresansicht-Legende (jahresansicht.css spiegelt nur [data-theme=
+   "dark"]) ── Dunkle Glas-Leiste → helle Labels werden lesbar. */
+[data-theme="christmas"] .year-legend {
+  background: rgba(12, 22, 40, 0.82);
+  border-color: rgba(170, 200, 230, 0.16);
+}
+[data-theme="christmas"] .legend-dot--offen { background: var(--pm-grey-400); }
+[data-theme="christmas"] .legend-dot--frei {
+  background: rgba(255, 255, 255, 0.10);
+  border-color: var(--pm-grey-400);
+}
+
+/* ── Wochenansicht-Tag-Rows (wochenansicht.css spiegelt nur dark) ──
+   Flächen auf Blau-Nacht, Today-/Expanded-Akzent auf Weihnachts-Rot. */
+[data-theme="christmas"] body[data-page="wochenansicht"] .tag-row {
+  background: linear-gradient(180deg, #0E1C32 0%, #0A1626 100%);
+  border-color: rgba(255, 255, 255, 0.10);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.05),
+    0 1px 2px rgba(0, 0, 0, 0.35);
+}
+[data-theme="christmas"] body[data-page="wochenansicht"] .tag-row + .tag-row { margin-top: 8px; }
+[data-theme="christmas"] body[data-page="wochenansicht"] .tag-row:hover {
+  border-color: rgba(255, 255, 255, 0.10);
+}
+[data-theme="christmas"] body[data-page="wochenansicht"] .tag-row__summary:hover {
+  background: rgba(255, 255, 255, 0.04);
+}
+[data-theme="christmas"] body[data-page="wochenansicht"] .tag-row--today {
+  background:
+    linear-gradient(180deg, rgba(200, 16, 46, 0.12) 0%, rgba(200, 16, 46, 0.04) 100%),
+    linear-gradient(180deg, #0E1C32 0%, #0A1626 100%);
+  border-color: rgba(200, 16, 46, 0.45);
+  box-shadow:
+    inset 0 1px 0 rgba(200, 16, 46, 0.15),
+    0 0 0 1px rgba(200, 16, 46, 0.10),
+    0 4px 14px -6px rgba(200, 16, 46, 0.25);
+}
+[data-theme="christmas"] body[data-page="wochenansicht"] .tag-row--weekend {
+  background: rgba(255, 255, 255, 0.015);
+  border-color: rgba(255, 255, 255, 0.06);
+  box-shadow: none;
+}
+[data-theme="christmas"] body[data-page="wochenansicht"] .tag-row.expanded {
+  border-color: rgba(200, 16, 46, 0.32);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.06),
+    0 0 0 1px rgba(200, 16, 46, 0.18),
+    0 8px 24px -10px rgba(0, 0, 0, 0.55);
+}
+[data-theme="christmas"] body[data-page="wochenansicht"] .tag-row__body {
+  background: rgba(0, 0, 0, 0.25);
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+/* Wochenansicht-Pill-Selects */
+[data-theme="christmas"] body[data-page="wochenansicht"] .pm-select.tag-row__select .pm-select__trigger,
+[data-theme="christmas"] body[data-page="wochenansicht"] .pm-select.wochen-options__select .pm-select__trigger {
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--pm-grey-800);
+  box-shadow:
+    0 1px 2px rgba(0, 0, 0, 0.40),
+    0 4px 12px rgba(0, 0, 0, 0.45);
+}
+[data-theme="christmas"] body[data-page="wochenansicht"] .pm-select.tag-row__select .pm-select__trigger:hover:not(:disabled),
+[data-theme="christmas"] body[data-page="wochenansicht"] .pm-select.wochen-options__select .pm-select__trigger:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.10);
+  box-shadow:
+    0 2px 4px rgba(0, 0, 0, 0.45),
+    0 8px 20px rgba(0, 0, 0, 0.55);
+}
+[data-theme="christmas"] body[data-page="wochenansicht"] .pm-select.tag-row__select--needs-input .pm-select__trigger {
+  background: var(--pm-yellow-bg);
+  border-color: var(--pm-yellow);
+}
+[data-theme="christmas"] body[data-page="wochenansicht"] select.tag-row__select:not([data-pm-enhanced]) {
+  background-color: rgba(255, 255, 255, 0.06);
+  box-shadow:
+    0 1px 2px rgba(0, 0, 0, 0.40),
+    0 4px 12px rgba(0, 0, 0, 0.45);
+}
+
+/* Wochenansicht-Stunden-Spinner (analog dark/hyperspace/cmd/halloween) */
+[data-theme="christmas"] body[data-page="wochenansicht"] .time-spinner__input {
+  border-color: rgba(255, 255, 255, 0.18);
+}

@@ -207,7 +207,19 @@
       '<div class="pm-hw-ghost"></div>' +
       '<div class="pm-hw-eyes pm-hw-eyes--1"></div>' +
       '<div class="pm-hw-eyes pm-hw-eyes--2"></div>' +
-      '<div class="pm-hw-eyes pm-hw-eyes--3"></div>'
+      '<div class="pm-hw-eyes pm-hw-eyes--3"></div>',
+    /* ── FX-Template: christmas ──
+       Basis = Winterbild (.pm-xm-bg → assets/backgrounds/Christmas Background.jpeg).
+       Darüber: pulsierende Glows über den Baumlichtern + Hütten-Fenster
+       (.pm-xm-treeglow, mix-blend-mode:screen) und ein <canvas class="pm-xm-snow">
+       mit wind-getragenem Schneefall (Engine PMChristmasSnow, start/stop am
+       FX-Lebenszyklus). Styling in css/theme-christmas.css. */
+    christmas:
+      '<div class="pm-xm-bg"></div>' +
+      '<div class="pm-xm-treeglow pm-xm-treeglow--1"></div>' +
+      '<div class="pm-xm-treeglow pm-xm-treeglow--2"></div>' +
+      '<div class="pm-xm-treeglow pm-xm-treeglow--3"></div>' +
+      '<canvas class="pm-xm-snow" aria-hidden="true"></canvas>'
   };
 
   /* ── Iceland-FX: Canvas-Schneesturm-Engine ───────────────────────
