@@ -475,11 +475,17 @@ html[data-theme="christmas"] .bento .b-recent {
   box-shadow: inset 0 1px 0 rgba(255,255,255,0.20), 0 14px 36px -10px rgba(0,0,0,0.5) !important;
 }
 
-/* Welcome-Hero: kühle Blau-Nacht-Fläche */
+/* Welcome-Hero (oberste Dashboard-Kachel): gleiches Liquid Glass wie die
+   übrigen Kacheln – stark transluzent + Blur + Glas-Rand + Lichtreflex. */
 [data-theme="christmas"] .welcome-hero {
   background-image:
-    linear-gradient(100deg, rgba(4, 8, 18, 0.78) 0%, rgba(4, 8, 18, 0.55) 48%, rgba(4, 8, 18, 0.38) 100%),
-    linear-gradient(180deg, rgba(14, 26, 46, 0.90) 0%, rgba(8, 14, 26, 0.88) 100%);
+    radial-gradient(120% 150% at 80% 6%, rgba(200, 16, 46, 0.10), transparent 55%),
+    linear-gradient(135deg, rgba(20, 30, 52, 0.44) 0%, rgba(12, 20, 36, 0.40) 100%) !important;
+  background-size: cover, cover !important;
+  background-position: center, center !important;
+  -webkit-backdrop-filter: blur(18px) saturate(1.6); backdrop-filter: blur(18px) saturate(1.6);
+  border: 1px solid rgba(255, 255, 255, 0.16) !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.20), 0 14px 36px -10px rgba(0, 0, 0, 0.5) !important;
 }
 
 /* ── Jahresansicht-Legende (jahresansicht.css spiegelt nur [data-theme=
@@ -715,15 +721,12 @@ html[data-theme="christmas"] .bento .b-recent {
   pointer-events: none; z-index: 5;
   /* gleiche Tropfen-Birnchen wie an der Nav (horizontaler Strang) */
   background: left top / auto 30px repeat-x url("../assets/xmas-strand-top.png");
-  /* Lauflicht: ein heller Fensterbereich (Maske) wandert horizontal über den
-     Strang → die Birnchen leuchten EINZELN NACHEINANDER auf (dazwischen
-     gedimmt, nicht ganz aus). Maskenperiode = Birnchen-Abstand (52px). */
-  -webkit-mask: repeating-linear-gradient(90deg, #000 0 14px, rgba(0,0,0,0.28) 30px 48px, #000 52px);
-          mask: repeating-linear-gradient(90deg, #000 0 14px, rgba(0,0,0,0.28) 30px 48px, #000 52px);
-  animation: pm-xm-chase-x 1.5s linear infinite;
+  /* langsames, gemeinsames Blinken (kein Lauflicht) */
+  animation: pm-xm-blink-slow 3.4s ease-in-out infinite;
 }
-@keyframes pm-xm-chase-x {
-  to { -webkit-mask-position: 52px 0; mask-position: 52px 0; }
+@keyframes pm-xm-blink-slow {
+  0%, 100% { filter: brightness(1.05); }
+  50%      { filter: brightness(0.48); }
 }
 
 /* ===================================================================
@@ -751,7 +754,7 @@ html[data-theme="christmas"] .bento .b-recent {
                   #000 0deg 26deg, rgba(0,0,0,0.28) 70deg 290deg, #000 334deg 360deg);
           mask: conic-gradient(from var(--pm-xm-angle) at 50% 50%,
                   #000 0deg 26deg, rgba(0,0,0,0.28) 70deg 290deg, #000 334deg 360deg);
-  animation: pm-xm-chase-rot 3.6s linear infinite;
+  animation: pm-xm-chase-rot 6.5s linear infinite;
 }
 @property --pm-xm-angle { syntax: "<angle>"; inherits: false; initial-value: 0deg; }
 @keyframes pm-xm-chase-rot { to { --pm-xm-angle: 360deg; } }
