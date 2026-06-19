@@ -441,30 +441,38 @@ html[data-theme="christmas"] .b-recent::before {
 
 /* Finaler Material-Layer: in dashboard.css mit !important auf dunkle PNG-
    Tiles gemünzt → hier mit !important auf Christmas-Verläufe übersteuern */
+/* Liquid Glass: stark transluzenter Tint + kräftiger Blur + heller Glas-Rand
+   + innerer Lichtreflex → die Winterszene scheint durch die Kacheln. */
 html[data-theme="christmas"] .bento .b-hero {
   background-image:
-    radial-gradient(130% 160% at 84% 6%, rgba(200, 16, 46, 0.13), transparent 55%),
-    linear-gradient(135deg, rgba(14,26,46,0.60) 0%, rgba(9,18,32,0.55) 55%, rgba(5,13,24,0.58) 100%) !important;
+    radial-gradient(130% 160% at 84% 6%, rgba(200, 16, 46, 0.10), transparent 55%),
+    linear-gradient(135deg, rgba(20,30,52,0.44) 0%, rgba(12,20,36,0.40) 100%) !important;
   background-size: cover, cover !important;
   background-position: center, center !important;
-  -webkit-backdrop-filter: blur(12px) saturate(1.1); backdrop-filter: blur(12px) saturate(1.1);
+  -webkit-backdrop-filter: blur(18px) saturate(1.6); backdrop-filter: blur(18px) saturate(1.6);
+  border: 1px solid rgba(255,255,255,0.16) !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.20), 0 14px 36px -10px rgba(0,0,0,0.5) !important;
 }
 html[data-theme="christmas"] .bento .b-azubi,
 html[data-theme="christmas"] .bento .b-mitteilungen {
   background-image:
-    radial-gradient(95% 95% at 50% 24%, rgba(30, 123, 60, 0.16), transparent 60%),
-    linear-gradient(160deg, rgba(14,28,48,0.58) 0%, rgba(8,15,28,0.55) 100%) !important;
+    radial-gradient(95% 95% at 50% 24%, rgba(30, 123, 60, 0.14), transparent 60%),
+    linear-gradient(160deg, rgba(20,32,54,0.44) 0%, rgba(12,20,36,0.40) 100%) !important;
   background-size: cover, cover !important;
   background-position: center, center !important;
-  -webkit-backdrop-filter: blur(12px) saturate(1.1); backdrop-filter: blur(12px) saturate(1.1);
+  -webkit-backdrop-filter: blur(18px) saturate(1.6); backdrop-filter: blur(18px) saturate(1.6);
+  border: 1px solid rgba(255,255,255,0.16) !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.20), 0 14px 36px -10px rgba(0,0,0,0.5) !important;
 }
 html[data-theme="christmas"] .bento .b-recent {
   background-image:
-    radial-gradient(130% 140% at 12% 16%, rgba(200, 16, 46, 0.10), transparent 55%),
-    linear-gradient(120deg, rgba(14,26,44,0.58) 0%, rgba(7,15,28,0.55) 100%) !important;
+    radial-gradient(130% 140% at 12% 16%, rgba(200, 16, 46, 0.09), transparent 55%),
+    linear-gradient(120deg, rgba(20,30,50,0.44) 0%, rgba(11,19,34,0.40) 100%) !important;
   background-size: cover, cover !important;
   background-position: center, center !important;
-  -webkit-backdrop-filter: blur(12px) saturate(1.1); backdrop-filter: blur(12px) saturate(1.1);
+  -webkit-backdrop-filter: blur(18px) saturate(1.6); backdrop-filter: blur(18px) saturate(1.6);
+  border: 1px solid rgba(255,255,255,0.16) !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.20), 0 14px 36px -10px rgba(0,0,0,0.5) !important;
 }
 
 /* Welcome-Hero: kühle Blau-Nacht-Fläche */
@@ -631,9 +639,12 @@ html[data-theme="christmas"] .bento .b-recent {
    =================================================================== */
 [data-theme="christmas"] .sidebar__user-link .avatar {
   position: relative;
-  width: 50px; height: 50px; flex: 0 0 50px;   /* größer als der Standard-Avatar */
+  width: 42px; height: 42px; flex: 0 0 42px;
   color: transparent;
   border: none; border-radius: 0; overflow: visible;
+  /* keine rote Umrandung – überschreibt den roten Active-/Hover-Ring
+     (.sidebar__user-link.active .avatar box-shadow var(--pm-yellow)) */
+  box-shadow: none !important;
   /* Box-Körper (ohne Deckel) – der Deckel liegt animiert im ::before darüber */
   background: transparent center / contain no-repeat
     url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48'%3E%3Crect x='9' y='20' width='30' height='24' rx='2.5' fill='%23c8102e'/%3E%3Crect x='20.5' y='20' width='7' height='24' fill='%23f2c14e'/%3E%3C/svg%3E");
@@ -700,18 +711,11 @@ html[data-theme="christmas"] .bento .b-recent {
 [data-theme="christmas"] .topbar::after,
 [data-theme="christmas"] .b-hero::after {
   display: block;
-  content: ""; position: absolute; left: 0; right: 0; top: 0; height: 14px;
+  content: ""; position: absolute; left: 0; right: 0; top: 0; height: 30px;
   pointer-events: none; z-index: 5;
-  background-repeat: repeat-x;
-  background-size: 44px 14px;
-  background-image:
-    radial-gradient(circle at 6px 9px, rgba(255,210,120,0.95) 0 3px, rgba(255,210,120,0) 4px),
-    radial-gradient(circle at 17px 9px, rgba(120,200,255,0.95) 0 3px, rgba(120,200,255,0) 4px),
-    radial-gradient(circle at 28px 9px, rgba(255,120,140,0.95) 0 3px, rgba(255,120,140,0) 4px),
-    radial-gradient(circle at 39px 9px, rgba(120,255,160,0.95) 0 3px, rgba(120,255,160,0) 4px),
-    linear-gradient(90deg, rgba(40,60,30,0.6) 0 100%);
-  background-position: 0 0, 0 0, 0 0, 0 0, 0 2px;
-  animation: pm-xm-lights 1.6s steps(1) infinite;
+  /* gleiche Tropfen-Birnchen wie an der Nav (horizontaler Strang) */
+  background: left top / auto 30px repeat-x url("../assets/xmas-strand-top.png");
+  animation: pm-xm-lights 1.7s steps(1) infinite;
 }
 
 @keyframes pm-xm-lights {
@@ -721,26 +725,18 @@ html[data-theme="christmas"] .bento .b-recent {
 }
 
 /* ===================================================================
-   NAV-LICHTERKETTE – echte Tropfen-Birnchen, um die ganze Nav-Kachel gewickelt
+   NAV-LICHTERKETTE – Birnchen-Strang, der sich über die Nav-Kachel schlängelt
    -------------------------------------------------------------------
-   Vier Birnchen-Stränge (PNG, Tropfen-Bulbs an schwarzem Kabel) rahmen alle
-   vier Kanten der Sidebar: oben/unten (repeat-x) + links/rechts (repeat-y).
-   Die Bulbs hängen nach INNEN → von .sidebar overflow:hidden nicht
-   abgeschnitten, „umwickeln" optisch die Nav-Kachel. Liegt auf .sidebar::after
-   (überschreibt unter christmas den Glas-Ambient-::after von glass.css).
-   pointer-events:none → Nav-Links bleiben klickbar; gemeinsames Blinken. */
+   Ein gewellter (Sinus-)Birnchen-Strang läuft von oben nach unten serpentinen-
+   förmig über die Sidebar (PNG xmas-strand-snake.png, vertikal nahtlos kachel-
+   bar → repeat-y). Liegt auf .sidebar::after (überschreibt unter christmas den
+   Glas-Ambient-::after von glass.css). pointer-events:none → Nav-Links bleiben
+   klickbar; gemeinsames Blinken. */
 [data-theme="christmas"] .sidebar::after {
   content: ""; position: absolute; inset: 0; z-index: 6;
   pointer-events: none;
-  background-image:
-    url("../assets/xmas-strand-top.png"),
-    url("../assets/xmas-strand-bottom.png"),
-    url("../assets/xmas-strand-left.png"),
-    url("../assets/xmas-strand-right.png");
-  background-repeat: repeat-x, repeat-x, repeat-y, repeat-y;
-  background-position: left top, left bottom, left top, right top;
-  background-size: auto 24px, auto 24px, 24px auto, 24px auto;
-  animation: pm-xm-lights 1.9s steps(1) infinite;
+  background: top center / 100% auto repeat-y url("../assets/xmas-strand-snake.png");
+  animation: pm-xm-lights 2.1s steps(1) infinite;
 }
 
 @media (prefers-reduced-motion: reduce) {
