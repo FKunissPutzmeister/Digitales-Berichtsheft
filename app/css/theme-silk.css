@@ -294,10 +294,8 @@ html[data-skin="silk"] .b-day--today .dnum { color: #FFFFFF !important; }
 /* ── 4d · Berichtsheft-Textfeld-Köpfe: NICHT durchsichtig ───────────
    Spalten-/Abschnitts-Überschriften der Eintrags-Textfelder bekommen eine
    DECKENDE Fläche (kein Glas, kein Durchscheinen). */
-[data-skin="silk"] .tag-cards__header {
-  background: hsl(var(--silk-hue,252) 44% 19%) !important;
-  border-radius: 12px;
-}
+/* Spalten-Überschrift (Anwesenheit/Ort/ArbZ) bleibt OHNE Hintergrundleiste –
+   nur die Label-Farbe wird für Silk angepasst, damit der Text lesbar bleibt. */
 [data-skin="silk"] .tag-cards__header-label { color: hsl(var(--silk-hue,252) 71% 95%) !important; }
 [data-skin="silk"] .day-section,
 [data-skin="silk"] .day-section__header {
@@ -310,6 +308,17 @@ html[data-skin="silk"] .b-day--today .dnum { color: #FFFFFF !important; }
 [data-skin="silk"] .ql-toolbar,
 [data-skin="silk"] .ql-container,
 [data-skin="silk"] .day-section .ql-editor { background: hsl(var(--silk-hue,252) 47% 17%) !important; }
+
+/* ── 4e · Abteilungsdurchlauf „Aktuell"-Karte: NICHT durchscheinend ──
+   Die aktuelle Zuweisung (.durchlauf-card--current) nimmt die Basis-Fläche
+   --pm-yellow-pale, die unter Silk nur 22 % Deckkraft hat → der Silk-
+   Hintergrund scheint durch und macht den Text schwer lesbar. Fix: dieselbe
+   deckende Fläche wie die übrigen/zukünftigen Karten (--pm-white). Der
+   Indigo-Border-Akzent links kommt weiter aus der Basisregel und hält die
+   „aktuell"-Unterscheidung. */
+[data-skin="silk"] .durchlauf-card--current {
+  background: var(--pm-white) !important;
+}
 
 /* ── 5 · Welcome-Hero: ebenfalls Glas (etwas dichter, weil weißer Text). */
 [data-skin="silk"] .welcome-hero.silk-host {

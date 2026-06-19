@@ -33463,7 +33463,7 @@ const xH = ({ speed: n = 5, scale: e = 1, color: t = "#7B7481", noiseIntensity: 
     }),
     [n, e, i, t, r]
   );
-  return /* @__PURE__ */ ft.jsx(gH, { dpr: [1, 2], frameloop: "always", children: /* @__PURE__ */ ft.jsx(_I, { ref: s, uniforms: o }) });
+  return /* @__PURE__ */ ft.jsx(gH, { dpr: [1, 1.5], frameloop: "always", children: /* @__PURE__ */ ft.jsx(_I, { ref: s, uniforms: o }) });
 }, SH = ({
   children: n,
   width: e = 200,

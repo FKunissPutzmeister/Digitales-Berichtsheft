@@ -213,8 +213,9 @@
   /* ── Iceland-FX: Canvas-Schneesturm-Engine ───────────────────────
      Der Iceland-Hintergrund ist – anders als die übrigen Custom-Themes –
      keine reine CSS/SVG-Szene, sondern ein <canvas> mit requestAnimation-
-     Frame-Loop: weiche Glow-Schneeflocken in 3 Parallax-Ebenen, proze-
-     durale Gletscher-Silhouetten, driftender Nebel und Seitenwind mit
+     Frame-Loop: weiche Glow-Schneeflocken in 3 Parallax-Ebenen, ein
+     echtes verschneites Bergfoto (assets/mountains.png) mit weich aus-
+     gefadeter Oberkante, driftender Nebel und Seitenwind mit
      Böen. Dieser Controller kapselt den Loop und wird vom FX-Lebenszyklus
      gesteuert (start beim Aufbau des iceland-FX, stop beim Theme-Wechsel /
      Teardown). Konventionen aus themes.css werden mit-abgebildet, die für
@@ -226,8 +227,7 @@
   var PMIcelandFX = (function () {
     var THEME = {
       sky:     ['#0c141c', '#19262f', '#2b3a44'],
-      glacier: ['#16242f', '#22394a', '#33566b'],
-      iceHi:   '#bfe6f5',
+      mountainSrc: 'assets/mountains.png', // echtes Bergfoto (ersetzt die früheren prozeduralen Gletscher-Ridges)
       fog:     '#b6c6d2',
       fogStrength: 0.34,
       snow:    '#f4f8fc',
@@ -242,12 +242,18 @@
     /* Flocken-Sprites einmalig (lazy) bauen und wiederverwenden. */
     var SPR_FAR = null, SPR_MID = null, SPR_NEAR = null;
 
+    /* Bergfoto: einmalig laden, dann pro resize() in einen bildschirm-
+       großen Offscreen-Canvas (cover-Fit, unten verankert, Oberkante weich
+       ausgefadet) vorrendern → pro Frame nur noch ein drawImage. */
+    var mountainImg = null, mountainReady = false;
+    var SPR_MTN = null;   // { c: <canvas> } – fertig ausgefadetes Bergband (W×H)
+
     /* Laufzeit-State (wird pro start() neu aufgebaut). */
     var canvas = null, ctx = null;
     var raf = 0, running = false;
     var W = 0, H = 0, DPR = 1;
     var windT = 0, last = 0, fogPhase = 0;
-    var far = [], mid = [], near = [], glaciers = [];
+    var far = [], mid = [], near = [];
 
     function hexToRgb(h) { var n = parseInt(h.slice(1), 16); return [(n >> 16) & 255, (n >> 8) & 255, n & 255]; }
     function fogRgb() { return hexToRgb(THEME.fog); }
@@ -282,24 +288,54 @@
     }
     function updraft(t, x) { return Math.sin(t * 0.0009 + x * 0.004) * 1.1 * intensity; }
 
-    function iceRidge(baseY, amp, jag, seed) {
-      var pts = [], steps = 22;
-      for (var i = 0; i <= steps; i++) {
-        var x = (i / steps) * (W + 80) - 40;
-        var n = Math.sin(i * 0.7 + seed) * amp
-              + Math.sin(i * 1.9 + seed * 2.1) * amp * jag
-              + Math.sin(i * 4.3 + seed * 0.6) * amp * jag * 0.5
-              + (Math.sin(i * 9.1 + seed) > 0.6 ? amp * 0.25 : 0);
-        pts.push({ x: x, y: baseY - Math.abs(n) * 0.6 + n * 0.4 });
-      }
-      return pts;
+    /* Bergfoto einmalig laden; nach dem Laden das Band neu aufbauen und –
+       falls reduced-motion (kein Loop) – das Standbild sofort nachziehen. */
+    function ensureMountainImg() {
+      if (mountainImg) return;
+      mountainImg = new Image();
+      mountainImg.onload = function () {
+        mountainReady = true;
+        buildMountain();
+        if (reduceMotion && ctx) renderOnce(2);
+      };
+      mountainImg.src = THEME.mountainSrc;
     }
-    function buildGlaciers() {
-      glaciers = [
-        { pts: iceRidge(H * 0.78, H * 0.16, 0.55, 1.0),  ci: 0, parallax: 0.04 },
-        { pts: iceRidge(H * 0.86, H * 0.13, 0.50, 5.3),  ci: 1, parallax: 0.08 },
-        { pts: iceRidge(H * 0.94, H * 0.10, 0.45, 11.2), ci: 2, parallax: 0.14 }
-      ];
+
+    /* Bergband in einen bildschirmgroßen Offscreen vorrendern:
+       cover-Fit (füllt die ganze Breite), unten verankert, obere
+       Bildschirmhälfte per destination-out weich in den Himmel ausgefadet. */
+    function buildMountain() {
+      SPR_MTN = null;
+      if (!mountainReady || !mountainImg || !W || !H) return;
+      var iw = mountainImg.naturalWidth, ih = mountainImg.naturalHeight;
+      if (!iw || !ih) return;
+
+      var oc = document.createElement('canvas');
+      oc.width  = Math.floor(W * DPR);
+      oc.height = Math.floor(H * DPR);
+      var octx = oc.getContext('2d');
+      if (!octx) return;
+      octx.setTransform(DPR, 0, 0, DPR, 0, 0);
+
+      /* cover: skaliere so, dass Breite UND Höhe gefüllt sind … */
+      var scale = Math.max(W / iw, H / ih);
+      var dw = iw * scale, dh = ih * scale;
+      var dx = (W - dw) / 2;   // horizontal zentriert (überstehende Seiten beschnitten)
+      var dy = H - dh;         // … und unten verankert (Berge sitzen am unteren Rand)
+      octx.drawImage(mountainImg, dx, dy, dw, dh);
+
+      /* Weiche Oberkante: in Bildschirm-Koordinaten von oben (komplett
+         aufgelöst) bis ~52 % Höhe (volles Foto) ausradieren. */
+      octx.globalCompositeOperation = 'destination-out';
+      var fade = octx.createLinearGradient(0, 0, 0, H);
+      fade.addColorStop(0.00, 'rgba(0,0,0,1)');
+      fade.addColorStop(0.34, 'rgba(0,0,0,0.55)');
+      fade.addColorStop(0.52, 'rgba(0,0,0,0)');
+      octx.fillStyle = fade;
+      octx.fillRect(0, 0, W, H);
+      octx.globalCompositeOperation = 'source-over';
+
+      SPR_MTN = { c: oc };
     }
 
     function makeFar()  { return { x: Math.random() * W, y: Math.random() * H, s: Math.random() * 3 + 2,   speed: Math.random() * 0.5 + 0.4, drift: Math.random() * 0.4 + 0.1, alpha: Math.random() * 0.35 + 0.15 }; }
@@ -321,7 +357,7 @@
       canvas.style.width = W + 'px'; canvas.style.height = H + 'px';
       ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
       rebuildAll();
-      buildGlaciers();
+      buildMountain();
       /* setzen von canvas.width leert die Fläche → bei reduced-motion
          (kein Loop) das Standbild direkt neu zeichnen. */
       if (reduceMotion) renderOnce(2);
@@ -364,38 +400,11 @@
       }
       ctx.globalAlpha = 1;
     }
-    function drawGlaciers(wind) {
-      var hi = THEME.iceHi;
-      for (var li = 0; li < glaciers.length; li++) {
-        var layer = glaciers[li];
-        var off = Math.sin(windT * 0.0003) * wind * layer.parallax * 6;
-        ctx.save();
-        ctx.translate(off, 0);
-        ctx.fillStyle = 'rgb(' + hexToRgb(THEME.glacier[layer.ci]).join(',') + ')';
-        ctx.beginPath();
-        ctx.moveTo(layer.pts[0].x, H + 5);
-        ctx.lineTo(layer.pts[0].x, layer.pts[0].y);
-        for (var i = 1; i < layer.pts.length; i++) {
-          var p = layer.pts[i], prev = layer.pts[i - 1];
-          ctx.quadraticCurveTo(prev.x, prev.y, (prev.x + p.x) / 2, (prev.y + p.y) / 2);
-        }
-        var lastP = layer.pts[layer.pts.length - 1];
-        ctx.lineTo(lastP.x, H + 5);
-        ctx.closePath();
-        ctx.fill();
-        ctx.globalAlpha = 0.22 + layer.ci * 0.06;
-        ctx.strokeStyle = hi;
-        ctx.lineWidth = 1.4;
-        ctx.beginPath();
-        ctx.moveTo(layer.pts[0].x, layer.pts[0].y);
-        for (var j = 1; j < layer.pts.length; j++) {
-          var p2 = layer.pts[j], prev2 = layer.pts[j - 1];
-          ctx.quadraticCurveTo(prev2.x, prev2.y, (prev2.x + p2.x) / 2, (prev2.y + p2.y) / 2);
-        }
-        ctx.stroke();
-        ctx.globalAlpha = 1;
-        ctx.restore();
-      }
+    function drawMountain() {
+      if (!SPR_MTN) return;
+      /* Offscreen ist bereits in Geräte-Pixeln (W*DPR × H*DPR) aufgebaut;
+         hier 1:1 auf die (per setTransform auf CSS-Pixel skalierte) Fläche. */
+      ctx.drawImage(SPR_MTN.c, 0, 0, W, H);
     }
     function drawFog(t, wind) {
       var strength = THEME.fogStrength;
@@ -421,7 +430,7 @@
     function renderOnce(wind) {
       drawSky();
       drawFar(windT, wind);
-      drawGlaciers(wind);
+      drawMountain();
       drawFog(windT, wind);
       drawMid(windT, wind);
       drawNear(windT, wind);
@@ -451,6 +460,7 @@
       ctx = canvas.getContext('2d', { alpha: false });
       if (!ctx) { canvas = null; return; }
       ensureSprites();
+      ensureMountainImg();  // Bergfoto laden (onload baut das Band auf)
       resize();             // baut Szene auf (+ zeichnet bei reduced-motion)
       window.addEventListener('resize', resize);
       if (reduceMotion) return;   // statisches Standbild → kein Loop

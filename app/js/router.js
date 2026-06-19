@@ -106,31 +106,45 @@
     const newMain = doc.getElementById('mainContent');
     if (!newMain) { fallback(href); return; }
 
-    /* Fehlende Stylesheets aus der neuen Seite nachladen */
+    /* Fehlende Stylesheets aus der neuen Seite nachladen.
+       WICHTIG – die Theme-Links werden NICHT mehr umsortiert: neues
+       Seiten-CSS (z.B. jahresansicht.css) wird VOR den Theme-Block
+       eingefügt, statt es ans Head-Ende zu hängen und danach die
+       theme-*.css/themes.css per appendChild wieder nach hinten zu holen.
+       Das frühere Verschieben löste die zugehörigen CSSOM-Regeln in
+       Chromium/Edge für einen Frame aus dem Dokument → bei AKTIVEM Theme
+       blitzte deshalb bei JEDER SPA-Navigation (auch beim Hin-und-Her
+       zwischen bereits geladenen Seiten) kurz das Standard-Theme auf. Durch
+       das Einfügen vor dem Theme-Block bleibt die Reihenfolge (themes.css
+       zuletzt) erhalten, ohne je einen angewendeten Theme-<link> zu bewegen.
+       (Hintergrund des Override-Bugs: ohne korrekte Reihenfolge überschrieb
+       später injiziertes Seiten-CSS die Theme-Overrides – z.B. tauchten die
+       Bento-Bilder im silk-Theme nach SPA-Navigation wieder auf.) */
+    const THEME_SHEETS = ['theme-hyperspace', 'theme-cmd', 'theme-candy',
+      'theme-iceland', 'theme-silk', 'theme-halloween', 'themes'];
+    const isThemeSheet = href => THEME_SHEETS.some(n => href.indexOf('/css/' + n + '.css') !== -1);
+    /* Erster Theme-<link> im Head = Einfügepunkt für neues Seiten-CSS. */
+    const firstThemeLink = Array.from(document.querySelectorAll('link[rel="stylesheet"]'))
+      .find(l => isThemeSheet(l.href)) || null;
+
     const loadedSheets = new Set(
       Array.from(document.querySelectorAll('link[rel="stylesheet"]')).map(l => l.href)
     );
     for (const link of doc.querySelectorAll('link[rel="stylesheet"]')) {
       const abs = new URL(link.getAttribute('href'), location.href).href;
-      if (!loadedSheets.has(abs)) {
-        const el = document.createElement('link');
-        el.rel  = 'stylesheet';
-        el.href = abs;
+      if (loadedSheets.has(abs)) continue;
+      const el = document.createElement('link');
+      el.rel  = 'stylesheet';
+      el.href = abs;
+      /* Seiten-CSS vor den Theme-Block; ein (theoretisch) seiten-exklusives
+         Theme-CSS hingegen ans Ende. */
+      if (firstThemeLink && !isThemeSheet(abs)) {
+        document.head.insertBefore(el, firstThemeLink);
+      } else {
         document.head.appendChild(el);
       }
+      loadedSheets.add(abs);
     }
-
-    /* Theme-Stylesheets IMMER ans Ende holen: das oben evtl. nachgeladene
-       Seiten-CSS (z.B. dashboard.css) würde sonst – weil später injiziert –
-       die Theme-Overrides (theme-*.css/themes.css) bei gleicher Spezifität
-       überschreiben (genau dieser Bug ließ die Bento-Bilder im silk-Theme
-       nach SPA-Navigation wieder auftauchen). appendChild verschiebt den
-       vorhandenen <link> ans Ende; Reihenfolge bleibt: themes.css zuletzt. */
-    ['theme-hyperspace', 'theme-cmd', 'theme-candy', 'theme-iceland', 'theme-silk', 'themes'].forEach(function (n) {
-      const l = Array.from(document.querySelectorAll('link[rel="stylesheet"]'))
-        .find(function (x) { return x.href.indexOf('/css/' + n + '.css') !== -1; });
-      if (l) document.head.appendChild(l);
-    });
 
     /* Scripts der neuen Seite ermitteln (Reihenfolge beibehalten) */
     const pageScripts = Array.from(doc.querySelectorAll('body script[src]'))
