@@ -129,8 +129,8 @@ html[data-theme="christmas"] { color-scheme: dark; }
    kleinen Teil des langen Zyklus (≈80s) von links nach rechts queren –
    den Rest der Zeit ist er off-screen/ausgeblendet → „ab und zu". */
 [data-theme="christmas"] .pm-xm-bus {
-  position: fixed; top: 7%; left: 0;
-  width: clamp(92px, 11vw, 168px); aspect-ratio: 300 / 440;
+  position: fixed; top: 6%; left: 0;
+  width: clamp(120px, 14vw, 215px); aspect-ratio: 634 / 512;
   z-index: 1; pointer-events: none; opacity: 0;
   background: center / contain no-repeat url("../assets/xmas-bus.png");
   filter: drop-shadow(0 8px 14px rgba(0, 0, 0, 0.28));
