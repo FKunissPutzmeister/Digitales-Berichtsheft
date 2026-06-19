@@ -120,17 +120,28 @@ html[data-theme="christmas"] { color-scheme: dark; }
   background: linear-gradient(180deg, rgba(8,14,26,0.10) 0%, rgba(8,14,26,0.30) 100%);
 }
 [data-theme="christmas"] .pm-xm-snow {
+  position: fixed; inset: 0; z-index: 4; pointer-events: none;
+}
+
+/* ── Tannenbaum-Vordergrund-Ebene ───────────────────────────────────
+   Derselbe Hintergrund, aber NUR der Baum sichtbar (Rest transparent),
+   identisch verankert (right center / cover) + gleicher Helligkeitsfilter
+   → deckt den Baum des Bildes pixelgenau. Liegt ÜBER dem Bus (z-index 2),
+   damit der Bus optisch HINTER dem Baum durchfliegt. */
+[data-theme="christmas"] .pm-xm-treefront {
   position: fixed; inset: 0; z-index: 2; pointer-events: none;
+  background: right center / cover no-repeat
+    url("../assets/christmas-tree-front.png");
+  filter: brightness(1.14) saturate(1.06);
 }
 
 /* ── Santa-Ballon-Bus: zieht ab und zu langsam durch den Himmel ──────
-   Liegt im #pmThemeFX (z-index 1: über dem Bild, unter dem Schnee),
-   also hinter dem App-Inhalt. Die Animation lässt ihn nur in einem
-   kleinen Teil des langen Zyklus (≈80s) von links nach rechts queren –
-   den Rest der Zeit ist er off-screen/ausgeblendet → „ab und zu". */
+   Liegt im #pmThemeFX (z-index 1: über dem Bild, UNTER der Baum-
+   Vordergrund-Ebene → fliegt hinter dem Tannenbaum durch). Die Animation
+   zeigt ihn nur in ~0–30% des langen Zyklus (≈80s) → „ab und zu". */
 [data-theme="christmas"] .pm-xm-bus {
-  position: fixed; top: 6%; left: 0;
-  width: clamp(120px, 14vw, 215px); aspect-ratio: 634 / 512;
+  position: fixed; top: 7%; left: 0;
+  width: clamp(170px, 19vw, 300px); aspect-ratio: 634 / 512;
   z-index: 1; pointer-events: none; opacity: 0;
   background: center / contain no-repeat url("../assets/xmas-bus.png");
   filter: drop-shadow(0 8px 14px rgba(0, 0, 0, 0.28));
@@ -614,7 +625,7 @@ html[data-theme="christmas"] .bento .b-recent {
    im Browser nachzujustieren.
    =================================================================== */
 [data-theme="christmas"] .pm-xm-treelights {
-  position: fixed; inset: 0; z-index: 1; pointer-events: none;
+  position: fixed; inset: 0; z-index: 3; pointer-events: none;
 }
 [data-theme="christmas"] .pm-xm-bulb {
   position: absolute;
