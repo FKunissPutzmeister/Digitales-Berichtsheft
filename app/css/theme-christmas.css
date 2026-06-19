@@ -703,9 +703,9 @@ html[data-theme="christmas"] .bento .b-recent {
 /* position: relative ist bereits gesetzt; overflow: visible ergänzen */
 [data-theme="christmas"] .b-btn-primary { position: relative; overflow: visible; }
 [data-theme="christmas"] .b-btn-primary::after {
-  content: ""; position: absolute; right: -6px; top: -12px;
-  width: 22px; height: 18px; transform: rotate(16deg);
-  background: center / contain no-repeat url("../assets/santa-hat.svg");
+  content: ""; position: absolute; right: 12px; top: -27px;
+  width: 52px; height: 42px; transform: rotate(-6deg);
+  background: bottom center / contain no-repeat url("../assets/santa-hat.svg");
   pointer-events: none;
 }
 
