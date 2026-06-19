@@ -111,11 +111,13 @@ html[data-theme="christmas"] { color-scheme: dark; }
      treffen ihn zuverlässig. */
   background: right center / cover no-repeat
     url("../assets/backgrounds/Christmas Background.jpeg");
+  /* Bild etwas heller/lebendiger */
+  filter: brightness(1.14) saturate(1.06);
 }
-/* Dezenter Abdunkel-Overlay für Lesbarkeit über dem hellen Himmel */
+/* Nur noch leichter Abdunkel-Overlay (Lesbarkeit), Bild bleibt hell */
 [data-theme="christmas"] .pm-xm-bg::after {
   content: ""; position: absolute; inset: 0;
-  background: linear-gradient(180deg, rgba(8,14,26,0.30) 0%, rgba(8,14,26,0.55) 100%);
+  background: linear-gradient(180deg, rgba(8,14,26,0.10) 0%, rgba(8,14,26,0.30) 100%);
 }
 [data-theme="christmas"] .pm-xm-snow {
   position: fixed; inset: 0; z-index: 2; pointer-events: none;
@@ -442,24 +444,27 @@ html[data-theme="christmas"] .b-recent::before {
 html[data-theme="christmas"] .bento .b-hero {
   background-image:
     radial-gradient(130% 160% at 84% 6%, rgba(200, 16, 46, 0.13), transparent 55%),
-    linear-gradient(135deg, #0E1A2E 0%, #091220 55%, #050D18 100%) !important;
+    linear-gradient(135deg, rgba(14,26,46,0.60) 0%, rgba(9,18,32,0.55) 55%, rgba(5,13,24,0.58) 100%) !important;
   background-size: cover, cover !important;
   background-position: center, center !important;
+  -webkit-backdrop-filter: blur(12px) saturate(1.1); backdrop-filter: blur(12px) saturate(1.1);
 }
 html[data-theme="christmas"] .bento .b-azubi,
 html[data-theme="christmas"] .bento .b-mitteilungen {
   background-image:
     radial-gradient(95% 95% at 50% 24%, rgba(30, 123, 60, 0.16), transparent 60%),
-    linear-gradient(160deg, #0E1C30 0%, #080F1C 100%) !important;
+    linear-gradient(160deg, rgba(14,28,48,0.58) 0%, rgba(8,15,28,0.55) 100%) !important;
   background-size: cover, cover !important;
   background-position: center, center !important;
+  -webkit-backdrop-filter: blur(12px) saturate(1.1); backdrop-filter: blur(12px) saturate(1.1);
 }
 html[data-theme="christmas"] .bento .b-recent {
   background-image:
     radial-gradient(130% 140% at 12% 16%, rgba(200, 16, 46, 0.10), transparent 55%),
-    linear-gradient(120deg, #0E1A2C 0%, #070F1C 100%) !important;
+    linear-gradient(120deg, rgba(14,26,44,0.58) 0%, rgba(7,15,28,0.55) 100%) !important;
   background-size: cover, cover !important;
   background-position: center, center !important;
+  -webkit-backdrop-filter: blur(12px) saturate(1.1); backdrop-filter: blur(12px) saturate(1.1);
 }
 
 /* Welcome-Hero: kühle Blau-Nacht-Fläche */
@@ -625,12 +630,27 @@ html[data-theme="christmas"] .bento .b-recent {
    (Analog zum Halloween-Kürbis.)
    =================================================================== */
 [data-theme="christmas"] .sidebar__user-link .avatar {
+  position: relative;
+  width: 50px; height: 50px; flex: 0 0 50px;   /* größer als der Standard-Avatar */
   color: transparent;
-  border: none;
-  box-shadow: 0 0 10px rgba(200,16,46,0.45),
-              inset 0 0 0 1px rgba(242,193,78,0.45);
-  background: #14223a center / cover no-repeat
-    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48'%3E%3Crect width='48' height='48' fill='%2314223a'/%3E%3Crect x='8' y='22' width='32' height='19' rx='2' fill='%23c8102e'/%3E%3Crect x='6' y='17' width='36' height='8' rx='2' fill='%23e23a4f'/%3E%3Crect x='20.5' y='17' width='7' height='24' fill='%23f2c14e'/%3E%3Cpath d='M24 17 C19 8 9 9 13 15 C15.5 18 21 17 24 17 Z' fill='%23f2c14e'/%3E%3Cpath d='M24 17 C29 8 39 9 35 15 C32.5 18 27 17 24 17 Z' fill='%23f2c14e'/%3E%3Ccircle cx='24' cy='16' r='3.2' fill='%23ffd97a'/%3E%3C/svg%3E");
+  border: none; border-radius: 0; overflow: visible;
+  /* Box-Körper (ohne Deckel) – der Deckel liegt animiert im ::before darüber */
+  background: transparent center / contain no-repeat
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48'%3E%3Crect x='9' y='20' width='30' height='24' rx='2.5' fill='%23c8102e'/%3E%3Crect x='20.5' y='20' width='7' height='24' fill='%23f2c14e'/%3E%3C/svg%3E");
+  filter: drop-shadow(0 2px 5px rgba(0,0,0,0.5));
+}
+/* Deckel + Schleife – öffnet sich periodisch kurz leicht */
+[data-theme="christmas"] .sidebar__user-link .avatar::before {
+  content: ""; position: absolute; inset: 0; pointer-events: none;
+  background: center / contain no-repeat
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48'%3E%3Crect x='6' y='17' width='36' height='8' rx='2.5' fill='%23e23a4f'/%3E%3Crect x='20.5' y='17' width='7' height='8' fill='%23f2c14e'/%3E%3Cpath d='M24 17 C19 7 8 8 12.5 14.5 C15 18 21 17 24 17 Z' fill='%23f2c14e'/%3E%3Cpath d='M24 17 C29 7 40 8 35.5 14.5 C33 18 27 17 24 17 Z' fill='%23f2c14e'/%3E%3Ccircle cx='24' cy='15.5' r='3.4' fill='%23ffd97a'/%3E%3C/svg%3E");
+  transform-origin: 32% 52%;   /* Scharnier hinten-links → Deckel kippt vorne auf */
+  animation: pm-xm-giftlid 4.5s ease-in-out infinite;
+}
+@keyframes pm-xm-giftlid {
+  0%, 70%, 100% { transform: translateY(0) rotate(0deg); }
+  80%           { transform: translateY(-3px) rotate(-11deg); }
+  90%           { transform: translateY(-2px) rotate(-6deg); }
 }
 
 /* ===================================================================
@@ -701,33 +721,32 @@ html[data-theme="christmas"] .bento .b-recent {
 }
 
 /* ===================================================================
-   NAV-LICHTERKETTE – schlängelt sich an der Nav-Leiste entlang
+   NAV-LICHTERKETTE – echte Tropfen-Birnchen, um die ganze Nav-Kachel gewickelt
    -------------------------------------------------------------------
-   Vertikaler Strang aus vierfarbigen Bulbs an der RECHTEN Kante der
-   .sidebar__nav (innen → wird von .sidebar overflow:hidden nicht
-   abgeschnitten und überlebt den Collapsed-Zustand). Die Bulbs wechseln
-   beim Hinunterlaufen die x-Position (links/rechts) → „schlängelnder"
-   Verlauf. Glühen via drop-shadow, gemeinsames Blinken via pm-xm-lights.
-   pointer-events:none → Nav-Links bleiben klickbar.
-   =================================================================== */
-[data-theme="christmas"] .sidebar__nav { position: relative; }
-[data-theme="christmas"] .sidebar__nav::after {
-  content: ""; position: absolute; top: 8px; bottom: 8px; right: 3px; width: 18px;
-  pointer-events: none; z-index: 4;
-  background-repeat: repeat-y;
-  background-size: 18px 120px;
+   Vier Birnchen-Stränge (PNG, Tropfen-Bulbs an schwarzem Kabel) rahmen alle
+   vier Kanten der Sidebar: oben/unten (repeat-x) + links/rechts (repeat-y).
+   Die Bulbs hängen nach INNEN → von .sidebar overflow:hidden nicht
+   abgeschnitten, „umwickeln" optisch die Nav-Kachel. Liegt auf .sidebar::after
+   (überschreibt unter christmas den Glas-Ambient-::after von glass.css).
+   pointer-events:none → Nav-Links bleiben klickbar; gemeinsames Blinken. */
+[data-theme="christmas"] .sidebar::after {
+  content: ""; position: absolute; inset: 0; z-index: 6;
+  pointer-events: none;
   background-image:
-    radial-gradient(circle 3.5px at 6px 16px,  #ffd24d 0 3.5px, rgba(255,210,77,0) 5px),
-    radial-gradient(circle 3.5px at 13px 46px, #ff5a5f 0 3.5px, rgba(255,90,95,0) 5px),
-    radial-gradient(circle 3.5px at 6px 76px,  #74c0ff 0 3.5px, rgba(116,192,255,0) 5px),
-    radial-gradient(circle 3.5px at 13px 106px,#7bed9f 0 3.5px, rgba(123,237,159,0) 5px);
-  filter: drop-shadow(0 0 4px rgba(255,200,120,0.55));
+    url("../assets/xmas-strand-top.png"),
+    url("../assets/xmas-strand-bottom.png"),
+    url("../assets/xmas-strand-left.png"),
+    url("../assets/xmas-strand-right.png");
+  background-repeat: repeat-x, repeat-x, repeat-y, repeat-y;
+  background-position: left top, left bottom, left top, right top;
+  background-size: auto 24px, auto 24px, 24px auto, 24px auto;
   animation: pm-xm-lights 1.9s steps(1) infinite;
 }
 
 @media (prefers-reduced-motion: reduce) {
   [data-theme="christmas"] .topbar::after,
   [data-theme="christmas"] .b-hero::after,
-  [data-theme="christmas"] .sidebar__nav::after,
+  [data-theme="christmas"] .sidebar::after,
+  [data-theme="christmas"] .sidebar__user-link .avatar::before,
   [data-theme="christmas"] .btn-primary:hover:not(:disabled)::after { animation: none !important; }
 }
