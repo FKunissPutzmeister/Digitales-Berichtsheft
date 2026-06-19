@@ -582,3 +582,25 @@ html[data-theme="christmas"] .bento .b-recent {
   0%, 100% { opacity: 0.35; transform: scale(0.95); }
   50%      { opacity: 0.95; transform: scale(1.05); }
 }
+
+/* ===================================================================
+   PUTZMEISTER-LOGO – Santa-Mütze (Overlay, Original-Logo bleibt)
+   ::after auf dem WRAPPER (nicht auf dem <img> – dort rendern keine
+   Pseudo-Elemente). Mütze sitzt schräg auf der oberen Ecke des Logos.
+   =================================================================== */
+[data-theme="christmas"] .sidebar__logo-wrap { position: relative; }
+[data-theme="christmas"] .sidebar__logo-wrap::after,
+[data-theme="christmas"] .login-card__ident::after {
+  content: ""; position: absolute; z-index: 3; pointer-events: none;
+  background: center / contain no-repeat url("../assets/santa-hat.svg");
+  transform: rotate(-18deg);
+}
+/* Sidebar: Mütze auf der oberen rechten Ecke des Logo-Marks */
+[data-theme="christmas"] .sidebar__logo-wrap::after {
+  width: 26px; height: 21px; left: 20px; top: -8px;
+}
+/* Login-Karte: größeres Logo → größere Mütze */
+[data-theme="christmas"] .login-card__ident { position: relative; }
+[data-theme="christmas"] .login-card__ident::after {
+  width: 42px; height: 34px; left: 30px; top: -14px;
+}
