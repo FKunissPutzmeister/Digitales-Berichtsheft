@@ -628,3 +628,36 @@ html[data-theme="christmas"] .bento .b-recent {
   background: center / contain no-repeat url("../assets/santa-hat.svg");
   pointer-events: none;
 }
+
+/* ===================================================================
+   LICHTERKETTE – blinkendes Birnchen-Band (Topbar + Dashboard-Hero)
+   =================================================================== */
+[data-theme="christmas"] .topbar,
+[data-theme="christmas"] .b-hero { position: relative; }
+
+[data-theme="christmas"] .topbar::after,
+[data-theme="christmas"] .b-hero::after {
+  content: ""; position: absolute; left: 0; right: 0; top: 0; height: 14px;
+  pointer-events: none; z-index: 5;
+  background-repeat: repeat-x;
+  background-size: 44px 14px;
+  background-image:
+    radial-gradient(circle at 6px 9px, rgba(255,210,120,0.95) 0 3px, rgba(255,210,120,0) 4px),
+    radial-gradient(circle at 17px 9px, rgba(120,200,255,0.95) 0 3px, rgba(120,200,255,0) 4px),
+    radial-gradient(circle at 28px 9px, rgba(255,120,140,0.95) 0 3px, rgba(255,120,140,0) 4px),
+    radial-gradient(circle at 39px 9px, rgba(120,255,160,0.95) 0 3px, rgba(120,255,160,0) 4px),
+    linear-gradient(90deg, rgba(40,60,30,0.6) 0 100%);
+  background-position: 0 0, 0 0, 0 0, 0 0, 0 2px;
+  animation: pm-xm-lights 1.6s steps(1) infinite;
+}
+
+@keyframes pm-xm-lights {
+  0%   { filter: brightness(1);   }
+  50%  { filter: brightness(0.55);}
+  100% { filter: brightness(1);   }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-theme="christmas"] .topbar::after,
+  [data-theme="christmas"] .b-hero::after { animation: none !important; }
+}
