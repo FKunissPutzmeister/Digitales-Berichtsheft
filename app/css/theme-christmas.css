@@ -700,8 +700,34 @@ html[data-theme="christmas"] .bento .b-recent {
   100% { filter: brightness(1);   }
 }
 
+/* ===================================================================
+   NAV-LICHTERKETTE – schlängelt sich an der Nav-Leiste entlang
+   -------------------------------------------------------------------
+   Vertikaler Strang aus vierfarbigen Bulbs an der RECHTEN Kante der
+   .sidebar__nav (innen → wird von .sidebar overflow:hidden nicht
+   abgeschnitten und überlebt den Collapsed-Zustand). Die Bulbs wechseln
+   beim Hinunterlaufen die x-Position (links/rechts) → „schlängelnder"
+   Verlauf. Glühen via drop-shadow, gemeinsames Blinken via pm-xm-lights.
+   pointer-events:none → Nav-Links bleiben klickbar.
+   =================================================================== */
+[data-theme="christmas"] .sidebar__nav { position: relative; }
+[data-theme="christmas"] .sidebar__nav::after {
+  content: ""; position: absolute; top: 8px; bottom: 8px; right: 3px; width: 18px;
+  pointer-events: none; z-index: 4;
+  background-repeat: repeat-y;
+  background-size: 18px 120px;
+  background-image:
+    radial-gradient(circle 3.5px at 6px 16px,  #ffd24d 0 3.5px, rgba(255,210,77,0) 5px),
+    radial-gradient(circle 3.5px at 13px 46px, #ff5a5f 0 3.5px, rgba(255,90,95,0) 5px),
+    radial-gradient(circle 3.5px at 6px 76px,  #74c0ff 0 3.5px, rgba(116,192,255,0) 5px),
+    radial-gradient(circle 3.5px at 13px 106px,#7bed9f 0 3.5px, rgba(123,237,159,0) 5px);
+  filter: drop-shadow(0 0 4px rgba(255,200,120,0.55));
+  animation: pm-xm-lights 1.9s steps(1) infinite;
+}
+
 @media (prefers-reduced-motion: reduce) {
   [data-theme="christmas"] .topbar::after,
   [data-theme="christmas"] .b-hero::after,
+  [data-theme="christmas"] .sidebar__nav::after,
   [data-theme="christmas"] .btn-primary:hover:not(:disabled)::after { animation: none !important; }
 }
