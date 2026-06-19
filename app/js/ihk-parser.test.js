@@ -196,3 +196,98 @@ test('Status leakt nicht aus dem Freitext der Vorwoche in die Folgewoche', () =>
   assert.equal(wByKw(res, 2).status, 'offen');
   assert.equal(wByKw(res, 3).status, 'offen'); // KW3 hat keinen Status-Kopf → kein Leak aus KW2-Freitext
 });
+
+// ── Tagesbasis-Export (technische Azubis) ──────────────────────
+test('detectModus erkennt Tages- vs. Wochenbasis am Seitenkopf', () => {
+  assert.equal(P.detectModus(['Ausbildungsnachweis auf Tagesbasis\nfoo']), 'täglich');
+  assert.equal(P.detectModus(['Ausbildungsnachweis auf Wochenbasis\nfoo']), 'wöchentlich');
+  assert.equal(P.detectModus(['irgendwas']), 'wöchentlich'); // Default
+});
+
+test('Tagesbasis: Beschreibung landet pro Tag, Dauer-Zeit & Quali entfernt', () => {
+  const page1 = [
+    'Ausbildungsnachweis auf Tagesbasis',
+    'Auszubildende/r',
+    'Merkle, Marius',
+    'Ausbilder Status',
+    'Rossi, Marco Eingereicht am 01.10.2025. Von Ausbilder:in Marco',
+    'Rossi am 26.11.2025 freigegeben.',
+    'Ausbildungswoche 01.09.2025 bis 07.09.2025',
+    'Mo | 01.09.2025 | Betrieb | anwesend 08:00',
+    'Azubi Welcomedays: 08:00',         // Dauer rechts an erster Zeile
+    'Hinfahrt nach Tübingen mit dem Fahrrad',
+    'Qualifikationen:',
+    '- Sonstige Qualifikation',
+    'Di | 02.09.2025 | Schule | anwesend 07:00',
+    'Erster Tag Berufsschule 07:00',
+    'Schulregeln durchgelesen',
+    'Qualifikationen:',
+    '- Allgemeinbildende Fächer',
+    'Mi | 03.09.2025 | Urlaub | abwesend 00:00',
+    'Seite 5',
+  ].join('\n');
+  // Folgewoche: Kopfblock fällt ans Ende des Bodys von KW36 → darf die letzte
+  // Tagesbeschreibung NICHT verschmutzen.
+  const page2 = [
+    'Ausbildungsnachweis auf Tagesbasis',
+    'Auszubildende/r',
+    'Merkle, Marius',
+    'Ausbilder Status',
+    'Rossi, Marco Eingereicht am 24.09.2025. freigegeben.',
+    'Ausbildungswoche 08.09.2025 bis 14.09.2025',
+    'Mo | 08.09.2025 | Betrieb | anwesend 08:00',
+    'Hallenpräsentation 08:00',
+    'Qualifikationen:',
+    '- Sonstige Qualifikation',
+    'Dauer gesamt: 37:30',
+    'Seite 7',
+  ].join('\n');
+
+  const res = P.parse([page1, page2]);
+  assert.equal(res.modus, 'täglich');
+  assert.equal(res.wochen.length, 2);
+
+  const w1 = res.wochen[0];
+  assert.equal(w1.modus, 'täglich');
+  assert.equal(w1.tage.length, 3);
+  const byD = Object.fromEntries(w1.tage.map(t => [t.datum, t]));
+
+  // Betriebstag: Dauer-Zeit von erster Zeile entfernt, beide Zeilen als <p>.
+  assert.equal(byD['2025-09-01'].ort, 'Betrieb');
+  assert.equal(byD['2025-09-01'].anwesenheit, 'anwesend');
+  assert.match(byD['2025-09-01'].eintragText, /<p>Azubi Welcomedays:<\/p>/);
+  assert.match(byD['2025-09-01'].eintragText, /Hinfahrt nach Tübingen/);
+  assert.doesNotMatch(byD['2025-09-01'].eintragText, /08:00/);
+  assert.doesNotMatch(byD['2025-09-01'].eintragText, /Qualifikation/);
+
+  // Schultag → Schule-Ort, Text vorhanden.
+  assert.equal(byD['2025-09-02'].ort, 'Schule');
+  assert.match(byD['2025-09-02'].eintragText, /Schulregeln durchgelesen/);
+
+  // Urlaubstag: abwesend, kein Ort, kein Text.
+  assert.equal(byD['2025-09-03'].anwesenheit, 'Urlaub');
+  assert.equal(byD['2025-09-03'].ort, '');
+  assert.equal(byD['2025-09-03'].eintragText, '');
+
+  // Letzter Tag der Woche 1 endet sauber – kein Leak aus dem Kopf der Folgewoche.
+  assert.doesNotMatch(byD['2025-09-03'].eintragText, /Auszubildende|Merkle|Ausbilder/);
+
+  // Woche 2 korrekt abgegrenzt.
+  const w2 = res.wochen[1];
+  assert.equal(w2.tage.length, 1);
+  assert.match(w2.tage[0].eintragText, /Hallenpräsentation/);
+  assert.doesNotMatch(w2.tage[0].eintragText, /37:30/);
+});
+
+test('Tagesbasis: modus-Override greift unabhängig vom Seitenkopf', () => {
+  const page = [
+    'Ausbildungswoche 01.09.2025 bis 07.09.2025',
+    'Mo | 01.09.2025 | Betrieb | anwesend 08:00',
+    'Etwas gearbeitet',
+    'Qualifikationen:',
+    '- Sonstige Qualifikation',
+  ].join('\n');
+  const res = P.parse([page], { modus: 'täglich' });
+  assert.equal(res.wochen[0].modus, 'täglich');
+  assert.match(res.wochen[0].tage[0].eintragText, /Etwas gearbeitet/);
+});

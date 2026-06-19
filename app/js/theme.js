@@ -1317,6 +1317,129 @@
     return { start: start, stop: stop };
   })();
 
+  /* ── Christmas-Hintergrundmusik ───────────────────────────────────
+     Baugleich zu PMHalloweenMusic (siehe ausführlichen Kommentar dort),
+     nur Quelle + IDs/Klassen tragen den christmas-Präfix (pm-xm-, wie
+     pm-xm-snow). Läuft NUR im Christmas-Theme, am FX-Lebenszyklus
+     gesteuert (start im christmas-Zweig von ensureThemeFX, stop beim
+     Theme-Wechsel/Teardown), startet als stummer Loop (muted autoplay)
+     und wird per Button/Slider unten rechts hörbar gemacht. Styling in
+     css/theme-christmas.css (.pm-xm-music…). */
+  var PMChristmasMusic = (function () {
+    var SRC         = 'assets/music/Christmas background.mp3';
+    var WRAP_ID     = 'pmXmMusic';
+    var AUDIO_ID    = 'pmXmMusicAudio';
+    var DEFAULT_VOL = 0.5;
+    var audio = null, wrap = null, btn = null, vol = null;
+
+    /* Lautsprecher (gefüllt) + Schallwellen / X (gestrichelt) – Attribute
+       inline, damit die Icons unabhängig vom CSS korrekt füllen. */
+    var ICON_ON =
+      '<svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" focusable="false">' +
+        '<path d="M4 9v6h4l5 4V5L8 9H4z" fill="currentColor"/>' +
+        '<path d="M16 8.5a5 5 0 0 1 0 7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>' +
+        '<path d="M18.7 6a8.5 8.5 0 0 1 0 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>' +
+      '</svg>';
+    var ICON_MUTED =
+      '<svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" focusable="false">' +
+        '<path d="M4 9v6h4l5 4V5L8 9H4z" fill="currentColor"/>' +
+        '<path d="m16 9 5 6M21 9l-5 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>' +
+      '</svg>';
+
+    /* EFFEKTIVE Stille: hart gemutet ODER Lautstärke 0. */
+    function effectiveMuted() { return !audio || audio.muted || audio.volume === 0; }
+
+    function ensurePlaying() {
+      if (audio && audio.paused) {
+        try { var p = audio.play(); if (p && p.catch) p.catch(function () {}); } catch (e) {}
+      }
+    }
+
+    function render() {
+      if (!btn || !audio) return;
+      var m = effectiveMuted();
+      btn.innerHTML = m ? ICON_MUTED : ICON_ON;
+      btn.setAttribute('data-muted', m ? 'true' : 'false');
+      btn.setAttribute('aria-pressed', m ? 'false' : 'true');
+      var label = m ? 'Hintergrundmusik einschalten' : 'Hintergrundmusik stummschalten';
+      btn.setAttribute('aria-label', label);
+      btn.setAttribute('title', label);
+      if (vol && document.activeElement !== vol) vol.value = String(audio.volume);
+    }
+
+    function toggle() {
+      if (!audio) return;
+      if (effectiveMuted()) {
+        audio.muted = false;
+        if (audio.volume === 0) audio.volume = DEFAULT_VOL;   // sonst bliebe es still
+        ensurePlaying();   // Nutzergeste liegt vor → Ton sicher starten
+      } else {
+        audio.muted = true;
+      }
+      render();
+    }
+
+    function onVol() {
+      if (!audio || !vol) return;
+      var v = parseFloat(vol.value);
+      if (isNaN(v)) v = 0;
+      audio.volume = v;
+      if (v > 0) { audio.muted = false; ensurePlaying(); }  // Lautstärke hochziehen = unmuten
+      render();
+    }
+
+    function start() {
+      stop();   // idempotent: evtl. Reste aus einem früheren Aufbau entfernen
+      if (!document.body) return;
+
+      audio = document.createElement('audio');
+      audio.id = AUDIO_ID;
+      audio.src = SRC;
+      audio.loop = true;
+      audio.muted = true;          // Standard: stumm (muted autoplay erlaubt)
+      audio.volume = DEFAULT_VOL;
+      audio.preload = 'auto';
+      audio.setAttribute('aria-hidden', 'true');
+      document.body.appendChild(audio);
+      try { var p = audio.play(); if (p && p.catch) p.catch(function () {}); } catch (e) {}
+
+      wrap = document.createElement('div');
+      wrap.id = WRAP_ID;
+      wrap.className = 'pm-xm-music';
+
+      vol = document.createElement('input');
+      vol.type = 'range';
+      vol.className = 'pm-xm-music__vol';
+      vol.min = '0'; vol.max = '1'; vol.step = '0.01';
+      vol.value = String(DEFAULT_VOL);
+      vol.setAttribute('aria-label', 'Lautstärke der Hintergrundmusik');
+      vol.addEventListener('input', onVol);
+
+      btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'pm-xm-music__btn';
+      btn.addEventListener('click', toggle);
+
+      wrap.appendChild(vol);
+      wrap.appendChild(btn);
+      document.body.appendChild(wrap);
+      render();
+    }
+
+    function stop() {
+      var oldWrap = document.getElementById(WRAP_ID);
+      if (oldWrap && oldWrap.parentNode) oldWrap.parentNode.removeChild(oldWrap);
+      var oldAudio = document.getElementById(AUDIO_ID);
+      if (oldAudio) {
+        try { oldAudio.pause(); } catch (e) {}
+        if (oldAudio.parentNode) oldAudio.parentNode.removeChild(oldAudio);
+      }
+      audio = null; wrap = null; btn = null; vol = null;
+    }
+
+    return { start: start, stop: stop };
+  })();
+
   /* ── Candy: Vordergrund-Charakterwechsel beim Rand-Austritt ───────
      „Wenn ein Einhorn den Bildschirmrand verlassen hat, wechselt, welcher
      Charakter im Vordergrund läuft." Umgesetzt rein über das CSS-
@@ -1408,6 +1531,7 @@
     PMHalloweenFog.stop();
     PMChristmasSnow.stop();
     PMHalloweenMusic.stop();
+    PMChristmasMusic.stop();
 
     /* Login-Seite: kein FX – AUSNAHMEN: cmd (Terminal-Matrix als Hintergrund
        statt der Brand-Fläche) und halloween (reduzierte Szene: Login-
@@ -1447,6 +1571,7 @@
     } else if (theme === 'christmas') {
       var snowCanvas = el.querySelector('.pm-xm-snow');
       if (snowCanvas) PMChristmasSnow.start(snowCanvas);
+      if (!isLogin) PMChristmasMusic.start();   // Musik nur in der App, nicht auf Login
     }
   }
 

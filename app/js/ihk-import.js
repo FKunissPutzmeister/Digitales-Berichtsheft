@@ -30,10 +30,22 @@ const IhkImport = (() => {
 
   // ── 1) Profil-Sektion ──────────────────────────────────────────
   function renderSection(user) {
-    // Vorerst nur fuer die woechentliche Berichtsform (kaufmaennische & IT-Azubis).
-    // Taeglicher Import folgt spaeter. berichtTyp ist pro Azubi gespeichert.
-    if (!user || user.role !== 'azubi' || user.berichtTyp !== 'wöchentlich') return '';
+    // Beide Berichtsformen werden unterstützt: wöchentlich (kaufmännische &
+    // IT-Azubis) und täglich (technische Azubis, IHK-Export „auf Tagesbasis").
+    // berichtTyp ist pro Azubi in der DB hinterlegt.
+    if (!user || user.role !== 'azubi') return '';
+    if (user.berichtTyp !== 'wöchentlich' && user.berichtTyp !== 'täglich') return '';
+    const taeglich = user.berichtTyp === 'täglich';
     const img = name => `assets/ihk/${name}`;
+    const introText = taeglich
+      ? `Lade deinen <strong>IHK-Ausbildungsnachweis</strong> als PDF hoch – alle erkannten
+         Tage werden mit Anwesenheit, Ort und der jeweiligen Tätigkeitsbeschreibung
+         in die passenden Wochentage übernommen. Anwesende Tage werden dabei
+         standardmäßig als Ganztag übernommen.`
+      : `Lade deinen <strong>IHK-Ausbildungsnachweis</strong> als PDF hoch – alle erkannten
+         Wochen werden mit Anwesenheit, Ort, Tagdauer und Tätigkeitsbeschreibungen
+         (Betrieb, Schule, Unterweisung) ins Berichtsheft übernommen. Anwesende
+         Tage werden dabei standardmäßig als Ganztag übernommen.`;
     return `
       <details class="profil-section" id="ihkSection">
         <summary class="profil-section__header">
@@ -43,12 +55,7 @@ const IhkImport = (() => {
           <div class="profil-section__title">IHK-Berichtsheft importieren</div>
         </summary>
         <div class="profil-section__body-wrap"><div class="profil-section__body">
-          <p class="ztn-intro">
-            Lade deinen <strong>IHK-Ausbildungsnachweis</strong> als PDF hoch – alle erkannten
-            Wochen werden mit Anwesenheit, Ort, Tagdauer und Tätigkeitsbeschreibungen
-            (Betrieb, Schule, Unterweisung) ins Berichtsheft übernommen. Anwesende
-            Tage werden dabei standardmäßig als Ganztag übernommen.
-          </p>
+          <p class="ztn-intro">${introText}</p>
 
           <details class="ztn-tutorial">
             <summary class="ztn-tutorial__summary">
@@ -321,7 +328,9 @@ const IhkImport = (() => {
             ? '<span class="ztn-hint ztn-hint--belegt">wird überschrieben</span>'
             : '<span class="ztn-hint ztn-hint--neu">neu</span>');
 
-      const hasText = !!(w.betriebText || w.schuleText || w.unterweisungText);
+      const hasText = w.modus === 'täglich'
+        ? w.tage.some(t => t.eintragText && t.eintragText.trim())
+        : !!(w.betriebText || w.schuleText || w.unterweisungText);
       const textHint = (!disabled && hasText)
         ? '<br><span class="ztn-hint ztn-hint--neu">+ Tätigkeitsbeschreibungen</span>'
         : '';
@@ -393,6 +402,58 @@ const IhkImport = (() => {
   }
 
   // ── 5) Übernahme ───────────────────────────────────────────────
+
+  // Wochenbasis: Textfelder auf Wochenebene, Tage tragen nur Anwesenheit/Ort.
+  function applyWeekly(woche, pw) {
+    woche.typ = 'wöchentlich';
+    const hasSchule       = !!(pw.schuleText       && pw.schuleText.trim());
+    const hasUnterweisung = !!(pw.unterweisungText && pw.unterweisungText.trim());
+    woche.wochenOrt         = hasSchule ? 'betrieb_schule' : 'betrieb';
+    woche.unterweisungAktiv = hasUnterweisung;
+    if (pw.betriebText)      woche.betriebEintrag      = pw.betriebText;
+    if (pw.schuleText)       woche.schuleEintrag       = pw.schuleText;
+    if (pw.unterweisungText) woche.unterweisungEintrag = pw.unterweisungText;
+
+    // Anwesenheit/Ort/Tagdauer schreiben; bestehende eintrag-Texte erhalten.
+    // Exakte Stunden aus dem PDF werden NICHT übernommen (Tagdauer-Modell):
+    // jeder anwesende Tag gilt standardmäßig als Ganztag.
+    pw.tage.forEach(pt => {
+      let tag = woche.tage.find(t => t.datum === pt.datum);
+      if (!tag) {
+        tag = { datum: pt.datum, anwesenheit: '', ort: '', tagdauer: 'ganztag', eintrag: '' };
+        woche.tage.push(tag);
+      }
+      tag.anwesenheit = pt.anwesenheit;
+      tag.ort         = pt.ort;
+      tag.tagdauer    = 'ganztag';
+    });
+  }
+
+  // Tagesbasis: Tätigkeitsbeschreibung steht PRO TAG. Sie wird in das zum Ort
+  // passende Tagesfeld geschrieben (Schule → schuleEintrag, sonst betriebEintrag).
+  // Anwesende Tage gelten standardmäßig als Ganztag.
+  function applyDaily(woche, pw) {
+    woche.typ = 'täglich';
+    pw.tage.forEach(pt => {
+      let tag = woche.tage.find(t => t.datum === pt.datum);
+      if (!tag) {
+        tag = {
+          datum: pt.datum, anwesenheit: '', ort: '', tagdauer: 'ganztag',
+          eintrag: '', betriebEintrag: '', schuleEintrag: '', unterweisungEintrag: '',
+        };
+        woche.tage.push(tag);
+      }
+      tag.anwesenheit = pt.anwesenheit;
+      tag.ort         = pt.ort;
+      tag.tagdauer    = 'ganztag';
+      const text = (pt.eintragText || '').trim();
+      if (text) {
+        if (pt.ort === 'Schule') tag.schuleEintrag  = pt.eintragText;
+        else                     tag.betriebEintrag = pt.eintragText;
+      }
+    });
+  }
+
   async function applySelection() {
     const selected = [];
     document.querySelectorAll('#ihkTableWrap .ztn-check:checked').forEach(cb => {
@@ -428,31 +489,10 @@ const IhkImport = (() => {
       // IhkParser (mapStatus → bereits eine App-Status-Konstante).
       woche.status = pw.status || 'offen';
 
-      // Wöchentliche Textfelder aus IHK-PDF übernehmen
-      woche.typ = 'wöchentlich';
-      const hasSchule       = !!(pw.schuleText       && pw.schuleText.trim());
-      const hasUnterweisung = !!(pw.unterweisungText && pw.unterweisungText.trim());
-      woche.wochenOrt         = hasSchule ? 'betrieb_schule' : 'betrieb';
-      woche.unterweisungAktiv = hasUnterweisung;
-      if (pw.betriebText)      woche.betriebEintrag      = pw.betriebText;
-      if (pw.schuleText)       woche.schuleEintrag       = pw.schuleText;
-      if (pw.unterweisungText) woche.unterweisungEintrag = pw.unterweisungText;
-
       if (!Array.isArray(woche.tage)) woche.tage = [];
 
-      // Anwesenheit/Ort/Tagdauer schreiben; bestehende eintrag-Texte erhalten.
-      // Exakte Stunden aus dem PDF werden NICHT mehr übernommen (Tagdauer-Modell):
-      // jeder anwesende Tag gilt standardmäßig als Ganztag.
-      pw.tage.forEach(pt => {
-        let tag = woche.tage.find(t => t.datum === pt.datum);
-        if (!tag) {
-          tag = { datum: pt.datum, anwesenheit: '', ort: '', tagdauer: 'ganztag', eintrag: '' };
-          woche.tage.push(tag);
-        }
-        tag.anwesenheit = pt.anwesenheit;
-        tag.ort         = pt.ort;
-        tag.tagdauer    = 'ganztag';
-      });
+      if (pw.modus === 'täglich') applyDaily(woche, pw);
+      else                        applyWeekly(woche, pw);
 
       // Wochensumme = Anzahl der Anwesenheitstage (Tagdauer-Modell), keine Stundensumme.
       woche.gesamtstunden = woche.tage.filter(t => t.anwesenheit === 'anwesend').length;

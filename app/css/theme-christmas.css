@@ -770,3 +770,153 @@ html[data-theme="christmas"] .bento .b-recent {
   [data-theme="christmas"] .b-hero::after,
   [data-theme="christmas"] .sidebar::after { -webkit-mask: none !important; mask: none !important; }
 }
+
+/* ===================================================================
+   HINTERGRUNDMUSIK-STEUERUNG – Button + Lautstärkeregler unten rechts
+   -------------------------------------------------------------------
+   Von js/theme.js (PMChristmasMusic) als direktes <body>-Kind
+   (.pm-xm-music) eingehängt, NUR solange das Christmas-Theme aktiv ist.
+   Baugleich zur Halloween-Steuerung, hier aber im Christmas-Look:
+   Nacht-Blau-Glas-Gehäuse, roter Mute-Button mit grünem Sekundär-Glow,
+   Slider als Zuckerstange (grüne Spur, roter Thumb). z-index zwischen
+   Sidebar (100) und Modal (200), bleibt also bei offenem Modal verdeckt.
+   data-muted spiegelt die EFFEKTIVE Stille (muted ODER Lautstärke 0). */
+.pm-xm-music {
+  position: fixed;
+  right: calc(18px + env(safe-area-inset-right, 0px));
+  bottom: calc(18px + env(safe-area-inset-bottom, 0px));
+  z-index: 150;
+  display: flex;
+  flex-direction: row;        /* Slider links, Button rechts (Wrapper rechts verankert → wächst nach links) */
+  align-items: center;
+  gap: 8px;
+}
+
+/* Lautstärke-Slider: eingeklappt (Breite 0), öffnet bei Hover/Fokus nach
+   links. Nacht-Blau-Pille mit rotem Rand und dezentem Innen-Glühen. */
+.pm-xm-music__vol {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 0;
+  height: 30px;
+  margin: 0;
+  padding: 0;
+  opacity: 0;
+  pointer-events: none;
+  border-radius: 999px;
+  background: rgba(16, 24, 40, 0.88);
+  border: 1px solid rgba(200, 16, 46, 0.40);
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.50),
+              inset 0 0 10px rgba(200, 16, 46, 0.12);
+  cursor: pointer;
+  transition: width 0.22s ease, opacity 0.22s ease, padding 0.22s ease;
+}
+.pm-xm-music:hover .pm-xm-music__vol,
+.pm-xm-music:focus-within .pm-xm-music__vol {
+  width: 124px;
+  padding: 0 12px;
+  opacity: 1;
+  pointer-events: auto;
+}
+.pm-xm-music__vol:focus-visible { outline: 2px solid #F2667A; outline-offset: 2px; }
+
+/* Range-Track + Thumb (WebKit/Blink) – grüne Spur (Tannengrün), roter Thumb. */
+.pm-xm-music__vol::-webkit-slider-runnable-track {
+  height: 4px;
+  border-radius: 999px;
+  background: rgba(67, 168, 86, 0.40);
+}
+.pm-xm-music__vol::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  margin-top: -5px;           /* (Thumb 14 − Track 4) / 2 → vertikal zentriert */
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #C8102E;
+  border: 2px solid #FFFFFF;
+  box-shadow: 0 0 8px rgba(200, 16, 46, 0.75);
+}
+/* Range-Track + Thumb (Firefox) */
+.pm-xm-music__vol::-moz-range-track {
+  height: 4px;
+  border-radius: 999px;
+  background: rgba(67, 168, 86, 0.40);
+}
+.pm-xm-music__vol::-moz-range-progress {
+  height: 4px;
+  border-radius: 999px;
+  background: #C8102E;        /* gefüllter Teil = Weihnachts-Rot */
+}
+.pm-xm-music__vol::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #C8102E;
+  border: 2px solid #FFFFFF;
+  box-shadow: 0 0 8px rgba(200, 16, 46, 0.75);
+}
+
+.pm-xm-music__btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 46px;
+  height: 46px;
+  padding: 0;
+  border-radius: 50%;
+  cursor: pointer;
+  color: #F2667A;
+  background: rgba(16, 24, 40, 0.84);
+  border: 1px solid rgba(200, 16, 46, 0.50);
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.50),
+              inset 0 0 0 1px rgba(67, 168, 86, 0.12);
+  transition: transform 0.15s ease, color 0.15s ease,
+              border-color 0.15s ease, box-shadow 0.2s ease;
+}
+.pm-xm-music__btn:hover {
+  color: #FFFFFF;
+  transform: translateY(-2px);
+  border-color: rgba(200, 16, 46, 0.90);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.55),
+              0 0 18px rgba(200, 16, 46, 0.55),
+              0 0 26px rgba(30, 123, 60, 0.28);
+}
+.pm-xm-music__btn:focus-visible {
+  outline: 2px solid #F2667A;
+  outline-offset: 2px;
+}
+.pm-xm-music__btn:active { transform: translateY(0); }
+
+/* Ton AN: ruhiges, stetiges Rot-Glühen mit grünem Sekundär-Schimmer. */
+.pm-xm-music__btn[data-muted="false"] {
+  color: #FFFFFF;
+  border-color: rgba(200, 16, 46, 0.75);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.50),
+              0 0 14px rgba(200, 16, 46, 0.50),
+              0 0 22px rgba(30, 123, 60, 0.24);
+}
+
+/* Stumm: dezenter Puls als Hinweis, dass hier Ton wartet. */
+.pm-xm-music__btn[data-muted="true"] {
+  animation: pm-xm-music-pulse 2.6s ease-in-out infinite;
+}
+@keyframes pm-xm-music-pulse {
+  0%, 100% { box-shadow: 0 4px 14px rgba(0, 0, 0, 0.50),
+                         0 0 0 0 rgba(200, 16, 46, 0.0); }
+  50%      { box-shadow: 0 4px 14px rgba(0, 0, 0, 0.50),
+                         0 0 0 6px rgba(200, 16, 46, 0.16); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pm-xm-music__btn,
+  .pm-xm-music__btn[data-muted="true"],
+  .pm-xm-music__vol { animation: none; transition: none; }
+}
+
+/* Druck-Ansicht: Steuerelement nicht mitdrucken. */
+@media print { .pm-xm-music { display: none !important; } }
