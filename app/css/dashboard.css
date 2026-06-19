@@ -1734,7 +1734,8 @@ html[data-theme="dark"] .b-hero__kw {
 }
 
 /* ───────── Ausbildung (Dark Tile mit SVG-Donut) ───────── */
-.b-azubi {
+.b-azubi,
+.b-mitteilungen {
   grid-column: span 4;
   grid-row: span 3;
   display: flex; flex-direction: column;
@@ -1792,19 +1793,19 @@ html[data-theme="dark"] .b-azubi::before {
   margin: 0 -6px; padding: 2px 6px 0;
 }
 .b-mitteilungen__empty {
-  color: rgba(255,255,255,0.5); font-size: var(--text-sm);
+  color: rgba(14,17,22,0.5); font-size: var(--text-sm);
   margin: auto 0; text-align: center;
 }
 .b-mitteilung {
   display: flex; align-items: flex-start; gap: var(--sp-3);
   padding: var(--sp-3); border-radius: var(--r-md);
-  background: rgba(255,255,255,0.06);
-  border: 1px solid rgba(255,255,255,0.08);
+  background: rgba(14,17,22,0.04);
+  border: 1px solid rgba(14,17,22,0.08);
   color: inherit; text-decoration: none;
   position: relative;
   transition: background var(--t-fast), border-color var(--t-fast), transform var(--t-fast);
 }
-.b-mitteilung:hover { background: rgba(255,255,255,0.11); transform: translateY(-1px); }
+.b-mitteilung:hover { background: rgba(14,17,22,0.07); transform: translateY(-1px); }
 .b-mitteilung__icon {
   flex-shrink: 0; width: 32px; height: 32px; border-radius: 50%;
   display: flex; align-items: center; justify-content: center;
@@ -1815,9 +1816,9 @@ html[data-theme="dark"] .b-azubi::before {
 .b-mitteilung__icon--rem { background: rgba(255,195,0,0.18); color: var(--pm-yellow); }
 .b-mitteilung__body { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1; }
 .b-mitteilung__title { font-weight: 600; font-size: var(--text-sm); }
-.b-mitteilung__meta { font-size: 12px; color: rgba(255,255,255,0.5); }
+.b-mitteilung__meta { font-size: 12px; color: rgba(14,17,22,0.5); }
 .b-mitteilung__preview {
-  font-size: 12px; color: rgba(255,255,255,0.7); margin-top: 2px;
+  font-size: 12px; color: rgba(14,17,22,0.62); margin-top: 2px;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%;
 }
 .b-mitteilung__dot {
@@ -1825,7 +1826,37 @@ html[data-theme="dark"] .b-azubi::before {
   width: 8px; height: 8px; border-radius: 50%; background: var(--pm-yellow);
 }
 .b-mitteilung--unread { border-color: rgba(255,195,0,0.30); }
-html[data-theme="dark"] .b-azubi {
+
+/* Dunkle Oberflächen (Standard-Dark + Silk via data-theme="dark", plus die
+   dunklen Custom-Themes hyperspace/cmd/halloween): Listen-Items von dunkel
+   getöntem Glas auf helle Weiß-Overlays drehen. Die hellen Themes (Standard-
+   Light, candy, iceland) bleiben bei der hell getönten Basis oben. Der Titel
+   erbt die adaptive Kachelfarbe (color: inherit) und braucht keinen Override. */
+html[data-theme="dark"] .b-mitteilung,
+html[data-theme="hyperspace"] .b-mitteilung,
+html[data-theme="halloween"] .b-mitteilung,
+html[data-theme="cmd"] .b-mitteilung {
+  background: rgba(255,255,255,0.06);
+  border-color: rgba(255,255,255,0.08);
+}
+html[data-theme="dark"] .b-mitteilung:hover,
+html[data-theme="hyperspace"] .b-mitteilung:hover,
+html[data-theme="halloween"] .b-mitteilung:hover,
+html[data-theme="cmd"] .b-mitteilung:hover { background: rgba(255,255,255,0.11); }
+html[data-theme="dark"] .b-mitteilung__meta,
+html[data-theme="hyperspace"] .b-mitteilung__meta,
+html[data-theme="halloween"] .b-mitteilung__meta,
+html[data-theme="cmd"] .b-mitteilung__meta,
+html[data-theme="dark"] .b-mitteilungen__empty,
+html[data-theme="hyperspace"] .b-mitteilungen__empty,
+html[data-theme="halloween"] .b-mitteilungen__empty,
+html[data-theme="cmd"] .b-mitteilungen__empty { color: rgba(255,255,255,0.5); }
+html[data-theme="dark"] .b-mitteilung__preview,
+html[data-theme="hyperspace"] .b-mitteilung__preview,
+html[data-theme="halloween"] .b-mitteilung__preview,
+html[data-theme="cmd"] .b-mitteilung__preview { color: rgba(255,255,255,0.7); }
+html[data-theme="dark"] .b-azubi,
+html[data-theme="dark"] .b-mitteilungen {
   background-image:
     linear-gradient(160deg, rgba(10,12,16,0.16) 0%, rgba(10,12,16,0.00) 100%),
     url("../assets/backgrounds/tile-series-training-dark.png?v=20260602-series");

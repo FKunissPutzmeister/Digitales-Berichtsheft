@@ -172,7 +172,9 @@
   background: var(--pm-grey-50);
   position: sticky;
   top: 0;
-  z-index: 2;
+  /* Über der sticky Personen-/„Abteilungen"-Spalte (z-index 3) und über der
+     „Heute"-Linie/-Marke, damit der Header sie beim Scrollen sauber überdeckt. */
+  z-index: 4;
 }
 .gantt-header__name-col {
   width: 280px;
@@ -276,7 +278,10 @@
   overflow: hidden;
   position: sticky;
   left: 0;
-  z-index: 2;
+  /* Über „Heute"-Linie (2) und „Heute"-Marke (2): die gepinnte Spalte
+     überdeckt sie beim horizontalen Scrollen, statt von ihnen überlagert zu
+     werden – die rote Linie liegt damit nicht mehr über „Abteilungen". */
+  z-index: 3;
   background: var(--pm-white);
 }
 .gantt-row__info-text {
@@ -432,7 +437,9 @@
   border-radius: var(--r-full);
   white-space: nowrap;
   pointer-events: none;
-  z-index: 3;
+  /* Gleiche Ebene wie die Linie und unter der gepinnten Info-Spalte (3),
+     damit die Marke beim Scrollen hinter „Abteilungen" verschwindet. */
+  z-index: 2;
 }
 
 /* ── Legende ── entfällt: Die Balkenfarben werden im Roster (Zone 1,

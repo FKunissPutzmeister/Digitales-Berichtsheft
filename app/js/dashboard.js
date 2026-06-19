@@ -400,7 +400,7 @@ async function renderAzubiDashboard(user) {
   const mtEmptyHtml = (!mtNotifHtml && !mtFahrgeldHtml)
     ? '<div class="b-mitteilungen__empty">Keine neuen Mitteilungen</div>' : '';
   const mitteilungenSectionHtml = `
-      <section class="b-tile b-tile--dark b-mitteilungen animate-fade-in">
+      <section class="b-tile b-mitteilungen animate-fade-in">
         <div class="b-azubi__head">
           <span class="eyebrow">Mitteilungen</span>
           ${mtUnread > 0 ? `<span class="b-mitteilungen__badge">${mtUnread > 9 ? '9+' : mtUnread}</span>` : ''}

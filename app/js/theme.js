@@ -1361,6 +1361,19 @@
     });
   }
 
+  /* Reduzierte FX-Templates NUR für die Login-Seite (greifen in
+     ensureThemeFX VOR den Vollszenen-Templates FX_TEMPLATES).
+     halloween: eigenes Login-Hintergrundbild (.pm-hw-login-bg) + die
+     abseilende Spinne oben links – KEIN Geisterhaus, Nebel oder Musik. */
+  var FX_LOGIN_TEMPLATES = {
+    halloween:
+      '<div class="pm-hw-login-bg"></div>' +
+      '<div class="pm-hw-spider pm-hw-spider--login"><i class="pm-hw-spider__thread"></i><i class="pm-hw-spider__body"></i></div>' +
+      '<div class="pm-hw-spider pm-hw-spider--login-2"><i class="pm-hw-spider__thread"></i><i class="pm-hw-spider__body"></i></div>' +
+      '<div class="pm-hw-spider pm-hw-spider--login-3"><i class="pm-hw-spider__thread"></i><i class="pm-hw-spider__body"></i></div>' +
+      '<div class="pm-hw-spider pm-hw-spider--login-4"><i class="pm-hw-spider__thread"></i><i class="pm-hw-spider__body"></i></div>'
+  };
+
   /* FX-Container für das übergebene Theme (neu) aufbauen.
      Idempotent: ein evtl. vorhandener Container wird immer zuerst
      entfernt; mehrfaches apply() erzeugt also keine Duplikate.
@@ -1391,14 +1404,18 @@
     PMChristmasSnow.stop();
     PMHalloweenMusic.stop();
 
-    var tpl = FX_TEMPLATES[theme] || '';   // light/dark/unbekannt → ''
-    if (!tpl) return;
-    /* Login-Seite: kein FX – AUSNAHME cmd-Theme: dort soll der Terminal-
-       Matrix-Regen als Hintergrund laufen (statt der grünen Brand-Fläche,
-       die --pm-yellow im cmd-Theme erzeugt). Die übrigen Custom-Themes
+    /* Login-Seite: kein FX – AUSNAHMEN: cmd (Terminal-Matrix als Hintergrund
+       statt der Brand-Fläche) und halloween (reduzierte Szene: Login-
+       Hintergrundbild + abseilende Spinne oben links). Übrige Custom-Themes
        bleiben auf Login aus (deren ::before/::after-Ambient sind via
        glass.css ohnehin deaktiviert). */
-    if (document.body.classList.contains('login-page') && theme !== 'cmd') return;
+    var isLogin = document.body.classList.contains('login-page');
+    if (isLogin && theme !== 'cmd' && theme !== 'halloween') return;
+
+    /* Auf der Login-Seite ggf. ein reduziertes Template; sonst die Vollszene.
+       light/dark/unbekannt → '' → kein FX. */
+    var tpl = (isLogin && FX_LOGIN_TEMPLATES[theme]) || FX_TEMPLATES[theme] || '';
+    if (!tpl) return;
 
     var el = document.createElement('div');
     el.id = 'pmThemeFX';
@@ -1419,9 +1436,9 @@
       if (bubbleCanvas) PMCandyBubbles.start(bubbleCanvas);
       wireCandyUnicornSwap(el);
     } else if (theme === 'halloween') {
-      var fogCanvas = el.querySelector('.pm-hw-fog');
+      var fogCanvas = el.querySelector('.pm-hw-fog');   // im Login-Template nicht vorhanden → null
       if (fogCanvas) PMHalloweenFog.start(fogCanvas);
-      PMHalloweenMusic.start();   // gemuteter Stimmungs-Loop + Unmute-Button
+      if (!isLogin) PMHalloweenMusic.start();   // Musik nur in der App, nicht auf Login
     } else if (theme === 'christmas') {
       var snowCanvas = el.querySelector('.pm-xm-snow');
       if (snowCanvas) PMChristmasSnow.start(snowCanvas);
