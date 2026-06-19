@@ -1193,16 +1193,19 @@
      bewusst NICHT (sonst würde der Browser unmuted-Autoplay nach einem
      echten Page-Load erneut blockieren und der Loop bliebe stumm stehen).
 
-     <audio> + Button hängen DIREKT am <body> (NICHT in #pmThemeFX – der
-     ist aria-hidden + pointer-events:none, der Button muss aber klickbar
-     sein). router.js fasst nur `body > .modal-overlay` an → beide
-     überleben Seitenwechsel. Styling des Buttons in
-     css/theme-halloween.css (.pm-hw-music-btn). */
+     <audio> + Steuer-Wrapper hängen DIREKT am <body> (NICHT in #pmThemeFX –
+     der ist aria-hidden + pointer-events:none, die Bedienelemente müssen
+     aber klickbar sein). router.js fasst nur `body > .modal-overlay` an →
+     beide überleben Seitenwechsel. Struktur (Styling in
+     css/theme-halloween.css): .pm-hw-music (Wrapper, fixed unten rechts)
+     > .pm-hw-music__vol (Lautstärke-Slider) + .pm-hw-music__btn (Mute-
+     Button). data-muted am Button = EFFEKTIVE Stille (muted ODER Vol 0). */
   var PMHalloweenMusic = (function () {
-    var SRC      = 'assets/music/Halloween-Backgroundmusic.mp3';
-    var AUDIO_ID = 'pmHwMusicAudio';
-    var BTN_ID   = 'pmHwMusicBtn';
-    var audio = null, btn = null;
+    var SRC         = 'assets/music/Halloween-Backgroundmusic.mp3';
+    var WRAP_ID     = 'pmHwMusic';
+    var AUDIO_ID    = 'pmHwMusicAudio';
+    var DEFAULT_VOL = 0.5;
+    var audio = null, wrap = null, btn = null, vol = null;
 
     /* Lautsprecher-Triangel (gefüllt) + Schallwellen / X (gestrichelt).
        Attribute inline, damit die Icons unabhängig vom CSS korrekt füllen. */
@@ -1218,24 +1221,47 @@
         '<path d="m16 9 5 6M21 9l-5 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>' +
       '</svg>';
 
+    /* EFFEKTIVE Stille: hart gemutet ODER Lautstärke 0 (siehe CSS-Kommentar). */
+    function effectiveMuted() { return !audio || audio.muted || audio.volume === 0; }
+
+    function ensurePlaying() {
+      if (audio && audio.paused) {
+        try { var p = audio.play(); if (p && p.catch) p.catch(function () {}); } catch (e) {}
+      }
+    }
+
     function render() {
       if (!btn || !audio) return;
-      var muted = audio.muted;
-      btn.innerHTML = muted ? ICON_MUTED : ICON_ON;
-      btn.setAttribute('data-muted', muted ? 'true' : 'false');
-      btn.setAttribute('aria-pressed', muted ? 'false' : 'true');
-      var label = muted ? 'Hintergrundmusik einschalten' : 'Hintergrundmusik stummschalten';
+      var m = effectiveMuted();
+      btn.innerHTML = m ? ICON_MUTED : ICON_ON;
+      btn.setAttribute('data-muted', m ? 'true' : 'false');
+      btn.setAttribute('aria-pressed', m ? 'false' : 'true');
+      var label = m ? 'Hintergrundmusik einschalten' : 'Hintergrundmusik stummschalten';
       btn.setAttribute('aria-label', label);
       btn.setAttribute('title', label);
+      /* Slider mit der echten Lautstärke synchronisieren (nicht, während der
+         Nutzer ihn gerade zieht → würde den Drag stören). */
+      if (vol && document.activeElement !== vol) vol.value = String(audio.volume);
     }
 
     function toggle() {
       if (!audio) return;
-      audio.muted = !audio.muted;
-      /* Beim Einschalten sicherstellen, dass der Loop wirklich läuft –
-         jetzt liegt eine Nutzergeste vor, falls der stumme Autoplay zuvor
-         verweigert wurde. */
-      if (!audio.muted && audio.paused) { try { audio.play(); } catch (e) {} }
+      if (effectiveMuted()) {
+        audio.muted = false;
+        if (audio.volume === 0) audio.volume = DEFAULT_VOL;   // sonst bliebe es still
+        ensurePlaying();   // Nutzergeste liegt vor → Ton sicher starten
+      } else {
+        audio.muted = true;
+      }
+      render();
+    }
+
+    function onVol() {
+      if (!audio || !vol) return;
+      var v = parseFloat(vol.value);
+      if (isNaN(v)) v = 0;
+      audio.volume = v;
+      if (v > 0) { audio.muted = false; ensurePlaying(); }  // Lautstärke hochziehen = unmuten
       render();
     }
 
@@ -1247,30 +1273,45 @@
       audio.id = AUDIO_ID;
       audio.src = SRC;
       audio.loop = true;
-      audio.muted = true;          // Standard: stumm
+      audio.muted = true;          // Standard: stumm (muted autoplay erlaubt)
+      audio.volume = DEFAULT_VOL;
       audio.preload = 'auto';
       audio.setAttribute('aria-hidden', 'true');
       document.body.appendChild(audio);
       try { var p = audio.play(); if (p && p.catch) p.catch(function () {}); } catch (e) {}
 
+      wrap = document.createElement('div');
+      wrap.id = WRAP_ID;
+      wrap.className = 'pm-hw-music';
+
+      vol = document.createElement('input');
+      vol.type = 'range';
+      vol.className = 'pm-hw-music__vol';
+      vol.min = '0'; vol.max = '1'; vol.step = '0.01';
+      vol.value = String(DEFAULT_VOL);
+      vol.setAttribute('aria-label', 'Lautstärke der Hintergrundmusik');
+      vol.addEventListener('input', onVol);
+
       btn = document.createElement('button');
-      btn.id = BTN_ID;
       btn.type = 'button';
-      btn.className = 'pm-hw-music-btn';
+      btn.className = 'pm-hw-music__btn';
       btn.addEventListener('click', toggle);
-      document.body.appendChild(btn);
+
+      wrap.appendChild(vol);
+      wrap.appendChild(btn);
+      document.body.appendChild(wrap);
       render();
     }
 
     function stop() {
-      var oldBtn = document.getElementById(BTN_ID);
-      if (oldBtn && oldBtn.parentNode) oldBtn.parentNode.removeChild(oldBtn);
+      var oldWrap = document.getElementById(WRAP_ID);
+      if (oldWrap && oldWrap.parentNode) oldWrap.parentNode.removeChild(oldWrap);
       var oldAudio = document.getElementById(AUDIO_ID);
       if (oldAudio) {
         try { oldAudio.pause(); } catch (e) {}
         if (oldAudio.parentNode) oldAudio.parentNode.removeChild(oldAudio);
       }
-      audio = null; btn = null;
+      audio = null; wrap = null; btn = null; vol = null;
     }
 
     return { start: start, stop: stop };
