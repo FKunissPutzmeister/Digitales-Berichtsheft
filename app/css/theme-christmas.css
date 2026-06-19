@@ -621,7 +621,7 @@ html[data-theme="christmas"] .bento .b-recent {
 
 /* Dashboard-Hero-CTA: kleine schräge Mütze auf der rechten oberen Ecke */
 /* position: relative ist bereits gesetzt; overflow: visible ergänzen */
-[data-theme="christmas"] .b-btn-primary { overflow: visible; }
+[data-theme="christmas"] .b-btn-primary { position: relative; overflow: visible; }
 [data-theme="christmas"] .b-btn-primary::after {
   content: ""; position: absolute; right: -6px; top: -12px;
   width: 22px; height: 18px; transform: rotate(16deg);
