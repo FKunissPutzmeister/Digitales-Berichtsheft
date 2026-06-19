@@ -424,6 +424,10 @@ details.profil-section .profil-section__body-wrap > .profil-section__body {
     radial-gradient(62% 52% at 50% 122%, rgba(255, 117, 24, 0.50), transparent 70%),
     linear-gradient(180deg, #0b0714 0%, #1d0f26 58%, #0a0510 100%);
 }
+.theme-tile__swatch--christmas {
+  background: linear-gradient(135deg, #0C1422 0%, #C8102E 55%, #1E7B3C 100%);
+}
+
 .theme-tile__swatch--halloween::after {
   content: '';
   position: absolute;

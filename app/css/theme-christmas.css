@@ -1,0 +1,100 @@
+/* ===================================================================
+   THEME-CHRISTMAS.CSS – „Verschneite Winternacht", dunkel, Weihnachts-Rot
+   -------------------------------------------------------------------
+   Wird von jeder HTML-Seite als eigenes <link>-Stylesheet DIREKT VOR
+   themes.css geladen. Gehört EXKLUSIV dem Christmas-Designer.
+   Szene (FX-Layer #pmThemeFX, Template "christmas" in js/theme.js):
+   Winterbild (assets/backgrounds/Christmas Background.jpeg) + pulsierende
+   Baum-Licht-Glows + <canvas> Schneefall (Engine PMChristmasSnow).
+   =================================================================== */
+html[data-theme="christmas"] { color-scheme: dark; }
+
+[data-theme="christmas"] {
+  /* Akzent: Weihnachts-Rot ersetzt Brand-Gelb */
+  --pm-yellow:        #C8102E;
+  --pm-yellow-dark:   #E2384F;   /* heller in Dark – Hover */
+  --pm-yellow-darker: #C8102E;
+  --pm-yellow-light:  #F2667A;
+  --pm-yellow-pale:   rgba(200, 16, 46, 0.24);
+  --pm-yellow-bg:     rgba(200, 16, 46, 0.14);
+  --on-yellow-text:   #FFFFFF;   /* weiß auf Rot */
+
+  /* Grau-Skala → kühles Blau-Nacht (Karten heller als Body), Surfaces
+     translucent, damit die Szene durchscheint; Alpha hoch genug für Text. */
+  --pm-white:    rgba(24, 34, 52, 0.88);
+  --pm-grey-50:  rgba(10, 16, 28, 0.72);
+  --pm-grey-100: rgba(96, 120, 160, 0.26);
+  --pm-grey-200: #2A3852;
+  --pm-grey-300: #3D506E;
+  --pm-grey-400: #8FA2C0;
+  --pm-grey-500: #AEBFD8;
+  --pm-grey-600: #C9D6E8;
+  --pm-grey-700: #DEE7F4;
+  --pm-grey-800: #EDF2FA;
+  --pm-grey-900: #F8FBFF;
+
+  /* Status-Tints als Overlays (wie Dark-Mode) */
+  --color-success-light: rgba(67, 168, 86, 0.18);
+  --color-error-light:   rgba(229, 57, 53, 0.20);
+  --color-info-light:    rgba(25, 118, 210, 0.22);
+  --color-warning-light: rgba(244, 81, 30, 0.20);
+  --color-error-mid:     #FF7A6B;
+  --color-info-mid:      #69B6F2;
+  --status-offen-bg:        rgba(150, 165, 195, 0.18);
+  --status-freigegeben-bg:  rgba(25, 118, 210, 0.24);
+  --status-genehmigt-bg:    rgba(67, 168, 86, 0.20);
+  --status-abgelehnt-bg:    rgba(229, 57, 53, 0.24);
+
+  /* Schatten tief; Akzent-Glow rot, sekundär grün */
+  --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.50);
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.45), 0 1px 3px rgba(0, 0, 0, 0.55);
+  --shadow-md: 0 2px 4px rgba(0, 0, 0, 0.45), 0 6px 14px rgba(0, 0, 0, 0.55);
+  --shadow-lg: 0 4px 10px rgba(0, 0, 0, 0.50), 0 14px 28px rgba(0, 0, 0, 0.58);
+  --shadow-xl: 0 8px 16px rgba(0, 0, 0, 0.55), 0 24px 48px rgba(0, 0, 0, 0.68);
+  --shadow-yellow:    0 4px 18px rgba(200, 16, 46, 0.40), 0 0 26px rgba(30, 123, 60, 0.24);
+  --shadow-yellow-lg: 0 8px 34px rgba(200, 16, 46, 0.48), 0 0 44px rgba(30, 123, 60, 0.28);
+  --ring-yellow:    0 0 0 3px rgba(200, 16, 46, 0.36), 0 0 18px rgba(200, 16, 46, 0.40);
+  --ring-yellow-sm: 0 0 0 2px rgba(200, 16, 46, 0.32), 0 0 12px rgba(200, 16, 46, 0.34);
+  --ring-error:     0 0 0 3px rgba(229, 57, 53, 0.32);
+  --ring-info:      0 0 0 3px rgba(25, 118, 210, 0.30);
+
+  /* Inverse Surfaces / Topbar / Overlay */
+  --sidebar-bg:           #0C1422;
+  --inverse-surface:      #0C1422;
+  --inverse-surface-soft: #16202F;
+  --inverse-surface-mid:  #1F2C3F;
+  --topbar-bg-glass:      rgba(12, 20, 34, 0.80);
+  --surface-overlay:      rgba(4, 8, 16, 0.62);
+
+  /* Glass-Token (glass.css) – dunkles, kühles Glas */
+  --glass-bg:          rgba(22, 32, 50, 0.55);
+  --glass-bg-strong:   rgba(22, 32, 50, 0.82);
+  --glass-bg-tint:     rgba(22, 60, 40, 0.36);
+  --glass-border:      rgba(170, 200, 230, 0.16);
+  --glass-border-soft: rgba(170, 200, 230, 0.08);
+  --glass-highlight:   rgba(200, 222, 255, 0.12);
+  --glass-shadow:      0 1px 0 rgba(200, 222, 255, 0.08) inset,
+                       0 -1px 0 rgba(0, 0, 0, 0.40) inset,
+                       0 14px 36px rgba(0, 0, 0, 0.52),
+                       0 2px 8px rgba(0, 0, 0, 0.42);
+  --ambient-yellow:    rgba(200, 16, 46, 0.10);
+  --ambient-yellow-2:  rgba(30, 123, 60, 0.07);
+  --ambient-neutral:   rgba(120, 150, 190, 0.07);
+
+  /* App-Hintergrund AUS – die Szene (#pmThemeFX) übernimmt. */
+  --app-bg-image:     none;
+  --app-bg-overlay:   none;
+  --app-bg-vignette:  none;
+  --sidebar-bg-image: linear-gradient(180deg, rgba(18, 28, 46, 0.82) 0%, rgba(8, 14, 26, 0.90) 100%);
+  --sidebar-glass:      rgba(14, 22, 38, 0.74);
+  --sidebar-glass-deep: rgba(8, 14, 26, 0.90);
+  --sidebar-line:       rgba(200, 16, 46, 0.32);
+
+  /* Liquid-Glass-Pill-Token (Floating Sidebar) */
+  --lg-tint:        rgba(22, 32, 50, 0.62);
+  --lg-tint-strong: rgba(28, 40, 60, 0.82);
+  --lg-tint-soft:   rgba(22, 32, 50, 0.42);
+  --lg-tint-warm:   rgba(22, 60, 40, 0.42);
+  --lg-sidebar:     rgba(12, 20, 34, 0.76);
+  --lg-border:      rgba(170, 200, 230, 0.16);
+}

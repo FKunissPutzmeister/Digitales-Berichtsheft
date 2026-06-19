@@ -81,6 +81,7 @@ html[data-theme="hyperspace"] .sidebar__theme-toggle,
 html[data-theme="cmd"]        .sidebar__theme-toggle,
 html[data-theme="candy"]      .sidebar__theme-toggle,
 html[data-theme="iceland"]    .sidebar__theme-toggle,
+html[data-theme="christmas"]  .sidebar__theme-toggle,
 html[data-skin]               .sidebar__theme-toggle {
   display: none !important;
 }
@@ -108,7 +109,9 @@ body:has(.modal-overlay.open) #pmThemeFX * {
 [data-theme="iceland"] body:has(.modal-overlay.open)::before,
 [data-theme="iceland"] body:has(.modal-overlay.open)::after,
 [data-theme="halloween"] body:has(.modal-overlay.open)::before,
-[data-theme="halloween"] body:has(.modal-overlay.open)::after {
+[data-theme="halloween"] body:has(.modal-overlay.open)::after,
+[data-theme="christmas"] body:has(.modal-overlay.open)::before,
+[data-theme="christmas"] body:has(.modal-overlay.open)::after {
   animation-play-state: paused !important;
 }
 
@@ -125,7 +128,9 @@ body:has(.modal-overlay.open) #pmThemeFX * {
   [data-theme="iceland"] body::before,
   [data-theme="iceland"] body::after,
   [data-theme="halloween"] body::before,
-  [data-theme="halloween"] body::after {
+  [data-theme="halloween"] body::after,
+  [data-theme="christmas"] body::before,
+  [data-theme="christmas"] body::after {
     animation: none !important;
   }
   /* FX-Layer: Container + alle Kinder (Templates aus theme.js) still */
@@ -143,7 +148,8 @@ body:has(.modal-overlay.open) #pmThemeFX * {
   [data-theme="cmd"] body::before,        [data-theme="cmd"] body::after,
   [data-theme="candy"] body::before,      [data-theme="candy"] body::after,
   [data-theme="iceland"] body::before,    [data-theme="iceland"] body::after,
-  [data-theme="halloween"] body::before,  [data-theme="halloween"] body::after {
+  [data-theme="halloween"] body::before,  [data-theme="halloween"] body::after,
+  [data-theme="christmas"] body::before,  [data-theme="christmas"] body::after {
     display: none;
   }
   #pmThemeFX { display: none !important; }

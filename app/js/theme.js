@@ -26,7 +26,7 @@
 (function () {
   var STORAGE_KEY = 'theme';        // Standard-Modus: 'light' | 'dark'
   var CUSTOM_KEY  = 'customTheme';  // Custom-Design oder nicht gesetzt
-  var CUSTOM_THEMES = ['hyperspace', 'cmd', 'candy', 'iceland', 'silk', 'halloween'];
+  var CUSTOM_THEMES = ['hyperspace', 'cmd', 'candy', 'iceland', 'silk', 'halloween', 'christmas'];
   var html = document.documentElement;
 
   /* ── Silk-Farbvarianten ───────────────────────────────────────────
