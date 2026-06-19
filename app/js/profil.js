@@ -124,11 +124,10 @@ document.addEventListener('DOMContentLoaded', async () => {
      zurück (implementiert in PMTheme.set/toggle, theme.js). */
   const THEME_DESIGNS = [
     { id: '',           name: 'Standard',   sub: 'Putzmeister-Design' },
-    { id: 'hyperspace', name: 'Hyperspace', sub: 'Weltall & Neon' },
+    { id: 'silk',       name: 'Silk',       sub: 'Liquid Glass · futuristisch' },
     { id: 'cmd',        name: 'CMD',        sub: 'Terminal, Grün auf Schwarz' },
     { id: 'candy',      name: 'Candy Land', sub: 'Pastell & Regenbogen' },
     { id: 'iceland',    name: 'Iceland',    sub: 'Schnee, Eis & Iglu' },
-    { id: 'silk',       name: 'Silk',       sub: 'Liquid Glass · futuristisch' },
     { id: 'halloween',  name: 'Halloween',  sub: 'Geisterhaus & Nebel' },
   ];
 
@@ -152,14 +151,10 @@ document.addEventListener('DOMContentLoaded', async () => {
        sehen nur den Hell/Dunkel-Umschalter: Titel ohne „& Themes",
        kürzerer Hinweis, keine Custom-Design-Gruppe. */
     const title = isAzubi ? 'Darstellung &amp; Themes' : 'Darstellung';
-    const standardHint = isAzubi
-      ? 'Gilt überall, solange kein Custom-Design aktiv ist. Der Hell/Dunkel-Schalter in der Sidebar wechselt diesen Modus.'
-      : 'Der Hell/Dunkel-Schalter in der Sidebar wechselt ebenfalls diesen Modus.';
 
     const customGroup = !isAzubi ? '' : `
           <div class="theme-group">
             <div class="theme-group__label">Custom-Design</div>
-            <p class="theme-group__hint">Ein Custom-Design überlagert den Standard-Modus. Ein Klick auf den Hell/Dunkel-Schalter in der Sidebar beendet das Custom-Design und kehrt zum Standard-Modus zurück.</p>
             <div class="theme-tiles">
               ${THEME_DESIGNS.map(d => `
                 <button type="button" class="theme-tile ${custom === d.id ? 'active' : ''}"
@@ -171,7 +166,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             </div>
             <div class="silk-colors ${custom === 'silk' ? 'is-visible' : ''}" id="silkColorRow">
               <div class="theme-group__label" style="margin-top:var(--sp-4)">Silk-Farbe</div>
-              <p class="theme-group__hint">Grundton des Silk-Designs – Hintergrund, Glas, Strahlen und Akzente wechseln mit.</p>
               <div class="silk-swatches">
                 ${silkColors.map(c => `
                   <button type="button" class="silk-swatch ${silkColor === c.id ? 'active' : ''}" data-silk-color="${c.id}" style="--sw-hue:${c.hue}" title="${c.label}" aria-label="${c.label}" aria-pressed="${silkColor === c.id}">
@@ -195,7 +189,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         <div class="profil-section__body-wrap"><div class="profil-section__body">
           <div class="theme-group">
             <div class="theme-group__label">Standard-Modus</div>
-            <p class="theme-group__hint">${standardHint}</p>
             <div class="theme-mode-row">
               ${modeBtn('light', 'Hell', SUN)}
               ${modeBtn('dark', 'Dunkel', MOON)}
@@ -398,9 +391,6 @@ document.addEventListener('DOMContentLoaded', async () => {
           <div class="profil-section__title">Deine Ausbildungsbeauftragten</div>
         </summary>
         <div class="profil-section__body-wrap"><div class="profil-section__body">
-          <p style="font-size:var(--text-sm);color:var(--pm-grey-500);margin-bottom:var(--sp-5)">
-            Diese Personen sind oder waren als deine persönlichen Ausbildungsbeauftragten hinterlegt und begleiten dich in den jeweiligen Abteilungen und Zeiträumen.
-          </p>
           <div class="ausbilder-timeline">
             ${items}
           </div>
@@ -505,7 +495,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         </div>
         <div class="profil-logout__text">
           <div class="profil-logout__title">Abmelden</div>
-          <div class="profil-logout__sub">Beendet deine aktuelle Sitzung und führt dich zurück zur Anmeldeseite.</div>
         </div>
         <button class="btn btn-danger" id="logoutBtn" type="button">
           <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" style="width:16px;height:16px">
@@ -615,7 +604,6 @@ document.addEventListener('DOMContentLoaded', async () => {
       ${hasImport ? `
       <div class="profil-panels profil-panels--import" id="panel-import"
            role="tabpanel" aria-labelledby="tab-import" hidden>
-        <p class="profil-import-intro">Übernimm Daten aus externen Quellen direkt in dein Berichtsheft – ohne alles von Hand einzutragen.</p>
         ${zeitnachweisHtml}
         ${ihkHtml}
       </div>` : ''}

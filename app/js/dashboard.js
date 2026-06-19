@@ -82,7 +82,6 @@ async function renderAzubiDashboard(user) {
   const wocheTage = aktuelleWoche
     ? (aktuelleWoche.tage || []).filter(t => t.anwesenheit === 'anwesend').length
     : 0;
-  const statusLbl = { offen: 'Offen', freigegeben: 'Freigegeben', genehmigt: 'Genehmigt', abgelehnt: 'Zurückgegeben' }[aktStatus] || 'Offen';
   const monday    = DateUtil.getMondayOfKW(kw, kwYear);
   const sunday    = new Date(monday); sunday.setDate(monday.getDate() + 6);
   const hasProgress = user.ausbildungsBeginn && user.ausbildungsEnde;
@@ -146,7 +145,6 @@ async function renderAzubiDashboard(user) {
             <span class="dash-tile__eyebrow">Aktuelle Woche</span>
             <h2 class="dash-tile__title">KW ${kw} · ${range}</h2>
           </div>
-          <span class="badge badge--${aktStatus}">${statusLbl}</span>
         </div>
         <div class="week-status-list dash-hero__days">
           ${renderWeekStatusDays(aktuelleWoche, kw, kwYear)}
@@ -169,16 +167,6 @@ async function renderAzubiDashboard(user) {
      - Frist: Bis Sonntag 23:59 (gelb).
      - Stats: Sparkline der letzten 12 Wochen + Streak-Pille. */
 
-  function bentoStatusClass(status) {
-    if (status === 'genehmigt')   return 'genehmigt';
-    if (status === 'freigegeben') return 'freigegeben';
-    if (status === 'abgelehnt')   return 'abgelehnt';
-    return 'offen';
-  }
-  function bentoStatusLabel(status) {
-    return { genehmigt: 'Genehmigt', freigegeben: 'Freigegeben',
-             abgelehnt: 'Zurückgegeben', offen: 'Entwurf' }[bentoStatusClass(status)];
-  }
   function wkcardKind(w) {
     if (!w) return 'draft';
     if (w.status === 'genehmigt')   return 'ok';
@@ -400,7 +388,7 @@ async function renderAzubiDashboard(user) {
   const mtEmptyHtml = (!mtNotifHtml && !mtFahrgeldHtml)
     ? '<div class="b-mitteilungen__empty">Keine neuen Mitteilungen</div>' : '';
   const mitteilungenSectionHtml = `
-      <section class="b-tile b-tile--dark b-mitteilungen animate-fade-in">
+      <section class="b-tile b-tile--glass b-mitteilungen animate-fade-in">
         <div class="b-azubi__head">
           <span class="eyebrow">Mitteilungen</span>
           ${mtUnread > 0 ? `<span class="b-mitteilungen__badge">${mtUnread > 9 ? '9+' : mtUnread}</span>` : ''}
@@ -428,11 +416,6 @@ async function renderAzubiDashboard(user) {
 
       <!-- HERO: Aktuelle Woche -->
       <section class="b-tile b-tile--glass b-hero animate-fade-in">
-        <div class="b-hero__top">
-          <span class="b-status b-status--${bentoStatusClass(aktStatus)}">
-            <span class="dot"></span>${bentoStatusLabel(aktStatus)}
-          </span>
-        </div>
         <div class="b-hero__middle">
           <h1 class="b-hero__kw">
             <small>Aktuelle Woche</small>

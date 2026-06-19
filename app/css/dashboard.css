@@ -1498,18 +1498,6 @@
     0 12px 32px -8px rgba(0,0,0,0.55);
 }
 
-/* ── Material: Solid Dark ── */
-.b-tile--dark {
-  background:
-    radial-gradient(60% 80% at 100% 0%, rgba(255,195,0,0.15), transparent 60%),
-    linear-gradient(160deg, #1B1F28 0%, #0E1116 100%);
-  color: #fff;
-  border: 1px solid rgba(255,255,255,0.06);
-  box-shadow:
-    inset 0 1px 0 rgba(255,255,255,0.08),
-    0 12px 32px -8px rgba(14,17,22,0.4);
-}
-
 /* ── Material: Yellow Accent ── */
 .b-tile--yellow {
   background:
@@ -1778,6 +1766,18 @@ html[data-theme="dark"] .b-azubi::before {
   display: flex; flex-direction: column;
   padding: 26px 26px 22px;
   gap: var(--sp-3);
+  /* Gleiches Glas-Material + Textur wie .b-recent/.b-hero – keine eigene Solid-Dark-Kachel.
+     So passt sich die Mitteilungszentrale in jedem Theme genauso an wie die anderen Kacheln. */
+  background-image:
+    linear-gradient(105deg, rgba(255,255,255,0.34) 0%, rgba(255,255,255,0.16) 42%, rgba(255,255,255,0.00) 100%),
+    url("../assets/backgrounds/tile-series-recent-light.png?v=20260602-series");
+  background-size: cover, 118% auto;
+  background-position: center, 70% center;
+}
+html[data-theme="dark"] .b-mitteilungen {
+  background-image:
+    linear-gradient(105deg, rgba(8,10,14,0.16) 0%, rgba(8,10,14,0.06) 42%, rgba(8,10,14,0.00) 100%),
+    url("../assets/backgrounds/tile-series-recent-dark.png?v=20260602-series");
 }
 .b-mitteilungen__badge {
   font-weight: 700; font-size: 11px; line-height: 1;
@@ -1792,39 +1792,77 @@ html[data-theme="dark"] .b-azubi::before {
   margin: 0 -6px; padding: 2px 6px 0;
 }
 .b-mitteilungen__empty {
-  color: rgba(255,255,255,0.5); font-size: var(--text-sm);
+  color: var(--pm-grey-500); font-size: var(--text-sm);
   margin: auto 0; text-align: center;
 }
+/* Karten-Zeilen: hell-zuerst mit Theme-Tokens (wie .b-wkcard), Dark-Override unten. */
 .b-mitteilung {
   display: flex; align-items: flex-start; gap: var(--sp-3);
   padding: var(--sp-3); border-radius: var(--r-md);
-  background: rgba(255,255,255,0.06);
-  border: 1px solid rgba(255,255,255,0.08);
-  color: inherit; text-decoration: none;
+  background: rgba(255,255,255,0.66);
+  border: 1px solid var(--pm-grey-200);
+  color: var(--pm-grey-900); text-decoration: none;
   position: relative;
   transition: background var(--t-fast), border-color var(--t-fast), transform var(--t-fast);
 }
-.b-mitteilung:hover { background: rgba(255,255,255,0.11); transform: translateY(-1px); }
+.b-mitteilung:hover { background: #fff; border-color: var(--pm-grey-300); transform: translateY(-1px); }
 .b-mitteilung__icon {
   flex-shrink: 0; width: 32px; height: 32px; border-radius: 50%;
   display: flex; align-items: center; justify-content: center;
 }
 .b-mitteilung__icon svg { width: 18px; height: 18px; }
-.b-mitteilung__icon--ok  { background: rgba(34,197,94,0.18); color: #4ade80; }
-.b-mitteilung__icon--er  { background: rgba(239,68,68,0.18); color: #f87171; }
-.b-mitteilung__icon--rem { background: rgba(255,195,0,0.18); color: var(--pm-yellow); }
+.b-mitteilung__icon--ok  { background: rgba(34,197,94,0.18); color: #16a34a; }
+.b-mitteilung__icon--er  { background: rgba(239,68,68,0.18); color: #dc2626; }
+.b-mitteilung__icon--rem { background: color-mix(in srgb, var(--pm-yellow) 18%, transparent); color: var(--pm-yellow-darker, #C58E00); }
 .b-mitteilung__body { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1; }
-.b-mitteilung__title { font-weight: 600; font-size: var(--text-sm); }
-.b-mitteilung__meta { font-size: 12px; color: rgba(255,255,255,0.5); }
+.b-mitteilung__title { font-weight: 600; font-size: var(--text-sm); color: var(--pm-grey-900); }
+.b-mitteilung__meta { font-size: 12px; color: var(--pm-grey-500); }
 .b-mitteilung__preview {
-  font-size: 12px; color: rgba(255,255,255,0.7); margin-top: 2px;
+  font-size: 12px; color: var(--pm-grey-600); margin-top: 2px;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%;
 }
 .b-mitteilung__dot {
   position: absolute; top: 10px; right: 10px;
   width: 8px; height: 8px; border-radius: 50%; background: var(--pm-yellow);
 }
-.b-mitteilung--unread { border-color: rgba(255,195,0,0.30); }
+.b-mitteilung--unread { border-color: color-mix(in srgb, var(--pm-yellow) 45%, var(--pm-grey-200)); }
+
+/* Dunkle Themes (Standard-Dunkel, Silk = data-theme=dark, CMD, Halloween):
+   Karten dunkel-transluzent + heller Text – wie die Geschwister-Kacheln (.b-wkcard). */
+html[data-theme="dark"] .b-mitteilungen__empty,
+html[data-theme="cmd"] .b-mitteilungen__empty,
+html[data-theme="halloween"] .b-mitteilungen__empty { color: rgba(255,255,255,0.5); }
+html[data-theme="dark"] .b-mitteilung,
+html[data-theme="cmd"] .b-mitteilung,
+html[data-theme="halloween"] .b-mitteilung {
+  background: rgba(255,255,255,0.06);
+  border-color: rgba(255,255,255,0.08);
+  color: #fff;
+}
+html[data-theme="dark"] .b-mitteilung:hover,
+html[data-theme="cmd"] .b-mitteilung:hover,
+html[data-theme="halloween"] .b-mitteilung:hover { background: rgba(255,255,255,0.11); border-color: rgba(255,255,255,0.14); }
+html[data-theme="dark"] .b-mitteilung__title,
+html[data-theme="cmd"] .b-mitteilung__title,
+html[data-theme="halloween"] .b-mitteilung__title { color: #fff; }
+html[data-theme="dark"] .b-mitteilung__meta,
+html[data-theme="cmd"] .b-mitteilung__meta,
+html[data-theme="halloween"] .b-mitteilung__meta { color: rgba(255,255,255,0.5); }
+html[data-theme="dark"] .b-mitteilung__preview,
+html[data-theme="cmd"] .b-mitteilung__preview,
+html[data-theme="halloween"] .b-mitteilung__preview { color: rgba(255,255,255,0.7); }
+html[data-theme="dark"] .b-mitteilung__icon--ok,
+html[data-theme="cmd"] .b-mitteilung__icon--ok,
+html[data-theme="halloween"] .b-mitteilung__icon--ok { color: #4ade80; }
+html[data-theme="dark"] .b-mitteilung__icon--er,
+html[data-theme="cmd"] .b-mitteilung__icon--er,
+html[data-theme="halloween"] .b-mitteilung__icon--er { color: #f87171; }
+html[data-theme="dark"] .b-mitteilung__icon--rem,
+html[data-theme="cmd"] .b-mitteilung__icon--rem,
+html[data-theme="halloween"] .b-mitteilung__icon--rem { color: var(--pm-yellow); }
+/* CMD: eckige grüne Signal-Kante wie .b-wkcard */
+html[data-theme="cmd"] .b-mitteilung { border-color: rgba(0,230,77,0.30); }
+html[data-theme="cmd"] .b-mitteilung:hover { border-color: rgba(0,230,77,0.55); }
 html[data-theme="dark"] .b-azubi {
   background-image:
     linear-gradient(160deg, rgba(10,12,16,0.16) 0%, rgba(10,12,16,0.00) 100%),

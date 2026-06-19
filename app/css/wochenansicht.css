@@ -427,6 +427,23 @@
   overflow: hidden;
   box-shadow: var(--shadow-sm);
 }
+
+/* Silk: vollflächige Liquid-Glass-Schicht über dem (WebGL-)Background – NUR in
+   der Wochenansicht. Als body::after zwischen silk-bg (#silk-react-root,
+   z-index:0) und App-Inhalt (.app-shell, z-index:1) → frostet den ganzen
+   Hintergrund, der Inhalt bleibt scharf darüber. Dashboard-Glas-Material
+   (gleiche Frost-Farbe + Blur wie .silk-host). */
+/* Silk: Background in der Wochenansicht klar zurücknehmen ("weniger präsent").
+   Zuverlässig per Dämpfung des ECHTEN WebGL-Silk-Elements (#silk-react-root,
+   body.firstChild) über einem dunklen Body-BG – ein body::after lag hinter dem
+   Canvas und blieb wirkungslos. Kein Filter-Blur (auf animiertem WebGL pro
+   Frame zu teuer). Nur diese Seite, nur Silk. */
+html[data-skin="silk"] body[data-page="wochenansicht"] {
+  background-color: hsl(var(--silk-hue,252) 50% 8%) !important;
+}
+html[data-skin="silk"] body[data-page="wochenansicht"] #silk-react-root {
+  opacity: 0.28 !important;
+}
 .wochen-tage-row {
   display: grid;
   grid-template-columns: 72px 1fr 1fr 185px;
@@ -1399,6 +1416,7 @@
   border: none;
   background: transparent;
   line-height: 1;
+  cursor: pointer; /* Klick → Jahresansicht */
 }
 .week-kw-block__kw {
   font-family: var(--font-heading);
@@ -2652,18 +2670,7 @@ body[data-page="wochenansicht"] .btn-lg {
   color: var(--on-yellow-text);
 }
 
-/* KW-Block */
-[data-theme="dark"] .week-kw-block__nav,
-[data-theme="dark"] .week-kw-block__core {
-  background: var(--pm-white);
-  border-color: rgba(255, 255, 255, 0.10);
-}
-[data-theme="dark"] .week-kw-block__kw {
-  color: var(--pm-grey-900);
-}
-[data-theme="dark"] .week-kw-block__range {
-  color: var(--pm-grey-500);
-}
+/* KW-Block bleibt auch im Dark-/Candy-Theme randlos (keine Karten/Umrandung). */
 
 /* View-Tabs */
 [data-theme="dark"] .view-tabs {
