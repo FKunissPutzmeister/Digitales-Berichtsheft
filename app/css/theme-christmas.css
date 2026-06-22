@@ -155,29 +155,46 @@ html[data-theme="christmas"] { color-scheme: dark; }
    + sanftes Federn. Nur ~0–32% des langen Zyklus (110s) sichtbar → „ab und zu". */
 [data-theme="christmas"] .pm-xm-santa {
   position: fixed; top: 9%; left: 0;
-  width: clamp(360px, 44vw, 640px); aspect-ratio: 666 / 90;
+  width: clamp(380px, 46vw, 680px); aspect-ratio: 1672 / 941;
   z-index: 1; pointer-events: none; opacity: 0;
-  /* Sprite-Sheet: 4 Frames übereinander (Rentier-Galopp + Winken) */
-  background-image: url("../assets/weihnachtsmann_animiert.png");
-  background-repeat: no-repeat;
-  background-size: 100% 400%;
-  background-position: 50% 0%;
-  /* obere Kante leicht beschneiden → versteckt den dünnen Frame-Übergangs-Saum
-     (die Frames sind minimal ungleich hoch); Santa sitzt tief im Frame. */
-  clip-path: inset(12% 0 2% 0);
-  filter: drop-shadow(0 10px 16px rgba(0, 0, 0, 0.30));
-  will-change: transform, opacity, background-position;
-  /* Flugbahn (40s) + Frame-Wechsel (~0.55s, je Frame fest gehalten via steps(1)) */
-  animation: pm-xm-santafly 40s linear infinite,
-             pm-xm-santaframes 0.55s steps(1) infinite;
+  filter: drop-shadow(0 12px 16px rgba(0, 0, 0, 0.30));
+  will-change: transform, opacity;
+  animation: pm-xm-santafly 40s linear infinite;
 }
-/* 4 Frames: Positionen 0/33.3/66.7/100% treffen mit background-size:100% 400%
-   exakt die vier Sprite-Zeilen. */
-@keyframes pm-xm-santaframes {
+/* Zwei entkoppelte, deckungsgleiche Ebenen im selben Wrapper:
+   Rentiere (rechts) galoppieren dauerhaft schnell, Schlitten+Santa (links)
+   hebt den Arm langsam, hält ihn eine Weile oben und nimmt ihn wieder runter.
+   Beide Sprites sind 2-Frame-Stacks (oben/unten) aus derselben Bounding-Box,
+   sodass sie überlagert das komplette Gespann ergeben. */
+[data-theme="christmas"] .pm-xm-santa__deer,
+[data-theme="christmas"] .pm-xm-santa__body {
+  position: absolute; inset: 0;
+  background-repeat: no-repeat;
+  background-size: 100% 200%;        /* 2 Frames übereinander */
+  background-position: 50% 0%;
+  will-change: background-position;
+}
+[data-theme="christmas"] .pm-xm-santa__deer {
+  background-image: url("../assets/santa-deer.png");
+  animation: pm-xm-deergallop 0.5s steps(1) infinite;
+}
+[data-theme="christmas"] .pm-xm-santa__body {
+  background-image: url("../assets/santa-body.png");
+  animation: pm-xm-santaarm 5.5s steps(1) infinite;
+}
+/* Rentier-Galopp: Pose A ↔ Pose B im 250ms-Takt (dauerhaft) */
+@keyframes pm-xm-deergallop {
   0%   { background-position-y: 0%; }
-  25%  { background-position-y: 33.333%; }
-  50%  { background-position-y: 66.667%; }
-  75%  { background-position-y: 100%; }
+  50%  { background-position-y: 100%; }
+  100% { background-position-y: 0%; }
+}
+/* Arm: lange unten → hoch → eine Weile oben halten → wieder runter */
+@keyframes pm-xm-santaarm {
+  0%   { background-position-y: 0%; }    /* Arm unten */
+  62%  { background-position-y: 0%; }
+  64%  { background-position-y: 100%; }  /* Arm hoch */
+  92%  { background-position-y: 100%; }  /* oben halten */
+  94%  { background-position-y: 0%; }    /* Arm runter */
   100% { background-position-y: 0%; }
 }
 /* wellige Flugbahn (translateX quer, translateY-Wellen in vh) + Nasen-Neigung */
@@ -830,7 +847,12 @@ html[data-theme="christmas"] .bento .b-recent {
   [data-theme="christmas"] .b-hero::after,
   [data-theme="christmas"] .sidebar::after,
   [data-theme="christmas"] .sidebar__user-link .avatar::before,
+  [data-theme="christmas"] .pm-xm-santa,
+  [data-theme="christmas"] .pm-xm-santa__deer,
+  [data-theme="christmas"] .pm-xm-santa__body,
   [data-theme="christmas"] .btn-primary:hover:not(:disabled)::after { animation: none !important; }
+  /* Schlitten bei reduzierter Bewegung ganz ausblenden (sonst klebt er sichtbar am Rand) */
+  [data-theme="christmas"] .pm-xm-santa { display: none !important; }
   /* Statisch: volle Stränge ohne Lauflicht-Maske zeigen */
   [data-theme="christmas"] .topbar::after,
   [data-theme="christmas"] .b-hero::after,
