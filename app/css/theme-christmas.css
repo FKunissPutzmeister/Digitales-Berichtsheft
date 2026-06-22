@@ -160,7 +160,8 @@ html[data-theme="christmas"] { color-scheme: dark; }
   background: center / contain no-repeat url("../assets/Weihnachtsmann.png");
   filter: drop-shadow(0 10px 16px rgba(0, 0, 0, 0.30));
   will-change: transform, opacity;
-  animation: pm-xm-santafly 110s linear infinite;
+  /* ~40s-Zyklus: ~13s sichtbarer Durchflug, dann verborgen → „ab und zu" */
+  animation: pm-xm-santafly 40s linear infinite;
 }
 /* wellige Flugbahn (translateX quer, translateY-Wellen in vh) + Nasen-Neigung */
 @keyframes pm-xm-santafly {
