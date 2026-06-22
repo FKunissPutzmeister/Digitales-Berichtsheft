@@ -394,14 +394,12 @@ html[data-theme="hyperspace"] { color-scheme: dark; }
 
 /* Karten: Light-Sheen aus glass.css ist auf dunklen Surfaces zu hart */
 [data-theme="hyperspace"] .card,
-[data-theme="hyperspace"] .stat-card,
-[data-theme="hyperspace"] .accordion__item {
+[data-theme="hyperspace"] .stat-card {
   background-image: linear-gradient(180deg, rgba(255, 255, 255, 0.04) 0%, rgba(255, 255, 255, 0) 35%);
   box-shadow: var(--elev-rest), inset 0 1px 0 rgba(255, 255, 255, 0.05);
 }
 [data-theme="hyperspace"] .card:hover,
-[data-theme="hyperspace"] .stat-card:hover,
-[data-theme="hyperspace"] .accordion__item:hover {
+[data-theme="hyperspace"] .stat-card:hover {
   box-shadow: var(--elev-hover), inset 0 1px 0 rgba(255, 255, 255, 0.07);
 }
 [data-theme="hyperspace"] .stat-card::after {
@@ -409,7 +407,6 @@ html[data-theme="hyperspace"] { color-scheme: dark; }
 }
 [data-theme="hyperspace"] .card,
 [data-theme="hyperspace"] .stat-card,
-[data-theme="hyperspace"] .accordion__item,
 [data-theme="hyperspace"] .profil-section,
 [data-theme="hyperspace"] .verwaltung-panel {
   border-color: rgba(255, 255, 255, 0.08);

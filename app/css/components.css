@@ -321,25 +321,6 @@ label[for] {
   background: currentColor;
 }
 
-/* ── Notification-Badge ── */
-.notif-badge {
-  position: absolute;
-  top: -4px;
-  right: -4px;
-  min-width: 18px;
-  height: 18px;
-  padding: 0 4px;
-  background: var(--color-error);
-  color: white;
-  border-radius: var(--r-full);
-  font-size: 10px;
-  font-weight: var(--fw-bold);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border: 2px solid var(--pm-white);
-}
-
 /* ── Avatar ── */
 .avatar {
   display: inline-flex;
@@ -452,56 +433,6 @@ select.form-control {
   font-size: var(--text-sm);
   color: var(--pm-grey-700);
 }
-
-/* ── Tabs ── */
-.tabs {
-  display: flex;
-  gap: 0;
-  border-bottom: 1px solid var(--pm-grey-200);
-  margin-bottom: var(--sp-6);
-}
-.tab-btn {
-  position: relative;
-  padding: var(--sp-3) var(--sp-5);
-  font-size: var(--text-sm);
-  font-weight: var(--fw-bold);
-  color: var(--pm-grey-500);
-  margin-bottom: -1px;
-  transition: color var(--t-fast), background var(--t-fast);
-  white-space: nowrap;
-  cursor: pointer;
-  background: none;
-  border: none;
-  border-radius: var(--r-md) var(--r-md) 0 0;
-  font-family: var(--font-body);
-}
-.tab-btn::after {
-  content: '';
-  position: absolute;
-  left: 50%;
-  right: 50%;
-  bottom: 0;
-  height: 2px;
-  background: var(--pm-yellow);
-  border-radius: var(--r-full) var(--r-full) 0 0;
-  transition: left var(--t-normal), right var(--t-normal), background var(--t-normal);
-}
-.tab-btn:hover { color: var(--pm-grey-700); background: var(--pm-grey-50); }
-.tab-btn:hover::after { left: 25%; right: 25%; background: var(--pm-grey-300); }
-.tab-btn.active {
-  color: var(--pm-grey-900);
-}
-.tab-btn.active::after {
-  left: 0;
-  right: 0;
-  background: var(--pm-yellow);
-}
-.tab-btn:focus-visible {
-  outline: none;
-  box-shadow: var(--ring-yellow-sm);
-}
-.tab-panel { display: none; }
-.tab-panel.active { display: block; animation: fadeIn var(--t-normal) both; }
 
 /* ── Progress Bar ── */
 .progress-bar {
@@ -702,25 +633,6 @@ select.form-control {
   max-width: 320px;
 }
 
-/* ── Trennlinie mit Label ── */
-.divider-label {
-  display: flex;
-  align-items: center;
-  gap: var(--sp-3);
-  color: var(--pm-grey-400);
-  font-size: var(--text-xs);
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  margin: var(--sp-4) 0;
-}
-.divider-label::before,
-.divider-label::after {
-  content: '';
-  flex: 1;
-  height: 1px;
-  background: var(--pm-grey-200);
-}
-
 /* ── Dropdown ── */
 .dropdown {
   position: relative;
@@ -822,116 +734,6 @@ select.form-control {
 .comment__name { font-weight: var(--fw-bold); font-size: var(--text-sm); }
 .comment__date { font-size: var(--text-xs); color: var(--pm-grey-400); }
 .comment__text { font-size: var(--text-sm); line-height: var(--lh-relaxed); }
-
-/* ===================================================================
-   ACCORDION – ausklappbare Inhaltsbereiche
-   Performance: animiert nur grid-template-rows (kein Reflow auf Höhe).
-   Markup:
-     <div class="accordion">
-       <details class="accordion__item">
-         <summary class="accordion__trigger">Titel</summary>
-         <div class="accordion__panel"><div class="accordion__content">…</div></div>
-       </details>
-     </div>
-   =================================================================== */
-.accordion {
-  display: flex;
-  flex-direction: column;
-  gap: var(--sp-2);
-}
-.accordion__item {
-  background: var(--pm-white);
-  border: 1px solid var(--pm-grey-200);
-  border-radius: var(--r-md);
-  box-shadow: var(--elev-rest);
-  transition: box-shadow var(--t-normal), border-color var(--t-normal);
-  overflow: hidden;
-}
-.accordion__item:hover { border-color: var(--pm-grey-300); }
-.accordion__item[open] {
-  border-color: var(--pm-yellow);
-  box-shadow: var(--elev-hover);
-}
-.accordion__trigger {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--sp-3);
-  padding: var(--sp-4) var(--sp-5);
-  cursor: pointer;
-  list-style: none;
-  font-family: var(--font-heading);
-  font-size: var(--text-base);
-  font-weight: var(--fw-bold);
-  color: var(--pm-grey-800);
-  user-select: none;
-  transition: background var(--t-fast), color var(--t-fast);
-  position: relative;
-}
-.accordion__trigger::-webkit-details-marker { display: none; }
-.accordion__trigger:hover {
-  background: var(--pm-grey-50);
-  color: var(--pm-grey-900);
-}
-.accordion__trigger:focus-visible {
-  outline: none;
-  box-shadow: inset var(--ring-yellow-sm);
-}
-.accordion__trigger::after {
-  content: '';
-  width: 10px;
-  height: 10px;
-  border-right: 2px solid var(--pm-grey-500);
-  border-bottom: 2px solid var(--pm-grey-500);
-  transform: rotate(45deg) translate(-2px, -2px);
-  transition: transform var(--t-normal), border-color var(--t-normal);
-  flex-shrink: 0;
-}
-.accordion__item[open] > .accordion__trigger::after {
-  transform: rotate(225deg) translate(-2px, -2px);
-  border-color: var(--pm-yellow-darker);
-}
-.accordion__panel {
-  display: grid;
-  grid-template-rows: 1fr;
-  transition: grid-template-rows var(--t-slow), opacity var(--t-normal);
-}
-.accordion__item:not([open]) .accordion__panel {
-  grid-template-rows: 0fr;
-  opacity: 0;
-}
-.accordion__panel > .accordion__content {
-  overflow: hidden;
-  min-height: 0;
-}
-.accordion__content {
-  padding: 0 var(--sp-5) var(--sp-5);
-  font-size: var(--text-sm);
-  color: var(--pm-grey-700);
-  line-height: var(--lh-relaxed);
-}
-/* Fallback: <details> ohne Animation in Browsern, die grid-template-rows nicht
-   animieren. Sichtbarkeit bleibt korrekt. */
-@supports not (grid-template-rows: 0fr) {
-  .accordion__panel { display: block; }
-  .accordion__item:not([open]) .accordion__panel { display: none; }
-}
-
-/* Variante „flush" – ohne Außenkasten, getrennt durch Linien (für FAQ-Listen) */
-.accordion--flush .accordion__item {
-  background: transparent;
-  border: none;
-  border-bottom: 1px solid var(--pm-grey-200);
-  border-radius: 0;
-  box-shadow: none;
-}
-.accordion--flush .accordion__item:hover { background: var(--pm-grey-50); }
-.accordion--flush .accordion__item[open] {
-  border-color: var(--pm-grey-200);
-  box-shadow: none;
-  background: var(--pm-grey-50);
-}
-.accordion--flush .accordion__item:last-child { border-bottom: none; }
 
 /* ===================================================================
    PM-SELECT – moderne Dropdown-Komponente (ersetzt native <select>)
@@ -1420,14 +1222,12 @@ select.form-control {
    Hauch Border-Light, damit sie sich vom Body abheben. */
 [data-theme="dark"] .card,
 [data-theme="dark"] .stat-card,
-[data-theme="dark"] .accordion__item,
 [data-theme="dark"] .profil-section,
 [data-theme="dark"] .verwaltung-panel {
   border-color: rgba(255, 255, 255, 0.06);
 }
 [data-theme="dark"] .card:hover,
 [data-theme="dark"] .stat-card:hover,
-[data-theme="dark"] .accordion__item:hover,
 [data-theme="dark"] .profil-section:hover,
 [data-theme="dark"] .verwaltung-panel:hover {
   border-color: rgba(255, 255, 255, 0.12);

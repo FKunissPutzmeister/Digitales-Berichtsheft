@@ -551,8 +551,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       return `
         <div class="gantt-bar ${COLORS[colorIndexFor(z.ausbilderId)]}"
              style="left:${left}%;width:${width}%"
-             title="${escHtml(z.abteilung || '–')} · ${escHtml((ausb && ausb.name) || '–')} (${DateUtil.formatDate(z.von)} – ${DateUtil.formatDate(z.bis)})"
-             data-zuweisung-id="${z.id}">
+             title="${escHtml(z.abteilung || '–')} · ${escHtml((ausb && ausb.name) || '–')} (${DateUtil.formatDate(z.von)} – ${DateUtil.formatDate(z.bis)})">
           <span class="gantt-bar__label">${escHtml(z.abteilung || '')}</span>
         </div>
       `;

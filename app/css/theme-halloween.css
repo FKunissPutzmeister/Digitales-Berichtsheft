@@ -680,14 +680,12 @@ html[data-theme="halloween"] { color-scheme: dark; }
 
 /* Karten: Light-Sheen aus glass.css ist auf dunklen Surfaces zu hart */
 [data-theme="halloween"] .card,
-[data-theme="halloween"] .stat-card,
-[data-theme="halloween"] .accordion__item {
+[data-theme="halloween"] .stat-card {
   background-image: linear-gradient(180deg, rgba(255, 255, 255, 0.04) 0%, rgba(255, 255, 255, 0) 35%);
   box-shadow: var(--elev-rest), inset 0 1px 0 rgba(255, 255, 255, 0.05);
 }
 [data-theme="halloween"] .card:hover,
-[data-theme="halloween"] .stat-card:hover,
-[data-theme="halloween"] .accordion__item:hover {
+[data-theme="halloween"] .stat-card:hover {
   box-shadow: var(--elev-hover), inset 0 1px 0 rgba(255, 255, 255, 0.07);
 }
 [data-theme="halloween"] .stat-card::after {
@@ -695,7 +693,6 @@ html[data-theme="halloween"] { color-scheme: dark; }
 }
 [data-theme="halloween"] .card,
 [data-theme="halloween"] .stat-card,
-[data-theme="halloween"] .accordion__item,
 [data-theme="halloween"] .profil-section,
 [data-theme="halloween"] .verwaltung-panel {
   border-color: rgba(255, 255, 255, 0.08);

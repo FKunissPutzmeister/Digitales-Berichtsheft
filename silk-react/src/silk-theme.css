@@ -1,6 +1,6 @@
 /* Bundled helper styles for the silk React layer.
    The ReactBits components import their own CSS (GlassSurface.css,
-   DotGrid.css, BorderGlow.css) — Vite folds those into silk-bundle.css.
+   DotField.css) — Vite folds those into silk-bundle.css.
    This file only adds the few glue rules the components rely on but that
    originally came from Tailwind utility classes (not present in this app),
    plus layout so the mounts fill their host containers. */
@@ -12,7 +12,7 @@
   display: inline-block;
 }
 
-/* Silk / DotGrid canvases must fill the body-level root they are mounted in. */
+/* Silk / DotField canvases must fill the body-level root they are mounted in. */
 .silk-bg-fill,
 .silk-bg-fill > div,
 .silk-bg-fill canvas {
@@ -25,11 +25,4 @@
 .silk-backing > .glass-surface {
   width: 100% !important;
   height: 100% !important;
-}
-
-/* BorderGlow used as a decorative panel backing (no interactive children):
-   let it fill the host and never intercept clicks meant for real content. */
-.silk-backing > .border-glow-card {
-  width: 100%;
-  height: 100%;
 }

@@ -203,7 +203,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         </div>
         <span class="attachment-item__name">${a.name}</span>
         <span class="attachment-item__size">${a.size}</span>
-        <button class="attachment-item__delete" data-index="${i}" aria-label="Entfernen">
+        <button class="attachment-item__delete" aria-label="Entfernen">
           <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
         </button>
       </div>
@@ -219,7 +219,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     const ring   = overlay.querySelector('.upload-progress__ring-fill');
     const num    = overlay.querySelector('.upload-progress__num');
     const label  = overlay.querySelector('.upload-progress__label');
-    const check  = overlay.querySelector('.upload-progress__check');
 
     overlay.classList.remove('upload-progress--done');
     overlay.classList.add('upload-progress--visible');

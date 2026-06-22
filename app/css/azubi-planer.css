@@ -2,19 +2,6 @@
    AZUBI-PLANER – Gantt / Zuweisungen
    =================================================================== */
 
-/* ── Zonen ──
-   Drei klar getrennte Bereiche: oben Filter + Auswertung, Mitte Timeline,
-   unten Liste. Der Abstand zwischen den Zonen schafft die visuelle Trennung. */
-.planer-zone { margin-bottom: var(--sp-8); }
-.planer-zone:last-child { margin-bottom: 0; }
-.planer-zone__title {
-  font-family: var(--font-heading);
-  font-size: var(--text-base);
-  font-weight: var(--fw-bold);
-  color: var(--pm-grey-900);
-  margin: 0 0 var(--sp-3);
-}
-
 /* ── Zone 1: Auswertungs-Kacheln (KPIs) ── */
 .planer-kpis {
   display: grid;
@@ -52,57 +39,6 @@
 }
 .planer-kpi--warn .planer-kpi__value { color: var(--pm-yellow-darker); }
 
-/* ── Zone 1: Toolbar (Roster=Legende + integrierte Suche) ── */
-.planer-toolbar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--sp-5);
-  flex-wrap: wrap;
-  padding: var(--sp-3) var(--sp-4);
-  background: var(--pm-white);
-  border: 1px solid var(--pm-grey-200);
-  border-radius: var(--r-lg);
-  box-shadow: var(--shadow-sm);
-}
-.planer-roster {
-  display: flex;
-  align-items: center;
-  gap: var(--sp-3);
-  flex-wrap: wrap;
-  min-width: 0;
-}
-.planer-roster__label {
-  font-size: var(--text-xs);
-  font-weight: var(--fw-bold);
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: var(--pm-grey-500);
-  white-space: nowrap;
-}
-.planer-roster__items {
-  display: flex;
-  gap: var(--sp-2) var(--sp-4);
-  flex-wrap: wrap;
-}
-.planer-roster__item {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--sp-2);
-  font-size: var(--text-sm);
-  color: var(--pm-grey-700);
-}
-.planer-roster__dot {
-  width: 12px;
-  height: 12px;
-  border-radius: var(--r-full);
-  flex-shrink: 0;
-}
-.planer-roster__abt {
-  font-size: var(--text-xs);
-  color: var(--pm-grey-400);
-}
-
 /* Integrierte Suche: Teil der Toolbar statt frei schwebendes Feld. */
 .planer-search {
   position: relative;
@@ -110,18 +46,6 @@
   width: 260px;
   max-width: 100%;
 }
-.planer-search__icon {
-  position: absolute;
-  left: 10px;
-  top: 50%;
-  transform: translateY(-50%);
-  width: 16px;
-  height: 16px;
-  color: var(--pm-grey-400);
-  pointer-events: none;
-}
-.planer-search__input { padding-left: 34px; }
-
 /* ── Gantt-Zeitleiste ── */
 .gantt-scroll {
   overflow-x: auto;
@@ -154,15 +78,6 @@
 #azubiGanttScroll::-webkit-scrollbar-thumb:hover {
   background: var(--pm-grey-500);
   background-clip: padding-box;
-}
-
-/* Legacy: .gantt-wrap still styled for any remaining non-details usage */
-.gantt-wrap {
-  background: var(--pm-white);
-  border: 1px solid var(--pm-grey-200);
-  border-radius: var(--r-xl);
-  overflow: hidden;
-  box-shadow: var(--shadow-sm);
 }
 
 .gantt-header {
@@ -200,25 +115,6 @@
   flex-direction: column;
   position: relative;
 }
-.gantt-header__month {
-  flex: 1;
-  min-width: 0;
-  padding: var(--sp-3) var(--sp-2);
-  font-size: var(--text-xs);
-  font-weight: var(--fw-bold);
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: var(--pm-grey-700);
-  border-right: 1px solid var(--pm-grey-100);   /* dezenter – Monatsraster entzerrt */
-  text-align: center;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.gantt-header__month.current { color: var(--pm-yellow-darker); background: var(--pm-yellow-pale); }
-/* Quartalsanfang (Jan/Apr/Jul/Okt) stärker betont als die Monatslinien. */
-.gantt-header__month--q { border-left: 2px solid var(--pm-grey-300); }
-
 .gantt-months { display: flex; }
 .gantt-month {
   box-sizing: border-box;
@@ -445,159 +341,17 @@
 /* ── Legende ── entfällt: Die Balkenfarben werden im Roster (Zone 1,
    .planer-roster) erklärt – eine separate Gantt-Legende wäre redundant. */
 
-/* ── Bestehende Zuweisungen – Tabelle ──
-   Fixe Spaltenbreiten (colgroup im Markup) + einheitliche Cell-Höhe,
-   damit Zeilen mit AKTUELL-Badge nicht versetzt zur Restzeile stehen. */
-.zuweisung-table {
-  table-layout: fixed;
-  width: 100%;
-}
-.zuweisung-table thead th {
-  font-weight: var(--fw-bold);
-}
-/* Sortierbare Spaltenköpfe (Klick / Enter / Space) */
-.zuw-th {
-  cursor: pointer;
-  user-select: none;
-  white-space: nowrap;
-  transition: background var(--t-fast), color var(--t-fast);
-}
-.zuw-th:hover { background: var(--pm-grey-50); color: var(--pm-grey-900); }
-.zuw-th.is-sorted { color: var(--pm-grey-900); }
-.zuw-th:focus-visible { outline: 2px solid var(--pm-yellow); outline-offset: -2px; }
-.zuw-th__arrow {
-  font-size: 9px;
-  margin-left: 4px;
-  color: var(--pm-yellow-darker);
-  vertical-align: middle;
-}
-.zuweisung-table tbody td {
-  /* Konsistente Mindesthöhe – Avatar (32px) bestimmt die Zeile,
-     andere Zellen werden mittig zentriert. */
-  height: 56px;
-  vertical-align: middle;
-  padding: var(--sp-2) var(--sp-4);
-  font-size: var(--text-sm);
-  color: var(--pm-grey-700);
-  overflow: hidden;
-  white-space: nowrap;
-  text-overflow: ellipsis;
-}
-.zuweisung-table tbody td:first-child {
-  font-weight: var(--fw-regular);  /* nicht Bold wie Standard-qual-table */
-  color: var(--pm-grey-800);
-  max-width: none;
-}
-.zuweisung-azubi-cell {
-  display: flex;
-  align-items: center;
-  gap: var(--sp-2);
-  min-width: 0;
-}
-.zuweisung-azubi-cell .avatar {
-  flex-shrink: 0;
-}
-.zuweisung-azubi-name {
-  flex: 0 1 auto;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  font-weight: var(--fw-bold);
-  color: var(--pm-grey-900);
-}
-.zuweisung-azubi-cell .badge {
-  flex-shrink: 0;
-}
-.zuweisung-date {
-  font-variant-numeric: tabular-nums;
-  color: var(--pm-grey-600);
-  white-space: nowrap;
-}
-.zuweisung-action-cell {
-  text-align: right;
-  padding-right: var(--sp-3) !important;
-}
-.zuweisung-action-cell .btn {
-  margin-left: auto;
-}
-/* ── Löschen-Button (Icon-Only) ──
-   Ursache des halben Hover-Highlights: .btn-sm liefert nur horizontales
-   Padding (0 var(--sp-3)) ohne feste Breite. In der mit table-layout:fixed
-   nur 4% breiten Action-Spalte wird die Button-Box gestaucht, sodass der
-   zentrierte Ghost-Hover-Background das 16px-Icon nicht als sauberes Kästchen
-   umschließt. Fix: feste quadratische Icon-Box (32x32), Padding 0, Flex
-   zentriert – der Hover-Background (Theme-Token --pm-grey-100, hell & dunkel)
-   umhüllt damit das gesamte Button-Feld und ist auf dem Icon zentriert. */
-.delete-zuweisung-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 32px;
-  height: 32px;
-  padding: 0;
-  flex-shrink: 0;
-  border-radius: var(--r-md);
-}
-.delete-zuweisung-btn:hover:not(:disabled) {
-  background: var(--pm-grey-100);
-  color: var(--pm-grey-800);
-}
-.zuweisung-row--current td {
-  background: rgba(255, 195, 0, 0.04);
-}
-/* Die Action-Zelle (Löschen-Button) sitzt visuell außerhalb der
-   eigentlichen Datenspalten – kein gelber Tint, sonst entsteht ein
-   abgehackter "Streifen" rechts neben dem Card-Body-Padding. */
-.zuweisung-row--current td.zuweisung-action-cell {
-  background: transparent;
-}
-
 /* ── Zuweisung-Modal spezifisch ── */
 .zuweisung-form {
   display: flex;
   flex-direction: column;
   gap: var(--sp-4);
 }
-.azubi-selector {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: var(--sp-2);
-  max-height: 200px;
-  overflow-y: auto;
-}
-.azubi-select-item {
-  display: flex;
-  align-items: center;
-  gap: var(--sp-2);
-  padding: var(--sp-2) var(--sp-3);
-  border: 1.5px solid var(--pm-grey-200);
-  border-radius: var(--r-md);
-  cursor: pointer;
-  transition: all var(--t-fast);
-  font-size: var(--text-sm);
-  color: var(--pm-grey-700);
-  font-family: var(--font-body);
-  background: var(--pm-white);
-}
-.azubi-select-item:hover {
-  border-color: var(--pm-yellow);
-  background: var(--pm-yellow-pale);
-}
-.azubi-select-item.selected {
-  border-color: var(--pm-yellow);
-  background: var(--pm-yellow-pale);
-  font-weight: var(--fw-bold);
-  color: var(--pm-grey-900);
-}
-.azubi-select-item .avatar { width: 28px; height: 28px; font-size: 11px; }
-
 /* ── Responsiv ── */
 @media (max-width: 768px) {
   .gantt-row__info { width: 200px; min-width: 200px; }
   .gantt-header__name-col { width: 200px; min-width: 200px; }
-  .azubi-selector { grid-template-columns: 1fr; }
   .planer-kpis { grid-template-columns: repeat(2, 1fr); }
-  .planer-toolbar { align-items: stretch; }
   .planer-search { width: 100%; }
 }
 
@@ -836,8 +590,7 @@
   background: var(--pm-grey-50);
   color: var(--pm-grey-900);
 }
-.planer-gantt-details > .gantt-scroll,
-.planer-gantt-details > .gantt-wrap {
+.planer-gantt-details > .gantt-scroll {
   margin-top: var(--sp-3);
 }
 

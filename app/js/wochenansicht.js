@@ -635,15 +635,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         we:       'Wochenende',
       }[completion];
 
-      // Pille rechts oben: zeigt den gewählten Ort an (BETRIEB, SCHULE, …).
-      // Bei Abwesenheit der Abwesenheits-Grund, an Wochenenden gar nichts.
-      const pillText = isWE
-        ? ''
-        : isAbwesend
-          ? (tag.anwesenheit || '').toUpperCase()
-          : (tag.ort || '').toUpperCase();
-      const pillKind = isAbwesend ? 'absent' : (tag.ort ? 'ort' : 'empty');
-
       return `
         <div class="tag-row${isWE ? ' tag-row--weekend' : ''}${isToday ? ' tag-row--today' : ''}${hasEntry ? ' tag-row--has-entry' : ''}${woche ? ' status-' + woche.status : ''}"
              id="dayCard_${dateStr}" data-date="${dateStr}" data-completion="${completion}">
@@ -1263,13 +1254,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         datum: dateStr, anwesenheit: isWE ? 'Wochenende' : '', ort: isWE ? '' : 'Betrieb', tagdauer: 'ganztag',
       };
       const isAbwesend = tag.anwesenheit && tag.anwesenheit !== 'anwesend' && tag.anwesenheit !== '';
-
-      const pillText = isWE
-        ? ''
-        : isAbwesend
-          ? (tag.anwesenheit || '').toUpperCase()
-          : (tag.ort || '').toUpperCase();
-      const pillKind = isAbwesend ? 'absent' : (tag.ort ? 'ort' : 'empty');
 
       return `
         <div class="tag-row tag-row--compact${isWE ? ' tag-row--weekend' : ''}${isToday ? ' tag-row--today' : ''}"

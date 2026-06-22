@@ -174,9 +174,6 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   function buildYearCalendar(year, wochen) {
     return DateUtil.MONTHS.map((monthName, monthIdx) => {
-      const firstDay = new Date(year, monthIdx, 1);
-      const lastDay = new Date(year, monthIdx + 1, 0);
-
       // Wochen des Monats bestimmen
       const weeks = getWeeksInMonth(year, monthIdx);
 

@@ -672,7 +672,6 @@ html[data-theme="candy"] { color-scheme: light; }
    =================================================================== */
 [data-theme="candy"] .card,
 [data-theme="candy"] .stat-card,
-[data-theme="candy"] .accordion__item,
 [data-theme="candy"] .profil-section,
 [data-theme="candy"] .verwaltung-panel,
 [data-theme="candy"] .week-toolbar {
@@ -857,7 +856,6 @@ html[data-theme="candy"] .bento .b-recent {
 @media print {
   [data-theme="candy"] .card,
   [data-theme="candy"] .stat-card,
-  [data-theme="candy"] .accordion__item,
   [data-theme="candy"] .profil-section,
   [data-theme="candy"] .verwaltung-panel,
   [data-theme="candy"] .week-toolbar,

@@ -155,47 +155,47 @@ html[data-theme="christmas"] { color-scheme: dark; }
    + sanftes Federn. Nur ~0–32% des langen Zyklus (110s) sichtbar → „ab und zu". */
 [data-theme="christmas"] .pm-xm-santa {
   position: fixed; top: 9%; left: 0;
-  width: clamp(380px, 46vw, 680px); aspect-ratio: 1672 / 941;
+  width: clamp(380px, 46vw, 680px); aspect-ratio: 666 / 375;
   z-index: 1; pointer-events: none; opacity: 0;
   filter: drop-shadow(0 12px 16px rgba(0, 0, 0, 0.30));
   will-change: transform, opacity;
   animation: pm-xm-santafly 40s linear infinite;
 }
-/* Zwei entkoppelte, deckungsgleiche Ebenen im selben Wrapper:
-   Rentiere (rechts) galoppieren dauerhaft schnell, Schlitten+Santa (links)
-   hebt den Arm langsam, hält ihn eine Weile oben und nimmt ihn wieder runter.
-   Beide Sprites sind 2-Frame-Stacks (oben/unten) aus derselben Bounding-Box,
-   sodass sie überlagert das komplette Gespann ergeben. */
-[data-theme="christmas"] .pm-xm-santa__deer,
-[data-theme="christmas"] .pm-xm-santa__body {
+/* Zwei deckungsgleiche Vollbild-Frames (gleiche 666×375-Box) im selben
+   Wrapper. Jeder Frame zeigt das KOMPLETTE Gespann in einer Pose:
+   Frame A (weihnachtsmann_1) = Rentiere Schritt A + Hand unten an den Zügeln,
+   Frame B (weihnachtsmann_2) = Rentiere Schritt B + Hand winkend oben.
+   Ein harter A↔B-Wechsel (Daumenkino, steps(1) – KEIN Crossfade) bewegt
+   damit Rentier-Galopp UND Winken zugleich aus nur zwei Bildern. Bewusst
+   gemächlich getaktet (0,9 s Vollzyklus ≙ 0,45 s je Pose), damit Galopp und
+   Winken natürlich statt hektisch wirken. */
+[data-theme="christmas"] .pm-xm-santa__frame {
   position: absolute; inset: 0;
   background-repeat: no-repeat;
-  background-size: 100% 200%;        /* 2 Frames übereinander */
-  background-position: 50% 0%;
-  will-change: background-position;
+  background-position: 50% 50%;
+  background-size: 100% 100%;
+  will-change: opacity;
 }
-[data-theme="christmas"] .pm-xm-santa__deer {
-  background-image: url("../assets/santa-deer.png");
-  animation: pm-xm-deergallop 0.5s steps(1) infinite;
+[data-theme="christmas"] .pm-xm-santa__frame--a {
+  background-image: url("../assets/weihnachtsmann_1.png");
+  animation: pm-xm-santaframe-a 0.9s steps(1) infinite;
 }
-[data-theme="christmas"] .pm-xm-santa__body {
-  background-image: url("../assets/santa-body.png");
-  animation: pm-xm-santaarm 5.5s steps(1) infinite;
+[data-theme="christmas"] .pm-xm-santa__frame--b {
+  background-image: url("../assets/weihnachtsmann_2.png");
+  animation: pm-xm-santaframe-b 0.9s steps(1) infinite;
 }
-/* Rentier-Galopp: Pose A ↔ Pose B im 250ms-Takt (dauerhaft) */
-@keyframes pm-xm-deergallop {
-  0%   { background-position-y: 0%; }
-  50%  { background-position-y: 100%; }
-  100% { background-position-y: 0%; }
+/* Gegenläufiges Daumenkino: in der ersten Zyklushälfte ist nur Frame A
+   sichtbar, in der zweiten nur Frame B. steps(1) verhindert das Überblenden
+   → harter Schnitt = echte Bewegung statt weichem Faden. */
+@keyframes pm-xm-santaframe-a {
+  0%   { opacity: 1; }
+  50%  { opacity: 0; }
+  100% { opacity: 0; }
 }
-/* Arm: lange unten → hoch → eine Weile oben halten → wieder runter */
-@keyframes pm-xm-santaarm {
-  0%   { background-position-y: 0%; }    /* Arm unten */
-  62%  { background-position-y: 0%; }
-  64%  { background-position-y: 100%; }  /* Arm hoch */
-  92%  { background-position-y: 100%; }  /* oben halten */
-  94%  { background-position-y: 0%; }    /* Arm runter */
-  100% { background-position-y: 0%; }
+@keyframes pm-xm-santaframe-b {
+  0%   { opacity: 0; }
+  50%  { opacity: 1; }
+  100% { opacity: 1; }
 }
 /* wellige Flugbahn (translateX quer, translateY-Wellen in vh) + Nasen-Neigung */
 @keyframes pm-xm-santafly {

@@ -45,11 +45,6 @@
   outline-offset: 2px;
   border-radius: var(--r-sm);
 }
-.profil-import-intro {
-  font-size: var(--text-sm);
-  color: var(--pm-grey-500);
-  margin: 0 0 var(--sp-1);
-}
 /* [hidden] muss display:flex von .profil-panels überstimmen – sonst bliebe
    das inaktive Panel sichtbar (Attribut gesetzt, aber display gewinnt). */
 .profil-panels[hidden] { display: none; }
@@ -228,13 +223,6 @@ details.profil-section .profil-section__body-wrap > .profil-section__body {
   color: var(--pm-grey-400);
   margin-bottom: var(--sp-1);
 }
-.theme-group__hint {
-  font-size: var(--text-sm);
-  color: var(--pm-grey-500);
-  margin: 0 0 var(--sp-4);
-  max-width: 640px;
-}
-
 /* Standard-Modus: segmentierte Buttons */
 .theme-mode-row {
   display: inline-flex;
@@ -326,12 +314,6 @@ details.profil-section .profil-section__body-wrap > .profil-section__body {
   color: var(--pm-grey-800);
   line-height: 1.2;
 }
-.theme-tile__sub {
-  font-size: var(--text-xs);
-  color: var(--pm-grey-400);
-  line-height: 1.3;
-}
-
 /* Swatches: Mini-Vorschau pro Design (feste Farben, s.o.) */
 .theme-tile__swatch {
   display: block;
@@ -533,11 +515,6 @@ details.profil-section .profil-section__body-wrap > .profil-section__body {
   font-weight: var(--fw-bold);
   color: var(--pm-grey-900);
   line-height: 1.2;
-}
-.profil-logout__sub {
-  font-size: var(--text-sm);
-  color: var(--pm-grey-600);
-  margin-top: 2px;
 }
 .profil-logout .btn-danger {
   flex-shrink: 0;

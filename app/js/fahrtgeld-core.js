@@ -489,9 +489,7 @@
     generiereFahrtgeldExcel,
     generiereFahrtgeldPdf,
     extrahiereKonstantenAusTemplate,
-    istPdfBytes,
     triggerDownload,
     formatMonatLabel,
-    baueDateiname,
   };
 })(window);

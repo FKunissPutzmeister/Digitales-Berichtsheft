@@ -20,4 +20,4 @@ function faehigkeitenFuer(oid) {
   return { kannPlanen: !!b.kannPlanen, istAusbilder: !!b.istAusbilder };
 }
 
-module.exports = { BERECHTIGUNGEN, faehigkeitenFuer };
+module.exports = { faehigkeitenFuer };

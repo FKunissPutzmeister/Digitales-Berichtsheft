@@ -253,14 +253,12 @@ html[data-theme="cmd"] { color-scheme: dark; }
 
 /* Karten: Light-Sheen aus glass.css ist auf dunklen Surfaces zu hart */
 [data-theme="cmd"] .card,
-[data-theme="cmd"] .stat-card,
-[data-theme="cmd"] .accordion__item {
+[data-theme="cmd"] .stat-card {
   background-image: linear-gradient(180deg, rgba(255, 255, 255, 0.04) 0%, rgba(255, 255, 255, 0) 35%);
   box-shadow: var(--elev-rest), inset 0 1px 0 rgba(255, 255, 255, 0.05);
 }
 [data-theme="cmd"] .card:hover,
-[data-theme="cmd"] .stat-card:hover,
-[data-theme="cmd"] .accordion__item:hover {
+[data-theme="cmd"] .stat-card:hover {
   box-shadow: var(--elev-hover), inset 0 1px 0 rgba(255, 255, 255, 0.07);
 }
 [data-theme="cmd"] .stat-card::after {
@@ -268,7 +266,6 @@ html[data-theme="cmd"] { color-scheme: dark; }
 }
 [data-theme="cmd"] .card,
 [data-theme="cmd"] .stat-card,
-[data-theme="cmd"] .accordion__item,
 [data-theme="cmd"] .profil-section,
 [data-theme="cmd"] .verwaltung-panel {
   border-color: rgba(255, 255, 255, 0.08);
@@ -720,18 +717,12 @@ html[data-theme="cmd"] .bento .b-recent {
 
 /* ── Tabellen wie Terminal-Output: gepunktete Trennlinien,
       Tabellenziffern, grüne Header-Linie ── */
-[data-theme="cmd"] .ztn-table td,
-[data-theme="cmd"] .zuweisung-table tbody td {
+[data-theme="cmd"] .ztn-table td {
   border-bottom: 1px dotted rgba(0, 230, 77, 0.30);
   font-variant-numeric: tabular-nums;
 }
 [data-theme="cmd"] .ztn-table thead th {
   border-bottom-color: rgba(0, 230, 77, 0.40);
-}
-/* zuweisung-table-Header hat im Original keine Border → Hairline als
-   inset-Schatten, damit keine 1px-Layoutverschiebung entsteht */
-[data-theme="cmd"] .zuweisung-table thead th {
-  box-shadow: inset 0 -1px 0 rgba(0, 230, 77, 0.40);
 }
 [data-theme="cmd"] .ztn-table-wrap {
   border-radius: 2px;
@@ -861,7 +852,6 @@ html[data-theme="cmd"] .bento .b-recent {
 /* — Karten/Panels: weißer Hairline-Rahmen → Phosphor-Grün — */
 [data-theme="cmd"] .card,
 [data-theme="cmd"] .stat-card,
-[data-theme="cmd"] .accordion__item,
 [data-theme="cmd"] .profil-section,
 [data-theme="cmd"] .verwaltung-panel,
 [data-theme="cmd"] .week-toolbar {

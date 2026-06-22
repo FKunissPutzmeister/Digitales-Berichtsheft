@@ -218,8 +218,8 @@
     christmas:
       '<div class="pm-xm-bg"></div>' +
       '<div class="pm-xm-santa" aria-hidden="true">' +
-        '<div class="pm-xm-santa__deer"></div>' +
-        '<div class="pm-xm-santa__body"></div>' +
+        '<div class="pm-xm-santa__frame pm-xm-santa__frame--a"></div>' +
+        '<div class="pm-xm-santa__frame pm-xm-santa__frame--b"></div>' +
       '</div>' +
       '<div class="pm-xm-treefront" aria-hidden="true"></div>' +
       '<div class="pm-xm-treelights">' +

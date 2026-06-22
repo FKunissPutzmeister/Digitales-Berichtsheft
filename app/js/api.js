@@ -341,10 +341,6 @@ const DB = {
     await apiFetch(`/zuweisungen/${id}`, { method: 'DELETE' });
   },
 
-  async setBerichtTyp(userId, typ) {
-    localStorage.setItem(`berichtTyp_${userId}`, typ);
-  },
-
   /* Wochen */
   async getWochenFuerAzubi(azubiId) {
     const data = await apiFetch(`/wochen?azubiOid=${azubiId}`);
@@ -382,7 +378,7 @@ const DB = {
   /* ── Zeitnachweis-Import (ESS) ──
      Spiegelt die Logik aus data.js, aber async gegen das Backend.
 
-     getTagInfo: Bearbeitungs-Status eines einzelnen Tages für die
+     getTagInfoSync: Bearbeitungs-Status eines einzelnen Tages für die
      Import-Vorschau – gehört der Tag zu einer schreibgeschützten Woche
      (freigegeben/genehmigt) und ist er bereits inhaltlich belegt?
      `wochen` kann vorab geladen übergeben werden, damit die Vorschau
@@ -397,11 +393,6 @@ const DB = {
     const belegt = !!tag
       && tag.anwesenheit && tag.anwesenheit !== '' && tag.anwesenheit !== 'Wochenende';
     return { kw, year: yr, exists: !!woche, readonly, belegt, status: woche?.status || null };
-  },
-
-  async getTagInfo(azubiId, datum) {
-    const wochen = await this.getWochenFuerAzubi(azubiId);
-    return this.getTagInfoSync(wochen, datum);
   },
 
   /* Übernimmt die ausgewählten Zeitnachweis-Tage ins Berichtsheft.
@@ -522,11 +513,6 @@ const DB = {
   async getBenachrichtigungenFuerUser() {
     const data = await apiFetch('/benachrichtigungen');
     return data.map(normalizeBenachrichtigung);
-  },
-
-  async getUngeleseneBenachrichtigungenCount() {
-    const data = await apiFetch('/benachrichtigungen/count');
-    return data.ungelesen;
   },
 
   async addBenachrichtigung(notif) {

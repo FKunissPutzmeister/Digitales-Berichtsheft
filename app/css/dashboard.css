@@ -1396,46 +1396,6 @@
   transition: color var(--t-fast), transform var(--t-fast);
 }
 
-/* ── FAQ-Sektion (Azubi-Dashboard) ── */
-.dashboard-faq {
-  margin-top: var(--sp-8);
-  background: var(--pm-white);
-  border: 1px solid var(--pm-grey-200);
-  border-radius: var(--r-xl);
-  padding: var(--sp-6);
-  box-shadow: var(--elev-rest);
-  animation: fadeIn var(--t-slow) both;
-  animation-delay: 240ms;
-  transition: box-shadow var(--t-normal), border-color var(--t-normal);
-}
-.dashboard-faq:hover { border-color: var(--pm-grey-300); }
-.dashboard-faq__head {
-  margin-bottom: var(--sp-4);
-}
-.dashboard-faq__title {
-  font-family: var(--font-heading);
-  font-size: var(--text-lg);
-  font-weight: var(--fw-bold);
-  color: var(--pm-grey-900);
-  margin-bottom: 4px;
-}
-.dashboard-faq__sub {
-  font-size: var(--text-sm);
-  color: var(--pm-grey-500);
-}
-/* Accordion-Trigger im FAQ-Kontext etwas leichter wirken lassen */
-.dashboard-faq .accordion__trigger {
-  font-family: var(--font-body);
-  font-size: var(--text-sm);
-  font-weight: var(--fw-bold);
-  padding: var(--sp-3) var(--sp-4);
-}
-.dashboard-faq .accordion__content {
-  padding: 0 var(--sp-4) var(--sp-4);
-  font-size: var(--text-sm);
-  color: var(--pm-grey-700);
-}
-
 /* ── Responsive ── */
 @media (max-width: 1200px) {
   .stats-grid { grid-template-columns: repeat(2, 1fr); }
