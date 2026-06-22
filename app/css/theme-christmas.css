@@ -155,13 +155,30 @@ html[data-theme="christmas"] { color-scheme: dark; }
    + sanftes Federn. Nur ~0–32% des langen Zyklus (110s) sichtbar → „ab und zu". */
 [data-theme="christmas"] .pm-xm-santa {
   position: fixed; top: 9%; left: 0;
-  width: clamp(240px, 30vw, 440px); aspect-ratio: 1625 / 533;
+  width: clamp(360px, 44vw, 640px); aspect-ratio: 666 / 90;
   z-index: 1; pointer-events: none; opacity: 0;
-  background: center / contain no-repeat url("../assets/Weihnachtsmann.png");
+  /* Sprite-Sheet: 4 Frames übereinander (Rentier-Galopp + Winken) */
+  background-image: url("../assets/Weihnachtsmann_animiert.png");
+  background-repeat: no-repeat;
+  background-size: 100% 400%;
+  background-position: 50% 0%;
+  /* obere Kante leicht beschneiden → versteckt den dünnen Frame-Übergangs-Saum
+     (die Frames sind minimal ungleich hoch); Santa sitzt tief im Frame. */
+  clip-path: inset(12% 0 2% 0);
   filter: drop-shadow(0 10px 16px rgba(0, 0, 0, 0.30));
-  will-change: transform, opacity;
-  /* ~40s-Zyklus: ~13s sichtbarer Durchflug, dann verborgen → „ab und zu" */
-  animation: pm-xm-santafly 40s linear infinite;
+  will-change: transform, opacity, background-position;
+  /* Flugbahn (40s) + Frame-Wechsel (~0.55s, je Frame fest gehalten via steps(1)) */
+  animation: pm-xm-santafly 40s linear infinite,
+             pm-xm-santaframes 0.55s steps(1) infinite;
+}
+/* 4 Frames: Positionen 0/33.3/66.7/100% treffen mit background-size:100% 400%
+   exakt die vier Sprite-Zeilen. */
+@keyframes pm-xm-santaframes {
+  0%   { background-position-y: 0%; }
+  25%  { background-position-y: 33.333%; }
+  50%  { background-position-y: 66.667%; }
+  75%  { background-position-y: 100%; }
+  100% { background-position-y: 0%; }
 }
 /* wellige Flugbahn (translateX quer, translateY-Wellen in vh) + Nasen-Neigung */
 @keyframes pm-xm-santafly {
