@@ -158,7 +158,7 @@ html[data-theme="christmas"] { color-scheme: dark; }
   width: clamp(360px, 44vw, 640px); aspect-ratio: 666 / 90;
   z-index: 1; pointer-events: none; opacity: 0;
   /* Sprite-Sheet: 4 Frames übereinander (Rentier-Galopp + Winken) */
-  background-image: url("../assets/Weihnachtsmann_animiert.png");
+  background-image: url("../assets/weihnachtsmann_animiert.png");
   background-repeat: no-repeat;
   background-size: 100% 400%;
   background-position: 50% 0%;
