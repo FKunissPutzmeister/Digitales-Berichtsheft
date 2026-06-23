@@ -217,11 +217,6 @@
        css/theme-christmas.css. */
     christmas:
       '<div class="pm-xm-bg"></div>' +
-      '<div class="pm-xm-santa" aria-hidden="true">' +
-        '<div class="pm-xm-santa__frame pm-xm-santa__frame--a"></div>' +
-        '<div class="pm-xm-santa__frame pm-xm-santa__frame--b"></div>' +
-      '</div>' +
-      '<div class="pm-xm-treefront" aria-hidden="true"></div>' +
       '<div class="pm-xm-treelights">' +
         '<i class="pm-xm-bulb pm-xm-bulb--1"></i>' +
         '<i class="pm-xm-bulb pm-xm-bulb--2"></i>' +
@@ -233,7 +228,6 @@
         '<i class="pm-xm-bulb pm-xm-bulb--8"></i>' +
         '<i class="pm-xm-bulb pm-xm-bulb--star"></i>' +
       '</div>' +
-      '<div class="pm-xm-grain" aria-hidden="true"></div>' +
       '<canvas class="pm-xm-snow" aria-hidden="true"></canvas>'
   };
 

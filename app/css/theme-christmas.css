@@ -111,102 +111,12 @@ html[data-theme="christmas"] { color-scheme: dark; }
      treffen ihn zuverlässig. */
   background: right center / cover no-repeat
     url("../assets/backgrounds/Christmas Background.jpeg");
-  /* Bild etwas heller/lebendiger */
+  /* Bild etwas heller/lebendiger; kein Abdunkel-/Korn-Overlay mehr
+     (auf Wunsch entfernt) → Winterbild zeigt sich unverfälscht. */
   filter: brightness(1.14) saturate(1.06);
-}
-/* Sehr weicher Abdunkel-Overlay (Lesbarkeit), mehrstufig → weniger Banding */
-[data-theme="christmas"] .pm-xm-bg::after {
-  content: ""; position: absolute; inset: 0;
-  background: linear-gradient(180deg,
-    rgba(8,14,26,0.08) 0%,
-    rgba(8,14,26,0.12) 45%,
-    rgba(8,14,26,0.18) 72%,
-    rgba(8,14,26,0.24) 100%);
-}
-/* Korn/Dither-Ebene gegen sichtbares Banding & JPEG-Posterisierung am Boden:
-   feinkörniges, entsättigtes Rauschen (SVG-Turbulenz) mit overlay-Blend bei
-   niedriger Deckkraft bricht die glatten Verläufe auf. */
-[data-theme="christmas"] .pm-xm-grain {
-  position: fixed; inset: 0; z-index: 3; pointer-events: none;
-  opacity: 0.12; mix-blend-mode: overlay;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3CfeComponentTransfer%3E%3CfeFuncA type='linear' slope='0' intercept='1'/%3E%3C/feFuncA%3E%3C/feComponentTransfer%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
-  background-size: 150px 150px;
 }
 [data-theme="christmas"] .pm-xm-snow {
   position: fixed; inset: 0; z-index: 4; pointer-events: none;
-}
-
-/* ── Tannenbaum-Vordergrund-Ebene ───────────────────────────────────
-   Derselbe Hintergrund, aber NUR der Baum sichtbar (Rest transparent),
-   identisch verankert (right center / cover) + gleicher Helligkeitsfilter
-   → deckt den Baum des Bildes pixelgenau. Liegt ÜBER dem Santa (z-index 2),
-   damit der Schlitten optisch HINTER dem Baum durchfliegt. */
-[data-theme="christmas"] .pm-xm-treefront {
-  position: fixed; inset: 0; z-index: 2; pointer-events: none;
-  background: right center / cover no-repeat
-    url("../assets/christmas-tree-front.png");
-  filter: brightness(1.14) saturate(1.06);
-}
-
-/* ── Weihnachtsmann-Schlitten: fliegt ab und zu durch den Himmel ─────
-   Liegt im #pmThemeFX (z-index 1: über dem Bild, UNTER der Baum-
-   Vordergrund-Ebene → fliegt hinter dem Tannenbaum durch). Realistischer
-   Flug: leicht wellige Flugbahn (Steigen/Sinken) mit Nase-rauf/runter-Neigung
-   + sanftes Federn. Nur ~0–32% des langen Zyklus (110s) sichtbar → „ab und zu". */
-[data-theme="christmas"] .pm-xm-santa {
-  position: fixed; top: 9%; left: 0;
-  width: clamp(380px, 46vw, 680px); aspect-ratio: 666 / 375;
-  z-index: 1; pointer-events: none; opacity: 0;
-  filter: drop-shadow(0 12px 16px rgba(0, 0, 0, 0.30));
-  will-change: transform, opacity;
-  animation: pm-xm-santafly 40s linear infinite;
-}
-/* Zwei deckungsgleiche Vollbild-Frames (gleiche 666×375-Box) im selben
-   Wrapper. Jeder Frame zeigt das KOMPLETTE Gespann in einer Pose:
-   Frame A (weihnachtsmann_1) = Rentiere Schritt A + Hand unten an den Zügeln,
-   Frame B (weihnachtsmann_2) = Rentiere Schritt B + Hand winkend oben.
-   Ein harter A↔B-Wechsel (Daumenkino, steps(1) – KEIN Crossfade) bewegt
-   damit Rentier-Galopp UND Winken zugleich aus nur zwei Bildern. Bewusst
-   gemächlich getaktet (0,9 s Vollzyklus ≙ 0,45 s je Pose), damit Galopp und
-   Winken natürlich statt hektisch wirken. */
-[data-theme="christmas"] .pm-xm-santa__frame {
-  position: absolute; inset: 0;
-  background-repeat: no-repeat;
-  background-position: 50% 50%;
-  background-size: 100% 100%;
-  will-change: opacity;
-}
-[data-theme="christmas"] .pm-xm-santa__frame--a {
-  background-image: url("../assets/weihnachtsmann_1.png");
-  animation: pm-xm-santaframe-a 0.9s steps(1) infinite;
-}
-[data-theme="christmas"] .pm-xm-santa__frame--b {
-  background-image: url("../assets/weihnachtsmann_2.png");
-  animation: pm-xm-santaframe-b 0.9s steps(1) infinite;
-}
-/* Gegenläufiges Daumenkino: in der ersten Zyklushälfte ist nur Frame A
-   sichtbar, in der zweiten nur Frame B. steps(1) verhindert das Überblenden
-   → harter Schnitt = echte Bewegung statt weichem Faden. */
-@keyframes pm-xm-santaframe-a {
-  0%   { opacity: 1; }
-  50%  { opacity: 0; }
-  100% { opacity: 0; }
-}
-@keyframes pm-xm-santaframe-b {
-  0%   { opacity: 0; }
-  50%  { opacity: 1; }
-  100% { opacity: 1; }
-}
-/* wellige Flugbahn (translateX quer, translateY-Wellen in vh) + Nasen-Neigung */
-@keyframes pm-xm-santafly {
-  0%   { transform: translate(-46vw, 3vh)  rotate(-1deg); opacity: 0; }
-  2%   { opacity: 0.97; }
-  9%   { transform: translate(-20vw, -3vh) rotate(2.5deg); }
-  16%  { transform: translate(14vw, 1.5vh) rotate(-1.5deg); }
-  23%  { transform: translate(52vw, -3vh)  rotate(2.5deg); }
-  29%  { transform: translate(92vw, 0.5vh) rotate(-0.5deg); opacity: 0.97; }
-  32%  { transform: translate(134vw, 2vh)  rotate(-1deg);  opacity: 0; }
-  100% { transform: translate(134vw, 2vh)  rotate(-1deg);  opacity: 0; }
 }
 
 /* ===================================================================
@@ -847,12 +757,7 @@ html[data-theme="christmas"] .bento .b-recent {
   [data-theme="christmas"] .b-hero::after,
   [data-theme="christmas"] .sidebar::after,
   [data-theme="christmas"] .sidebar__user-link .avatar::before,
-  [data-theme="christmas"] .pm-xm-santa,
-  [data-theme="christmas"] .pm-xm-santa__deer,
-  [data-theme="christmas"] .pm-xm-santa__body,
   [data-theme="christmas"] .btn-primary:hover:not(:disabled)::after { animation: none !important; }
-  /* Schlitten bei reduzierter Bewegung ganz ausblenden (sonst klebt er sichtbar am Rand) */
-  [data-theme="christmas"] .pm-xm-santa { display: none !important; }
   /* Statisch: volle Stränge ohne Lauflicht-Maske zeigen */
   [data-theme="christmas"] .topbar::after,
   [data-theme="christmas"] .b-hero::after,
