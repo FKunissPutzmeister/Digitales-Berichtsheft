@@ -551,9 +551,10 @@ html[data-theme="halloween"] { color-scheme: dark; }
     0 0 28px rgba(255, 117, 24, 0.16);
 }
 
-/* Primär-Buttons: warmer „Kürbis-Glow" (animiert NUR opacity eines
-   Pseudo-Glow-Layers – GPU-freundlich). Die Füllung kommt bereits aus
-   dem Token --pm-yellow (Orange); hier nur das Leuchten + Verlauf. */
+/* Primär-Buttons: warmer „Kürbis-Glow", der beim Hover EINMAL weich
+   aufgeblendet wird und ruhig stehen bleibt (kein Blinken – Button wirkt nur
+   kurz „größer" durch den aufleuchtenden Glow-Saum). Füllung aus Token
+   --pm-yellow (Orange); hier nur das Leuchten + Verlauf. */
 [data-theme="halloween"] .btn-primary {
   position: relative;
   background: linear-gradient(180deg, #FF9442 0%, #FF7518 55%, #E85D04 100%);
@@ -573,11 +574,16 @@ html[data-theme="halloween"] { color-scheme: dark; }
 }
 [data-theme="halloween"] .btn-primary:hover:not(:disabled)::after {
   opacity: 1;
-  animation: pm-hw-pulse 1.8s ease-in-out infinite;
 }
-@keyframes pm-hw-pulse {
-  0%, 100% { opacity: 0.55; }
-  50%      { opacity: 1; }
+
+/* Hover behält eine VERLAUFS-Füllung (NICHT auf Solid wechseln). Sonst
+   „blinkt"/flackert der Button: der Basis-Hover (components.css) setzt
+   background:var(--pm-yellow-dark) = Solid → das background-image (Verlauf)
+   springt auf none, während background-color aus Transparent einblendet =
+   kurzer Aussetzer der Füllung. Gleiche Verlaufs-Art, nur etwas heller →
+   sauberes Hover-Feedback ohne Flackern. */
+[data-theme="halloween"] .btn-primary:hover:not(:disabled) {
+  background: linear-gradient(180deg, #FFA45C 0%, #FF8A38 55%, #FB6E16 100%);
 }
 
 /* Outline/Ghost: leise warme Aura beim Hover */

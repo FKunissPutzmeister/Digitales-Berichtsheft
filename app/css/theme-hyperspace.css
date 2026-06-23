@@ -251,7 +251,6 @@ html[data-theme="hyperspace"] { color-scheme: dark; }
     background-position: center, center;
   }
   [data-theme="hyperspace"] .pm-hs-scene { display: none; }
-  [data-theme="hyperspace"] .btn-primary:hover:not(:disabled)::after { animation: none; }
 }
 
 /* Print: #pmThemeFX blendet themes.css bereits aus – hier zusätzlich
@@ -271,8 +270,9 @@ html[data-theme="hyperspace"] { color-scheme: dark; }
     0 0 28px rgba(47, 214, 242, 0.16);
 }
 
-/* Primär-Buttons: Neon-Glow-Saum mit Hover-Puls (animiert NUR die
-   opacity eines Pseudo-Glow-Layers – GPU-freundlich) */
+/* Primär-Buttons: Neon-Glow-Saum, der beim Hover EINMAL weich aufgeblendet
+   wird und ruhig stehen bleibt (kein pulsierendes Blinken – Button wirkt nur
+   kurz „größer" durch den aufleuchtenden Glow-Saum). */
 [data-theme="hyperspace"] .btn-primary { position: relative; }
 [data-theme="hyperspace"] .btn-primary::after {
   content: '';
@@ -288,11 +288,6 @@ html[data-theme="hyperspace"] { color-scheme: dark; }
 }
 [data-theme="hyperspace"] .btn-primary:hover:not(:disabled)::after {
   opacity: 1;
-  animation: pm-hs-pulse 1.6s ease-in-out infinite;
-}
-@keyframes pm-hs-pulse {
-  0%, 100% { opacity: 0.55; }
-  50%      { opacity: 1; }
 }
 
 /* Outline/Ghost: leise Cyan-Aura beim Hover */

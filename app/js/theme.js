@@ -1499,7 +1499,28 @@
       '<div class="pm-hw-eyes pm-hw-eyes--lg2 pm-hw-eyes--green"></div>' +
       '<div class="pm-hw-eyes pm-hw-eyes--lg3"></div>' +
       '<div class="pm-hw-eyes pm-hw-eyes--lg4"></div>' +
-      '<div class="pm-hw-eyes pm-hw-eyes--lg5 pm-hw-eyes--green"></div>'
+      '<div class="pm-hw-eyes pm-hw-eyes--lg5 pm-hw-eyes--green"></div>',
+    /* christmas: gemütliche Kaminstube als Login-Hintergrund. Reines CSS-
+       Leuchten – flackerndes Kaminfeuer (zwei Ebenen: Kern + Raum-Abstrahlung)
+       sowie sanft funkelnde Lichterketten an Decke/Kranz und am Weihnachtsbaum
+       (inkl. Spitzenstern). Eine „Stage" in exakter Bildgröße (cover-Box) hält
+       alle Glühpunkte deckungsgleich über ihren Bildmotiven – seitenverhältnis-
+       unabhängig. Kein Schnee/keine Musik auf der Login-Seite. */
+    christmas:
+      '<div class="pm-xm-login-stage" aria-hidden="true">' +
+        '<div class="pm-xm-fire pm-xm-fire--cast"></div>' +
+        '<div class="pm-xm-fire pm-xm-fire--core"></div>' +
+        '<i class="pm-xm-glow pm-xm-glow--ceil1"></i>' +
+        '<i class="pm-xm-glow pm-xm-glow--ceil2"></i>' +
+        '<i class="pm-xm-glow pm-xm-glow--ceil3"></i>' +
+        '<i class="pm-xm-glow pm-xm-glow--ceil4"></i>' +
+        '<i class="pm-xm-glow pm-xm-glow--wreath"></i>' +
+        '<i class="pm-xm-glow pm-xm-glow--mantel"></i>' +
+        '<i class="pm-xm-glow pm-xm-glow--star"></i>' +
+        '<i class="pm-xm-glow pm-xm-glow--tree1"></i>' +
+        '<i class="pm-xm-glow pm-xm-glow--tree2"></i>' +
+        '<i class="pm-xm-glow pm-xm-glow--tree3"></i>' +
+      '</div>'
   };
 
   /* FX-Container für das übergebene Theme (neu) aufbauen.
@@ -1539,7 +1560,7 @@
        bleiben auf Login aus (deren ::before/::after-Ambient sind via
        glass.css ohnehin deaktiviert). */
     var isLogin = document.body.classList.contains('login-page');
-    if (isLogin && theme !== 'cmd' && theme !== 'halloween') return;
+    if (isLogin && theme !== 'cmd' && theme !== 'halloween' && theme !== 'christmas') return;
 
     /* Auf der Login-Seite ggf. ein reduziertes Template; sonst die Vollszene.
        light/dark/unbekannt → '' → kein FX. */

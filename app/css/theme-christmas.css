@@ -130,7 +130,10 @@ html[data-theme="christmas"] { color-scheme: dark; }
     0 0 28px rgba(200, 16, 46, 0.16);
 }
 
-/* Primär-Buttons: warmer „Weihnachts-Glow" */
+/* Primär-Buttons: warmer „Weihnachts-Glow", der beim Hover EINMAL weich
+   aufgeblendet wird und ruhig stehen bleibt (kein Blinken – Button wirkt nur
+   kurz „größer" durch den aufleuchtenden Glow-Saum). Füllung aus dem
+   Token --pm-yellow (Rot). */
 [data-theme="christmas"] .btn-primary {
   position: relative;
   background: linear-gradient(180deg, #E2384F 0%, #C8102E 55%, #A00D25 100%);
@@ -150,11 +153,16 @@ html[data-theme="christmas"] { color-scheme: dark; }
 }
 [data-theme="christmas"] .btn-primary:hover:not(:disabled)::after {
   opacity: 1;
-  animation: pm-xm-pulse 1.8s ease-in-out infinite;
 }
-@keyframes pm-xm-pulse {
-  0%, 100% { opacity: 0.55; }
-  50%      { opacity: 1; }
+
+/* Hover behält eine VERLAUFS-Füllung (NICHT auf Solid wechseln). Sonst
+   „blinkt"/flackert der Button: der Basis-Hover (components.css) setzt
+   background:var(--pm-yellow-dark) = Solid → das background-image (Verlauf)
+   springt auf none, während background-color aus Transparent einblendet =
+   kurzer Aussetzer der Füllung. Gleiche Verlaufs-Art, nur etwas heller →
+   sauberes Hover-Feedback ohne Flackern. */
+[data-theme="christmas"] .btn-primary:hover:not(:disabled) {
+  background: linear-gradient(180deg, #F04A62 0%, #DA1A38 55%, #B8112C 100%);
 }
 
 /* Outline/Ghost: leise rote Aura beim Hover */
@@ -520,8 +528,11 @@ html[data-theme="christmas"] .bento .b-recent {
     0 4px 14px -6px rgba(200, 16, 46, 0.25);
 }
 [data-theme="christmas"] body[data-page="wochenansicht"] .tag-row--weekend {
-  background: rgba(255, 255, 255, 0.015);
-  border-color: rgba(255, 255, 255, 0.06);
+  /* War fast transparent (0.015) → über dem hellen Schnee-Hintergrund
+     unlesbar. Jetzt dunkle, leicht aufgehellte Fläche (Wochenende bleibt
+     optisch etwas dezenter als Werktage, Text aber klar lesbar). */
+  background: linear-gradient(180deg, rgba(22, 36, 58, 0.82) 0%, rgba(16, 28, 48, 0.82) 100%);
+  border-color: rgba(255, 255, 255, 0.08);
   box-shadow: none;
 }
 [data-theme="christmas"] body[data-page="wochenansicht"] .tag-row.expanded {
@@ -566,6 +577,54 @@ html[data-theme="christmas"] .bento .b-recent {
 /* Wochenansicht-Stunden-Spinner (analog dark/hyperspace/cmd/halloween) */
 [data-theme="christmas"] body[data-page="wochenansicht"] .time-spinner__input {
   border-color: rgba(255, 255, 255, 0.18);
+}
+
+/* ===================================================================
+   KONTRAST-KORREKTUREN – Text über der hellen/bunten Szene lesbar
+   -------------------------------------------------------------------
+   Manche Flächen sind bewusst transluzent (Liquid Glass) und einige
+   Text-/Icon-Farben kamen noch aus dem Light-Default → auf dunklem Glas
+   bzw. über dem hellen Schnee-Hintergrund unlesbar. Hier gezielt fixiert.
+   =================================================================== */
+
+/* Dashboard-Mitteilungen: Meta/Vorschau war near-black (Light-Default)
+   auf dunklem Glas → auf Hellweiß umstellen. */
+[data-theme="christmas"] .b-mitteilung__meta    { color: rgba(255, 255, 255, 0.66); }
+[data-theme="christmas"] .b-mitteilung__preview { color: rgba(255, 255, 255, 0.60); }
+/* Dunkler Halo, damit Titel/Meta auch über hellen Baum-Lichtern knackig
+   lesbar bleiben (Kachel ist transluzentes Liquid Glass). */
+[data-theme="christmas"] .b-mitteilung__title,
+[data-theme="christmas"] .b-mitteilung__meta,
+[data-theme="christmas"] .b-mitteilung__preview { text-shadow: 0 1px 2px rgba(0, 0, 0, 0.55); }
+
+/* Wochen-Options-Leiste: heller Text lag auf transparentem Grund über dem
+   hellen Schnee. Dezente dunkle Glas-Leiste drunterlegen (mit H-Padding,
+   das die wochenansicht-Regel auf 0 gesetzt hatte). */
+[data-theme="christmas"] body[data-page="wochenansicht"] .wochen-options {
+  background: rgba(10, 18, 34, 0.60);
+  border: 1px solid rgba(170, 200, 230, 0.14);
+  border-radius: 14px;
+  padding: var(--sp-3) var(--sp-4);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+}
+
+/* Quill-Editor: Toolbar-Icons waren Quill-Default-Dunkelgrau (#444) auf
+   dunklem Editor-Grund → kaum sichtbar. WICHTIG: Quill hängt die Toolbar
+   als GESCHWISTER von .ql-editor-wrap ein (nicht als Nachfahre, s. Kommentar
+   in wochenansicht.js) → daher OHNE .ql-editor-wrap-Präfix adressieren,
+   sonst greift die Regel nicht. Aktive Icons bleiben Quill-blau (höhere
+   Spezifität). */
+[data-theme="christmas"] .ql-snow .ql-stroke {
+  stroke: rgba(237, 242, 250, 0.82);
+}
+[data-theme="christmas"] .ql-snow .ql-fill,
+[data-theme="christmas"] .ql-snow .ql-stroke.ql-fill {
+  fill: rgba(237, 242, 250, 0.82);
+}
+/* Platzhalter (.ql-editor liegt IM Wrap → hier greift der Wrap-Pfad). */
+[data-theme="christmas"] .ql-editor-wrap .ql-editor.ql-blank::before {
+  color: rgba(206, 218, 236, 0.58);
 }
 
 /* ===================================================================
@@ -669,27 +728,26 @@ html[data-theme="christmas"] .bento .b-recent {
    Kein flacher weißer Strich mehr: eine gewölbte Schneedecke mit
    unebener Oberkante (mehrere Mound-Bumps) liegt auf der Button-
    Oberkante, darunter hängen ein paar Schmelz-Tropfen über die Kante
-   (radiale Verläufe). (::after ist durch den Glow-Ring belegt → alles
-   im ::before, mehrere Background-Layer.)
+   (radiale Verläufe). Liegt im ::before (das ::after trägt den Hover-Glow-
+   Ring), mehrere Background-Layer; reine Ruhezustand-Deko ohne Animation.
    =================================================================== */
 [data-theme="christmas"] .btn-primary { overflow: visible; }
 [data-theme="christmas"] .btn-primary::before {
-  content: ""; position: absolute; left: -3px; right: -3px; top: -11px; height: 26px;
+  content: ""; position: absolute; left: 0; right: 0; top: -10px; height: 24px;
   pointer-events: none; z-index: 2;
-  background:
-    /* Schmelz-Tropfen, die als Zungen über die Schneekante nach unten laufen */
-    radial-gradient(4px 9px at 21% 17px,  #f3f8ff 70%, rgba(243,248,255,0) 73%),
-    radial-gradient(4.5px 12px at 49% 20px, #f3f8ff 70%, rgba(243,248,255,0) 73%),
-    radial-gradient(4px 8px at 77% 16px,  #f3f8ff 70%, rgba(243,248,255,0) 73%),
-    /* unebene Mound-Bumps an der OBERKANTE (aufgetürmter Schnee) */
-    radial-gradient(13px 11px at 16% 9px, #ffffff 70%, rgba(255,255,255,0) 73%),
-    radial-gradient(16px 13px at 40% 8px, #ffffff 70%, rgba(255,255,255,0) 73%),
-    radial-gradient(15px 12px at 64% 9px, #ffffff 70%, rgba(255,255,255,0) 73%),
-    radial-gradient(13px 11px at 87% 8px, #ffffff 70%, rgba(255,255,255,0) 73%),
-    /* deckendes Schneeband oben mit harter Unterkante (kein langer Verlauf) */
-    linear-gradient(180deg, #ffffff 0 11px, #eaf2fc 11px 13px, rgba(255,255,255,0) 13px);
-  background-repeat: no-repeat;
-  filter: drop-shadow(0 2px 1px rgba(60,90,130,0.35));
+  /* WIEDERHOLENDE Kacheln statt fixer %-Positionen: gleiche Schneedichte
+     auf jedem Button (schmal wie breit). Hügel ~alle 30 px, Tropfen ~alle
+     58 px (versetzt). border-radius + weichere Verlauf-Stopps runden die
+     RÄNDER (Enden/Unterkante) ab – kein eckiges Band mehr. */
+  border-radius: 10px 10px 7px 7px;
+  background-image:
+    radial-gradient(4px 9px at 50% 16px, #f3f8ff 68%, rgba(243,248,255,0) 78%),   /* Tropfen */
+    radial-gradient(14px 11px at 50% 9px, #ffffff 64%, rgba(255,255,255,0) 80%),  /* Hügel (weich) */
+    linear-gradient(180deg, #ffffff 0 8px, #eef4fc 8px, rgba(235,243,252,0) 13px); /* Band, weiche Unterkante */
+  background-repeat: repeat-x;
+  background-size: 58px 24px, 30px 24px, 100% 24px;
+  background-position: 15px 0, 0 0, 0 0;
+  filter: drop-shadow(0 2px 1px rgba(60,90,130,0.32));
 }
 
 /* Dashboard-Hero-CTA: kleine schräge Mütze auf der rechten oberen Ecke */
@@ -913,3 +971,204 @@ html[data-theme="christmas"] .bento .b-recent {
 
 /* Druck-Ansicht: Steuerelement nicht mitdrucken. */
 @media print { .pm-xm-music { display: none !important; } }
+
+/* ===================================================================
+   LOGIN-SZENE – „Kaminstube" (NUR Christmas, NUR Login-Seite)
+   -------------------------------------------------------------------
+   Hintergrund: backgrounds/christmas-login-background.png (1672×941, 16:9)
+   + reine CSS-Lichteffekte:
+   • Kaminfeuer (unten links) flackert realistisch – zwei Ebenen: heller,
+     schnell zuckender Flammenkern + größere, langsamere Raum-/Teppich-
+     Abstrahlung mit versetzter Periode (→ kein gleichmäßiges „Atmen").
+   • Lichterketten (Decke/Kranz/Kaminsims) und Baum (inkl. Spitzenstern)
+     bekommen weiche, leicht versetzt funkelnde Glüh-Punkte.
+   Trick gegen Verrutschen: Alle Effekte liegen in einer „Stage", die
+   exakt die cover-Box des Bildes nachbildet – max(100vw, 100vh·R),
+   zentriert – und das Bild via background-size:100% 100% trägt. Damit
+   sitzt jeder %-positionierte Glüh-Punkt SEITENVERHÄLTNIS-UNABHÄNGIG
+   deckungsgleich über seinem Motiv (statt bei cover-Crop zu driften).
+   mix-blend-mode:screen addiert Licht aufs gemalte Bild (Feuer/Lichter
+   „blühen" auf, statt es zu überdecken); isolation:isolate hält das
+   Blending in der Stage.
+   =================================================================== */
+[data-theme="christmas"] .pm-xm-login-stage {
+  position: absolute; top: 50%; left: 50%;
+  transform: translate(-50%, -50%);
+  width:  max(100vw, 100vh * 1672 / 941);
+  height: max(100vh, 100vw * 941 / 1672);
+  isolation: isolate;
+  pointer-events: none;
+  background: #0A1019 center center / 100% 100% no-repeat
+    url("../assets/backgrounds/christmas-login-background.png");
+}
+
+/* Login-Karte in die warme Szene einbinden: statt der kühlen, fast
+   deckenden Standard-Fläche (--pm-white = kühles Navy) hier eine wärmere,
+   transluzente Milchglas-Karte – die Kaminstube scheint sanft durch
+   (backdrop-blur), Schatten dezenter → die Karte sitzt IN der Szene statt
+   als kalter Kasten aufzuliegen. */
+[data-theme="christmas"] body.login-page .login-card {
+  background:
+    linear-gradient(180deg, rgba(40, 30, 30, 0.55) 0%, rgba(22, 18, 26, 0.66) 100%);
+  border: 1px solid rgba(255, 206, 160, 0.16);
+  box-shadow:
+    0 18px 48px rgba(0, 0, 0, 0.42),
+    inset 0 1px 0 rgba(255, 226, 190, 0.10);
+  -webkit-backdrop-filter: blur(16px) saturate(1.06);
+  backdrop-filter: blur(16px) saturate(1.06);
+}
+
+/* Goldene Girlande locker in leicht unsymmetrischer Wellenform um den
+   Karten-Rand gelegt. SVG = welliger Gold-Strang (mehrere Frequenzen →
+   wirkt unregelmäßig, schließt aber nahtlos) + kleine Gold-Kugeln. Das
+   ::after überlagert nur den RAND (Mitte transparent) → liegt nicht über
+   dem Formular. inset:-16px deckt sich mit dem 16-px-Rahmen des SVG, sodass
+   die Wellen-Mittellinie genau auf der Kartenkante „herumläuft". */
+[data-theme="christmas"] body.login-page .login-card { overflow: visible; }
+[data-theme="christmas"] body.login-page .login-card::after {
+  content: "";
+  position: absolute;
+  inset: -16px;
+  background: center / 100% 100% no-repeat
+    url("../assets/xmas-login-garland.svg");
+  pointer-events: none;
+  z-index: 3;
+  filter: drop-shadow(0 3px 5px rgba(0, 0, 0, 0.45));
+}
+
+/* ── Login-Button: Zuckerstangen-Optik (rot-weiß gestreift) ──────────
+   Ovale Pille mit diagonalen Candy-Cane-Streifen + Glanzlicht oben +
+   rotem Rand. Schnee (::before) und roter Glow-Ring (::after) entfallen.
+   ID-Selektor (#loginBtn) sticht den Basis-/Theme-Primär-Hover. Text weiß
+   mit kräftigem dunkelrotem Halo → auch über den hellen Streifen lesbar. */
+[data-theme="christmas"] body.login-page #loginBtn {
+  border-radius: 999px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.45) 0%, rgba(255, 255, 255, 0) 46%),
+    repeating-linear-gradient(50deg, #d8112e 0 13px, #ffe9ee 13px 26px);
+  border: 3px solid #c8102e;
+  color: #ffffff;
+  text-shadow:
+    0 0 3px rgba(120, 6, 22, 0.95),
+    0 1px 2px rgba(120, 6, 22, 0.95),
+    0 0 9px rgba(120, 6, 22, 0.55);
+  box-shadow:
+    inset 0 2px 3px rgba(255, 255, 255, 0.55),
+    inset 0 -6px 12px rgba(150, 16, 36, 0.45),
+    0 8px 20px rgba(120, 10, 25, 0.42);
+}
+[data-theme="christmas"] body.login-page #loginBtn::before,
+[data-theme="christmas"] body.login-page #loginBtn::after {
+  display: none !important;   /* kein Schnee, kein Glow-Ring */
+}
+[data-theme="christmas"] body.login-page #loginBtn:hover:not(:disabled) {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.55) 0%, rgba(255, 255, 255, 0) 46%),
+    repeating-linear-gradient(50deg, #e51d39 0 13px, #fff2f5 13px 26px);
+  border-color: #e2384f;
+}
+
+/* ── Kaminfeuer ──────────────────────────────────────────────────── */
+[data-theme="christmas"] .pm-xm-fire {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  mix-blend-mode: screen;
+  will-change: opacity, transform;
+}
+/* Flammenkern: klein, hell, schnelles unregelmäßiges Flackern */
+[data-theme="christmas"] .pm-xm-fire--core {
+  left: 11.3%; top: 69%; width: 11%; height: 19%;
+  background: radial-gradient(ellipse at center,
+    rgba(255, 206, 110, 0.95) 0%,
+    rgba(255, 138, 40, 0.62) 36%,
+    rgba(255, 80, 16, 0.18) 66%,
+    transparent 100%);
+  animation: pm-xm-fire-core 2.9s ease-in-out infinite;
+}
+/* Raum-/Teppich-Abstrahlung: groß, weich, langsamer + zeitlich versetzt */
+[data-theme="christmas"] .pm-xm-fire--cast {
+  left: 22%; top: 84%; width: 48%; height: 42%;
+  background: radial-gradient(ellipse at center,
+    rgba(255, 150, 64, 0.30) 0%,
+    rgba(255, 108, 38, 0.13) 46%,
+    transparent 76%);
+  animation: pm-xm-fire-cast 4.6s ease-in-out infinite;
+}
+/* Unregelmäßige Keyframes ≈ echtes Flackern (bewusst KEINE Sinus-„Atmung"). */
+@keyframes pm-xm-fire-core {
+  0%   { opacity: 0.86; transform: translate(-50%, -50%) scale(1.00); }
+  9%   { opacity: 1.00; transform: translate(-50%, -50%) scale(1.05); }
+  17%  { opacity: 0.70; transform: translate(-50%, -50%) scale(0.97); }
+  26%  { opacity: 0.94; transform: translate(-50%, -50%) scale(1.03); }
+  35%  { opacity: 0.76; transform: translate(-50%, -50%) scale(0.99); }
+  44%  { opacity: 1.00; transform: translate(-50%, -50%) scale(1.06); }
+  54%  { opacity: 0.72; transform: translate(-50%, -50%) scale(0.98); }
+  64%  { opacity: 0.92; transform: translate(-50%, -50%) scale(1.02); }
+  74%  { opacity: 0.80; transform: translate(-50%, -50%) scale(1.00); }
+  84%  { opacity: 1.00; transform: translate(-50%, -50%) scale(1.05); }
+  93%  { opacity: 0.74; transform: translate(-50%, -50%) scale(0.98); }
+  100% { opacity: 0.86; transform: translate(-50%, -50%) scale(1.00); }
+}
+@keyframes pm-xm-fire-cast {
+  0%   { opacity: 0.62; }
+  15%  { opacity: 0.82; }
+  30%  { opacity: 0.52; }
+  47%  { opacity: 0.74; }
+  61%  { opacity: 0.56; }
+  78%  { opacity: 0.84; }
+  90%  { opacity: 0.60; }
+  100% { opacity: 0.62; }
+}
+
+/* ── Lichterketten / Baum – weiche, funkelnde Glüh-Punkte ────────── */
+[data-theme="christmas"] .pm-xm-glow {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  mix-blend-mode: screen;
+  will-change: opacity;
+  background: radial-gradient(ellipse at center,
+    rgba(255, 224, 140, 0.85) 0%,
+    rgba(255, 184, 74, 0.34) 44%,
+    transparent 72%);
+  animation: pm-xm-twinkle 4.2s ease-in-out infinite;
+}
+/* Decke / Kranz / Kaminsims (warmgold) – je versetzte Dauer + Delay. */
+[data-theme="christmas"] .pm-xm-glow--ceil1  { left: 13%;  top: 10%; width: 11%; height: 17%; animation-duration: 3.8s; animation-delay: -0.3s; }
+[data-theme="christmas"] .pm-xm-glow--ceil2  { left: 27%;  top: 7%;  width: 11%; height: 17%; animation-duration: 4.6s; animation-delay: -1.7s; }
+[data-theme="christmas"] .pm-xm-glow--ceil3  { left: 40%;  top: 7%;  width: 10%; height: 16%; animation-duration: 4.1s; animation-delay: -2.9s; }
+[data-theme="christmas"] .pm-xm-glow--ceil4  { left: 51%;  top: 9%;  width: 9%;  height: 15%; animation-duration: 5.0s; animation-delay: -0.9s; }
+[data-theme="christmas"] .pm-xm-glow--wreath { left: 14%;  top: 19%; width: 9%;  height: 15%; animation-duration: 4.4s; animation-delay: -3.4s; }
+[data-theme="christmas"] .pm-xm-glow--mantel { left: 6.5%; top: 31%; width: 7%;  height: 12%; animation-duration: 4.9s; animation-delay: -2.1s; }
+/* Baum (warmgold) */
+[data-theme="christmas"] .pm-xm-glow--tree1  { left: 86%;  top: 24%; width: 15%; height: 24%; animation-duration: 4.3s; animation-delay: -1.2s; }
+[data-theme="christmas"] .pm-xm-glow--tree2  { left: 90%;  top: 44%; width: 14%; height: 23%; animation-duration: 5.1s; animation-delay: -3.0s; }
+[data-theme="christmas"] .pm-xm-glow--tree3  { left: 81%;  top: 57%; width: 12%; height: 20%; animation-duration: 4.7s; animation-delay: -0.6s; }
+/* Spitzenstern: etwas heller, kühleres Gold. */
+[data-theme="christmas"] .pm-xm-glow--star   {
+  left: 87%; top: 7%; width: 8%; height: 13%;
+  background: radial-gradient(ellipse at center,
+    rgba(255, 244, 190, 0.95) 0%,
+    rgba(255, 214, 110, 0.45) 42%,
+    transparent 70%);
+  animation-duration: 3.4s; animation-delay: -1.0s;
+}
+@keyframes pm-xm-twinkle {
+  0%, 100% { opacity: 0.40; }
+  50%      { opacity: 0.92; }
+}
+
+/* Reduced-Motion: Effekte sichtbar, aber STATISCH (kein Flackern/Funkeln). */
+@media (prefers-reduced-motion: reduce) {
+  [data-theme="christmas"] .pm-xm-fire,
+  [data-theme="christmas"] .pm-xm-glow { animation: none !important; }
+  [data-theme="christmas"] .pm-xm-fire--core { opacity: 0.90; }
+  [data-theme="christmas"] .pm-xm-fire--cast { opacity: 0.66; }
+  [data-theme="christmas"] .pm-xm-glow { opacity: 0.72; }
+}
+
+/* Druck: Login-Szene nicht mitdrucken. */
+@media print {
+  [data-theme="christmas"] .pm-xm-login-stage { display: none !important; }
+}
