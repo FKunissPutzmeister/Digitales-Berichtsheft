@@ -1,4 +1,5 @@
 'use strict';
+process.env.NODE_ENV = 'test';
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const { profileToUser } = require('./saml');
@@ -22,4 +23,11 @@ test('profileToUser fällt für E-Mail auf NameID und Claim-URI zurück', () => 
 test('profileToUser nutzt E-Mail als Name-Fallback', () => {
   const u = profileToUser({ objectid: 'g2', email: 'only@pm.com' });
   assert.equal(u.name, 'only@pm.com');
+});
+
+test('profileToUser wirft nicht bei null/undefined und liefert oid===undefined', () => {
+  const uNull = profileToUser(null);
+  const uUndef = profileToUser(undefined);
+  assert.equal(uNull.oid, undefined);
+  assert.equal(uUndef.oid, undefined);
 });

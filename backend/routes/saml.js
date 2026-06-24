@@ -4,6 +4,7 @@
    Bei fehlender Konfiguration (samlConfigured=false) → 503.
    ===================================================================== */
 const router = require('express').Router();
+// Konfiguration wird einmalig beim Start ausgewertet; samlConfigured ist ein Load-Time-Snapshot (beabsichtigt).
 const { saml, samlConfigured } = require('../config/saml');
 
 const DASHBOARD = '/app/dashboard.html';
@@ -61,7 +62,10 @@ router.post('/acs', guard, async (req, res) => {
 
 // Logout: lokale Session beenden. (IdP-SLO optional, spätere Iteration.)
 function logout(req, res) {
-  req.session.destroy(() => res.redirect(LOGIN_PAGE));
+  req.session.destroy((err) => {
+    if (err) console.error('[saml] session.destroy:', err);
+    res.redirect(LOGIN_PAGE);
+  });
 }
 router.get('/logout', logout);
 router.post('/logout', logout);
