@@ -100,6 +100,49 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (firstAzubi) viewAzubiId = firstAzubi.id;
   }
 
+  // ── Auto-Complete für Tätigkeiten ─────────────────────────────────
+  // Registry aller aktiven Typeahead-Handles; vor jedem Re-Render sauber
+  // abgeräumt (Editoren werden pro render() neu erzeugt → kein Leak).
+  const activeAutocompletes = [];
+  let suggestionIndex = null;        // gecachter Index des aktuellen Azubis
+  let suggestionIndexAzubi = null;
+
+  function detachAllAutocompletes() {
+    while (activeAutocompletes.length) {
+      const ac = activeAutocompletes.pop();
+      try { ac.destroy(); } catch (e) { /* idempotent */ }
+    }
+  }
+
+  // Index lazy laden (fire-and-forget). Nur für den eigenen, bearbeitbaren
+  // Azubi-View; Ausbilder/Korrektoren bekommen keine Vorschläge (D5).
+  function ensureSuggestionIndex(azubiId) {
+    if (isAusbilder || !azubiId || !window.ActivitySuggestions) return;
+    if (suggestionIndexAzubi === azubiId && suggestionIndex) return;
+    suggestionIndexAzubi = azubiId;
+    ActivitySuggestions.ensure(azubiId).then(idx => {
+      if (suggestionIndexAzubi === azubiId) suggestionIndex = idx;
+    }).catch(() => {});
+  }
+
+  // Typeahead an einen frisch erzeugten Quill-Editor hängen.
+  function attachActivityAutocomplete(quill, kind) {
+    if (isAusbilder) return;                                 // D5
+    if (!window.ActivityAutocomplete || !window.ActivitySuggestions) return;
+    const azubiId = viewAzubiId || user.id;
+    ensureSuggestionIndex(azubiId);
+    const ac = ActivityAutocomplete.attach(quill, {
+      kind: kind,
+      getSuggestions: function (q) {
+        return suggestionIndex ? ActivitySuggestions.query(suggestionIndex, kind, q, 7) : [];
+      },
+      onAccept: function (text) {
+        if (suggestionIndex) ActivitySuggestions.bump(suggestionIndex, kind, text, DateUtil.toISODate(new Date()));
+      },
+    });
+    activeAutocompletes.push(ac);
+  }
+
   async function getBerichtTyp() {
     const azubiUser = await DB.getUser(viewAzubiId || user.id);
     return azubiUser?.berichtTyp || 'täglich';
@@ -167,6 +210,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   async function render() {
+    detachAllAutocompletes();
     // Wenn dieser Render durch einen KW-Wechsel ausgelöst wurde, hängen
     // wir die --entering-Klasse + data-dir direkt ans Markup. So ist die
     // Enter-Animation schon beim allerersten Paint scharf – kein Frame
@@ -1157,6 +1201,7 @@ document.addEventListener('DOMContentLoaded', async () => {
           updateDayCharCount(dateStr);
           debounceSave(dateStr);
         });
+        attachActivityAutocomplete(quill, kind);
       }
     });
 
@@ -1651,6 +1696,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (ctr) ctr.textContent = count + ' Zeichen';
         debounceSaveWoche();
       });
+      attachActivityAutocomplete(quill, id);
     }
   }
 
