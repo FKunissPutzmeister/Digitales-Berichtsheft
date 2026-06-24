@@ -25,6 +25,9 @@ app.use(cors({
   credentials: true,
 }));
 app.use(express.json());
+// Azure POSTet die SAMLResponse als application/x-www-form-urlencoded.
+// Ohne diesen Parser bliebe req.body leer → ACS-Validierung schlägt still fehl.
+app.use(express.urlencoded({ extended: false }));
 
 // Sessions auf der Platte ablegen statt im RAM. So überleben Logins einen
 // Backend-Restart – wichtig für `node --watch` im Dev-Modus, damit nicht
@@ -73,6 +76,9 @@ app.post('/api/auth/logout', (req, res) => {
   req.session.destroy();
   res.json({ ok: true });
 });
+
+// ── SAML-SSO-Routen (kein requireAuth davor) ─────────────────────
+app.use('/api/auth/saml', require('./routes/saml'));
 
 app.get('/api/auth/me', devAuth, (req, res) => {
   res.json({ user: req.user });
