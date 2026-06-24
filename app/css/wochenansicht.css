@@ -1371,7 +1371,13 @@ html[data-skin="silk"] body[data-page="wochenansicht"] #silk-react-root {
 
 /* „Diese Woche"-Sprungbutton – erscheint nur, wenn nicht auf der aktuellen
    KW (Sichtbarkeit toggelt JS via .is-hidden). Höhe = KW-Nav (44px). */
-.week-today-btn { height: 44px; white-space: nowrap; gap: var(--sp-2); }
+.week-today-btn {
+  height: 44px;
+  white-space: nowrap;
+  gap: var(--sp-2);
+  flex-shrink: 0;                              /* nie vom Flex-Layout gequetscht */
+  padding-inline: var(--sp-5) var(--sp-6);     /* rechts etwas mehr Luft (Icon links wiegt optisch) */
+}
 .week-today-btn.is-hidden { display: none; }
 
 /* KW-Block rechts: ‹ [KW 20 / Datum] ›
@@ -3462,6 +3468,52 @@ body[data-page="wochenansicht"] select.tag-row__select:not([data-pm-enhanced]):h
 [data-theme="dark"] .dauer-pill[data-dauer="ganztag"] .dauer-pill__opt[data-dauer-set="ganztag"],
 [data-theme="dark"] .dauer-pill[data-dauer="halbtag"] .dauer-pill__opt[data-dauer-set="halbtag"] {
   color: #1a1a1a;                          /* Text auf Gelb bleibt dunkel */
+}
+
+/* ── Doppel-Halbtag bei Ort = „Betrieb/Schule" ──
+   Statt einer klickbaren Pille zwei statische „Halbtag"-Chips, je mit
+   kleiner Caption (Betrieb / Schule). Nicht interaktiv – der Tag zählt als
+   ganzer Anwesenheitstag (halb Betrieb + halb Schule). */
+.dauer-split {
+  display: inline-flex;
+  align-items: flex-end;
+  gap: 8px;
+  user-select: none;
+}
+.dauer-split__item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+}
+.dauer-split__cap {
+  font-size: var(--text-xs);
+  font-weight: var(--fw-bold);
+  color: var(--pm-grey-500);
+  letter-spacing: 0.02em;
+}
+.dauer-split__val {
+  border-radius: 999px;
+  padding: 6px 14px;
+  background: var(--pm-yellow);
+  color: #1a1a1a;
+  font-family: var(--font-body);
+  font-size: var(--text-sm);
+  font-weight: 700;
+  white-space: nowrap;
+  box-shadow: var(--shadow-xs);
+}
+/* Abwesender Tag / gesperrte Woche: gedämpft, wie die readonly-Pille */
+.dauer-split--readonly { opacity: .5; }
+.dauer-split--readonly .dauer-split__val {
+  background: var(--pm-grey-300);
+  color: var(--pm-grey-700);
+  box-shadow: none;
+}
+[data-theme="dark"] .dauer-split__val { color: #1a1a1a; }   /* Text auf Gelb bleibt dunkel */
+[data-theme="dark"] .dauer-split--readonly .dauer-split__val {
+  background: rgba(255, 255, 255, 0.12);
+  color: var(--pm-grey-700);
 }
 
 /* ── Per-Komponente-Fehler (statt ganzer Tag rot) ──

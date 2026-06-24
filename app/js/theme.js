@@ -209,24 +209,34 @@
       '<div class="pm-hw-eyes pm-hw-eyes--2"></div>' +
       '<div class="pm-hw-eyes pm-hw-eyes--3"></div>',
     /* ── FX-Template: christmas ──
-       Basis = Winterbild (.pm-xm-bg → assets/backgrounds/Christmas Background.jpeg).
-       Darüber: ein Cluster kleiner, einzeln blinkender Lichter-Bulbs über
-       der Baumkrone (.pm-xm-treelights > .pm-xm-bulb, mix-blend-mode:screen) und
-       ein <canvas class="pm-xm-snow"> mit wind-getragenem Schneefall (Engine
+       Basis = Winterbild (.pm-xm-bg → assets/backgrounds/Christmas Background.png,
+       2:1-Panorama, center/cover). Darüber eine zum gecoverten Bild deckungs-
+       gleiche „Bühne" (.pm-xm-lights, cover-box max(100vw,200vh)×max(100vh,50vw),
+       identisch zentriert) – dadurch sitzen alle Glow-Overlays bei jedem Seiten-
+       verhältnis exakt auf ihren Bild-Lichtquellen:
+         • Tannenbaum rechts: goldener Stern (.pm-xm-glow--star) + farbige,
+           einzeln funkelnde Kugeln (.pm-xm-bulb--t*, mix-blend:screen)
+         • Laternen/Fenster: warme, sanft flackernde Glows (.pm-xm-glow--lamp …)
+       Plus <canvas class="pm-xm-snow"> mit wind-getragenem Schneefall (Engine
        PMChristmasSnow, start/stop am FX-Lebenszyklus). Styling in
        css/theme-christmas.css. */
     christmas:
       '<div class="pm-xm-bg"></div>' +
-      '<div class="pm-xm-treelights">' +
-        '<i class="pm-xm-bulb pm-xm-bulb--1"></i>' +
-        '<i class="pm-xm-bulb pm-xm-bulb--2"></i>' +
-        '<i class="pm-xm-bulb pm-xm-bulb--3"></i>' +
-        '<i class="pm-xm-bulb pm-xm-bulb--4"></i>' +
-        '<i class="pm-xm-bulb pm-xm-bulb--5"></i>' +
-        '<i class="pm-xm-bulb pm-xm-bulb--6"></i>' +
-        '<i class="pm-xm-bulb pm-xm-bulb--7"></i>' +
-        '<i class="pm-xm-bulb pm-xm-bulb--8"></i>' +
-        '<i class="pm-xm-bulb pm-xm-bulb--star"></i>' +
+      '<div class="pm-xm-lights">' +
+        '<i class="pm-xm-glow pm-xm-glow--star"></i>' +
+        '<i class="pm-xm-bulb pm-xm-bulb--t1"></i>' +
+        '<i class="pm-xm-bulb pm-xm-bulb--t2"></i>' +
+        '<i class="pm-xm-bulb pm-xm-bulb--t3"></i>' +
+        '<i class="pm-xm-bulb pm-xm-bulb--t4"></i>' +
+        '<i class="pm-xm-bulb pm-xm-bulb--t5"></i>' +
+        '<i class="pm-xm-bulb pm-xm-bulb--t6"></i>' +
+        '<i class="pm-xm-bulb pm-xm-bulb--t7"></i>' +
+        '<i class="pm-xm-glow pm-xm-glow--lamp pm-xm-glow--boat"></i>' +
+        '<i class="pm-xm-glow pm-xm-glow--lamp pm-xm-glow--hang"></i>' +
+        '<i class="pm-xm-glow pm-xm-glow--lamp pm-xm-glow--strlt"></i>' +
+        '<i class="pm-xm-glow pm-xm-glow--lamp pm-xm-glow--cabin"></i>' +
+        '<i class="pm-xm-glow pm-xm-glow--lamp pm-xm-glow--fence"></i>' +
+        '<i class="pm-xm-glow pm-xm-glow--lamp pm-xm-glow--btree"></i>' +
       '</div>' +
       '<canvas class="pm-xm-snow" aria-hidden="true"></canvas>'
   };

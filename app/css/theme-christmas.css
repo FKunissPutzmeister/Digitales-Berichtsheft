@@ -4,8 +4,8 @@
    Wird von jeder HTML-Seite als eigenes <link>-Stylesheet DIREKT VOR
    themes.css geladen. Gehört EXKLUSIV dem Christmas-Designer.
    Szene (FX-Layer #pmThemeFX, Template "christmas" in js/theme.js):
-   Winterbild (assets/backgrounds/Christmas Background.jpeg) + pulsierende
-   Baum-Licht-Glows + <canvas> Schneefall (Engine PMChristmasSnow).
+   Winterbild (assets/backgrounds/Christmas Background.png) + sanft flackernde
+   Lampen- & Baum-Licht-Glows + <canvas> Schneefall (Engine PMChristmasSnow).
    =================================================================== */
 html[data-theme="christmas"] { color-scheme: dark; }
 
@@ -106,14 +106,14 @@ html[data-theme="christmas"] { color-scheme: dark; }
 
 [data-theme="christmas"] .pm-xm-bg {
   position: fixed; inset: 0; z-index: 0;
-  /* „right center": der Weihnachtsbaum (rechts im Bild) bleibt bei cover
-     immer sichtbar und sitzt am rechten Rand → die Baum-Bulbs (rechts %)
-     treffen ihn zuverlässig. */
-  background: right center / cover no-repeat
-    url("../assets/backgrounds/Christmas Background.jpeg");
-  /* Bild etwas heller/lebendiger; kein Abdunkel-/Korn-Overlay mehr
-     (auf Wunsch entfernt) → Winterbild zeigt sich unverfälscht. */
-  filter: brightness(1.14) saturate(1.06);
+  /* 2:1-Panorama → „center center": das Kaminhaus bleibt mittig, Tannenbaum
+     (rechts) und Laternen (links) bleiben bei cover möglichst lange im Bild.
+     Die Glow-Bühne (.pm-xm-lights) ist identisch zentriert → die Overlays
+     sitzen exakt auf den Bild-Lichtquellen. */
+  background: center center / cover no-repeat
+    url("../assets/backgrounds/Christmas Background.png");
+  /* Bild bereits hell/lebendig → nur dezente Anhebung, kein Abdunkel-Overlay. */
+  filter: brightness(1.06) saturate(1.04);
 }
 [data-theme="christmas"] .pm-xm-snow {
   position: fixed; inset: 0; z-index: 4; pointer-events: none;
@@ -628,48 +628,104 @@ html[data-theme="christmas"] .bento .b-recent {
 }
 
 /* ===================================================================
-   BAUM-LICHTER – Cluster einzeln blinkender Bulbs über der Baumkrone
+   LICHTER-BÜHNE – warme Lampen-Glows + funkelnder Tannenbaum
    -------------------------------------------------------------------
-   Der Baum liegt im Bild rechts; .pm-xm-bg ist auf „right center"
-   verankert (s.o.), damit der Baum nie weggeschnitten wird und die
-   Bulbs zuverlässig rechts sitzen. Jeder Bulb ist ein kleiner, heller
-   Glow-Punkt (mix-blend-mode:screen → leuchtet über dem dunkleren
-   Tannengrün; über hellem Himmel würde screen verschwinden, daher
-   sitzen die Bulbs über der Krone, nicht im Himmel). Einzeln gestaffelte
-   Blink-Animation → „leicht blinkende" Lichterkette am Baum.
-   Positionen sind per Augenmaß auf das Bild getunt (Desktop) und ggf.
-   im Browser nachzujustieren.
+   .pm-xm-lights ist eine zum gecoverten Hintergrundbild DECKUNGSGLEICHE
+   „cover-box": gleiche Größe wie das 2:1-Bild im cover-Modus
+   (max(100vw,200vh) × max(100vh,50vw)) und identisch zentriert. Dadurch
+   entspricht eine Position in % exakt einem Bildanteil – die Glows sitzen
+   bei JEDEM Seitenverhältnis auf ihren Lichtquellen (Randlampen werden mit
+   dem Bild beschnitten, bleiben aber deckungsgleich).
+     • Lampen/Fenster (.pm-xm-glow--lamp): warmer Radial-Glow, langsam &
+       sanft flackernd (mix-blend:screen → leuchtet additiv über das Bild).
+     • Tannenbaum: goldener Stern (.pm-xm-glow--star) + einzeln funkelnde
+       Farbkugeln (.pm-xm-bulb--t*).
+   „leicht": kleine Amplituden, gestaffelte Dauern/Delays → ruhiges,
+   lebendiges Glimmen statt hektischem Blinken. Positionen per Augenmaß auf
+   das Bild getunt (Bildanteil in %), ggf. im Browser nachzujustieren.
    =================================================================== */
-[data-theme="christmas"] .pm-xm-treelights {
-  position: fixed; inset: 0; z-index: 3; pointer-events: none;
+[data-theme="christmas"] .pm-xm-lights {
+  position: fixed; left: 50%; top: 50%;
+  width: max(100vw, 200vh); height: max(100vh, 50vw);
+  transform: translate(-50%, -50%);
+  z-index: 3; pointer-events: none;
 }
+
+/* ── Warme Lampen-/Fenster-Glows ─────────────────────────────────── */
+[data-theme="christmas"] .pm-xm-glow {
+  position: absolute; border-radius: 50%; pointer-events: none;
+  /* zentriert auf den left/top-Punkt; die Keyframes wiederholen das
+     translate, damit die Lampe auch während animation-delay mittig sitzt. */
+  transform: translate(-50%, -50%);
+  mix-blend-mode: screen; will-change: opacity, transform;
+}
+[data-theme="christmas"] .pm-xm-glow--lamp {
+  aspect-ratio: 1;
+  /* dichterer Kern + weicher, weiter auslaufender Halo → präsenteres,
+     deutlich sichtbares Lampenlicht (spillt auch hinter Sidebar/Karten hervor) */
+  background: radial-gradient(circle,
+    rgba(255,234,185,1)    0%,
+    rgba(255,208,128,0.78) 28%,
+    rgba(255,184,95,0.44)  50%,
+    rgba(255,168,78,0.18)  70%,
+    rgba(255,160,70,0)     86%);
+  animation: pm-xm-flicker 5.5s ease-in-out infinite;
+}
+/* Positionen (Bildanteil) + individuelle Größe/Takt der Laternen */
+[data-theme="christmas"] .pm-xm-glow--boat  { left: 15.5%; top: 56.5%; width: clamp(66px, 8.4vw, 152px); animation-duration: 5.2s; }
+[data-theme="christmas"] .pm-xm-glow--hang  { left: 3.2%;  top: 42%;   width: clamp(44px, 5.2vw,  94px); animation-duration: 6.1s; animation-delay: .8s; }
+[data-theme="christmas"] .pm-xm-glow--strlt { left: 6%;    top: 36%;   width: clamp(48px, 5.8vw, 108px); animation-duration: 4.6s; animation-delay: 1.4s; }
+[data-theme="christmas"] .pm-xm-glow--cabin { left: 61.5%; top: 49.5%; width: clamp(58px, 6.8vw, 126px); animation-duration: 6.6s; animation-delay: .3s; }
+[data-theme="christmas"] .pm-xm-glow--fence { left: 52%;   top: 51.5%; width: clamp(34px, 3.8vw,  72px); animation-duration: 4.9s; animation-delay: 1.1s; }
+[data-theme="christmas"] .pm-xm-glow--btree { left: 80%;   top: 86%;   width: clamp(48px, 5.6vw, 104px); animation-duration: 5.8s; animation-delay: .6s; }
+
+/* ── Tannenbaum-Stern (gold, ruhiges Pulsieren) ──────────────────── */
+[data-theme="christmas"] .pm-xm-glow--star {
+  left: 84.5%; top: 7.5%;
+  width: clamp(26px, 3vw, 58px); aspect-ratio: 1;
+  background: radial-gradient(circle,
+    rgba(255,255,235,1)   0%,
+    rgba(255,240,170,0.8) 28%,
+    rgba(255,214,110,0.35) 55%,
+    rgba(255,200,90,0)    80%);
+  animation: pm-xm-starpulse 3.6s ease-in-out infinite;
+}
+
+/* ── Tannenbaum-Farbkugeln (einzeln funkelnd, screen über dem Grün) ─ */
 [data-theme="christmas"] .pm-xm-bulb {
   position: absolute;
-  width: clamp(7px, 1.15vw, 15px); aspect-ratio: 1; border-radius: 50%;
-  mix-blend-mode: screen; filter: blur(0.5px);
+  width: clamp(6px, 0.9vw, 13px); aspect-ratio: 1; border-radius: 50%;
+  transform: translate(-50%, -50%);
+  mix-blend-mode: screen; filter: blur(0.4px);
   will-change: opacity, transform;
   animation: pm-xm-blink 2s ease-in-out infinite;
 }
-/* color helper: bright core + soft halo via box-shadow (blends via screen) */
-[data-theme="christmas"] .pm-xm-bulb--1 { right: 5.5%;  top: 22%; background: #ff5a5f; box-shadow: 0 0 10px 3px rgba(255,90,95,0.85);  animation-duration: 1.9s; }
-[data-theme="christmas"] .pm-xm-bulb--2 { right: 11%;   top: 26%; background: #74c0ff; box-shadow: 0 0 10px 3px rgba(116,192,255,0.85); animation-duration: 2.4s; animation-delay: .3s; }
-[data-theme="christmas"] .pm-xm-bulb--3 { right: 3%;    top: 31%; background: #7bED9F; box-shadow: 0 0 10px 3px rgba(123,237,159,0.8);  animation-duration: 1.6s; animation-delay: .7s; }
-[data-theme="christmas"] .pm-xm-bulb--4 { right: 9%;    top: 35%; background: #ffd24d; box-shadow: 0 0 11px 3px rgba(255,210,77,0.9);  animation-duration: 2.1s; animation-delay: .15s; }
-[data-theme="christmas"] .pm-xm-bulb--5 { right: 14.5%; top: 40%; background: #ff5a5f; box-shadow: 0 0 10px 3px rgba(255,90,95,0.85);  animation-duration: 2.7s; animation-delay: .9s; }
-[data-theme="christmas"] .pm-xm-bulb--6 { right: 5%;    top: 45%; background: #fff4d6; box-shadow: 0 0 11px 3px rgba(255,244,214,0.9); animation-duration: 1.8s; animation-delay: .5s; }
-[data-theme="christmas"] .pm-xm-bulb--7 { right: 11.5%; top: 50%; background: #74c0ff; box-shadow: 0 0 10px 3px rgba(116,192,255,0.85); animation-duration: 2.3s; animation-delay: 1.1s; }
-[data-theme="christmas"] .pm-xm-bulb--8 { right: 7%;    top: 55%; background: #ffd24d; box-shadow: 0 0 10px 3px rgba(255,210,77,0.85); animation-duration: 2.0s; animation-delay: .4s; }
-/* the star at the very top of the tree – larger, warm-white glow */
-[data-theme="christmas"] .pm-xm-bulb--star {
-  right: 7%; top: 12%;
-  width: clamp(12px, 2vw, 26px);
-  background: #fff7e0;
-  box-shadow: 0 0 18px 6px rgba(255,238,180,0.95);
-  animation: pm-xm-blink 3.4s ease-in-out infinite;
-}
+[data-theme="christmas"] .pm-xm-bulb--t1 { left: 84%;   top: 20%; background: #ff5a5f; box-shadow: 0 0 9px 3px rgba(255,90,95,0.85);  animation-duration: 1.9s; }
+[data-theme="christmas"] .pm-xm-bulb--t2 { left: 81%;   top: 27%; background: #ffd24d; box-shadow: 0 0 10px 3px rgba(255,210,77,0.9);  animation-duration: 2.4s; animation-delay: .3s; }
+[data-theme="christmas"] .pm-xm-bulb--t3 { left: 87%;   top: 28%; background: #74c0ff; box-shadow: 0 0 9px 3px rgba(116,192,255,0.85); animation-duration: 1.6s; animation-delay: .7s; }
+[data-theme="christmas"] .pm-xm-bulb--t4 { left: 83%;   top: 34%; background: #7bed9f; box-shadow: 0 0 9px 3px rgba(123,237,159,0.8);  animation-duration: 2.1s; animation-delay: .15s; }
+[data-theme="christmas"] .pm-xm-bulb--t5 { left: 79.5%; top: 40%; background: #ff5a5f; box-shadow: 0 0 9px 3px rgba(255,90,95,0.85);  animation-duration: 2.7s; animation-delay: .9s; }
+[data-theme="christmas"] .pm-xm-bulb--t6 { left: 88%;   top: 40%; background: #ffd24d; box-shadow: 0 0 9px 3px rgba(255,210,77,0.85); animation-duration: 1.8s; animation-delay: .5s; }
+[data-theme="christmas"] .pm-xm-bulb--t7 { left: 83.5%; top: 46%; background: #7bed9f; box-shadow: 0 0 9px 3px rgba(123,237,159,0.8);  animation-duration: 2.3s; animation-delay: 1.1s; }
+
 @keyframes pm-xm-blink {
-  0%, 100% { opacity: 0.35; transform: scale(0.88); }
-  50%      { opacity: 1;    transform: scale(1.12); }
+  0%, 100% { opacity: 0.4; transform: translate(-50%, -50%) scale(0.85); }
+  50%      { opacity: 1;   transform: translate(-50%, -50%) scale(1.15); }
+}
+/* Lampen: unregelmäßiges, ruhiges Flackern (Flamme), kein hartes Blinken.
+   Höhere Grundhelligkeit → Lampen leuchten durchgehend präsent, das Flackern
+   moduliert nur noch dezent darum herum. */
+@keyframes pm-xm-flicker {
+  0%, 100% { opacity: 0.9;  transform: translate(-50%, -50%) scale(1.0); }
+  18%      { opacity: 1;    transform: translate(-50%, -50%) scale(1.03); }
+  34%      { opacity: 0.84; transform: translate(-50%, -50%) scale(0.99); }
+  52%      { opacity: 1;    transform: translate(-50%, -50%) scale(1.06); }
+  70%      { opacity: 0.92; transform: translate(-50%, -50%) scale(1.02); }
+  86%      { opacity: 1;    transform: translate(-50%, -50%) scale(1.04); }
+}
+@keyframes pm-xm-starpulse {
+  0%, 100% { opacity: 0.72; transform: translate(-50%, -50%) scale(0.94); }
+  50%      { opacity: 1;    transform: translate(-50%, -50%) scale(1.08); }
 }
 
 /* ===================================================================

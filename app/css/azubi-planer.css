@@ -592,6 +592,10 @@
 }
 .planer-gantt-details > .gantt-scroll {
   margin-top: var(--sp-3);
+  /* Vertikales Scrollen ab >10 Azubi-Zeilen; die konkrete max-height setzt
+     applyGanttHeight() in azubi-planer.js (Header + 10 Zeilenhöhen). Der
+     sticky Header/Namensspalte bleiben dank gemeinsamem Scroll-Container stehen. */
+  overflow-y: auto;
 }
 
 /* ── Leer-Zustand ── */

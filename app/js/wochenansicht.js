@@ -156,7 +156,13 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Tagdauer-Pill (Ganztag/Halbtag) im Liquid-Glass-Design des V2-Brand-
   // Selectors. Beide Optionen sind gleich breit → der Glas-Indikator wird
   // rein per CSS-transform verschoben (data-dauer), kein JS-Messen nötig.
-  function renderDauerPill(dateStr, tagdauer, readonly) {
+  //
+  // Sonderfall Ort = „Betrieb/Schule": halb Betrieb + halb Schule = ein
+  // voller Anwesenheitstag. Statt der klickbaren Pille zeigen wir zwei
+  // statische „Halbtag"-Chips (Betrieb / Schule), gespeichert wird ganztag
+  // (data-dauer="ganztag" → Dashboard rechnet 100 %).
+  function renderDauerPill(dateStr, tagdauer, readonly, ort) {
+    if (ort === 'Betrieb/Schule') return renderDauerSplit(dateStr, readonly);
     const dauer = tagdauer === 'halbtag' ? 'halbtag' : 'ganztag';
     const dis = readonly ? 'disabled' : '';
     const cls = readonly ? ' dauer-pill--readonly' : '';
@@ -166,9 +172,40 @@ document.addEventListener('DOMContentLoaded', async () => {
     </div>`;
   }
 
+  // Doppelanzeige für „Betrieb/Schule": zwei nicht-interaktive Halbtag-Chips
+  // mit kleiner Caption darüber. data-dauer="ganztag", damit getDauerValue()
+  // den vollen Tag liefert (kein Auswahl-Button, kein „Ganztag"-Text).
+  function renderDauerSplit(dateStr, readonly) {
+    const cls = readonly ? ' dauer-split--readonly' : '';
+    return `<div class="dauer-split${cls}" data-field="tagdauer" data-date="${dateStr}" data-dauer="ganztag">
+      <div class="dauer-split__item">
+        <span class="dauer-split__cap">Betrieb</span>
+        <span class="dauer-split__val">Halbtag</span>
+      </div>
+      <div class="dauer-split__item">
+        <span class="dauer-split__cap">Schule</span>
+        <span class="dauer-split__val">Halbtag</span>
+      </div>
+    </div>`;
+  }
+
   function getDauerValue(dateStr) {
-    const p = document.querySelector(`.dauer-pill[data-date="${dateStr}"]`);
+    const p = document.querySelector(`[data-field="tagdauer"][data-date="${dateStr}"]`);
     return p && p.dataset.dauer === 'halbtag' ? 'halbtag' : 'ganztag';
+  }
+
+  // Tauscht beim Ort-Wechsel das ArbZ-Element der Zeile gegen die passende
+  // Darstellung (Pille ⇄ Doppel-Halbtag). Der vorherige data-dauer-Wert wird
+  // übernommen, damit ein Hin- und Her-Wechsel die Ganztag/Halbtag-Wahl wahrt.
+  function refreshDauerCell(row, dateStr, ort) {
+    const old = row.querySelector('.dauer-pill, .dauer-split');
+    if (!old) return;
+    const readonly = old.classList.contains('dauer-pill--readonly')
+                  || old.classList.contains('dauer-split--readonly');
+    const prevDauer = old.dataset.dauer || 'ganztag';
+    const tmp = document.createElement('div');
+    tmp.innerHTML = renderDauerPill(dateStr, prevDauer, readonly, ort).trim();
+    old.replaceWith(tmp.firstElementChild);
   }
 
   function setSpinnerCallback(cb) {
@@ -325,7 +362,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         </div>
         <div class="week-toolbar__right">
           <button class="btn btn-ghost week-today-btn${currentKW === todayKW && currentYear === todayYear ? ' is-hidden' : ''}" id="thisWeekBtn" type="button">
-            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="width:15px;height:15px"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 14"/></svg>
+            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="width:15px;height:15px"><path stroke-linecap="round" stroke-linejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
             Diese Woche
           </button>
           <div class="week-kw-block" role="group" aria-label="Kalenderwoche">
@@ -718,7 +755,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                 ? renderDauerPill(
                     dateStr,
                     tag.tagdauer,
-                    isAbwesend || readonly
+                    isAbwesend || readonly,
+                    tag.ort
                   )
                 : `<span class="tag-row__we-marker">WE</span>`}
             </div>
@@ -1339,7 +1377,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                 ? renderDauerPill(
                     dateStr,
                     tag.tagdauer,
-                    isAbwesend || readonly
+                    isAbwesend || readonly,
+                    tag.ort
                   )
                 : `<span class="tag-row__we-marker">WE</span>`}
             </div>
@@ -2198,6 +2237,8 @@ document.addEventListener('DOMContentLoaded', async () => {
             pill.classList.toggle('dauer-pill--readonly', isAbwesend);
             pill.querySelectorAll('.dauer-pill__opt').forEach(b => b.disabled = isAbwesend);
           }
+          const split = row.querySelector('.dauer-split');
+          if (split) split.classList.toggle('dauer-split--readonly', isAbwesend);
 
           const editorSec = document.getElementById('editorSection_' + dateStr);
           const absenceSec = document.getElementById('absenceSection_' + dateStr);
@@ -2221,6 +2262,10 @@ document.addEventListener('DOMContentLoaded', async () => {
       el.addEventListener('change', async () => {
         if (el.dataset.field === 'ort') {
           const dateStr = el.dataset.date;
+          // ArbZ-Anzeige an den neuen Ort anpassen (Pille ⇄ Doppel-Halbtag),
+          // bevor autoSave den Tagdauer-Wert aus dem DOM liest.
+          const dayCard = document.getElementById('dayCard_' + dateStr);
+          if (dayCard) refreshDauerCell(dayCard, dateStr, el.value);
           const visible = getVisibleDaySections(el.value);
           ['betrieb', 'schule'].forEach(kind => {
             const section = document.querySelector(`.day-section--${kind}[data-date="${dateStr}"]`);
@@ -2315,11 +2360,16 @@ document.addEventListener('DOMContentLoaded', async () => {
             pill.classList.toggle('dauer-pill--readonly', isAbwesend);
             pill.querySelectorAll('.dauer-pill__opt').forEach(b => b.disabled = isAbwesend);
           }
+          const split = row.querySelector('.dauer-split');
+          if (split) split.classList.toggle('dauer-split--readonly', isAbwesend);
           await autoSave(dateStr);
           updateStundenDisplay();
         });
       }
-      if (ortSel) ortSel.addEventListener('change', async () => await autoSave(dateStr));
+      if (ortSel) ortSel.addEventListener('change', async () => {
+        refreshDauerCell(row, dateStr, ortSel.value);
+        await autoSave(dateStr);
+      });
     });
 
     // Spinner-Callback registrieren
