@@ -65,7 +65,7 @@ function buildSaml() {
 }
 
 const { saml, samlConfigured } = buildSaml();
-if (!samlConfigured) {
+if (!samlConfigured && process.env.NODE_ENV !== 'test') {
   console.warn('[saml] SAML ist NICHT konfiguriert — SSO-Routen liefern 503.');
 }
 
