@@ -120,9 +120,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (isAusbilder || !azubiId || !window.ActivitySuggestions) return;
     if (suggestionIndexAzubi === azubiId && suggestionIndex) return;
     suggestionIndexAzubi = azubiId;
-    ActivitySuggestions.ensure(azubiId).then(idx => {
+    // DB ist ein lexikalisches Global (kein window.DB) → Fetcher explizit injizieren.
+    ActivitySuggestions.ensure(azubiId, (id) => DB.getWochenFuerAzubi(id)).then(idx => {
       if (suggestionIndexAzubi === azubiId) suggestionIndex = idx;
-    }).catch(() => {});
+    }).catch(e => console.warn('[autocomplete] Tätigkeits-Index konnte nicht geladen werden:', e));
   }
 
   // Typeahead an einen frisch erzeugten Quill-Editor hängen.
