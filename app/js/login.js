@@ -28,18 +28,17 @@ document.addEventListener('DOMContentLoaded', async () => {
   const msBtn = document.getElementById('msLoginBtn');
   const ssoHint = document.getElementById('ssoHint');
   if (msBtn) {
+    const base = (window.location.port === '5500')
+      ? `http://${window.location.hostname}:3000/api` : '/api';
     let samlReady = false;
     try {
-      const base = (window.location.port === '5500')
-        ? `http://${window.location.hostname}:3000/api` : '/api';
       const r = await fetch(`${base}/auth/saml/status`, { credentials: 'include' });
+      if (!r.ok) console.warn('[saml] status-Endpoint antwortete nicht OK:', r.status);
       samlReady = r.ok && (await r.json()).configured === true;
     } catch { samlReady = false; }
 
     msBtn.addEventListener('click', () => {
       if (samlReady) {
-        const base = (window.location.port === '5500')
-          ? `http://${window.location.hostname}:3000/api` : '/api';
         window.location.href = `${base}/auth/saml/login`;
       } else {
         ssoHint?.classList.add('visible');
