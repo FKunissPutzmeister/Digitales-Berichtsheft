@@ -156,18 +156,19 @@
     }
   }
 
-  const _cache = new Map();   // azubiId -> index
+  const _cache = new Map();   // azubiId -> Promise<index>
 
-  // Baut den Index einmal pro azubiId und cached ihn.
+  // Baut den Index einmal pro azubiId und cached ihn. Concurrent-Aufrufe teilen
+  // sich denselben In-Flight-Fetch (Promise wird gecacht, nicht erst das Ergebnis).
   // fetcher(azubiId) -> Promise<wochen[]>; Default: DB.getWochenFuerAzubi.
-  async function ensure(azubiId, fetcher) {
-    if (!azubiId) return buildIndex([]);
+  function ensure(azubiId, fetcher) {
+    if (!azubiId) return Promise.resolve(buildIndex([]));
     if (_cache.has(azubiId)) return _cache.get(azubiId);
     const fetchFn = fetcher || (id => global.DB.getWochenFuerAzubi(id));
-    const wochen = await fetchFn(azubiId);
-    const index = buildIndex(wochen);
-    _cache.set(azubiId, index);
-    return index;
+    const p = (async () => buildIndex(await fetchFn(azubiId)))();
+    p.catch(() => { _cache.delete(azubiId); });   // fehlgeschlagenen Fetch nicht cachen
+    _cache.set(azubiId, p);
+    return p;
   }
 
   function invalidate(azubiId) {

@@ -78,7 +78,7 @@
         const on = i === activeIdx;
         return '<div class="ac-option' + (on ? ' ac-option--active' : '') +
           '" role="option" id="' + dropdownId + '-opt-' + i + '" data-idx="' + i +
-          '" aria-selected="' + (on ? 'true' : 'false') + '">' + highlight(it) + '</div>';
+          '" title="' + esc(it.text) + '" aria-selected="' + (on ? 'true' : 'false') + '">' + highlight(it) + '</div>';
       }).join('');
     }
 
@@ -109,6 +109,7 @@
         if (dropdown) dropdown.style.display = 'block';
       } else {
         root.removeAttribute('aria-activedescendant');
+        root.removeAttribute('aria-controls');
         if (dropdown) dropdown.style.display = 'none';
         if (_openController === controller) _openController = null;
       }
