@@ -150,8 +150,8 @@
     function onKeydown(e) {
       if (!open) return;                       // sonst Quill ganz normal
       switch (e.key) {
-        case 'ArrowDown': e.preventDefault(); e.stopPropagation(); setActive(activeIdx + 1); break;
-        case 'ArrowUp':   e.preventDefault(); e.stopPropagation(); setActive(activeIdx - 1); break;
+        case 'ArrowDown': e.preventDefault(); e.stopPropagation(); setActive(activeIdx < 0 ? 0 : activeIdx + 1); break;
+        case 'ArrowUp':   e.preventDefault(); e.stopPropagation(); setActive(activeIdx < 0 ? items.length - 1 : activeIdx - 1); break;
         case 'Enter':
         case 'Tab':
           if (activeIdx >= 0) { e.preventDefault(); e.stopPropagation(); accept(activeIdx); }
