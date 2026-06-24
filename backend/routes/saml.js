@@ -52,8 +52,21 @@ router.post('/acs', guard, async (req, res) => {
     const { profile } = await saml.validatePostResponseAsync(req.body);
     const user = profileToUser(profile);
     if (!user.oid) throw new Error('Assertion ohne objectid-Claim');
-    req.session.user = user;
-    res.redirect(DASHBOARD);
+    // Session-Fixation vermeiden: nach erfolgreicher Assertion neue Session-ID.
+    req.session.regenerate((err) => {
+      if (err) {
+        console.error('[saml] session.regenerate:', err);
+        return res.redirect(`${LOGIN_PAGE}?error=sso`);
+      }
+      req.session.user = user;
+      req.session.save((saveErr) => {
+        if (saveErr) {
+          console.error('[saml] session.save:', saveErr);
+          return res.redirect(`${LOGIN_PAGE}?error=sso`);
+        }
+        res.redirect(DASHBOARD);
+      });
+    });
   } catch (e) {
     console.error('[saml] ACS-Validierung fehlgeschlagen:', e.message);
     res.redirect(`${LOGIN_PAGE}?error=sso`);

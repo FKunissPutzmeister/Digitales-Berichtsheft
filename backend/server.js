@@ -78,7 +78,8 @@ app.post('/api/auth/logout', (req, res) => {
 });
 
 // ── SAML-SSO-Routen (kein requireAuth davor) ─────────────────────
-app.use('/api/auth/saml', require('./routes/saml'));
+const samlRouter = require('./routes/saml');
+app.use('/api/auth/saml', samlRouter);
 
 app.get('/api/auth/me', devAuth, (req, res) => {
   res.json({ user: req.user });
