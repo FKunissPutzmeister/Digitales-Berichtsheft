@@ -24,12 +24,28 @@ document.addEventListener('DOMContentLoaded', async () => {
       : `<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>`;
   });
 
-  // Microsoft-SSO (Platzhalter bis Azure AD verbunden ist)
+  // Microsoft-SSO: aktiv, sobald das Backend SAML konfiguriert meldet.
   const msBtn = document.getElementById('msLoginBtn');
   const ssoHint = document.getElementById('ssoHint');
-  msBtn?.addEventListener('click', () => {
-    ssoHint?.classList.add('visible');
-  });
+  if (msBtn) {
+    let samlReady = false;
+    try {
+      const base = (window.location.port === '5500')
+        ? `http://${window.location.hostname}:3000/api` : '/api';
+      const r = await fetch(`${base}/auth/saml/status`, { credentials: 'include' });
+      samlReady = r.ok && (await r.json()).configured === true;
+    } catch { samlReady = false; }
+
+    msBtn.addEventListener('click', () => {
+      if (samlReady) {
+        const base = (window.location.port === '5500')
+          ? `http://${window.location.hostname}:3000/api` : '/api';
+        window.location.href = `${base}/auth/saml/login`;
+      } else {
+        ssoHint?.classList.add('visible');
+      }
+    });
+  }
 
   // Demo-Zugänge ein-/ausklappen
   const demoWrap = document.getElementById('loginDemo');
@@ -90,4 +106,9 @@ document.addEventListener('DOMContentLoaded', async () => {
       await doLogin(email);
     });
   });
+
+  // Fehlgeschlagener SAML-Handshake leitet mit ?error=sso zurück.
+  if (new URLSearchParams(window.location.search).get('error') === 'sso') {
+    showError('Microsoft-Anmeldung fehlgeschlagen. Bitte erneut versuchen oder Demo-Zugang nutzen.');
+  }
 });
