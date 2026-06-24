@@ -1,0 +1,54 @@
+/* ===================================================================
+   ACTIVITY-AUTOCOMPLETE.CSS
+   Typeahead-Dropdown für die Tätigkeitsfelder (Wochenansicht).
+   An document.body gehängt (position:fixed), JS setzt left/top.
+   Themt automatisch über die Design-Tokens (Light/Dark/Sonder-Themes),
+   da diese auf <html data-theme="…"> definiert sind und kaskadieren.
+   =================================================================== */
+
+.ac-dropdown {
+  position: fixed;
+  z-index: var(--z-toast);
+  box-sizing: border-box;
+  min-width: 220px;
+  max-width: 440px;
+  max-height: 280px;
+  overflow-y: auto;
+  padding: var(--sp-1);
+  background: var(--pm-white);
+  border: 1px solid var(--pm-grey-200);
+  border-radius: var(--r-md);
+  box-shadow: var(--elev-pop);
+  font-family: var(--font-body);
+  font-size: var(--text-sm);
+  color: var(--pm-grey-800);
+}
+
+.ac-option {
+  padding: var(--sp-2) var(--sp-3);
+  border-radius: var(--r-sm);
+  line-height: var(--lh-snug);
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition: background-color var(--t-fast);
+}
+
+.ac-option:hover,
+.ac-option--active {
+  background: var(--pm-yellow-bg);
+}
+
+.ac-option--active {
+  box-shadow: inset 0 0 0 1px var(--pm-yellow-dark);
+}
+
+.ac-option__match {
+  font-weight: var(--fw-bold);
+  color: var(--pm-yellow-darker);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ac-option { transition: none; }
+}
