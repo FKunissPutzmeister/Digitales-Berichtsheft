@@ -375,6 +375,7 @@ html[data-theme="iceland"] .bento .b-recent {
    (.login-card__mark). Asset assets/logo-iceland.png (aus „Social
    Logo/200 x 200 px.png" umgefärbt, 2-Farb-Remap, AA-Kanten erhalten). */
 [data-theme="iceland"] .sidebar__logo-mark,
-[data-theme="iceland"] .login-card__mark {
+[data-theme="iceland"] .login-card__mark,
+[data-theme="iceland"] .dh-topbar__logo {
   content: url("../assets/logo-iceland.png");
 }

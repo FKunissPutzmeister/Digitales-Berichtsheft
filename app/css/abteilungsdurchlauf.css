@@ -34,17 +34,14 @@
   font-family: var(--font-heading);
   font-weight: var(--fw-bold);
 }
+/* Echtes Putzmeister-Logo (identisch zur Sidebar: .sidebar__logo-mark). */
 .dh-topbar__logo {
-  width: 34px;
-  height: 34px;
-  border-radius: var(--r-md);
-  background: var(--pm-yellow);
-  color: var(--on-yellow-text);
-  display: grid;
-  place-items: center;
-  font-family: var(--font-heading);
-  font-weight: var(--fw-bold);
-  font-size: var(--text-base);
+  width: 36px;
+  height: 36px;
+  flex-shrink: 0;
+  border-radius: var(--r-sm);
+  object-fit: contain;
+  display: block;
 }
 .dh-topbar__nav { display: flex; gap: var(--sp-1); }
 .dh-topbar__link {
