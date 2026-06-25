@@ -1,0 +1,134 @@
+/* ===================================================================
+   ABTEILUNGSDURCHLAUF (DH-Studenten) – schlanke Topbar-Shell
+   -------------------------------------------------------------------
+   Eigene, reduzierte Shell (kein Sidebar) für die Rolle „dhstudent".
+   Bewusst NUR über Design-Tokens (var(--pm-*) etc.) gestylt, damit
+   Hell/Dunkel UND alle Custom-Themes (die diese Tokens überschreiben)
+   automatisch greifen. Inhalt nutzt bestehende, bereits themed-fähige
+   Komponenten: .welcome-banner, .planer-kpi, .gantt-*, .durchlauf-card.
+   =================================================================== */
+
+/* Topbar/Main über den fixierten Theme-FX-Layern (body::before/after). */
+.dh-topbar,
+.dh-main { position: relative; z-index: 1; }
+
+/* ── Schlanke Topbar ── */
+.dh-topbar {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-6);
+  height: var(--topbar-h);
+  padding: 0 var(--sp-6);
+  background: var(--pm-white);
+  border-bottom: 1px solid var(--pm-grey-200);
+  position: sticky;
+  top: 0;
+  z-index: var(--z-sticky);
+}
+.dh-topbar__brand {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  text-decoration: none;
+  color: var(--pm-grey-900);
+  font-family: var(--font-heading);
+  font-weight: var(--fw-bold);
+}
+.dh-topbar__logo {
+  width: 34px;
+  height: 34px;
+  border-radius: var(--r-md);
+  background: var(--pm-yellow);
+  color: var(--on-yellow-text);
+  display: grid;
+  place-items: center;
+  font-family: var(--font-heading);
+  font-weight: var(--fw-bold);
+  font-size: var(--text-base);
+}
+.dh-topbar__nav { display: flex; gap: var(--sp-1); }
+.dh-topbar__link {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: var(--sp-2) var(--sp-4);
+  border-radius: var(--r-full);
+  font-size: var(--text-sm);
+  font-weight: var(--fw-bold);
+  color: var(--pm-grey-600);
+  text-decoration: none;
+  transition: background var(--t-fast), color var(--t-fast);
+}
+.dh-topbar__link svg { width: 17px; height: 17px; }
+.dh-topbar__link:hover { background: var(--pm-grey-100); color: var(--pm-grey-900); }
+.dh-topbar__link.active { background: var(--pm-yellow-pale); color: var(--pm-grey-900); }
+.dh-topbar__spacer { flex: 1; }
+
+.dh-topbar__theme {
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  border: none;
+  border-radius: var(--r-md);
+  background: transparent;
+  color: var(--pm-grey-600);
+  cursor: pointer;
+  transition: background var(--t-fast), color var(--t-fast);
+}
+.dh-topbar__theme:hover { background: var(--pm-grey-100); color: var(--pm-grey-900); }
+.dh-topbar__theme svg { width: 20px; height: 20px; }
+.dh-theme-sun { display: none; }
+.dh-theme-moon { display: block; }
+[data-theme="dark"] .dh-theme-sun { display: block; }
+[data-theme="dark"] .dh-theme-moon { display: none; }
+
+.dh-topbar__profil {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: var(--sp-1) var(--sp-1) var(--sp-1) var(--sp-3);
+  border-radius: var(--r-full);
+  text-decoration: none;
+  color: var(--pm-grey-700);
+  font-size: var(--text-sm);
+  font-weight: var(--fw-bold);
+  transition: background var(--t-fast);
+}
+.dh-topbar__profil:hover { background: var(--pm-grey-100); }
+.dh-topbar__profil.active { background: var(--pm-yellow-pale); color: var(--pm-grey-900); }
+
+/* ── Inhaltsbereich ── */
+.dh-main {
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: var(--sp-6) var(--sp-6) var(--sp-12);
+}
+.dh-section-title {
+  font-family: var(--font-heading);
+  font-size: var(--text-lg);
+  font-weight: var(--fw-bold);
+  color: var(--pm-grey-900);
+  margin: 0 0 var(--sp-4);
+}
+/* Abstand zwischen den Blöcken (Hero → KPIs → Timeline → Karten). */
+.dh-main .planer-kpis { margin-top: var(--sp-5); }
+.dh-main .dh-timeline { margin: var(--sp-6) 0; }
+.dh-main .durchlauf-list { margin-top: var(--sp-4); }
+
+.dh-empty {
+  padding: var(--sp-10) var(--sp-6);
+  text-align: center;
+  color: var(--pm-grey-500);
+  background: var(--pm-white);
+  border: 1px solid var(--pm-grey-200);
+  border-radius: var(--r-xl);
+  box-shadow: var(--shadow-sm);
+}
+
+@media (max-width: 720px) {
+  .dh-topbar { gap: var(--sp-3); padding: 0 var(--sp-4); }
+  .dh-topbar__brand-text { display: none; }
+  .dh-topbar__profil-label { display: none; }
+  .dh-main { padding: var(--sp-4) var(--sp-4) var(--sp-10); }
+}

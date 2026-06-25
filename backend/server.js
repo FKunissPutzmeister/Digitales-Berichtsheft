@@ -59,7 +59,7 @@ app.post('/api/auth/login', (req, res) => {
   const { oid } = req.body;
   if (!DEV_USERS[oid]) return res.status(400).json({ error: 'Unbekannte Dev-OID' });
   req.session.userOid = oid;
-  res.json({ user: { oid, ...DEV_USERS[oid], ...faehigkeitenFuer(oid), istAzubi: DEV_USERS[oid].role === 'azubi' } });
+  res.json({ user: { oid, ...DEV_USERS[oid], ...faehigkeitenFuer(oid), istAzubi: DEV_USERS[oid].role === 'azubi', istDhStudent: DEV_USERS[oid].role === 'dhstudent' } });
 });
 
 // Login per E-Mail (Frontend nutzt weiterhin E-Mail-Formular)
@@ -69,7 +69,7 @@ app.post('/api/auth/login-by-email', (req, res) => {
   if (!entry) return res.status(401).json({ error: 'E-Mail nicht gefunden' });
   const [oid, u] = entry;
   req.session.userOid = oid;
-  res.json({ user: { oid, ...u, ...faehigkeitenFuer(oid), istAzubi: u.role === 'azubi' } });
+  res.json({ user: { oid, ...u, ...faehigkeitenFuer(oid), istAzubi: u.role === 'azubi', istDhStudent: u.role === 'dhstudent' } });
 });
 
 app.post('/api/auth/logout', (req, res) => {

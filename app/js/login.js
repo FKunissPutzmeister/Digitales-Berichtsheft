@@ -2,10 +2,14 @@
    LOGIN.JS
    =================================================================== */
 document.addEventListener('DOMContentLoaded', async () => {
+  // Start-/Landeseite je Rolle: DH-Studenten direkt in den Abteilungsdurchlauf,
+  // alle anderen aufs Dashboard.
+  const landingFor = (user) => (user && user.role === 'dhstudent') ? 'abteilungsdurchlauf.html' : 'dashboard.html';
+
   // Bereits eingeloggt?
   const existing = await DB.fetchCurrentUser();
   if (existing) {
-    window.location.href = 'dashboard.html';
+    window.location.href = landingFor(existing);
     return;
   }
 
@@ -72,7 +76,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     try {
       const user = await DB.login(email);
       if (user) {
-        window.location.href = 'dashboard.html';
+        window.location.href = landingFor(user);
       } else {
         showError('Ungültige E-Mail-Adresse.');
         loginBtn.disabled = false;

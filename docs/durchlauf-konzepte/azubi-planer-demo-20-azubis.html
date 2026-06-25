@@ -215,16 +215,12 @@ select.form-control{
   pointer-events:none; }
 .gantt-bar{ position:absolute; height:28px; border-radius:2px; box-sizing:border-box; display:flex;
   align-items:center; padding:0 var(--sp-3); font-size:var(--text-xs); font-weight:var(--fw-bold);
+  color:#fff; /* Balkenfarbe inline aus zentraler Palette */
   white-space:nowrap; overflow:hidden; text-overflow:ellipsis; cursor:pointer;
   box-shadow:0 1px 2px rgba(0,0,0,.08); transition:filter var(--t-fast),transform var(--t-fast),box-shadow var(--t-fast);
   z-index:1; }
 .gantt-bar:hover{ filter:brightness(1.08); transform:scaleY(1.12) translateY(-1px);
   box-shadow:0 4px 14px rgba(0,0,0,.18); z-index:2; }
-.gantt-bar--ausbilder-1{ background:#4F9D9A; color:#fff; }
-.gantt-bar--ausbilder-2{ background:#5B86C2; color:#fff; }
-.gantt-bar--ausbilder-3{ background:#5FAE72; color:#fff; }
-.gantt-bar--ausbilder-4{ background:#D8835A; color:#fff; }
-.gantt-bar--ausbilder-5{ background:#9B7BC4; color:#fff; }
 .gantt-bar__label{ flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .gantt-today-line{ position:absolute; top:0; bottom:0; width:2px; background:var(--color-error-mid);
   opacity:.6; z-index:2; pointer-events:none; }
@@ -274,12 +270,15 @@ const ausbilder=[
   {id:'a4',name:'Petra Schäfer'},
   {id:'a5',name:'Andreas Klein'},
 ];
-const COLORS=['gantt-bar--ausbilder-1','gantt-bar--ausbilder-2','gantt-bar--ausbilder-3','gantt-bar--ausbilder-4','gantt-bar--ausbilder-5'];
-const BARHEX=['#4F9D9A','#5B86C2','#5FAE72','#D8835A','#9B7BC4'];
+/* Zentrale Abteilungs-Palette: 15 ruhige Farben, alle für weißen Balkentext. */
+const GANTT_PALETTE=['#4F9D9A','#5B86C2','#5FAE72','#D8835A','#9B7BC4',
+  '#C75C6B','#C99A3E','#6B8E4E','#C77FB2','#4F8FB8',
+  '#7E70BE','#B06A52','#5BA98C','#6E7E8C','#A86FA0'];
+function ganttColor(idx){ return GANTT_PALETTE[((idx%GANTT_PALETTE.length)+GANTT_PALETTE.length)%GANTT_PALETTE.length]; }
 /* Farbe pro ABTEILUNG (nicht pro Verantwortlicher): gleiche Abteilung = gleiche Farbe. */
 const abteilungColorIdx={}; let _nextColorIdx=0;
-function colorIndexFor(abteilung){ if(!abteilung) return 0; if(!(abteilung in abteilungColorIdx)){ abteilungColorIdx[abteilung]=_nextColorIdx%COLORS.length; _nextColorIdx++; } return abteilungColorIdx[abteilung]; }
-function getBarColor(idx){ return BARHEX[idx%BARHEX.length]; }
+function colorIndexFor(abteilung){ if(!abteilung) return 0; if(!(abteilung in abteilungColorIdx)){ abteilungColorIdx[abteilung]=_nextColorIdx%GANTT_PALETTE.length; _nextColorIdx++; } return abteilungColorIdx[abteilung]; }
+function getBarColor(idx){ return ganttColor(idx); }
 
 /* 20 Azubis – Mischung aus Berufen, mit ausbildungsBeginn für Lehrjahr. */
 const azubis=[
@@ -470,7 +469,7 @@ function buildGanttBars(list){
     if(endDay<startDay) return '';
     const left=startDay/NUM_DAYS*100, width=(endDay-startDay+1)/NUM_DAYS*100;
     const ausb=ausbilder.find(a=>a.id===zw.ausbilderId);
-    return `<div class="gantt-bar ${COLORS[colorIndexFor(zw.abteilung)]}" style="left:${left}%;width:${width}%"
+    return `<div class="gantt-bar" style="left:${left}%;width:${width}%;background:${ganttColor(colorIndexFor(zw.abteilung))}"
       title="${esc(zw.abteilung||'–')} · ${esc(ausb?.name||'–')} (${formatDate(zw.von)} – ${formatDate(zw.bis)})">
       <span class="gantt-bar__label">${esc(zw.abteilung||'')}</span></div>`;
   }).join('');

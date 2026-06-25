@@ -25,6 +25,11 @@ const DEV_USERS = {
     beruf: 'Industriekauffrau', ausbildungsBeginn: '2024-09-01', ausbildungsEnde: '2027-08-31' },
   '00000000-0000-0000-0000-000000000006': { name: 'Jonas Becker',        role: 'azubi',     email: 'jonas.becker@putzmeister.com',  berichtTyp: 'täglich',
     beruf: 'Mechatroniker', ausbildungsBeginn: '2023-09-01', ausbildungsEnde: '2026-08-31' },
+  // DH-Student: durchläuft Abteilungen wie ein Azubi, schreibt aber KEINE
+  // Berichte (kein istAzubi) → eigene, reduzierte Ansicht (Abteilungsdurchlauf).
+  '00000000-0000-0000-0000-000000000007': { name: 'Jana Hofer',          role: 'dhstudent', email: 'jana.hofer@putzmeister.com',
+    studiengang: 'DH Maschinenbau (B.Eng.)', semester: 5,
+    ausbildungsBeginn: '2025-10-01', ausbildungsEnde: '2027-09-30' },
 };
 
 function requireAuth(req, res, next) {
@@ -34,7 +39,8 @@ function requireAuth(req, res, next) {
     req.user = {
       ...s,
       ...faehigkeitenFuer(s.oid),
-      istAzubi: false,   // Rollen-Mapping folgt in späterer Iteration
+      istAzubi: false,       // Rollen-Mapping folgt in späterer Iteration
+      istDhStudent: false,   // SAML-Rollen-Mapping folgt; vorerst kein DH-Student
     };
     return next();
   }
@@ -50,6 +56,7 @@ function requireAuth(req, res, next) {
     ...DEV_USERS[oid],
     ...faehigkeitenFuer(oid),
     istAzubi: DEV_USERS[oid].role === 'azubi',
+    istDhStudent: DEV_USERS[oid].role === 'dhstudent',
   };
   next();
 }

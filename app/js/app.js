@@ -51,12 +51,27 @@ function applyCapabilities(caps) {
   document.querySelectorAll('.nav-azubi-only').forEach(el => {
     el.style.display = caps.istAzubi ? '' : 'none';
   });
+  // DH-Studenten brauchen kein Dashboard – auf der (einzig erreichbaren)
+  // Profil-Seite den Dashboard-Link ausblenden.
+  if (caps.istDhStudent) {
+    const dash = document.getElementById('nav-dashboard');
+    if (dash) dash.style.display = 'none';
+  }
 }
 
 /* ── Sidebar & Navigation ── */
 async function initLayout(activeNavId) {
   const user = await requireAuth();
   if (!user) return null;
+
+  // DH-Studenten nutzen ausschließlich ihre eigenen schlanken Seiten
+  // (abteilungsdurchlauf.html, dh-profil.html) – die haben KEINE Sidebar-Shell
+  // und rufen initLayout gar nicht auf. Landet ein DH-Student doch auf einer
+  // Sidebar-Seite (Dashboard, profil.html, …), zurück zum Durchlauf.
+  if (user.istDhStudent) {
+    location.replace('abteilungsdurchlauf.html');
+    return null;
+  }
 
   // Sidebar-Toggle
   const sidebar = document.getElementById('sidebar');
@@ -131,6 +146,7 @@ async function initLayout(activeNavId) {
     kannPlanen:   !!user.kannPlanen,
     istAusbilder: !!user.istAusbilder,
     istAzubi:     !!user.istAzubi,
+    istDhStudent: !!user.istDhStudent,
     korrektur:    istKorrektor,
   });
 
@@ -417,7 +433,15 @@ const ROLE_LABELS = {
   azubi:     'Auszubildende/r',
   ausbilder: 'Ausbilder/in',
   admin:     'Administrator',
+  dhstudent: 'DH-Student/in',
 };
+
+/* Start-/Landeseite je Rolle. DH-Studenten sehen ausschließlich den
+   Abteilungsdurchlauf (keine Dashboard-/Berichtsheft-Seiten). */
+function landingPageFor(user) {
+  if (user && user.istDhStudent) return 'abteilungsdurchlauf.html';
+  return 'dashboard.html';
+}
 
 const ANWESENHEIT_OPTS = [
   'anwesend', 'Urlaub', 'krank', 'Feiertag',
