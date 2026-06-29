@@ -383,7 +383,6 @@ html:not([data-ist-ausbilder="1"]) .nav-ausbilder-only {
 .sidebar.collapsed .sidebar__section-label { opacity: 0; }
 .sidebar.collapsed .sidebar__link-label { opacity: 0; max-width: 0; flex: none; }
 .sidebar.collapsed .sidebar__link-badge { opacity: 0; max-width: 0; overflow: hidden; }
-.sidebar.collapsed .sidebar__user-info { opacity: 0; max-width: 0; overflow: hidden; flex: none; }
 .sidebar.collapsed .sidebar__link {
   justify-content: center;
   padding: 0;
@@ -416,7 +415,6 @@ html:not([data-ist-ausbilder="1"]) .nav-ausbilder-only {
   gap: var(--sp-2);
 }
 .sidebar.collapsed .sidebar__user { justify-content: center; flex: none; }
-.sidebar.collapsed .sidebar__footer-actions { flex-direction: column; gap: 6px; }
 
 /* ── Sidebar-Tooltip (positioniert per JS) ──────────────────────
    Schwebt rechts neben dem Icon. Wird nur im Collapsed-Modus
@@ -466,7 +464,6 @@ html.sidebar-init-collapsed .sidebar__logo-sub { opacity: 0; max-width: 0; }
 html.sidebar-init-collapsed .sidebar__section-label { opacity: 0; }
 html.sidebar-init-collapsed .sidebar__link-label    { opacity: 0; max-width: 0; flex: none; }
 html.sidebar-init-collapsed .sidebar__link-badge   { opacity: 0; max-width: 0; overflow: hidden; }
-html.sidebar-init-collapsed .sidebar__user-info    { opacity: 0; max-width: 0; overflow: hidden; flex: none; }
 html.sidebar-init-collapsed .sidebar__link        { justify-content: center; padding: 0; }
 html.sidebar-init-collapsed .sidebar__link::before { display: none; }
 html.sidebar-init-collapsed .sidebar__toggle svg   { transform: rotate(180deg); }
@@ -540,82 +537,6 @@ html.sidebar-init-collapsed .main-wrapper         { margin-left: var(--sidebar-i
 .topbar.is-scrolled {
   box-shadow: 0 1px 0 var(--pm-grey-200), 0 4px 12px rgba(15, 23, 42, 0.04);
   border-bottom-color: transparent;
-}
-
-.topbar__menu-btn {
-  display: none;
-  align-items: center;
-  justify-content: center;
-  width: 36px;
-  height: 36px;
-  border-radius: var(--r-md);
-  color: var(--pm-grey-600);
-  transition: background var(--t-fast);
-  cursor: pointer;
-}
-.topbar__menu-btn:hover { background: var(--pm-grey-100); }
-.topbar__menu-btn svg { width: 20px; height: 20px; }
-
-.breadcrumb {
-  display: flex;
-  align-items: center;
-  gap: var(--sp-2);
-  flex: 1;
-  min-width: 0;
-  font-size: var(--text-sm);
-  color: var(--pm-grey-400);
-}
-.breadcrumb__item {
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.breadcrumb__item.current {
-  color: var(--pm-grey-800);
-  font-weight: var(--fw-bold);
-}
-.breadcrumb__sep { flex-shrink: 0; width: 16px; height: 16px; }
-.breadcrumb__sep svg { width: 16px; height: 16px; }
-
-.topbar__actions {
-  display: flex;
-  align-items: center;
-  gap: var(--sp-2);
-  flex-shrink: 0;
-}
-
-.topbar__action-btn {
-  position: relative;
-  width: 36px;
-  height: 36px;
-  border-radius: var(--r-md);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--pm-grey-500);
-  transition: background var(--t-fast), color var(--t-fast);
-  cursor: pointer;
-}
-.topbar__action-btn:hover {
-  background: var(--pm-grey-100);
-  color: var(--pm-grey-800);
-}
-.topbar__action-btn svg { width: 20px; height: 20px; }
-
-.topbar__user-btn {
-  display: flex;
-  align-items: center;
-  gap: var(--sp-2);
-  padding: var(--sp-1) var(--sp-2);
-  border-radius: var(--r-md);
-  cursor: pointer;
-  transition: background var(--t-fast);
-}
-.topbar__user-btn:hover { background: var(--pm-grey-100); }
-.topbar__user-name {
-  font-size: var(--text-sm);
-  font-weight: var(--fw-bold);
-  color: var(--pm-grey-700);
 }
 
 /* ── Seiteninhalt ── */
@@ -696,12 +617,10 @@ body[data-page="dashboard"] .welcome-hero {
   .sidebar__section-label { opacity: 0; }
   .sidebar__link-label { opacity: 0; max-width: 0; flex: none; }
   .sidebar__link-badge { opacity: 0; max-width: 0; overflow: hidden; }
-  .sidebar__user-info { opacity: 0; max-width: 0; overflow: hidden; flex: none; }
   .sidebar__link { justify-content: center; padding: 0; }
   .sidebar__link::before { display: none; }
   .sidebar__footer { padding: var(--sp-3) var(--sp-2); }
   .sidebar__user { justify-content: center; }
-  .topbar__user-name { display: none; }
 }
 
 /* ── Responsive: Mobile ── */
@@ -727,7 +646,6 @@ body[data-page="dashboard"] .welcome-hero {
   .main-wrapper {
     margin-left: 0 !important;
   }
-  .topbar__menu-btn { display: flex; }
   .main-content {
     padding: var(--sp-4);
   }

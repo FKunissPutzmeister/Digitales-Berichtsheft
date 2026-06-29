@@ -48,7 +48,6 @@
   transition: stroke-dashoffset 1.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 .circle-stat__ring .fill--success { stroke: var(--color-success-mid); }
-.circle-stat__ring .fill--info    { stroke: var(--color-info-mid); }
 .circle-stat__ring .fill--warning { stroke: var(--color-warning-mid); }
 .circle-stat__ring .fill--error   { stroke: var(--color-error-mid); }
 
@@ -92,69 +91,8 @@
   color: var(--pm-grey-400);
 }
 
-/* ── Filter-Zeile ── */
-.stand-filters {
-  display: flex;
-  gap: var(--sp-3);
-  margin-bottom: var(--sp-4);
-  flex-wrap: wrap;
-  align-items: center;
-}
-.stand-filters .form-control {
-  max-width: 220px;
-  height: 36px;
-  font-size: var(--text-sm);
-}
-.stand-filters-right {
-  margin-left: auto;
-  display: flex;
-  gap: var(--sp-3);
-  align-items: center;
-}
-
-/* ── Paginierung ── */
-.pagination {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: var(--sp-2);
-  padding: var(--sp-4) var(--sp-5);
-  border-top: 1px solid var(--pm-grey-100);
-  background: var(--pm-grey-50);
-}
-.pagination__info {
-  font-size: var(--text-sm);
-  color: var(--pm-grey-500);
-  margin-right: auto;
-}
-.pagination__btn {
-  width: 32px;
-  height: 32px;
-  border-radius: var(--r-md);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: var(--text-sm);
-  font-weight: var(--fw-bold);
-  color: var(--pm-grey-600);
-  cursor: pointer;
-  transition: background var(--t-fast);
-  border: none;
-  background: none;
-  font-family: inherit;
-}
-.pagination__btn:hover { background: var(--pm-grey-200); }
-.pagination__btn.active {
-  background: var(--pm-yellow);
-  color: var(--pm-grey-900);
-}
-.pagination__btn:disabled { opacity: 0.35; cursor: not-allowed; }
-.pagination__btn svg { width: 16px; height: 16px; }
-
 /* ── Responsiv ── */
 @media (max-width: 768px) {
   .stand-summary { flex-direction: row; overflow-x: auto; }
   .circle-stat { min-width: 120px; padding: var(--sp-4) var(--sp-5); }
-  .qual-table-wrap { overflow-x: auto; }
-  .qual-table td .progress-wrap { min-width: 120px; }
 }

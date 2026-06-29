@@ -26,7 +26,7 @@
 (function () {
   var STORAGE_KEY = 'theme';        // Standard-Modus: 'light' | 'dark'
   var CUSTOM_KEY  = 'customTheme';  // Custom-Design oder nicht gesetzt
-  var CUSTOM_THEMES = ['cmd', 'candy', 'iceland', 'silk', 'halloween'];
+  var CUSTOM_THEMES = ['hyperspace', 'cmd', 'candy', 'iceland', 'silk', 'halloween', 'christmas'];
   var html = document.documentElement;
 
   /* ── Silk-Farbvarianten ───────────────────────────────────────────
@@ -207,7 +207,38 @@
       '<div class="pm-hw-ghost"></div>' +
       '<div class="pm-hw-eyes pm-hw-eyes--1"></div>' +
       '<div class="pm-hw-eyes pm-hw-eyes--2"></div>' +
-      '<div class="pm-hw-eyes pm-hw-eyes--3"></div>'
+      '<div class="pm-hw-eyes pm-hw-eyes--3"></div>',
+    /* ── FX-Template: christmas ──
+       Basis = Winterbild (.pm-xm-bg → assets/backgrounds/Christmas Background.png,
+       2:1-Panorama, center/cover). Darüber eine zum gecoverten Bild deckungs-
+       gleiche „Bühne" (.pm-xm-lights, cover-box max(100vw,200vh)×max(100vh,50vw),
+       identisch zentriert) – dadurch sitzen alle Glow-Overlays bei jedem Seiten-
+       verhältnis exakt auf ihren Bild-Lichtquellen:
+         • Tannenbaum rechts: goldener Stern (.pm-xm-glow--star) + farbige,
+           einzeln funkelnde Kugeln (.pm-xm-bulb--t*, mix-blend:screen)
+         • Laternen/Fenster: warme, sanft flackernde Glows (.pm-xm-glow--lamp …)
+       Plus <canvas class="pm-xm-snow"> mit wind-getragenem Schneefall (Engine
+       PMChristmasSnow, start/stop am FX-Lebenszyklus). Styling in
+       css/theme-christmas.css. */
+    christmas:
+      '<div class="pm-xm-bg"></div>' +
+      '<div class="pm-xm-lights">' +
+        '<i class="pm-xm-glow pm-xm-glow--star"></i>' +
+        '<i class="pm-xm-bulb pm-xm-bulb--t1"></i>' +
+        '<i class="pm-xm-bulb pm-xm-bulb--t2"></i>' +
+        '<i class="pm-xm-bulb pm-xm-bulb--t3"></i>' +
+        '<i class="pm-xm-bulb pm-xm-bulb--t4"></i>' +
+        '<i class="pm-xm-bulb pm-xm-bulb--t5"></i>' +
+        '<i class="pm-xm-bulb pm-xm-bulb--t6"></i>' +
+        '<i class="pm-xm-bulb pm-xm-bulb--t7"></i>' +
+        '<i class="pm-xm-glow pm-xm-glow--lamp pm-xm-glow--boat"></i>' +
+        '<i class="pm-xm-glow pm-xm-glow--lamp pm-xm-glow--hang"></i>' +
+        '<i class="pm-xm-glow pm-xm-glow--lamp pm-xm-glow--strlt"></i>' +
+        '<i class="pm-xm-glow pm-xm-glow--lamp pm-xm-glow--cabin"></i>' +
+        '<i class="pm-xm-glow pm-xm-glow--lamp pm-xm-glow--fence"></i>' +
+        '<i class="pm-xm-glow pm-xm-glow--lamp pm-xm-glow--btree"></i>' +
+      '</div>' +
+      '<canvas class="pm-xm-snow" aria-hidden="true"></canvas>'
   };
 
   /* ── Iceland-FX: Canvas-Schneesturm-Engine ───────────────────────
@@ -1018,6 +1049,407 @@
     return { start: start, stop: stop };
   })();
 
+  /* ── Christmas-FX: Canvas-Schneefall-Engine ───────────────────────
+     Wind-getragene, DICKE Flocken in geringer Dichte (leicht). Anders als
+     PMIcelandFX (opakes Schnee-Sturm-Bild) zeichnet diese Engine auf ein
+     TRANSPARENTES Canvas ÜBER dem Winterbild (.pm-xm-bg). Starker
+     horizontaler Wind mit Böen + per-Flocke-Sway → Flocken treiben seitlich
+     statt senkrecht zu fallen. Konventionen wie die übrigen Engines:
+       • prefers-reduced-motion → statisches Standbild, kein Loop
+       • verstecktes Tab / offenes Modal → Loop pausiert (GPU sparen). */
+  var PMChristmasSnow = (function () {
+    var WIND = 1.4;            // Grund-Seitenwind (px/Frame bei intensity 1)
+    var COUNT_DIVISOR = 26000; // Fläche/Divisor = Flockenzahl (gering = leicht)
+    var MAX_FLAKES = 90;
+
+    var reduceMotion = !!(window.matchMedia &&
+      window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+
+    var SPRITE = null;
+    function makeFlakeSprite(size) {
+      var c = document.createElement('canvas');
+      c.width = c.height = size;
+      var x = c.getContext('2d'), r = size / 2;
+      var g = x.createRadialGradient(r, r, 0, r, r, r);
+      g.addColorStop(0,   'rgba(255,255,255,1)');
+      g.addColorStop(0.5, 'rgba(255,255,255,0.9)');
+      g.addColorStop(0.8, 'rgba(235,244,255,0.35)');
+      g.addColorStop(1,   'rgba(235,244,255,0)');
+      x.fillStyle = g;
+      x.beginPath(); x.arc(r, r, r, 0, Math.PI * 2); x.fill();
+      return c;
+    }
+    function ensureSprite() { if (!SPRITE) SPRITE = makeFlakeSprite(64); }
+
+    var canvas = null, ctx = null;
+    var raf = 0, running = false;
+    var W = 0, H = 0, DPR = 1, last = 0, windT = 0;
+    var flakes = [];
+
+    function makeFlake() {
+      return {
+        x: Math.random() * W,
+        y: Math.random() * H,
+        s: Math.random() * 10 + 8,        // 8–18px: dicke Flocken
+        speed: Math.random() * 0.5 + 0.35, // langsames Sinken (leicht)
+        drift: Math.random() * 0.7 + 0.5,  // Empfindlichkeit für Wind
+        sway: Math.random() * 6.28,
+        swaySpeed: Math.random() * 0.02 + 0.008,
+        swayAmp: Math.random() * 1.2 + 0.6,
+        alpha: Math.random() * 0.4 + 0.55
+      };
+    }
+    function rebuild() {
+      var n = Math.min(MAX_FLAKES, Math.max(20, Math.round((W * H) / COUNT_DIVISOR)));
+      flakes.length = 0;
+      for (var i = 0; i < n; i++) flakes.push(makeFlake());
+    }
+
+    function resize() {
+      if (!canvas || !ctx) return;
+      DPR = Math.min(window.devicePixelRatio || 1, 2);
+      W = window.innerWidth; H = window.innerHeight;
+      canvas.width = Math.floor(W * DPR);
+      canvas.height = Math.floor(H * DPR);
+      canvas.style.width = W + 'px'; canvas.style.height = H + 'px';
+      ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+      rebuild();
+      if (reduceMotion) renderOnce();
+    }
+
+    function windAt(t) {
+      var gust = Math.sin(t * 0.0005) * 0.5 + Math.sin(t * 0.0013 + 1.7) * 0.3;
+      return WIND * (1 + gust);
+    }
+    function recycle(f) {
+      if (f.y > H + f.s) { f.y = -f.s; f.x = Math.random() * W; }
+      if (f.x > W + f.s) f.x -= W + f.s * 2;
+      if (f.x < -f.s)    f.x += W + f.s * 2;
+    }
+    function renderOnce() {
+      ctx.clearRect(0, 0, W, H);
+      var wind = windAt(windT);
+      for (var i = 0; i < flakes.length; i++) {
+        var f = flakes[i];
+        ctx.globalAlpha = f.alpha;
+        ctx.drawImage(SPRITE, f.x - f.s / 2, f.y - f.s / 2, f.s, f.s);
+      }
+      ctx.globalAlpha = 1;
+      return wind;
+    }
+
+    function isPaused() {
+      if (document.hidden) return true;
+      if (document.querySelector('.modal-overlay.open')) return true;
+      return false;
+    }
+    function frame(now) {
+      if (!running) return;
+      if (isPaused()) { last = now; raf = requestAnimationFrame(frame); return; }
+      var dt = Math.min(now - last, 50);
+      last = now; windT += dt;
+      var wind = windAt(windT);
+      ctx.clearRect(0, 0, W, H);
+      for (var i = 0; i < flakes.length; i++) {
+        var f = flakes[i];
+        f.sway += f.swaySpeed;
+        f.x += wind * f.drift + Math.sin(f.sway) * f.swayAmp;
+        f.y += f.speed;
+        recycle(f);
+        ctx.globalAlpha = f.alpha;
+        ctx.drawImage(SPRITE, f.x - f.s / 2, f.y - f.s / 2, f.s, f.s);
+      }
+      ctx.globalAlpha = 1;
+      raf = requestAnimationFrame(frame);
+    }
+
+    function start(cv) {
+      stop();
+      if (!cv) return;
+      canvas = cv;
+      ctx = canvas.getContext('2d');   // transparent über dem Bild
+      if (!ctx) { canvas = null; return; }
+      ensureSprite();
+      resize();
+      window.addEventListener('resize', resize);
+      if (reduceMotion) return;        // Standbild, kein Loop
+      running = true;
+      last = (window.performance && performance.now) ? performance.now() : 0;
+      raf = requestAnimationFrame(frame);
+    }
+    function stop() {
+      running = false;
+      if (raf) { cancelAnimationFrame(raf); raf = 0; }
+      window.removeEventListener('resize', resize);
+      flakes.length = 0;
+      canvas = null; ctx = null;
+    }
+
+    return { start: start, stop: stop };
+  })();
+
+  /* ── Halloween-Hintergrundmusik ───────────────────────────────────
+     Stimmungs-Loop (assets/music/Halloween-Backgroundmusic.mp3), der NUR
+     im Halloween-Theme läuft. Wie die FX-Engines wird er am FX-Lebens-
+     zyklus gesteuert (start im halloween-Zweig von ensureThemeFX, stop
+     beim Theme-Wechsel/Teardown) und überlebt damit SPA-Navigationen.
+
+     Autoplay-Politik der Browser: Ton ohne Nutzergeste ist blockiert,
+     STUMME Wiedergabe aber erlaubt. Der Loop startet daher bewusst
+     gemutet und läuft sofort (muted autoplay) – der Nutzer hebt die
+     Stummschaltung über den kleinen Button unten rechts auf (ein Klick =
+     Nutzergeste → Ton sofort hörbar, da bereits laufend). Standard ist
+     also IMMER stumm; eine Reload-übergreifende Merk-Logik gibt es
+     bewusst NICHT (sonst würde der Browser unmuted-Autoplay nach einem
+     echten Page-Load erneut blockieren und der Loop bliebe stumm stehen).
+
+     <audio> + Steuer-Wrapper hängen DIREKT am <body> (NICHT in #pmThemeFX –
+     der ist aria-hidden + pointer-events:none, die Bedienelemente müssen
+     aber klickbar sein). router.js fasst nur `body > .modal-overlay` an →
+     beide überleben Seitenwechsel. Struktur (Styling in
+     css/theme-halloween.css): .pm-hw-music (Wrapper, fixed unten rechts)
+     > .pm-hw-music__vol (Lautstärke-Slider) + .pm-hw-music__btn (Mute-
+     Button). data-muted am Button = EFFEKTIVE Stille (muted ODER Vol 0). */
+  var PMHalloweenMusic = (function () {
+    var SRC         = 'assets/music/Halloween-Backgroundmusic.mp3';
+    var WRAP_ID     = 'pmHwMusic';
+    var AUDIO_ID    = 'pmHwMusicAudio';
+    var DEFAULT_VOL = 0.5;
+    var audio = null, wrap = null, btn = null, vol = null;
+
+    /* Lautsprecher-Triangel (gefüllt) + Schallwellen / X (gestrichelt).
+       Attribute inline, damit die Icons unabhängig vom CSS korrekt füllen. */
+    var ICON_ON =
+      '<svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" focusable="false">' +
+        '<path d="M4 9v6h4l5 4V5L8 9H4z" fill="currentColor"/>' +
+        '<path d="M16 8.5a5 5 0 0 1 0 7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>' +
+        '<path d="M18.7 6a8.5 8.5 0 0 1 0 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>' +
+      '</svg>';
+    var ICON_MUTED =
+      '<svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" focusable="false">' +
+        '<path d="M4 9v6h4l5 4V5L8 9H4z" fill="currentColor"/>' +
+        '<path d="m16 9 5 6M21 9l-5 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>' +
+      '</svg>';
+
+    /* EFFEKTIVE Stille: hart gemutet ODER Lautstärke 0 (siehe CSS-Kommentar). */
+    function effectiveMuted() { return !audio || audio.muted || audio.volume === 0; }
+
+    function ensurePlaying() {
+      if (audio && audio.paused) {
+        try { var p = audio.play(); if (p && p.catch) p.catch(function () {}); } catch (e) {}
+      }
+    }
+
+    function render() {
+      if (!btn || !audio) return;
+      var m = effectiveMuted();
+      btn.innerHTML = m ? ICON_MUTED : ICON_ON;
+      btn.setAttribute('data-muted', m ? 'true' : 'false');
+      btn.setAttribute('aria-pressed', m ? 'false' : 'true');
+      var label = m ? 'Hintergrundmusik einschalten' : 'Hintergrundmusik stummschalten';
+      btn.setAttribute('aria-label', label);
+      btn.setAttribute('title', label);
+      /* Slider mit der echten Lautstärke synchronisieren (nicht, während der
+         Nutzer ihn gerade zieht → würde den Drag stören). */
+      if (vol && document.activeElement !== vol) vol.value = String(audio.volume);
+    }
+
+    function toggle() {
+      if (!audio) return;
+      if (effectiveMuted()) {
+        audio.muted = false;
+        if (audio.volume === 0) audio.volume = DEFAULT_VOL;   // sonst bliebe es still
+        ensurePlaying();   // Nutzergeste liegt vor → Ton sicher starten
+      } else {
+        audio.muted = true;
+      }
+      render();
+    }
+
+    function onVol() {
+      if (!audio || !vol) return;
+      var v = parseFloat(vol.value);
+      if (isNaN(v)) v = 0;
+      audio.volume = v;
+      if (v > 0) { audio.muted = false; ensurePlaying(); }  // Lautstärke hochziehen = unmuten
+      render();
+    }
+
+    function start() {
+      stop();   // idempotent: evtl. Reste aus einem früheren Aufbau entfernen
+      if (!document.body) return;
+
+      audio = document.createElement('audio');
+      audio.id = AUDIO_ID;
+      audio.src = SRC;
+      audio.loop = true;
+      audio.muted = true;          // Standard: stumm (muted autoplay erlaubt)
+      audio.volume = DEFAULT_VOL;
+      audio.preload = 'auto';
+      audio.setAttribute('aria-hidden', 'true');
+      document.body.appendChild(audio);
+      try { var p = audio.play(); if (p && p.catch) p.catch(function () {}); } catch (e) {}
+
+      wrap = document.createElement('div');
+      wrap.id = WRAP_ID;
+      wrap.className = 'pm-hw-music';
+
+      vol = document.createElement('input');
+      vol.type = 'range';
+      vol.className = 'pm-hw-music__vol';
+      vol.min = '0'; vol.max = '1'; vol.step = '0.01';
+      vol.value = String(DEFAULT_VOL);
+      vol.setAttribute('aria-label', 'Lautstärke der Hintergrundmusik');
+      vol.addEventListener('input', onVol);
+
+      btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'pm-hw-music__btn';
+      btn.addEventListener('click', toggle);
+
+      wrap.appendChild(vol);
+      wrap.appendChild(btn);
+      document.body.appendChild(wrap);
+      render();
+    }
+
+    function stop() {
+      var oldWrap = document.getElementById(WRAP_ID);
+      if (oldWrap && oldWrap.parentNode) oldWrap.parentNode.removeChild(oldWrap);
+      var oldAudio = document.getElementById(AUDIO_ID);
+      if (oldAudio) {
+        try { oldAudio.pause(); } catch (e) {}
+        if (oldAudio.parentNode) oldAudio.parentNode.removeChild(oldAudio);
+      }
+      audio = null; wrap = null; btn = null; vol = null;
+    }
+
+    return { start: start, stop: stop };
+  })();
+
+  /* ── Christmas-Hintergrundmusik ───────────────────────────────────
+     Baugleich zu PMHalloweenMusic (siehe ausführlichen Kommentar dort),
+     nur Quelle + IDs/Klassen tragen den christmas-Präfix (pm-xm-, wie
+     pm-xm-snow). Läuft NUR im Christmas-Theme, am FX-Lebenszyklus
+     gesteuert (start im christmas-Zweig von ensureThemeFX, stop beim
+     Theme-Wechsel/Teardown), startet als stummer Loop (muted autoplay)
+     und wird per Button/Slider unten rechts hörbar gemacht. Styling in
+     css/theme-christmas.css (.pm-xm-music…). */
+  var PMChristmasMusic = (function () {
+    var SRC         = 'assets/music/Christmas background.mp3';
+    var WRAP_ID     = 'pmXmMusic';
+    var AUDIO_ID    = 'pmXmMusicAudio';
+    var DEFAULT_VOL = 0.5;
+    var audio = null, wrap = null, btn = null, vol = null;
+
+    /* Lautsprecher (gefüllt) + Schallwellen / X (gestrichelt) – Attribute
+       inline, damit die Icons unabhängig vom CSS korrekt füllen. */
+    var ICON_ON =
+      '<svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" focusable="false">' +
+        '<path d="M4 9v6h4l5 4V5L8 9H4z" fill="currentColor"/>' +
+        '<path d="M16 8.5a5 5 0 0 1 0 7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>' +
+        '<path d="M18.7 6a8.5 8.5 0 0 1 0 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>' +
+      '</svg>';
+    var ICON_MUTED =
+      '<svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" focusable="false">' +
+        '<path d="M4 9v6h4l5 4V5L8 9H4z" fill="currentColor"/>' +
+        '<path d="m16 9 5 6M21 9l-5 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>' +
+      '</svg>';
+
+    /* EFFEKTIVE Stille: hart gemutet ODER Lautstärke 0. */
+    function effectiveMuted() { return !audio || audio.muted || audio.volume === 0; }
+
+    function ensurePlaying() {
+      if (audio && audio.paused) {
+        try { var p = audio.play(); if (p && p.catch) p.catch(function () {}); } catch (e) {}
+      }
+    }
+
+    function render() {
+      if (!btn || !audio) return;
+      var m = effectiveMuted();
+      btn.innerHTML = m ? ICON_MUTED : ICON_ON;
+      btn.setAttribute('data-muted', m ? 'true' : 'false');
+      btn.setAttribute('aria-pressed', m ? 'false' : 'true');
+      var label = m ? 'Hintergrundmusik einschalten' : 'Hintergrundmusik stummschalten';
+      btn.setAttribute('aria-label', label);
+      btn.setAttribute('title', label);
+      if (vol && document.activeElement !== vol) vol.value = String(audio.volume);
+    }
+
+    function toggle() {
+      if (!audio) return;
+      if (effectiveMuted()) {
+        audio.muted = false;
+        if (audio.volume === 0) audio.volume = DEFAULT_VOL;   // sonst bliebe es still
+        ensurePlaying();   // Nutzergeste liegt vor → Ton sicher starten
+      } else {
+        audio.muted = true;
+      }
+      render();
+    }
+
+    function onVol() {
+      if (!audio || !vol) return;
+      var v = parseFloat(vol.value);
+      if (isNaN(v)) v = 0;
+      audio.volume = v;
+      if (v > 0) { audio.muted = false; ensurePlaying(); }  // Lautstärke hochziehen = unmuten
+      render();
+    }
+
+    function start() {
+      stop();   // idempotent: evtl. Reste aus einem früheren Aufbau entfernen
+      if (!document.body) return;
+
+      audio = document.createElement('audio');
+      audio.id = AUDIO_ID;
+      audio.src = SRC;
+      audio.loop = true;
+      audio.muted = true;          // Standard: stumm (muted autoplay erlaubt)
+      audio.volume = DEFAULT_VOL;
+      audio.preload = 'auto';
+      audio.setAttribute('aria-hidden', 'true');
+      document.body.appendChild(audio);
+      try { var p = audio.play(); if (p && p.catch) p.catch(function () {}); } catch (e) {}
+
+      wrap = document.createElement('div');
+      wrap.id = WRAP_ID;
+      wrap.className = 'pm-xm-music';
+
+      vol = document.createElement('input');
+      vol.type = 'range';
+      vol.className = 'pm-xm-music__vol';
+      vol.min = '0'; vol.max = '1'; vol.step = '0.01';
+      vol.value = String(DEFAULT_VOL);
+      vol.setAttribute('aria-label', 'Lautstärke der Hintergrundmusik');
+      vol.addEventListener('input', onVol);
+
+      btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'pm-xm-music__btn';
+      btn.addEventListener('click', toggle);
+
+      wrap.appendChild(vol);
+      wrap.appendChild(btn);
+      document.body.appendChild(wrap);
+      render();
+    }
+
+    function stop() {
+      var oldWrap = document.getElementById(WRAP_ID);
+      if (oldWrap && oldWrap.parentNode) oldWrap.parentNode.removeChild(oldWrap);
+      var oldAudio = document.getElementById(AUDIO_ID);
+      if (oldAudio) {
+        try { oldAudio.pause(); } catch (e) {}
+        if (oldAudio.parentNode) oldAudio.parentNode.removeChild(oldAudio);
+      }
+      audio = null; wrap = null; btn = null; vol = null;
+    }
+
+    return { start: start, stop: stop };
+  })();
+
   /* ── Candy: Vordergrund-Charakterwechsel beim Rand-Austritt ───────
      „Wenn ein Einhorn den Bildschirmrand verlassen hat, wechselt, welcher
      Charakter im Vordergrund läuft." Umgesetzt rein über das CSS-
@@ -1062,6 +1494,45 @@
     });
   }
 
+  /* Reduzierte FX-Templates NUR für die Login-Seite (greifen in
+     ensureThemeFX VOR den Vollszenen-Templates FX_TEMPLATES).
+     halloween: eigenes Login-Hintergrundbild (.pm-hw-login-bg) + die
+     abseilende Spinne oben links – KEIN Geisterhaus, Nebel oder Musik. */
+  var FX_LOGIN_TEMPLATES = {
+    halloween:
+      '<div class="pm-hw-login-bg"></div>' +
+      '<div class="pm-hw-spider pm-hw-spider--login"><i class="pm-hw-spider__thread"></i><i class="pm-hw-spider__body"></i></div>' +
+      '<div class="pm-hw-spider pm-hw-spider--login-2"><i class="pm-hw-spider__thread"></i><i class="pm-hw-spider__body"></i></div>' +
+      '<div class="pm-hw-spider pm-hw-spider--login-3"><i class="pm-hw-spider__thread"></i><i class="pm-hw-spider__body"></i></div>' +
+      '<div class="pm-hw-spider pm-hw-spider--login-4"><i class="pm-hw-spider__thread"></i><i class="pm-hw-spider__body"></i></div>' +
+      '<div class="pm-hw-eyes pm-hw-eyes--lg1"></div>' +
+      '<div class="pm-hw-eyes pm-hw-eyes--lg2 pm-hw-eyes--green"></div>' +
+      '<div class="pm-hw-eyes pm-hw-eyes--lg3"></div>' +
+      '<div class="pm-hw-eyes pm-hw-eyes--lg4"></div>' +
+      '<div class="pm-hw-eyes pm-hw-eyes--lg5 pm-hw-eyes--green"></div>',
+    /* christmas: gemütliche Kaminstube als Login-Hintergrund. Reines CSS-
+       Leuchten – flackerndes Kaminfeuer (zwei Ebenen: Kern + Raum-Abstrahlung)
+       sowie sanft funkelnde Lichterketten an Decke/Kranz und am Weihnachtsbaum
+       (inkl. Spitzenstern). Eine „Stage" in exakter Bildgröße (cover-Box) hält
+       alle Glühpunkte deckungsgleich über ihren Bildmotiven – seitenverhältnis-
+       unabhängig. Kein Schnee/keine Musik auf der Login-Seite. */
+    christmas:
+      '<div class="pm-xm-login-stage" aria-hidden="true">' +
+        '<div class="pm-xm-fire pm-xm-fire--cast"></div>' +
+        '<div class="pm-xm-fire pm-xm-fire--core"></div>' +
+        '<i class="pm-xm-glow pm-xm-glow--ceil1"></i>' +
+        '<i class="pm-xm-glow pm-xm-glow--ceil2"></i>' +
+        '<i class="pm-xm-glow pm-xm-glow--ceil3"></i>' +
+        '<i class="pm-xm-glow pm-xm-glow--ceil4"></i>' +
+        '<i class="pm-xm-glow pm-xm-glow--wreath"></i>' +
+        '<i class="pm-xm-glow pm-xm-glow--mantel"></i>' +
+        '<i class="pm-xm-glow pm-xm-glow--star"></i>' +
+        '<i class="pm-xm-glow pm-xm-glow--tree1"></i>' +
+        '<i class="pm-xm-glow pm-xm-glow--tree2"></i>' +
+        '<i class="pm-xm-glow pm-xm-glow--tree3"></i>' +
+      '</div>'
+  };
+
   /* FX-Container für das übergebene Theme (neu) aufbauen.
      Idempotent: ein evtl. vorhandener Container wird immer zuerst
      entfernt; mehrfaches apply() erzeugt also keine Duplikate.
@@ -1089,15 +1560,22 @@
     PMCmdFX.stop();
     PMCandyBubbles.stop();
     PMHalloweenFog.stop();
+    PMChristmasSnow.stop();
+    PMHalloweenMusic.stop();
+    PMChristmasMusic.stop();
 
-    var tpl = FX_TEMPLATES[theme] || '';   // light/dark/unbekannt → ''
-    if (!tpl) return;
-    /* Login-Seite: kein FX – AUSNAHME cmd-Theme: dort soll der Terminal-
-       Matrix-Regen als Hintergrund laufen (statt der grünen Brand-Fläche,
-       die --pm-yellow im cmd-Theme erzeugt). Die übrigen Custom-Themes
+    /* Login-Seite: kein FX – AUSNAHMEN: cmd (Terminal-Matrix als Hintergrund
+       statt der Brand-Fläche) und halloween (reduzierte Szene: Login-
+       Hintergrundbild + abseilende Spinne oben links). Übrige Custom-Themes
        bleiben auf Login aus (deren ::before/::after-Ambient sind via
        glass.css ohnehin deaktiviert). */
-    if (document.body.classList.contains('login-page') && theme !== 'cmd') return;
+    var isLogin = document.body.classList.contains('login-page');
+    if (isLogin && theme !== 'cmd' && theme !== 'halloween' && theme !== 'christmas') return;
+
+    /* Auf der Login-Seite ggf. ein reduziertes Template; sonst die Vollszene.
+       light/dark/unbekannt → '' → kein FX. */
+    var tpl = (isLogin && FX_LOGIN_TEMPLATES[theme]) || FX_TEMPLATES[theme] || '';
+    if (!tpl) return;
 
     var el = document.createElement('div');
     el.id = 'pmThemeFX';
@@ -1118,8 +1596,13 @@
       if (bubbleCanvas) PMCandyBubbles.start(bubbleCanvas);
       wireCandyUnicornSwap(el);
     } else if (theme === 'halloween') {
-      var fogCanvas = el.querySelector('.pm-hw-fog');
+      var fogCanvas = el.querySelector('.pm-hw-fog');   // im Login-Template nicht vorhanden → null
       if (fogCanvas) PMHalloweenFog.start(fogCanvas);
+      if (!isLogin) PMHalloweenMusic.start();   // Musik nur in der App, nicht auf Login
+    } else if (theme === 'christmas') {
+      var snowCanvas = el.querySelector('.pm-xm-snow');
+      if (snowCanvas) PMChristmasSnow.start(snowCanvas);
+      if (!isLogin) PMChristmasMusic.start();   // Musik nur in der App, nicht auf Login
     }
   }
 

@@ -330,7 +330,6 @@
         text(SEL.grad, 'grad');
       }
       tintLogo();
-      if (parallaxBound) { collectParallax(); applyParallax(); }
     } finally { scanning = false; }
   }
 
@@ -376,68 +375,6 @@
     clearHost(lastHost); lastHost = null;
   }
 
-  /* ── Sanfter Scroll-Parallax (silk-only) ─────────────────────────
-     Inhalts-Layer driften minimal gegen den Scroll → weiche Tiefenwirkung,
-     macht das Scrollen „smoother/weicher". Nutzt die CSS-Eigenschaft
-     `translate` (komponiert mit vorhandenem transform/Hover — kein Clobbering),
-     rAF-gedrosselt, passiv. reduced-motion → komplett aus. */
-  // Bewusst NICHT die Wochenansicht-Inhalte (.day-card/.tag-row/.week-toolbar/
-  // .week-bottom-bar): das sind dichte Listen + eine slide-animierte, häufig
-  // neu gerenderte Pane. Per-Item-Parallax versetzt jede Karte um ein anderes
-  // Y → ungleiche Abstände (sieht aus wie Fehlausrichtung) und springt nach
-  // jedem KW-Wechsel (verschiebt das UI auf der Y-Achse). Parallax passt zu
-  // weit gesetzten Hero-Sektionen, nicht zu einer Tagesliste.
-  var PARALLAX_TIERS = [
-    { sel: '.welcome-hero, .b-hero, .page-header, .login-card', f: 0.06 },
-    { sel: '.card, .b-tile, .stat-card, .b-azubi, .b-recent, .b-daycard, .b-wkcard', f: 0.03 }
-  ];
-  var parallaxEls = [], parallaxBound = false, parallaxRaf = 0;
-
-  function collectParallax() {
-    parallaxEls = [];
-    if (reduceMotion) return;
-    var seen = [];
-    PARALLAX_TIERS.forEach(function (t) {
-      var nodes = document.querySelectorAll(t.sel);
-      for (var i = 0; i < nodes.length; i++) {
-        if (seen.indexOf(nodes[i]) !== -1) continue;
-        seen.push(nodes[i]);
-        parallaxEls.push({ el: nodes[i], f: t.f });
-      }
-    });
-  }
-  function applyParallax() {
-    parallaxRaf = 0;
-    var vh = window.innerHeight, mid = vh / 2;
-    for (var i = 0; i < parallaxEls.length; i++) {
-      var p = parallaxEls[i];
-      var r = p.el.getBoundingClientRect();
-      if (r.bottom < -240 || r.top > vh + 240) continue; // außerhalb Sichtfeld
-      var delta = (r.top + r.height / 2) - mid;
-      var y = -delta * p.f;
-      if (y > 26) y = 26; else if (y < -26) y = -26;   // gedeckelt, bleibt subtil
-      p.el.style.translate = '0px ' + y.toFixed(1) + 'px';
-    }
-  }
-  function onScrollParallax() { if (!parallaxRaf) parallaxRaf = requestAnimationFrame(applyParallax); }
-  function bindParallax() {
-    if (parallaxBound || reduceMotion) return;
-    parallaxBound = true;
-    collectParallax();
-    window.addEventListener('scroll', onScrollParallax, { passive: true });
-    window.addEventListener('resize', onScrollParallax);
-    applyParallax();
-  }
-  function unbindParallax() {
-    if (!parallaxBound) return;
-    parallaxBound = false;
-    if (parallaxRaf) { cancelAnimationFrame(parallaxRaf); parallaxRaf = 0; }
-    window.removeEventListener('scroll', onScrollParallax);
-    window.removeEventListener('resize', onScrollParallax);
-    for (var i = 0; i < parallaxEls.length; i++) parallaxEls[i].el.style.translate = '';
-    parallaxEls = [];
-  }
-
   function startPageObserver() {
     if (pageObserver) return;
     var main = document.getElementById('mainContent');
@@ -481,7 +418,6 @@
   function deactivate() {
     stopPageObserver();
     unbindPointer();
-    unbindParallax();
     untintLogo();
     for (var i = 0; i < textRoots.length; i++) {
       var e = textRoots[i];

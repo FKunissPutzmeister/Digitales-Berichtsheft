@@ -196,10 +196,15 @@ html[data-theme="halloween"] { color-scheme: dark; }
    Asset: assets/halloween-web.svg (prozedural generiert). */
 [data-theme="halloween"] .pm-hw-web {
   position: absolute; top: 0; left: 0;
-  width: 26vw; max-width: 430px;
+  width: 32vw; max-width: 520px;
   aspect-ratio: 1 / 1;
   background: top left / contain no-repeat
     url("../assets/halloween-web.svg");
+  /* Der Anfang des Netzes (Konvergenz-Punkt aller Fäden = (0,0) im SVG,
+     die obere LINKE Ecke) wird per negativem Translate aus dem Viewport
+     geschoben → man sieht nur das aufgespannte Netz, nicht seinen Ursprung.
+     Das größere Maß gleicht den off-screen verschobenen Teil aus. */
+  transform: translate(-22%, -22%);
   opacity: 0.62;
 }
 
@@ -293,7 +298,102 @@ html[data-theme="halloween"] { color-scheme: dark; }
   50%      { transform: rotate(3deg); }
 }
 
-/* ── Fledermäuse mit natürlichem Flatter-Flug ──
+/* ── Login-Seite (reduzierte Szene) ──
+   Auf der Login-Seite injiziert js/theme.js NICHT die Vollszene, sondern
+   FX_LOGIN_TEMPLATES.halloween: ein eigenes Login-Hintergrundbild plus die
+   abseilende Spinne. Das Bild füllt den (fixierten) #pmThemeFX-Layer hinter
+   der schwebenden Login-Karte; die Spinne hängt hier oben LINKS statt rechts. */
+[data-theme="halloween"] .pm-hw-login-bg {
+  position: absolute; inset: 0;
+  background: #0a0610 center center / cover no-repeat
+    url("../assets/backgrounds/halloween_login_background.png");
+}
+[data-theme="halloween"] .pm-hw-spider--login {
+  right: auto; left: 4%;
+}
+
+/* Weitere Login-Spinnen: über den oberen Rand verteilt, je eigene Faden-
+   länge, Körpergröße und – wichtig – versetzte (negative) animation-delay
+   + abweichende -duration, damit sie NICHT synchron schwingen/abseilen.
+   Nur Longhands überschreiben (animation-name aus der Basisregel bleibt). */
+[data-theme="halloween"] .pm-hw-spider--login-2 {
+  right: auto; left: 14%; height: 230px;
+  animation-duration: 7s; animation-delay: -2s;
+}
+[data-theme="halloween"] .pm-hw-spider--login-2 .pm-hw-spider__body {
+  top: 140px; width: 36px; height: 36px; margin-left: -18px;
+  animation-duration: 8s; animation-delay: -3s;
+}
+
+[data-theme="halloween"] .pm-hw-spider--login-3 {
+  right: auto; left: 25%; height: 430px;
+  animation-duration: 5.5s; animation-delay: -1s;
+}
+[data-theme="halloween"] .pm-hw-spider--login-3 .pm-hw-spider__body {
+  top: 338px; width: 40px; height: 40px; margin-left: -20px;
+  animation-duration: 10.5s; animation-delay: -4s;
+}
+
+[data-theme="halloween"] .pm-hw-spider--login-4 {
+  right: auto; left: 80%; height: 180px;
+  animation-duration: 6.5s; animation-delay: -3.5s;
+}
+[data-theme="halloween"] .pm-hw-spider--login-4 .pm-hw-spider__body {
+  top: 100px; width: 30px; height: 30px; margin-left: -15px;
+  animation-duration: 7.5s; animation-delay: -1.5s;
+}
+
+/* ── Login-Karte „von einem Monster zerkratzt" ──
+   Die Kartenfläche wandert auf ein ::before-Backing, das per CSS-mask
+   regelrecht ZERRISSEN wird: eine evenodd-SVG-Maske (gerundetes Rechteck =
+   Karte + Krallen-Schlitze + abgeplatzte Flecken als Löcher) schneidet
+   echte Durchbrüche → die Gruselszene scheint durch die Kratzer. Der
+   Karten-Inhalt (Formular) liegt darüber und bleibt voll bedienbar.
+   filter:drop-shadow folgt der zerfetzten Silhouette (statt rechteckigem
+   box-shadow) und gibt den Rissen Tiefe + ein dezentes BLUTROTES Glühen.
+   Die Krallen-Kratzer sind klein und sitzen oben links. */
+[data-theme="halloween"] body.login-page .login-card {
+  background: transparent;
+  box-shadow: none;
+  border: none;
+  position: relative;
+  isolation: isolate;
+  overflow: visible;
+}
+[data-theme="halloween"] body.login-page .login-card::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  background:
+    linear-gradient(180deg, rgba(200, 40, 40, 0.06) 0%, rgba(255, 255, 255, 0) 32%),
+    rgba(26, 17, 36, 0.92);
+  border: 1px solid rgba(180, 40, 40, 0.22);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 412 580' preserveAspectRatio='none'%3E%3Cpath fill='white' fill-rule='evenodd' d='M24 0 H388 A24 24 0 0 1 412 24 V556 A24 24 0 0 1 388 580 H24 A24 24 0 0 1 0 556 V24 A24 24 0 0 1 24 0 Z M24 34 C38 74 60 100 96 120 C80 90 58 62 24 34 Z M44 28 C58 66 80 90 112 108 C98 80 74 56 44 28 Z M64 24 C76 52 96 70 120 88 C112 62 86 46 64 24 Z M388 150 C372 182 340 214 300 250 C320 206 360 178 388 150 Z M150 500 C188 516 224 540 252 556 C236 548 176 508 150 500 Z M412 0 L412 110 L378 86 L398 58 L364 54 L386 24 L356 8 L372 0 Z M0 500 L40 520 L18 540 L46 556 L10 566 L0 560 Z M300 60 L320 54 L326 74 L306 80 L296 70 Z M70 250 L88 246 L92 262 L74 268 Z'/%3E%3C/svg%3E") center / 100% 100% no-repeat;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 412 580' preserveAspectRatio='none'%3E%3Cpath fill='white' fill-rule='evenodd' d='M24 0 H388 A24 24 0 0 1 412 24 V556 A24 24 0 0 1 388 580 H24 A24 24 0 0 1 0 556 V24 A24 24 0 0 1 24 0 Z M24 34 C38 74 60 100 96 120 C80 90 58 62 24 34 Z M44 28 C58 66 80 90 112 108 C98 80 74 56 44 28 Z M64 24 C76 52 96 70 120 88 C112 62 86 46 64 24 Z M388 150 C372 182 340 214 300 250 C320 206 360 178 388 150 Z M150 500 C188 516 224 540 252 556 C236 548 176 508 150 500 Z M412 0 L412 110 L378 86 L398 58 L364 54 L386 24 L356 8 L372 0 Z M0 500 L40 520 L18 540 L46 556 L10 566 L0 560 Z M300 60 L320 54 L326 74 L306 80 L296 70 Z M70 250 L88 246 L92 262 L74 268 Z'/%3E%3C/svg%3E") center / 100% 100% no-repeat;
+  filter:
+    drop-shadow(0 22px 44px rgba(0, 0, 0, 0.50))
+    drop-shadow(0 0 2px rgba(0, 0, 0, 0.65))
+    drop-shadow(0 0 8px rgba(170, 16, 16, 0.42));
+}
+/* Dünne, glühende „Riss-Kanten" entlang der drei Hauptkrallen – ein zweites,
+   nicht maskiertes Overlay zeichnet die aufgerissenen Ränder als helle
+   Kürbis-Linien (pointer-events:none → Formular bleibt klickbar). */
+[data-theme="halloween"] body.login-page .login-card::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  border-radius: inherit;
+  background:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 412 580' preserveAspectRatio='none'%3E%3Cg fill='none' stroke='%23c81e1e' stroke-width='1.3' stroke-opacity='0.7' stroke-linecap='round'%3E%3Cpath d='M24 34 C38 74 60 100 96 120'/%3E%3Cpath d='M44 28 C58 66 80 90 112 108'/%3E%3Cpath d='M64 24 C76 52 96 70 120 88'/%3E%3Cpath d='M388 150 C372 182 340 214 300 250'/%3E%3Cpath d='M150 500 C188 516 224 540 252 556'/%3E%3C/g%3E%3C/svg%3E") center / 100% 100% no-repeat;
+  mix-blend-mode: screen;
+  opacity: 0.7;
+}
    Äußeres .pm-hw-bat = Flugbahn (left% + wellige translateY + leichtes
    Kippen), inneres .pm-hw-bat__body = Flügelschlag (scaleY). Zwei Ebenen,
    weil Flugbahn und Flügelschlag sonst um dieselbe transform-Eigenschaft
@@ -393,6 +493,22 @@ html[data-theme="halloween"] { color-scheme: dark; }
 }
 /* Grabsteine links neben dem Haus (frei von der Sidebar) */
 [data-theme="halloween"] .pm-hw-eyes--3 { left: 31vw; bottom: 9%; width: 22px; animation-delay: -4s; }
+
+/* ── Login-Augenpaare ── lauern im dunklen Hintergrund rund um die
+   schwebende Karte (im #pmThemeFX-Layer, also hinter der Karte). Eigene
+   Positionen/Blinzel-Delays; ein paar grün via .pm-hw-eyes--green. */
+[data-theme="halloween"] .pm-hw-eyes--lg1 { left: 11%; bottom: 20%; }
+[data-theme="halloween"] .pm-hw-eyes--lg2 { right: 13%; bottom: 28%; animation-delay: -2.3s; }
+[data-theme="halloween"] .pm-hw-eyes--lg3 { left: 20%; top: 24%; width: 22px; animation-delay: -4s; }
+[data-theme="halloween"] .pm-hw-eyes--lg4 { right: 7%;  bottom: 13%; animation-delay: -1.2s; }
+[data-theme="halloween"] .pm-hw-eyes--lg5 { right: 24%; top: 16%; width: 22px; animation-delay: -3.1s; }
+/* Grüne Variante (giftgrün statt kürbis-orange) – nach den Positions-
+   regeln, damit der Hintergrund-Override greift. */
+[data-theme="halloween"] .pm-hw-eyes--green {
+  background:
+    radial-gradient(circle at 26% 50%, rgba(150, 255, 90, 0.95) 0 2.1px, rgba(150, 255, 90, 0.25) 3.2px, transparent 7px),
+    radial-gradient(circle at 74% 50%, rgba(150, 255, 90, 0.95) 0 2.1px, rgba(150, 255, 90, 0.25) 3.2px, transparent 7px);
+}
 @keyframes pm-hw-blink {
   0%, 36%  { opacity: 0.9; }
   39%      { opacity: 0.06; }
@@ -435,9 +551,10 @@ html[data-theme="halloween"] { color-scheme: dark; }
     0 0 28px rgba(255, 117, 24, 0.16);
 }
 
-/* Primär-Buttons: warmer „Kürbis-Glow" (animiert NUR opacity eines
-   Pseudo-Glow-Layers – GPU-freundlich). Die Füllung kommt bereits aus
-   dem Token --pm-yellow (Orange); hier nur das Leuchten + Verlauf. */
+/* Primär-Buttons: warmer „Kürbis-Glow", der beim Hover EINMAL weich
+   aufgeblendet wird und ruhig stehen bleibt (kein Blinken – Button wirkt nur
+   kurz „größer" durch den aufleuchtenden Glow-Saum). Füllung aus Token
+   --pm-yellow (Orange); hier nur das Leuchten + Verlauf. */
 [data-theme="halloween"] .btn-primary {
   position: relative;
   background: linear-gradient(180deg, #FF9442 0%, #FF7518 55%, #E85D04 100%);
@@ -457,11 +574,16 @@ html[data-theme="halloween"] { color-scheme: dark; }
 }
 [data-theme="halloween"] .btn-primary:hover:not(:disabled)::after {
   opacity: 1;
-  animation: pm-hw-pulse 1.8s ease-in-out infinite;
 }
-@keyframes pm-hw-pulse {
-  0%, 100% { opacity: 0.55; }
-  50%      { opacity: 1; }
+
+/* Hover behält eine VERLAUFS-Füllung (NICHT auf Solid wechseln). Sonst
+   „blinkt"/flackert der Button: der Basis-Hover (components.css) setzt
+   background:var(--pm-yellow-dark) = Solid → das background-image (Verlauf)
+   springt auf none, während background-color aus Transparent einblendet =
+   kurzer Aussetzer der Füllung. Gleiche Verlaufs-Art, nur etwas heller →
+   sauberes Hover-Feedback ohne Flackern. */
+[data-theme="halloween"] .btn-primary:hover:not(:disabled) {
+  background: linear-gradient(180deg, #FFA45C 0%, #FF8A38 55%, #FB6E16 100%);
 }
 
 /* Outline/Ghost: leise warme Aura beim Hover */
@@ -564,14 +686,12 @@ html[data-theme="halloween"] { color-scheme: dark; }
 
 /* Karten: Light-Sheen aus glass.css ist auf dunklen Surfaces zu hart */
 [data-theme="halloween"] .card,
-[data-theme="halloween"] .stat-card,
-[data-theme="halloween"] .accordion__item {
+[data-theme="halloween"] .stat-card {
   background-image: linear-gradient(180deg, rgba(255, 255, 255, 0.04) 0%, rgba(255, 255, 255, 0) 35%);
   box-shadow: var(--elev-rest), inset 0 1px 0 rgba(255, 255, 255, 0.05);
 }
 [data-theme="halloween"] .card:hover,
-[data-theme="halloween"] .stat-card:hover,
-[data-theme="halloween"] .accordion__item:hover {
+[data-theme="halloween"] .stat-card:hover {
   box-shadow: var(--elev-hover), inset 0 1px 0 rgba(255, 255, 255, 0.07);
 }
 [data-theme="halloween"] .stat-card::after {
@@ -579,7 +699,6 @@ html[data-theme="halloween"] { color-scheme: dark; }
 }
 [data-theme="halloween"] .card,
 [data-theme="halloween"] .stat-card,
-[data-theme="halloween"] .accordion__item,
 [data-theme="halloween"] .profil-section,
 [data-theme="halloween"] .verwaltung-panel {
   border-color: rgba(255, 255, 255, 0.08);
@@ -650,12 +769,16 @@ html[data-theme="halloween"] { color-scheme: dark; }
 /* ── Bento-Dashboard (dashboard.css spiegelt nur [data-theme="dark"]) ──
    1:1-Spiegelung der Dark-.b-*-Regeln (dunkle PNG-Tiles + Flächen). */
 [data-theme="halloween"] .b-tile--glass {
-  background: linear-gradient(180deg, rgba(34, 26, 42, 0.74) 0%, rgba(22, 16, 30, 0.64) 100%);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background:
+    linear-gradient(180deg, rgba(255, 184, 120, 0.07) 0%, rgba(255, 255, 255, 0) 42%),
+    rgba(24, 16, 34, 0.52);
+  -webkit-backdrop-filter: blur(16px) saturate(1.35);
+  backdrop-filter: blur(16px) saturate(1.35);
+  border: 1px solid rgba(255, 165, 90, 0.22);
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.06),
-    0 1px 2px rgba(0, 0, 0, 0.4),
-    0 12px 32px -8px rgba(0, 0, 0, 0.55);
+    inset 0 1px 0 rgba(255, 222, 184, 0.18),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.04),
+    0 12px 34px -10px rgba(0, 0, 0, 0.55);
 }
 html[data-theme="halloween"] .b-hero {
   background-image:
@@ -664,7 +787,7 @@ html[data-theme="halloween"] .b-hero {
 }
 html[data-theme="halloween"] .b-hero::before {
   background:
-    radial-gradient(ellipse 36% 60% at 22% 60%, rgba(6, 3, 12, 0.42), transparent 72%);
+    radial-gradient(ellipse 40% 64% at 24% 60%, rgba(6, 3, 12, 0.22), transparent 78%);
 }
 html[data-theme="halloween"] .b-hero__eyebrow,
 html[data-theme="halloween"] .b-hero__kw small {
@@ -676,7 +799,7 @@ html[data-theme="halloween"] .b-hero__kw { color: #fff; }
 
 html[data-theme="halloween"] .b-azubi::before {
   background:
-    radial-gradient(circle at 50% 40%, rgba(8, 5, 14, 0.42) 0%, rgba(8, 5, 14, 0.16) 34%, transparent 58%);
+    radial-gradient(circle at 50% 40%, rgba(8, 5, 14, 0.22) 0%, rgba(8, 5, 14, 0.08) 38%, transparent 64%);
 }
 html[data-theme="halloween"] .b-azubi,
 html[data-theme="halloween"] .b-mitteilungen {
@@ -710,7 +833,7 @@ html[data-theme="halloween"] .b-recent {
 }
 html[data-theme="halloween"] .b-recent::before {
   background:
-    radial-gradient(ellipse 86% 58% at 50% 82%, rgba(6, 3, 12, 0.30), transparent 78%);
+    radial-gradient(ellipse 86% 58% at 50% 82%, rgba(6, 3, 12, 0.16), transparent 82%);
 }
 
 [data-theme="halloween"] .b-wkcard {
@@ -743,30 +866,27 @@ html[data-theme="halloween"] .b-recent::before {
 [data-theme="halloween"] .b-day .dnum { color: rgba(255, 255, 255, 0.85); }
 [data-theme="halloween"] .b-day--past .dnum, [data-theme="halloween"] .b-day--weekend .dnum { color: rgba(255, 255, 255, 0.35); }
 
-/* Finaler Material-Layer: in dashboard.css mit !important auf dunkle PNG-
-   Tiles gemünzt → hier mit !important auf Halloween-Verläufe übersteuern
-   (keine Foto-Texturen mehr, sondern düstere Plum/Orange-Verläufe). */
-html[data-theme="halloween"] .bento .b-hero {
-  background-image:
-    radial-gradient(130% 160% at 84% 6%, rgba(255, 117, 24, 0.13), transparent 55%),
-    linear-gradient(135deg, #2c1d3a 0%, #1b1027 55%, #0f0918 100%) !important;
-  background-size: cover, cover !important;
-  background-position: center, center !important;
-}
+/* Finaler Material-Layer: dashboard.css setzt hier dunkle PNG-/Verlaufs-
+   Tiles mit !important → hier mit !important auf transluzentes „Liquid-
+   Glass" übersteuern (wie beim Silk-Theme): eine frostige Nacht-Fläche mit
+   leichtem Kürbis-Sheen + backdrop-blur, durch die die FX-Szene
+   (#pmThemeFX, Geisterhaus) weich durchscheint. Heller Innen-Highlight und
+   kürbis-getönte Kante geben den Glas-Look; weißer Text (oben gesetzt)
+   bleibt durch den Blur + die ~0.5er Flächendeckung lesbar. */
+html[data-theme="halloween"] .bento .b-hero,
 html[data-theme="halloween"] .bento .b-azubi,
-html[data-theme="halloween"] .bento .b-mitteilungen {
-  background-image:
-    radial-gradient(95% 95% at 50% 24%, rgba(124, 58, 200, 0.18), transparent 60%),
-    linear-gradient(160deg, #281a36 0%, #150d20 100%) !important;
-  background-size: cover, cover !important;
-  background-position: center, center !important;
-}
+html[data-theme="halloween"] .bento .b-mitteilungen,
 html[data-theme="halloween"] .bento .b-recent {
-  background-image:
-    radial-gradient(130% 140% at 12% 16%, rgba(255, 117, 24, 0.10), transparent 55%),
-    linear-gradient(120deg, #261834 0%, #130c1e 100%) !important;
-  background-size: cover, cover !important;
-  background-position: center, center !important;
+  background:
+    linear-gradient(180deg, rgba(255, 184, 120, 0.07) 0%, rgba(255, 255, 255, 0) 42%),
+    rgba(24, 16, 34, 0.52) !important;
+  border: 1px solid rgba(255, 165, 90, 0.22);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 222, 184, 0.18),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.04),
+    0 12px 34px -10px rgba(0, 0, 0, 0.55);
+  -webkit-backdrop-filter: blur(16px) saturate(1.35);
+  backdrop-filter: blur(16px) saturate(1.35);
 }
 
 /* Welcome-Hero (dashboard.css ~2164): eigene, fast deckende Nacht-Fläche */
@@ -895,3 +1015,153 @@ html[data-theme="halloween"] .bento .b-recent {
   background: center / cover no-repeat
     url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48'%3E%3Crect width='48' height='48' fill='%23211325'/%3E%3Cpath d='M22.5 12 C21.5 7 24 5.5 26 6.5 C24.5 7.5 24.5 9.5 25.5 12 Z' fill='%233f5a28'/%3E%3Cellipse cx='24' cy='28' rx='19' ry='15.5' fill='%23cf6a0c'/%3E%3Cellipse cx='13.5' cy='28' rx='8.5' ry='13.5' fill='%23e8740f'/%3E%3Cellipse cx='34.5' cy='28' rx='8.5' ry='13.5' fill='%23e8740f'/%3E%3Cellipse cx='19' cy='28' rx='9' ry='15' fill='%23f07e12'/%3E%3Cellipse cx='29' cy='28' rx='9' ry='15' fill='%23f07e12'/%3E%3Cellipse cx='24' cy='28' rx='9.5' ry='15.5' fill='%23fb8d1b'/%3E%3Cg stroke='%23b9550c' stroke-width='1.4' fill='none' opacity='0.55' stroke-linecap='round'%3E%3Cpath d='M16 16.5 C12.5 22 12.5 34 16 39.5'/%3E%3Cpath d='M32 16.5 C35.5 22 35.5 34 32 39.5'/%3E%3C/g%3E%3Cg fill='%23ffd24d'%3E%3Cpolygon points='14.5,23 21,22 17.5,27.5'/%3E%3Cpolygon points='33.5,23 27,22 30.5,27.5'/%3E%3Cpolygon points='24,27 26.5,31 21.5,31'/%3E%3Cpath d='M13.5 33 L17 33 L18.5 35.5 L20.5 33 L24 33 L27.5 33 L29.5 35.5 L31 33 L34.5 33 Q31 42 24 42 Q17 42 13.5 33 Z'/%3E%3C/g%3E%3C/svg%3E");
 }
+
+/* ===================================================================
+   9 · HINTERGRUNDMUSIK-STEUERUNG – Button + Lautstärkeregler unten rechts
+   -------------------------------------------------------------------
+   Wird von js/theme.js (PMHalloweenMusic) als direktes <body>-Kind
+   (.pm-hw-music) eingehängt, NUR solange das Halloween-Theme aktiv ist.
+   Liegt über dem App-Inhalt (z-index zwischen Sidebar=100 und Modal=200),
+   bleibt also bei offenem Modal/Toast verdeckt. Der runde Button schaltet
+   stumm/laut; der horizontale Slider klappt bei Hover/Fokus nach LINKS auf
+   und regelt die Lautstärke. data-muted am Button spiegelt die EFFEKTIVE
+   Stille (muted ODER Lautstärke 0): "true" = stumm (Pulsier-Hinweis),
+   "false" = Ton läuft (ruhiges Orange-Glühen). */
+.pm-hw-music {
+  position: fixed;
+  right: calc(18px + env(safe-area-inset-right, 0px));
+  bottom: calc(18px + env(safe-area-inset-bottom, 0px));
+  z-index: 150;
+  display: flex;
+  flex-direction: row;        /* Slider links, Button rechts (Wrapper rechts verankert → wächst nach links) */
+  align-items: center;
+  gap: 8px;
+}
+
+/* Lautstärke-Slider: standardmäßig auf Breite 0 eingeklappt, öffnet bei
+   Hover/Fokus horizontal nach links. Halloween-Pille als Gehäuse (dunkles
+   Nacht-Lila + Kürbis-Orange-Rand, leichtes Innen-Glühen). */
+.pm-hw-music__vol {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 0;
+  height: 30px;
+  margin: 0;
+  padding: 0;
+  opacity: 0;
+  pointer-events: none;
+  border-radius: 999px;
+  background: rgba(36, 26, 44, 0.86);
+  border: 1px solid rgba(255, 140, 30, 0.35);
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.45),
+              inset 0 0 10px rgba(255, 117, 24, 0.12);
+  cursor: pointer;
+  transition: width 0.22s ease, opacity 0.22s ease, padding 0.22s ease;
+}
+.pm-hw-music:hover .pm-hw-music__vol,
+.pm-hw-music:focus-within .pm-hw-music__vol {
+  width: 124px;
+  padding: 0 12px;
+  opacity: 1;
+  pointer-events: auto;
+}
+.pm-hw-music__vol:focus-visible { outline: 2px solid #FF9442; outline-offset: 2px; }
+
+/* Range-Track + Thumb (WebKit/Blink) – horizontale Spur, Kürbis-Thumb. */
+.pm-hw-music__vol::-webkit-slider-runnable-track {
+  height: 4px;
+  border-radius: 999px;
+  background: rgba(255, 184, 92, 0.28);
+}
+.pm-hw-music__vol::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  margin-top: -5px;           /* (Thumb 14 − Track 4) / 2 → vertikal zentriert */
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #FF7518;
+  border: 2px solid #1A0E03;
+  box-shadow: 0 0 8px rgba(255, 117, 24, 0.7);
+}
+/* Range-Track + Thumb (Firefox) */
+.pm-hw-music__vol::-moz-range-track {
+  height: 4px;
+  border-radius: 999px;
+  background: rgba(255, 184, 92, 0.28);
+}
+.pm-hw-music__vol::-moz-range-progress {
+  height: 4px;
+  border-radius: 999px;
+  background: #FF7518;        /* gefüllter Teil = Kürbis-Orange */
+}
+.pm-hw-music__vol::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #FF7518;
+  border: 2px solid #1A0E03;
+  box-shadow: 0 0 8px rgba(255, 117, 24, 0.7);
+}
+
+.pm-hw-music__btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 46px;
+  height: 46px;
+  padding: 0;
+  border-radius: 50%;
+  cursor: pointer;
+  color: #FFB066;
+  background: rgba(36, 26, 44, 0.82);
+  border: 1px solid rgba(255, 140, 30, 0.45);
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.45),
+              inset 0 0 0 1px rgba(255, 184, 92, 0.10);
+  transition: transform 0.15s ease, color 0.15s ease,
+              border-color 0.15s ease, box-shadow 0.2s ease;
+}
+.pm-hw-music__btn:hover {
+  color: #FF7518;
+  transform: translateY(-2px);
+  border-color: rgba(255, 140, 30, 0.85);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.5),
+              0 0 18px rgba(255, 117, 24, 0.55);
+}
+.pm-hw-music__btn:focus-visible {
+  outline: 2px solid #FF9442;
+  outline-offset: 2px;
+}
+.pm-hw-music__btn:active { transform: translateY(0); }
+
+/* Ton AN: ruhiges, stetiges Kürbis-Glühen. */
+.pm-hw-music__btn[data-muted="false"] {
+  color: #FF7518;
+  border-color: rgba(255, 140, 30, 0.7);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.45),
+              0 0 14px rgba(255, 117, 24, 0.45);
+}
+
+/* Stumm: dezenter Puls als Hinweis, dass hier Ton wartet. */
+.pm-hw-music__btn[data-muted="true"] {
+  animation: pm-hw-music-pulse 2.6s ease-in-out infinite;
+}
+@keyframes pm-hw-music-pulse {
+  0%, 100% { box-shadow: 0 4px 14px rgba(0, 0, 0, 0.45),
+                         0 0 0 0 rgba(255, 117, 24, 0.0); }
+  50%      { box-shadow: 0 4px 14px rgba(0, 0, 0, 0.45),
+                         0 0 0 6px rgba(255, 117, 24, 0.16); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pm-hw-music__btn,
+  .pm-hw-music__btn[data-muted="true"],
+  .pm-hw-music__vol { animation: none; transition: none; }
+}
+
+/* Druck-Ansicht: Steuerelement nicht mitdrucken. */
+@media print { .pm-hw-music { display: none !important; } }

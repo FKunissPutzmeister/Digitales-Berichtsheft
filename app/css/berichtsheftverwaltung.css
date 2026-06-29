@@ -376,20 +376,6 @@ details.verwaltung-panel .verwaltung-panel__body-wrap > .verwaltung-panel__body 
   text-align: center;
 }
 
-/* ── Reparatur-Panel ── */
-.repair-status {
-  display: flex;
-  align-items: center;
-  gap: var(--sp-4);
-  padding: var(--sp-4);
-  background: var(--pm-grey-50);
-  border-radius: var(--r-md);
-  margin-bottom: var(--sp-4);
-}
-.repair-status svg { width: 20px; height: 20px; }
-.repair-status--ok { color: var(--color-success); }
-.repair-status--warning { color: var(--color-warning); }
-
 @media (max-width: 768px) {
   .date-range-row { flex-direction: column; }
   .date-range-row .form-group { min-width: 0; }

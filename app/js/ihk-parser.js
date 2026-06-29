@@ -194,8 +194,13 @@
   const BETRIEB_BLOCK_RE      = /^Betrieb:\s*$/i;
   const UNTERWEISUNG_BLOCK_RE = /^Unterweisung:\s*$/i;
   // Über alle Seiten entfernte Rausch-Zeilen (Seitenkopf/-fuß, Wochensumme,
-  // doppelte Standalone-Zeit-Zeile unter jeder Tageszeile).
-  const NOISE_RE              = /^(Seite\s+\d+|Ausbildungsnachweis auf Wochenbasis|Dauer gesamt:.*|\d{1,2}:\d{2})$/i;
+  // doppelte Standalone-Zeit-Zeile unter jeder Tageszeile). Gilt für beide
+  // Exportformen (Wochen- und Tagesbasis).
+  const NOISE_RE              = /^(Seite\s+\d+|Ausbildungsnachweis auf (Wochen|Tages)basis|Dauer gesamt:.*|\d{1,2}:\d{2})$/i;
+  // Kopfzeile jeder (Folge-)Woche im Tagesbasis-Export. Sie steht VOR dem
+  // „Ausbildungswoche …"-Marker und fällt damit ans Ende des Bodys der
+  // VORWoche → markiert dort das Ende der letzten Tagesbeschreibung.
+  const AZUBI_HEADER_RE       = /^Auszubildende\/r$/i;
 
   function isSectionHeader(s) {
     return SCHULE_BETRIEB_RE.test(s) || SCHULE_BLOCK_RE.test(s)
@@ -285,19 +290,107 @@
     tage.sort((a, b) => (a.datum < b.datum ? -1 : 1));
     const { kw, year } = getISOKW(new Date(startDate + 'T00:00:00'));
     return {
-      kw, year, startDate, endDate, status, tage,
+      kw, year, startDate, endDate, status, modus: 'wöchentlich', tage,
       betriebText:      linesToHtml(textBlocks.betrieb),
       schuleText:       linesToHtml(textBlocks.schule),
       unterweisungText: linesToHtml(textBlocks.unterweisung),
     };
   }
 
+  // Einen Wochen-Block im TAGESBASIS-Format parsen. Anders als beim
+  // Wochenbasis-Export steht die Tätigkeitsbeschreibung NICHT in
+  // Betrieb:/Schule:/Unterweisung:-Wochenblöcken, sondern unter jeder
+  // Tageskarte (zwischen Tageskopf und dem tageseigenen Qualifikationen-Block).
+  // Pro Tag entsteht ein eintragText (HTML); die Qualifikationen-Liste wird –
+  // wie beim Wochenimport – verworfen (kein Datenmodell-Feld dafür).
+  function parseWeekBodyDaily(startDate, endDate, lines, status, warnungen) {
+    const tageByDatum = {};
+    let current   = null;  // aktueller Tag: { …, _lines: [], _first: bool }
+    let skipQuali = false;
+
+    for (const line of lines) {
+      const s = strip(line);
+
+      // Kopfzeile der Folgewoche → aktuelle Tagesbeschreibung beenden; die
+      // restlichen Kopfzeilen (Name, Ausbilder, Status) gehören zur nächsten
+      // Woche und werden ignoriert, bis die nächste Tageszeile beginnt.
+      if (AZUBI_HEADER_RE.test(s)) { current = null; skipQuali = false; continue; }
+
+      if (QUALI_RE.test(s)) { current = null; skipQuali = true; continue; }
+      if (skipQuali) {
+        if (DAY_RE.test(s)) skipQuali = false; // neue Tageszeile beendet Quali-Block
+        else continue;
+      }
+
+      const dm = s.match(DAY_RE);
+      if (dm) {
+        const [, wt, datStr, typ, anwAbw, zeit] = dm;
+        const datum = ddmmyyyyToISO(datStr);
+        if (!datum) { current = null; continue; }
+        const mapped = mapDayType(typ);
+        if (!mapped) {
+          warnungen.push(`${cap(wt)} ${datum}: Typ „${typ.trim()}" nicht erkannt.`);
+          current = null;
+          continue;
+        }
+        // Pro Tag gibt es im Export genau einen Kartenblock. Taucht dasselbe
+        // Datum dennoch erneut auf (z. B. Folgeseite), an bestehenden Eintrag
+        // weiterhängen statt ihn (und seinen Text) zu überschreiben.
+        if (tageByDatum[datum]) {
+          current = tageByDatum[datum];
+          current._first = false;
+          continue;
+        }
+        const stunden = anwAbw.toLowerCase() === 'anwesend' ? hmToDecimal(zeit) : 0;
+        current = { datum, wochentag: cap(wt), ...mapped, stunden, _lines: [], _first: true };
+        tageByDatum[datum] = current;
+        continue;
+      }
+
+      // Beschreibungszeile des aktuellen Tags sammeln (Marker bleiben erhalten).
+      if (current) {
+        let raw = line;
+        if (current._first) {
+          // Tagesdauer (HH:MM) ist rechtsbündig und landet beim y-Gruppieren am
+          // Ende der ERSTEN Beschreibungszeile → abschneiden.
+          raw = raw.replace(/\s*\d{1,2}:\d{2}\s*$/, '');
+          current._first = false;
+        }
+        if (raw.trim()) current._lines.push(raw);
+      }
+    }
+
+    const tage = Object.values(tageByDatum).map(d => ({
+      datum:       d.datum,
+      wochentag:   d.wochentag,
+      anwesenheit: d.anwesenheit,
+      ort:         d.ort,
+      stunden:     d.stunden,
+      eintragText: linesToHtml(d._lines),
+    }));
+
+    if (!tage.length) return null;
+    tage.sort((a, b) => (a.datum < b.datum ? -1 : 1));
+    const { kw, year } = getISOKW(new Date(startDate + 'T00:00:00'));
+    return { kw, year, startDate, endDate, status, modus: 'täglich', tage };
+  }
+
+  // Exportform anhand des Seitenkopfs erkennen (Default: wöchentlich, damit
+  // bestehende Wochenbasis-Tests/PDFs unverändert greifen).
+  function detectModus(pages) {
+    return /Ausbildungsnachweis\s+auf\s+Tagesbasis/i.test((pages || []).join('\n'))
+      ? 'täglich' : 'wöchentlich';
+  }
+
   /**
    * @param {string[]} pages  Array von Seiten-Strings (pdf.js, eine je PDF-Seite).
-   * @returns {{ wochen: Woche[], warnungen: string[] }}
+   * @param {{ modus?: 'wöchentlich'|'täglich' }} [opts]  Exportform erzwingen;
+   *        ohne Angabe automatisch am Seitenkopf erkannt.
+   * @returns {{ wochen: Woche[], warnungen: string[], modus: string }}
    */
-  function parse(pages) {
-    const result = { wochen: [], warnungen: [] };
+  function parse(pages, opts) {
+    const modus    = (opts && opts.modus) || detectModus(pages);
+    const result   = { wochen: [], warnungen: [], modus };
     const allLines = flattenPages(pages);
 
     // Gültige Wochen-Marker einsammeln (Spanne ≤ 10 Tage; verwirft TOC-Gesamtzeitraum).
@@ -328,7 +421,9 @@
         head.push(allLines[j]);
       }
       const status = mapStatus(head.map(strip).join(' '));
-      const woche  = parseWeekBody(mk.startDate, mk.endDate, bodyLines, status, result.warnungen);
+      const woche  = modus === 'täglich'
+        ? parseWeekBodyDaily(mk.startDate, mk.endDate, bodyLines, status, result.warnungen)
+        : parseWeekBody(mk.startDate, mk.endDate, bodyLines, status, result.warnungen);
       if (woche) result.wochen.push(woche);
     });
 
@@ -337,6 +432,7 @@
 
   const api = {
     parse,
+    detectModus,
     classifyFontName,
     assembleLine,
     linesToHtml,

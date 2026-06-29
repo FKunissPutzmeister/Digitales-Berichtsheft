@@ -84,7 +84,6 @@ async function renderAzubiDashboard(user) {
     : 0;
   const monday    = DateUtil.getMondayOfKW(kw, kwYear);
   const sunday    = new Date(monday); sunday.setDate(monday.getDate() + 6);
-  const hasProgress = user.ausbildungsBeginn && user.ausbildungsEnde;
   const range = `${DateUtil.formatDateShort(DateUtil.toISODate(monday))} – ${DateUtil.formatDateShort(DateUtil.toISODate(sunday))}`;
 
   // Berichtstyp steuert den Hero: 'täglich' (gewerblich) → aktuelle Woche
@@ -274,44 +273,6 @@ async function renderAzubiDashboard(user) {
     ? renderBentoRecentDays
     : renderBentoRecentWeeks;
 
-  /* Stats-Sparkline: 12 jüngste Wochen, Höhe pseudo-zufällig moduliert
-     für visuelle Variation. Echtdaten haben keine "Tagesstunden-Höhe"
-     (siehe Memory), Höhe steht hier symbolisch für "Aktivität". */
-  function bentoSparkSpans() {
-    let out = '';
-    for (let i = 11; i >= 0; i--) {
-      const mo = new Date(monday); mo.setDate(monday.getDate() - i * 7);
-      if (user.ausbildungsBeginn && DateUtil.toISODate(mo) < user.ausbildungsBeginn) {
-        out += `<span style="height:18%;opacity:.3"></span>`; continue;
-      }
-      const wkw = DateUtil.getKW(mo), wyr = DateUtil.getKWYear(mo);
-      const rec = lookupWoche(wkw, wyr);
-      const kind = wkcardKind(rec);
-      // Höhe leicht variieren damit's nicht wie ein Balken aussieht
-      const h = 40 + ((wkw * 17 + wyr) % 50);
-      out += `<span class="${kind}" style="height:${h}%${kind === 'draft' ? ';opacity:.55' : ''}"></span>`;
-    }
-    return out;
-  }
-
-  /* Streak: zähle vergangene zusammenhängende genehmigte/freigegebene Wochen
-     rückwärts ab der aktuellen (ohne die aktuelle selbst). */
-  let streak = 0;
-  for (let i = 1; i <= 26; i++) {
-    const mo = new Date(monday); mo.setDate(monday.getDate() - i * 7);
-    if (user.ausbildungsBeginn && DateUtil.toISODate(mo) < user.ausbildungsBeginn) break;
-    const wkw = DateUtil.getKW(mo), wyr = DateUtil.getKWYear(mo);
-    const rec = lookupWoche(wkw, wyr);
-    if (!rec) break;
-    if (rec.status === 'genehmigt' || rec.status === 'freigegeben') streak++;
-    else break;
-  }
-
-  /* Stats-Aggregat: Genehmigt-Quote. */
-  const genehmigtCount = alleWochen.filter(w => w.status === 'genehmigt').length;
-  const wochenMitInhalt = alleWochen.length;
-  const quote = wochenMitInhalt > 0 ? Math.round((genehmigtCount / wochenMitInhalt) * 100) : 0;
-
   const weekdayLong = ['Sonntag','Montag','Dienstag','Mittwoch','Donnerstag','Freitag','Samstag'][today.getDay()];
 
   /* Eyecatcher = kleines Label (Eyebrow) + große Zahl. Zeigt für ALLE Azubis
@@ -388,7 +349,7 @@ async function renderAzubiDashboard(user) {
   const mtEmptyHtml = (!mtNotifHtml && !mtFahrgeldHtml)
     ? '<div class="b-mitteilungen__empty">Keine neuen Mitteilungen</div>' : '';
   const mitteilungenSectionHtml = `
-      <section class="b-tile b-tile--glass b-mitteilungen animate-fade-in">
+      <section class="b-tile b-mitteilungen animate-fade-in">
         <div class="b-azubi__head">
           <span class="eyebrow">Mitteilungen</span>
           ${mtUnread > 0 ? `<span class="b-mitteilungen__badge">${mtUnread > 9 ? '9+' : mtUnread}</span>` : ''}
@@ -589,33 +550,12 @@ function bindPrimaryCtaNav() {
   });
 }
 
-/* Wie viele Werktage (Mo–Fr) der aktuellen KW liegen heute noch in
-   der Zukunft (heute eingeschlossen)? */
-function restlicheArbeitstage(kw, year) {
-  const monday = DateUtil.getMondayOfKW(kw, year);
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  let rest = 0;
-  for (let i = 0; i < 5; i++) {
-    const d = new Date(monday);
-    d.setDate(monday.getDate() + i);
-    if (d >= today) rest++;
-  }
-  return rest;
-}
-
 /* ── Inline-SVG-Icons für den CTA ─────────────────────────── */
-function iconPen() {
-  return Icon('edit');
-}
 function iconAlert() {
   return Icon('warning');
 }
 function iconCheck() {
   return Icon('success');
-}
-function iconHourglass() {
-  return Icon('hourglass');
 }
 function iconInbox() {
   return Icon('inbox');
@@ -1379,31 +1319,3 @@ function renderWeekStatusDays(woche, kw, year) {
   return html;
 }
 
-function renderAzubiActivities(wochen) {
-  const activities = [];
-  wochen.slice().reverse().forEach(w => {
-    if (w.status === 'genehmigt') {
-      activities.push({ type: 'success', text: `<strong>KW ${w.kw}/${w.year}</strong> wurde genehmigt`, time: '–' });
-    } else if (w.status === 'freigegeben') {
-      activities.push({ type: 'info', text: `<strong>KW ${w.kw}/${w.year}</strong> zur Abnahme freigegeben`, time: '–' });
-    } else if (w.status === 'abgelehnt') {
-      activities.push({ type: 'error', text: `<strong>KW ${w.kw}/${w.year}</strong> wurde zurückgegeben`, time: '–' });
-    } else {
-      activities.push({ type: 'default', text: `<strong>KW ${w.kw}/${w.year}</strong> – Eintrag offen`, time: '–' });
-    }
-  });
-
-  if (activities.length === 0) {
-    return '<div class="empty-state" style="padding:var(--sp-8)"><p class="empty-state__text">Noch keine Aktivitäten vorhanden.</p></div>';
-  }
-
-  return activities.slice(0, 8).map((a, i) => `
-    <div class="activity-item" style="animation-delay:${i * 40}ms">
-      <div class="activity-item__dot activity-item__dot--${a.type === 'default' ? 'yellow' : a.type}"></div>
-      <div class="activity-item__content">
-        <div class="activity-item__text">${a.text}</div>
-        <div class="activity-item__time">${a.time}</div>
-      </div>
-    </div>
-  `).join('');
-}

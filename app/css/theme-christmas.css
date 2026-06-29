@@ -1,0 +1,1230 @@
+/* ===================================================================
+   THEME-CHRISTMAS.CSS – „Verschneite Winternacht", dunkel, Weihnachts-Rot
+   -------------------------------------------------------------------
+   Wird von jeder HTML-Seite als eigenes <link>-Stylesheet DIREKT VOR
+   themes.css geladen. Gehört EXKLUSIV dem Christmas-Designer.
+   Szene (FX-Layer #pmThemeFX, Template "christmas" in js/theme.js):
+   Winterbild (assets/backgrounds/Christmas Background.png) + sanft flackernde
+   Lampen- & Baum-Licht-Glows + <canvas> Schneefall (Engine PMChristmasSnow).
+   =================================================================== */
+html[data-theme="christmas"] { color-scheme: dark; }
+
+[data-theme="christmas"] {
+  /* Akzent: Weihnachts-Rot ersetzt Brand-Gelb */
+  --pm-yellow:        #C8102E;
+  --pm-yellow-dark:   #E2384F;   /* heller in Dark – Hover */
+  --pm-yellow-darker: #C8102E;
+  --pm-yellow-light:  #F2667A;
+  --pm-yellow-pale:   rgba(200, 16, 46, 0.24);
+  --pm-yellow-bg:     rgba(200, 16, 46, 0.14);
+  --on-yellow-text:   #FFFFFF;   /* weiß auf Rot */
+
+  /* Grau-Skala → kühles Blau-Nacht (Karten heller als Body), Surfaces
+     translucent, damit die Szene durchscheint; Alpha hoch genug für Text. */
+  --pm-white:    rgba(24, 34, 52, 0.88);
+  --pm-grey-50:  rgba(10, 16, 28, 0.72);
+  --pm-grey-100: rgba(96, 120, 160, 0.26);
+  --pm-grey-200: #2A3852;
+  --pm-grey-300: #3D506E;
+  --pm-grey-400: #8FA2C0;
+  --pm-grey-500: #AEBFD8;
+  --pm-grey-600: #C9D6E8;
+  --pm-grey-700: #DEE7F4;
+  --pm-grey-800: #EDF2FA;
+  --pm-grey-900: #F8FBFF;
+
+  /* Status-Tints als Overlays (wie Dark-Mode) */
+  --color-success-light: rgba(67, 168, 86, 0.18);
+  --color-error-light:   rgba(229, 57, 53, 0.20);
+  --color-info-light:    rgba(25, 118, 210, 0.22);
+  --color-warning-light: rgba(244, 81, 30, 0.20);
+  --color-error-mid:     #FF7A6B;
+  --color-info-mid:      #69B6F2;
+  --status-offen-bg:        rgba(150, 165, 195, 0.18);
+  --status-freigegeben-bg:  rgba(25, 118, 210, 0.24);
+  --status-genehmigt-bg:    rgba(67, 168, 86, 0.20);
+  --status-abgelehnt-bg:    rgba(229, 57, 53, 0.24);
+
+  /* Schatten tief; Akzent-Glow rot, sekundär grün */
+  --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.50);
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.45), 0 1px 3px rgba(0, 0, 0, 0.55);
+  --shadow-md: 0 2px 4px rgba(0, 0, 0, 0.45), 0 6px 14px rgba(0, 0, 0, 0.55);
+  --shadow-lg: 0 4px 10px rgba(0, 0, 0, 0.50), 0 14px 28px rgba(0, 0, 0, 0.58);
+  --shadow-xl: 0 8px 16px rgba(0, 0, 0, 0.55), 0 24px 48px rgba(0, 0, 0, 0.68);
+  --shadow-yellow:    0 4px 18px rgba(200, 16, 46, 0.40), 0 0 26px rgba(30, 123, 60, 0.24);
+  --shadow-yellow-lg: 0 8px 34px rgba(200, 16, 46, 0.48), 0 0 44px rgba(30, 123, 60, 0.28);
+  --ring-yellow:    0 0 0 3px rgba(200, 16, 46, 0.36), 0 0 18px rgba(200, 16, 46, 0.40);
+  --ring-yellow-sm: 0 0 0 2px rgba(200, 16, 46, 0.32), 0 0 12px rgba(200, 16, 46, 0.34);
+  --ring-error:     0 0 0 3px rgba(229, 57, 53, 0.32);
+  --ring-info:      0 0 0 3px rgba(25, 118, 210, 0.30);
+
+  /* Inverse Surfaces / Topbar / Overlay */
+  --sidebar-bg:           #0C1422;
+  --inverse-surface:      #0C1422;
+  --inverse-surface-soft: #16202F;
+  --inverse-surface-mid:  #1F2C3F;
+  --topbar-bg-glass:      rgba(12, 20, 34, 0.80);
+  --surface-overlay:      rgba(4, 8, 16, 0.62);
+
+  /* Glass-Token (glass.css) – dunkles, kühles Glas */
+  --glass-bg:          rgba(22, 32, 50, 0.55);
+  --glass-bg-strong:   rgba(22, 32, 50, 0.82);
+  --glass-bg-tint:     rgba(22, 60, 40, 0.36);
+  --glass-border:      rgba(170, 200, 230, 0.16);
+  --glass-border-soft: rgba(170, 200, 230, 0.08);
+  --glass-highlight:   rgba(200, 222, 255, 0.12);
+  --glass-shadow:      0 1px 0 rgba(200, 222, 255, 0.08) inset,
+                       0 -1px 0 rgba(0, 0, 0, 0.40) inset,
+                       0 14px 36px rgba(0, 0, 0, 0.52),
+                       0 2px 8px rgba(0, 0, 0, 0.42);
+  --ambient-yellow:    rgba(200, 16, 46, 0.10);
+  --ambient-yellow-2:  rgba(30, 123, 60, 0.07);
+  --ambient-neutral:   rgba(120, 150, 190, 0.07);
+
+  /* App-Hintergrund AUS – die Szene (#pmThemeFX) übernimmt. */
+  --app-bg-image:     none;
+  --app-bg-overlay:   none;
+  --app-bg-vignette:  none;
+  --sidebar-bg-image: linear-gradient(180deg, rgba(18, 28, 46, 0.82) 0%, rgba(8, 14, 26, 0.90) 100%);
+  --sidebar-glass:      rgba(14, 22, 38, 0.74);
+  --sidebar-glass-deep: rgba(8, 14, 26, 0.90);
+  --sidebar-line:       rgba(200, 16, 46, 0.32);
+
+  /* Liquid-Glass-Pill-Token (Floating Sidebar) */
+  --lg-tint:        rgba(22, 32, 50, 0.62);
+  --lg-tint-strong: rgba(28, 40, 60, 0.82);
+  --lg-tint-soft:   rgba(22, 32, 50, 0.42);
+  --lg-tint-warm:   rgba(22, 60, 40, 0.42);
+  --lg-sidebar:     rgba(12, 20, 34, 0.76);
+  --lg-border:      rgba(170, 200, 230, 0.16);
+}
+
+/* ===================================================================
+   SZENE (#pmThemeFX-Kinder)
+   =================================================================== */
+[data-theme="christmas"] #pmThemeFX { background: #0A1019; }
+
+[data-theme="christmas"] .pm-xm-bg {
+  position: fixed; inset: 0; z-index: 0;
+  /* 2:1-Panorama → „center center": das Kaminhaus bleibt mittig, Tannenbaum
+     (rechts) und Laternen (links) bleiben bei cover möglichst lange im Bild.
+     Die Glow-Bühne (.pm-xm-lights) ist identisch zentriert → die Overlays
+     sitzen exakt auf den Bild-Lichtquellen. */
+  background: center center / cover no-repeat
+    url("../assets/backgrounds/Christmas Background.png");
+  /* Bild bereits hell/lebendig → nur dezente Anhebung, kein Abdunkel-Overlay. */
+  filter: brightness(1.06) saturate(1.04);
+}
+[data-theme="christmas"] .pm-xm-snow {
+  position: fixed; inset: 0; z-index: 4; pointer-events: none;
+}
+
+/* ===================================================================
+   KREATIVE UI-AKZENTE (nur Christmas)
+   =================================================================== */
+
+/* Seitentitel: dezenter Weihnachts-Rot-Glow */
+[data-theme="christmas"] .page-title {
+  text-shadow:
+    0 0 10px rgba(200, 16, 46, 0.38),
+    0 0 28px rgba(200, 16, 46, 0.16);
+}
+
+/* Primär-Buttons: warmer „Weihnachts-Glow", der beim Hover EINMAL weich
+   aufgeblendet wird und ruhig stehen bleibt (kein Blinken – Button wirkt nur
+   kurz „größer" durch den aufleuchtenden Glow-Saum). Füllung aus dem
+   Token --pm-yellow (Rot). */
+[data-theme="christmas"] .btn-primary {
+  position: relative;
+  background: linear-gradient(180deg, #E2384F 0%, #C8102E 55%, #A00D25 100%);
+  border-color: rgba(200, 16, 46, 0.55);
+}
+[data-theme="christmas"] .btn-primary::after {
+  content: '';
+  position: absolute;
+  inset: -3px;
+  border-radius: inherit;
+  pointer-events: none;
+  opacity: 0;
+  box-shadow:
+    0 0 16px rgba(200, 16, 46, 0.55),
+    0 0 34px rgba(30, 123, 60, 0.22);
+  transition: opacity var(--t-fast);
+}
+[data-theme="christmas"] .btn-primary:hover:not(:disabled)::after {
+  opacity: 1;
+}
+
+/* Hover behält eine VERLAUFS-Füllung (NICHT auf Solid wechseln). Sonst
+   „blinkt"/flackert der Button: der Basis-Hover (components.css) setzt
+   background:var(--pm-yellow-dark) = Solid → das background-image (Verlauf)
+   springt auf none, während background-color aus Transparent einblendet =
+   kurzer Aussetzer der Füllung. Gleiche Verlaufs-Art, nur etwas heller →
+   sauberes Hover-Feedback ohne Flackern. */
+[data-theme="christmas"] .btn-primary:hover:not(:disabled) {
+  background: linear-gradient(180deg, #F04A62 0%, #DA1A38 55%, #B8112C 100%);
+}
+
+/* Outline/Ghost: leise rote Aura beim Hover */
+[data-theme="christmas"] .btn-outline:hover:not(:disabled),
+[data-theme="christmas"] .btn-ghost:hover:not(:disabled) {
+  box-shadow: 0 0 12px rgba(200, 16, 46, 0.20);
+}
+
+/* Scrollbar: Verlauf Rot → Grün */
+[data-theme="christmas"] ::-webkit-scrollbar-track { background: rgba(255, 255, 255, 0.03); }
+[data-theme="christmas"] ::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, rgba(200, 16, 46, 0.70), rgba(30, 123, 60, 0.70));
+}
+[data-theme="christmas"] ::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(180deg, rgba(200, 16, 46, 0.95), rgba(30, 123, 60, 0.95));
+}
+
+/* Interaktive Karten: rote Kante beim Hover */
+[data-theme="christmas"] .card--interactive:hover {
+  border-color: rgba(200, 16, 46, 0.35);
+}
+
+/* Dashboard-Hero-CTA – Weihnachts-Rot */
+[data-theme="christmas"] .b-btn-primary {
+  position: relative;
+  background: linear-gradient(180deg, #E2384F 0%, #C8102E 55%, #A00D25 100%);
+  color: var(--on-yellow-text);
+}
+[data-theme="christmas"] .b-btn-primary:hover {
+  box-shadow: var(--shadow-yellow);
+}
+
+/* ===================================================================
+   KOMPONENTEN-SPIEGELUNGEN für das DUNKLE Custom-Theme
+   -------------------------------------------------------------------
+   Diese Regeln existieren in components.css/glass.css/layout.css/
+   dashboard.css/wochenansicht.css nur unter [data-theme="dark"] und
+   würden hier sonst mit ihren Light-Werten laufen. Inhaltlich identisch
+   zum Spiegelblock in theme-halloween.css, nur Akzent (Orange → Rot)
+   und Flächen (Nacht-Plum → Blau-Nacht) angepasst.
+   =================================================================== */
+
+/* Text auf Akzent-Flächen */
+[data-theme="christmas"] .btn-primary,
+[data-theme="christmas"] .avatar {
+  color: var(--on-yellow-text);
+}
+[data-theme="christmas"] .pm-select__option--selected {
+  color: var(--pm-yellow);
+}
+[data-theme="christmas"] ::selection {
+  background: var(--pm-yellow);
+  color: var(--on-yellow-text);
+}
+[data-theme="christmas"] .btn-outline-yellow:hover:not(:disabled) {
+  color: var(--pm-yellow);
+}
+
+/* Sidebar (Floating-Pill, Light-Defaults nutzen rgba(0,0,0,…)) */
+[data-theme="christmas"] .sidebar__link { color: var(--pm-grey-600); }
+[data-theme="christmas"] .sidebar__link:hover {
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--pm-grey-900);
+}
+[data-theme="christmas"] .sidebar__link.active {
+  background: rgba(200, 16, 46, 0.16);
+  color: var(--pm-yellow-dark);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.08) inset,
+              0 0 14px rgba(200, 16, 46, 0.30),
+              0 2px 8px rgba(0, 0, 0, 0.40);
+}
+[data-theme="christmas"] .sidebar__divider { background: rgba(255, 255, 255, 0.08); }
+[data-theme="christmas"] .sidebar__footer { border-top-color: rgba(255, 255, 255, 0.06); }
+[data-theme="christmas"] .sidebar__user-link { background: rgba(255, 255, 255, 0.06); }
+[data-theme="christmas"] .sidebar__user-link:hover { background: rgba(255, 255, 255, 0.10); }
+[data-theme="christmas"] .sidebar__icon-btn {
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--pm-grey-700);
+}
+[data-theme="christmas"] .sidebar__icon-btn:hover { background: rgba(255, 255, 255, 0.12); }
+[data-theme="christmas"] .sidebar__toggle:hover { background: rgba(255, 255, 255, 0.08); }
+[data-theme="christmas"] .sidebar__nav::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.10); }
+[data-theme="christmas"] .sidebar.collapsed .sidebar__toggle { color: rgba(255, 255, 255, 0.70); }
+[data-theme="christmas"] .role-badge {
+  background: rgba(255, 255, 255, 0.10);
+  color: var(--pm-grey-700);
+}
+[data-theme="christmas"] .role-badge[data-role="azubi"] {
+  background: rgba(200, 16, 46, 0.18);
+  color: #F2667A;
+}
+[data-theme="christmas"] .role-badge[data-role="ausbilder"] {
+  background: rgba(200, 16, 46, 0.20);
+  color: var(--pm-yellow);
+}
+
+/* Theme-Toggle-Icon: dunkle Custom-Themes zeigen den Mond */
+[data-theme="christmas"] .sidebar__theme-icon--sun { display: none; }
+[data-theme="christmas"] .sidebar__theme-icon--moon { display: block; }
+
+/* Karten: Light-Sheen aus glass.css ist auf dunklen Surfaces zu hart */
+[data-theme="christmas"] .card,
+[data-theme="christmas"] .stat-card {
+  background-image: linear-gradient(180deg, rgba(255, 255, 255, 0.04) 0%, rgba(255, 255, 255, 0) 35%);
+  box-shadow: var(--elev-rest), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+[data-theme="christmas"] .card:hover,
+[data-theme="christmas"] .stat-card:hover {
+  box-shadow: var(--elev-hover), inset 0 1px 0 rgba(255, 255, 255, 0.07);
+}
+[data-theme="christmas"] .stat-card::after {
+  background: linear-gradient(115deg, transparent 30%, rgba(255, 255, 255, 0.06) 50%, transparent 70%);
+}
+[data-theme="christmas"] .card,
+[data-theme="christmas"] .stat-card,
+[data-theme="christmas"] .profil-section,
+[data-theme="christmas"] .verwaltung-panel {
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+/* Modal-Sheen dämpfen + „Weihnachts-Rot-Rand" */
+[data-theme="christmas"] .modal {
+  background-image: linear-gradient(180deg, rgba(255, 255, 255, 0.05) 0%, rgba(255, 255, 255, 0) 30%);
+  box-shadow: var(--shadow-xl),
+              0 0 34px rgba(200, 16, 46, 0.16),
+              inset 0 1px 0 rgba(255, 255, 255, 0.06),
+              inset 0 0 0 1px rgba(200, 16, 46, 0.26);
+}
+
+/* Toast braucht auf dunklem Body eine Hairline */
+[data-theme="christmas"] .toast {
+  background: var(--inverse-surface-soft);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+/* Dropdown: Danger-Eintrag heller */
+[data-theme="christmas"] .dropdown__item--danger { color: var(--color-error-mid); }
+[data-theme="christmas"] .dropdown__item--danger:hover {
+  background: rgba(229, 57, 53, 0.14);
+  color: #F79188;
+}
+
+/* Status-Badges: hellere Textfarben auf Tint-Hintergründen */
+[data-theme="christmas"] .badge--offen        { color: var(--pm-grey-600); }
+[data-theme="christmas"] .badge--freigegeben  { color: #6FB1F2; }
+[data-theme="christmas"] .badge--genehmigt    { color: #6BD089; }
+[data-theme="christmas"] .badge--abgelehnt    { color: #F79188; }
+[data-theme="christmas"] .badge--grey         { color: var(--pm-grey-700); }
+
+/* Stat-Card-Icons als Tint-Overlays */
+[data-theme="christmas"] .stat-card__icon--yellow  { background: var(--pm-yellow-bg); color: var(--pm-yellow); }
+[data-theme="christmas"] .stat-card__icon--success { background: rgba(67, 168, 86, 0.18); color: #6BD089; }
+[data-theme="christmas"] .stat-card__icon--info    { background: rgba(25, 118, 210, 0.20); color: #6FB1F2; }
+[data-theme="christmas"] .stat-card__icon--error   { background: rgba(229, 57, 53, 0.20); color: #F79188; }
+
+/* Form-Hover: sichtbarer Surface-Lift statt rgba(0,0,0,…) */
+[data-theme="christmas"] .form-control:hover:not(:focus):not(:disabled) {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+/* Week-Toolbar (wochenansicht, in glass.css hart auf dark gemünzt) */
+[data-theme="christmas"] .week-toolbar {
+  background: var(--pm-white);
+  border-color: rgba(255, 255, 255, 0.06);
+  box-shadow: var(--elev-rest), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+/* Topbar-Scroll-Schatten dunkel statt hell */
+[data-theme="christmas"] .topbar.is-scrolled {
+  box-shadow: inset 0 1px 0 var(--glass-highlight),
+              0 1px 0 rgba(255, 255, 255, 0.06),
+              0 10px 28px rgba(0, 0, 0, 0.5);
+}
+
+/* Profil-Logout-Karte (profil.css spiegelt nur dark) */
+[data-theme="christmas"] .profil-logout {
+  background: rgba(255, 255, 255, 0.03);
+  border-color: rgba(255, 255, 255, 0.08);
+  border-left-color: var(--color-error-mid);
+}
+
+/* ── Bento-Dashboard (dashboard.css spiegelt nur [data-theme="dark"]) ──
+   Kühle Blau-Nacht-Verläufe statt Plum/Orange. */
+[data-theme="christmas"] .b-tile--glass {
+  background: linear-gradient(180deg, rgba(22, 34, 54, 0.74) 0%, rgba(12, 20, 34, 0.64) 100%);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.06),
+    0 1px 2px rgba(0, 0, 0, 0.4),
+    0 12px 32px -8px rgba(0, 0, 0, 0.55);
+}
+html[data-theme="christmas"] .b-hero {
+  background-image:
+    radial-gradient(130% 160% at 84% 6%, rgba(200, 16, 46, 0.13), transparent 55%),
+    linear-gradient(135deg, #0E1A2E 0%, #091220 55%, #050D18 100%);
+}
+html[data-theme="christmas"] .b-hero::before {
+  background:
+    radial-gradient(ellipse 36% 60% at 22% 60%, rgba(4, 8, 18, 0.42), transparent 72%);
+}
+html[data-theme="christmas"] .b-hero__eyebrow,
+html[data-theme="christmas"] .b-hero__kw small {
+  color: rgba(255, 255, 255, 0.62);
+}
+html[data-theme="christmas"] .b-hero__kw { color: #fff; }
+[data-theme="christmas"] .b-status--offen { background: rgba(255, 255, 255, 0.08); color: rgba(255, 255, 255, 0.85); border-color: transparent; }
+[data-theme="christmas"] .b-hero__bottom { border-top-color: rgba(255, 255, 255, 0.08); }
+
+html[data-theme="christmas"] .b-azubi::before {
+  background:
+    radial-gradient(circle at 50% 40%, rgba(6, 10, 20, 0.42) 0%, rgba(6, 10, 20, 0.16) 34%, transparent 58%);
+}
+html[data-theme="christmas"] .b-azubi,
+html[data-theme="christmas"] .b-mitteilungen {
+  background-image:
+    radial-gradient(95% 95% at 50% 24%, rgba(30, 123, 60, 0.16), transparent 60%),
+    linear-gradient(160deg, #0E1C30 0%, #080F1C 100%);
+  color: #fff;
+  border-color: rgba(255, 255, 255, 0.08);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.08),
+    0 12px 32px -8px rgba(8, 14, 26, 0.4);
+}
+html[data-theme="christmas"] .b-azubi__head .eyebrow { color: rgba(255, 255, 255, 0.55); }
+html[data-theme="christmas"] .b-azubi__lj {
+  color: var(--pm-yellow);
+  background: rgba(200, 16, 46, 0.14);
+  border-color: rgba(200, 16, 46, 0.30);
+}
+html[data-theme="christmas"] .b-donut circle:first-child { stroke: rgba(255, 255, 255, 0.08); }
+html[data-theme="christmas"] .b-donut__pct { color: #fff; }
+html[data-theme="christmas"] .b-donut__pct small { color: rgba(255, 255, 255, 0.45); }
+html[data-theme="christmas"] .b-donut__label { color: rgba(255, 255, 255, 0.45); }
+html[data-theme="christmas"] .b-azubi__foot strong { color: #fff; }
+html[data-theme="christmas"] .b-azubi__foot .muted { color: rgba(255, 255, 255, 0.5); }
+html[data-theme="christmas"] .b-azubi__segs span { background: rgba(255, 255, 255, 0.08); }
+
+html[data-theme="christmas"] .b-recent {
+  background-image:
+    radial-gradient(130% 140% at 12% 16%, rgba(200, 16, 46, 0.10), transparent 55%),
+    linear-gradient(120deg, #0E1A2C 0%, #070F1C 100%);
+}
+html[data-theme="christmas"] .b-recent::before {
+  background:
+    radial-gradient(ellipse 86% 58% at 50% 82%, rgba(4, 8, 18, 0.30), transparent 78%);
+}
+
+[data-theme="christmas"] .b-wkcard {
+  background: rgba(255, 255, 255, 0.04);
+  border-color: rgba(255, 255, 255, 0.08);
+  color: #fff;
+}
+[data-theme="christmas"] .b-wkcard__kw { color: #fff; }
+[data-theme="christmas"] .b-wkcard:hover { border-color: rgba(255, 255, 255, 0.18); }
+[data-theme="christmas"] .b-daycard {
+  background: rgba(255, 255, 255, 0.04);
+  border-color: rgba(255, 255, 255, 0.08);
+  color: #fff;
+}
+[data-theme="christmas"] .b-daycard__num { color: #fff; }
+[data-theme="christmas"] .b-daycard:hover { border-color: rgba(255, 255, 255, 0.18); }
+
+[data-theme="christmas"] .b-hero__kw,
+[data-theme="christmas"] .b-recent__head h3,
+[data-theme="christmas"] .b-stats__foot .big {
+  color: #fff;
+}
+[data-theme="christmas"] .b-hero__range strong { color: rgba(255, 255, 255, 0.9); }
+[data-theme="christmas"] .b-day {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.08);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+[data-theme="christmas"] .b-day .dn { color: rgba(255, 255, 255, 0.5); }
+[data-theme="christmas"] .b-day .dnum { color: rgba(255, 255, 255, 0.85); }
+[data-theme="christmas"] .b-day--past .dnum, [data-theme="christmas"] .b-day--weekend .dnum { color: rgba(255, 255, 255, 0.35); }
+
+/* Finaler Material-Layer: in dashboard.css mit !important auf dunkle PNG-
+   Tiles gemünzt → hier mit !important auf Christmas-Verläufe übersteuern */
+/* Liquid Glass: stark transluzenter Tint + kräftiger Blur + heller Glas-Rand
+   + innerer Lichtreflex → die Winterszene scheint durch die Kacheln. */
+html[data-theme="christmas"] .bento .b-hero {
+  background-image:
+    radial-gradient(130% 160% at 84% 6%, rgba(200, 16, 46, 0.10), transparent 55%),
+    linear-gradient(135deg, rgba(20,30,52,0.44) 0%, rgba(12,20,36,0.40) 100%) !important;
+  background-size: cover, cover !important;
+  background-position: center, center !important;
+  -webkit-backdrop-filter: blur(18px) saturate(1.6); backdrop-filter: blur(18px) saturate(1.6);
+  border: 1px solid rgba(255,255,255,0.16) !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.20), 0 14px 36px -10px rgba(0,0,0,0.5) !important;
+}
+html[data-theme="christmas"] .bento .b-azubi,
+html[data-theme="christmas"] .bento .b-mitteilungen {
+  background-image:
+    radial-gradient(95% 95% at 50% 24%, rgba(30, 123, 60, 0.14), transparent 60%),
+    linear-gradient(160deg, rgba(20,32,54,0.44) 0%, rgba(12,20,36,0.40) 100%) !important;
+  background-size: cover, cover !important;
+  background-position: center, center !important;
+  -webkit-backdrop-filter: blur(18px) saturate(1.6); backdrop-filter: blur(18px) saturate(1.6);
+  border: 1px solid rgba(255,255,255,0.16) !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.20), 0 14px 36px -10px rgba(0,0,0,0.5) !important;
+}
+html[data-theme="christmas"] .bento .b-recent {
+  background-image:
+    radial-gradient(130% 140% at 12% 16%, rgba(200, 16, 46, 0.09), transparent 55%),
+    linear-gradient(120deg, rgba(20,30,50,0.44) 0%, rgba(11,19,34,0.40) 100%) !important;
+  background-size: cover, cover !important;
+  background-position: center, center !important;
+  -webkit-backdrop-filter: blur(18px) saturate(1.6); backdrop-filter: blur(18px) saturate(1.6);
+  border: 1px solid rgba(255,255,255,0.16) !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.20), 0 14px 36px -10px rgba(0,0,0,0.5) !important;
+}
+
+/* Welcome-Hero (oberste Dashboard-Kachel): gleiches Liquid Glass wie die
+   übrigen Kacheln – stark transluzent + Blur + Glas-Rand + Lichtreflex. */
+[data-theme="christmas"] .welcome-hero {
+  background-image:
+    radial-gradient(120% 150% at 80% 6%, rgba(200, 16, 46, 0.10), transparent 55%),
+    linear-gradient(135deg, rgba(20, 30, 52, 0.44) 0%, rgba(12, 20, 36, 0.40) 100%) !important;
+  background-size: cover, cover !important;
+  background-position: center, center !important;
+  -webkit-backdrop-filter: blur(18px) saturate(1.6); backdrop-filter: blur(18px) saturate(1.6);
+  border: 1px solid rgba(255, 255, 255, 0.16) !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.20), 0 14px 36px -10px rgba(0, 0, 0, 0.5) !important;
+}
+
+/* ── Jahresansicht-Legende (jahresansicht.css spiegelt nur [data-theme=
+   "dark"]) ── Dunkle Glas-Leiste → helle Labels werden lesbar. */
+[data-theme="christmas"] .year-legend {
+  background: rgba(12, 22, 40, 0.82);
+  border-color: rgba(170, 200, 230, 0.16);
+}
+[data-theme="christmas"] .legend-dot--offen { background: var(--pm-grey-400); }
+[data-theme="christmas"] .legend-dot--frei {
+  background: rgba(255, 255, 255, 0.10);
+  border-color: var(--pm-grey-400);
+}
+
+/* ── Wochenansicht-Tag-Rows (wochenansicht.css spiegelt nur dark) ──
+   Flächen auf Blau-Nacht, Today-/Expanded-Akzent auf Weihnachts-Rot. */
+[data-theme="christmas"] body[data-page="wochenansicht"] .tag-row {
+  background: linear-gradient(180deg, #0E1C32 0%, #0A1626 100%);
+  border-color: rgba(255, 255, 255, 0.10);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.05),
+    0 1px 2px rgba(0, 0, 0, 0.35);
+}
+[data-theme="christmas"] body[data-page="wochenansicht"] .tag-row + .tag-row { margin-top: 8px; }
+[data-theme="christmas"] body[data-page="wochenansicht"] .tag-row:hover {
+  border-color: rgba(255, 255, 255, 0.10);
+}
+[data-theme="christmas"] body[data-page="wochenansicht"] .tag-row__summary:hover {
+  background: rgba(255, 255, 255, 0.04);
+}
+[data-theme="christmas"] body[data-page="wochenansicht"] .tag-row--today {
+  background:
+    linear-gradient(180deg, rgba(200, 16, 46, 0.12) 0%, rgba(200, 16, 46, 0.04) 100%),
+    linear-gradient(180deg, #0E1C32 0%, #0A1626 100%);
+  border-color: rgba(200, 16, 46, 0.45);
+  box-shadow:
+    inset 0 1px 0 rgba(200, 16, 46, 0.15),
+    0 0 0 1px rgba(200, 16, 46, 0.10),
+    0 4px 14px -6px rgba(200, 16, 46, 0.25);
+}
+[data-theme="christmas"] body[data-page="wochenansicht"] .tag-row--weekend {
+  /* War fast transparent (0.015) → über dem hellen Schnee-Hintergrund
+     unlesbar. Jetzt dunkle, leicht aufgehellte Fläche (Wochenende bleibt
+     optisch etwas dezenter als Werktage, Text aber klar lesbar). */
+  background: linear-gradient(180deg, rgba(22, 36, 58, 0.82) 0%, rgba(16, 28, 48, 0.82) 100%);
+  border-color: rgba(255, 255, 255, 0.08);
+  box-shadow: none;
+}
+[data-theme="christmas"] body[data-page="wochenansicht"] .tag-row.expanded {
+  border-color: rgba(200, 16, 46, 0.32);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.06),
+    0 0 0 1px rgba(200, 16, 46, 0.18),
+    0 8px 24px -10px rgba(0, 0, 0, 0.55);
+}
+[data-theme="christmas"] body[data-page="wochenansicht"] .tag-row__body {
+  background: rgba(0, 0, 0, 0.25);
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+/* Wochenansicht-Pill-Selects */
+[data-theme="christmas"] body[data-page="wochenansicht"] .pm-select.tag-row__select .pm-select__trigger,
+[data-theme="christmas"] body[data-page="wochenansicht"] .pm-select.wochen-options__select .pm-select__trigger {
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--pm-grey-800);
+  box-shadow:
+    0 1px 2px rgba(0, 0, 0, 0.40),
+    0 4px 12px rgba(0, 0, 0, 0.45);
+}
+[data-theme="christmas"] body[data-page="wochenansicht"] .pm-select.tag-row__select .pm-select__trigger:hover:not(:disabled),
+[data-theme="christmas"] body[data-page="wochenansicht"] .pm-select.wochen-options__select .pm-select__trigger:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.10);
+  box-shadow:
+    0 2px 4px rgba(0, 0, 0, 0.45),
+    0 8px 20px rgba(0, 0, 0, 0.55);
+}
+[data-theme="christmas"] body[data-page="wochenansicht"] .pm-select.tag-row__select--needs-input .pm-select__trigger {
+  background: var(--pm-yellow-bg);
+  border-color: var(--pm-yellow);
+}
+[data-theme="christmas"] body[data-page="wochenansicht"] select.tag-row__select:not([data-pm-enhanced]) {
+  background-color: rgba(255, 255, 255, 0.06);
+  box-shadow:
+    0 1px 2px rgba(0, 0, 0, 0.40),
+    0 4px 12px rgba(0, 0, 0, 0.45);
+}
+
+/* Wochenansicht-Stunden-Spinner (analog dark/hyperspace/cmd/halloween) */
+[data-theme="christmas"] body[data-page="wochenansicht"] .time-spinner__input {
+  border-color: rgba(255, 255, 255, 0.18);
+}
+
+/* ===================================================================
+   KONTRAST-KORREKTUREN – Text über der hellen/bunten Szene lesbar
+   -------------------------------------------------------------------
+   Manche Flächen sind bewusst transluzent (Liquid Glass) und einige
+   Text-/Icon-Farben kamen noch aus dem Light-Default → auf dunklem Glas
+   bzw. über dem hellen Schnee-Hintergrund unlesbar. Hier gezielt fixiert.
+   =================================================================== */
+
+/* Dashboard-Mitteilungen: Meta/Vorschau war near-black (Light-Default)
+   auf dunklem Glas → auf Hellweiß umstellen. */
+[data-theme="christmas"] .b-mitteilung__meta    { color: rgba(255, 255, 255, 0.66); }
+[data-theme="christmas"] .b-mitteilung__preview { color: rgba(255, 255, 255, 0.60); }
+/* Dunkler Halo, damit Titel/Meta auch über hellen Baum-Lichtern knackig
+   lesbar bleiben (Kachel ist transluzentes Liquid Glass). */
+[data-theme="christmas"] .b-mitteilung__title,
+[data-theme="christmas"] .b-mitteilung__meta,
+[data-theme="christmas"] .b-mitteilung__preview { text-shadow: 0 1px 2px rgba(0, 0, 0, 0.55); }
+
+/* Wochen-Options-Leiste: heller Text lag auf transparentem Grund über dem
+   hellen Schnee. Dezente dunkle Glas-Leiste drunterlegen (mit H-Padding,
+   das die wochenansicht-Regel auf 0 gesetzt hatte). */
+[data-theme="christmas"] body[data-page="wochenansicht"] .wochen-options {
+  background: rgba(10, 18, 34, 0.60);
+  border: 1px solid rgba(170, 200, 230, 0.14);
+  border-radius: 14px;
+  padding: var(--sp-3) var(--sp-4);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+}
+
+/* Quill-Editor: Toolbar-Icons waren Quill-Default-Dunkelgrau (#444) auf
+   dunklem Editor-Grund → kaum sichtbar. WICHTIG: Quill hängt die Toolbar
+   als GESCHWISTER von .ql-editor-wrap ein (nicht als Nachfahre, s. Kommentar
+   in wochenansicht.js) → daher OHNE .ql-editor-wrap-Präfix adressieren,
+   sonst greift die Regel nicht. Aktive Icons bleiben Quill-blau (höhere
+   Spezifität). */
+[data-theme="christmas"] .ql-snow .ql-stroke {
+  stroke: rgba(237, 242, 250, 0.82);
+}
+[data-theme="christmas"] .ql-snow .ql-fill,
+[data-theme="christmas"] .ql-snow .ql-stroke.ql-fill {
+  fill: rgba(237, 242, 250, 0.82);
+}
+/* Platzhalter (.ql-editor liegt IM Wrap → hier greift der Wrap-Pfad). */
+[data-theme="christmas"] .ql-editor-wrap .ql-editor.ql-blank::before {
+  color: rgba(206, 218, 236, 0.58);
+}
+
+/* ===================================================================
+   LICHTER-BÜHNE – warme Lampen-Glows + funkelnder Tannenbaum
+   -------------------------------------------------------------------
+   .pm-xm-lights ist eine zum gecoverten Hintergrundbild DECKUNGSGLEICHE
+   „cover-box": gleiche Größe wie das 2:1-Bild im cover-Modus
+   (max(100vw,200vh) × max(100vh,50vw)) und identisch zentriert. Dadurch
+   entspricht eine Position in % exakt einem Bildanteil – die Glows sitzen
+   bei JEDEM Seitenverhältnis auf ihren Lichtquellen (Randlampen werden mit
+   dem Bild beschnitten, bleiben aber deckungsgleich).
+     • Lampen/Fenster (.pm-xm-glow--lamp): warmer Radial-Glow, langsam &
+       sanft flackernd (mix-blend:screen → leuchtet additiv über das Bild).
+     • Tannenbaum: goldener Stern (.pm-xm-glow--star) + einzeln funkelnde
+       Farbkugeln (.pm-xm-bulb--t*).
+   „leicht": kleine Amplituden, gestaffelte Dauern/Delays → ruhiges,
+   lebendiges Glimmen statt hektischem Blinken. Positionen per Augenmaß auf
+   das Bild getunt (Bildanteil in %), ggf. im Browser nachzujustieren.
+   =================================================================== */
+[data-theme="christmas"] .pm-xm-lights {
+  position: fixed; left: 50%; top: 50%;
+  width: max(100vw, 200vh); height: max(100vh, 50vw);
+  transform: translate(-50%, -50%);
+  z-index: 3; pointer-events: none;
+}
+
+/* ── Warme Lampen-/Fenster-Glows ─────────────────────────────────── */
+[data-theme="christmas"] .pm-xm-glow {
+  position: absolute; border-radius: 50%; pointer-events: none;
+  /* zentriert auf den left/top-Punkt; die Keyframes wiederholen das
+     translate, damit die Lampe auch während animation-delay mittig sitzt. */
+  transform: translate(-50%, -50%);
+  mix-blend-mode: screen; will-change: opacity, transform;
+}
+[data-theme="christmas"] .pm-xm-glow--lamp {
+  aspect-ratio: 1;
+  /* dichterer Kern + weicher, weiter auslaufender Halo → präsenteres,
+     deutlich sichtbares Lampenlicht (spillt auch hinter Sidebar/Karten hervor) */
+  background: radial-gradient(circle,
+    rgba(255,234,185,1)    0%,
+    rgba(255,208,128,0.78) 28%,
+    rgba(255,184,95,0.44)  50%,
+    rgba(255,168,78,0.18)  70%,
+    rgba(255,160,70,0)     86%);
+  animation: pm-xm-flicker 5.5s ease-in-out infinite;
+}
+/* Positionen (Bildanteil) + individuelle Größe/Takt der Laternen */
+[data-theme="christmas"] .pm-xm-glow--boat  { left: 15.5%; top: 56.5%; width: clamp(66px, 8.4vw, 152px); animation-duration: 5.2s; }
+[data-theme="christmas"] .pm-xm-glow--hang  { left: 3.2%;  top: 42%;   width: clamp(44px, 5.2vw,  94px); animation-duration: 6.1s; animation-delay: .8s; }
+[data-theme="christmas"] .pm-xm-glow--strlt { left: 6%;    top: 36%;   width: clamp(48px, 5.8vw, 108px); animation-duration: 4.6s; animation-delay: 1.4s; }
+[data-theme="christmas"] .pm-xm-glow--cabin { left: 61.5%; top: 49.5%; width: clamp(58px, 6.8vw, 126px); animation-duration: 6.6s; animation-delay: .3s; }
+[data-theme="christmas"] .pm-xm-glow--fence { left: 52%;   top: 51.5%; width: clamp(34px, 3.8vw,  72px); animation-duration: 4.9s; animation-delay: 1.1s; }
+[data-theme="christmas"] .pm-xm-glow--btree { left: 80%;   top: 86%;   width: clamp(48px, 5.6vw, 104px); animation-duration: 5.8s; animation-delay: .6s; }
+
+/* ── Tannenbaum-Stern (gold, ruhiges Pulsieren) ──────────────────── */
+[data-theme="christmas"] .pm-xm-glow--star {
+  left: 84.5%; top: 7.5%;
+  width: clamp(26px, 3vw, 58px); aspect-ratio: 1;
+  background: radial-gradient(circle,
+    rgba(255,255,235,1)   0%,
+    rgba(255,240,170,0.8) 28%,
+    rgba(255,214,110,0.35) 55%,
+    rgba(255,200,90,0)    80%);
+  animation: pm-xm-starpulse 3.6s ease-in-out infinite;
+}
+
+/* ── Tannenbaum-Farbkugeln (einzeln funkelnd, screen über dem Grün) ─ */
+[data-theme="christmas"] .pm-xm-bulb {
+  position: absolute;
+  width: clamp(6px, 0.9vw, 13px); aspect-ratio: 1; border-radius: 50%;
+  transform: translate(-50%, -50%);
+  mix-blend-mode: screen; filter: blur(0.4px);
+  will-change: opacity, transform;
+  animation: pm-xm-blink 2s ease-in-out infinite;
+}
+[data-theme="christmas"] .pm-xm-bulb--t1 { left: 84%;   top: 20%; background: #ff5a5f; box-shadow: 0 0 9px 3px rgba(255,90,95,0.85);  animation-duration: 1.9s; }
+[data-theme="christmas"] .pm-xm-bulb--t2 { left: 81%;   top: 27%; background: #ffd24d; box-shadow: 0 0 10px 3px rgba(255,210,77,0.9);  animation-duration: 2.4s; animation-delay: .3s; }
+[data-theme="christmas"] .pm-xm-bulb--t3 { left: 87%;   top: 28%; background: #74c0ff; box-shadow: 0 0 9px 3px rgba(116,192,255,0.85); animation-duration: 1.6s; animation-delay: .7s; }
+[data-theme="christmas"] .pm-xm-bulb--t4 { left: 83%;   top: 34%; background: #7bed9f; box-shadow: 0 0 9px 3px rgba(123,237,159,0.8);  animation-duration: 2.1s; animation-delay: .15s; }
+[data-theme="christmas"] .pm-xm-bulb--t5 { left: 79.5%; top: 40%; background: #ff5a5f; box-shadow: 0 0 9px 3px rgba(255,90,95,0.85);  animation-duration: 2.7s; animation-delay: .9s; }
+[data-theme="christmas"] .pm-xm-bulb--t6 { left: 88%;   top: 40%; background: #ffd24d; box-shadow: 0 0 9px 3px rgba(255,210,77,0.85); animation-duration: 1.8s; animation-delay: .5s; }
+[data-theme="christmas"] .pm-xm-bulb--t7 { left: 83.5%; top: 46%; background: #7bed9f; box-shadow: 0 0 9px 3px rgba(123,237,159,0.8);  animation-duration: 2.3s; animation-delay: 1.1s; }
+
+@keyframes pm-xm-blink {
+  0%, 100% { opacity: 0.4; transform: translate(-50%, -50%) scale(0.85); }
+  50%      { opacity: 1;   transform: translate(-50%, -50%) scale(1.15); }
+}
+/* Lampen: unregelmäßiges, ruhiges Flackern (Flamme), kein hartes Blinken.
+   Höhere Grundhelligkeit → Lampen leuchten durchgehend präsent, das Flackern
+   moduliert nur noch dezent darum herum. */
+@keyframes pm-xm-flicker {
+  0%, 100% { opacity: 0.9;  transform: translate(-50%, -50%) scale(1.0); }
+  18%      { opacity: 1;    transform: translate(-50%, -50%) scale(1.03); }
+  34%      { opacity: 0.84; transform: translate(-50%, -50%) scale(0.99); }
+  52%      { opacity: 1;    transform: translate(-50%, -50%) scale(1.06); }
+  70%      { opacity: 0.92; transform: translate(-50%, -50%) scale(1.02); }
+  86%      { opacity: 1;    transform: translate(-50%, -50%) scale(1.04); }
+}
+@keyframes pm-xm-starpulse {
+  0%, 100% { opacity: 0.72; transform: translate(-50%, -50%) scale(0.94); }
+  50%      { opacity: 1;    transform: translate(-50%, -50%) scale(1.08); }
+}
+
+/* ===================================================================
+   PUTZMEISTER-LOGO – weihnachtlich umgefärbt + aufgesetzte Santa-Mütze
+   -------------------------------------------------------------------
+   content:url() tauscht NUR unter [data-theme="christmas"] das <img>-
+   Bitmap – Sidebar (.sidebar__logo-mark) UND Login-Karte
+   (.login-card__mark). Asset assets/logo-christmas.png: PM-Elefant per
+   2-Farb-Remap (Brand-Gelb → Tannengrün, Grau → Creme) + direkt auf den
+   Kopf des Elefanten gerenderte Santa-Mütze. Damit sitzt die Mütze in
+   jeder Größe korrekt (kein separates ::after-Overlay mehr nötig).
+   =================================================================== */
+[data-theme="christmas"] .sidebar__logo-mark,
+[data-theme="christmas"] .login-card__mark {
+  content: url("../assets/logo-christmas.png");
+}
+
+/* ===================================================================
+   PROFIL-AVATAR (Sidebar-Footer) – wird zur Geschenk-Box
+   -------------------------------------------------------------------
+   Der Initialen-Avatar unten links wird zu einem verpackten Geschenk:
+   rote Box, goldenes Band + Schleife. Initialen ausgeblendet
+   (color:transparent), runder Avatar clippt die Box zum Kreis.
+   (Analog zum Halloween-Kürbis.)
+   =================================================================== */
+[data-theme="christmas"] .sidebar__user-link .avatar {
+  position: relative;
+  width: 42px; height: 42px; flex: 0 0 42px;
+  color: transparent;
+  border: none; border-radius: 0; overflow: visible;
+  /* keine rote Umrandung – überschreibt den roten Active-/Hover-Ring
+     (.sidebar__user-link.active .avatar box-shadow var(--pm-yellow)) */
+  box-shadow: none !important;
+  /* Box-Körper (ohne Deckel) – der Deckel liegt animiert im ::before darüber */
+  background: transparent center / contain no-repeat
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48'%3E%3Crect x='9' y='20' width='30' height='24' rx='2.5' fill='%23c8102e'/%3E%3Crect x='20.5' y='20' width='7' height='24' fill='%23f2c14e'/%3E%3C/svg%3E");
+  filter: drop-shadow(0 2px 5px rgba(0,0,0,0.5));
+}
+/* Deckel + Schleife – öffnet sich periodisch kurz leicht */
+[data-theme="christmas"] .sidebar__user-link .avatar::before {
+  content: ""; position: absolute; inset: 0; pointer-events: none;
+  background: center / contain no-repeat
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48'%3E%3Crect x='6' y='17' width='36' height='8' rx='2.5' fill='%23e23a4f'/%3E%3Crect x='20.5' y='17' width='7' height='8' fill='%23f2c14e'/%3E%3Cpath d='M24 17 C19 7 8 8 12.5 14.5 C15 18 21 17 24 17 Z' fill='%23f2c14e'/%3E%3Cpath d='M24 17 C29 7 40 8 35.5 14.5 C33 18 27 17 24 17 Z' fill='%23f2c14e'/%3E%3Ccircle cx='24' cy='15.5' r='3.4' fill='%23ffd97a'/%3E%3C/svg%3E");
+  transform-origin: 32% 52%;   /* Scharnier hinten-links → Deckel kippt vorne auf */
+  animation: pm-xm-giftlid 4.5s ease-in-out infinite;
+}
+@keyframes pm-xm-giftlid {
+  0%, 70%, 100% { transform: translateY(0) rotate(0deg); }
+  80%           { transform: translateY(-3px) rotate(-11deg); }
+  90%           { transform: translateY(-2px) rotate(-6deg); }
+}
+
+/* ===================================================================
+   PRIMÄR-BUTTONS – natürlich angeschneite Schneeschicht + Schmelz-Tropfen
+   -------------------------------------------------------------------
+   Kein flacher weißer Strich mehr: eine gewölbte Schneedecke mit
+   unebener Oberkante (mehrere Mound-Bumps) liegt auf der Button-
+   Oberkante, darunter hängen ein paar Schmelz-Tropfen über die Kante
+   (radiale Verläufe). Liegt im ::before (das ::after trägt den Hover-Glow-
+   Ring), mehrere Background-Layer; reine Ruhezustand-Deko ohne Animation.
+   =================================================================== */
+[data-theme="christmas"] .btn-primary { overflow: visible; }
+[data-theme="christmas"] .btn-primary::before {
+  content: ""; position: absolute; left: 0; right: 0; top: -10px; height: 24px;
+  pointer-events: none; z-index: 2;
+  /* WIEDERHOLENDE Kacheln statt fixer %-Positionen: gleiche Schneedichte
+     auf jedem Button (schmal wie breit). Hügel ~alle 30 px, Tropfen ~alle
+     58 px (versetzt). border-radius + weichere Verlauf-Stopps runden die
+     RÄNDER (Enden/Unterkante) ab – kein eckiges Band mehr. */
+  border-radius: 10px 10px 7px 7px;
+  background-image:
+    radial-gradient(4px 9px at 50% 16px, #f3f8ff 68%, rgba(243,248,255,0) 78%),   /* Tropfen */
+    radial-gradient(14px 11px at 50% 9px, #ffffff 64%, rgba(255,255,255,0) 80%),  /* Hügel (weich) */
+    linear-gradient(180deg, #ffffff 0 8px, #eef4fc 8px, rgba(235,243,252,0) 13px); /* Band, weiche Unterkante */
+  background-repeat: repeat-x;
+  background-size: 58px 24px, 30px 24px, 100% 24px;
+  background-position: 15px 0, 0 0, 0 0;
+  filter: drop-shadow(0 2px 1px rgba(60,90,130,0.32));
+}
+
+/* Dashboard-Hero-CTA: kleine schräge Mütze auf der rechten oberen Ecke */
+/* position: relative ist bereits gesetzt; overflow: visible ergänzen */
+[data-theme="christmas"] .b-btn-primary { position: relative; overflow: visible; }
+[data-theme="christmas"] .b-btn-primary::after {
+  content: ""; position: absolute; right: 12px; top: -27px;
+  width: 52px; height: 42px; transform: rotate(-6deg);
+  background: bottom center / contain no-repeat url("../assets/santa-hat.svg");
+  pointer-events: none;
+}
+
+/* ===================================================================
+   LICHTERKETTE – blinkendes Birnchen-Band (Topbar + Dashboard-Hero)
+   =================================================================== */
+[data-theme="christmas"] .b-hero { position: relative; }
+
+[data-theme="christmas"] .topbar::after,
+[data-theme="christmas"] .b-hero::after {
+  display: block;
+  content: ""; position: absolute; left: 0; right: 0; top: 0; height: 30px;
+  pointer-events: none; z-index: 5;
+  /* gleiche Tropfen-Birnchen wie an der Nav (horizontaler Strang) */
+  background: left top / auto 30px repeat-x url("../assets/xmas-strand-top.png");
+  /* langsames, gemeinsames Blinken (kein Lauflicht) */
+  animation: pm-xm-blink-slow 3.4s ease-in-out infinite;
+}
+@keyframes pm-xm-blink-slow {
+  0%, 100% { filter: brightness(1.05); }
+  50%      { filter: brightness(0.48); }
+}
+
+/* ===================================================================
+   NAV-LICHTERKETTE – Tropfen-Birnchen, um die ganze Nav-Kachel gewickelt
+   -------------------------------------------------------------------
+   Vier Birnchen-Stränge rahmen alle vier Kanten der Sidebar (oben/unten
+   repeat-x, links/rechts repeat-y; hängen nach innen, von .sidebar
+   overflow:hidden nicht abgeschnitten). Lauflicht: ein heller Bogen
+   (conic-gradient-Maske) rotiert um die Kachel → die Birnchen leuchten der
+   Reihe nach auf (dazwischen gedimmt, nicht aus). Liegt auf .sidebar::after
+   (überschreibt unter christmas den Glas-::after von glass.css).
+   pointer-events:none → Nav-Links bleiben klickbar. */
+[data-theme="christmas"] .sidebar::after {
+  content: ""; position: absolute; inset: 0; z-index: 6;
+  pointer-events: none;
+  background-image:
+    url("../assets/xmas-strand-top.png"),
+    url("../assets/xmas-strand-bottom.png"),
+    url("../assets/xmas-strand-left.png"),
+    url("../assets/xmas-strand-right.png");
+  background-repeat: repeat-x, repeat-x, repeat-y, repeat-y;
+  background-position: left top, left bottom, left top, right top;
+  background-size: auto 24px, auto 24px, 24px auto, 24px auto;
+  -webkit-mask: conic-gradient(from var(--pm-xm-angle) at 50% 50%,
+                  #000 0deg 26deg, rgba(0,0,0,0.28) 70deg 290deg, #000 334deg 360deg);
+          mask: conic-gradient(from var(--pm-xm-angle) at 50% 50%,
+                  #000 0deg 26deg, rgba(0,0,0,0.28) 70deg 290deg, #000 334deg 360deg);
+  animation: pm-xm-chase-rot 6.5s linear infinite;
+}
+@property --pm-xm-angle { syntax: "<angle>"; inherits: false; initial-value: 0deg; }
+@keyframes pm-xm-chase-rot { to { --pm-xm-angle: 360deg; } }
+
+@media (prefers-reduced-motion: reduce) {
+  [data-theme="christmas"] .topbar::after,
+  [data-theme="christmas"] .b-hero::after,
+  [data-theme="christmas"] .sidebar::after,
+  [data-theme="christmas"] .sidebar__user-link .avatar::before,
+  [data-theme="christmas"] .btn-primary:hover:not(:disabled)::after { animation: none !important; }
+  /* Statisch: volle Stränge ohne Lauflicht-Maske zeigen */
+  [data-theme="christmas"] .topbar::after,
+  [data-theme="christmas"] .b-hero::after,
+  [data-theme="christmas"] .sidebar::after { -webkit-mask: none !important; mask: none !important; }
+}
+
+/* ===================================================================
+   HINTERGRUNDMUSIK-STEUERUNG – Button + Lautstärkeregler unten rechts
+   -------------------------------------------------------------------
+   Von js/theme.js (PMChristmasMusic) als direktes <body>-Kind
+   (.pm-xm-music) eingehängt, NUR solange das Christmas-Theme aktiv ist.
+   Baugleich zur Halloween-Steuerung, hier aber im Christmas-Look:
+   Nacht-Blau-Glas-Gehäuse, roter Mute-Button mit grünem Sekundär-Glow,
+   Slider als Zuckerstange (grüne Spur, roter Thumb). z-index zwischen
+   Sidebar (100) und Modal (200), bleibt also bei offenem Modal verdeckt.
+   data-muted spiegelt die EFFEKTIVE Stille (muted ODER Lautstärke 0). */
+.pm-xm-music {
+  position: fixed;
+  right: calc(18px + env(safe-area-inset-right, 0px));
+  bottom: calc(18px + env(safe-area-inset-bottom, 0px));
+  z-index: 150;
+  display: flex;
+  flex-direction: row;        /* Slider links, Button rechts (Wrapper rechts verankert → wächst nach links) */
+  align-items: center;
+  gap: 8px;
+}
+
+/* Lautstärke-Slider: eingeklappt (Breite 0), öffnet bei Hover/Fokus nach
+   links. Nacht-Blau-Pille mit rotem Rand und dezentem Innen-Glühen. */
+.pm-xm-music__vol {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 0;
+  height: 30px;
+  margin: 0;
+  padding: 0;
+  opacity: 0;
+  pointer-events: none;
+  border-radius: 999px;
+  background: rgba(16, 24, 40, 0.88);
+  border: 1px solid rgba(200, 16, 46, 0.40);
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.50),
+              inset 0 0 10px rgba(200, 16, 46, 0.12);
+  cursor: pointer;
+  transition: width 0.22s ease, opacity 0.22s ease, padding 0.22s ease;
+}
+.pm-xm-music:hover .pm-xm-music__vol,
+.pm-xm-music:focus-within .pm-xm-music__vol {
+  width: 124px;
+  padding: 0 12px;
+  opacity: 1;
+  pointer-events: auto;
+}
+.pm-xm-music__vol:focus-visible { outline: 2px solid #F2667A; outline-offset: 2px; }
+
+/* Range-Track + Thumb (WebKit/Blink) – grüne Spur (Tannengrün), roter Thumb. */
+.pm-xm-music__vol::-webkit-slider-runnable-track {
+  height: 4px;
+  border-radius: 999px;
+  background: rgba(67, 168, 86, 0.40);
+}
+.pm-xm-music__vol::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  margin-top: -5px;           /* (Thumb 14 − Track 4) / 2 → vertikal zentriert */
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #C8102E;
+  border: 2px solid #FFFFFF;
+  box-shadow: 0 0 8px rgba(200, 16, 46, 0.75);
+}
+/* Range-Track + Thumb (Firefox) */
+.pm-xm-music__vol::-moz-range-track {
+  height: 4px;
+  border-radius: 999px;
+  background: rgba(67, 168, 86, 0.40);
+}
+.pm-xm-music__vol::-moz-range-progress {
+  height: 4px;
+  border-radius: 999px;
+  background: #C8102E;        /* gefüllter Teil = Weihnachts-Rot */
+}
+.pm-xm-music__vol::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #C8102E;
+  border: 2px solid #FFFFFF;
+  box-shadow: 0 0 8px rgba(200, 16, 46, 0.75);
+}
+
+.pm-xm-music__btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 46px;
+  height: 46px;
+  padding: 0;
+  border-radius: 50%;
+  cursor: pointer;
+  color: #F2667A;
+  background: rgba(16, 24, 40, 0.84);
+  border: 1px solid rgba(200, 16, 46, 0.50);
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.50),
+              inset 0 0 0 1px rgba(67, 168, 86, 0.12);
+  transition: transform 0.15s ease, color 0.15s ease,
+              border-color 0.15s ease, box-shadow 0.2s ease;
+}
+.pm-xm-music__btn:hover {
+  color: #FFFFFF;
+  transform: translateY(-2px);
+  border-color: rgba(200, 16, 46, 0.90);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.55),
+              0 0 18px rgba(200, 16, 46, 0.55),
+              0 0 26px rgba(30, 123, 60, 0.28);
+}
+.pm-xm-music__btn:focus-visible {
+  outline: 2px solid #F2667A;
+  outline-offset: 2px;
+}
+.pm-xm-music__btn:active { transform: translateY(0); }
+
+/* Ton AN: ruhiges, stetiges Rot-Glühen mit grünem Sekundär-Schimmer. */
+.pm-xm-music__btn[data-muted="false"] {
+  color: #FFFFFF;
+  border-color: rgba(200, 16, 46, 0.75);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.50),
+              0 0 14px rgba(200, 16, 46, 0.50),
+              0 0 22px rgba(30, 123, 60, 0.24);
+}
+
+/* Stumm: dezenter Puls als Hinweis, dass hier Ton wartet. */
+.pm-xm-music__btn[data-muted="true"] {
+  animation: pm-xm-music-pulse 2.6s ease-in-out infinite;
+}
+@keyframes pm-xm-music-pulse {
+  0%, 100% { box-shadow: 0 4px 14px rgba(0, 0, 0, 0.50),
+                         0 0 0 0 rgba(200, 16, 46, 0.0); }
+  50%      { box-shadow: 0 4px 14px rgba(0, 0, 0, 0.50),
+                         0 0 0 6px rgba(200, 16, 46, 0.16); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pm-xm-music__btn,
+  .pm-xm-music__btn[data-muted="true"],
+  .pm-xm-music__vol { animation: none; transition: none; }
+}
+
+/* Druck-Ansicht: Steuerelement nicht mitdrucken. */
+@media print { .pm-xm-music { display: none !important; } }
+
+/* ===================================================================
+   LOGIN-SZENE – „Kaminstube" (NUR Christmas, NUR Login-Seite)
+   -------------------------------------------------------------------
+   Hintergrund: backgrounds/christmas-login-background.png (1672×941, 16:9)
+   + reine CSS-Lichteffekte:
+   • Kaminfeuer (unten links) flackert realistisch – zwei Ebenen: heller,
+     schnell zuckender Flammenkern + größere, langsamere Raum-/Teppich-
+     Abstrahlung mit versetzter Periode (→ kein gleichmäßiges „Atmen").
+   • Lichterketten (Decke/Kranz/Kaminsims) und Baum (inkl. Spitzenstern)
+     bekommen weiche, leicht versetzt funkelnde Glüh-Punkte.
+   Trick gegen Verrutschen: Alle Effekte liegen in einer „Stage", die
+   exakt die cover-Box des Bildes nachbildet – max(100vw, 100vh·R),
+   zentriert – und das Bild via background-size:100% 100% trägt. Damit
+   sitzt jeder %-positionierte Glüh-Punkt SEITENVERHÄLTNIS-UNABHÄNGIG
+   deckungsgleich über seinem Motiv (statt bei cover-Crop zu driften).
+   mix-blend-mode:screen addiert Licht aufs gemalte Bild (Feuer/Lichter
+   „blühen" auf, statt es zu überdecken); isolation:isolate hält das
+   Blending in der Stage.
+   =================================================================== */
+[data-theme="christmas"] .pm-xm-login-stage {
+  position: absolute; top: 50%; left: 50%;
+  transform: translate(-50%, -50%);
+  width:  max(100vw, 100vh * 1672 / 941);
+  height: max(100vh, 100vw * 941 / 1672);
+  isolation: isolate;
+  pointer-events: none;
+  background: #0A1019 center center / 100% 100% no-repeat
+    url("../assets/backgrounds/christmas-login-background.png");
+}
+
+/* Login-Karte in die warme Szene einbinden: statt der kühlen, fast
+   deckenden Standard-Fläche (--pm-white = kühles Navy) hier eine wärmere,
+   transluzente Milchglas-Karte – die Kaminstube scheint sanft durch
+   (backdrop-blur), Schatten dezenter → die Karte sitzt IN der Szene statt
+   als kalter Kasten aufzuliegen. */
+[data-theme="christmas"] body.login-page .login-card {
+  background:
+    linear-gradient(180deg, rgba(40, 30, 30, 0.55) 0%, rgba(22, 18, 26, 0.66) 100%);
+  border: 1px solid rgba(255, 206, 160, 0.16);
+  box-shadow:
+    0 18px 48px rgba(0, 0, 0, 0.42),
+    inset 0 1px 0 rgba(255, 226, 190, 0.10);
+  -webkit-backdrop-filter: blur(16px) saturate(1.06);
+  backdrop-filter: blur(16px) saturate(1.06);
+}
+
+/* Goldene Girlande locker in leicht unsymmetrischer Wellenform um den
+   Karten-Rand gelegt. SVG = welliger Gold-Strang (mehrere Frequenzen →
+   wirkt unregelmäßig, schließt aber nahtlos) + kleine Gold-Kugeln. Das
+   ::after überlagert nur den RAND (Mitte transparent) → liegt nicht über
+   dem Formular. inset:-16px deckt sich mit dem 16-px-Rahmen des SVG, sodass
+   die Wellen-Mittellinie genau auf der Kartenkante „herumläuft". */
+[data-theme="christmas"] body.login-page .login-card { overflow: visible; }
+[data-theme="christmas"] body.login-page .login-card::after {
+  content: "";
+  position: absolute;
+  inset: -16px;
+  background: center / 100% 100% no-repeat
+    url("../assets/xmas-login-garland.svg");
+  pointer-events: none;
+  z-index: 3;
+  filter: drop-shadow(0 3px 5px rgba(0, 0, 0, 0.45));
+}
+
+/* ── Login-Button: Zuckerstangen-Optik (rot-weiß gestreift) ──────────
+   Ovale Pille mit diagonalen Candy-Cane-Streifen + Glanzlicht oben +
+   rotem Rand. Schnee (::before) und roter Glow-Ring (::after) entfallen.
+   ID-Selektor (#loginBtn) sticht den Basis-/Theme-Primär-Hover. Text weiß
+   mit kräftigem dunkelrotem Halo → auch über den hellen Streifen lesbar. */
+[data-theme="christmas"] body.login-page #loginBtn {
+  border-radius: 999px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.45) 0%, rgba(255, 255, 255, 0) 46%),
+    repeating-linear-gradient(50deg, #d8112e 0 13px, #ffe9ee 13px 26px);
+  border: 3px solid #c8102e;
+  color: #ffffff;
+  text-shadow:
+    0 0 3px rgba(120, 6, 22, 0.95),
+    0 1px 2px rgba(120, 6, 22, 0.95),
+    0 0 9px rgba(120, 6, 22, 0.55);
+  box-shadow:
+    inset 0 2px 3px rgba(255, 255, 255, 0.55),
+    inset 0 -6px 12px rgba(150, 16, 36, 0.45),
+    0 8px 20px rgba(120, 10, 25, 0.42);
+}
+[data-theme="christmas"] body.login-page #loginBtn::before,
+[data-theme="christmas"] body.login-page #loginBtn::after {
+  display: none !important;   /* kein Schnee, kein Glow-Ring */
+}
+[data-theme="christmas"] body.login-page #loginBtn:hover:not(:disabled) {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.55) 0%, rgba(255, 255, 255, 0) 46%),
+    repeating-linear-gradient(50deg, #e51d39 0 13px, #fff2f5 13px 26px);
+  border-color: #e2384f;
+}
+
+/* ── Kaminfeuer ──────────────────────────────────────────────────── */
+[data-theme="christmas"] .pm-xm-fire {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  mix-blend-mode: screen;
+  will-change: opacity, transform;
+}
+/* Flammenkern: klein, hell, schnelles unregelmäßiges Flackern */
+[data-theme="christmas"] .pm-xm-fire--core {
+  left: 11.3%; top: 69%; width: 11%; height: 19%;
+  background: radial-gradient(ellipse at center,
+    rgba(255, 206, 110, 0.95) 0%,
+    rgba(255, 138, 40, 0.62) 36%,
+    rgba(255, 80, 16, 0.18) 66%,
+    transparent 100%);
+  animation: pm-xm-fire-core 2.9s ease-in-out infinite;
+}
+/* Raum-/Teppich-Abstrahlung: groß, weich, langsamer + zeitlich versetzt */
+[data-theme="christmas"] .pm-xm-fire--cast {
+  left: 22%; top: 84%; width: 48%; height: 42%;
+  background: radial-gradient(ellipse at center,
+    rgba(255, 150, 64, 0.30) 0%,
+    rgba(255, 108, 38, 0.13) 46%,
+    transparent 76%);
+  animation: pm-xm-fire-cast 4.6s ease-in-out infinite;
+}
+/* Unregelmäßige Keyframes ≈ echtes Flackern (bewusst KEINE Sinus-„Atmung"). */
+@keyframes pm-xm-fire-core {
+  0%   { opacity: 0.86; transform: translate(-50%, -50%) scale(1.00); }
+  9%   { opacity: 1.00; transform: translate(-50%, -50%) scale(1.05); }
+  17%  { opacity: 0.70; transform: translate(-50%, -50%) scale(0.97); }
+  26%  { opacity: 0.94; transform: translate(-50%, -50%) scale(1.03); }
+  35%  { opacity: 0.76; transform: translate(-50%, -50%) scale(0.99); }
+  44%  { opacity: 1.00; transform: translate(-50%, -50%) scale(1.06); }
+  54%  { opacity: 0.72; transform: translate(-50%, -50%) scale(0.98); }
+  64%  { opacity: 0.92; transform: translate(-50%, -50%) scale(1.02); }
+  74%  { opacity: 0.80; transform: translate(-50%, -50%) scale(1.00); }
+  84%  { opacity: 1.00; transform: translate(-50%, -50%) scale(1.05); }
+  93%  { opacity: 0.74; transform: translate(-50%, -50%) scale(0.98); }
+  100% { opacity: 0.86; transform: translate(-50%, -50%) scale(1.00); }
+}
+@keyframes pm-xm-fire-cast {
+  0%   { opacity: 0.62; }
+  15%  { opacity: 0.82; }
+  30%  { opacity: 0.52; }
+  47%  { opacity: 0.74; }
+  61%  { opacity: 0.56; }
+  78%  { opacity: 0.84; }
+  90%  { opacity: 0.60; }
+  100% { opacity: 0.62; }
+}
+
+/* ── Lichterketten / Baum – weiche, funkelnde Glüh-Punkte ────────── */
+[data-theme="christmas"] .pm-xm-glow {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  mix-blend-mode: screen;
+  will-change: opacity;
+  background: radial-gradient(ellipse at center,
+    rgba(255, 224, 140, 0.85) 0%,
+    rgba(255, 184, 74, 0.34) 44%,
+    transparent 72%);
+  animation: pm-xm-twinkle 4.2s ease-in-out infinite;
+}
+/* Decke / Kranz / Kaminsims (warmgold) – je versetzte Dauer + Delay. */
+[data-theme="christmas"] .pm-xm-glow--ceil1  { left: 13%;  top: 10%; width: 11%; height: 17%; animation-duration: 3.8s; animation-delay: -0.3s; }
+[data-theme="christmas"] .pm-xm-glow--ceil2  { left: 27%;  top: 7%;  width: 11%; height: 17%; animation-duration: 4.6s; animation-delay: -1.7s; }
+[data-theme="christmas"] .pm-xm-glow--ceil3  { left: 40%;  top: 7%;  width: 10%; height: 16%; animation-duration: 4.1s; animation-delay: -2.9s; }
+[data-theme="christmas"] .pm-xm-glow--ceil4  { left: 51%;  top: 9%;  width: 9%;  height: 15%; animation-duration: 5.0s; animation-delay: -0.9s; }
+[data-theme="christmas"] .pm-xm-glow--wreath { left: 14%;  top: 19%; width: 9%;  height: 15%; animation-duration: 4.4s; animation-delay: -3.4s; }
+[data-theme="christmas"] .pm-xm-glow--mantel { left: 6.5%; top: 31%; width: 7%;  height: 12%; animation-duration: 4.9s; animation-delay: -2.1s; }
+/* Baum (warmgold) */
+[data-theme="christmas"] .pm-xm-glow--tree1  { left: 86%;  top: 24%; width: 15%; height: 24%; animation-duration: 4.3s; animation-delay: -1.2s; }
+[data-theme="christmas"] .pm-xm-glow--tree2  { left: 90%;  top: 44%; width: 14%; height: 23%; animation-duration: 5.1s; animation-delay: -3.0s; }
+[data-theme="christmas"] .pm-xm-glow--tree3  { left: 81%;  top: 57%; width: 12%; height: 20%; animation-duration: 4.7s; animation-delay: -0.6s; }
+/* Spitzenstern: etwas heller, kühleres Gold. */
+[data-theme="christmas"] .pm-xm-glow--star   {
+  left: 87%; top: 7%; width: 8%; height: 13%;
+  background: radial-gradient(ellipse at center,
+    rgba(255, 244, 190, 0.95) 0%,
+    rgba(255, 214, 110, 0.45) 42%,
+    transparent 70%);
+  animation-duration: 3.4s; animation-delay: -1.0s;
+}
+@keyframes pm-xm-twinkle {
+  0%, 100% { opacity: 0.40; }
+  50%      { opacity: 0.92; }
+}
+
+/* Reduced-Motion: Effekte sichtbar, aber STATISCH (kein Flackern/Funkeln). */
+@media (prefers-reduced-motion: reduce) {
+  [data-theme="christmas"] .pm-xm-fire,
+  [data-theme="christmas"] .pm-xm-glow { animation: none !important; }
+  [data-theme="christmas"] .pm-xm-fire--core { opacity: 0.90; }
+  [data-theme="christmas"] .pm-xm-fire--cast { opacity: 0.66; }
+  [data-theme="christmas"] .pm-xm-glow { opacity: 0.72; }
+}
+
+/* Druck: Login-Szene nicht mitdrucken. */
+@media print {
+  [data-theme="christmas"] .pm-xm-login-stage { display: none !important; }
+}

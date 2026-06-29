@@ -28,6 +28,19 @@ function zuwKonfliktText(z) {
   return `In diesem Zeitraum besteht bereits eine Zuweisung (${abt}, ${vonS}–${bisS}). Bitte einen freien Zeitraum wählen.`;
 }
 
+/* Einheitliche Abteilungs-Palette (15 ruhige, entsättigte Farben, alle für
+   weißen Balkentext geeignet). EINE Quelle der Wahrheit – sowohl die Gantt-
+   Balken als auch die Farbpunkte in Liste/Detailpanel beziehen ihre Farbe
+   hierüber. Index 1 (Teal) bewusst NICHT Marken-Gelb, damit die Balken nicht
+   mit den gelben UI-Akzenten (Heute, aktueller Monat) konkurrieren. Bei mehr
+   als 15 Abteilungen wiederholen sich Farben (Modulo). */
+const GANTT_PALETTE = [
+  '#4F9D9A', '#5B86C2', '#5FAE72', '#D8835A', '#9B7BC4',
+  '#C75C6B', '#C99A3E', '#6B8E4E', '#C77FB2', '#4F8FB8',
+  '#7E70BE', '#B06A52', '#5BA98C', '#6E7E8C', '#A86FA0',
+];
+function ganttColor(idx) { return GANTT_PALETTE[((idx % GANTT_PALETTE.length) + GANTT_PALETTE.length) % GANTT_PALETTE.length]; }
+
 /* Eigenständige, einzeilige Timeline für die Azubi-Ansicht (gleiche .gantt-*-Styles
    wie der Planer). Zeigt die Abteilungen des Azubis als farbige Balken mit Abteilungsname. */
 function azubiTimelineHtml(zuw, planYear) {
@@ -35,7 +48,6 @@ function azubiTimelineHtml(zuw, planYear) {
   const daysInYear = Math.round((new Date(planYear, 11, 31) - jan1) / 86400000) + 1;
   const dayOf = d => Math.round((d - jan1) / 86400000);
   const now = new Date();
-  const COLORS = ['gantt-bar--ausbilder-1','gantt-bar--ausbilder-2','gantt-bar--ausbilder-3','gantt-bar--ausbilder-4','gantt-bar--ausbilder-5'];
 
   const monate = Array.from({ length: 12 }, (_, m) => {
     const dim = new Date(planYear, m + 1, 0).getDate();
@@ -62,7 +74,7 @@ function azubiTimelineHtml(zuw, planYear) {
     if (endDay < startDay) return '';
     const left  = startDay / daysInYear * 100;
     const width = (endDay - startDay + 1) / daysInYear * 100;
-    return `<div class="gantt-bar ${COLORS[i % COLORS.length]}" style="left:${left}%;width:${width}%"
+    return `<div class="gantt-bar" style="left:${left}%;width:${width}%;background:${ganttColor(i)}"
               title="${escHtml(z.abteilung || '–')} (${DateUtil.formatDate(z.von)} – ${DateUtil.formatDate(z.bis)})">
               <span class="gantt-bar__label">${escHtml(z.abteilung || '')}</span>
             </div>`;
@@ -171,13 +183,9 @@ document.addEventListener('DOMContentLoaded', async () => {
      braucht den Platz für die 12 Monate. */
   document.body.dataset.page = 'azubi-planer';
 
-  const COLORS = [
-    'gantt-bar--ausbilder-1',
-    'gantt-bar--ausbilder-2',
-    'gantt-bar--ausbilder-3',
-    'gantt-bar--ausbilder-4',
-    'gantt-bar--ausbilder-5',
-  ];
+  // Balken-/Punktfarben kommen aus der zentralen GANTT_PALETTE (15 Farben,
+  // siehe oben). Die Länge steuert auch das Modulo in colorIndexFor().
+  const PALETTE_LEN = GANTT_PALETTE.length;
 
   const today = new Date();
   const todayISO = DateUtil.toISODate(today);
@@ -200,26 +208,26 @@ document.addEventListener('DOMContentLoaded', async () => {
   const ausbilder = await DB.getVerantwortliche();
   const azubis = await DB.getAzubis();
 
-  // Ausbilder-Farb-Map: jeder Ausbilder-ID einen STABILEN Paletten-Index
-  // zuordnen. Zuerst aus der Ausbilder-Liste vorbefüllt (Reihenfolge = Legende),
-  // nimmt aber auch IDs auf, die NUR in Zuweisungen vorkommen – etwa ein als
-  // Betreuer eingetragener Admin oder ein/e ehemalige/r Ausbilder/in. Früher
-  // lieferte findIndex(...) für solche IDs -1 → COLORS[-1] === undefined → der
-  // Balken bekam die Klasse "undefined", also gar keine Hintergrundfarbe und
-  // wirkte schwarz. So bekommt jede Zuweisung eine gut erkennbare Farbe.
-  const ausbilderColorIdx = {};
+  // Abteilungs-Farb-Map: jeder ABTEILUNG einen STABILEN Paletten-Index
+  // zuordnen (bewusst NICHT mehr pro Verantwortlicher). Gleiche Abteilung =
+  // gleiche Farbe – einheitlich über Gantt-Balken, Listen-Punkt und
+  // Detailpanel. Die Zuordnung wird in loadZuwRowData() einmal aus den
+  // sortierten Abteilungsnamen vorbefüllt, damit dieselbe Abteilung
+  // sitzungsweit dieselbe Farbe behält; hier dient die Funktion zusätzlich als
+  // sicherer Fallback (leer/unbekannt → Index 0 statt -1/undefined, sonst
+  // bekäme der Balken die Klasse "undefined" = keine Farbe = schwarz).
+  // Hinweis: mehr Abteilungen als Palettenfarben (5) führen bewusst zu
+  // Farbwiederholungen.
+  const abteilungColorIdx = {};
   let _nextColorIdx = 0;
-  function colorIndexFor(ausbilderId) {
-    if (ausbilderId == null) return 0;
-    if (!(ausbilderId in ausbilderColorIdx)) {
-      ausbilderColorIdx[ausbilderId] = _nextColorIdx % COLORS.length;
+  function colorIndexFor(abteilung) {
+    if (!abteilung) return 0;
+    if (!(abteilung in abteilungColorIdx)) {
+      abteilungColorIdx[abteilung] = _nextColorIdx % COLORS.length;
       _nextColorIdx++;
     }
-    return ausbilderColorIdx[ausbilderId];
+    return abteilungColorIdx[abteilung];
   }
-  // Bekannte Ausbilder zuerst einfärben, damit Legende und Balken exakt
-  // dieselbe Farbe pro Person verwenden.
-  ausbilder.forEach(a => colorIndexFor(a.id));
 
   /* ── Status einer Zuweisung relativ zu heute ────────────────────── */
   function zuweisungStatus(z) {
@@ -366,12 +374,13 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     const ganttDetails = document.querySelector('.planer-gantt-details');
     if (ganttDetails) {
+      const ganttScroll = () => ganttDetails.querySelector('.gantt-scroll');
       ganttDetails.addEventListener('toggle', () => {
-        if (ganttDetails.open) scrollGanttToToday(ganttDetails.querySelector('.gantt-scroll'));
+        if (ganttDetails.open) { applyGanttHeight(ganttScroll()); scrollGanttToToday(ganttScroll()); }
       });
-      // Standardmäßig ausgeklappt: einmal initial auf "heute" scrollen – das
-      // toggle-Event feuert beim bereits offenen <details> nicht.
-      if (ganttDetails.open) scrollGanttToToday(ganttDetails.querySelector('.gantt-scroll'));
+      // Standardmäßig ausgeklappt: einmal initial Höhe begrenzen + auf "heute"
+      // scrollen – das toggle-Event feuert beim bereits offenen <details> nicht.
+      if (ganttDetails.open) { applyGanttHeight(ganttScroll()); scrollGanttToToday(ganttScroll()); }
     }
 
     bindListEvents();
@@ -401,7 +410,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       let badge, sub;
       if (!akt) { badge = `<span class="badge badge--abgelehnt">Keine Zuweisung</span>`; sub = '—'; }
       else {
-        const farbe = getBarColor(colorIndexFor(akt.z.ausbilderId));
+        const farbe = getBarColor(colorIndexFor(akt.z.abteilung));
         badge = `<span class="badge ${akt.status.badge}">${akt.status.label}</span>`;
         sub = `<span class="planer-dot" style="background:${farbe}"></span>${akt.z.abteilung || '–'} · ${akt.ausb?.name || '–'}`;
       }
@@ -426,7 +435,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const rows = zuwRowData.filter(r => r.z.azubiId === azubiId)
       .sort((a, b) => a.z.von.localeCompare(b.z.von));
     const liste = rows.length ? rows.map(r => {
-      const farbe = getBarColor(colorIndexFor(r.z.ausbilderId));
+      const farbe = getBarColor(colorIndexFor(r.z.abteilung));
       return `
         <div class="rotation-item">
           <span class="planer-dot" style="background:${farbe}"></span>
@@ -549,10 +558,9 @@ document.addEventListener('DOMContentLoaded', async () => {
       const width = (endDay - startDay + 1) / NUM_DAYS * 100;
       const ausb = await DB.getUser(z.ausbilderId);
       return `
-        <div class="gantt-bar ${COLORS[colorIndexFor(z.ausbilderId)]}"
+        <div class="gantt-bar ${COLORS[colorIndexFor(z.abteilung)]}"
              style="left:${left}%;width:${width}%"
-             title="${escHtml(z.abteilung || '–')} · ${escHtml((ausb && ausb.name) || '–')} (${DateUtil.formatDate(z.von)} – ${DateUtil.formatDate(z.bis)})"
-             data-zuweisung-id="${z.id}">
+             title="${escHtml(z.abteilung || '–')} · ${escHtml((ausb && ausb.name) || '–')} (${DateUtil.formatDate(z.von)} – ${DateUtil.formatDate(z.bis)})">
           <span class="gantt-bar__label">${escHtml(z.abteilung || '')}</span>
         </div>
       `;
@@ -572,6 +580,25 @@ document.addEventListener('DOMContentLoaded', async () => {
     requestAnimationFrame(() => { scrollEl.scrollLeft = Math.max(0, (dayOf(today) - 3) * 22); });
   }
 
+  // Begrenzt die Gesamt-Timeline auf max. 10 Azubi-Zeilen; ab der 11. Zeile
+  // wird vertikal gescrollt. Header (sticky top) und Personenspalte (sticky
+  // left) bleiben dabei stehen. Die Höhe wird aus den REALEN Zeilenhöhen
+  // summiert (nicht 10×64px fest), damit zweizeilige Namen exakt mitzählen.
+  const GANTT_VISIBLE_ROWS = 10;
+  function applyGanttHeight(scrollEl) {
+    if (!scrollEl) return;
+    requestAnimationFrame(() => {
+      const header = scrollEl.querySelector('.gantt-header');
+      const rows = scrollEl.querySelectorAll('.gantt-row');
+      if (!header) return;
+      // ≤10 Zeilen: keine Begrenzung – Timeline wächst natürlich mit.
+      if (rows.length <= GANTT_VISIBLE_ROWS) { scrollEl.style.maxHeight = ''; return; }
+      let h = header.offsetHeight;
+      for (let i = 0; i < GANTT_VISIBLE_ROWS; i++) h += rows[i].offsetHeight;
+      scrollEl.style.maxHeight = h + 'px';
+    });
+  }
+
   async function loadZuwRowData() {
     const alle = await DB.getAllZuweisungen();
     zuwRowData = await Promise.all(alle.map(async z => {
@@ -579,6 +606,11 @@ document.addEventListener('DOMContentLoaded', async () => {
       const ausb  = await DB.getUser(z.ausbilderId);
       return { z, azubi, ausb, status: zuweisungStatus(z) };
     }));
+    // Abteilungs-Farben in stabiler (alphabetischer) Reihenfolge vorbelegen,
+    // damit dieselbe Abteilung über Renders/Filter hinweg dieselbe Farbe behält
+    // – unabhängig davon, welcher Azubi zuerst gerendert wird.
+    [...new Set(zuwRowData.map(r => r.z.abteilung).filter(Boolean))].sort()
+      .forEach(ab => colorIndexFor(ab));
   }
 
   function initZuweisungDeleteModal() {

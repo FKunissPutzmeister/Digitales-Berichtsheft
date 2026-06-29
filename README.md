@@ -151,7 +151,6 @@ Zielgruppe: Keyboard + Touchpad/Maus. Kein Offline-/PWA-Support, keine Touch-Ges
 │   │   ├── layout.css            # App-Shell, Sidebar, Topbar (Tablet-Breakpoints)
 │   │   ├── components.css        # Buttons, Cards, Modals, Formulare, touch-action
 │   │   ├── glass.css             # Liquid-Glass-Effekte
-│   │   ├── topbar-ds.css         # Putzmeister Design System Topbar
 │   │   ├── login.css             # Login-Seite
 │   │   ├── dashboard.css         # Dashboard + Bento-Grid (inkl. Tablet-Breakpoint)
 │   │   ├── wochenansicht.css     # Wochenansicht, Zeit-Spinner, Animationen
