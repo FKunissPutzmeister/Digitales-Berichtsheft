@@ -11,13 +11,13 @@ document.addEventListener('DOMContentLoaded', async () => {
   document.body.dataset.page = 'profil';
 
   const isAzubi = user.role === 'azubi';
-  const isAusbilder = user.role === 'ausbilder';
+  const isAusbilder = user.role === 'pruefer';
   const isAdmin = user.role === 'admin';
 
   function getRoleLabel(role) {
     switch (role) {
       case 'azubi':     return 'Auszubildende/r';
-      case 'ausbilder': return 'Ausbildungsbeauftragte/r';
+      case 'pruefer': return 'Prüfer';
       case 'admin':     return 'Administrator';
       default:          return role;
     }

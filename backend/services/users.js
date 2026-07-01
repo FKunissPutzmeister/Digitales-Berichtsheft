@@ -23,6 +23,7 @@ function buildReqUser(row) {
   if (!row) return null;
   const role = row.Role;
   const isDev = role === 'developer';
+  const toDay = (d) => { if (!d) return null; const t = new Date(d); return isNaN(t) ? null : t.toISOString().slice(0, 10); };
   return {
     oid: row.Oid,
     name: row.Name,
@@ -33,11 +34,11 @@ function buildReqUser(row) {
     istAzubi:     isDev || role === 'azubi',
     istDhStudent: role === 'dhstudent', // developer NICHT (sonst Zwangs-Redirect)
     // Profilfelder (Azubi-Ansicht + Admin-UI brauchen sie):
-    beruf:            row.Beruf ?? null,
-    ausbildungBeginn: row.AusbildungBeginn ?? null,
-    ausbildungEnde:   row.AusbildungEnde ?? null,
-    berichtTyp:       row.BerichtTyp || 'wöchentlich',
-    aktiv:            row.Aktiv !== false,
+    beruf:             row.Beruf ?? null,
+    ausbildungsBeginn: toDay(row.AusbildungBeginn),
+    ausbildungsEnde:   toDay(row.AusbildungEnde),
+    berichtTyp:        row.BerichtTyp || 'wöchentlich',
+    aktiv:             row.Aktiv !== false,
   };
 }
 

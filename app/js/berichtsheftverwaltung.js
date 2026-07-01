@@ -307,7 +307,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         `<td><select data-f="role">${ROLES.map(r => `<option ${u.role===r?'selected':''}>${r}</option>`).join('')}</select></td>` +
         `<td><input data-f="beruf" value="${esc(u.beruf)}"></td>` +
         `<td><select data-f="berichtTyp">${TYPES.map(t => `<option ${u.berichtTyp===t?'selected':''}>${t}</option>`).join('')}</select></td>` +
-        `<td><input type="date" data-f="ausbildungBeginn" value="${u.ausbildungBeginn ?? ''}"> – <input type="date" data-f="ausbildungEnde" value="${u.ausbildungEnde ?? ''}"></td>` +
+        `<td><input type="date" data-f="ausbildungBeginn" value="${u.ausbildungsBeginn ?? ''}"> – <input type="date" data-f="ausbildungEnde" value="${u.ausbildungsEnde ?? ''}"></td>` +
         `<td><input type="checkbox" data-f="kannPlanen" ${u.kannPlanen?'checked':''}></td>` +
         `<td><input type="checkbox" data-f="istAusbilder" ${u.istAusbilder?'checked':''}></td>` +
         `<td><input type="checkbox" data-f="aktiv" ${u.aktiv!==false?'checked':''}></td>` +
@@ -318,8 +318,8 @@ document.addEventListener('DOMContentLoaded', async () => {
           const f = el.dataset.f;
           fields[f] = el.type === 'checkbox' ? el.checked : (el.value === '' ? null : el.value);
         });
-        try { await DB.updateUser(u.oid, fields); showToast?.('Gespeichert'); }
-        catch (e) { showToast?.('Fehler: ' + e.message); }
+        try { await DB.updateUser(u.oid, fields); Toast.success('Gespeichert'); }
+        catch (e) { Toast.error('Fehler: ' + e.message); }
       });
       tbody.appendChild(tr);
     }

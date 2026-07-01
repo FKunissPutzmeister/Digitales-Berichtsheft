@@ -264,7 +264,7 @@ const DB = {
   },
 
   async getAusbilder() {
-    const data = await apiFetch('/users?role=ausbilder');
+    const data = await apiFetch('/users?role=pruefer');
     return data.map(u => normalizeUser(u.oid, u));
   },
 

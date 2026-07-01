@@ -38,7 +38,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   async function render() {
     const azubiId = viewAzubiId || user.id;
     const wochen = await DB.getWochenFuerAzubi(azubiId);
-    const isAusbilder = ['ausbilder', 'admin'].includes(user.role);
+    const isAusbilder = ['pruefer', 'admin', 'developer'].includes(user.role);
     const main = document.getElementById('mainContent');
 
     const azubiSelectorHtml = isAusbilder ? await renderAzubiSelector(azubiId) : '';

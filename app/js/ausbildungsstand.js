@@ -10,7 +10,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   let viewAzubiId = user.id;
 
   async function render() {
-    const isAusbilder = ['ausbilder', 'admin'].includes(user.role);
+    const isAusbilder = ['pruefer', 'admin', 'developer'].includes(user.role);
 
     const wochen = await DB.getWochenFuerAzubi(viewAzubiId);
     const fehltage = wochen.reduce((sum, w) => {
