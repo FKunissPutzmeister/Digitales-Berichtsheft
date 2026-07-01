@@ -285,6 +285,16 @@ const DB = {
     }
   },
 
+  async getAllUsers() {
+    const data = await apiFetch('/users');
+    return data.map(u => normalizeUser(u.oid, u));
+  },
+
+  async updateUser(oid, fields) {
+    const data = await apiFetch(`/users/${oid}`, { method: 'PATCH', body: fields });
+    return normalizeUser(data.oid, data);
+  },
+
   /* Zuweisungen */
   async getAllZuweisungen() {
     const data = await apiFetch('/zuweisungen');

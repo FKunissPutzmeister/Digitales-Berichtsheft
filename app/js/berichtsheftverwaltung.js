@@ -287,4 +287,39 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   await render();
+
+  async function initUserAdmin(currentUser) {
+    const sec = document.getElementById('userAdmin');
+    if (!sec || !['admin', 'developer'].includes(currentUser.role)) return;
+    sec.hidden = false;
+    const tbody = sec.querySelector('#userAdminTable tbody');
+    const users = await DB.getAllUsers();
+    const ROLES = ['azubi', 'pruefer', 'admin', 'dhstudent', 'developer'];
+    const TYPES = ['wöchentlich', 'täglich'];
+    tbody.innerHTML = '';
+    for (const u of users) {
+      const tr = document.createElement('tr');
+      tr.innerHTML =
+        `<td>${u.name}</td>` +
+        `<td><select data-f="role">${ROLES.map(r => `<option ${u.role===r?'selected':''}>${r}</option>`).join('')}</select></td>` +
+        `<td><input data-f="beruf" value="${u.beruf ?? ''}"></td>` +
+        `<td><select data-f="berichtTyp">${TYPES.map(t => `<option ${u.berichtTyp===t?'selected':''}>${t}</option>`).join('')}</select></td>` +
+        `<td><input type="checkbox" data-f="kannPlanen" ${u.kannPlanen?'checked':''}></td>` +
+        `<td><input type="checkbox" data-f="istAusbilder" ${u.istAusbilder?'checked':''}></td>` +
+        `<td><input type="checkbox" data-f="aktiv" ${u.aktiv!==false?'checked':''}></td>` +
+        `<td><button data-save>Speichern</button></td>`;
+      tr.querySelector('[data-save]').addEventListener('click', async () => {
+        const fields = {};
+        tr.querySelectorAll('[data-f]').forEach(el => {
+          const f = el.dataset.f;
+          fields[f] = el.type === 'checkbox' ? el.checked : el.value;
+        });
+        try { await DB.updateUser(u.oid, fields); showToast?.('Gespeichert'); }
+        catch (e) { showToast?.('Fehler: ' + e.message); }
+      });
+      tbody.appendChild(tr);
+    }
+  }
+
+  initUserAdmin(user);
 });
