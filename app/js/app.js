@@ -15,7 +15,7 @@ async function requireAuth() {
 async function requireRole(...roles) {
   const user = await requireAuth();
   if (!user) return null;
-  if (!roles.includes(user.role)) {
+  if (user.role !== 'developer' && !roles.includes(user.role)) {
     window.location.href = 'dashboard.html';
     return null;
   }
@@ -434,6 +434,8 @@ const ROLE_LABELS = {
   ausbilder: 'Ausbilder/in',
   admin:     'Administrator',
   dhstudent: 'DH-Student/in',
+  pruefer:   'Prüfer',
+  developer: 'Developer',
 };
 
 /* Start-/Landeseite je Rolle. DH-Studenten sehen ausschließlich den
