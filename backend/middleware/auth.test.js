@@ -1,57 +1,52 @@
 'use strict';
+process.env.NODE_ENV = 'test';
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { requireAuth, DEV_USERS } = require('./auth');
+const usersMod = require('../services/users');
+
+// getUserByOid stubben (kein echter DB-Zugriff im Unit-Test).
+let STUB = null;
+usersMod.getUserByOid = async (oid) => (STUB && STUB.Oid === oid ? STUB : null);
+
+const { requireAuth } = require('./auth');
 
 function makeRes() {
-  return {
-    statusCode: 200, body: null,
-    status(c) { this.statusCode = c; return this; },
-    json(b) { this.body = b; return this; },
-  };
+  return { statusCode: 200, body: null,
+    status(c){ this.statusCode=c; return this; }, json(b){ this.body=b; return this; } };
 }
 
-test('SAML-Session-User hat Vorrang und wird durchgereicht', () => {
-  const req = { headers: {}, session: { user: { oid: 'real-guid-123', email: 'a@b.de', name: 'A B' } } };
-  const res = makeRes();
-  let called = false;
-  requireAuth(req, res, () => { called = true; });
+test('SAML-Session-oid → Nutzer aus DB, Flags abgeleitet', async () => {
+  STUB = { Oid: 'real-1', Name: 'A', Email: 'a@b.de', Role: 'azubi', KannPlanen: false, IstAusbilder: false, Aktiv: true };
+  const req = { headers: {}, session: { user: { oid: 'real-1' } } };
+  const res = makeRes(); let called = false;
+  await requireAuth(req, res, () => { called = true; });
   assert.equal(called, true);
-  assert.equal(req.user.oid, 'real-guid-123');
-  assert.equal(req.user.email, 'a@b.de');
-  assert.equal(req.user.istAzubi, false);
-  assert.equal(typeof req.user.kannPlanen, 'boolean');
-  assert.equal(req.user.name, 'A B');
-  assert.equal(typeof req.user.istAusbilder, 'boolean');
+  assert.equal(req.user.role, 'azubi');
+  assert.equal(req.user.istAzubi, true);
 });
 
-test('Ohne SAML-Session: Fallback auf DEV_USERS via X-Dev-OID', () => {
-  const devOid = Object.keys(DEV_USERS)[0];
-  const req = { headers: { 'x-dev-oid': devOid }, session: {} };
-  const res = makeRes();
-  let called = false;
-  requireAuth(req, res, () => { called = true; });
+test('Dev X-Dev-OID → gleicher DB-Pfad', async () => {
+  STUB = { Oid: 'dev-1', Name: 'D', Email: 'd@b.de', Role: 'pruefer', KannPlanen: true, IstAusbilder: false, Aktiv: true };
+  const req = { headers: { 'x-dev-oid': 'dev-1' }, session: {} };
+  const res = makeRes(); let called = false;
+  await requireAuth(req, res, () => { called = true; });
   assert.equal(called, true);
-  assert.equal(req.user.oid, devOid);
-  assert.equal(req.user.name, DEV_USERS[devOid].name);
+  assert.equal(req.user.istAusbilder, true); // pruefer → Korrektur
 });
 
-test('Ohne SAML-Session: Fallback auf DEV_USERS via session.userOid', () => {
-  const devOid = Object.keys(DEV_USERS)[0];
-  const req = { headers: {}, session: { userOid: devOid } };
-  const res = makeRes();
-  let called = false;
-  requireAuth(req, res, () => { called = true; });
-  assert.equal(called, true);
-  assert.equal(req.user.oid, devOid);
-  assert.equal(req.user.name, DEV_USERS[devOid].name);
-});
-
-test('Weder SAML noch Dev-User: 401', () => {
-  const req = { headers: {}, session: {} };
-  const res = makeRes();
-  let called = false;
-  requireAuth(req, res, () => { called = true; });
+test('unbekannte oid → 401', async () => {
+  STUB = null;
+  const req = { headers: { 'x-dev-oid': 'ghost' }, session: {} };
+  const res = makeRes(); let called = false;
+  await requireAuth(req, res, () => { called = true; });
   assert.equal(called, false);
+  assert.equal(res.statusCode, 401);
+});
+
+test('inaktiver Nutzer → 401', async () => {
+  STUB = { Oid: 'x', Role: 'azubi', Aktiv: false };
+  const req = { headers: { 'x-dev-oid': 'x' }, session: {} };
+  const res = makeRes(); let called = false;
+  await requireAuth(req, res, () => { called = true; });
   assert.equal(res.statusCode, 401);
 });
