@@ -12,9 +12,11 @@ router.get('/', async (req, res) => {
 
 // GET /api/users/:oid
 router.get('/:oid', async (req, res) => {
-  const row = await getUserByOid(req.params.oid);
-  if (!row) return res.status(404).json({ error: 'User nicht gefunden' });
-  res.json(buildReqUser(row));
+  try {
+    const row = await getUserByOid(req.params.oid);
+    if (!row) return res.status(404).json({ error: 'User nicht gefunden' });
+    res.json(buildReqUser(row));
+  } catch (e) { console.error('[users] get/:oid:', e); res.status(500).json({ error: 'Fehler' }); }
 });
 
 // PATCH /api/users/:oid  – nur admin/developer
@@ -27,6 +29,7 @@ router.patch('/:oid', async (req, res) => {
   try {
     await updateUserProfile(req.params.oid, req.body);
     const row = await getUserByOid(req.params.oid);
+    if (!row) return res.status(404).json({ error: 'User nicht gefunden' });
     res.json(buildReqUser(row));
   } catch (e) { console.error('[users] patch:', e); res.status(500).json({ error: 'Fehler' }); }
 });
