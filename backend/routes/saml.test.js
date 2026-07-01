@@ -2,7 +2,7 @@
 process.env.NODE_ENV = 'test';
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { profileToUser } = require('./saml');
+const { profileToUser, assertionToUserData } = require('./saml');
 
 test('profileToUser liest oid aus dem objectid-Claim', () => {
   const u = profileToUser({ objectid: 'guid-xyz', email: 'max@pm.com', displayname: 'Max M' });
@@ -32,7 +32,6 @@ test('profileToUser wirft nicht bei null/undefined und liefert oid===undefined',
   assert.equal(uUndef.oid, undefined);
 });
 
-const { assertionToUserData } = require('./saml');
 const RURI = 'http://schemas.microsoft.com/ws/2008/06/identity/claims/role';
 
 test('assertionToUserData bündelt Identität + Rolle', () => {
