@@ -54,3 +54,21 @@ test('buildReqUser: developer bekommt alle Flags, aber NICHT istDhStudent', () =
 test('buildReqUser(null) gibt null', () => {
   assert.equal(buildReqUser(null), null);
 });
+
+const { validateUserPatch } = require('./users');
+
+test('validateUserPatch akzeptiert erlaubte Felder/Werte', () => {
+  assert.deepEqual(validateUserPatch({ role: 'pruefer', berichtTyp: 'täglich', kannPlanen: true }), { ok: true });
+});
+
+test('validateUserPatch lehnt unbekannte Rolle ab', () => {
+  assert.equal(validateUserPatch({ role: 'chef' }).ok, false);
+});
+
+test('validateUserPatch lehnt unbekanntes Feld ab', () => {
+  assert.equal(validateUserPatch({ gehalt: 999 }).ok, false);
+});
+
+test('validateUserPatch lehnt ungültigen berichtTyp ab', () => {
+  assert.equal(validateUserPatch({ berichtTyp: 'monatlich' }).ok, false);
+});
