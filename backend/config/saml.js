@@ -59,6 +59,10 @@ function buildSaml() {
     idpCert,
     wantAssertionsSigned: true,
     wantAuthnResponseSigned: false,
+    // Keinen bestimmten Login-Weg erzwingen: node-saml verlangt sonst
+    // PasswordProtectedTransport, was mit Zertifikat/MFA-Anmeldung (X509,
+    // Windows Hello) kollidiert → AADSTS75011. Azure entscheidet die Methode.
+    disableRequestedAuthnContext: true,
   });
 
   return { saml, samlConfigured: true };

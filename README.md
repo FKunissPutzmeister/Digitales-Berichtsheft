@@ -258,10 +258,12 @@ Zielgruppe: Keyboard + Touchpad/Maus. Kein Offline-/PWA-Support, keine Touch-Ges
 
 | Feld in Azure (Entra) | Wert |
 | --- | --- |
+| **Identifier (Entity ID)** | `DigitalesBerichtsheft` (schlichter String, KEINE URL) — muss identisch in `SAML_ISSUER` stehen |
 | Sign on URL | `https://berichtsheft.putzmeister.com/app/index.html` |
 | Reply URL (ACS) — Produktion | `https://berichtsheft.putzmeister.com/api/auth/saml/acs` |
 | Reply URL (ACS) — lokal/Test | `http://localhost:3000/api/auth/saml/acs` |
 | Logout URL | `https://berichtsheft.putzmeister.com/api/auth/saml/logout` |
+| App-Id / Tenant | `b0cd9609-34ba-47ba-b238-f64c6febfb9e` / `b5ce0e47-3753-4f10-b705-9d0447ccf182` |
 
 Die Pfade unter `/api/auth/saml/...` sind frei gewählt und kein Azure-Standard — sie müssen zur Laufzeit **exakt** mit den im Backend implementierten Routen übereinstimmen.
 
@@ -291,13 +293,23 @@ Die Enterprise App liefert in der Assertion:
 
 **Wichtig:** Die Object-ID wird bewusst unter dem eigenen Claim-Namen **`objectid`** ausgeliefert — **nicht** unter `http://schemas.microsoft.com/identity/claims/objectidentifier`. Dieser URI gehört zu Azures *restricted claim set* und kann nicht als Custom-Claim-Name verwendet werden (Fehlermeldung „This claim type is restricted"). Im Backend wird die GUID daher aus `profile['objectid']` gelesen — nicht aus der NameID.
 
-### Noch offen / zu beachten
+### Status: Handshake funktioniert (E2E verifiziert)
 
-- **Identifier (Entity ID):** in Azure Pflichtfeld, noch festzulegen — empfohlen `https://berichtsheft.putzmeister.com` bzw. `…/api/auth/saml/metadata`. Muss später **identisch** in der `node-saml`-Config stehen.
-- **SP-Routen im Backend ausstehend:** `/api/auth/saml/login` (AuthnRequest auslösen), `/api/auth/saml/acs` (Assertion empfangen, Claim `objectid` → `oid` mappen, Session setzen), `/api/auth/saml/logout` (Single Logout).
-- **Login-Button:** „Mit Microsoft anmelden" in `app/index.html` ist noch Platzhalter (`login.js`, zeigt nur `ssoHint`) — wird später auf `/api/auth/saml/login` verdrahtet.
-- **Session-Cookie:** in Produktion `cookie.secure` auf `true` setzen (aktuell `false` in `backend/server.js`), sonst geht das Session-Cookie nach dem HTTPS-Redirect verloren.
-- **IIS-Reverse-Proxy:** muss `/api/auth/saml/acs` (POST von Azure) ebenfalls an Node auf `localhost:3000` durchreichen.
+Der SP-Handshake ist implementiert und end-to-end getestet (echter Login → Microsoft → Assertion → Session). Erledigt:
+
+- **Identifier (Entity ID):** gesetzt auf `DigitalesBerichtsheft` (Azure-Feld + `SAML_ISSUER` identisch).
+- **SP-Routen** (`backend/routes/saml.js`): `/api/auth/saml/login|acs|logout|status` — Assertion-Validierung, `objectid` → `oid`, Session mit Session-Regeneration.
+- **Login-Button** in `app/index.html` auf `/api/auth/saml/login` verdrahtet (`login.js`), Status-gesteuert.
+- **`disableRequestedAuthnContext: true`** in `backend/config/saml.js` — Pflicht, sonst `AADSTS75011` (Nutzer melden sich per X509/Zertifikat + MFA an, nicht per Passwort).
+- **App-Rollen** `azubi`/`pruefer` in Azure definiert; Gruppen der jeweiligen **Rolle** zugewiesen → Assertion enthält `http://schemas.microsoft.com/ws/2008/06/identity/claims/role`.
+
+### Noch offen
+
+- **Iteration 2 – Rollen-Mapping:** `role`-Claim (`azubi`/`pruefer`) in die Session mappen → richtige Ansicht (aktuell landet jeder SSO-User rollenlos in der Default-Ansicht).
+- **Iteration 2 – Identität ↔ Daten:** reale Azure-OIDs mit App-Daten verknüpfen (aktuell an Demo-OIDs `00000000-…` gebunden) → sonst laden keine Inhalte.
+- **Session-Store:** `session-file-store` wirft unter Windows sporadisch `EPERM` beim atomaren Rename (Retries fangen es ab); für Produktion robusteren (DB-gestützten) Store erwägen.
+- **Session-Cookie:** in Produktion `cookie.secure` auf `true` setzen (aktuell `false` in `backend/server.js`).
+- **IIS-Reverse-Proxy:** muss `/api/auth/saml/acs` (POST von Azure) an Node auf `localhost:3000` durchreichen.
 
 ---
 
