@@ -6,7 +6,7 @@ const os = require('os');
 const session = require('express-session');
 const FileStore = require('session-file-store')(session);
 const { devAuth } = require('./middleware/auth');
-const { getUserByEmail, getUserByOid } = require('./services/users');
+const { getUserByEmail, getUserByOid, buildReqUser } = require('./services/users');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -56,19 +56,29 @@ app.use(session({
 
 // ── Auth-Endpunkte (kein devAuth davor) ──────────────────────────
 app.post('/api/auth/login', async (req, res) => {
-  const { oid } = req.body;
-  const row = await getUserByOid(oid);
-  if (!row || !row.Aktiv) return res.status(400).json({ error: 'Unbekannte/inaktive OID' });
-  req.session.userOid = oid;
-  res.json({ user: require('./services/users').buildReqUser(row) });
+  try {
+    const { oid } = req.body;
+    const row = await getUserByOid(oid);
+    if (!row || !row.Aktiv) return res.status(400).json({ error: 'Unbekannte/inaktive OID' });
+    req.session.userOid = oid;
+    res.json({ user: buildReqUser(row) });
+  } catch (e) {
+    console.error('[auth/login]', e);
+    res.status(500).json({ error: 'Login fehlgeschlagen.' });
+  }
 });
 
 app.post('/api/auth/login-by-email', async (req, res) => {
-  const { email } = req.body;
-  const row = await getUserByEmail((email || '').trim().toLowerCase());
-  if (!row || !row.Aktiv) return res.status(401).json({ error: 'E-Mail nicht gefunden' });
-  req.session.userOid = row.Oid;
-  res.json({ user: require('./services/users').buildReqUser(row) });
+  try {
+    const { email } = req.body;
+    const row = await getUserByEmail((email || '').trim().toLowerCase());
+    if (!row || !row.Aktiv) return res.status(401).json({ error: 'E-Mail nicht gefunden' });
+    req.session.userOid = row.Oid;
+    res.json({ user: buildReqUser(row) });
+  } catch (e) {
+    console.error('[auth/login-by-email]', e);
+    res.status(500).json({ error: 'Login fehlgeschlagen.' });
+  }
 });
 
 app.post('/api/auth/logout', (req, res) => { req.session.destroy(() => res.json({ ok: true })); });
@@ -101,7 +111,14 @@ app.use('/api/fahrtgeld',           devAuth, fahrtgeldRouter);
 // ── Dev-Hilfsliste: alle verfügbaren Routen ───────────────────────
 if (process.env.NODE_ENV !== 'production') {
   const { listUsers } = require('./services/users');
-  app.get('/api/dev/users', async (req, res) => res.json(await listUsers({})));
+  app.get('/api/dev/users', async (req, res) => {
+    try {
+      res.json(await listUsers({}));
+    } catch (e) {
+      console.error('[dev/users]', e);
+      res.status(500).json({ error: 'Fehler' });
+    }
+  });
 }
 
 // ── Statisches Frontend ausliefern ───────────────────────────────

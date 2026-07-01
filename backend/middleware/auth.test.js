@@ -48,5 +48,6 @@ test('inaktiver Nutzer → 401', async () => {
   const req = { headers: { 'x-dev-oid': 'x' }, session: {} };
   const res = makeRes(); let called = false;
   await requireAuth(req, res, () => { called = true; });
+  assert.equal(called, false);
   assert.equal(res.statusCode, 401);
 });
