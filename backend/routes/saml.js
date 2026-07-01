@@ -6,6 +6,7 @@
 const router = require('express').Router();
 // Konfiguration wird einmalig beim Start ausgewertet; samlConfigured ist ein Load-Time-Snapshot (beabsichtigt).
 const { saml, samlConfigured } = require('../config/saml');
+const { parseRoleClaim, upsertUser } = require('../services/users');
 
 const DASHBOARD = '/app/dashboard.html';
 const LOGIN_PAGE = '/app/index.html';
@@ -25,6 +26,11 @@ function profileToUser(profile) {
     p['name'] ||
     email;
   return { oid, email, name };
+}
+
+// Assertion → Datensatz für upsertUser (Identität + Azure-Basisrolle).
+function assertionToUserData(profile) {
+  return { ...profileToUser(profile), role: parseRoleClaim(profile) };
 }
 
 function guard(req, res, next) {
@@ -50,20 +56,14 @@ router.get('/login', guard, async (req, res) => {
 router.post('/acs', guard, async (req, res) => {
   try {
     const { profile } = await saml.validatePostResponseAsync(req.body);
-    const user = profileToUser(profile);
-    if (!user.oid) throw new Error('Assertion ohne objectid-Claim');
-    // Session-Fixation vermeiden: nach erfolgreicher Assertion neue Session-ID.
+    const data = assertionToUserData(profile);
+    if (!data.oid) throw new Error('Assertion ohne objectid-Claim');
+    await upsertUser({ ...data, letzterLogin: true });
     req.session.regenerate((err) => {
-      if (err) {
-        console.error('[saml] session.regenerate:', err);
-        return res.redirect(`${LOGIN_PAGE}?error=sso`);
-      }
-      req.session.user = user;
+      if (err) { console.error('[saml] session.regenerate:', err); return res.redirect(`${LOGIN_PAGE}?error=sso`); }
+      req.session.user = { oid: data.oid };
       req.session.save((saveErr) => {
-        if (saveErr) {
-          console.error('[saml] session.save:', saveErr);
-          return res.redirect(`${LOGIN_PAGE}?error=sso`);
-        }
+        if (saveErr) { console.error('[saml] session.save:', saveErr); return res.redirect(`${LOGIN_PAGE}?error=sso`); }
         res.redirect(DASHBOARD);
       });
     });
@@ -85,3 +85,4 @@ router.post('/logout', logout);
 
 module.exports = router;
 module.exports.profileToUser = profileToUser;
+module.exports.assertionToUserData = assertionToUserData;
