@@ -17,7 +17,7 @@ BEGIN
     ErstelltAm       DATETIME2     NOT NULL DEFAULT SYSUTCDATETIME(),
     AktualisiertAm   DATETIME2     NOT NULL DEFAULT SYSUTCDATETIME()
   );
-  CREATE INDEX IX_Users_Email ON dbo.Users(Email);
+  CREATE UNIQUE INDEX IX_Users_Email ON dbo.Users(Email) WHERE Email IS NOT NULL;
   CREATE INDEX IX_Users_Role  ON dbo.Users(Role);
   PRINT 'Tabelle dbo.Users angelegt.';
 END

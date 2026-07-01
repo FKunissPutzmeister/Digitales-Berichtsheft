@@ -57,6 +57,7 @@ const PATCH_COLUMNS = {
 };
 
 function validateUserPatch(fields) {
+  if (Object.keys(fields).length === 0) return { ok: false, error: 'Keine Felder angegeben' };
   for (const key of Object.keys(fields)) {
     if (!(key in PATCH_COLUMNS)) return { ok: false, error: `Unbekanntes Feld: ${key}` };
   }
@@ -127,17 +128,21 @@ async function getUserByEmail(email) {
   return res.recordset[0] || null;
 }
 
-async function listUsers({ role, exclRole } = {}) {
+async function listUsers({ role, exclRole, inclInactive } = {}) {
   const pool = await getPool();
   const r = pool.request();
-  const where = ['Aktiv = 1'];
+  const where = [];
+  if (!inclInactive) where.push('Aktiv = 1');
   if (role)     { r.input('role', sql.NVarChar(20), role);     where.push('Role = @role'); }
   if (exclRole) { r.input('excl', sql.NVarChar(20), exclRole); where.push('Role <> @excl'); }
-  const res = await r.query(`SELECT * FROM dbo.Users WHERE ${where.join(' AND ')} ORDER BY Name`);
+  const clause = where.length ? where.join(' AND ') : '1=1';
+  const res = await r.query(`SELECT * FROM dbo.Users WHERE ${clause} ORDER BY Name`);
   return res.recordset;
 }
 
 async function updateUserProfile(oid, fields) {
+  const check = validateUserPatch(fields);
+  if (!check.ok) throw new Error(check.error);
   const pool = await getPool();
   const r = pool.request();
   r.input('oid', sql.NVarChar(36), oid);

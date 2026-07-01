@@ -2,7 +2,7 @@
 process.env.NODE_ENV = 'test';
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { parseRoleClaim, buildReqUser } = require('./users');
+const { parseRoleClaim, buildReqUser, validateUserPatch } = require('./users');
 
 const ROLE_URI = 'http://schemas.microsoft.com/ws/2008/06/identity/claims/role';
 
@@ -55,8 +55,6 @@ test('buildReqUser(null) gibt null', () => {
   assert.equal(buildReqUser(null), null);
 });
 
-const { validateUserPatch } = require('./users');
-
 test('validateUserPatch akzeptiert erlaubte Felder/Werte', () => {
   assert.deepEqual(validateUserPatch({ role: 'pruefer', berichtTyp: 'täglich', kannPlanen: true }), { ok: true });
 });
@@ -71,4 +69,19 @@ test('validateUserPatch lehnt unbekanntes Feld ab', () => {
 
 test('validateUserPatch lehnt ungültigen berichtTyp ab', () => {
   assert.equal(validateUserPatch({ berichtTyp: 'monatlich' }).ok, false);
+});
+
+test('validateUserPatch lehnt leeren Patch ab', () => {
+  assert.equal(validateUserPatch({}).ok, false);
+});
+
+test('buildReqUser: dhstudent positiv', () => {
+  const u = buildReqUser({ Oid: 'g5', Role: 'dhstudent', KannPlanen: false, IstAusbilder: false });
+  assert.equal(u.istDhStudent, true);
+  assert.equal(u.istAzubi, false);
+});
+
+test('buildReqUser: aktiv=false wird durchgereicht', () => {
+  const u = buildReqUser({ Oid: 'g6', Role: 'azubi', Aktiv: false });
+  assert.equal(u.aktiv, false);
 });
