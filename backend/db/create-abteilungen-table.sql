@@ -53,6 +53,21 @@ ELSE PRINT 'dbo.Zuweisungen NICHT geleert (Alt-Spalte AusbilderOid bereits weg =
 
 IF COL_LENGTH('dbo.Zuweisungen', 'AusbilderOid') IS NOT NULL
 BEGIN
+  -- Abhängige Objekte auf AusbilderOid zuerst entfernen, sonst schlägt DROP COLUMN fehl.
+  -- (Index IX_Zuweisungen_AusbilderOid + evtl. DEFAULT-Constraint aus dem Alt-Schema.)
+  IF EXISTS (SELECT 1 FROM sys.indexes
+             WHERE name = 'IX_Zuweisungen_AusbilderOid'
+               AND object_id = OBJECT_ID('dbo.Zuweisungen'))
+    DROP INDEX IX_Zuweisungen_AusbilderOid ON dbo.Zuweisungen;
+
+  DECLARE @dfName sysname = (
+    SELECT dc.name FROM sys.default_constraints dc
+    JOIN sys.columns c ON c.object_id = dc.parent_object_id AND c.column_id = dc.parent_column_id
+    WHERE dc.parent_object_id = OBJECT_ID('dbo.Zuweisungen') AND c.name = 'AusbilderOid'
+  );
+  IF @dfName IS NOT NULL
+    EXEC('ALTER TABLE dbo.Zuweisungen DROP CONSTRAINT ' + @dfName);
+
   ALTER TABLE dbo.Zuweisungen DROP COLUMN AusbilderOid;
   PRINT 'Spalte dbo.Zuweisungen.AusbilderOid entfernt.';
 END
