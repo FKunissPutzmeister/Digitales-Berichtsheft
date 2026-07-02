@@ -124,13 +124,12 @@ async function renderAzubiDurchlauf(user) {
     const zuwRaw = await DB.getZuweisungenFuerAzubi(user.id);
     const zuw = zuwRaw.slice().sort((a, b) => (a.von || '').localeCompare(b.von || ''));
     const rows = await Promise.all(zuw.map(async z => {
-      const v = await DB.getUser(z.ausbilderId);
       let status;
       if (!z.von || !z.bis)    status = { label: 'Offen',      badge: 'badge--grey' };
       else if (z.bis < heute)  status = { label: 'Beendet',    badge: 'badge--grey' };
       else if (z.von > heute)  status = { label: 'Zukünftig', badge: 'badge--freigegeben' };
       else                     status = { label: 'Aktuell',   badge: 'badge--genehmigt' };
-      return { z, v, status };
+      return { z, status };
     }));
 
     const card = r => `
@@ -138,7 +137,7 @@ async function renderAzubiDurchlauf(user) {
       <span class="badge ${r.status.badge} durchlauf-card__badge">${r.status.label}</span>
       <div class="durchlauf-card__abt">${esc(r.z.abteilung) || '–'}</div>
       <div class="durchlauf-card__zeit">${DateUtil.formatDate(r.z.von)} – ${DateUtil.formatDate(r.z.bis)}</div>
-      <div class="durchlauf-card__verantw">Ansprechpartner: <strong>${esc(r.v && r.v.name) || '–'}</strong></div>
+      <div class="durchlauf-card__verantw">Ansprechpartner: <strong>${esc(r.z.verantwName || '–')}</strong></div>
     </div>`;
 
     main.innerHTML = `
@@ -207,6 +206,8 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Verantwortliche-Auswahl = alle Nicht-Azubi-Nutzer (nicht nur Ausbilder).
   const ausbilder = await DB.getVerantwortliche();
   const azubis = await DB.getAzubis();
+  // Abteilungs-Katalog (nur aktive) für das Zuweisungs-Dropdown.
+  const abteilungenKatalog = await DB.getAbteilungen();
 
   // Abteilungs-Farb-Map: jeder ABTEILUNG einen STABILEN Paletten-Index
   // zuordnen (bewusst NICHT mehr pro Verantwortlicher). Gleiche Abteilung =
@@ -241,7 +242,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   function computeKpis() {
     const aktuelle = zuwRowData.filter(r => r.status.key === 'aktuell');
     const azubisMitAktuell = new Set(aktuelle.map(r => r.z.azubiId));
-    const ausbilderAktiv    = new Set(aktuelle.map(r => r.z.ausbilderId));
+    const ausbilderAktiv    = new Set(aktuelle.map(r => r.z.verantwEmail).filter(Boolean));
     const ohne = azubis.filter(a => !azubisMitAktuell.has(a.id)).length;
     return {
       azubisTotal: azubis.length,
@@ -288,16 +289,21 @@ document.addEventListener('DOMContentLoaded', async () => {
       if (searchText && !(`${a.name} ${a.beruf || ''}`.toLowerCase().includes(searchText))) return false;
       const akt = getAktuelleZuweisung(a.id);
       if (nurOhneZuweisung && akt) return false;
-      if (filterVerantw && akt?.z.ausbilderId !== filterVerantw) return false;
+      if (filterVerantw && akt?.z.verantwEmail !== filterVerantw) return false;
       if (filterAbteilung && akt?.z.abteilung !== filterAbteilung) return false;
       if (filterLehrjahr && String(lehrjahrVon(a)) !== filterLehrjahr) return false;
       return true;
     });
   }
 
+  function alleVerantwortliche() {
+    const map = new Map();
+    zuwRowData.forEach(r => { if (r.z.verantwEmail) map.set(r.z.verantwEmail, r.z.verantwName || r.z.verantwEmail); });
+    return [...map.entries()].sort((a, b) => a[1].localeCompare(b[1]));
+  }
   function buildVerantwOptions() {
     return `<option value="">Alle Verantwortlichen</option>` +
-      ausbilder.map(a => `<option value="${a.id}" ${a.id === filterVerantw ? 'selected' : ''}>${a.name}</option>`).join('');
+      alleVerantwortliche().map(([email, name]) => `<option value="${email}" ${email === filterVerantw ? 'selected' : ''}>${name}</option>`).join('');
   }
   function buildAbteilungOptions() {
     return `<option value="">Alle Abteilungen</option>` +
@@ -412,7 +418,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       else {
         const farbe = getBarColor(colorIndexFor(akt.z.abteilung));
         badge = `<span class="badge ${akt.status.badge}">${akt.status.label}</span>`;
-        sub = `<span class="planer-dot" style="background:${farbe}"></span>${akt.z.abteilung || '–'} · ${akt.ausb?.name || '–'}`;
+        sub = `<span class="planer-dot" style="background:${farbe}"></span>${akt.z.abteilung || '–'} · ${akt.ausbName || '–'}`;
       }
       return `
         <button class="planer-list-item ${a.id === selectedAzubiId ? 'selected' : ''}" data-azubi-id="${a.id}">
@@ -441,7 +447,7 @@ document.addEventListener('DOMContentLoaded', async () => {
           <span class="planer-dot" style="background:${farbe}"></span>
           <div class="rotation-item__main">
             <div class="rotation-item__abt">${r.z.abteilung || '–'}</div>
-            <div class="rotation-item__meta">${r.ausb?.name || '–'} · ${DateUtil.formatDate(r.z.von)} – ${DateUtil.formatDate(r.z.bis)}</div>
+            <div class="rotation-item__meta">${r.ausbName || '–'} · ${DateUtil.formatDate(r.z.von)} – ${DateUtil.formatDate(r.z.bis)}</div>
           </div>
           <span class="badge ${r.status.badge}">${r.status.label}</span>
           <button class="btn btn-sm btn-ghost detail-delete-btn" data-id="${r.z.id}" title="Löschen">✕</button>
@@ -556,11 +562,10 @@ document.addEventListener('DOMContentLoaded', async () => {
       if (endDay < startDay) return '';            // Zuweisung außerhalb dieses Jahres
       const left  = startDay / NUM_DAYS * 100;
       const width = (endDay - startDay + 1) / NUM_DAYS * 100;
-      const ausb = await DB.getUser(z.ausbilderId);
       return `
         <div class="gantt-bar"
              style="left:${left}%;width:${width}%;background:${ganttColor(colorIndexFor(z.abteilung))}"
-             title="${escHtml(z.abteilung || '–')} · ${escHtml((ausb && ausb.name) || '–')} (${DateUtil.formatDate(z.von)} – ${DateUtil.formatDate(z.bis)})">
+             title="${escHtml(z.abteilung || '–')} · ${escHtml(z.verantwName || '–')} (${DateUtil.formatDate(z.von)} – ${DateUtil.formatDate(z.bis)})">
           <span class="gantt-bar__label">${escHtml(z.abteilung || '')}</span>
         </div>
       `;
@@ -603,8 +608,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     const alle = await DB.getAllZuweisungen();
     zuwRowData = await Promise.all(alle.map(async z => {
       const azubi = await DB.getUser(z.azubiId);
-      const ausb  = await DB.getUser(z.ausbilderId);
-      return { z, azubi, ausb, status: zuweisungStatus(z) };
+      const ausbName = z.verantwName;
+      return { z, azubi, ausbName, status: zuweisungStatus(z) };
     }));
     // Abteilungs-Farben in stabiler (alphabetischer) Reihenfolge vorbelegen,
     // damit dieselbe Abteilung über Renders/Filter hinweg dieselbe Farbe behält
@@ -626,11 +631,25 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
   }
 
+  function fillVerantwOptions(abteilungName) {
+    const ausbilderSel = document.getElementById('zuweisungAusbilder');
+    if (!ausbilderSel) return;
+    const abt = abteilungenKatalog.find(a => a.name === abteilungName);
+    const list = abt ? abt.verantwortliche : [];
+    ausbilderSel.innerHTML = list.length
+      ? list.map(v => `<option value="${v.email}">${v.name}</option>`).join('')
+      : `<option value="">— keine hinterlegt —</option>`;
+  }
+
   function openNewZuweisung(presetAzubiId) {
     const azubiSel = document.getElementById('zuweisungAzubi');
-    const ausbilderSel = document.getElementById('zuweisungAusbilder');
+    const abteilungSel = document.getElementById('zuweisungAbteilung');
     if (azubiSel) azubiSel.innerHTML = azubis.map(a => `<option value="${a.id}" ${a.id === presetAzubiId ? 'selected' : ''}>${a.name}</option>`).join('');
-    if (ausbilderSel) ausbilderSel.innerHTML = ausbilder.map(a => `<option value="${a.id}">${a.name}</option>`).join('');
+    if (abteilungSel) {
+      abteilungSel.innerHTML = abteilungenKatalog.map(a => `<option value="${a.name}">${a.name}</option>`).join('');
+      fillVerantwOptions(abteilungSel.value);
+      abteilungSel.onchange = () => fillVerantwOptions(abteilungSel.value);
+    }
     Modal.open('zuweisungModal');
   }
 
@@ -639,10 +658,12 @@ document.addEventListener('DOMContentLoaded', async () => {
       // Azubi-/Ausbilder-IDs sind GUID-Strings – nicht per parseInt() in
       // Zahlen wandeln (ergäbe 0 und damit eine ungültige Zuweisung).
       const azubiId = document.getElementById('zuweisungAzubi').value;
-      const ausbilderId = document.getElementById('zuweisungAusbilder').value;
+      const verantwEmail = document.getElementById('zuweisungAusbilder').value;
       const von = document.getElementById('zuweisungVon').value;
       const bis = document.getElementById('zuweisungBis').value;
       const abteilung = document.getElementById('zuweisungAbteilung').value;
+      if (!abteilung) { Toast.error('Pflichtfeld', 'Bitte Abteilung wählen.'); return; }
+      if (!verantwEmail) { Toast.error('Pflichtfeld', 'Für diese Abteilung ist keine verantwortliche Person hinterlegt.'); return; }
 
       if (!von || !bis) { Toast.error('Pflichtfeld', 'Bitte Zeitraum angeben.'); return; }
       if (von > bis) { Toast.error('Ungültiger Zeitraum', 'Startdatum muss vor Enddatum liegen.'); return; }
@@ -656,7 +677,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       } catch (_) { /* Pre-Check optional – das Backend prüft ohnehin verbindlich */ }
 
       try {
-        await DB.addZuweisung({ azubiId, ausbilderId, von, bis, abteilung });
+        await DB.addZuweisung({ azubiId, verantwEmail, von, bis, abteilung });
       } catch (e) {
         // Backend lehnt Überschneidungen mit 409 ab (deckt Race/Direktaufruf ab).
         Toast.error('Nicht möglich', e.message || 'Zuweisung konnte nicht gespeichert werden.');
