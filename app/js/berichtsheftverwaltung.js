@@ -291,7 +291,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   async function initUserAdmin(currentUser) {
     const esc = (s) => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
     const sec = document.getElementById('userAdmin');
-    if (!sec || !['admin', 'developer'].includes(currentUser.role)) return;
+    if (!sec || currentUser.role !== 'developer') return;
     let users;
     try { users = await DB.getAllUsers(); }
     catch (e) { console.error('[userAdmin] load:', e); return; }

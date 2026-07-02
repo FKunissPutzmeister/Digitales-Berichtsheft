@@ -19,10 +19,10 @@ router.get('/:oid', async (req, res) => {
   } catch (e) { console.error('[users] get/:oid:', e); res.status(500).json({ error: 'Fehler' }); }
 });
 
-// PATCH /api/users/:oid  – nur admin/developer
+// PATCH /api/users/:oid  – nur developer
 router.patch('/:oid', async (req, res) => {
-  if (!['admin', 'developer'].includes(req.user.role)) {
-    return res.status(403).json({ error: 'Nur Admin/Developer' });
+  if (req.user.role !== 'developer') {
+    return res.status(403).json({ error: 'Nur Developer' });
   }
   const check = validateUserPatch(req.body || {});
   if (!check.ok) return res.status(400).json({ error: check.error });
