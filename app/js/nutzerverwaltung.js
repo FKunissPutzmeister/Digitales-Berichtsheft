@@ -64,8 +64,8 @@ document.addEventListener('DOMContentLoaded', async () => {
               </select>
             </div>
             <div class="form-group">
-              <label class="form-label" for="nvBeruf">Beruf</label>
-              <input class="form-control" type="text" id="nvBeruf" name="beruf" placeholder="z. B. Mechatroniker/in">
+              <label class="form-label" for="nvBeruf">Beruf <span class="form-hint">· aus Azure synchronisiert</span></label>
+              <input class="form-control" type="text" id="nvBeruf" name="beruf" readonly placeholder="wird beim Login aus Azure (Position) übernommen">
             </div>
             <div class="form-group">
               <label class="form-label" for="nvBerichtTyp">Berichtstyp</label>
@@ -146,14 +146,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     const saveBtn = document.getElementById('nvSaveBtn');
     saveBtn.disabled = true;
 
-    const berufVal = document.getElementById('nvBeruf').value.trim();
     const beginnVal = document.getElementById('nvAusbildungBeginn').value;
     const endeVal   = document.getElementById('nvAusbildungEnde').value;
 
-    /* WRITE uses ausbildungBeginn/ausbildungEnde (without medial 's') */
+    /* Beruf wird NICHT gesendet — er wird beim Login aus Azure synchronisiert
+       (read-only im Editor). WRITE uses ausbildungBeginn/ausbildungEnde (ohne 's'). */
     const fields = {
       role:             document.getElementById('nvRole').value,
-      beruf:            berufVal   || null,
       berichtTyp:       document.getElementById('nvBerichtTyp').value,
       ausbildungBeginn: beginnVal  || null,
       ausbildungEnde:   endeVal    || null,

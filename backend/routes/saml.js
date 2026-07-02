@@ -28,9 +28,26 @@ function profileToUser(profile) {
   return { oid, email, name };
 }
 
-// Assertion → Datensatz für upsertUser (Identität + Azure-Basisrolle).
+// Ausbildungsberuf aus dem (optionalen) Azure-Claim. Wird nur mitgesendet,
+// wenn in der Enterprise App ein Attribut→Claim-Mapping "beruf" (z.B. aus
+// jobTitle/Position) hinterlegt ist — sonst null (dann bleibt der DB-Wert
+// unverändert). Präfix "Auszubildende(r) " wird entfernt:
+//   "Auszubildender Mechatroniker" → "Mechatroniker".
+function parseBerufClaim(profile) {
+  const p = profile || {};
+  const raw = p['beruf'] || p['jobTitle'] || p['jobtitle'] || null;
+  if (!raw) return null;
+  const s = String(raw).replace(/^auszubildende[r]?\s+/i, '').trim();
+  return s || null;
+}
+
+// Assertion → Datensatz für upsertUser (Identität + Azure-Basisrolle + Beruf).
 function assertionToUserData(profile) {
-  return { ...profileToUser(profile), role: parseRoleClaim(profile) };
+  return {
+    ...profileToUser(profile),
+    role: parseRoleClaim(profile),
+    beruf: parseBerufClaim(profile),
+  };
 }
 
 function guard(req, res, next) {

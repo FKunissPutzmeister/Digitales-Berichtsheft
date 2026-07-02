@@ -46,3 +46,13 @@ test('assertionToUserData: role null ohne Claim', () => {
   const d = assertionToUserData({ objectid: 'g9', email: 'x@pm.com' });
   assert.equal(d.role, null);
 });
+
+test('assertionToUserData: beruf aus Claim, Auszubildende(r)-Präfix entfernt', () => {
+  assert.equal(assertionToUserData({ objectid: 'g', beruf: 'Auszubildender Mechatroniker' }).beruf, 'Mechatroniker');
+  assert.equal(assertionToUserData({ objectid: 'g', beruf: 'Mechatroniker' }).beruf, 'Mechatroniker');
+  assert.equal(assertionToUserData({ objectid: 'g', jobTitle: 'Auszubildende Industriekauffrau' }).beruf, 'Industriekauffrau');
+});
+
+test('assertionToUserData: beruf null ohne Claim', () => {
+  assert.equal(assertionToUserData({ objectid: 'g9', email: 'x@pm.com' }).beruf, null);
+});
