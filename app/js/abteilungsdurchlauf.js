@@ -57,8 +57,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     [...new Set(zuw.map(z => z.abteilung).filter(Boolean))].sort().forEach(colorFor);
 
     const rows = await Promise.all(zuw.map(async z => {
-      const v = await DB.getUser(z.ausbilderId);
-      return { z, verantw: (v && v.name) || '–', status: statusFor(z) };
+      return { z, verantw: z.verantwName || '–', status: statusFor(z) };
     }));
 
     const aktuell  = rows.find(r => r.status.key === 'aktuell') || null;

@@ -141,7 +141,7 @@ async function initLayout(activeNavId) {
   let istKorrektor = !!user.istAusbilder;
   if (!istKorrektor && !user.istAzubi) {
     try {
-      const z = await DB.getZuweisungenFuerAusbilder(user.id);
+      const z = await DB.getZuweisungenFuerVerantw(user.email);
       istKorrektor = Array.isArray(z) && z.length > 0;
     } catch (e) { /* ohne Zuweisungsdaten: konservativ kein Korrektur-Menü */ }
   }

@@ -45,8 +45,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       const zuw = await DB.getAktuellerAusbilder(user.id);   // aktuelle Zuweisung (oder null)
       if (zuw) {
         abteilung = zuw.abteilung || '–';
-        const v = await DB.getUser(zuw.ausbilderId);
-        verantw = (v && v.name) || '–';
+        verantw = zuw.verantwName || '–';
       }
     } catch (e) { /* ohne Backend/Daten: Platzhalter */ }
 

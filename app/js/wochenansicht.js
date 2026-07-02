@@ -290,7 +290,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Stammdaten des aktuell sichtbaren Azubis
     const azubiUser = await DB.getUser(azubiId);
     const azubiZuw  = await DB.getAktuellerAusbilder(azubiId);
-    const azubiAusbilder = azubiZuw ? await DB.getUser(azubiZuw.ausbilderId) : null;
+    const azubiAusbilderName = azubiZuw ? (azubiZuw.verantwName || '') : '';
     const ausbildungsjahr = calcAusbildungsjahr(azubiUser?.ausbildungsBeginn);
 
     const lastSavedStr = (() => {
@@ -330,9 +330,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     main.innerHTML = `
       ${azubiSelectorHtml}
 
-      ${renderStammdatenPrintBlock(azubiUser, azubiAusbilder, ausbildungsjahr, azubiZuw)}
+      ${renderStammdatenPrintBlock(azubiUser, azubiAusbilderName, ausbildungsjahr, azubiZuw)}
 
-      ${await renderStatusBanner(woche, azubiAusbilder, user)}
+      ${await renderStatusBanner(woche, azubiAusbilderName, user)}
 
       <div class="week-toolbar">
         <div class="week-toolbar__left">
@@ -638,7 +638,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     return Math.max(1, Math.min(4, Math.floor(months / 12) + 1));
   }
 
-  function renderStammdatenPrintBlock(azubi, ausbilder, ausbildungsjahr, zuw) {
+  function renderStammdatenPrintBlock(azubi, ausbilderName, ausbildungsjahr, zuw) {
     if (!azubi) return '';
 
     // Im Wochenansicht-Kontext nur die für die Erfassung relevanten Stammdaten.
@@ -648,7 +648,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       { label: 'Beruf',                   value: azubi.beruf || '–' },
       { label: 'Ausbildungsjahr',         value: ausbildungsjahr ? `${ausbildungsjahr}. Jahr` : '–' },
       { label: 'Aktuelle Abteilung',      value: zuw?.abteilung || azubi.abteilung || '–' },
-      { label: 'Aktuelle/r Ausbilder/in', value: ausbilder ? ausbilder.name : '–' },
+      { label: 'Aktuelle/r Ausbilder/in', value: ausbilderName || '–' },
       { label: 'Ausbildungsbetrieb',      value: azubi.unternehmen || '–' },
     ];
 
@@ -834,7 +834,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   // ── Status-Banner ─────────────────────────────────────────────────
-  async function renderStatusBanner(woche, azubiAusbilder, currentUser) {
+  async function renderStatusBanner(woche, azubiAusbilderName, currentUser) {
     if (!woche) return '';
 
     if (woche.status === 'genehmigt') {
@@ -845,7 +845,7 @@ document.addEventListener('DOMContentLoaded', async () => {
           </div>
           <div class="week-status-banner__body">
             <div class="week-status-banner__title">Diese Woche wurde genehmigt</div>
-            <p class="week-status-banner__text">Die Einträge sind abgenommen und schreibgeschützt. ${azubiAusbilder ? `Genehmigt durch <strong>${azubiAusbilder.name}</strong>.` : ''}</p>
+            <p class="week-status-banner__text">Die Einträge sind abgenommen und schreibgeschützt. ${azubiAusbilderName ? `Genehmigt durch <strong>${azubiAusbilderName}</strong>.` : ''}</p>
           </div>
         </div>
       `;
@@ -862,7 +862,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             <div class="week-status-banner__title">Zur Abnahme freigegeben</div>
             <p class="week-status-banner__text">
               ${isAzubi
-                ? `Wartet auf Prüfung${azubiAusbilder ? ` durch <strong>${azubiAusbilder.name}</strong>` : ''}. Du kannst noch nichts ändern – wenn deine Ausbilder/in zurückgibt, wird die Woche wieder editierbar.`
+                ? `Wartet auf Prüfung${azubiAusbilderName ? ` durch <strong>${azubiAusbilderName}</strong>` : ''}. Du kannst noch nichts ändern – wenn deine Ausbilder/in zurückgibt, wird die Woche wieder editierbar.`
                 : `Bitte prüfen und über <strong>Genehmigen</strong> oder <strong>Zurückgeben</strong> entscheiden.`}
             </p>
           </div>
