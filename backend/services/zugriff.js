@@ -3,9 +3,9 @@
    ZUGRIFFSLOGIK (rein, ohne DB/HTTP) — die eine Wahrheit, wer welches
    Berichtsheft sehen/korrigieren darf. Eingaben sind NORMALISIERTE
    Objekte (lowercase), entkoppelt vom DB-Schema:
-     user      = { oid }
+     user      = { oid, email }
      woche     = { azubiOid, start, ende, korrigiertVon, kommentarAutoren[] }
-     zuweisung = { azubiOid, verantwortlicherOid, von, bis }
+     zuweisung = { azubiOid, verantwortlicherEmail, von, bis }
      kontext   = { zuweisungen: [zuweisung], stichtag }   // stichtag 'YYYY-MM-DD'
    ===================================================================== */
 
@@ -44,10 +44,10 @@ function hatKorrigiert(user, woche) {
 
 // Darf der Nutzer die Woche AKTIV korrigieren (schreiben)?
 function darfWocheKorrigieren(user, woche, kontext) {
-  if (!user.oid || !woche.azubiOid) return false;
+  if (!user.email || !woche.azubiOid) return false;
   const zuweisungen = (kontext && kontext.zuweisungen) || [];
   return zuweisungen.some(z =>
-    z.verantwortlicherOid === user.oid &&
+    (z.verantwortlicherEmail || '').toLowerCase() === (user.email || '').toLowerCase() &&
     z.azubiOid === woche.azubiOid &&
     istAktiv(z, kontext.stichtag) &&
     wocheFaelltInZuweisung(woche, z)
@@ -64,10 +64,10 @@ function darfWocheSehen(user, woche, kontext) {
 
 // Azubi-OIDs, für die der Nutzer am Stichtag aktiv verantwortlich ist.
 function aktivVerantwortlichFuer(user, kontext) {
-  if (!user.oid) return [];
+  if (!user.email) return [];
   const set = new Set();
   for (const z of ((kontext && kontext.zuweisungen) || [])) {
-    if (z.verantwortlicherOid === user.oid && istAktiv(z, kontext.stichtag)) set.add(z.azubiOid);
+    if ((z.verantwortlicherEmail || '').toLowerCase() === (user.email || '').toLowerCase() && istAktiv(z, kontext.stichtag)) set.add(z.azubiOid);
   }
   return [...set];
 }

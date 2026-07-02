@@ -3,14 +3,15 @@
    Eingaben, die backend/services/zugriff.js (rein) erwartet. */
 const { sql } = require('../db/connection');
 
-// Zuweisungen, in denen `userOid` Verantwortliche/r ist, + heutiger Stichtag (UTC-Kalendertag).
-async function ladeKorrekturKontext(pool, userOid) {
+// Zuweisungen, in denen `userEmail` Verantwortliche/r ist, + heutiger Stichtag (UTC-Kalendertag).
+async function ladeKorrekturKontext(pool, userEmail) {
+  const email = String(userEmail || '').trim().toLowerCase();
   const r = await pool.request()
-    .input('oid', sql.NVarChar(36), userOid)
-    .query('SELECT AzubiOid, AusbilderOid, Von, Bis FROM dbo.Zuweisungen WHERE AusbilderOid = @oid');
+    .input('email', sql.NVarChar(255), email)
+    .query('SELECT AzubiOid, VerantwEmail, Von, Bis FROM dbo.Zuweisungen WHERE VerantwEmail = @email');
   const zuweisungen = r.recordset.map(z => ({
     azubiOid: z.AzubiOid,
-    verantwortlicherOid: z.AusbilderOid,
+    verantwortlicherEmail: z.VerantwEmail,
     von: z.Von,
     bis: z.Bis,
   }));
