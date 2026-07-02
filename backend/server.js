@@ -95,6 +95,7 @@ app.get('/api/auth/me', devAuth, (req, res) => {
 const usersRouter          = require('./routes/users');
 const wochenRouter         = require('./routes/wochen');
 const zuweisungenRouter    = require('./routes/zuweisungen');
+const abteilungenRouter    = require('./routes/abteilungen');
 const kommentareRouter     = require('./routes/kommentare');
 const anhaengeRouter       = require('./routes/anhaenge');
 const benachrichtigungenRouter = require('./routes/benachrichtigungen');
@@ -103,6 +104,7 @@ const fahrtgeldRouter      = require('./routes/fahrtgeld');
 app.use('/api/users',               devAuth, usersRouter);
 app.use('/api/wochen',              devAuth, wochenRouter);
 app.use('/api/zuweisungen',         devAuth, zuweisungenRouter);
+app.use('/api/abteilungen',         devAuth, abteilungenRouter);
 app.use('/api/wochen',              devAuth, kommentareRouter);   // POST /api/wochen/:id/kommentare
 app.use('/api/wochen',              devAuth, anhaengeRouter);     // /api/wochen/:id/anhaenge, /api/wochen/anhaenge/:id
 app.use('/api/benachrichtigungen',  devAuth, benachrichtigungenRouter);

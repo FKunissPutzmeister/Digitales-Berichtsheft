@@ -5,6 +5,7 @@
    + DB-Zugriffsfunktionen (upsert/get/list/update).
    ===================================================================== */
 const { getPool, sql } = require('../db/connection');
+const { backfillVerantwortlicheByEmail, normalizeEmail } = require('./abteilungen');
 
 const ROLE_CLAIM = 'http://schemas.microsoft.com/ws/2008/06/identity/claims/role';
 const AZURE_ROLES = ['azubi', 'pruefer'];
@@ -113,6 +114,12 @@ async function upsertUser(data) {
        @beruf, @beginn, @ende, COALESCE(@berichtTyp, N'wöchentlich'),
        CASE WHEN @setLogin = 1 THEN SYSUTCDATETIME() ELSE NULL END);
   `);
+  // Katalog-Verantwortliche mit echtem Azure-Namen/OID nachziehen (per E-Mail).
+  // Defensiv: fehlt der Abteilungs-Katalog (vor Migration), darf der Login nicht brechen.
+  if (data.email) {
+    try { await backfillVerantwortlicheByEmail(normalizeEmail(data.email), data.name ?? null, data.oid ?? null); }
+    catch (e) { console.error('[users] backfill verantwortliche:', e.message); }
+  }
 }
 
 async function getUserByOid(oid) {
