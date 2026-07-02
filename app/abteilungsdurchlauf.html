@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <link rel="preload" href="../Corporate Design/Fonts/librefranklin-bold.ttf" as="font" type="font/ttf" crossorigin>
+  <link rel="preload" href="../Corporate Design/Fonts/OpenSans-Variable.ttf" as="font" type="font/ttf" crossorigin>
+  <link rel="preload" href="js/api.js" as="script">
+  <link rel="preload" href="js/app.js" as="script">
+  <title>Abteilungsdurchlauf – Putzmeister</title>
+  <!-- Theme-Init muss VOR den Stylesheets laufen, damit kein Hell/Dunkel-Flash entsteht -->
+  <script src="js/theme.js"></script>
+  <link rel="stylesheet" href="css/variables.css">
+  <link rel="stylesheet" href="css/base.css">
+  <link rel="stylesheet" href="css/components.css">
+  <link rel="stylesheet" href="css/layout.css">
+  <link rel="stylesheet" href="css/dashboard.css">
+  <link rel="stylesheet" href="css/azubi-planer.css">
+  <link rel="stylesheet" href="css/glass.css">
+  <link rel="stylesheet" href="css/abteilungsdurchlauf.css">
+  <link rel="stylesheet" href="css/theme-hyperspace.css">
+  <link rel="stylesheet" href="css/theme-cmd.css">
+  <link rel="stylesheet" href="css/theme-candy.css">
+  <link rel="stylesheet" href="css/theme-iceland.css">
+  <link rel="stylesheet" href="css/theme-silk.css">
+  <link rel="stylesheet" href="css/theme-halloween.css">
+  <link rel="stylesheet" href="css/theme-christmas.css">
+  <link rel="stylesheet" href="css/themes.css">
+</head>
+<body class="dh-page">
+
+<header class="dh-topbar">
+  <a class="dh-topbar__brand" href="abteilungsdurchlauf.html" aria-label="Abteilungsdurchlauf">
+    <img src="../Corporate Design/Digital Logo_png/Social Logo/200 x 200 px.png"
+         alt="Putzmeister" class="dh-topbar__logo" onerror="this.style.display='none'">
+    <span class="dh-topbar__brand-text">Putzmeister</span>
+  </a>
+  <nav class="dh-topbar__nav" aria-label="Hauptnavigation">
+    <a class="dh-topbar__link active" href="abteilungsdurchlauf.html" aria-current="page">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M3 12h4l3 8 4-16 3 8h4"/></svg>
+      <span>Abteilungsdurchlauf</span>
+    </a>
+  </nav>
+  <div class="dh-topbar__spacer"></div>
+  <button class="dh-topbar__theme" id="dhThemeToggle" type="button" aria-label="Hell-/Dunkel-Modus umschalten" title="Hell / Dunkel">
+    <svg class="dh-theme-sun" fill="none" viewBox="0 0 24 24" aria-hidden="true">
+      <circle cx="12" cy="12" r="4" fill="currentColor"/>
+      <path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.93 4.93l2.12 2.12M16.95 16.95l2.12 2.12M4.93 19.07l2.12-2.12M16.95 7.05l2.12-2.12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+    </svg>
+    <svg class="dh-theme-moon" fill="none" viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" fill="currentColor"/>
+    </svg>
+  </button>
+  <a class="dh-topbar__profil" href="dh-profil.html" title="Profil">
+    <span class="dh-topbar__profil-label">Profil</span>
+    <span class="avatar avatar--sm" id="dhAvatar">…</span>
+  </a>
+</header>
+
+<main class="dh-main" id="mainContent"></main>
+
+<script src="js/api.js"></script>
+<script src="js/icons.js"></script>
+<script src="js/app.js"></script>
+<script src="js/abteilungsdurchlauf.js"></script>
+</body>
+</html>

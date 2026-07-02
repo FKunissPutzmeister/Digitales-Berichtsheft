@@ -244,6 +244,9 @@
   padding: 0 var(--sp-3);
   font-size: var(--text-xs);
   font-weight: var(--fw-bold);
+  /* Balkenfarbe wird inline gesetzt (zentrale GANTT_PALETTE in azubi-planer.js);
+     der Text ist auf allen Palettenfarben weiß. */
+  color: #fff;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -263,14 +266,9 @@
   z-index: 2;
 }
 
-/* Ruhige, entsättigte Palette; Index 1 bewusst Teal statt Marken-Gelb,
-   damit die Balken nicht mit den gelben UI-Akzenten (Heute, aktueller
-   Monat) konkurrieren. Muss zu getBarColor() in azubi-planer.js passen. */
-.gantt-bar--ausbilder-1 { background: #4F9D9A; color: #fff; }
-.gantt-bar--ausbilder-2 { background: #5B86C2; color: #fff; }
-.gantt-bar--ausbilder-3 { background: #5FAE72; color: #fff; }
-.gantt-bar--ausbilder-4 { background: #D8835A; color: #fff; }
-.gantt-bar--ausbilder-5 { background: #9B7BC4; color: #fff; }
+/* Die früheren .gantt-bar--ausbilder-N Farbklassen entfallen: die Balkenfarbe
+   kommt jetzt zentral aus GANTT_PALETTE (15 Abteilungsfarben) in
+   azubi-planer.js und wird inline gesetzt. */
 
 .gantt-bar__label {
   flex: 1;

@@ -2,10 +2,14 @@
    LOGIN.JS
    =================================================================== */
 document.addEventListener('DOMContentLoaded', async () => {
+  // Start-/Landeseite je Rolle: DH-Studenten direkt in den Abteilungsdurchlauf,
+  // alle anderen aufs Dashboard.
+  const landingFor = (user) => (user && user.role === 'dhstudent') ? 'abteilungsdurchlauf.html' : 'dashboard.html';
+
   // Bereits eingeloggt?
   const existing = await DB.fetchCurrentUser();
   if (existing) {
-    window.location.href = 'dashboard.html';
+    window.location.href = landingFor(existing);
     return;
   }
 
@@ -24,12 +28,27 @@ document.addEventListener('DOMContentLoaded', async () => {
       : `<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>`;
   });
 
-  // Microsoft-SSO (Platzhalter bis Azure AD verbunden ist)
+  // Microsoft-SSO: aktiv, sobald das Backend SAML konfiguriert meldet.
   const msBtn = document.getElementById('msLoginBtn');
   const ssoHint = document.getElementById('ssoHint');
-  msBtn?.addEventListener('click', () => {
-    ssoHint?.classList.add('visible');
-  });
+  if (msBtn) {
+    const base = (window.location.port === '5500')
+      ? `http://${window.location.hostname}:3000/api` : '/api';
+    let samlReady = false;
+    try {
+      const r = await fetch(`${base}/auth/saml/status`, { credentials: 'include' });
+      if (!r.ok) console.warn('[saml] status-Endpoint antwortete nicht OK:', r.status);
+      samlReady = r.ok && (await r.json()).configured === true;
+    } catch { samlReady = false; }
+
+    msBtn.addEventListener('click', () => {
+      if (samlReady) {
+        window.location.href = `${base}/auth/saml/login`;
+      } else {
+        ssoHint?.classList.add('visible');
+      }
+    });
+  }
 
   // Demo-Zugänge ein-/ausklappen
   const demoWrap = document.getElementById('loginDemo');
@@ -57,7 +76,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     try {
       const user = await DB.login(email);
       if (user) {
-        window.location.href = 'dashboard.html';
+        window.location.href = landingFor(user);
       } else {
         showError('Ungültige E-Mail-Adresse.');
         loginBtn.disabled = false;
@@ -90,4 +109,9 @@ document.addEventListener('DOMContentLoaded', async () => {
       await doLogin(email);
     });
   });
+
+  // Fehlgeschlagener SAML-Handshake leitet mit ?error=sso zurück.
+  if (new URLSearchParams(window.location.search).get('error') === 'sso') {
+    showError('Microsoft-Anmeldung fehlgeschlagen. Bitte erneut versuchen oder Demo-Zugang nutzen.');
+  }
 });

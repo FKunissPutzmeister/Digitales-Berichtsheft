@@ -31,7 +31,7 @@ function zuwKonfliktText(z) {
 /* Einheitliche Abteilungs-Palette (15 ruhige, entsättigte Farben, alle für
    weißen Balkentext geeignet). EINE Quelle der Wahrheit – sowohl die Gantt-
    Balken als auch die Farbpunkte in Liste/Detailpanel beziehen ihre Farbe
-   hierüber. Index 1 (Teal) bewusst NICHT Marken-Gelb, damit die Balken nicht
+   hierüber. Index 0 (Teal) bewusst NICHT Marken-Gelb, damit die Balken nicht
    mit den gelben UI-Akzenten (Heute, aktueller Monat) konkurrieren. Bei mehr
    als 15 Abteilungen wiederholen sich Farben (Modulo). */
 const GANTT_PALETTE = [
@@ -223,7 +223,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   function colorIndexFor(abteilung) {
     if (!abteilung) return 0;
     if (!(abteilung in abteilungColorIdx)) {
-      abteilungColorIdx[abteilung] = _nextColorIdx % COLORS.length;
+      abteilungColorIdx[abteilung] = _nextColorIdx % PALETTE_LEN;
       _nextColorIdx++;
     }
     return abteilungColorIdx[abteilung];
@@ -558,8 +558,8 @@ document.addEventListener('DOMContentLoaded', async () => {
       const width = (endDay - startDay + 1) / NUM_DAYS * 100;
       const ausb = await DB.getUser(z.ausbilderId);
       return `
-        <div class="gantt-bar ${COLORS[colorIndexFor(z.abteilung)]}"
-             style="left:${left}%;width:${width}%"
+        <div class="gantt-bar"
+             style="left:${left}%;width:${width}%;background:${ganttColor(colorIndexFor(z.abteilung))}"
              title="${escHtml(z.abteilung || '–')} · ${escHtml((ausb && ausb.name) || '–')} (${DateUtil.formatDate(z.von)} – ${DateUtil.formatDate(z.bis)})">
           <span class="gantt-bar__label">${escHtml(z.abteilung || '')}</span>
         </div>
@@ -668,13 +668,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
   }
 
-  function getBarColor(idx) {
-    // Ruhige, entsättigte Palette; Index 0 bewusst NICHT Marken-Gelb,
-    // damit die Balken nicht mit den gelben UI-Akzenten konkurrieren.
-    // Muss zu den .gantt-bar--ausbilder-N Farben in azubi-planer.css passen.
-    const colors = ['#4F9D9A', '#5B86C2', '#5FAE72', '#D8835A', '#9B7BC4'];
-    return colors[idx % colors.length];
-  }
+  // Farbpunkt für Liste/Detailpanel – greift auf dieselbe zentrale Palette
+  // wie die Balken zu (GANTT_PALETTE), damit Punkt und Balken einer Abteilung
+  // exakt dieselbe Farbe haben.
+  function getBarColor(idx) { return ganttColor(idx); }
 
   // Beide Modal-Inits einmalig binden (Modal-Markup ist statisch in
   // azubi-planer.html). Innerhalb von render() würden Listener mehrfach

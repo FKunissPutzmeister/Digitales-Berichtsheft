@@ -776,7 +776,8 @@ html[data-theme="candy"] { color-scheme: light; }
    Asset: assets/logo-candy.png – aus „Social Logo/200 x 200 px.png"
    umgefärbt (2-Farb-Remap mit erhaltenen Anti-Aliasing-Kanten). */
 [data-theme="candy"] .sidebar__logo-mark,
-[data-theme="candy"] .login-card__mark {
+[data-theme="candy"] .login-card__mark,
+[data-theme="candy"] .dh-topbar__logo {
   content: url("../assets/logo-candy.png");
 }
 [data-theme="candy"] .toast::after {

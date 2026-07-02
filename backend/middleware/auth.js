@@ -1,7 +1,8 @@
 /* ===================================================================
-   DEV-AUTH MIDDLEWARE
-   Simuliert Azure AD Token-Validierung für lokale Entwicklung.
-   Austausch gegen MSAL-Middleware wenn Azure AD bereit ist.
+   AUTH MIDDLEWARE
+   Prüft zuerst auf echte SAML-Identität in req.session.user (gesetzt
+   durch den SAML-SSO-Handshake). Fallback: DEV_USERS via X-Dev-OID
+   Header oder Session-OID für lokale Entwicklung.
 
    Dev-User wählen: Header X-Dev-OID mitschicken, z.B.:
      X-Dev-OID: 00000000-0000-0000-0000-000000000001
@@ -24,14 +25,30 @@ const DEV_USERS = {
     beruf: 'Industriekauffrau', ausbildungsBeginn: '2024-09-01', ausbildungsEnde: '2027-08-31' },
   '00000000-0000-0000-0000-000000000006': { name: 'Jonas Becker',        role: 'azubi',     email: 'jonas.becker@putzmeister.com',  berichtTyp: 'täglich',
     beruf: 'Mechatroniker', ausbildungsBeginn: '2023-09-01', ausbildungsEnde: '2026-08-31' },
+  // DH-Student: durchläuft Abteilungen wie ein Azubi, schreibt aber KEINE
+  // Berichte (kein istAzubi) → eigene, reduzierte Ansicht (Abteilungsdurchlauf).
+  '00000000-0000-0000-0000-000000000007': { name: 'Jana Hofer',          role: 'dhstudent', email: 'jana.hofer@putzmeister.com',
+    studiengang: 'DH Maschinenbau (B.Eng.)', semester: 5,
+    ausbildungsBeginn: '2025-10-01', ausbildungsEnde: '2027-09-30' },
 };
 
-function devAuth(req, res, next) {
-  // OID aus Header oder Session lesen
-  const oid = req.headers['x-dev-oid'] || req.session?.userOid;
+function requireAuth(req, res, next) {
+  // 1. Echte SAML-Identität in der Session? → Vorrang.
+  const s = req.session && req.session.user;
+  if (s && s.oid) {
+    req.user = {
+      ...s,
+      ...faehigkeitenFuer(s.oid),
+      istAzubi: false,       // Rollen-Mapping folgt in späterer Iteration
+      istDhStudent: false,   // SAML-Rollen-Mapping folgt; vorerst kein DH-Student
+    };
+    return next();
+  }
 
+  // 2. Fallback: Dev-User (Header oder Session-OID) gegen DEV_USERS.
+  const oid = req.headers['x-dev-oid'] || (req.session && req.session.userOid);
   if (!oid || !DEV_USERS[oid]) {
-    return res.status(401).json({ error: 'Nicht angemeldet. X-Dev-OID Header oder /api/auth/login verwenden.' });
+    return res.status(401).json({ error: 'Nicht angemeldet. X-Dev-OID Header, /api/auth/login oder SSO verwenden.' });
   }
 
   req.user = {
@@ -39,8 +56,9 @@ function devAuth(req, res, next) {
     ...DEV_USERS[oid],
     ...faehigkeitenFuer(oid),
     istAzubi: DEV_USERS[oid].role === 'azubi',
+    istDhStudent: DEV_USERS[oid].role === 'dhstudent',
   };
   next();
 }
 
-module.exports = { devAuth, DEV_USERS };
+module.exports = { requireAuth, devAuth: requireAuth, DEV_USERS };

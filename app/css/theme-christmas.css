@@ -824,7 +824,8 @@ html[data-theme="christmas"] .bento .b-recent {
    jeder Größe korrekt (kein separates ::after-Overlay mehr nötig).
    =================================================================== */
 [data-theme="christmas"] .sidebar__logo-mark,
-[data-theme="christmas"] .login-card__mark {
+[data-theme="christmas"] .login-card__mark,
+[data-theme="christmas"] .dh-topbar__logo {
   content: url("../assets/logo-christmas.png");
 }
 
