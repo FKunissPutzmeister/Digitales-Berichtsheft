@@ -178,6 +178,27 @@ html[data-skin="silk"][data-theme="dark"] .bento .b-recent {
   backdrop-filter: blur(2px);
 }
 
+/* ── Flash-Guard: statischer Border-Baseline für Buttons ──────────────────
+   Der Skin-Layer taggt Buttons erst per JS mit .silk-host--btn (Border →
+   transparent + Glas-::before). Bis dahin zeigen frische .btn ihre BASIS-
+   Border (grau-lila rgb(92,82,132)): beim Full-Load bis das React-Bundle da
+   ist (scan() no-op bei !api) UND bei async nachgerenderten Buttons bis der
+   90ms-MutationObserver greift → sichtbares Rand-Flackern beim Wechsel auf /
+   Refresh der Wochenansicht. theme-silk.css ist ein statischer <link> und
+   data-skin wird pre-paint gesetzt → diese Regel neutralisiert die Border ab
+   dem ERSTEN Paint, timing-unabhängig. silk-host--btn legt danach nur noch
+   das Glas darüber. (Selektoren = SEL.btn aus react-theme-layer.js.) */
+[data-skin="silk"] .btn,
+[data-skin="silk"] .b-btn-primary,
+[data-skin="silk"] .demo-login-btn,
+[data-skin="silk"] .btn-ms,
+[data-skin="silk"] .week-nav__btn,
+[data-skin="silk"] .week-today-btn,
+[data-skin="silk"] .pm-select__trigger,
+[data-skin="silk"] .week-actions button {
+  border-color: transparent !important;
+}
+
 /* Buttons: transparent – das CSS-::before-Backing IST das Glas.
    INDIGO getönt (nicht neutralweiß → sonst „grau" über dunklen Panels),
    heller Text. Ergebnis: lila Liquid-Glass-Pill wie das Demo. */
@@ -356,6 +377,23 @@ html[data-skin="silk"] .b-day--today .dnum { color: #FFFFFF !important; }
   max-width: none !important;
   cursor: inherit !important;
   display: inline-flex;
+}
+/* Hero zweizeilig: "Aktuelle Woche" mittelgroß (gut lesbar, aber deutlich
+   kleiner als das große "KW xx") auf eigener Zeile. Der Silk-Layer veredelt
+   small + .b-hero__kw-num getrennt (SEL.grad) und kopiert je die font-size der
+   Quelle auf den Gradient-Host. Nur unter Silk; andere Themes behalten das
+   kleine 12px-Eyebrow. */
+html[data-skin="silk"] .b-hero__kw { font-size: 132px; }
+html[data-skin="silk"] .b-hero__kw small {
+  font-size: 52px;
+  line-height: 1.0;
+  letter-spacing: -0.01em;
+  text-transform: none;
+  margin-bottom: 4px;
+}
+@media (max-width: 1280px) {
+  html[data-skin="silk"] .b-hero__kw { font-size: 92px; }
+  html[data-skin="silk"] .b-hero__kw small { font-size: 40px; }
 }
 
 /* ── 7 · Login: DotField statt Brand-Gelb ───────────────────────── */

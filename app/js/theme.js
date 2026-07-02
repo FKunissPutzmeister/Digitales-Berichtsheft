@@ -29,6 +29,37 @@
   var CUSTOM_THEMES = ['hyperspace', 'cmd', 'candy', 'iceland', 'silk', 'halloween', 'christmas'];
   var html = document.documentElement;
 
+  /* ── Perf-Lite: Software-Rendering erkennen ───────────────────────
+     Ist kein echter GPU-Treiber aktiv (Windows-WARP „Microsoft Basic
+     Render Driver", SwiftShader, llvmpipe – häufig nach Treiber-Crash,
+     auf RDP/VM, oder bei abgeschalteter HW-Beschleunigung), rendert der
+     Browser ALLES in Software. Das app-weite backdrop-filter-Glas ist
+     dann extrem teuer (gemessen: 27 statt 61 FPS, in JEDEM Theme).
+     Erkennen wir das (oder ist prefers-reduced-transparency / der Profil-
+     Schalter 'perfLite' gesetzt), setzen wir html.perf-lite VOR dem ersten
+     Paint; glass.css schaltet darunter alle Blur-Layer auf deckende
+     Flächen. Override: localStorage perfLite='1' erzwingt an, '0' aus.
+     GPU-Nutzer bekommen die Klasse nie → sehen exakt das bisherige Glas. */
+  function detectSoftwareGL() {
+    try {
+      var cv = document.createElement('canvas');
+      var gl = cv.getContext('webgl') || cv.getContext('experimental-webgl');
+      if (!gl) return true;   // kein WebGL → mit hoher Wahrscheinlichkeit Software
+      var dbg = gl.getExtension('WEBGL_debug_renderer_info');
+      var r = dbg ? String(gl.getParameter(dbg.UNMASKED_RENDERER_WEBGL)) : '';
+      return /SwiftShader|Basic Render|llvmpipe|Software|Microsoft Basic|WARP/i.test(r);
+    } catch (e) { return false; }
+  }
+  try {
+    var perfLitePref = localStorage.getItem('perfLite');
+    var reduceTransp = window.matchMedia &&
+      window.matchMedia('(prefers-reduced-transparency: reduce)').matches;
+    if (perfLitePref === '1' ||
+        (perfLitePref !== '0' && (reduceTransp || detectSoftwareGL()))) {
+      html.classList.add('perf-lite');
+    }
+  } catch (e) {}
+
   /* ── Silk-Farbvarianten ───────────────────────────────────────────
      Ein einziger Hue steuert die GESAMTE Silk-Palette: theme-silk.css
      nutzt überall hsl(var(--silk-hue,252) …). Pro Variante nur ein

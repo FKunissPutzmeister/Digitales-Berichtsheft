@@ -573,7 +573,8 @@ document.addEventListener('DOMContentLoaded', async () => {
        Import-Inhalt noch Tab-Leiste (Ausbilder/Admin sehen nur Profil). */
     const zeitnachweisHtml = ZeitnachweisUpload.renderSection(user);
     const ihkHtml = IhkImport.renderSection(user);
-    const hasImport = (zeitnachweisHtml.trim() + ihkHtml.trim()).length > 0;
+    const exportHtml = BerichtsheftExport.renderSection(user);
+    const hasImport = (zeitnachweisHtml.trim() + ihkHtml.trim() + exportHtml.trim()).length > 0;
 
     main.innerHTML = `
       <div class="page-header">
@@ -587,7 +588,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         <button type="button" class="profil-tab is-active" role="tab" id="tab-profil"
                 aria-controls="panel-profil" aria-selected="true" data-tab="profil">Profil</button>
         <button type="button" class="profil-tab" role="tab" id="tab-import"
-                aria-controls="panel-import" aria-selected="false" data-tab="import">Import</button>
+                aria-controls="panel-import" aria-selected="false" data-tab="import">Import &amp; Export</button>
       </div>` : ''}
 
       <div class="profil-panels" id="panel-profil"${hasImport ? ' role="tabpanel" aria-labelledby="tab-profil"' : ''}>
@@ -605,6 +606,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       ${hasImport ? `
       <div class="profil-panels profil-panels--import" id="panel-import"
            role="tabpanel" aria-labelledby="tab-import" hidden>
+        ${exportHtml}
         ${zeitnachweisHtml}
         ${ihkHtml}
       </div>` : ''}
@@ -644,6 +646,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Zeitnachweis-Import-Sektion verdrahten (nur für Azubis vorhanden)
     ZeitnachweisUpload.bind(user);
     IhkImport.bind(user);
+
+    // Export & Backup verdrahten (Sektion nur für Azubis gerendert)
+    BerichtsheftExport.bind(user);
 
     Modal.init();
     Toast.init();

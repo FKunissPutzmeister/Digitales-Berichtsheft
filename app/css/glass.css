@@ -684,6 +684,44 @@ body.login-page::after {
 }
 
 /* ===================================================================
+   PERF-LITE – Software-Rendering / kein GPU-Treiber (WARP, RDP, VM)
+   -------------------------------------------------------------------
+   backdrop-filter ist auf Software-Compositing extrem teuer (gemessen:
+   27 statt 61 FPS, in JEDEM Theme – das Glas sitzt im geteilten glass.css).
+   theme.js setzt html.perf-lite, wenn es einen Software-Renderer erkennt
+   („Microsoft Basic Render Driver"/SwiftShader/llvmpipe), bei
+   prefers-reduced-transparency oder per Schalter localStorage perfLite='1'.
+   Dann: ALLE Blur-Layer aus + schwebende Chrome auf deckende Flächen
+   (wie der @supports-not-Fallback oben). Flüssig ohne GPU; GPU-Nutzer
+   bekommen die Klasse nie und sehen unverändert das volle Glas.
+   =================================================================== */
+html.perf-lite *,
+html.perf-lite *::before,
+html.perf-lite *::after {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+/* Ohne Blur lesbar halten: schwebende Chrome + Overlays auf deckende
+   Surface-Tokens (im Light = --pm-white, in dunklen/Custom-Themes deren
+   eigene, ausreichend opake Surface). */
+html.perf-lite .topbar,
+html.perf-lite .sidebar,
+html.perf-lite .dropdown__menu,
+html.perf-lite .pm-select__menu,
+html.perf-lite .sidebar-tooltip,
+html.perf-lite .modal {
+  background: var(--pm-white) !important;
+}
+html.perf-lite[data-theme="dark"] .topbar,
+html.perf-lite[data-theme="dark"] .sidebar,
+html.perf-lite[data-theme="dark"] .dropdown__menu,
+html.perf-lite[data-theme="dark"] .pm-select__menu,
+html.perf-lite[data-theme="dark"] .sidebar-tooltip,
+html.perf-lite[data-theme="dark"] .modal {
+  background: var(--inverse-surface-soft) !important;
+}
+
+/* ===================================================================
    WOCHENANSICHT – Pflichtfeld-Marker neutralisieren
    -------------------------------------------------------------------
    Buttons (Anwesenheit/Ort-Pillen) und Stundenauswahl (Std./Min) sollen

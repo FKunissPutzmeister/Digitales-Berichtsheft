@@ -99,6 +99,10 @@ function normalizeWoche(w) {
     betriebEintrag:      w.BetriebEintrag      ?? '',
     schuleEintrag:       w.SchuleEintrag       ?? '',
     unterweisungEintrag: w.UnterweisungEintrag ?? '',
+    // Korrektur-Attribution (für den elektronischen Bestätigungsblock im Export).
+    // Kommt über SELECT w.* bereits aus dem Backend, hier nur durchgereicht.
+    korrigiertVon: w.KorrigiertVon ?? null,
+    korrigiertAm:  toDateStr(w.KorrigiertAm),
     tage: (w.tage || []).map(normalizeTag),
     kommentare: (w.kommentare || []).map(normalizeKommentar),
   };

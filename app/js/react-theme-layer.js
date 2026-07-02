@@ -39,7 +39,7 @@
     btn:   ['.btn', '.b-btn-primary', '.demo-login-btn', '.btn-ms', '.week-nav__btn',
             '.pm-select__trigger', '.week-actions button'],
     blur:  ['.welcome-hero__name'],
-    grad:  ['.b-hero__kw']
+    grad:  ['.b-hero__kw small', '.b-hero__kw-num']
   };
 
   var SCRIPT_SRC = (document.currentScript && document.currentScript.src) ||

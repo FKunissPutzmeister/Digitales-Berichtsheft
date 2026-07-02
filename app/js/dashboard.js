@@ -380,16 +380,16 @@ async function renderAzubiDashboard(user) {
         <div class="b-hero__middle">
           <h1 class="b-hero__kw">
             <small>Aktuelle Woche</small>
-            KW ${kw}
+            <span class="b-hero__kw-num">KW ${kw}</span>
           </h1>
-          <div class="b-weekmini">${renderBentoWeekmini()}</div>
         </div>
         <div class="b-hero__bottom">
           <a class="b-btn-primary" href="wochenansicht.html"
              data-goto-kw="${kw}" data-goto-year="${kwYear}">
-            Bericht öffnen
+            ${berichtTyp === 'täglich' ? 'Tag öffnen' : 'Woche öffnen'}
             <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="width:16px;height:16px"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
           </a>
+          <div class="b-weekmini">${renderBentoWeekmini()}</div>
         </div>
       </section>
 

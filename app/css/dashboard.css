@@ -1475,8 +1475,8 @@
   grid-column: span 8;
   grid-row: span 3;
   padding: 36px 40px 32px;
-  display: grid;
-  grid-template-rows: auto 1fr auto;
+  display: flex;
+  flex-direction: column;
   background-image:
     linear-gradient(105deg, rgba(255,255,255,0.38) 0%, rgba(255,255,255,0.18) 44%, rgba(255,255,255,0.00) 100%),
     url("../assets/backgrounds/tile-series-week-light.png?v=20260602-series");
@@ -1630,12 +1630,11 @@ html[data-theme="dark"] .b-hero__kw {
 .b-day--today .dnum { color: var(--pm-grey-900); }
 
 .b-hero__bottom {
-  display: flex; align-items: center; gap: 12px;
-  padding-top: 24px;
-  border-top: 1px solid rgba(14,17,22,0.06);
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  margin-top: auto;
+  padding-top: 20px;
   position: relative; z-index: 1;
 }
-[data-theme="dark"] .b-hero__bottom { border-top-color: rgba(255,255,255,0.08); }
 
 .b-btn-primary {
   appearance: none; border: 0; cursor: pointer;
@@ -2226,7 +2225,6 @@ html[data-theme="dark"] .b-recent::before {
 [data-theme="dark"] .b-day .dn { color: rgba(255,255,255,0.5); }
 [data-theme="dark"] .b-day .dnum { color: rgba(255,255,255,0.85); }
 [data-theme="dark"] .b-day--past .dnum, [data-theme="dark"] .b-day--weekend .dnum { color: rgba(255,255,255,0.35); }
-[data-theme="dark"] .b-hero__bottom { border-top-color: rgba(255,255,255,0.08); }
 
 /* Responsiv */
 @media (max-width: 1180px) {
