@@ -42,6 +42,7 @@ BEGIN
 END
 ELSE PRINT 'dbo.Zuweisungen.VerantwEmail existiert bereits.';
 
+-- WARNUNG: leert die Tabelle bedingungslos bei JEDEM Ausführen. Nur beim einmaligen Migrations-Run gewünscht.
 DELETE FROM dbo.Zuweisungen;
 PRINT 'dbo.Zuweisungen geleert (sauberer Start).';
 
