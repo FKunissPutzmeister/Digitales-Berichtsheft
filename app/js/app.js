@@ -51,6 +51,9 @@ function applyCapabilities(caps) {
   document.querySelectorAll('.nav-azubi-only').forEach(el => {
     el.style.display = caps.istAzubi ? '' : 'none';
   });
+  document.querySelectorAll('.nav-developer-only').forEach(el => {
+    el.style.display = caps.role === 'developer' ? '' : 'none';
+  });
   // DH-Studenten brauchen kein Dashboard – auf der (einzig erreichbaren)
   // Profil-Seite den Dashboard-Link ausblenden.
   if (caps.istDhStudent) {
@@ -148,6 +151,7 @@ async function initLayout(activeNavId) {
     istAzubi:     !!user.istAzubi,
     istDhStudent: !!user.istDhStudent,
     korrektur:    istKorrektor,
+    role:         user.role,
   });
 
   // Abmelden-Button via Event-Delegation an document.body. Der Button

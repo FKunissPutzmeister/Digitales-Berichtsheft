@@ -59,6 +59,10 @@ function buildSidebar(activeNavId) {
         <span class="sidebar__link-icon">${Icon('verwaltung')}</span>
         <span class="sidebar__link-label">Berichtsheftverwaltung</span>
       </a>
+      <a href="nutzerverwaltung.html" class="sidebar__link nav-developer-only" id="nav-nutzerverwaltung" style="display:none">
+        <span class="sidebar__link-icon">${Icon('users')}</span>
+        <span class="sidebar__link-label">Nutzerverwaltung</span>
+      </a>
 
     </nav>
 

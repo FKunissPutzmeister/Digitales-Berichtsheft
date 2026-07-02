@@ -1,0 +1,159 @@
+/* ===================================================================
+   NUTZERVERWALTUNG.CSS – Styles für die developer-only Nutzerverwaltung
+   Minimale, themefähige Ergänzungen; das Gros kommt aus components.css.
+   =================================================================== */
+
+/* ── Toolbar (Suche) ── */
+.nv-toolbar {
+  margin-bottom: var(--sp-5);
+}
+
+.nv-toolbar .form-control {
+  max-width: 400px;
+}
+
+/* ── Tabelle ── */
+.nv-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--text-sm);
+}
+
+.nv-table thead tr {
+  border-bottom: 2px solid var(--pm-grey-200);
+}
+
+.nv-table thead th {
+  padding: var(--sp-3) var(--sp-4);
+  text-align: left;
+  font-weight: var(--fw-bold);
+  color: var(--pm-grey-500);
+  font-size: var(--text-xs);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.nv-table tbody tr {
+  border-bottom: 1px solid var(--pm-grey-100);
+  transition: background var(--t-fast);
+}
+
+.nv-table tbody tr:last-child {
+  border-bottom: none;
+}
+
+.nv-table tbody tr:hover {
+  background: var(--pm-grey-50);
+}
+
+.nv-table td {
+  padding: var(--sp-3) var(--sp-4);
+  color: var(--pm-grey-800);
+  vertical-align: middle;
+}
+
+.nv-table__name {
+  font-weight: var(--fw-medium);
+  color: var(--pm-grey-900);
+}
+
+.nv-table__email {
+  color: var(--pm-grey-500);
+  font-size: var(--text-xs);
+}
+
+.nv-table__actions {
+  text-align: right;
+  white-space: nowrap;
+}
+
+/* ── Leere-Zustand ── */
+.nv-empty {
+  padding: var(--sp-12) var(--sp-6);
+  text-align: center;
+  color: var(--pm-grey-400);
+  font-size: var(--text-sm);
+}
+
+/* ── Modal-Formular ── */
+.nv-form .form-group {
+  margin-bottom: var(--sp-4);
+}
+
+/* Zwei Date-Inputs nebeneinander */
+.nv-form__date-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--sp-3);
+}
+
+/* Checkbox-Gruppe */
+.nv-form__checks {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  margin-bottom: var(--sp-4);
+}
+
+.nv-form__check-label {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  font-size: var(--text-sm);
+  color: var(--pm-grey-700);
+  cursor: pointer;
+  user-select: none;
+}
+
+.nv-form__check-label input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--pm-yellow);
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+/* Page subtitle */
+.page-subtitle {
+  font-size: var(--text-sm);
+  color: var(--pm-grey-500);
+  margin-top: var(--sp-1);
+}
+
+/* role-badge (wird auch in app.js verwendet) */
+.role-badge {
+  display: inline-block;
+  padding: 2px var(--sp-2);
+  border-radius: var(--r-full);
+  font-size: var(--text-xs);
+  font-weight: var(--fw-bold);
+  letter-spacing: 0.04em;
+  background: var(--pm-grey-100);
+  color: var(--pm-grey-700);
+}
+
+.role-badge[data-role="developer"] {
+  background: var(--pm-yellow-pale);
+  color: var(--pm-grey-900);
+}
+
+.role-badge[data-role="admin"] {
+  background: var(--color-info-light);
+  color: var(--color-info);
+}
+
+.role-badge[data-role="pruefer"] {
+  background: var(--color-success-light);
+  color: var(--color-success);
+}
+
+.role-badge[data-role="azubi"] {
+  background: var(--status-freigegeben-bg);
+  color: var(--status-freigegeben);
+}
+
+.role-badge[data-role="dhstudent"] {
+  background: var(--color-warning-light);
+  color: var(--color-warning);
+}
