@@ -200,11 +200,10 @@ document.addEventListener('DOMContentLoaded', async () => {
   let filterAbteilung = '';            // Filter: Abteilung ('' = alle)
   let filterLehrjahr = '';             // Filter: Lehrjahr ('' = alle)
   let nurOhneZuweisung = false;        // Schnellfilter
-  // Einmal aufgelöste Zeilendaten (Azubi-/Ausbilder-Objekte).
+  // Einmal aufgelöste Zeilendaten (Azubi-Objekt + Verantwortlichen-Name).
   let zuwRowData = [];
 
   // Verantwortliche-Auswahl = alle Nicht-Azubi-Nutzer (nicht nur Ausbilder).
-  const ausbilder = await DB.getVerantwortliche();
   const azubis = await DB.getAzubis();
   // Abteilungs-Katalog (nur aktive) für das Zuweisungs-Dropdown.
   const abteilungenKatalog = await DB.getAbteilungen();

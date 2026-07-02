@@ -42,9 +42,14 @@ BEGIN
 END
 ELSE PRINT 'dbo.Zuweisungen.VerantwEmail existiert bereits.';
 
--- WARNUNG: leert die Tabelle bedingungslos bei JEDEM Ausführen. Nur beim einmaligen Migrations-Run gewünscht.
-DELETE FROM dbo.Zuweisungen;
-PRINT 'dbo.Zuweisungen geleert (sauberer Start).';
+-- Bestand nur beim ERST-Migrationslauf leeren (solange die Alt-Spalte AusbilderOid noch
+-- existiert). Verhindert versehentliches Leeren bei erneutem Ausführen des Skripts.
+IF COL_LENGTH('dbo.Zuweisungen', 'AusbilderOid') IS NOT NULL
+BEGIN
+  DELETE FROM dbo.Zuweisungen;
+  PRINT 'dbo.Zuweisungen geleert (Erst-Migration, sauberer Start).';
+END
+ELSE PRINT 'dbo.Zuweisungen NICHT geleert (Alt-Spalte AusbilderOid bereits weg = kein Erst-Lauf).';
 
 IF COL_LENGTH('dbo.Zuweisungen', 'AusbilderOid') IS NOT NULL
 BEGIN

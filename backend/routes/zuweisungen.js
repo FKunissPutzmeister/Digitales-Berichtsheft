@@ -22,7 +22,7 @@ router.get('/', async (req, res) => {
       where += ' AND AzubiOid = @azubiOid';
     }
     if (verantwEmail) {
-      request.input('verantwEmail', sql.NVarChar(255), verantwEmail);
+      request.input('verantwEmail', sql.NVarChar(255), String(verantwEmail).toLowerCase());
       where += ' AND VerantwEmail = @verantwEmail';
     }
 
