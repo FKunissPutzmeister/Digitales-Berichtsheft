@@ -9,10 +9,10 @@ function nurPlaner(req, res, next) {
   next();
 }
 
-// GET /api/zuweisungen?azubiOid=...&ausbilderOid=...
+// GET /api/zuweisungen?azubiOid=...&verantwEmail=...
 router.get('/', async (req, res) => {
   try {
-    const { azubiOid, ausbilderOid } = req.query;
+    const { azubiOid, verantwEmail } = req.query;
     const pool = await getPool();
     const request = pool.request();
     let where = '1=1';
@@ -21,9 +21,9 @@ router.get('/', async (req, res) => {
       request.input('azubiOid', sql.NVarChar(36), azubiOid);
       where += ' AND AzubiOid = @azubiOid';
     }
-    if (ausbilderOid) {
-      request.input('ausbilderOid', sql.NVarChar(36), ausbilderOid);
-      where += ' AND AusbilderOid = @ausbilderOid';
+    if (verantwEmail) {
+      request.input('verantwEmail', sql.NVarChar(255), verantwEmail);
+      where += ' AND VerantwEmail = @verantwEmail';
     }
 
     const result = await request.query(
@@ -38,7 +38,7 @@ router.get('/', async (req, res) => {
 // POST /api/zuweisungen
 router.post('/', nurPlaner, async (req, res) => {
   try {
-    const { azubiOid, ausbilderOid, abteilung, von, bis } = req.body;
+    const { azubiOid, verantwEmail, abteilung, von, bis } = req.body;
     const pool = await getPool();
 
     // Überschneidung mit bestehender Zuweisung desselben Azubis verbindlich
@@ -67,14 +67,14 @@ router.post('/', nurPlaner, async (req, res) => {
 
     const result = await pool.request()
       .input('azubiOid',     sql.NVarChar(36),  azubiOid)
-      .input('ausbilderOid', sql.NVarChar(36),  ausbilderOid)
+      .input('verantwEmail', sql.NVarChar(255), (verantwEmail || '').toLowerCase() || null)
       .input('abteilung',    sql.NVarChar(100), abteilung || null)
       .input('von',          sql.Date,          von)
       .input('bis',          sql.Date,          bis)
       .query(`
-        INSERT INTO dbo.Zuweisungen (AzubiOid, AusbilderOid, Abteilung, Von, Bis)
+        INSERT INTO dbo.Zuweisungen (AzubiOid, VerantwEmail, Abteilung, Von, Bis)
         OUTPUT inserted.Id
-        VALUES (@azubiOid, @ausbilderOid, @abteilung, @von, @bis)
+        VALUES (@azubiOid, @verantwEmail, @abteilung, @von, @bis)
       `);
     res.json({ id: result.recordset[0].Id });
   } catch (err) {
