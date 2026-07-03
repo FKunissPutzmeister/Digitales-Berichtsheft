@@ -241,6 +241,12 @@ const DateUtil = {
                  'Jul', 'Aug', 'Sep', 'Okt', 'Nov', 'Dez'],
 };
 
+/* localStorage-Schlüssel der Nutzer-Einstellung „Automatisches Ausfüllen
+   vorschlagen" (Aktivitäts-Autocomplete in der Wochenansicht). Gemeinsam
+   genutzt von profil.js (Schalter) und wochenansicht.js (Auswertung), damit
+   der Key nicht auseinanderdriftet. Fehlt der Wert → Feature AN (Default). */
+const ACTIVITY_SUGGESTIONS_KEY = 'pmActivitySuggestions';
+
 /* ── DB-Objekt (async, gleiche Schnittstelle wie data.js) ─────── */
 const DB = {
 
