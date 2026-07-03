@@ -29,13 +29,14 @@ function profileToUser(profile) {
 }
 
 // Ausbildungsberuf aus dem (optionalen) Azure-Claim. Wird nur mitgesendet,
-// wenn in der Enterprise App ein Attribut→Claim-Mapping "beruf" (z.B. aus
-// jobTitle/Position) hinterlegt ist — sonst null (dann bleibt der DB-Wert
-// unverändert). Präfix "Auszubildende(r) " wird entfernt:
-//   "Auszubildender Mechatroniker" → "Mechatroniker".
+// wenn in der Enterprise App ein Attribut→Claim-Mapping (aus user.jobtitle /
+// "Position") hinterlegt ist — sonst null (dann bleibt der DB-Wert unverändert).
+// Claim-Name ist case-sensitiv: Azure liefert ihn als "Beruf" (großes B); wir
+// akzeptieren defensiv beide Schreibweisen + jobTitle-Fallbacks. Präfix
+// "Auszubildende(r) " wird entfernt: "Auszubildender Mechatroniker" → "Mechatroniker".
 function parseBerufClaim(profile) {
   const p = profile || {};
-  const raw = p['beruf'] || p['jobTitle'] || p['jobtitle'] || null;
+  const raw = p['beruf'] || p['Beruf'] || p['jobTitle'] || p['jobtitle'] || null;
   if (!raw) return null;
   const s = String(raw).replace(/^auszubildende[r]?\s+/i, '').trim();
   return s || null;

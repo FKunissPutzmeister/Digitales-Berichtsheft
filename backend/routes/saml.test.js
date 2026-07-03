@@ -51,6 +51,8 @@ test('assertionToUserData: beruf aus Claim, Auszubildende(r)-Präfix entfernt', 
   assert.equal(assertionToUserData({ objectid: 'g', beruf: 'Auszubildender Mechatroniker' }).beruf, 'Mechatroniker');
   assert.equal(assertionToUserData({ objectid: 'g', beruf: 'Mechatroniker' }).beruf, 'Mechatroniker');
   assert.equal(assertionToUserData({ objectid: 'g', jobTitle: 'Auszubildende Industriekauffrau' }).beruf, 'Industriekauffrau');
+  // Azure liefert den Claim als "Beruf" (großes B) – case-sensitiv, muss greifen:
+  assert.equal(assertionToUserData({ objectid: 'g', Beruf: 'Auszubildender Mechatroniker' }).beruf, 'Mechatroniker');
 });
 
 test('assertionToUserData: beruf null ohne Claim', () => {
