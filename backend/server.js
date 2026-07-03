@@ -158,7 +158,13 @@ app.use((req, res, next) => {
   }
   next();
 });
-app.use(express.static(ROOT));
+// 'no-cache': der Browser darf Assets zwischenspeichern, MUSS aber bei jedem
+// Laden per ETag revalidieren (304 wenn unverändert, 200 wenn geändert). So sind
+// gepullte JS/CSS-Änderungen sofort für alle sichtbar – ohne Versions-Strings
+// von Hand zu pflegen (ersetzt einen manuellen Cache-Buster).
+app.use(express.static(ROOT, {
+  setHeaders(res) { res.setHeader('Cache-Control', 'no-cache'); },
+}));
 app.get('/', (req, res) => res.redirect('/app/index.html'));
 
 app.listen(PORT, () => {
