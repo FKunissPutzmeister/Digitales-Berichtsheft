@@ -77,6 +77,25 @@ function validateUserPatch(fields) {
 // Azure-Basisrolle überschrieben; nur übergebene Felder werden aktualisiert.
 async function upsertUser(data) {
   const pool = await getPool();
+
+  // JIT-Reconciliation per E-Mail: Existiert die E-Mail bereits unter einer
+  // ANDEREN OID (z.B. Demo-Seed mit Platzhalter-OID oder ein neu angelegtes
+  // Azure-Konto), übernimmt der echte SSO-Login diese Zeile (OID = echte
+  // Azure-OID), statt am Unique-Index IX_Users_Email zu scheitern. Nur wenn
+  // für die echte OID noch keine Zeile existiert — sonst gäbe es ein
+  // PK-Duplikat. E-Mail-Vergleich ist über die DB-Collation case-insensitiv.
+  if (data.email) {
+    await pool.request()
+      .input('oid',   sql.NVarChar(36),  data.oid)
+      .input('email', sql.NVarChar(256), data.email)
+      .query(`
+        IF NOT EXISTS (SELECT 1 FROM dbo.Users WHERE Oid = @oid)
+          UPDATE dbo.Users
+             SET Oid = @oid, AktualisiertAm = SYSUTCDATETIME()
+           WHERE Email = @email AND Oid <> @oid;
+      `);
+  }
+
   const r = pool.request();
   r.input('oid',   sql.NVarChar(36),  data.oid);
   r.input('name',  sql.NVarChar(200), data.name ?? null);
