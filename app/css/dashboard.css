@@ -1482,6 +1482,7 @@
     url("../assets/backgrounds/tile-series-week-light.png?v=20260602-series");
   background-size: cover, cover;
   background-position: center, 72% center;
+  background-repeat: no-repeat;
 }
 .b-hero::before {
   content: "";
@@ -1731,8 +1732,12 @@ html[data-theme="dark"] .b-azubi::before {
   background-image:
     linear-gradient(105deg, rgba(255,255,255,0.34) 0%, rgba(255,255,255,0.16) 42%, rgba(255,255,255,0.00) 100%),
     url("../assets/backgrounds/tile-series-recent-light.png?v=20260602-series");
-  background-size: cover, 118% auto;
-  background-position: center, 70% center;
+  /* cover + no-repeat: das 2.21:1-Bild füllt die fast-quadratische Kachel voll.
+     Vorher "118% auto" → Bildhöhe < Kachelhöhe, per default-repeat als
+     Streifen oben/unten getilt (sichtbarer Rand). */
+  background-size: cover, cover;
+  background-position: center, center;
+  background-repeat: no-repeat;
 }
 html[data-theme="dark"] .b-mitteilungen {
   background-image:
@@ -1928,8 +1933,9 @@ html[data-theme="dark"] .b-azubi__segs span { background: rgba(255,255,255,0.08)
   background-image:
     linear-gradient(105deg, rgba(255,255,255,0.34) 0%, rgba(255,255,255,0.16) 42%, rgba(255,255,255,0.00) 100%),
     url("../assets/backgrounds/tile-series-recent-light.png?v=20260602-series");
-  background-size: cover, 118% auto;
-  background-position: center, 70% center;
+  background-size: cover, cover;
+  background-position: center, center;
+  background-repeat: no-repeat;
 }
 html[data-theme="dark"] .b-recent {
   background-image:
@@ -2024,14 +2030,14 @@ html[data-theme="dark"] .b-recent::before {
   color: var(--pm-grey-900);
   margin-bottom: 6px;
   font-feature-settings: "tnum";
-  /* „Schwebend": weicher Kontakt- + Ambient-Schatten hebt die Zahl von der
-     Kachel ab. (CMD überschreibt mit text-shadow:none → flach.) */
-  text-shadow: 0 2px 3px rgba(0, 0, 0, 0.16), 0 7px 16px rgba(0, 0, 0, 0.30);
+  /* Dezenter Kontaktschatten hebt die Zahl leicht ab (deutlich reduziert –
+     vorher doppelter, harter Schatten). CMD überschreibt mit none → flach. */
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.12);
   transition: transform .2s ease, text-shadow .2s ease;
 }
 .b-wkcard:hover .b-wkcard__kw {
   transform: translateY(-1px);
-  text-shadow: 0 3px 5px rgba(0, 0, 0, 0.18), 0 12px 24px rgba(0, 0, 0, 0.36);
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.16);
 }
 .b-wkcard__kw small {
   font-weight: 500; font-size: 11px; line-height: 1;
@@ -2414,6 +2420,37 @@ html[data-theme="dark"] .bento .b-recent {
   background-size: cover, cover !important;
   background-position: center, center !important;
 }
+
+/* ── Weiche Vertikalkanten für die Bild-Kacheln ──
+   Die "series"-Hintergrundbilder liefen links/rechts hart aus (abgehackte
+   Streifen). Ein symmetrischer Fade auf die Kachelfarbe lässt sie an den
+   Seitenkanten sanft verschwinden statt abzuschneiden. Liegt als ::after
+   über dem Bild, aber unter dem Inhalt (z-index:1). */
+.b-hero, .b-recent, .b-mitteilungen { --tile-edge: rgba(255,255,255,0.90); }
+html[data-theme="dark"] .b-hero,
+html[data-theme="dark"] .b-recent,
+html[data-theme="dark"] .b-mitteilungen,
+html[data-theme="hyperspace"] .b-hero,
+html[data-theme="hyperspace"] .b-recent,
+html[data-theme="hyperspace"] .b-mitteilungen,
+html[data-theme="halloween"] .b-hero,
+html[data-theme="halloween"] .b-recent,
+html[data-theme="halloween"] .b-mitteilungen,
+html[data-theme="cmd"] .b-hero,
+html[data-theme="cmd"] .b-recent,
+html[data-theme="cmd"] .b-mitteilungen { --tile-edge: rgba(8,10,14,0.85); }
+.b-hero::after, .b-recent::after, .b-mitteilungen::after {
+  content: ""; display: block;
+  position: absolute; inset: 0; z-index: 0;
+  pointer-events: none;
+  background: linear-gradient(90deg,
+    var(--tile-edge) 0%, transparent 10%,
+    transparent 90%, var(--tile-edge) 100%);
+}
+/* Inhalt der Mitteilungs-Kachel über den Fade heben (Hero/Recent sind schon
+   auf z-index:1). */
+.b-mitteilungen > * { position: relative; z-index: 1; }
+
 .welcome-hero__name {
   margin: 0;
   font-family: var(--font-heading);

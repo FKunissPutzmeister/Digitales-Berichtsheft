@@ -2129,6 +2129,35 @@ body[data-page="wochenansicht"] .day-card__char-count {
   font-size: var(--text-xs);
   color: var(--pm-grey-400);
 }
+body[data-page="wochenansicht"] .day-card__char-count .char-count__max { opacity: 0.7; }
+
+/* ── Zeichenlimit-Rückmeldung (7.000 Zeichen je Feld) ──────────────────
+   Über dem Limit: rote Kontur ums Feld + roter, fetter Zähler. Die Kontur
+   bewusst als `outline` (nicht `border`), weil die Tages-Editoren border:none
+   !important tragen und die Theme-Layer die Border themen – outline bleibt
+   davon unberührt und ist nicht clip-anfällig. */
+body[data-page="wochenansicht"] .ql-container.ql-snow.eintrag-zu-lang {
+  /* Inset (negativer Offset): die Kontur liegt INNEN, damit sie nicht von
+     overflow:hidden der Kachel-Vorfahren an den Seitenkanten abgeschnitten
+     wird (sonst erschienen nur ober-/unterhalb rote Linien). */
+  outline: 2px solid var(--color-error, #e11d48);
+  outline-offset: -2px;
+  border-radius: var(--r-lg);
+}
+body[data-page="wochenansicht"] .day-card__char-count.char-count--over {
+  color: var(--color-error, #e11d48);
+  font-weight: var(--fw-bold);
+}
+body[data-page="wochenansicht"] .day-card__char-count.char-count--over .char-count__max { opacity: 1; }
+
+/* Feld-Zähler unter den Tages-Editoren: rechtsbündig, dezenter Abstand. */
+body[data-page="wochenansicht"] .day-section__body .ql-charcount {
+  display: block;
+  margin-top: 6px;
+  text-align: right;
+}
+/* Tages-Footer ohne Zähler: „Eintrag leeren" rechtsbündig. */
+body[data-page="wochenansicht"] .day-card__footer--actions { justify-content: flex-end; }
 
 /* Footer mit Char-Count + Eintrag-leeren-Button */
 body[data-page="wochenansicht"] .day-card__footer {
