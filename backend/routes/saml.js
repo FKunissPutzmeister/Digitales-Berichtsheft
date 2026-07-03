@@ -6,6 +6,7 @@
 const router = require('express').Router();
 // Konfiguration wird einmalig beim Start ausgewertet; samlConfigured ist ein Load-Time-Snapshot (beabsichtigt).
 const { saml, samlConfigured } = require('../config/saml');
+const { parseRoleClaim, upsertUser } = require('../services/users');
 
 const DASHBOARD = '/app/dashboard.html';
 const LOGIN_PAGE = '/app/index.html';
@@ -25,6 +26,28 @@ function profileToUser(profile) {
     p['name'] ||
     email;
   return { oid, email, name };
+}
+
+// Ausbildungsberuf aus dem (optionalen) Azure-Claim. Wird nur mitgesendet,
+// wenn in der Enterprise App ein Attribut→Claim-Mapping "beruf" (z.B. aus
+// jobTitle/Position) hinterlegt ist — sonst null (dann bleibt der DB-Wert
+// unverändert). Präfix "Auszubildende(r) " wird entfernt:
+//   "Auszubildender Mechatroniker" → "Mechatroniker".
+function parseBerufClaim(profile) {
+  const p = profile || {};
+  const raw = p['beruf'] || p['jobTitle'] || p['jobtitle'] || null;
+  if (!raw) return null;
+  const s = String(raw).replace(/^auszubildende[r]?\s+/i, '').trim();
+  return s || null;
+}
+
+// Assertion → Datensatz für upsertUser (Identität + Azure-Basisrolle + Beruf).
+function assertionToUserData(profile) {
+  return {
+    ...profileToUser(profile),
+    role: parseRoleClaim(profile),
+    beruf: parseBerufClaim(profile),
+  };
 }
 
 function guard(req, res, next) {
@@ -50,20 +73,14 @@ router.get('/login', guard, async (req, res) => {
 router.post('/acs', guard, async (req, res) => {
   try {
     const { profile } = await saml.validatePostResponseAsync(req.body);
-    const user = profileToUser(profile);
-    if (!user.oid) throw new Error('Assertion ohne objectid-Claim');
-    // Session-Fixation vermeiden: nach erfolgreicher Assertion neue Session-ID.
+    const data = assertionToUserData(profile);
+    if (!data.oid) throw new Error('Assertion ohne objectid-Claim');
+    await upsertUser({ ...data, letzterLogin: true });
     req.session.regenerate((err) => {
-      if (err) {
-        console.error('[saml] session.regenerate:', err);
-        return res.redirect(`${LOGIN_PAGE}?error=sso`);
-      }
-      req.session.user = user;
+      if (err) { console.error('[saml] session.regenerate:', err); return res.redirect(`${LOGIN_PAGE}?error=sso`); }
+      req.session.user = { oid: data.oid };
       req.session.save((saveErr) => {
-        if (saveErr) {
-          console.error('[saml] session.save:', saveErr);
-          return res.redirect(`${LOGIN_PAGE}?error=sso`);
-        }
+        if (saveErr) { console.error('[saml] session.save:', saveErr); return res.redirect(`${LOGIN_PAGE}?error=sso`); }
         res.redirect(DASHBOARD);
       });
     });
@@ -85,3 +102,4 @@ router.post('/logout', logout);
 
 module.exports = router;
 module.exports.profileToUser = profileToUser;
+module.exports.assertionToUserData = assertionToUserData;

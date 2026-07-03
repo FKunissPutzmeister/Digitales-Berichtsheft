@@ -27,7 +27,7 @@ router.get('/', async (req, res) => {
     const rows = wochen.recordset.map(parseWoche);
 
     // Zugriffsfilter: eigenes Heft, aktive Zuweisung (in-Periode) oder Korrektur-Historie.
-    const kontext = await ladeKorrekturKontext(pool, user.oid);
+    const kontext = await ladeKorrekturKontext(pool, user.email);
     const sichtbar = rows.filter(w => darfWocheSehen(user, normWoche(w), kontext));
     res.json(sichtbar);
   } catch (err) {
@@ -50,7 +50,7 @@ router.get('/:id', async (req, res) => {
     if (!result.recordset[0]) return res.status(404).json({ error: 'Woche nicht gefunden' });
     const woche = parseWoche(result.recordset[0]);
 
-    const kontext = await ladeKorrekturKontext(pool, req.user.oid);
+    const kontext = await ladeKorrekturKontext(pool, req.user.email);
     if (!darfWocheSehen(req.user, normWoche(woche), kontext)) {
       return res.status(403).json({ error: 'Keine Berechtigung für diese Woche' });
     }
@@ -165,7 +165,7 @@ router.patch('/:id/status', async (req, res) => {
 
     const user = req.user;
     const istEigenes = woche.azubiOid === user.oid;
-    const kontext = await ladeKorrekturKontext(pool, user.oid);
+    const kontext = await ladeKorrekturKontext(pool, user.email);
     const istKorrektor = darfWocheKorrigieren(user, woche, kontext);
 
     const AZUBI_STATUS = ['offen', 'freigegeben'];

@@ -5,8 +5,8 @@ const path = require('path');
 const os = require('os');
 const session = require('express-session');
 const FileStore = require('session-file-store')(session);
-const { devAuth, DEV_USERS, DEV_AUTH_ENABLED } = require('./middleware/auth');
-const { faehigkeitenFuer } = require('./config/berechtigungen');
+const { devAuth, DEV_AUTH_ENABLED } = require('./middleware/auth');
+const { getUserByEmail, getUserByOid, buildReqUser } = require('./services/users');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -70,31 +70,37 @@ app.use(session({
 }));
 
 // ── Dev-Auth-Endpunkte (passwortlos!) — NUR außerhalb der Produktion ──────
-// In Produktion authentifiziert ausschließlich SAML-SSO. Diese Endpunkte
+// In Produktion authentifiziert ausschließlich SAML-SSO; diese Endpunkte
 // würden sonst jedem ohne Credentials eine beliebige Identität geben.
 if (DEV_AUTH_ENABLED) {
-  app.post('/api/auth/login', (req, res) => {
-    const { oid } = req.body;
-    if (!DEV_USERS[oid]) return res.status(400).json({ error: 'Unbekannte Dev-OID' });
-    req.session.userOid = oid;
-    res.json({ user: { oid, ...DEV_USERS[oid], ...faehigkeitenFuer(oid), istAzubi: DEV_USERS[oid].role === 'azubi', istDhStudent: DEV_USERS[oid].role === 'dhstudent' } });
+  app.post('/api/auth/login', async (req, res) => {
+    try {
+      const { oid } = req.body;
+      const row = await getUserByOid(oid);
+      if (!row || !row.Aktiv) return res.status(400).json({ error: 'Unbekannte/inaktive OID' });
+      req.session.userOid = oid;
+      res.json({ user: buildReqUser(row) });
+    } catch (e) {
+      console.error('[auth/login]', e);
+      res.status(500).json({ error: 'Login fehlgeschlagen.' });
+    }
   });
 
-  // Login per E-Mail (Frontend nutzt weiterhin E-Mail-Formular)
-  app.post('/api/auth/login-by-email', (req, res) => {
-    const { email } = req.body;
-    const entry = Object.entries(DEV_USERS).find(([, u]) => u.email === email);
-    if (!entry) return res.status(401).json({ error: 'E-Mail nicht gefunden' });
-    const [oid, u] = entry;
-    req.session.userOid = oid;
-    res.json({ user: { oid, ...u, ...faehigkeitenFuer(oid), istAzubi: u.role === 'azubi', istDhStudent: u.role === 'dhstudent' } });
+  app.post('/api/auth/login-by-email', async (req, res) => {
+    try {
+      const { email } = req.body;
+      const row = await getUserByEmail((email || '').trim().toLowerCase());
+      if (!row || !row.Aktiv) return res.status(401).json({ error: 'E-Mail nicht gefunden' });
+      req.session.userOid = row.Oid;
+      res.json({ user: buildReqUser(row) });
+    } catch (e) {
+      console.error('[auth/login-by-email]', e);
+      res.status(500).json({ error: 'Login fehlgeschlagen.' });
+    }
   });
 }
 
-app.post('/api/auth/logout', (req, res) => {
-  req.session.destroy();
-  res.json({ ok: true });
-});
+app.post('/api/auth/logout', (req, res) => { req.session.destroy(() => res.json({ ok: true })); });
 
 // ── SAML-SSO-Routen (kein requireAuth davor) ─────────────────────
 const samlRouter = require('./routes/saml');
@@ -108,6 +114,7 @@ app.get('/api/auth/me', devAuth, (req, res) => {
 const usersRouter          = require('./routes/users');
 const wochenRouter         = require('./routes/wochen');
 const zuweisungenRouter    = require('./routes/zuweisungen');
+const abteilungenRouter    = require('./routes/abteilungen');
 const kommentareRouter     = require('./routes/kommentare');
 const anhaengeRouter       = require('./routes/anhaenge');
 const benachrichtigungenRouter = require('./routes/benachrichtigungen');
@@ -116,6 +123,7 @@ const fahrtgeldRouter      = require('./routes/fahrtgeld');
 app.use('/api/users',               devAuth, usersRouter);
 app.use('/api/wochen',              devAuth, wochenRouter);
 app.use('/api/zuweisungen',         devAuth, zuweisungenRouter);
+app.use('/api/abteilungen',         devAuth, abteilungenRouter);
 app.use('/api/wochen',              devAuth, kommentareRouter);   // POST /api/wochen/:id/kommentare
 app.use('/api/wochen',              devAuth, anhaengeRouter);     // /api/wochen/:id/anhaenge, /api/wochen/anhaenge/:id
 app.use('/api/benachrichtigungen',  devAuth, benachrichtigungenRouter);
@@ -123,9 +131,15 @@ app.use('/api/fahrtgeld',           devAuth, fahrtgeldRouter);
 
 // ── Dev-Hilfsliste: alle verfügbaren Routen ───────────────────────
 if (process.env.NODE_ENV !== 'production') {
-  app.get('/api/dev/users', (req, res) => res.json(
-    Object.entries(DEV_USERS).map(([oid, u]) => ({ oid, ...u }))
-  ));
+  const { listUsers } = require('./services/users');
+  app.get('/api/dev/users', async (req, res) => {
+    try {
+      res.json(await listUsers({}));
+    } catch (e) {
+      console.error('[dev/users]', e);
+      res.status(500).json({ error: 'Fehler' });
+    }
+  });
 }
 
 // ── Statisches Frontend ausliefern ───────────────────────────────

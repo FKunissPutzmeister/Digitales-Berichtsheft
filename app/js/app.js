@@ -15,7 +15,7 @@ async function requireAuth() {
 async function requireRole(...roles) {
   const user = await requireAuth();
   if (!user) return null;
-  if (!roles.includes(user.role)) {
+  if (user.role !== 'developer' && !roles.includes(user.role)) {
     window.location.href = 'dashboard.html';
     return null;
   }
@@ -50,6 +50,9 @@ function applyCapabilities(caps) {
   });
   document.querySelectorAll('.nav-azubi-only').forEach(el => {
     el.style.display = caps.istAzubi ? '' : 'none';
+  });
+  document.querySelectorAll('.nav-developer-only').forEach(el => {
+    el.style.display = caps.role === 'developer' ? '' : 'none';
   });
   // DH-Studenten brauchen kein Dashboard – auf der (einzig erreichbaren)
   // Profil-Seite den Dashboard-Link ausblenden.
@@ -138,7 +141,7 @@ async function initLayout(activeNavId) {
   let istKorrektor = !!user.istAusbilder;
   if (!istKorrektor && !user.istAzubi) {
     try {
-      const z = await DB.getZuweisungenFuerAusbilder(user.id);
+      const z = await DB.getZuweisungenFuerVerantw(user.email);
       istKorrektor = Array.isArray(z) && z.length > 0;
     } catch (e) { /* ohne Zuweisungsdaten: konservativ kein Korrektur-Menü */ }
   }
@@ -148,6 +151,7 @@ async function initLayout(activeNavId) {
     istAzubi:     !!user.istAzubi,
     istDhStudent: !!user.istDhStudent,
     korrektur:    istKorrektor,
+    role:         user.role,
   });
 
   // Abmelden-Button via Event-Delegation an document.body. Der Button
@@ -434,6 +438,8 @@ const ROLE_LABELS = {
   ausbilder: 'Ausbilder/in',
   admin:     'Administrator',
   dhstudent: 'DH-Student/in',
+  pruefer:   'Prüfer',
+  developer: 'Developer',
 };
 
 /* Start-/Landeseite je Rolle. DH-Studenten sehen ausschließlich den

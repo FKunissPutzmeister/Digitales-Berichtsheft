@@ -122,10 +122,14 @@ function normalizeWoche(w) {
 }
 
 function normalizeZuweisung(z) {
+  const email = z.VerantwEmail ?? '';
+  // Defensiv: falls abteilungen-helpers.js auf einer Seite fehlt, nicht crashen.
+  const dn = (typeof deriveName === 'function') ? deriveName : (e) => e;
   return {
     id: z.Id,
     azubiId: z.AzubiOid,
-    ausbilderId: z.AusbilderOid,
+    verantwEmail: email,
+    verantwName: email ? dn(email) : '',
     abteilung: z.Abteilung ?? '',
     von: toDateStr(z.Von),
     bis: toDateStr(z.Bis),
@@ -281,7 +285,7 @@ const DB = {
   },
 
   async getAusbilder() {
-    const data = await apiFetch('/users?role=ausbilder');
+    const data = await apiFetch('/users?role=pruefer');
     return data.map(u => normalizeUser(u.oid, u));
   },
 
@@ -302,6 +306,16 @@ const DB = {
     }
   },
 
+  async getAllUsers() {
+    const data = await apiFetch('/users');
+    return data.map(u => normalizeUser(u.oid, u));
+  },
+
+  async updateUser(oid, fields) {
+    const data = await apiFetch(`/users/${oid}`, { method: 'PATCH', body: fields });
+    return normalizeUser(data.oid, data);
+  },
+
   /* Zuweisungen */
   async getAllZuweisungen() {
     const data = await apiFetch('/zuweisungen');
@@ -313,8 +327,8 @@ const DB = {
     return data.map(normalizeZuweisung);
   },
 
-  async getZuweisungenFuerAusbilder(ausbilderId) {
-    const data = await apiFetch(`/zuweisungen?ausbilderOid=${ausbilderId}`);
+  async getZuweisungenFuerVerantw(email) {
+    const data = await apiFetch(`/zuweisungen?verantwEmail=${encodeURIComponent(email)}`);
     return data.map(normalizeZuweisung);
   },
 
@@ -331,7 +345,7 @@ const DB = {
     const me = this.getCurrentUser();
     if (!me) return [];
     const heute = new Date().toISOString().split('T')[0];
-    const zuw = await this.getZuweisungenFuerAusbilder(me.id);
+    const zuw = await this.getZuweisungenFuerVerantw(me.email);
     zuw.sort((a, b) => {
       const aAktiv = a.von <= heute && a.bis >= heute;
       const bAktiv = b.von <= heute && b.bis >= heute;
@@ -346,7 +360,7 @@ const DB = {
   async addZuweisung(zuweisung) {
     const data = await apiFetch('/zuweisungen', { method: 'POST', body: {
       azubiOid:     zuweisung.azubiId,
-      ausbilderOid: zuweisung.ausbilderId,
+      verantwEmail: zuweisung.verantwEmail,
       abteilung:    zuweisung.abteilung,
       von:          zuweisung.von,
       bis:          zuweisung.bis,
@@ -356,6 +370,20 @@ const DB = {
 
   async deleteZuweisung(id) {
     await apiFetch(`/zuweisungen/${id}`, { method: 'DELETE' });
+  },
+
+  /* Abteilungs-Katalog */
+  async getAbteilungen({ all = false } = {}) {
+    return await apiFetch(`/abteilungen${all ? '?all=1' : ''}`);
+  },
+  async createAbteilung(fields) { return await apiFetch('/abteilungen', { method: 'POST', body: fields }); },
+  async updateAbteilung(id, fields) { return await apiFetch(`/abteilungen/${id}`, { method: 'PATCH', body: fields }); },
+  async deleteAbteilung(id) { await apiFetch(`/abteilungen/${id}`, { method: 'DELETE' }); },
+  async addVerantwortliche(abteilungId, email) {
+    return await apiFetch(`/abteilungen/${abteilungId}/verantwortliche`, { method: 'POST', body: { email } });
+  },
+  async removeVerantwortliche(abteilungId, verantwId) {
+    await apiFetch(`/abteilungen/${abteilungId}/verantwortliche/${verantwId}`, { method: 'DELETE' });
   },
 
   /* Wochen */
