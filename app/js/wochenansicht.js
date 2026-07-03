@@ -4,27 +4,44 @@
 
 const quillInstances = {};
 
-// Anti-Spam-Zeichenlimit je Freitext-Feld. Großzügig (≈2 Seiten Text pro Block)
+// Anti-Spam-Zeichenlimit je Freitext-Feld. Großzügig (~3 Seiten Text pro Block)
 // – soll nur exzessiven Spam verhindern (echter Fall: 8,7 Mio. Zeichen), nicht
-// normale Einträge einschränken. Kein sichtbarer Zähler nötig: bei Überschreitung
-// bekommt das Feld eine rote Umrandung, und der Autosave hält den überlangen
-// Inhalt zurück (wird nicht gespeichert), bis wieder gekürzt wird.
-const MAX_EINTRAG_ZEICHEN = 5000;
-function quillUeberLimit(q) { return !!q && Math.max(0, q.getText().length - 1) > MAX_EINTRAG_ZEICHEN; }
-// Rote Umrandung als Inline-Style mit !important: die Theme-Layer (Silk/Glass) und
-// die Seiten-CSS setzen die Editor-Umrandung selbst per !important + hoher
-// Spezifität – nur ein Inline-!important schlägt das zuverlässig.
+// normale Einträge einschränken. Bei Überschreitung: das Feld wird rot umrandet,
+// der Zähler unter dem Feld wird rot – und Speichern wie Abgeben sind gesperrt,
+// bis wieder gekürzt wurde.
+const MAX_EINTRAG_ZEICHEN = 7000;
+function quillLen(q) { return q ? Math.max(0, q.getText().length - 1) : 0; }
+function quillUeberLimit(q) { return quillLen(q) > MAX_EINTRAG_ZEICHEN; }
+// Rote Umrandung nur per Klasse: die Editor-CSS setzt sie als `outline` (nicht
+// `border`), das die Theme-Layer (Silk/Glass) nicht per border-!important
+// überschreiben können – kein Inline-!important-Hack mehr nötig.
 function markQuillLimit(q) {
   if (!q) return;
-  const over = quillUeberLimit(q);
-  q.container.classList.toggle('eintrag-zu-lang', over);
-  if (over) {
-    q.container.style.setProperty('border-color', 'var(--color-error, #e11d48)', 'important');
-    q.container.style.setProperty('box-shadow', '0 0 0 2px var(--color-error, #e11d48)', 'important');
-  } else {
-    q.container.style.removeProperty('border-color');
-    q.container.style.removeProperty('box-shadow');
+  q.container.classList.toggle('eintrag-zu-lang', quillUeberLimit(q));
+}
+// Schreibt einen Zeichenzähler "<N> / 7.000 Zeichen" und färbt ihn bei
+// Überschreitung rot. `el` darf null sein (z. B. Readonly-Ansicht ohne Zähler).
+function renderCharCount(el, q) {
+  if (!el) return;
+  const n = quillLen(q);
+  el.classList.toggle('char-count--over', n > MAX_EINTRAG_ZEICHEN);
+  el.innerHTML = `${n.toLocaleString('de-DE')}`
+    + `<span class="char-count__max"> / ${MAX_EINTRAG_ZEICHEN.toLocaleString('de-DE')} Zeichen</span>`;
+}
+// Sammelt alle aktuell überlangen Editoren der Ansicht (Wochen-Kacheln + die
+// fünf Tage). Basis für die Sperre von „Speichern" und „Zur Abnahme freigeben".
+function ueberLimitEditoren(monday, berichtTyp) {
+  const offenders = [];
+  const check = q => { if (quillUeberLimit(q)) offenders.push(q); };
+  if (berichtTyp === 'wöchentlich') {
+    ['betrieb', 'schule', 'unterweisung'].forEach(id => check(quillInstances['woche_' + id]));
   }
+  for (let i = 0; i < 5; i++) {
+    const d = new Date(monday); d.setDate(monday.getDate() + i);
+    const ds = DateUtil.toISODate(d);
+    ['betrieb', 'schule', 'unterweisung'].forEach(kind => check(quillInstances[`day_${kind}_${ds}`]));
+  }
+  return offenders;
 }
 
 const QUILL_TOOLBAR = [
@@ -757,10 +774,9 @@ document.addEventListener('DOMContentLoaded', async () => {
               ${renderDaySection('betrieb',     dateStr, true, true, readonly, showBetrieb)}
               ${renderDaySection('schule',      dateStr, true, schuleExpanded, readonly, showSchule)}
               ${renderDaySection('unterweisung', dateStr, true, unterweisungExpanded, readonly, !!tag.ort || hasUnterweisung)}
-              <div class="day-card__footer">
-                <span class="day-card__char-count" id="charCount_${dateStr}">0 Zeichen</span>
-                ${!readonly ? `<button class="btn btn-sm btn-ghost" onclick="clearDayEntry('${dateStr}')">Eintrag leeren</button>` : ''}
-              </div>
+              ${!readonly ? `<div class="day-card__footer day-card__footer--actions">
+                <button class="btn btn-sm btn-ghost" onclick="clearDayEntry('${dateStr}')">Eintrag leeren</button>
+              </div>` : ''}
             </div>
             <div class="tag-row__absence-section" id="absenceSection_${dateStr}" style="${isAbwesend ? '' : 'display:none'}">
               <div class="form-group">
@@ -1184,6 +1200,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         ${header}
         <div class="day-section__body">
           <div class="ql-editor-wrap" id="editorWrap_${id}" data-date="${dateStr}" data-section="${kind}"></div>
+          ${readonly ? '' : `<div class="ql-charcount day-card__char-count" id="dayCharCount_${id}" aria-live="polite"></div>`}
         </div>
       </div>
     `;
@@ -1232,14 +1249,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     updateDayCharCount(dateStr);
   }
 
+  // Aktualisiert die drei Feld-Zähler des Tages (Betrieb/Schule/Unterweisung).
   function updateDayCharCount(dateStr) {
-    let total = 0;
     ['betrieb', 'schule', 'unterweisung'].forEach(kind => {
       const q = quillInstances[`day_${kind}_${dateStr}`];
-      if (q) total += Math.max(0, q.getText().length - 1);
+      renderCharCount(document.getElementById(`dayCharCount_${kind}_${dateStr}`), q);
     });
-    const ctr = document.getElementById('charCount_' + dateStr);
-    if (ctr) ctr.textContent = total + ' Zeichen';
   }
 
   // ── Wöchentliches Berichtsheft ────────────────────────────────────
@@ -1412,10 +1427,10 @@ document.addEventListener('DOMContentLoaded', async () => {
           <span class="wochen-kachel__hint">${meta.hint}</span>
         </div>
         <div class="ql-editor-wrap wochen-editor-wrap" id="wochenEditorWrap_${id}" data-kachel="${id}"></div>
-        <div class="day-card__footer">
-          <span class="day-card__char-count" id="wochenCharCount_${id}">0 Zeichen</span>
-          ${!readonly ? `<button class="btn btn-sm btn-ghost" onclick="clearWochenKachel('${id}')">Leeren</button>` : ''}
-        </div>
+        ${readonly ? '' : `<div class="day-card__footer">
+          <span class="day-card__char-count" id="wochenCharCount_${id}" aria-live="polite"></span>
+          <button class="btn btn-sm btn-ghost" onclick="clearWochenKachel('${id}')">Leeren</button>
+        </div>`}
       </div>
     `;
   }
@@ -1708,9 +1723,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       quill.clipboard.dangerouslyPasteHTML(content, 'silent');
     }
 
-    const charCount = Math.max(0, quill.getText().length - 1);
-    const counter = document.getElementById('wochenCharCount_' + id);
-    if (counter) counter.textContent = charCount + ' Zeichen';
+    renderCharCount(document.getElementById('wochenCharCount_' + id), quill);
 
     quillInstances['woche_' + id] = quill;
     markQuillLimit(quill);
@@ -1718,9 +1731,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (!readonly) {
       quill.on('text-change', () => {
         markQuillLimit(quill);
-        const count = Math.max(0, quill.getText().length - 1);
-        const ctr = document.getElementById('wochenCharCount_' + id);
-        if (ctr) ctr.textContent = count + ' Zeichen';
+        renderCharCount(document.getElementById('wochenCharCount_' + id), quill);
         debounceSaveWoche();
       });
       attachActivityAutocomplete(quill, id);
@@ -2017,6 +2028,13 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // Manuelles „Speichern" – flusht Auto-Save Timer und stößt ein Save an.
     document.getElementById('saveBtn')?.addEventListener('click', async () => {
+      // Zeichenlimit-Sperre: bei Überlänge gar nicht erst speichern.
+      const over = ueberLimitEditoren(monday, berichtTyp);
+      if (over.length) {
+        over.forEach(markQuillLimit);
+        Toast.error('Eintrag zu lang', `Ein Feld überschreitet ${MAX_EINTRAG_ZEICHEN.toLocaleString('de-DE')} Zeichen (rot umrandet). Bitte kürzen – dann kannst du speichern.`);
+        return;
+      }
       for (let i = 0; i < 5; i++) {
         const d = new Date(monday);
         d.setDate(monday.getDate() + i);
@@ -2045,6 +2063,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     // nur noch unten in der Bottom-Bar (#releaseBtnBottom); der frühere
     // Hero-Button wurde entfernt.
     document.getElementById('releaseBtnBottom')?.addEventListener('click', async () => {
+      // Zeichenlimit-Sperre: überlange Felder blockieren die Abgabe.
+      const over = ueberLimitEditoren(monday, berichtTyp);
+      if (over.length) {
+        over.forEach(markQuillLimit);
+        Toast.error('Eintrag zu lang', `Ein Feld überschreitet ${MAX_EINTRAG_ZEICHEN.toLocaleString('de-DE')} Zeichen (rot umrandet). Bitte kürzen, bevor du abgibst.`);
+        return;
+      }
       // Pending Auto-Saves flushen, damit Validierung den aktuellsten Stand sieht.
       // Im täglich-Format pro Tag ein Auto-Save; im wöchentlich-Format
       // zusätzlich der Wochen-Auto-Save (für Quills + Lernort/Unterweisung).
@@ -2495,10 +2520,9 @@ function handleTagRowToggle(e) {
 function clearDayEntry(dateStr) {
   ['betrieb', 'schule', 'unterweisung'].forEach(kind => {
     const q = quillInstances[`day_${kind}_${dateStr}`];
-    if (q) q.setContents([]);
+    if (q) { q.setContents([]); markQuillLimit(q); }
+    renderCharCount(document.getElementById(`dayCharCount_${kind}_${dateStr}`), q);
   });
-  const counter = document.getElementById('charCount_' + dateStr);
-  if (counter) counter.textContent = '0 Zeichen';
 }
 
 function toggleDaySection(headerEl) {
@@ -2512,8 +2536,8 @@ function clearWochenKachel(kachelId) {
   const quill = quillInstances['woche_' + kachelId];
   if (quill) {
     quill.setContents([]);
-    const counter = document.getElementById('wochenCharCount_' + kachelId);
-    if (counter) counter.textContent = '0 Zeichen';
+    markQuillLimit(quill);
+    renderCharCount(document.getElementById('wochenCharCount_' + kachelId), quill);
   }
 }
 
