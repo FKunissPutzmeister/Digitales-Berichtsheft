@@ -256,6 +256,65 @@ document.addEventListener('DOMContentLoaded', async () => {
     window.addEventListener('pm-silk-color-change', syncDarstellung);
   }
 
+  /* ── Eingabehilfen ─────────────────────────────────────────────
+     Azubi-Einstellung „Automatisches Ausfüllen vorschlagen": schaltet
+     das Tätigkeits-Autocomplete in der Wochenansicht ein/aus. Rein
+     clientseitig pro Gerät (localStorage, ACTIVITY_SUGGESTIONS_KEY),
+     Default AN. Nur Azubis tippen Tätigkeiten → nur für sie sichtbar. */
+  function suggestionsEnabled() {
+    try { return localStorage.getItem(ACTIVITY_SUGGESTIONS_KEY) !== '0'; }
+    catch (e) { return true; }
+  }
+
+  function buildEingabehilfen() {
+    if (!isAzubi) return '';
+    const on = suggestionsEnabled();
+    const optBtn = (val, label) => `
+      <button type="button" class="theme-mode-btn ${(val === '1') === on ? 'active' : ''}"
+              data-suggestions-set="${val}" aria-pressed="${(val === '1') === on}">
+        <span>${label}</span>
+      </button>`;
+
+    return `
+      <details class="profil-section">
+        <summary class="profil-section__header">
+          <div class="profil-section__icon">
+            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M4 6h11M4 12h7M4 18h11"/><path stroke-linecap="round" stroke-linejoin="round" d="m15 15 2.5 2.5L22 13"/></svg>
+          </div>
+          <div class="profil-section__title">Eingabehilfen</div>
+        </summary>
+        <div class="profil-section__body-wrap"><div class="profil-section__body">
+          <div class="theme-group">
+            <div class="theme-group__label">Automatisches Ausfüllen vorschlagen</div>
+            <p style="font-size:var(--text-sm);color:var(--pm-grey-400);margin:0 0 var(--sp-3)">
+              Schlägt beim Eintragen der Tätigkeiten frühere Einträge zur schnellen Übernahme vor.
+            </p>
+            <div class="theme-mode-row" id="suggestionsToggle">
+              ${optBtn('1', 'Ein')}
+              ${optBtn('0', 'Aus')}
+            </div>
+          </div>
+        </div></div>
+      </details>
+    `;
+  }
+
+  function bindEingabehilfen() {
+    const row = document.getElementById('suggestionsToggle');
+    if (!row) return;
+    row.querySelectorAll('[data-suggestions-set]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const val = btn.dataset.suggestionsSet;   // '1' = Ein, '0' = Aus
+        try { localStorage.setItem(ACTIVITY_SUGGESTIONS_KEY, val); } catch (e) { /* Privacy-Modus */ }
+        row.querySelectorAll('[data-suggestions-set]').forEach(b => {
+          const active = b === btn;
+          b.classList.toggle('active', active);
+          b.setAttribute('aria-pressed', String(active));
+        });
+      });
+    });
+  }
+
   function buildAusbildungsDaten() {
     if (!isAzubi) return '';
 
@@ -602,6 +661,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         ${buildUnternehmensDaten()}
         ${await buildAusbilderTimeline()}
         ${await buildAzubiListe()}
+        ${buildEingabehilfen()}
         ${buildDarstellung()}
         ${buildLogoutBlock()}
       </div>
@@ -645,6 +705,9 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // Darstellung & Themes verdrahten (Klick = sofort anwenden + persistieren)
     bindDarstellung();
+
+    // Eingabehilfen-Schalter verdrahten (nur für Azubis gerendert)
+    bindEingabehilfen();
 
     // Zeitnachweis-Import-Sektion verdrahten (nur für Azubis vorhanden)
     ZeitnachweisUpload.bind(user);

@@ -137,6 +137,14 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   }
 
+  // Nutzer-Einstellung „Automatisches Ausfüllen vorschlagen" (Profil-Seite,
+  // pro Gerät in localStorage – Default AN). Wird bei jedem Editor-Aufbau
+  // gelesen, sodass eine Änderung ab dem nächsten Render greift.
+  function suggestionsEnabled() {
+    try { return localStorage.getItem(ACTIVITY_SUGGESTIONS_KEY) !== '0'; }
+    catch (e) { return true; }
+  }
+
   // Index lazy laden (fire-and-forget). Nur für den eigenen, bearbeitbaren
   // Azubi-View; Ausbilder/Korrektoren bekommen keine Vorschläge (D5).
   function ensureSuggestionIndex(azubiId) {
@@ -152,6 +160,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Typeahead an einen frisch erzeugten Quill-Editor hängen.
   function attachActivityAutocomplete(quill, kind) {
     if (isAusbilder) return;                                 // D5
+    if (!suggestionsEnabled()) return;                       // Profil-Schalter aus
     if (!window.ActivityAutocomplete || !window.ActivitySuggestions) return;
     const azubiId = viewAzubiId || user.id;
     ensureSuggestionIndex(azubiId);
