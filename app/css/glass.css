@@ -511,7 +511,7 @@ body.login-page::after {
 /* ===================================================================
    MODAL – „echtes" Glas-Panel
    -------------------------------------------------------------------
-   UX-Mehrwert: Bestehender Backdrop-Blur (12px) bleibt. Wir ergänzen das
+   UX-Mehrwert: Bestehender Backdrop-Blur (dezent, s. components.css) bleibt. Wir ergänzen das
    Modal selbst um eine glasige Anmutung – Tiefe, ohne Lesbarkeit zu
    verlieren. Hintergrund bleibt deckend genug für Text-Kontrast (AA).
    =================================================================== */
@@ -590,8 +590,7 @@ body.login-page::after {
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.45);
 }
 .btn-primary:hover:not(:disabled) {
-  box-shadow: var(--shadow-yellow),
-              inset 0 1px 0 rgba(255, 255, 255, 0.55);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.55);
 }
 .btn-secondary {
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.10);

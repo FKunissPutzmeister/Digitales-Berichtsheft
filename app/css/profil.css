@@ -48,41 +48,34 @@
 /* [hidden] muss display:flex von .profil-panels überstimmen – sonst bliebe
    das inaktive Panel sichtbar (Attribut gesetzt, aber display gewinnt). */
 .profil-panels[hidden] { display: none; }
-/* Profil-Sektion ist jetzt ein <details>-Element (kollabierbar).
-   Funktioniert sowohl als <details> (mit Accordion-Animation) als auch
-   als reines <div> (Fallback). */
+/* Profil-Sektion — iOS/macOS-Settings-Optik: ruhige Gruppen-Fläche mit
+   kleinem Gruppen-Label, Inhalte immer sichtbar (kein Accordion, kein
+   Header-Balken). Die Profil-Sektionen sind <section>; die Import-Tab-
+   Module (Zeitnachweis/IHK/Export) bleiben <details> — deren Collapse-
+   Zusatzregeln stehen weiter unten und greifen nur dort. */
 .profil-section {
   background: var(--pm-white);
   border: 1px solid var(--pm-grey-200);
   border-radius: var(--r-xl);
   overflow: hidden;
   box-shadow: var(--elev-rest);
-  transition: box-shadow var(--t-normal), border-color var(--t-normal);
-}
-.profil-section:hover { border-color: var(--pm-grey-300); }
-details.profil-section[open] {
-  box-shadow: var(--elev-hover);
-  border-color: var(--pm-grey-300);
 }
 .profil-section__header {
   display: flex;
   align-items: center;
-  gap: var(--sp-3);
-  padding: var(--sp-4) var(--sp-6);
-  border-bottom: 1px solid var(--pm-grey-100);
-  background: var(--pm-grey-50);
-  transition: background var(--t-fast);
+  gap: var(--sp-2);
+  padding: var(--sp-5) var(--sp-6) var(--sp-2);
 }
-/* Wenn Header ein <summary> ist, klickbar mit Chevron-Indikator */
+/* Wenn Header ein <summary> ist (Import-Tab), klickbar mit Chevron */
 summary.profil-section__header {
   cursor: pointer;
   list-style: none;
   user-select: none;
   position: relative;
   padding-right: calc(var(--sp-6) + 28px);
+  padding-bottom: var(--sp-4);
 }
 summary.profil-section__header::-webkit-details-marker { display: none; }
-summary.profil-section__header:hover { background: var(--pm-grey-100); }
 summary.profil-section__header:focus-visible {
   outline: none;
   box-shadow: inset var(--ring-yellow-sm);
@@ -103,36 +96,93 @@ details.profil-section[open] > summary.profil-section__header::after {
   transform: translateY(-35%) rotate(225deg);
   border-color: var(--pm-yellow-darker);
 }
-/* Bei geschlossenem <details> Bottom-Border + Hintergrund des Headers entfernen,
-   damit es optisch wie eine kompakte Karte wirkt */
-details.profil-section:not([open]) > summary.profil-section__header {
-  border-bottom-color: transparent;
-}
 
 .profil-section__icon {
-  width: 36px;
-  height: 36px;
-  background: var(--pm-yellow-bg);
-  border-radius: var(--r-md);
+  width: 20px;
+  height: 20px;
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  transition: background var(--t-fast);
 }
-.profil-section__icon svg { width: 18px; height: 18px; color: var(--pm-yellow-darker); }
-summary.profil-section__header:hover .profil-section__icon {
-  background: var(--pm-yellow-pale);
-}
+.profil-section__icon svg { width: 15px; height: 15px; color: var(--pm-grey-400); }
+/* Gruppen-Label statt Karten-Titel (iOS: kleine Caps über den Zeilen) */
 .profil-section__title {
-  font-family: var(--font-heading);
-  font-size: var(--text-md);
+  font-family: var(--font-body);
+  font-size: var(--text-xs);
   font-weight: var(--fw-bold);
-  color: var(--pm-grey-800);
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--pm-grey-400);
 }
 .profil-section__body {
-  padding: var(--sp-5) var(--sp-6);
+  padding: var(--sp-3) var(--sp-6) var(--sp-6);
 }
+
+/* ── Settings-Rows (iOS): Label + Beschreibung links, Control rechts ── */
+.settings-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-5);
+  padding: var(--sp-3) 0;
+}
+.settings-row + .settings-row { border-top: 1px solid var(--pm-grey-100); }
+.settings-row__text { min-width: 0; }
+.settings-row__label {
+  font-size: var(--text-sm);
+  font-weight: var(--fw-semibold);
+  color: var(--pm-grey-800);
+}
+.settings-row__desc {
+  font-size: var(--text-xs);
+  color: var(--pm-grey-400);
+  margin-top: 2px;
+  line-height: 1.45;
+}
+
+/* ── iOS-Switch ── */
+.ios-switch {
+  position: relative;
+  display: inline-block;
+  width: 46px;
+  height: 28px;
+  flex-shrink: 0;
+}
+.ios-switch input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+.ios-switch__track {
+  position: absolute;
+  inset: 0;
+  border-radius: 999px;
+  background: var(--pm-grey-300);
+  transition: background var(--t-fast);
+  pointer-events: none;
+}
+.ios-switch__track::after {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25), 0 0 0 0.5px rgba(0, 0, 0, 0.04);
+  transition: transform var(--t-normal);
+}
+.ios-switch input:checked + .ios-switch__track { background: #34C759; }
+.ios-switch input:checked + .ios-switch__track::after { transform: translateX(18px); }
+.ios-switch input:focus-visible + .ios-switch__track { box-shadow: var(--ring-yellow); }
+[data-theme="dark"] .ios-switch__track { background: rgba(255, 255, 255, 0.22); }
+[data-theme="dark"] .ios-switch input:checked + .ios-switch__track { background: #30D158; }
 /* Accordion-Animation: <details>-Body wird über grid-template-rows animiert.
    Nur in modernen Browsern; ältere Browser klappen instant (Fallback unten). */
 details.profil-section .profil-section__body-wrap {
@@ -323,12 +373,15 @@ details.profil-section .profil-section__body-wrap > .profil-section__body {
   position: relative;
   overflow: hidden;
 }
-/* Echte Hintergrund-Screenshots je Theme (Standard = Hell/Dunkel-Split). */
+/* Echte Hintergrund-Screenshots je Theme (Standard = Hell/Dunkel-Split).
+   WICHTIG: keine späteren `background:`-Shorthand-Regeln für diese Swatches
+   ergänzen — die resetten background-image und die Screenshots verschwinden. */
 .theme-tile__swatch--standard,
 .theme-tile__swatch--silk,
 .theme-tile__swatch--candy,
 .theme-tile__swatch--iceland,
-.theme-tile__swatch--halloween {
+.theme-tile__swatch--halloween,
+.theme-tile__swatch--christmas {
   background-position: center;
   background-size: cover;
   background-repeat: no-repeat;
@@ -338,8 +391,9 @@ details.profil-section .profil-section__body-wrap > .profil-section__body {
 .theme-tile__swatch--candy     { background-image: url('../assets/themes/candy.png'); }
 .theme-tile__swatch--iceland   { background-image: url('../assets/themes/iceland.png'); }
 .theme-tile__swatch--halloween { background-image: url('../assets/themes/halloween.png'); }
+.theme-tile__swatch--christmas { background-image: url('../assets/themes/christmas.png'); }
 
-/* CMD: zurück zur CSS-Art (Terminal-Prompt + Scanlines) – der Matrix-Screenshot
+/* CMD: bewusst CSS-Art (Terminal-Prompt + Scanlines) – der Matrix-Screenshot
    wirkte zu leer; die alte Vorschau war besser. */
 .theme-tile__swatch--cmd {
   background:
@@ -355,62 +409,6 @@ details.profil-section .profil-section__body-wrap > .profil-section__body {
   font-weight: 700;
   color: #00E64D;
   text-shadow: 0 0 6px rgba(0, 230, 77, 0.6);
-}
-/* Candy Land: Pastell + Regenbogen-Streifen */
-.theme-tile__swatch--candy {
-  background:
-    radial-gradient(circle at 75% 25%, rgba(255, 226, 130, 0.85) 0 18%, transparent 26%),
-    radial-gradient(circle at 25% 65%, rgba(135, 230, 195, 0.85) 0 16%, transparent 24%),
-    linear-gradient(135deg, #FFE3F0 0%, #FFD1E8 100%);
-}
-.theme-tile__swatch--candy::after {
-  content: '';
-  position: absolute;
-  left: 0; right: 0; bottom: 0;
-  height: 8px;
-  background: linear-gradient(90deg, #FF6FB5, #FFC861, #7DE3B7, #7FB2FF);
-}
-/* Iceland: Eis-Himmel, Schnee, Iglu-Kuppel */
-.theme-tile__swatch--iceland {
-  background:
-    radial-gradient(circle at 20% 25%, rgba(255,255,255,0.95) 0 1.6px, transparent 2.8px),
-    radial-gradient(circle at 60% 15%, rgba(255,255,255,0.85) 0 1.2px, transparent 2.4px),
-    radial-gradient(circle at 85% 40%, rgba(255,255,255,0.9) 0 1.6px, transparent 2.8px),
-    radial-gradient(circle at 40% 50%, rgba(255,255,255,0.8) 0 1.2px, transparent 2.4px),
-    linear-gradient(180deg, #BFE0F2 0%, #E6F2FA 100%);
-}
-.theme-tile__swatch--iceland::after {
-  content: '';
-  position: absolute;
-  left: 50%; bottom: -14px;
-  width: 44px; height: 28px;
-  transform: translateX(-50%);
-  border-radius: 50% 50% 0 0;
-  background: #FFFFFF;
-  border: 2px solid #A9CEE6;
-  border-bottom: none;
-}
-
-/* Halloween: Nachthimmel, Vollmond, Kürbis-Glühen am Boden */
-.theme-tile__swatch--halloween {
-  background:
-    radial-gradient(circle at 78% 26%, #fff2cc 0 5px, rgba(255, 242, 204, 0) 7px),
-    radial-gradient(62% 52% at 50% 122%, rgba(255, 117, 24, 0.50), transparent 70%),
-    linear-gradient(180deg, #0b0714 0%, #1d0f26 58%, #0a0510 100%);
-}
-.theme-tile__swatch--christmas {
-  background: linear-gradient(135deg, #0C1422 0%, #C8102E 55%, #1E7B3C 100%);
-}
-
-.theme-tile__swatch--halloween::after {
-  content: '';
-  position: absolute;
-  left: 50%; bottom: -7px;
-  width: 24px; height: 20px;
-  transform: translateX(-50%);
-  border-radius: 50% 50% 46% 46%;
-  background: radial-gradient(circle at 50% 38%, #ff9442, #d2671a);
-  box-shadow: 0 0 10px 2px rgba(255, 117, 24, 0.45);
 }
 
 @media (max-width: 600px) {

@@ -48,11 +48,11 @@ label[for] {
   color: var(--pm-grey-900);
   border-color: var(--pm-yellow);
 }
+/* Hover bewusst ruhig: nur Farbwechsel — kein Glow, kein Anheben
+   (User-Feedback 2026-07: Effekte app-weit zu verspielt). */
 .btn-primary:hover:not(:disabled) {
   background: var(--pm-yellow-dark);
   border-color: var(--pm-yellow-dark);
-  box-shadow: var(--shadow-yellow);
-  transform: translateY(-1px);
 }
 .btn-primary:focus-visible {
   outline: none;
@@ -67,8 +67,6 @@ label[for] {
 .btn-secondary:hover:not(:disabled) {
   background: var(--pm-grey-700);
   border-color: var(--pm-grey-700);
-  box-shadow: var(--shadow-md);
-  transform: translateY(-1px);
 }
 .btn-secondary:focus-visible {
   outline: none;
@@ -111,8 +109,6 @@ label[for] {
 }
 .btn-danger:hover:not(:disabled) {
   background: var(--color-error-mid);
-  box-shadow: var(--shadow-md);
-  transform: translateY(-1px);
 }
 .btn-danger:focus-visible { outline: none; box-shadow: var(--ring-error); }
 
@@ -123,8 +119,6 @@ label[for] {
 }
 .btn-success:hover:not(:disabled) {
   background: var(--color-success-mid);
-  box-shadow: var(--shadow-md);
-  transform: translateY(-1px);
 }
 .btn-success:focus-visible {
   outline: none;
@@ -455,10 +449,10 @@ select.form-control {
   position: fixed;
   inset: 0;
   background: var(--surface-overlay);
-  /* Stärkeres Frost-Glass für mehr Tiefe; CSS-Filter sind GPU-beschleunigt
-     auf modernen Browsern und kosten ~0.5ms pro Frame bei 1080p. */
-  backdrop-filter: blur(12px) saturate(140%);
-  -webkit-backdrop-filter: blur(12px) saturate(140%);
+  /* Dezenter Blur: 12px verschmierte den Hintergrund zu unleserlichem
+     Matsch (v.a. Dark Mode) — 3px dimmt und entschärft, ohne zu vermatschen. */
+  backdrop-filter: blur(3px) saturate(120%);
+  -webkit-backdrop-filter: blur(3px) saturate(120%);
   z-index: var(--z-modal);
   display: flex;
   align-items: center;

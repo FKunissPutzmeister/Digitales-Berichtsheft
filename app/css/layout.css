@@ -566,9 +566,13 @@ body[data-page="jahresansicht"] .main-content,
 body[data-page="ausbildungsstand"] .main-content,
 body[data-page="berichtsheftverwaltung"] .main-content,
 body[data-page="azubi-planer"] .main-content,
-body[data-page="profil"] .main-content,
-body[data-page="fahrgelderstattung"] .main-content {
+body[data-page="profil"] .main-content {
   max-width: min(2200px, 100%);
+}
+/* Fahrgelderstattung: bewusst schmaler (Formular-Charakter) — volle Breite
+   zog Labels/Werte an die Kartenränder auseinander und wirkte „zu eng". */
+body[data-page="fahrgelderstattung"] .main-content {
+  max-width: 1080px;
 }
 
 body[data-page="dashboard"] .main-content {

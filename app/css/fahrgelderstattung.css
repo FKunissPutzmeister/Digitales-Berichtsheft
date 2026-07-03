@@ -1,0 +1,247 @@
+/* ===================================================================
+   FAHRGELDERSTATTUNG.CSS
+   Monatsauswahl, Formular-Vorschau (Modal, editierbar) und Download-
+   Buttons im Stil der better-ess-App. Die Vorschau repliziert das
+   Original-Formular F6344-1 (Logo, Rahmen, Unterschriftsblock).
+   =================================================================== */
+
+/* ── Seiten-Layout: Karten mit Luft ──────────────────────────────── */
+body[data-page="fahrgelderstattung"] .card {
+  padding: var(--sp-7, 28px) var(--sp-8, 32px);
+}
+.fg-divider {
+  border: none;
+  border-top: 1px solid var(--pm-grey-200);
+  margin: var(--sp-6) 0;
+}
+body[data-page="fahrgelderstattung"] .profil-data-grid {
+  margin-top: var(--sp-5);
+  gap: var(--sp-5) var(--sp-8);
+}
+
+/* ── Monatsauswahl (better-ess .fahrtgeld-monat-row) ─────────────── */
+.fg-monate {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+  margin-bottom: var(--sp-6);
+}
+.fg-monat-row {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-4);
+  padding: var(--sp-4) var(--sp-5);
+  border: 1px solid var(--pm-grey-200);
+  border-radius: var(--r-md);
+  background: transparent;
+  cursor: pointer;
+  transition: border-color var(--t-fast), background var(--t-fast);
+}
+.fg-monat-row:hover {
+  border-color: var(--pm-yellow);
+  background: var(--pm-yellow-bg);
+}
+.fg-monat-row:has(input:checked) {
+  border-color: var(--pm-yellow);
+  background: var(--pm-yellow-bg);
+  box-shadow: 0 0 0 1px var(--pm-yellow) inset;
+}
+.fg-monat-row input[type="radio"] {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+  accent-color: var(--pm-yellow-darker);
+}
+.fg-monat-row__titel { flex: 1; min-width: 0; }
+.fg-monat-row__name {
+  font-weight: var(--fw-semibold);
+  text-transform: capitalize;
+}
+.fg-monat-row__detail {
+  font-size: var(--text-sm);
+  color: var(--pm-grey-500);
+  margin-top: 2px;
+}
+
+/* Grüner Haken: Formular für diesen Monat bereits heruntergeladen */
+.fg-dl-check {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  flex-shrink: 0;
+  border-radius: var(--r-full);
+  background: var(--color-success-light);
+  border: 1.5px solid var(--color-success-mid);
+  color: var(--color-success);
+  cursor: help;
+}
+[data-theme="dark"] .fg-dl-check { color: var(--color-success-mid); }
+.fg-dl-check svg { width: 14px; height: 14px; }
+/* Tooltip rechtsbündig am Icon statt zentriert — sonst ragt er am
+   rechten Kartenrand aus dem Viewport. */
+.fg-dl-check[data-tooltip]::after { left: auto; right: 0; transform: none; }
+
+/* ── Vorschau-Modal ──────────────────────────────────────────────── */
+#fgVorschauModal .modal { max-width: 780px; }
+#fgVorschauModal .modal__body { background: var(--pm-grey-100); }
+[data-theme="dark"] #fgVorschauModal .modal__body { background: rgba(0, 0, 0, 0.25); }
+
+/* ── Formular-Replik F6344-1 ─────────────────────────────────────
+   Bewusst immer hell (weißes Blatt) — es ist eine Dokument-Vorschau,
+   kein UI-Element; Themes greifen hier nicht. */
+.fg-sheet {
+  background: #fff;
+  color: #1a1a1a;
+  border: 1.5px solid #333;
+  box-shadow: var(--shadow-md);
+  padding: clamp(16px, 4vw, 36px);
+  max-width: 660px;
+  margin: 0 auto;
+  font-size: 13px;
+  line-height: 1.4;
+  position: relative;
+}
+.fg-sheet__logo {
+  display: block;
+  margin-left: auto;
+  width: 96px;
+  height: auto;
+  margin-bottom: 4px;
+}
+.fg-sheet__titel {
+  font-size: 16px;
+  font-weight: 700;
+  text-align: center;
+  text-decoration: underline;
+  margin-bottom: 24px;
+}
+.fg-sheet__meta {
+  display: grid;
+  grid-template-columns: auto 1fr auto 1fr;
+  gap: 12px 14px;
+  align-items: end;
+  margin-bottom: 22px;
+}
+.fg-sheet__meta-label { color: #333; white-space: nowrap; }
+.fg-sheet__meta-wert {
+  font-weight: 600;
+  border-bottom: 1px solid #444;
+  min-height: 18px;
+  padding: 0 6px 1px;
+}
+.fg-sheet__tabelle {
+  width: 100%;
+  border-collapse: collapse;
+}
+.fg-sheet__tabelle th,
+.fg-sheet__tabelle td {
+  border: 1px solid #333;
+  padding: 4px 8px;
+  text-align: left;
+  height: 25px;
+}
+.fg-sheet__tabelle th {
+  font-weight: 700;
+  text-align: center;
+  background: none;
+}
+.fg-sheet__tabelle col.fg-col-datum  { width: 22%; }
+.fg-sheet__tabelle col.fg-col-betrag { width: 16%; }
+.fg-sheet__tabelle td:last-child { text-align: right; }
+.fg-sheet__tabelle td[contenteditable] { cursor: text; }
+.fg-sheet__tabelle td[contenteditable]:focus {
+  outline: 2px solid var(--pm-yellow, #FFC300);
+  outline-offset: -2px;
+}
+/* Unterschriftsblock + Summe-Box wie im Original (4 Spalten) */
+.fg-sheet__fuss {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr 0.8fr;
+  margin-top: 0;
+}
+.fg-sheet__fuss > div {
+  border: 1px solid #333;
+  border-top: none;
+  padding: 6px 8px 8px;
+  min-height: 96px;
+  display: flex;
+  flex-direction: column;
+}
+.fg-sheet__fuss > div + div { border-left: none; }
+.fg-sheet__sig-kopf {
+  font-weight: 700;
+  text-decoration: underline;
+  text-align: center;
+}
+.fg-sheet__sig-bereich {
+  flex: 1;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  gap: 6px;
+  min-height: 44px;
+}
+.fg-sheet__sig-bereich img { max-height: 40px; max-width: 90%; }
+.fg-sheet__sig-caption {
+  text-align: center;
+  font-size: 11px;
+  color: #333;
+  border-top: 1px solid #666;
+  margin-top: 4px;
+  padding-top: 3px;
+}
+.fg-sheet__summe-box {
+  justify-content: flex-end;
+}
+.fg-sheet__summe-wert {
+  text-align: right;
+  font-weight: 700;
+  font-size: 14px;
+  min-height: 20px;
+}
+.fg-sheet__summe-label {
+  border-top: 1px solid #333;
+  margin: 6px -8px -8px;
+  padding: 4px 8px;
+  font-weight: 700;
+  text-align: center;
+}
+
+/* ── Download-Buttons (better-ess, ruhige Variante) ──────────────── */
+.fg-dl-buttons {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  flex-wrap: wrap;
+}
+.fg-dl-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 20px;
+  font: inherit;
+  font-size: var(--text-sm);
+  font-weight: var(--fw-semibold);
+  color: #fff;
+  background: linear-gradient(135deg, #107c41, #1a9956);
+  border: 1px solid #0d6135;
+  border-radius: var(--r-md);
+  cursor: pointer;
+  box-shadow: 0 1px rgba(255,255,255,0.18) inset;
+  transition: filter var(--t-fast);
+}
+.fg-dl-btn:hover:not(:disabled) { filter: brightness(1.08); }
+.fg-dl-btn:active:not(:disabled) { filter: brightness(0.95); }
+.fg-dl-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.fg-dl-btn--pdf {
+  background: linear-gradient(135deg, #b91c1c, #dc2626);
+  border-color: #8b1414;
+}
+.fg-dl-btn img { height: 22px; width: auto; filter: drop-shadow(0 1px 2px rgba(0,0,0,0.3)); }
+.fg-dl-or {
+  font-size: var(--text-sm);
+  color: var(--pm-grey-400);
+  user-select: none;
+}

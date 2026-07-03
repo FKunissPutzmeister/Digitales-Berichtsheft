@@ -100,12 +100,31 @@
    * @param {string} args.monatKey            – "yyyy-mm"
    * @param {Array<{datum:string}>} args.schultage – gefilterte BS-Tage (sortiert)
    * @param {object} args.konstanten          – {name, persNr, kst, vonHaltestelle, nachHaltestelle, betragProTag}
+   * @param {Array<{datumText:string, von:string, nach:string, betrag:number}>} [args.zeilen]
+   *        – editierte Vorschau-Zeilen; haben Vorrang vor schultage/konstanten
    * @param {ArrayBuffer} [args.unterschriftBytes]
    * @param {string} [args.unterschriftExtension] – 'png' | 'jpeg'
    * @returns {Promise<{blob: Blob, dateiname: string, anzahlTage: number, ueberzaehlig: number}>}
    */
+  function baueEintraege({ zeilen, schultage, konstanten, slots }) {
+    if (Array.isArray(zeilen) && zeilen.length > 0) {
+      return zeilen.slice(0, slots).map(z => ({
+        datumText: z.datumText || '',
+        von: z.von || '',
+        nach: z.nach || '',
+        betrag: Number(z.betrag) || 0,
+      }));
+    }
+    return (schultage || []).slice(0, slots).map(t => ({
+      datumText: isoZuDeutsch(t.datum),
+      von: konstanten.vonHaltestelle || '',
+      nach: konstanten.nachHaltestelle || '',
+      betrag: konstanten.betragProTag || 0,
+    }));
+  }
+
   async function generiereFahrtgeldExcel({
-    templateBytes, monatKey, schultage, konstanten,
+    templateBytes, monatKey, schultage, konstanten, zeilen,
     unterschriftBytes, unterschriftExtension
   }) {
     const ExcelJS = global.ExcelJS;
@@ -150,22 +169,22 @@
       sheet.getCell(`G${r}`).value = null;
     }
 
-    // BS-Tage einfügen. Datum als TEXT (numFmt "@") gegen Zeitzonen-Versatz.
+    // Zeilen einfügen. Datum als TEXT (numFmt "@") gegen Zeitzonen-Versatz.
     const slots = DATEN_BIS_ZEILE - DATEN_VON_ZEILE + 1;
-    const verwendet = schultage.slice(0, slots);
+    const verwendet = baueEintraege({ zeilen, schultage, konstanten, slots });
     for (let i = 0; i < verwendet.length; i++) {
       const zeile = DATEN_VON_ZEILE + i;
       const datumZelle = sheet.getCell(`A${zeile}`);
-      datumZelle.value = isoZuDeutsch(verwendet[i].datum);
+      datumZelle.value = verwendet[i].datumText;
       datumZelle.numFmt = '@';
-      sheet.getCell(`C${zeile}`).value = konstanten.vonHaltestelle || '';
-      sheet.getCell(`E${zeile}`).value = konstanten.nachHaltestelle || '';
-      sheet.getCell(`G${zeile}`).value = konstanten.betragProTag || 0;
+      sheet.getCell(`C${zeile}`).value = verwendet[i].von;
+      sheet.getCell(`E${zeile}`).value = verwendet[i].nach;
+      sheet.getCell(`G${zeile}`).value = verwendet[i].betrag;
     }
 
     // G20-Summe: Formel behalten, aber gecachten Wert überschreiben, sonst zeigt
     // Excel im Schreibschutz den alten Vorlagen-Wert bis "Bearbeiten aktivieren".
-    const korrekteSumme = +(verwendet.length * (konstanten.betragProTag || 0)).toFixed(2);
+    const korrekteSumme = +verwendet.reduce((s, e) => s + (e.betrag || 0), 0).toFixed(2);
     const g20 = sheet.getCell(`G${DATEN_BIS_ZEILE + 1}`);
     g20.value = { formula: `SUM(G${DATEN_VON_ZEILE}:G${DATEN_BIS_ZEILE})`, result: korrekteSumme };
 
@@ -211,7 +230,7 @@
       blob,
       dateiname: baueDateiname(konstanten.name, monatKey, 'xlsx'),
       anzahlTage: verwendet.length,
-      ueberzaehlig: schultage.length - verwendet.length
+      ueberzaehlig: Math.max(0, ((zeilen && zeilen.length) || schultage.length) - verwendet.length)
     };
   }
 
@@ -261,7 +280,7 @@
    * @param {object} args  – wie generiereFahrtgeldExcel, templateBytes = pdf-Vorlage
    */
   async function generiereFahrtgeldPdf({
-    templateBytes, monatKey, schultage, konstanten,
+    templateBytes, monatKey, schultage, konstanten, zeilen,
     unterschriftBytes, unterschriftExtension
   }) {
     const PDFLib = global.PDFLib;
@@ -294,19 +313,16 @@
       trySetField(form, nachFields[i], '');
       trySetField(form, betragFields[i], '');
     }
-    const verwendet = schultage.slice(0, slots);
-    const betragText = (konstanten.betragProTag != null && konstanten.betragProTag > 0)
-      ? konstanten.betragProTag.toFixed(2).replace('.', ',')
-      : '';
+    const verwendet = baueEintraege({ zeilen, schultage, konstanten, slots });
     for (let i = 0; i < verwendet.length; i++) {
-      trySetField(form, datumFields[i], isoZuDeutsch(verwendet[i].datum));
-      if (konstanten.vonHaltestelle) trySetField(form, vonFields[i], konstanten.vonHaltestelle);
-      if (konstanten.nachHaltestelle) trySetField(form, nachFields[i], konstanten.nachHaltestelle);
-      if (betragText) trySetField(form, betragFields[i], betragText);
+      trySetField(form, datumFields[i], verwendet[i].datumText);
+      if (verwendet[i].von) trySetField(form, vonFields[i], verwendet[i].von);
+      if (verwendet[i].nach) trySetField(form, nachFields[i], verwendet[i].nach);
+      if (verwendet[i].betrag > 0) trySetField(form, betragFields[i], verwendet[i].betrag.toFixed(2).replace('.', ','));
     }
 
     // Summe
-    const summe = +(verwendet.length * (konstanten.betragProTag || 0)).toFixed(2);
+    const summe = +verwendet.reduce((s, e) => s + (e.betrag || 0), 0).toFixed(2);
     trySetField(form, layout.summeField, summe.toFixed(2).replace('.', ','));
 
     // Auszubildender-Feld: heutiges Datum (+ optional Unterschrift-Text)
@@ -373,7 +389,7 @@
       blob,
       dateiname: baueDateiname(konstanten.name, monatKey, 'pdf'),
       anzahlTage: verwendet.length,
-      ueberzaehlig: schultage.length - verwendet.length
+      ueberzaehlig: Math.max(0, ((zeilen && zeilen.length) || schultage.length) - verwendet.length)
     };
   }
 

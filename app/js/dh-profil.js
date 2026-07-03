@@ -57,11 +57,11 @@ document.addEventListener('DOMContentLoaded', async () => {
       { label: 'Verantwortliche/r',       value: verantw },
     ];
     return `
-      <details class="profil-section" open>
-        <summary class="profil-section__header">
+      <section class="profil-section">
+        <div class="profil-section__header">
           <div class="profil-section__icon">${Icon('document')}</div>
           <div class="profil-section__title">Stammdaten</div>
-        </summary>
+        </div>
         <div class="profil-section__body-wrap"><div class="profil-section__body">
           <dl class="profil-stammdaten__grid">
             ${fields.map(f => `
@@ -71,7 +71,7 @@ document.addEventListener('DOMContentLoaded', async () => {
               </div>`).join('')}
           </dl>
         </div></div>
-      </details>`;
+      </section>`;
   }
 
   /* ── Persönliche Daten ── */
@@ -82,11 +82,11 @@ document.addEventListener('DOMContentLoaded', async () => {
         <div class="profil-data-value">${esc(value)}</div>
       </div>`;
     return `
-      <details class="profil-section" open>
-        <summary class="profil-section__header">
+      <section class="profil-section">
+        <div class="profil-section__header">
           <div class="profil-section__icon">${Icon('user')}</div>
           <div class="profil-section__title">Persönliche Daten</div>
-        </summary>
+        </div>
         <div class="profil-section__body-wrap"><div class="profil-section__body">
           <div class="profil-data-grid">
             ${item('Vollständiger Name', user.name)}
@@ -95,7 +95,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             ${item('Kürzel', user.initials)}
           </div>
         </div></div>
-      </details>`;
+      </section>`;
   }
 
   /* ── Darstellung & Themes (voll, inkl. Custom-Designs) ──
@@ -136,13 +136,13 @@ document.addEventListener('DOMContentLoaded', async () => {
       </div>`;
 
     return `
-      <details class="profil-section">
-        <summary class="profil-section__header">
+      <section class="profil-section">
+        <div class="profil-section__header">
           <div class="profil-section__icon">
             <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path d="M12 22a10 10 0 1 1 10-10c0 2.21-1.79 3.5-4 3.5h-2.2c-1.1 0-1.8.9-1.8 2 0 .55.2 1.05.55 1.45.35.4.55.9.55 1.45 0 1.1-.9 1.6-2.1 1.6Z"/><circle cx="7.5" cy="11.5" r="1.2" fill="currentColor" stroke="none"/><circle cx="11" cy="7.5" r="1.2" fill="currentColor" stroke="none"/><circle cx="15.5" cy="9" r="1.2" fill="currentColor" stroke="none"/></svg>
           </div>
           <div class="profil-section__title">Darstellung &amp; Themes</div>
-        </summary>
+        </div>
         <div class="profil-section__body-wrap"><div class="profil-section__body">
           <div class="theme-group">
             <div class="theme-group__label">Standard-Modus</div>
@@ -153,7 +153,7 @@ document.addEventListener('DOMContentLoaded', async () => {
           </div>
           ${customGroup}
         </div></div>
-      </details>`;
+      </section>`;
   }
 
   function syncDarstellung() {

@@ -10,7 +10,11 @@ document.addEventListener('DOMContentLoaded', async () => {
      data-page bei jeder Navigation löscht und die Seiten-Skripte es neu setzen. */
   document.body.dataset.page = 'profil';
 
-  const isAzubi = user.role === 'azubi';
+  /* „Ist Azubi" ist eine Fähigkeit, keine Rolle: SSO-Nutzer können z. B.
+     role=developer MIT istAzubi=true sein (Azubi + erhöhte Rechte) und
+     sollen alle Azubi-Sektionen inkl. Themes sehen — wie das Nav-Gating
+     (data-ist-azubi) läuft das über das istAzubi-Flag. */
+  const isAzubi = user.role === 'azubi' || !!user.istAzubi;
   const isAusbilder = user.role === 'pruefer';
   const isAdmin = user.role === 'admin';
 
@@ -53,13 +57,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     ];
 
     return `
-      <details class="profil-section" open>
-        <summary class="profil-section__header">
+      <section class="profil-section">
+        <div class="profil-section__header">
           <div class="profil-section__icon">
             ${Icon('document')}
           </div>
           <div class="profil-section__title">Stammdaten</div>
-        </summary>
+        </div>
         <div class="profil-section__body-wrap"><div class="profil-section__body">
           <dl class="profil-stammdaten__grid">
             ${fields.map(f => `
@@ -70,19 +74,19 @@ document.addEventListener('DOMContentLoaded', async () => {
             `).join('')}
           </dl>
         </div></div>
-      </details>
+      </section>
     `;
   }
 
   function buildPersoenlicheDaten() {
     return `
-      <details class="profil-section" open>
-        <summary class="profil-section__header">
+      <section class="profil-section">
+        <div class="profil-section__header">
           <div class="profil-section__icon">
             ${Icon('user')}
           </div>
           <div class="profil-section__title">Persönliche Daten</div>
-        </summary>
+        </div>
         <div class="profil-section__body-wrap"><div class="profil-section__body">
           <div class="profil-data-grid">
             <div class="profil-data-item">
@@ -109,7 +113,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             </button>
           </div>
         </div></div>
-      </details>
+      </section>
     `;
   }
 
@@ -180,13 +184,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     /* Standardmäßig EINGEKLAPPT (kein open): Darstellung/Themes wird selten
        geändert – die Karte startet kompakt und wird bei Bedarf aufgeklappt. */
     return `
-      <details class="profil-section">
-        <summary class="profil-section__header">
+      <section class="profil-section">
+        <div class="profil-section__header">
           <div class="profil-section__icon">
             <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path d="M12 22a10 10 0 1 1 10-10c0 2.21-1.79 3.5-4 3.5h-2.2c-1.1 0-1.8.9-1.8 2 0 .55.2 1.05.55 1.45.35.4.55.9.55 1.45 0 1.1-.9 1.6-2.1 1.6Z"/><circle cx="7.5" cy="11.5" r="1.2" fill="currentColor" stroke="none"/><circle cx="11" cy="7.5" r="1.2" fill="currentColor" stroke="none"/><circle cx="15.5" cy="9" r="1.2" fill="currentColor" stroke="none"/></svg>
           </div>
           <div class="profil-section__title">${title}</div>
-        </summary>
+        </div>
         <div class="profil-section__body-wrap"><div class="profil-section__body">
           <div class="theme-group">
             <div class="theme-group__label">Standard-Modus</div>
@@ -197,7 +201,7 @@ document.addEventListener('DOMContentLoaded', async () => {
           </div>
           ${customGroup}
         </div></div>
-      </details>
+      </section>
     `;
   }
 
@@ -269,49 +273,35 @@ document.addEventListener('DOMContentLoaded', async () => {
   function buildEingabehilfen() {
     if (!isAzubi) return '';
     const on = suggestionsEnabled();
-    const optBtn = (val, label) => `
-      <button type="button" class="theme-mode-btn ${(val === '1') === on ? 'active' : ''}"
-              data-suggestions-set="${val}" aria-pressed="${(val === '1') === on}">
-        <span>${label}</span>
-      </button>`;
-
     return `
-      <details class="profil-section">
-        <summary class="profil-section__header">
+      <section class="profil-section">
+        <div class="profil-section__header">
           <div class="profil-section__icon">
             <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M4 6h11M4 12h7M4 18h11"/><path stroke-linecap="round" stroke-linejoin="round" d="m15 15 2.5 2.5L22 13"/></svg>
           </div>
           <div class="profil-section__title">Eingabehilfen</div>
-        </summary>
+        </div>
         <div class="profil-section__body-wrap"><div class="profil-section__body">
-          <div class="theme-group">
-            <div class="theme-group__label">Automatisches Ausfüllen vorschlagen</div>
-            <p style="font-size:var(--text-sm);color:var(--pm-grey-400);margin:0 0 var(--sp-3)">
-              Schlägt beim Eintragen der Tätigkeiten frühere Einträge zur schnellen Übernahme vor.
-            </p>
-            <div class="theme-mode-row" id="suggestionsToggle">
-              ${optBtn('1', 'Ein')}
-              ${optBtn('0', 'Aus')}
+          <div class="settings-row">
+            <div class="settings-row__text">
+              <div class="settings-row__label">Automatisches Ausfüllen vorschlagen</div>
+              <div class="settings-row__desc">Schlägt beim Eintragen der Tätigkeiten frühere Einträge zur schnellen Übernahme vor.</div>
             </div>
+            <label class="ios-switch">
+              <input type="checkbox" id="suggestionsToggle" ${on ? 'checked' : ''}
+                     aria-label="Automatisches Ausfüllen vorschlagen">
+              <span class="ios-switch__track" aria-hidden="true"></span>
+            </label>
           </div>
         </div></div>
-      </details>
+      </section>
     `;
   }
 
   function bindEingabehilfen() {
-    const row = document.getElementById('suggestionsToggle');
-    if (!row) return;
-    row.querySelectorAll('[data-suggestions-set]').forEach(btn => {
-      btn.addEventListener('click', () => {
-        const val = btn.dataset.suggestionsSet;   // '1' = Ein, '0' = Aus
-        try { localStorage.setItem(ACTIVITY_SUGGESTIONS_KEY, val); } catch (e) { /* Privacy-Modus */ }
-        row.querySelectorAll('[data-suggestions-set]').forEach(b => {
-          const active = b === btn;
-          b.classList.toggle('active', active);
-          b.setAttribute('aria-pressed', String(active));
-        });
-      });
+    document.getElementById('suggestionsToggle')?.addEventListener('change', (e) => {
+      try { localStorage.setItem(ACTIVITY_SUGGESTIONS_KEY, e.target.checked ? '1' : '0'); }
+      catch (err) { /* Privacy-Modus */ }
     });
   }
 
@@ -323,13 +313,13 @@ document.addEventListener('DOMContentLoaded', async () => {
       : null;
 
     return `
-      <details class="profil-section" open>
-        <summary class="profil-section__header">
+      <section class="profil-section">
+        <div class="profil-section__header">
           <div class="profil-section__icon">
             ${Icon('cap')}
           </div>
           <div class="profil-section__title">Ausbildungsdaten</div>
-        </summary>
+        </div>
         <div class="profil-section__body-wrap"><div class="profil-section__body">
           <div class="profil-data-grid">
             <div class="profil-data-item">
@@ -350,20 +340,20 @@ document.addEventListener('DOMContentLoaded', async () => {
             </div>
           </div>
         </div></div>
-      </details>
+      </section>
     `;
   }
 
   function buildIHKDaten() {
     if (!isAzubi) return '';
     return `
-      <details class="profil-section">
-        <summary class="profil-section__header">
+      <section class="profil-section">
+        <div class="profil-section__header">
           <div class="profil-section__icon">
             ${Icon('document')}
           </div>
           <div class="profil-section__title">IHK-Daten</div>
-        </summary>
+        </div>
         <div class="profil-section__body-wrap"><div class="profil-section__body">
           <div class="profil-data-grid">
             <div class="profil-data-item">
@@ -384,19 +374,19 @@ document.addEventListener('DOMContentLoaded', async () => {
             </div>
           </div>
         </div></div>
-      </details>
+      </section>
     `;
   }
 
   function buildUnternehmensDaten() {
     return `
-      <details class="profil-section">
-        <summary class="profil-section__header">
+      <section class="profil-section">
+        <div class="profil-section__header">
           <div class="profil-section__icon">
             ${Icon('building')}
           </div>
           <div class="profil-section__title">Unternehmensdaten</div>
-        </summary>
+        </div>
         <div class="profil-section__body-wrap"><div class="profil-section__body">
           <div class="profil-data-grid">
             <div class="profil-data-item">
@@ -409,7 +399,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             </div>
           </div>
         </div></div>
-      </details>
+      </section>
     `;
   }
 
@@ -446,19 +436,19 @@ document.addEventListener('DOMContentLoaded', async () => {
     const items = itemsArr.join('');
 
     return `
-      <details class="profil-section" open>
-        <summary class="profil-section__header">
+      <section class="profil-section">
+        <div class="profil-section__header">
           <div class="profil-section__icon">
             ${Icon('clock')}
           </div>
           <div class="profil-section__title">Deine Ausbildungsbeauftragten</div>
-        </summary>
+        </div>
         <div class="profil-section__body-wrap"><div class="profil-section__body">
           <div class="ausbilder-timeline">
             ${items}
           </div>
         </div></div>
-      </details>
+      </section>
     `;
   }
 
@@ -468,30 +458,30 @@ document.addEventListener('DOMContentLoaded', async () => {
     const zuweisungen = isAusbilder ? await DB.getZuweisungenFuerVerantw(user.email) : [];
     if (!zuweisungen.length && isAusbilder) {
       return `
-        <details class="profil-section" open>
-          <summary class="profil-section__header">
+        <section class="profil-section">
+          <div class="profil-section__header">
             <div class="profil-section__icon">
               ${Icon('users')}
             </div>
             <div class="profil-section__title">Zugeordnete Auszubildende</div>
-          </summary>
+          </div>
           <div class="profil-section__body-wrap"><div class="profil-section__body">
             <p style="font-size:var(--text-sm);color:var(--pm-grey-400)">Keine Zuweisungen vorhanden.</p>
           </div></div>
-        </details>
+        </section>
       `;
     }
 
     if (isAdmin) {
       const azubis = await DB.getAzubis();
       return `
-        <details class="profil-section" open>
-          <summary class="profil-section__header">
+        <section class="profil-section">
+          <div class="profil-section__header">
             <div class="profil-section__icon">
               ${Icon('users')}
             </div>
             <div class="profil-section__title">Alle Auszubildenden</div>
-          </summary>
+          </div>
           <div class="profil-section__body-wrap"><div class="profil-section__body">
             <div class="profil-data-grid">
               ${azubis.map(a => `
@@ -505,7 +495,7 @@ document.addEventListener('DOMContentLoaded', async () => {
               `).join('')}
             </div>
           </div></div>
-        </details>
+        </section>
       `;
     }
 
@@ -532,19 +522,19 @@ document.addEventListener('DOMContentLoaded', async () => {
     const items = itemsArr.join('');
 
     return `
-      <details class="profil-section" open>
-        <summary class="profil-section__header">
+      <section class="profil-section">
+        <div class="profil-section__header">
           <div class="profil-section__icon">
             ${Icon('users')}
           </div>
           <div class="profil-section__title">Zugeordnete Auszubildende</div>
-        </summary>
+        </div>
         <div class="profil-section__body-wrap"><div class="profil-section__body">
           <div class="ausbilder-timeline">
             ${items}
           </div>
         </div></div>
-      </details>
+      </section>
     `;
   }
 
