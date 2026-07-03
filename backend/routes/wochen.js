@@ -67,7 +67,20 @@ router.post('/', async (req, res) => {
       azubiOid, kw, jahr, startDatum, endDatum, status, gesamtstunden, tage,
       typ, wochenOrt, unterweisungAktiv, betriebEintrag, schuleEintrag, unterweisungEintrag,
     } = req.body;
+    if (!azubiOid) return res.status(400).json({ error: 'azubiOid fehlt' });
     const pool = await getPool();
+
+    // Zugriffsschutz: nur das eigene Heft ODER ein Heft, für das der Nutzer im
+    // Wochenzeitraum aktiv verantwortlich ist. Ohne diese Prüfung könnte jeder
+    // Angemeldete das Berichtsheft eines beliebigen Azubis überschreiben.
+    const eigenes = azubiOid === req.user.oid;
+    if (!eigenes) {
+      const kontext = await ladeKorrekturKontext(pool, req.user.oid);
+      const zielWoche = { azubiOid, start: startDatum, ende: endDatum };
+      if (!darfWocheKorrigieren(req.user, zielWoche, kontext)) {
+        return res.status(403).json({ error: 'Keine Berechtigung für dieses Berichtsheft.' });
+      }
+    }
 
     // Woche upserten
     const upsert = await pool.request()

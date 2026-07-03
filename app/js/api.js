@@ -15,17 +15,30 @@ const API_BASE = (window.location.port === '5500')
 
 /* ── HTTP-Hilfsfunktionen ─────────────────────────────────────── */
 async function apiFetch(path, options = {}) {
-  const res = await fetch(API_BASE + path, {
-    credentials: 'include',
-    headers: { 'Content-Type': 'application/json', ...options.headers },
-    ...options,
-    body: options.body !== undefined ? JSON.stringify(options.body) : undefined,
-  });
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({ error: res.statusText }));
-    throw new Error(err.error || res.statusText);
+  // Timeout via AbortController: eine hängende Anfrage darf NICHT die ganze Seite
+  // blockieren (sonst „lädt unendlich"). Nach Ablauf bricht der fetch ab -> Fehler,
+  // den der Aufrufer behandeln kann (z. B. requireAuth -> zurück zum Login).
+  const ctrl = new AbortController();
+  const t = setTimeout(() => ctrl.abort(), options.timeout || 15000);
+  try {
+    const res = await fetch(API_BASE + path, {
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json', ...options.headers },
+      ...options,
+      body: options.body !== undefined ? JSON.stringify(options.body) : undefined,
+      signal: ctrl.signal,
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ error: res.statusText }));
+      throw new Error(err.error || res.statusText);
+    }
+    return res.json();
+  } catch (e) {
+    if (e.name === 'AbortError') throw new Error('Zeitüberschreitung – der Server hat nicht rechtzeitig geantwortet. Bitte erneut versuchen.');
+    throw e;
+  } finally {
+    clearTimeout(t);
   }
-  return res.json();
 }
 
 /* Multipart-Upload (Datei-Anhänge). apiFetch serialisiert immer zu JSON und

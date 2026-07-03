@@ -846,22 +846,6 @@ html[data-skin="silk"] body[data-page="wochenansicht"] .day-section .ql-editor {
 }
 .tag-row:last-child { border-bottom: none; }
 
-/* Scroll-Entrance (Nachbau React-Bits <AnimatedList>, useInView): versteckter
-   Startzustand .tag-row--io; der IntersectionObserver in wochenansicht.js
-   ergänzt .tag-row--in, sobald die Zeile zu ≥50 % sichtbar ist (und entfernt
-   es beim Rausscrollen → Animation bei jedem Erscheinen). */
-.tag-row.tag-row--io {
-  opacity: 0;
-  transform: scale(0.7);
-  transform-origin: center;
-  transition: opacity 0.22s ease, transform 0.22s ease;
-  will-change: opacity, transform;
-}
-.tag-row.tag-row--io.tag-row--in {
-  opacity: 1;
-  transform: scale(1);
-}
-
 .tag-row__summary {
   display: grid;
   grid-template-columns: 72px 1fr 1fr 185px 32px;

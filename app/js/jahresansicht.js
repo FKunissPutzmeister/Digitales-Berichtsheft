@@ -225,8 +225,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     const monday = week[0];
     const kw = DateUtil.getKW(monday);
     const kwYear = DateUtil.getKWYear(monday);
-    const todayStr = DateUtil.toISODate(new Date());
-    const isCurrentKW = kw === DateUtil.getKW(new Date()) && kwYear === DateUtil.getKWYear(new Date());
+    const now = new Date();
+    const todayStr = DateUtil.toISODate(now);
+    // Aktuelle KW nur in dem Monat markieren, in dem HEUTE liegt – sonst wäre eine
+    // monatsübergreifende Woche (z. B. KW 27 über Jun/Jul) in zwei Kacheln gelb.
+    const todayInThisMonth = now.getMonth() === monthIdx && now.getFullYear() === year;
+    const isCurrentKW = kw === DateUtil.getKW(now) && kwYear === DateUtil.getKWYear(now) && todayInThisMonth;
 
     const woche = wochen.find(w => w.kw === kw && w.year === kwYear);
     const weekStatus = woche ? woche.status : 'offen';
@@ -238,10 +242,10 @@ document.addEventListener('DOMContentLoaded', async () => {
       const isWE = d.getDay() === 0 || d.getDay() === 6;
       const status = inMonth ? getStatusFuerTag(wochen, dateStr) : '';
 
+      // Nicht-Monatstage: leere Zelle ohne today/Status (sonst gelber Block ohne Zahl).
+      if (!inMonth) return `<div class="day-cell empty"></div>`;
       let classes = 'day-cell';
-      if (!inMonth) classes += ' empty';
       if (isToday) classes += ' today';
-      if (!inMonth) return `<div class="${classes}"></div>`;
       if (isWE) classes += ' weekend status-frei';
       else if (status) classes += ' status-' + status;
 

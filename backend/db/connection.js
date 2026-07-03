@@ -10,8 +10,11 @@ async function getPool() {
       user:     process.env.DB_USER,
       password: process.env.DB_PASSWORD,
       options: {
+        // TLS auf der DB-Verbindung: Credentials + alle PII gehen verschlüsselt
+        // über die Leitung (Schutz vor Sniffing/MITM). trustServerCertificate
+        // bleibt an, weil SQL Express hier ein selbstsigniertes Zertifikat nutzt.
+        encrypt: true,
         trustServerCertificate: true,
-        encrypt: false,
       },
     };
     console.log('[DB] Verbinde mit:', config.server, '/', config.database, '| User:', config.user);

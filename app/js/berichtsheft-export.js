@@ -337,7 +337,7 @@ const BerichtsheftExport = (() => {
     const b = bestaetigung(w, ctx.nameByOid[w.korrigiertVon]);
 
     const inhaltTabelle = taeglich
-      ? `<table class="inhalt">
+      ? `<table class="inhalt inhalt--tag">
            <thead><tr><th style="width:26%">Tag</th><th>Ausgeführte Arbeiten / Unterweisung</th></tr></thead>
            <tbody>${inhalt}</tbody>
          </table>`
@@ -347,7 +347,7 @@ const BerichtsheftExport = (() => {
          </table>`;
 
     return `
-      <section class="sheet ${first ? 'sheet--first' : ''}">
+      <section id="${wocheAnchor(w)}" class="sheet ${first ? 'sheet--first' : ''}">
         <div class="kopf">
           <img class="logo" src="${ctx.logo}" alt="Putzmeister">
           <div class="doktitel">Ausbildungsnachweis</div>
@@ -392,7 +392,7 @@ const BerichtsheftExport = (() => {
           <tr><td class="zlabel">Name</td><td><strong>${esc(_user.name)}</strong></td></tr>
           ${_user.beruf ? `<tr><td class="zlabel">Ausbildungsberuf</td><td>${esc(_user.beruf)}</td></tr>` : ''}
           ${ausb ? `<tr><td class="zlabel">Ausbildungszeitraum</td><td>${esc(ausb)}</td></tr>` : ''}
-          <tr><td class="zlabel">Unternehmen</td><td>Putzmeister</td></tr>
+          <tr><td class="zlabel">Unternehmen</td><td>Putzmeister Concrete Pumps GmbH</td></tr>
           <tr><td class="zlabel">Berichtszeitraum</td><td>${von && bis ? `${esc(von)} – ${esc(bis)}` : '–'}</td></tr>
           <tr><td class="zlabel">Umfang</td><td>${ctx.wochen.length} Wochen</td></tr>
           <tr><td class="zlabel">Exportiert am</td><td>${esc(DateUtil.formatDate(heute()))}</td></tr>
@@ -400,9 +400,51 @@ const BerichtsheftExport = (() => {
       </section>`;
   }
 
+  // Anker-ID je Woche – Ziel der Inhaltsverzeichnis-Links (klickbar im PDF).
+  function wocheAnchor(w) { return `w-${w.year}-${w.kw}`; }
+
+  function statusLabel(w) {
+    if (w.status === 'genehmigt')   return 'Genehmigt';
+    if (w.status === 'freigegeben') return 'In Prüfung';
+    if (w.status === 'abgelehnt')   return 'Zurückgewiesen';
+    return 'In Bearbeitung';
+  }
+  // Distinkte Orte der Woche (nur täglich sinnvoll), z. B. „Schule / Betrieb".
+  function wocheOrte(w) {
+    return [...new Set((w.tage || []).map(t => (t.ort || '').trim()).filter(Boolean))].join(' / ');
+  }
+
+  // Interaktives Inhaltsverzeichnis: eine Zeile je Woche, Woche verlinkt aufs Blatt.
+  function renderInhalt(ctx) {
+    const taeglich = ctx.taeglich;
+    const head = taeglich
+      ? '<tr><th>Berichtswoche</th><th>Zeitraum</th><th>Ort</th><th>Status</th></tr>'
+      : '<tr><th>Berichtswoche</th><th>Zeitraum</th><th>Status</th></tr>';
+    const rows = ctx.wochen.map(w => {
+      const zeitraum = `${DateUtil.formatDate(w.startDate)} – ${DateUtil.formatDate(w.endDate)}`;
+      return `<tr>
+        <td class="z"><a class="toc-link" href="#${wocheAnchor(w)}">KW ${w.kw}/${w.year}</a></td>
+        <td class="z">${esc(zeitraum)}</td>
+        ${taeglich ? `<td class="z">${esc(wocheOrte(w))}</td>` : ''}
+        <td class="z">${esc(statusLabel(w))}</td>
+      </tr>`;
+    }).join('');
+    return `
+      <section class="sheet">
+        <div class="kopf">
+          <img class="logo" src="${ctx.logo}" alt="Putzmeister">
+          <div class="doktitel">Inhaltsverzeichnis</div>
+        </div>
+        <table class="inhalt toc-table">
+          <thead>${head}</thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </section>`;
+  }
+
   // Reine Funktion: ctx-Daten → vollständiges HTML-Dokument. Backend-frei testbar.
   function _buildHtml(ctx) {
-    const sheets = [renderDeckblatt(ctx)];
+    const sheets = [renderDeckblatt(ctx), renderInhalt(ctx)];
     ctx.wochen.forEach(w => sheets.push(renderBlatt(w, ctx, false)));
 
     const ff = (fam, url, weight, fmt) =>
@@ -420,8 +462,9 @@ const BerichtsheftExport = (() => {
   .toolbar { position:sticky; top:0; z-index:10; background:#1A1A1A; color:#fff; padding:10px 16px; display:flex; gap:12px; align-items:center; font-size:10pt; }
   .toolbar button { background:#FFC300; color:#1A1A1A; border:0; border-radius:8px; padding:8px 16px; font:inherit; font-weight:700; cursor:pointer; }
   .toolbar span { opacity:.85; }
-  .sheet { width:210mm; min-height:297mm; background:#fff; margin:14px auto; padding:12mm 14mm 14mm; box-shadow:0 6px 24px rgba(0,0,0,.35); }
-  .kopf { display:flex; flex-direction:column; align-items:flex-start; }
+  /* padding-top:0 -> Banner-Logo bündig an der oberen Blattkante (CD-Regel). */
+  .sheet { width:210mm; min-height:297mm; background:#fff; margin:14px auto; padding:0 14mm 14mm; box-shadow:0 6px 24px rgba(0,0,0,.35); }
+  .kopf { display:flex; flex-direction:column; align-items:flex-start; padding-top:0; }
   .logo { width:45mm; height:auto; display:block; }
   .doktitel { font-family:'Libre Franklin','Segoe UI',Arial,sans-serif; font-weight:700; font-size:16pt; margin-top:4mm; }
   table { border-collapse:collapse; width:100%; }
@@ -449,22 +492,45 @@ const BerichtsheftExport = (() => {
   .cover-title { font-family:'Libre Franklin','Segoe UI',Arial,sans-serif; font-weight:700; font-size:28pt; margin:24mm 0 12mm; }
   .cover-stamm td { padding:2.5mm 4mm 2.5mm 0; font-size:11pt; vertical-align:top; }
   .cover-stamm td.zlabel { width:46mm; }
+  /* Inhaltsverzeichnis: Zebra + klickbare, aber unauffällige Wochen-Links. */
+  .toc-table tbody tr:nth-child(even) .z { background:#f4f4f4; }
+  .toc-link { color:inherit; text-decoration:none; font-weight:700; }
+  .toc-link:hover { text-decoration:underline; }
+  .pm-doc { width:100%; }   /* Bildschirm-Vorschau: Tabelle füllt die Breite, Blätter bleiben zentriert */
+  /* CD-Fußleiste (gelb-graue Bleed-Leiste): nur im Druck, wiederholt je Seite. */
+  .pm-footer { display:none; }
   @media print {
-    @page { size: A4; margin: 10mm 13mm 12mm; }
+    /* Ränder auf 0 (Vollbleed für Kopf-Logo oben und Fußleiste unten); Seiten-
+       einzug macht das .sheet-Padding, der 16mm-Unterrand hält jede Seite frei. */
+    @page { size: A4; margin: 0; }
     body { background:#fff; }
     .toolbar { display:none; }
-    .sheet { width:auto; min-height:0; margin:0; padding:0; box-shadow:none; break-before:page; }
+    .sheet { width:auto; min-height:0; margin:0; padding:0 13mm; box-shadow:none; break-before:page; }
     .sheet--first { break-before:auto; }
     .cover { break-after:page; }
-    table, tr, .sheet > * { break-inside:avoid; }
-    tbody tr { break-inside:avoid; }
+    /* Nur kleine, atomare Blöcke zusammenhalten. Der Inhalt (.inhalt) DARF
+       über Seiten umbrechen – sonst springt langer Text komplett auf eine
+       neue Seite und lässt die vorige fast leer. */
+    .kopf, .stamm, .bestaetigung { break-inside:avoid; }
+    .inhalt--tag tbody tr { break-inside:avoid; }   /* einzelne Tageszeile nicht splitten */
+    /* Laufende CD-Fußleiste: echtes <tfoot> – Chrome wiederholt es am unteren Rand
+       JEDER Druckseite und reserviert dort Platz, sodass der Fließtext davor umbricht
+       (kein Überlappen wie bei position:fixed). Volle Breite (Seitenrand 0). */
+    .pm-doc { width:100%; border-collapse:collapse; }
+    .pm-foot-cell, .pm-body-cell { padding:0; }
+    .pm-footer { display:table-footer-group; }
+    .pm-footer__yellow { height:1.6mm; background:#FFC300; }
+    .pm-footer__grey   { height:2.6mm; margin-top:0.8mm; margin-bottom:2mm; background:#53565A; }
   }
 </style></head><body>
   <div class="toolbar">
     <button type="button" onclick="window.print()">Als PDF speichern / Drucken</button>
     <span>${esc(_user.name)} · Ausbildungsnachweis · ${ctx.wochen.length} Wochen</span>
   </div>
-  ${sheets.join('\n')}
+  <table class="pm-doc">
+    <tfoot class="pm-footer" aria-hidden="true"><tr><td class="pm-foot-cell"><div class="pm-footer__yellow"></div><div class="pm-footer__grey"></div></td></tr></tfoot>
+    <tbody><tr><td class="pm-body-cell">${sheets.join('\n')}</td></tr></tbody>
+  </table>
   <script>
     // Auto-Print nur im echten Top-Fenster (nicht in Preview-iframes) und
     // erst wenn die CD-Fonts geladen sind, sonst rendert das PDF im Fallback.

@@ -212,41 +212,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     window._spinnerCallback = cb;
   }
 
-  /* ── Tagesliste-Entrance via IntersectionObserver ───────────────────
-     Nachbau der React-Bits <AnimatedList> (useInView, triggerOnce:false):
-     jede Tag-Zeile poppt mit scale(0.7)→1 + opacity 0→1 herein, sobald sie
-     zu ≥50 % ins Sichtfeld scrollt, und fährt beim Rausscrollen wieder
-     zurück – also bei JEDEM erneuten Erscheinen, nicht nur beim Laden. Rein
-     vanilla (kein React/motion in der No-Build-App). Die Verstecken-Klasse
-     (.tag-row--io) wird SYNCHRON nach main.innerHTML gesetzt (vor dem ersten
-     Paint → kein Aufblitzen); der Observer ergänzt/entfernt .tag-row--in je
-     nach Sichtbarkeit. reduced-motion → komplett aus (Zeilen bleiben sichtbar). */
-  let tagRowObserver = null;
-  function observeTagRows() {
-    if (tagRowObserver) { tagRowObserver.disconnect(); tagRowObserver = null; }
-    if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
-    if (typeof IntersectionObserver === 'undefined') return;
-    // NUR Zeilen, die beim Laden komplett UNTER dem Fold liegen, bekommen den
-    // versteckten Startzustand und blenden beim Hinscrollen einmalig ein.
-    // Bereits sichtbare Zeilen bleiben unangetastet (kein Pop, kein Verdecken).
-    // Hidden-Base SYNCHRON vor dem ersten Paint setzen → kein Aufblitzen.
-    const vh = window.innerHeight || document.documentElement.clientHeight;
-    const hidden = [];
-    document.querySelectorAll('.tag-cards .tag-row').forEach(row => {
-      if (row.getBoundingClientRect().top >= vh) {
-        row.classList.add('tag-row--io');
-        hidden.push(row);
-      }
-    });
-    if (!hidden.length) return;
-    tagRowObserver = new IntersectionObserver((entries, obs) => {
-      entries.forEach(e => {
-        if (e.isIntersecting) { e.target.classList.add('tag-row--in'); obs.unobserve(e.target); }
-      });
-    }, { threshold: 0.2 });
-    hidden.forEach(row => tagRowObserver.observe(row));
-  }
-
   async function render() {
     detachAllAutocompletes();
     // Wenn dieser Render durch einen KW-Wechsel ausgelöst wurde, hängen
@@ -412,11 +377,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     `;
 
     bindEvents(woche, azubiId, berichtTyp, monday);
-
-    // Tag-Zeilen für die Scroll-Entrance beobachten (jeder Render neu, da
-    // die Zeilen neu erzeugt wurden). SYNCHRON hier, damit der versteckte
-    // Startzustand vor dem ersten Paint sitzt.
-    observeTagRows();
 
     // Silk-Skin SYNCHRON über die frisch gerenderten Buttons/Panels laufen
     // lassen (scan() ist synchron + idempotent). Sonst taggt nur der 90 ms-

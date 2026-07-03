@@ -13,6 +13,13 @@
 
 const { faehigkeitenFuer } = require('../config/berechtigungen');
 
+// Dev-Login (X-Dev-OID-Header, passwortloses /api/auth/login) ist NUR außerhalb
+// der Produktion aktiv. In Produktion authentifiziert ausschließlich die
+// SAML-Session — sonst könnte jeder per Header eine beliebige OID (inkl. Admin)
+// vortäuschen und SSO komplett umgehen.
+// ponytail: NODE_ENV-Gate; feinere Flags (DEV_AUTH=1) erst wenn ein echter Grund kommt.
+const DEV_AUTH_ENABLED = process.env.NODE_ENV !== 'production';
+
 const DEV_USERS = {
   '00000000-0000-0000-0000-000000000001': { name: 'Florian Kuniß',       role: 'azubi',     email: 'florian.kuniss@putzmeister.com',
     beruf: 'Mechatroniker', ausbildungsBeginn: '2024-09-01', ausbildungsEnde: '2027-08-31' },
@@ -46,6 +53,11 @@ function requireAuth(req, res, next) {
   }
 
   // 2. Fallback: Dev-User (Header oder Session-OID) gegen DEV_USERS.
+  //    Nur außerhalb der Produktion — sonst wäre der X-Dev-OID-Header ein
+  //    trivialer Auth-Bypass (beliebige OID inkl. Admin ohne Credentials).
+  if (!DEV_AUTH_ENABLED) {
+    return res.status(401).json({ error: 'Nicht angemeldet.' });
+  }
   const oid = req.headers['x-dev-oid'] || (req.session && req.session.userOid);
   if (!oid || !DEV_USERS[oid]) {
     return res.status(401).json({ error: 'Nicht angemeldet. X-Dev-OID Header, /api/auth/login oder SSO verwenden.' });
@@ -61,4 +73,4 @@ function requireAuth(req, res, next) {
   next();
 }
 
-module.exports = { requireAuth, devAuth: requireAuth, DEV_USERS };
+module.exports = { requireAuth, devAuth: requireAuth, DEV_USERS, DEV_AUTH_ENABLED };

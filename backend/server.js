@@ -5,11 +5,21 @@ const path = require('path');
 const os = require('os');
 const session = require('express-session');
 const FileStore = require('session-file-store')(session);
-const { devAuth, DEV_USERS } = require('./middleware/auth');
+const { devAuth, DEV_USERS, DEV_AUTH_ENABLED } = require('./middleware/auth');
 const { faehigkeitenFuer } = require('./config/berechtigungen');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+const IS_PROD = process.env.NODE_ENV === 'production';
+
+// SESSION_SECRET signiert die Session-Cookies. Fehlt er in Produktion, wäre die
+// Session mit dem öffentlich bekannten Dev-Default fälschbar → harter Abbruch.
+if (IS_PROD && !process.env.SESSION_SECRET) {
+  throw new Error('SESSION_SECRET muss in Produktion gesetzt sein.');
+}
+// Hinter dem IIS-Reverse-Proxy: X-Forwarded-Proto vertrauen, damit secure-Cookies
+// über die HTTPS-Terminierung von IIS korrekt gesetzt werden.
+if (IS_PROD) app.set('trust proxy', 1);
 
 /* Browser behandelt "localhost" und "127.0.0.1" als unterschiedliche
    Origins. Beide explizit erlauben, sonst scheitert der Login wenn
@@ -51,26 +61,35 @@ app.use(session({
   secret: process.env.SESSION_SECRET || 'dev-secret-change-in-prod',
   resave: false,
   saveUninitialized: false,
-  cookie: { secure: false, maxAge: 1000 * 60 * 60 * 24 * 7 },  // 7 Tage
+  cookie: {
+    httpOnly: true,          // kein JS-Zugriff auf das Session-Cookie (XSS-Diebstahl-Schutz)
+    sameSite: 'lax',         // Cookie nicht bei Cross-Site-POSTs mitsenden (CSRF-Dämpfung)
+    secure: IS_PROD,         // in Produktion nur über HTTPS (setzt IIS-HTTPS + trust proxy voraus)
+    maxAge: 1000 * 60 * 60 * 24 * 7,  // 7 Tage
+  },
 }));
 
-// ── Auth-Endpunkte (kein devAuth davor) ──────────────────────────
-app.post('/api/auth/login', (req, res) => {
-  const { oid } = req.body;
-  if (!DEV_USERS[oid]) return res.status(400).json({ error: 'Unbekannte Dev-OID' });
-  req.session.userOid = oid;
-  res.json({ user: { oid, ...DEV_USERS[oid], ...faehigkeitenFuer(oid), istAzubi: DEV_USERS[oid].role === 'azubi', istDhStudent: DEV_USERS[oid].role === 'dhstudent' } });
-});
+// ── Dev-Auth-Endpunkte (passwortlos!) — NUR außerhalb der Produktion ──────
+// In Produktion authentifiziert ausschließlich SAML-SSO. Diese Endpunkte
+// würden sonst jedem ohne Credentials eine beliebige Identität geben.
+if (DEV_AUTH_ENABLED) {
+  app.post('/api/auth/login', (req, res) => {
+    const { oid } = req.body;
+    if (!DEV_USERS[oid]) return res.status(400).json({ error: 'Unbekannte Dev-OID' });
+    req.session.userOid = oid;
+    res.json({ user: { oid, ...DEV_USERS[oid], ...faehigkeitenFuer(oid), istAzubi: DEV_USERS[oid].role === 'azubi', istDhStudent: DEV_USERS[oid].role === 'dhstudent' } });
+  });
 
-// Login per E-Mail (Frontend nutzt weiterhin E-Mail-Formular)
-app.post('/api/auth/login-by-email', (req, res) => {
-  const { email } = req.body;
-  const entry = Object.entries(DEV_USERS).find(([, u]) => u.email === email);
-  if (!entry) return res.status(401).json({ error: 'E-Mail nicht gefunden' });
-  const [oid, u] = entry;
-  req.session.userOid = oid;
-  res.json({ user: { oid, ...u, ...faehigkeitenFuer(oid), istAzubi: u.role === 'azubi', istDhStudent: u.role === 'dhstudent' } });
-});
+  // Login per E-Mail (Frontend nutzt weiterhin E-Mail-Formular)
+  app.post('/api/auth/login-by-email', (req, res) => {
+    const { email } = req.body;
+    const entry = Object.entries(DEV_USERS).find(([, u]) => u.email === email);
+    if (!entry) return res.status(401).json({ error: 'E-Mail nicht gefunden' });
+    const [oid, u] = entry;
+    req.session.userOid = oid;
+    res.json({ user: { oid, ...u, ...faehigkeitenFuer(oid), istAzubi: u.role === 'azubi', istDhStudent: u.role === 'dhstudent' } });
+  });
+}
 
 app.post('/api/auth/logout', (req, res) => {
   req.session.destroy();
