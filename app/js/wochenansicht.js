@@ -4,6 +4,29 @@
 
 const quillInstances = {};
 
+// Anti-Spam-Zeichenlimit je Freitext-Feld. Großzügig (≈2 Seiten Text pro Block)
+// – soll nur exzessiven Spam verhindern (echter Fall: 8,7 Mio. Zeichen), nicht
+// normale Einträge einschränken. Kein sichtbarer Zähler nötig: bei Überschreitung
+// bekommt das Feld eine rote Umrandung, und der Autosave hält den überlangen
+// Inhalt zurück (wird nicht gespeichert), bis wieder gekürzt wird.
+const MAX_EINTRAG_ZEICHEN = 5000;
+function quillUeberLimit(q) { return !!q && Math.max(0, q.getText().length - 1) > MAX_EINTRAG_ZEICHEN; }
+// Rote Umrandung als Inline-Style mit !important: die Theme-Layer (Silk/Glass) und
+// die Seiten-CSS setzen die Editor-Umrandung selbst per !important + hoher
+// Spezifität – nur ein Inline-!important schlägt das zuverlässig.
+function markQuillLimit(q) {
+  if (!q) return;
+  const over = quillUeberLimit(q);
+  q.container.classList.toggle('eintrag-zu-lang', over);
+  if (over) {
+    q.container.style.setProperty('border-color', 'var(--color-error, #e11d48)', 'important');
+    q.container.style.setProperty('box-shadow', '0 0 0 2px var(--color-error, #e11d48)', 'important');
+  } else {
+    q.container.style.removeProperty('border-color');
+    q.container.style.removeProperty('box-shadow');
+  }
+}
+
 const QUILL_TOOLBAR = [
   [{ header: [1, 2, 3, false] }],
   [{ align: '' }, { align: 'center' }, { align: 'right' }, { align: 'justify' }],
@@ -742,7 +765,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             <div class="tag-row__absence-section" id="absenceSection_${dateStr}" style="${isAbwesend ? '' : 'display:none'}">
               <div class="form-group">
                 <label class="form-label">Abwesenheitsnotiz (optional)</label>
-                <textarea class="form-control" rows="2"
+                <textarea class="form-control" rows="2" maxlength="1000"
                           placeholder="Zusätzliche Informationen zur Abwesenheit…"
                           data-field="abwesenheitsnotiz" data-date="${dateStr}"
                           ${readonly ? 'disabled' : ''}>${tag.abwesenheitsnotiz || ''}</textarea>
@@ -1194,9 +1217,11 @@ document.addEventListener('DOMContentLoaded', async () => {
       }
 
       quillInstances[editorKey] = quill;
+      markQuillLimit(quill);
 
       if (!readonly) {
         quill.on('text-change', () => {
+          markQuillLimit(quill);
           updateDayCharCount(dateStr);
           debounceSave(dateStr);
         });
@@ -1688,9 +1713,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (counter) counter.textContent = charCount + ' Zeichen';
 
     quillInstances['woche_' + id] = quill;
+    markQuillLimit(quill);
 
     if (!readonly) {
       quill.on('text-change', () => {
+        markQuillLimit(quill);
         const count = Math.max(0, quill.getText().length - 1);
         const ctr = document.getElementById('wochenCharCount_' + id);
         if (ctr) ctr.textContent = count + ' Zeichen';
@@ -1737,6 +1764,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (schuleQ)       woche.schuleEintrag        = schuleQ.root.innerHTML;
     if (unterweisungQ) woche.unterweisungEintrag  = unterweisungQ.root.innerHTML;
 
+    // Anti-Spam: überlangen Inhalt nicht speichern – rote Umrandung markiert das Feld.
+    const overW = [betriebQ, schuleQ, unterweisungQ].filter(quillUeberLimit);
+    if (overW.length) { overW.forEach(markQuillLimit); return; }
+
     woche.gesamtstunden = (woche.tage || []).filter(t => t.anwesenheit === 'anwesend').length;
     woche.lastSavedAt = new Date().toISOString();
     await DB.saveWoche(woche);
@@ -1781,6 +1812,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Altes Feld nicht mehr pflegen, aber falls Editor noch nicht initialisiert war
     // und der alte Eintrag schon migriert wurde, hier entfernen
     if (qBetrieb && tagData.eintrag) delete tagData.eintrag;
+
+    // Anti-Spam: überlangen Inhalt nicht speichern – rote Umrandung markiert das Feld.
+    const overD = [qBetrieb, qSchule, qUnterweisung].filter(quillUeberLimit);
+    if (overD.length) { overD.forEach(markQuillLimit); return; }
 
     if (tagIdx >= 0) woche.tage[tagIdx] = tagData;
     else woche.tage.push(tagData);
