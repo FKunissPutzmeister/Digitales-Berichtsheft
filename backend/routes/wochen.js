@@ -75,7 +75,7 @@ router.post('/', async (req, res) => {
     // Angemeldete das Berichtsheft eines beliebigen Azubis überschreiben.
     const eigenes = azubiOid === req.user.oid;
     if (!eigenes) {
-      const kontext = await ladeKorrekturKontext(pool, req.user.oid);
+      const kontext = await ladeKorrekturKontext(pool, req.user.email);
       const zielWoche = { azubiOid, start: startDatum, ende: endDatum };
       if (!darfWocheKorrigieren(req.user, zielWoche, kontext)) {
         return res.status(403).json({ error: 'Keine Berechtigung für dieses Berichtsheft.' });
