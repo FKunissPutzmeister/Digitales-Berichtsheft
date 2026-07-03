@@ -2468,6 +2468,29 @@ html[data-theme="cmd"] .b-mitteilungen { --tile-edge: rgba(8,10,14,0.85); }
   font-feature-settings: "tnum" 1;
 }
 
+/* ── Begrüßungs-Banner theme-abhängig ────────────────────────────────
+   Das Basis-Banner nutzt ein kräftiges schwarzes Overlay (0.68) für weißen
+   Text – im Light-Mode wirkte es dadurch deplatziert dunkel, im Dark-Mode
+   dunkler als die Kacheln darunter. Nur die Default-Themes (light/dark)
+   anpassen; die Custom-Themes überschreiben das Banner ohnehin selbst. */
+html[data-theme="light"] .welcome-hero {
+  background-image:
+    linear-gradient(100deg, rgba(255,255,255,0.88) 0%, rgba(255,255,255,0.60) 52%, rgba(255,255,255,0.30) 100%),
+    var(--app-bg-image);
+}
+html[data-theme="light"] .welcome-hero__name,
+html[data-theme="light"] .welcome-hero__kw-num { color: var(--pm-grey-900); }
+html[data-theme="light"] .welcome-hero__sub    { color: var(--pm-grey-600); }
+html[data-theme="light"] .welcome-hero__kw-eye  { color: var(--pm-yellow-darker, #C58E00); }
+
+html[data-theme="dark"] .welcome-hero {
+  /* deutlich leichter (0.56→0.08) – lässt das Hintergrundbild wie bei den
+     Kacheln durchscheinen, links bleibt es für den weißen Text kontrastig. */
+  background-image:
+    linear-gradient(100deg, rgba(4,6,9,0.56) 0%, rgba(4,6,9,0.30) 52%, rgba(4,6,9,0.08) 100%),
+    var(--app-bg-image);
+}
+
 @media (max-width: 640px) {
   .welcome-hero { padding: 20px 24px; min-height: 110px; gap: 16px; }
   .welcome-hero__body { max-width: 58%; }

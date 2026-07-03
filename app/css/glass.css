@@ -1285,6 +1285,11 @@ html.perf-lite[data-theme="dark"] .modal {
    (auch die [data-theme="light"]-Glasfläche von oben) entfernen — es
    bleibt nur der Pfeil. Hover behält einen dezenten neutralen Effekt. */
 .sidebar.collapsed .sidebar__logo-mark { width: 0; opacity: 0; }
+/* Logo-Wrap auf 0 Breite: sonst behält er durch seinen internen 12px-gap eine
+   Restbreite und schiebt den (per justify-content:center) zentrierten Toggle
+   nach rechts → Pfeil wirkt nicht zentriert. */
+.sidebar.collapsed .sidebar__logo-wrap,
+html.sidebar-init-collapsed .sidebar__logo-wrap { width: 0; gap: 0; }
 .sidebar.collapsed .sidebar__header    { justify-content: center; }
 .sidebar.collapsed .sidebar__toggle {
   background: transparent;

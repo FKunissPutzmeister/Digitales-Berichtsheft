@@ -364,7 +364,7 @@ async function renderAzubiDashboard(user) {
   main.innerHTML = `
     <section class="welcome-hero">
       <div class="welcome-hero__body">
-        <h1 class="welcome-hero__name">Hallo, ${user.name.split(' ')[0]}</h1>
+        <h1 class="welcome-hero__name">${getGreeting(today)}, ${firstName(user.name)}</h1>
         <p class="welcome-hero__sub">${weekdayLong}, ${today.getDate()}. ${DateUtil.MONTHS[today.getMonth()]}</p>
       </div>
       <div class="welcome-hero__kw" aria-hidden="true">
@@ -607,7 +607,7 @@ async function renderAusbilderDashboard(user) {
   main.innerHTML = `
     <div class="welcome-banner welcome-banner--ausbilder">
       <div class="welcome-banner__content">
-        <p class="welcome-banner__greeting">${getGreeting()}, ${user.name.split(' ')[0]} 👋</p>
+        <p class="welcome-banner__greeting">${getGreeting()}, ${firstName(user.name)} 👋</p>
         <h1 class="welcome-banner__title">${istKorrektor ? 'Ausbilder-Cockpit' : 'Planungs-Cockpit'}</h1>
         <p class="welcome-banner__info">
           ${istKorrektor

@@ -466,11 +466,24 @@ function getStatusLabel(status) {
   return map[status] || status;
 }
 
-function getGreeting() {
-  const h = new Date().getHours();
-  if (h < 12) return 'Guten Morgen';
-  if (h < 17) return 'Guten Tag';
-  return 'Guten Abend';
+function getGreeting(d = new Date()) {
+  const mins = d.getHours() * 60 + d.getMinutes();
+  if (mins >= 180 && mins < 600)  return 'Guten Morgen'; // 03:00–10:00
+  if (mins >= 600 && mins < 690)  return 'Guten Tag';    // 10:00–11:30
+  if (mins >= 690 && mins < 780)  return 'Mahlzeit';     // 11:30–13:00
+  if (mins >= 780 && mins < 1020) return 'Guten Tag';    // 13:00–17:00
+  return 'Guten Abend';                                  // 17:00–03:00 (über Mitternacht)
+}
+
+// Vorname aus dem Anzeigenamen ziehen. Namen liegen in beiden Formaten vor:
+// "Nachname, Vorname" (dann steht der Vorname hinter dem Komma) oder
+// "Vorname Nachname" (dann ist es das erste Wort). Verhindert das frühere
+// "Hallo, <Nachname>," mit angehängtem Komma.
+function firstName(fullName) {
+  const n = (fullName || '').trim();
+  if (!n) return '';
+  if (n.includes(',')) return (n.split(',')[1] || '').trim().split(/\s+/)[0] || n.split(',')[0].trim();
+  return n.split(/\s+/)[0];
 }
 
 /* ===================================================================
