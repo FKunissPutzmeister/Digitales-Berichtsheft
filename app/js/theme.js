@@ -1822,7 +1822,7 @@
      direkt nach dem ersten /auth/me-Roundtrip. */
   try {
     var cachedRole = localStorage.getItem('userRole');
-    if (cachedRole === 'azubi' || cachedRole === 'ausbilder' || cachedRole === 'admin') {
+    if (cachedRole === 'azubi' || cachedRole === 'pruefer' || cachedRole === 'admin' || cachedRole === 'developer') {
       html.setAttribute('data-role', cachedRole);
     }
   } catch (e) {}

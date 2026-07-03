@@ -11,13 +11,13 @@ document.addEventListener('DOMContentLoaded', async () => {
   document.body.dataset.page = 'profil';
 
   const isAzubi = user.role === 'azubi';
-  const isAusbilder = user.role === 'ausbilder';
+  const isAusbilder = user.role === 'pruefer';
   const isAdmin = user.role === 'admin';
 
   function getRoleLabel(role) {
     switch (role) {
       case 'azubi':     return 'Auszubildende/r';
-      case 'ausbilder': return 'Ausbildungsbeauftragte/r';
+      case 'pruefer': return 'Prüfer';
       case 'admin':     return 'Administrator';
       default:          return role;
     }
@@ -40,7 +40,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (!isAzubi) return '';
 
     const zuw = await DB.getAktuellerAusbilder(user.id);
-    const ausbilder = zuw ? await DB.getUser(zuw.ausbilderId) : null;
+    const ausbilderName = zuw ? (zuw.verantwName || '–') : null;
     const ausbildungsjahr = calcAusbildungsjahr(user.ausbildungsBeginn);
 
     const fields = [
@@ -48,7 +48,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       { label: 'Beruf',                   value: user.beruf || '–' },
       { label: 'Ausbildungsjahr',         value: ausbildungsjahr ? `${ausbildungsjahr}. Jahr` : '–' },
       { label: 'Aktuelle Abteilung',      value: zuw?.abteilung || user.abteilung || '–' },
-      { label: 'Aktuelle/r Ausbilder/in', value: ausbilder ? ausbilder.name : '–' },
+      { label: 'Aktuelle/r Ausbilder/in', value: ausbilderName || '–' },
       { label: 'Ausbildungsbetrieb',      value: user.unternehmen || '–' },
     ];
 
@@ -363,24 +363,27 @@ document.addEventListener('DOMContentLoaded', async () => {
     const today = DateUtil.toISODate(new Date());
     const sorted = [...zuweisungen].sort((a, b) => a.von.localeCompare(b.von));
 
-    const itemsArr = await Promise.all(sorted.map(async z => {
-      const ausb = await DB.getUser(z.ausbilderId);
+    const itemsArr = sorted.map(z => {
+      const verantwName = z.verantwName || '–';
+      const initials = verantwName !== '–'
+        ? verantwName.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase()
+        : '?';
       const isCurrent = z.von <= today && z.bis >= today;
       const dotClass = isCurrent ? 'current' : 'past';
 
       return `
         <div class="ausbilder-tl-item">
-          <div class="ausbilder-tl-dot ${dotClass}">${ausb?.initials || '?'}</div>
+          <div class="ausbilder-tl-dot ${dotClass}">${initials}</div>
           <div class="ausbilder-tl-info">
             <div style="font-size:var(--text-xs);font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--pm-grey-400);margin-bottom:2px">Deine Ausbildungsbeauftragte/r</div>
-            <div class="ausbilder-tl-name">${ausb?.name || '–'}</div>
-            <div class="ausbilder-tl-abt">${z.abteilung || ausb?.abteilung || ''}</div>
+            <div class="ausbilder-tl-name">${verantwName}</div>
+            <div class="ausbilder-tl-abt">${z.abteilung || ''}</div>
             <div class="ausbilder-tl-dates">${DateUtil.formatDate(z.von)} – ${DateUtil.formatDate(z.bis)}</div>
             ${isCurrent ? '<span class="badge badge--genehmigt">Aktueller Zeitraum</span>' : '<span class="badge badge--grey">Vergangener Zeitraum</span>'}
           </div>
         </div>
       `;
-    }));
+    });
     const items = itemsArr.join('');
 
     return `
@@ -403,7 +406,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   async function buildAzubiListe() {
     if (!isAusbilder && !isAdmin) return '';
 
-    const zuweisungen = isAusbilder ? await DB.getZuweisungenFuerAusbilder(user.id) : [];
+    const zuweisungen = isAusbilder ? await DB.getZuweisungenFuerVerantw(user.email) : [];
     if (!zuweisungen.length && isAusbilder) {
       return `
         <details class="profil-section" open>

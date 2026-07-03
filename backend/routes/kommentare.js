@@ -13,7 +13,7 @@ router.post('/:wocheId/kommentare', async (req, res) => {
     const woche = await ladeWocheFuerZugriff(pool, req.params.wocheId);
     if (!woche) return res.status(404).json({ error: 'Woche nicht gefunden' });
 
-    const kontext = await ladeKorrekturKontext(pool, req.user.oid);
+    const kontext = await ladeKorrekturKontext(pool, req.user.email);
     if (!darfWocheKorrigieren(req.user, woche, kontext)) {
       return res.status(403).json({ error: 'Keine Berechtigung, diese Woche zu kommentieren.' });
     }

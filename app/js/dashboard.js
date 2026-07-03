@@ -1007,7 +1007,7 @@ function renderPlanerSignale(sig) {
 
 async function getMeineAzubis(user) {
   const heute = new Date().toISOString().split('T')[0];
-  const meineZuw = (await DB.getZuweisungenFuerAusbilder(user.id))
+  const meineZuw = (await DB.getZuweisungenFuerVerantw(user.email))
     .filter(z => z.von <= heute && z.bis >= heute);
   const azubiIds = [...new Set(meineZuw.map(z => z.azubiId))];
   const users = await Promise.all(azubiIds.map(id => DB.getUser(id)));

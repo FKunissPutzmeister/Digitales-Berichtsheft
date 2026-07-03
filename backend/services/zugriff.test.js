@@ -3,12 +3,12 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const Z = require('./zugriff.js');
 
-const user = { oid: 'U1' };
+const user = { oid: 'U1', email: 'u1@pm.com' };
 const azubi = { oid: 'AZ' };
 
 // Hilfs-Builder
 const zuw = (over = {}) => ({
-  azubiOid: 'AZ', verantwortlicherOid: 'U1',
+  azubiOid: 'AZ', verantwortlicherEmail: 'u1@pm.com',
   von: '2026-06-01', bis: '2026-06-30', ...over,
 });
 const woche = (over = {}) => ({
@@ -49,7 +49,7 @@ test('darfWocheKorrigieren: aktiv + richtiger Azubi + Woche im Zeitraum', () => 
   assert.equal(Z.darfWocheKorrigieren(user, woche(), kontext), true);
 });
 test('darfWocheKorrigieren: falscher Verantwortlicher → false', () => {
-  const kontext = { zuweisungen: [zuw({ verantwortlicherOid: 'X' })], stichtag: '2026-06-15' };
+  const kontext = { zuweisungen: [zuw({ verantwortlicherEmail: 'x@pm.com' })], stichtag: '2026-06-15' };
   assert.equal(Z.darfWocheKorrigieren(user, woche(), kontext), false);
 });
 test('darfWocheKorrigieren: Zuweisung heute nicht aktiv → false', () => {
@@ -59,6 +59,10 @@ test('darfWocheKorrigieren: Zuweisung heute nicht aktiv → false', () => {
 test('darfWocheKorrigieren: Woche außerhalb des Zeitraums → false', () => {
   const kontext = { zuweisungen: [zuw({ von: '2026-06-01', bis: '2026-06-07' })], stichtag: '2026-06-05' };
   assert.equal(Z.darfWocheKorrigieren(user, woche({ start: '2026-06-15', ende: '2026-06-21' }), kontext), false);
+});
+test('darfWocheKorrigieren: Verantwortlich-Vergleich case-insensitiv', () => {
+  const kontext = { zuweisungen: [zuw({ verantwortlicherEmail: 'u1@pm.com' })], stichtag: '2026-06-15' };
+  assert.equal(Z.darfWocheKorrigieren({ oid: 'U1', email: 'U1@PM.com' }, woche(), kontext), true);
 });
 
 // ── hatKorrigiert / darfWocheSehen ─────────────────────────────
@@ -102,9 +106,9 @@ test('darfWocheSehen: leere/fehlende OID öffnet nichts', () => {
 });
 test('darfWocheKorrigieren: leere OID/azubiOid öffnet nichts', () => {
   const kontext = { stichtag: '2026-06-15', zuweisungen: [
-    { azubiOid: '', verantwortlicherOid: '', von: '2026-06-01', bis: '2026-06-30' },
+    { azubiOid: '', verantwortlicherEmail: '', von: '2026-06-01', bis: '2026-06-30' },
   ]};
-  assert.equal(Z.darfWocheKorrigieren({ oid: '' }, woche({ azubiOid: '' }), kontext), false);
+  assert.equal(Z.darfWocheKorrigieren({ oid: '', email: '' }, woche({ azubiOid: '' }), kontext), false);
 });
 test('hatKorrigiert: leere OID öffnet nichts', () => {
   assert.equal(Z.hatKorrigiert({ oid: '' }, woche({ korrigiertVon: '' })), false);
