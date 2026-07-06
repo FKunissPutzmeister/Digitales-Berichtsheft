@@ -42,7 +42,7 @@ async function setFuerAzubi(azubiOid, ausbilderOids) {
     await new sql.Request(tx)
       .input('azubiOid', sql.NVarChar(36), azubiOid)
       .query('DELETE FROM dbo.AusbilderAzubis WHERE AzubiOid = @azubiOid');
-    for (const oid of ausbilderOids) {
+    for (const oid of [...new Set(ausbilderOids)]) {
       await new sql.Request(tx)
         .input('azubiOid', sql.NVarChar(36), azubiOid)
         .input('ausbilderOid', sql.NVarChar(36), oid)

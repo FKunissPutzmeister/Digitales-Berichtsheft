@@ -37,6 +37,7 @@ router.patch('/:oid', async (req, res) => {
 
 // GET /api/users/:azubiOid/ausbilder – aktuell zugewiesene Ausbilder
 router.get('/:azubiOid/ausbilder', async (req, res) => {
+  if (req.user.role !== 'developer') return res.status(403).json({ error: 'Nur Developer' });
   try {
     res.json(await listFuerAzubi(req.params.azubiOid));
   } catch (e) { console.error('[users] ausbilder list:', e); res.status(500).json({ error: 'Fehler' }); }
