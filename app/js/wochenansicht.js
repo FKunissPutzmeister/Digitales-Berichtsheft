@@ -289,9 +289,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     // – noch nicht angelegt
     // – status 'offen' (Erstfreigabe)
     // – status 'abgelehnt' (erneute Freigabe nach Rückgabe durch Ausbilder)
-    const canRelease = user.role === 'azubi'
+    const canRelease = user.istAzubi
       && (!woche || woche.status === 'offen' || woche.status === 'abgelehnt');
-    const canWithdraw = user.role === 'azubi' && woche?.status === 'freigegeben';
+    const canWithdraw = user.istAzubi && woche?.status === 'freigegeben';
     // Anwesenheitstage Mo–Fr (Default = anwesend; Wochenende zählt nie mit).
     // Untouched-Werktage sind ggf. nicht in woche.tage → undefined gilt als anwesend.
     const anwesenheitstageDisplay = zaehleAnwesenheitstage(
@@ -361,7 +361,7 @@ document.addEventListener('DOMContentLoaded', async () => {
               Woche bearbeiten
             </button>
           ` : ''}
-          ${!isReadonly && user.role === 'azubi' ? `
+          ${!isReadonly && user.istAzubi ? `
             <span class="week-toolbar__autosave" title="Letzte Speicherung: ${lastSavedStr || 'noch keine'}">
               <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/><path stroke-linecap="round" stroke-linejoin="round" d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>
               <span>Automatische Speicherung aktiv${lastSavedStr ? ` · letzte Speicherung: <strong>${lastSavedStr} Uhr</strong>` : ''}</span>
@@ -860,7 +860,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     if (woche.status === 'freigegeben') {
-      const isAzubi = currentUser.role === 'azubi';
+      const isAzubi = currentUser.istAzubi;
       return `
         <div class="week-status-banner week-status-banner--freigegeben">
           <div class="week-status-banner__icon" aria-hidden="true">

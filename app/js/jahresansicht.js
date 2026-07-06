@@ -10,14 +10,14 @@ document.addEventListener('DOMContentLoaded', async () => {
   document.body.dataset.page = 'jahresansicht';
 
   let currentYear = new Date().getFullYear();
-  let viewAzubiId = user.role === 'azubi' ? user.id : null;
+  let viewAzubiId = user.istAzubi ? user.id : null;
 
   // Azubi aus sessionStorage übernehmen (Navigation von Wochenansicht/Dashboard)
   const savedAzubiId = sessionStorage.getItem('gotoAzubiId');
-  if (savedAzubiId && user.role !== 'azubi') {
+  if (savedAzubiId && !user.istAzubi) {
     viewAzubiId = savedAzubiId;
     sessionStorage.removeItem('gotoAzubiId');
-  } else if (user.role !== 'azubi' && !viewAzubiId) {
+  } else if (!user.istAzubi && !viewAzubiId) {
     const firstAzubi = (await DB.getAzubis())[0];
     if (firstAzubi) viewAzubiId = firstAzubi.id;
   }

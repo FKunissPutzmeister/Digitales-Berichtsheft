@@ -40,7 +40,7 @@ const ZeitnachweisUpload = (() => {
 
   // ── 1) Profil-Sektion + Modal-Hülle ────────────────────────────
   function renderSection(user) {
-    if (!user || user.role !== 'azubi') return '';
+    if (!user || !user.istAzubi) return '';
 
     const img = name => `assets/zeitnachweis/${name}`;
 

@@ -33,7 +33,7 @@ const IhkImport = (() => {
     // Beide Berichtsformen werden unterstützt: wöchentlich (kaufmännische &
     // IT-Azubis) und täglich (technische Azubis, IHK-Export „auf Tagesbasis").
     // berichtTyp ist pro Azubi in der DB hinterlegt.
-    if (!user || user.role !== 'azubi') return '';
+    if (!user || !user.istAzubi) return '';
     if (user.berichtTyp !== 'wöchentlich' && user.berichtTyp !== 'täglich') return '';
     const taeglich = user.berichtTyp === 'täglich';
     const img = name => `assets/ihk/${name}`;

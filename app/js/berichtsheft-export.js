@@ -93,7 +93,7 @@ const BerichtsheftExport = (() => {
 
   /* ── 1) Profil-Sektionen (Render) ──────────────────────────────── */
   function renderSection(user) {
-    if (!user || user.role !== 'azubi') return '';
+    if (!user || !user.istAzubi) return '';
 
     const logoBtn = (id, inner, label) => `
       <button class="bhx-logo-btn" id="${id}" type="button"
