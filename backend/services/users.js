@@ -32,7 +32,10 @@ function buildReqUser(row) {
     role,
     kannPlanen:   isDev || !!row.KannPlanen,
     istAusbilder: isDev || role === 'pruefer' || !!row.IstAusbilder,
-    istAzubi:     isDev || role === 'azubi',
+    // Azubi = Basisrolle 'azubi' ODER explizites Zusatz-Tag IstAzubi (z.B. ein
+    // Developer, der zugleich ein Berichtsheft führt). Bewusst NICHT isDev —
+    // sonst wäre jeder Developer automatisch Azubi.
+    istAzubi:     role === 'azubi' || !!row.IstAzubi,
     istDhStudent: role === 'dhstudent', // developer NICHT (sonst Zwangs-Redirect)
     // Profilfelder (Azubi-Ansicht + Admin-UI brauchen sie):
     beruf:             row.Beruf ?? null,
@@ -51,6 +54,7 @@ const PATCH_COLUMNS = {
   role:             { col: 'Role',             type: () => sql.NVarChar(20) },
   kannPlanen:       { col: 'KannPlanen',       type: () => sql.Bit },
   istAusbilder:     { col: 'IstAusbilder',     type: () => sql.Bit },
+  istAzubi:         { col: 'IstAzubi',         type: () => sql.Bit },
   beruf:            { col: 'Beruf',            type: () => sql.NVarChar(200) },
   ausbildungBeginn: { col: 'AusbildungBeginn', type: () => sql.Date },
   ausbildungEnde:   { col: 'AusbildungEnde',   type: () => sql.Date },
@@ -160,7 +164,9 @@ async function listUsers({ role, exclRole, inclInactive } = {}) {
   const r = pool.request();
   const where = [];
   if (!inclInactive) where.push('Aktiv = 1');
-  if (role)     { r.input('role', sql.NVarChar(20), role);     where.push('Role = @role'); }
+  // Azubi-Listen (role='azubi') schließen zusätzlich getaggte Azubis (IstAzubi=1)
+  // ein — z.B. ein Developer, der zugleich ein Berichtsheft führt.
+  if (role)     { r.input('role', sql.NVarChar(20), role);     where.push(role === 'azubi' ? '(Role = @role OR IstAzubi = 1)' : 'Role = @role'); }
   if (exclRole) { r.input('excl', sql.NVarChar(20), exclRole); where.push('Role <> @excl'); }
   const clause = where.length ? where.join(' AND ') : '1=1';
   const res = await r.query(`SELECT * FROM dbo.Users WHERE ${clause} ORDER BY Name`);

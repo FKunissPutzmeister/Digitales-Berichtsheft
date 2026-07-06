@@ -97,6 +97,10 @@ document.addEventListener('DOMContentLoaded', async () => {
                 Ist Ausbilder
               </label>
               <label class="nv-form__check-label">
+                <input type="checkbox" id="nvIstAzubi" name="istAzubi">
+                Ist Azubi
+              </label>
+              <label class="nv-form__check-label">
                 <input type="checkbox" id="nvAktiv" name="aktiv">
                 Aktiv
               </label>
@@ -133,12 +137,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     document.getElementById('nvAusbildungEnde').value   = u.ausbildungsEnde   || '';
     document.getElementById('nvKannPlanen').checked  = !!u.kannPlanen;
     document.getElementById('nvIstAusbilder').checked = !!u.istAusbilder;
+    document.getElementById('nvIstAzubi').checked    = !!u.istAzubi;
     document.getElementById('nvAktiv').checked       = u.aktiv !== false;
 
-    /* Dauerhafte Ausbilder nur bei Azubis */
+    /* Dauerhafte Ausbilder nur bei Azubis (inkl. getaggter Azubis, z.B. Developer+Azubi) */
     const ausbilderBlock = document.getElementById('nvAusbilderBlock');
     const ausbilderList  = document.getElementById('nvAusbilderList');
-    if (u.role === 'azubi') {
+    if (u.istAzubi) {
       ausbilderBlock.hidden = false;
       ausbilderList.innerHTML = '<p class="form-hint">Lädt…</p>';
       const kandidaten = users.filter(x => x.istAusbilder);
@@ -185,13 +190,14 @@ document.addEventListener('DOMContentLoaded', async () => {
       ausbildungEnde:   endeVal    || null,
       kannPlanen:       document.getElementById('nvKannPlanen').checked,
       istAusbilder:     document.getElementById('nvIstAusbilder').checked,
+      istAzubi:         document.getElementById('nvIstAzubi').checked,
       aktiv:            document.getElementById('nvAktiv').checked,
     };
 
     try {
       const updated = await DB.updateUser(editingUser.oid, fields);
-      /* Dauerhafte Ausbilder nur bei Azubis mitschreiben */
-      if (editingUser.role === 'azubi') {
+      /* Dauerhafte Ausbilder nur bei Azubis (inkl. getaggter) mitschreiben */
+      if (editingUser.istAzubi) {
         const oids = [...document.querySelectorAll('.nv-ausbilder-cb:checked')].map(cb => cb.value);
         await DB.setAusbilderFuerAzubi(editingUser.oid, oids);
       }

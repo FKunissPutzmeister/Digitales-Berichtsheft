@@ -23,7 +23,7 @@ async function listFuerAzubi(azubiOid) {
 async function validateZuordnung(azubiOid, ausbilderOids) {
   const azubi = await getUserByOid(azubiOid);
   if (!azubi) return { ok: false, status: 404, error: 'Azubi nicht gefunden.' };
-  if (buildReqUser(azubi).role !== 'azubi') return { ok: false, status: 400, error: 'Ziel-Nutzer ist kein Azubi.' };
+  if (!buildReqUser(azubi).istAzubi) return { ok: false, status: 400, error: 'Ziel-Nutzer ist kein Azubi.' };
   for (const oid of ausbilderOids) {
     const row = await getUserByOid(oid);
     if (!row || !buildReqUser(row).istAusbilder) {

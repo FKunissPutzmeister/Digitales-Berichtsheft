@@ -43,12 +43,18 @@ test('buildReqUser: IstAusbilder-Spalte ist additiver Grant', () => {
   assert.equal(u.kannPlanen, true);
 });
 
-test('buildReqUser: developer bekommt alle Flags, aber NICHT istDhStudent', () => {
+test('buildReqUser: developer bekommt Dev-Flags, aber NICHT automatisch istAzubi/istDhStudent', () => {
   const u = buildReqUser({ Oid: 'g4', Role: 'developer', KannPlanen: false, IstAusbilder: false });
   assert.equal(u.kannPlanen, true);
   assert.equal(u.istAusbilder, true);
-  assert.equal(u.istAzubi, true);
+  assert.equal(u.istAzubi, false); // Developer ist NICHT automatisch Azubi — nur mit IstAzubi-Tag
   assert.equal(u.istDhStudent, false);
+});
+
+test('buildReqUser: IstAzubi-Spalte ist additiver Azubi-Grant (z.B. Developer, der ein Heft führt)', () => {
+  const u = buildReqUser({ Oid: 'g4b', Role: 'developer', KannPlanen: false, IstAusbilder: false, IstAzubi: true });
+  assert.equal(u.istAzubi, true);
+  assert.equal(u.istAusbilder, true); // Dev-Flags bleiben erhalten
 });
 
 test('buildReqUser(null) gibt null', () => {
