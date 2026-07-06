@@ -45,7 +45,7 @@ async function pruefeBearbeitbar(pool, wocheId, user) {
     return { status: 403, error: 'Woche ist schreibgeschützt' };
   }
   if (woche.azubiOid === user.oid) return { ok: true };
-  const kontext = await ladeKorrekturKontext(pool, user.email);
+  const kontext = await ladeKorrekturKontext(pool, user);
   if (darfWocheKorrigieren(user, woche, kontext)) return { ok: true };
   return { status: 403, error: 'Keine Berechtigung für diese Woche' };
 }
@@ -56,7 +56,7 @@ router.get('/:wocheId/anhaenge', async (req, res) => {
     const pool = await getPool();
     const woche = await ladeWocheFuerZugriff(pool, req.params.wocheId);
     if (!woche) return res.status(404).json({ error: 'Woche nicht gefunden' });
-    const kontext = await ladeKorrekturKontext(pool, req.user.email);
+    const kontext = await ladeKorrekturKontext(pool, req.user);
     if (!darfWocheSehen(req.user, woche, kontext)) {
       return res.status(403).json({ error: 'Keine Berechtigung für diese Woche' });
     }
@@ -123,7 +123,7 @@ router.get('/anhaenge/:id/download', async (req, res) => {
     if (!row) return res.status(404).json({ error: 'Anhang nicht gefunden' });
 
     const woche = await ladeWocheFuerZugriff(pool, row.WocheId);
-    const kontext = await ladeKorrekturKontext(pool, req.user.email);
+    const kontext = await ladeKorrekturKontext(pool, req.user);
     if (!woche || !darfWocheSehen(req.user, woche, kontext)) {
       return res.status(403).json({ error: 'Keine Berechtigung für diesen Anhang' });
     }
