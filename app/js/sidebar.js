@@ -39,12 +39,12 @@ function buildSidebar(activeNavId) {
         <span class="sidebar__link-label">Jahresansicht</span>
       </a>
 
-      <span class="sidebar__section-label nav-azubi-only">Sonstiges</span>
+      <span class="sidebar__section-label nav-durchlauf">Sonstiges</span>
       <a href="fahrgelderstattung.html" class="sidebar__link nav-azubi-only" id="nav-fahrgelderstattung">
         <span class="sidebar__link-icon">${Icon('document')}</span>
         <span class="sidebar__link-label">Fahrgelderstattung</span>
       </a>
-      <a href="azubi-planer.html" class="sidebar__link nav-azubi-only" id="nav-abteilungsplan">
+      <a href="azubi-planer.html" class="sidebar__link nav-durchlauf" id="nav-abteilungsplan">
         <span class="sidebar__link-icon">${Icon('planer')}</span>
         <span class="sidebar__link-label">Abteilungsdurchlauf</span>
       </a>

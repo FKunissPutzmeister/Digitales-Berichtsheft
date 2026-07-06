@@ -105,8 +105,48 @@ function azubiTimelineHtml(zuw, planYear) {
     </div>`;
 }
 
-/* Read-only Sicht für Azubis: zeigt ausschließlich die eigenen Zuweisungen –
-   pro Eintrag Abteilung, Zeitraum und Ansprechpartner/Verantwortliche/r. */
+/* Status-Badge einer Zuweisung (relativ zu heute). */
+function durchlaufStatus(z, heute) {
+  if (!z.von || !z.bis)   return { label: 'Offen',      badge: 'badge--grey' };
+  if (z.bis < heute)      return { label: 'Beendet',    badge: 'badge--grey' };
+  if (z.von > heute)      return { label: 'Zukünftig', badge: 'badge--freigegeben' };
+  return { label: 'Aktuell', badge: 'badge--genehmigt' };
+}
+
+/* Read-only Durchlauf-Inhalt (Timeline + Karten) EINES Azubis. Gemeinsame Basis
+   für die Azubi-Eigensicht und die Ausbilder-Sicht. */
+async function durchlaufBodyHtml(azubiId) {
+  const heute = DateUtil.toISODate(new Date());
+  const planYear = new Date().getFullYear();
+  const zuw = (await DB.getZuweisungenFuerAzubi(azubiId))
+    .slice().sort((a, b) => (a.von || '').localeCompare(b.von || ''));
+  const card = z => {
+    const s = durchlaufStatus(z, heute);
+    return `
+    <div class="durchlauf-card${s.label === 'Aktuell' ? ' durchlauf-card--current' : ''}">
+      <span class="badge ${s.badge} durchlauf-card__badge">${s.label}</span>
+      <div class="durchlauf-card__abt">${escHtml(z.abteilung) || '–'}</div>
+      <div class="durchlauf-card__zeit">${DateUtil.formatDate(z.von)} – ${DateUtil.formatDate(z.bis)}</div>
+      <div class="durchlauf-card__verantw">Ansprechpartner: <strong>${escHtml(z.verantwName || '–')}</strong></div>
+    </div>`;
+  };
+  return `
+    ${zuw.length ? azubiTimelineHtml(zuw, planYear) : ''}
+    ${zuw.length
+      ? `<div class="durchlauf-list">${zuw.map(card).join('')}</div>`
+      : `<div class="durchlauf-empty">Aktuell keine Abteilung zugewiesen.</div>`}`;
+}
+
+/* Timeline nach dem Rendern auf „heute" scrollen. */
+function scrollDurchlaufToToday() {
+  const azTs = document.getElementById('azubiGanttScroll');
+  if (!azTs) return;
+  const jan1 = new Date(new Date().getFullYear(), 0, 1);
+  const dayIdx = Math.round((new Date() - jan1) / 86400000);
+  requestAnimationFrame(() => { azTs.scrollLeft = Math.max(0, (dayIdx - 3) * 30); });
+}
+
+/* Read-only Sicht für Azubis: der eigene Abteilungsdurchlauf. */
 async function renderAzubiDurchlauf(user) {
   // Aktiven Nav-Punkt korrigieren (der Azubi erreicht die Seite über „Abteilungsdurchlauf").
   document.getElementById('nav-planer')?.classList.remove('active');
@@ -115,49 +155,59 @@ async function renderAzubiDurchlauf(user) {
   const main = document.getElementById('mainContent');
   // Volle Seitenbreite (gleicher Marker wie der Planer) – die Timeline nutzt so den ganzen Platz.
   document.body.dataset.page = 'azubi-planer';
-  const esc = escHtml;  // identisch zur Datei-Funktion escHtml – kein dupliziertes Escape-Regex
 
   try {
-    const heute = DateUtil.toISODate(new Date());
-    const planYearAz = new Date().getFullYear();
-
-    const zuwRaw = await DB.getZuweisungenFuerAzubi(user.id);
-    const zuw = zuwRaw.slice().sort((a, b) => (a.von || '').localeCompare(b.von || ''));
-    const rows = await Promise.all(zuw.map(async z => {
-      let status;
-      if (!z.von || !z.bis)    status = { label: 'Offen',      badge: 'badge--grey' };
-      else if (z.bis < heute)  status = { label: 'Beendet',    badge: 'badge--grey' };
-      else if (z.von > heute)  status = { label: 'Zukünftig', badge: 'badge--freigegeben' };
-      else                     status = { label: 'Aktuell',   badge: 'badge--genehmigt' };
-      return { z, status };
-    }));
-
-    const card = r => `
-    <div class="durchlauf-card${r.status.label === 'Aktuell' ? ' durchlauf-card--current' : ''}">
-      <span class="badge ${r.status.badge} durchlauf-card__badge">${r.status.label}</span>
-      <div class="durchlauf-card__abt">${esc(r.z.abteilung) || '–'}</div>
-      <div class="durchlauf-card__zeit">${DateUtil.formatDate(r.z.von)} – ${DateUtil.formatDate(r.z.bis)}</div>
-      <div class="durchlauf-card__verantw">Ansprechpartner: <strong>${esc(r.z.verantwName || '–')}</strong></div>
-    </div>`;
-
     main.innerHTML = `
-    <div class="page-header">
-      <div class="page-header__left">
-        <h1 class="page-title">Mein Abteilungsdurchlauf</h1>
-      </div>
-    </div>
-    ${zuw.length ? azubiTimelineHtml(zuw, planYearAz) : ''}
-    ${rows.length
-      ? `<div class="durchlauf-list">${rows.map(card).join('')}</div>`
-      : `<div class="durchlauf-empty">Dir ist aktuell keine Abteilung zugewiesen.</div>`}
-  `;
+    <div class="page-header"><div class="page-header__left">
+      <h1 class="page-title">Mein Abteilungsdurchlauf</h1>
+    </div></div>
+    ${await durchlaufBodyHtml(user.id)}`;
+    scrollDurchlaufToToday();
+  } catch (err) {
+    main.innerHTML = `<div class="durchlauf-empty">Abteilungsdurchlauf konnte nicht geladen werden.</div>`;
+    if (window.Toast && typeof Toast.error === 'function') Toast.error('Fehler', 'Abteilungsdurchlauf konnte nicht geladen werden.');
+  }
+}
 
-    const azTs = document.getElementById('azubiGanttScroll');
-    if (azTs) {
-      const jan1Az = new Date(planYearAz, 0, 1);
-      const dayIdx = Math.round((new Date() - jan1Az) / 86400000);
-      requestAnimationFrame(() => { azTs.scrollLeft = Math.max(0, (dayIdx - 3) * 30); });
+/* Read-only Sicht für Ausbilder: der Abteilungsdurchlauf ihrer betreuten Azubis,
+   mit Azubi-Selektor (gleiche Chips wie Wochen-/Jahresansicht). Keine Planungs-
+   oder Verwaltungsrechte – reine Anzeige. */
+async function renderAusbilderDurchlauf(user) {
+  document.getElementById('nav-planer')?.classList.remove('active');
+  document.getElementById('nav-abteilungsplan')?.classList.add('active');
+  document.body.dataset.page = 'azubi-planer';
+  const main = document.getElementById('mainContent');
+
+  try {
+    const azubis = await DB.getSelectableAzubis();
+    const header = `<div class="page-header"><div class="page-header__left">
+      <h1 class="page-title">Abteilungsdurchlauf</h1>
+    </div></div>`;
+
+    if (!azubis.length) {
+      main.innerHTML = `${header}
+        <div class="durchlauf-empty">Ihnen ist aktuell kein Azubi zugewiesen.</div>`;
+      return;
     }
+
+    const selectorHtml = (currentId) => `
+      <div style="margin-bottom:var(--sp-4);display:flex;align-items:center;gap:var(--sp-3);flex-wrap:wrap">
+        <span style="font-size:var(--text-sm);font-weight:700;color:var(--pm-grey-600)">Azubi:</span>
+        ${azubis.map(a => `
+          <button class="ausbilder-chip ${a.id === currentId ? 'selected' : ''}" data-azubi-id="${a.id}">
+            <div class="avatar" style="width:28px;height:28px;font-size:11px">${a.initials}</div>
+            ${escHtml(a.name)}
+          </button>`).join('')}
+      </div>`;
+
+    async function renderFor(azubiId) {
+      main.innerHTML = `${header}${selectorHtml(azubiId)}${await durchlaufBodyHtml(azubiId)}`;
+      main.querySelectorAll('.ausbilder-chip').forEach(btn =>
+        btn.addEventListener('click', () => renderFor(btn.dataset.azubiId)));
+      scrollDurchlaufToToday();
+    }
+
+    await renderFor(azubis[0].id);
   } catch (err) {
     main.innerHTML = `<div class="durchlauf-empty">Abteilungsdurchlauf konnte nicht geladen werden.</div>`;
     if (window.Toast && typeof Toast.error === 'function') Toast.error('Fehler', 'Abteilungsdurchlauf konnte nicht geladen werden.');
@@ -170,7 +220,9 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   if (!user.kannPlanen) {
     if (user.istAzubi) {
-      await renderAzubiDurchlauf(user);   // read-only Sicht: eigene Abteilungs-Durchläufe
+      await renderAzubiDurchlauf(user);       // read-only: eigener Abteilungsdurchlauf
+    } else if (user.istAusbilder) {
+      await renderAusbilderDurchlauf(user);   // read-only: Durchlauf der betreuten Azubis
     } else {
       window.location.href = 'dashboard.html';
     }

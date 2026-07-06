@@ -51,6 +51,9 @@ function applyCapabilities(caps) {
   document.querySelectorAll('.nav-azubi-only').forEach(el => {
     el.style.display = caps.istAzubi ? '' : 'none';
   });
+  document.querySelectorAll('.nav-durchlauf').forEach(el => {
+    el.style.display = (caps.istAzubi || caps.istAusbilder) ? '' : 'none';
+  });
   document.querySelectorAll('.nav-developer-only').forEach(el => {
     el.style.display = caps.role === 'developer' ? '' : 'none';
   });
