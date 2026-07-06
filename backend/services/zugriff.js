@@ -42,9 +42,19 @@ function hatKorrigiert(user, woche) {
   return Array.isArray(woche.kommentarAutoren) && woche.kommentarAutoren.includes(user.oid);
 }
 
+// Ist der Nutzer dauerhaft (datumslos) als Ausbilder für diesen Azubi eingetragen?
+// kontext.dauerAusbilderAzubiOids ist bereits auf den aktuellen Nutzer gefiltert.
+function istDauerAusbilder(woche, kontext) {
+  if (!woche.azubiOid) return false;
+  const oids = (kontext && kontext.dauerAusbilderAzubiOids) || [];
+  return oids.includes(woche.azubiOid);
+}
+
 // Darf der Nutzer die Woche AKTIV korrigieren (schreiben)?
 function darfWocheKorrigieren(user, woche, kontext) {
-  if (!user.email || !woche.azubiOid) return false;
+  if (!woche.azubiOid) return false;
+  if (istDauerAusbilder(woche, kontext)) return true; // dauerhaft: keine Datums-/Wochenprüfung
+  if (!user.email) return false;
   const zuweisungen = (kontext && kontext.zuweisungen) || [];
   return zuweisungen.some(z =>
     (z.verantwortlicherEmail || '').toLowerCase() === (user.email || '').toLowerCase() &&
@@ -62,17 +72,22 @@ function darfWocheSehen(user, woche, kontext) {
   return false;
 }
 
-// Azubi-OIDs, für die der Nutzer am Stichtag aktiv verantwortlich ist.
+// Azubi-OIDs, für die der Nutzer verantwortlich ist (aktiv befristet ODER dauerhaft).
 function aktivVerantwortlichFuer(user, kontext) {
-  if (!user.email) return [];
   const set = new Set();
-  for (const z of ((kontext && kontext.zuweisungen) || [])) {
-    if ((z.verantwortlicherEmail || '').toLowerCase() === (user.email || '').toLowerCase() && istAktiv(z, kontext.stichtag)) set.add(z.azubiOid);
+  const email = (user.email || '').toLowerCase();
+  if (email) {
+    for (const z of ((kontext && kontext.zuweisungen) || [])) {
+      if ((z.verantwortlicherEmail || '').toLowerCase() === email && istAktiv(z, kontext.stichtag)) set.add(z.azubiOid);
+    }
+  }
+  for (const oid of ((kontext && kontext.dauerAusbilderAzubiOids) || [])) {
+    if (oid) set.add(oid);
   }
   return [...set];
 }
 
 module.exports = {
-  ymd, istAktiv, wocheFaelltInZuweisung, hatKorrigiert,
+  ymd, istAktiv, wocheFaelltInZuweisung, hatKorrigiert, istDauerAusbilder,
   darfWocheKorrigieren, darfWocheSehen, aktivVerantwortlichFuer,
 };

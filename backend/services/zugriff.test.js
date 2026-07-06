@@ -113,3 +113,27 @@ test('darfWocheKorrigieren: leere OID/azubiOid öffnet nichts', () => {
 test('hatKorrigiert: leere OID öffnet nichts', () => {
   assert.equal(Z.hatKorrigiert({ oid: '' }, woche({ korrigiertVon: '' })), false);
 });
+
+// ── Dauerhafter Ausbilder-Grant (kontext.dauerAusbilderAzubiOids) ──
+test('darfWocheKorrigieren: Dauer-Ausbilder unabhängig von Datum/Zuweisung', () => {
+  const kontext = { zuweisungen: [], stichtag: '2030-01-01', dauerAusbilderAzubiOids: ['AZ'] };
+  assert.equal(Z.darfWocheKorrigieren(user, woche({ start: '2020-01-01', ende: '2020-01-07' }), kontext), true);
+});
+test('darfWocheSehen: Dauer-Ausbilder sieht alte Woche (vor Zuweisung)', () => {
+  const kontext = { zuweisungen: [], stichtag: '2030-01-01', dauerAusbilderAzubiOids: ['AZ'] };
+  assert.equal(Z.darfWocheSehen(user, woche({ start: '2020-01-01', ende: '2020-01-07' }), kontext), true);
+});
+test('Dauer-Ausbilder: fremder Azubi bleibt gesperrt', () => {
+  const kontext = { zuweisungen: [], stichtag: '2026-06-15', dauerAusbilderAzubiOids: ['AZ_ANDERS'] };
+  assert.equal(Z.darfWocheSehen(user, woche({ azubiOid: 'AZ' }), kontext), false);
+});
+test('istDauerAusbilder: leere azubiOid öffnet nichts', () => {
+  const kontext = { zuweisungen: [], stichtag: '2026-06-15', dauerAusbilderAzubiOids: [''] };
+  assert.equal(Z.istDauerAusbilder(woche({ azubiOid: '' }), kontext), false);
+});
+test('aktivVerantwortlichFuer: dauer + befristet, dedupliziert', () => {
+  const kontext = { stichtag: '2026-06-15',
+    zuweisungen: [zuw({ azubiOid: 'AZ' })],
+    dauerAusbilderAzubiOids: ['AZ', 'AZ3'] };
+  assert.deepEqual(Z.aktivVerantwortlichFuer(user, kontext).sort(), ['AZ', 'AZ3']);
+});
