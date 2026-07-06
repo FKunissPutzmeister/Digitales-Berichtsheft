@@ -1,5 +1,6 @@
 const router = require('express').Router();
 const { listUsers, getUserByOid, updateUserProfile, validateUserPatch, buildReqUser } = require('../services/users');
+const { listFuerAzubi, validateZuordnung, setFuerAzubi } = require('../services/ausbilderAzubis');
 
 // GET /api/users?role=azubi | ?exclRole=azubi
 router.get('/', async (req, res) => {
@@ -32,6 +33,26 @@ router.patch('/:oid', async (req, res) => {
     if (!row) return res.status(404).json({ error: 'User nicht gefunden' });
     res.json(buildReqUser(row));
   } catch (e) { console.error('[users] patch:', e); res.status(500).json({ error: 'Fehler' }); }
+});
+
+// GET /api/users/:azubiOid/ausbilder – aktuell zugewiesene Ausbilder
+router.get('/:azubiOid/ausbilder', async (req, res) => {
+  try {
+    res.json(await listFuerAzubi(req.params.azubiOid));
+  } catch (e) { console.error('[users] ausbilder list:', e); res.status(500).json({ error: 'Fehler' }); }
+});
+
+// PUT /api/users/:azubiOid/ausbilder – Menge ersetzen (nur developer)
+router.put('/:azubiOid/ausbilder', async (req, res) => {
+  if (req.user.role !== 'developer') return res.status(403).json({ error: 'Nur Developer' });
+  const oids = Array.isArray(req.body && req.body.ausbilderOids) ? req.body.ausbilderOids : null;
+  if (!oids) return res.status(400).json({ error: 'ausbilderOids muss ein Array sein.' });
+  try {
+    const check = await validateZuordnung(req.params.azubiOid, oids);
+    if (!check.ok) return res.status(check.status).json({ error: check.error });
+    await setFuerAzubi(req.params.azubiOid, oids);
+    res.json({ ok: true });
+  } catch (e) { console.error('[users] ausbilder set:', e); res.status(500).json({ error: 'Fehler' }); }
 });
 
 module.exports = router;
