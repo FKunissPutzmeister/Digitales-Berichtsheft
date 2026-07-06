@@ -51,9 +51,8 @@ document.addEventListener('DOMContentLoaded', async () => {
       { label: 'Auszubildende/r',         value: user.name },
       { label: 'Beruf',                   value: user.beruf || '–' },
       { label: 'Ausbildungsjahr',         value: ausbildungsjahr ? `${ausbildungsjahr}. Jahr` : '–' },
-      { label: 'Aktuelle Abteilung',      value: zuw?.abteilung || user.abteilung || '–' },
+      { label: 'Aktuelle Abteilung',      value: zuw?.abteilung || '–' },
       { label: 'Aktuelle/r Ausbilder/in', value: ausbilderName || '–' },
-      { label: 'Ausbildungsbetrieb',      value: user.unternehmen || '–' },
     ];
 
     return `
@@ -344,65 +343,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     `;
   }
 
-  function buildIHKDaten() {
-    if (!isAzubi) return '';
-    return `
-      <section class="profil-section">
-        <div class="profil-section__header">
-          <div class="profil-section__icon">
-            ${Icon('document')}
-          </div>
-          <div class="profil-section__title">IHK-Daten</div>
-        </div>
-        <div class="profil-section__body-wrap"><div class="profil-section__body">
-          <div class="profil-data-grid">
-            <div class="profil-data-item">
-              <div class="profil-data-label">IHK</div>
-              <div class="profil-data-value">${user.ihkName || '–'}</div>
-            </div>
-            <div class="profil-data-item">
-              <div class="profil-data-label">IHK-Nummer</div>
-              <div class="profil-data-value">${user.ihkNr || '–'}</div>
-            </div>
-            <div class="profil-data-item">
-              <div class="profil-data-label">Azubi-Nummer</div>
-              <div class="profil-data-value">${user.azubiNr || '–'}</div>
-            </div>
-            <div class="profil-data-item">
-              <div class="profil-data-label">Berufsbildnummer</div>
-              <div class="profil-data-value">${user.berufsbildnummer || '–'}</div>
-            </div>
-          </div>
-        </div></div>
-      </section>
-    `;
-  }
-
-  function buildUnternehmensDaten() {
-    return `
-      <section class="profil-section">
-        <div class="profil-section__header">
-          <div class="profil-section__icon">
-            ${Icon('building')}
-          </div>
-          <div class="profil-section__title">Unternehmensdaten</div>
-        </div>
-        <div class="profil-section__body-wrap"><div class="profil-section__body">
-          <div class="profil-data-grid">
-            <div class="profil-data-item">
-              <div class="profil-data-label">Unternehmen</div>
-              <div class="profil-data-value">${user.unternehmen || '–'}</div>
-            </div>
-            <div class="profil-data-item">
-              <div class="profil-data-label">Abteilung</div>
-              <div class="profil-data-value">${user.abteilung || '–'}</div>
-            </div>
-          </div>
-        </div></div>
-      </section>
-    `;
-  }
-
   async function buildAusbilderTimeline() {
     if (!isAzubi) return '';
 
@@ -647,8 +587,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         ${await buildStammdaten()}
         ${buildPersoenlicheDaten()}
         ${buildAusbildungsDaten()}
-        ${buildIHKDaten()}
-        ${buildUnternehmensDaten()}
         ${await buildAusbilderTimeline()}
         ${await buildAzubiListe()}
         ${buildEingabehilfen()}
