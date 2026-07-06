@@ -19,6 +19,23 @@ async function listFuerAzubi(azubiOid) {
   return r.recordset;
 }
 
+// Azubis, die einem Ausbilder dauerhaft zugeordnet sind (Umkehrung von
+// listFuerAzubi). OID-basiert → unabhängig von der (fragilen) verantwEmail der
+// befristeten Zuweisungen. Liefert volle Users-Zeilen für buildReqUser.
+async function listAzubisFuerAusbilder(ausbilderOid) {
+  const pool = await getPool();
+  const r = await pool.request()
+    .input('ausbilderOid', sql.NVarChar(36), ausbilderOid)
+    .query(`
+      SELECT u.*
+      FROM dbo.AusbilderAzubis aa
+      JOIN dbo.Users u ON u.Oid = aa.AzubiOid
+      WHERE aa.AusbilderOid = @ausbilderOid AND u.Aktiv = 1
+      ORDER BY u.Name
+    `);
+  return r.recordset;
+}
+
 // Prüft: Ziel ist Azubi, alle OIDs sind ausbilderfähig. Keine DB-Schreibzugriffe.
 async function validateZuordnung(azubiOid, ausbilderOids) {
   const azubi = await getUserByOid(azubiOid);
@@ -55,4 +72,4 @@ async function setFuerAzubi(azubiOid, ausbilderOids) {
   }
 }
 
-module.exports = { listFuerAzubi, validateZuordnung, setFuerAzubi };
+module.exports = { listFuerAzubi, listAzubisFuerAusbilder, validateZuordnung, setFuerAzubi };

@@ -363,6 +363,7 @@ const DB = {
     const me = this.getCurrentUser();
     if (!me) return [];
     const heute = new Date().toISOString().split('T')[0];
+    // (1) Befristete Zuweisungen (Verantwortliche/r per E-Mail, aktuelle zuerst).
     const zuw = await this.getZuweisungenFuerVerantw(me.email);
     zuw.sort((a, b) => {
       const aAktiv = a.von <= heute && a.bis >= heute;
@@ -371,8 +372,21 @@ const DB = {
       return (b.von || '').localeCompare(a.von || '');
     });
     const ids = [...new Set(zuw.map(z => z.azubiId))];
-    const users = await Promise.all(ids.map(id => this.getUser(id)));
-    return users.filter(Boolean);
+    const byId = new Map();
+    for (const u of (await Promise.all(ids.map(id => this.getUser(id)))).filter(Boolean)) {
+      byId.set(u.oid, u);
+    }
+    // (2) Dauerhafte Ausbilder-Zuordnung (AusbilderAzubis, OID-basiert). Robust,
+    // unabhängig von der verantwEmail der Zuweisungen – deckt u.a. .demo-Accounts
+    // ab, deren namensabgeleitete Zuweisungs-Mail nie zur Login-Mail passt.
+    try {
+      const dauerhaft = await apiFetch('/users/me/azubis');
+      for (const u of dauerhaft) {
+        const nu = normalizeUser(u.oid, u);
+        if (!byId.has(nu.oid)) byId.set(nu.oid, nu);
+      }
+    } catch (e) { /* Backend ohne /me/azubis (alt) → nur Zuweisungen */ }
+    return [...byId.values()];
   },
 
   // Azubi-Quelle für die Selektoren (Wochen-/Jahresansicht) – EINE gemeinsame,

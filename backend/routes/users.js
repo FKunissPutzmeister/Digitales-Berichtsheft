@@ -1,6 +1,6 @@
 const router = require('express').Router();
 const { listUsers, getUserByOid, updateUserProfile, validateUserPatch, buildReqUser } = require('../services/users');
-const { listFuerAzubi, validateZuordnung, setFuerAzubi } = require('../services/ausbilderAzubis');
+const { listFuerAzubi, listAzubisFuerAusbilder, validateZuordnung, setFuerAzubi } = require('../services/ausbilderAzubis');
 
 // GET /api/users?role=azubi | ?exclRole=azubi
 router.get('/', async (req, res) => {
@@ -9,6 +9,17 @@ router.get('/', async (req, res) => {
     const rows = await listUsers({ role: req.query.role, exclRole: req.query.exclRole, inclInactive });
     res.json(rows.map(buildReqUser));
   } catch (e) { console.error('[users] list:', e); res.status(500).json({ error: 'Fehler' }); }
+});
+
+// GET /api/users/me/azubis – Azubis, die dem aktuellen Nutzer DAUERHAFT als
+// Ausbilder zugeordnet sind (OID-basiert). Quelle für den Azubi-Selektor
+// zusätzlich zu den befristeten Zuweisungen. Steht vor '/:oid' (zwei Segmente
+// kollidieren zwar nicht mit dem Ein-Segment-Param, aber der Klarheit halber).
+router.get('/me/azubis', async (req, res) => {
+  try {
+    const rows = await listAzubisFuerAusbilder(req.user.oid);
+    res.json(rows.map(buildReqUser));
+  } catch (e) { console.error('[users] me/azubis:', e); res.status(500).json({ error: 'Fehler' }); }
 });
 
 // GET /api/users/:oid
