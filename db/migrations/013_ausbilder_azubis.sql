@@ -1,5 +1,5 @@
 -- ============================================================
--- Migration 011 – dbo.AusbilderAzubis (dauerhafte Ausbilder<->Azubi-Zuordnung)
+-- Migration 013 – dbo.AusbilderAzubis (dauerhafte Ausbilder<->Azubi-Zuordnung)
 -- Ausführen gegen: Berichtsheft_Dev
 --
 -- n:m, datumslos. Getrennt von dbo.Zuweisungen (die die befristete
