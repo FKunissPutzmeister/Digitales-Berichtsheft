@@ -322,6 +322,13 @@ const DB = {
     return normalizeUser(data.oid, data);
   },
 
+  async getAusbilderFuerAzubi(oid) {
+    return await apiFetch(`/users/${oid}/ausbilder`);
+  },
+  async setAusbilderFuerAzubi(oid, ausbilderOids) {
+    await apiFetch(`/users/${oid}/ausbilder`, { method: 'PUT', body: { ausbilderOids } });
+  },
+
   /* Zuweisungen */
   async getAllZuweisungen() {
     const data = await apiFetch('/zuweisungen');

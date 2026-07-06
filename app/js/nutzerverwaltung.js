@@ -101,6 +101,10 @@ document.addEventListener('DOMContentLoaded', async () => {
                 Aktiv
               </label>
             </div>
+            <div class="form-group" id="nvAusbilderBlock" hidden>
+              <label class="form-label">Dauerhafte Ausbilder <span class="form-hint">· sehen &amp; korrigieren alle Wochen</span></label>
+              <div class="nv-ausbilder-list" id="nvAusbilderList"></div>
+            </div>
           </form>
         </div>
         <div class="modal__footer">
@@ -130,6 +134,28 @@ document.addEventListener('DOMContentLoaded', async () => {
     document.getElementById('nvKannPlanen').checked  = !!u.kannPlanen;
     document.getElementById('nvIstAusbilder').checked = !!u.istAusbilder;
     document.getElementById('nvAktiv').checked       = u.aktiv !== false;
+
+    /* Dauerhafte Ausbilder nur bei Azubis */
+    const ausbilderBlock = document.getElementById('nvAusbilderBlock');
+    const ausbilderList  = document.getElementById('nvAusbilderList');
+    if (u.role === 'azubi') {
+      ausbilderBlock.hidden = false;
+      ausbilderList.innerHTML = '<p class="form-hint">Lädt…</p>';
+      const kandidaten = users.filter(x => x.istAusbilder);
+      DB.getAusbilderFuerAzubi(u.oid).then(zugewiesen => {
+        const aktiv = new Set((zugewiesen || []).map(a => a.oid));
+        ausbilderList.innerHTML = kandidaten.length
+          ? kandidaten.map(k => `
+              <label class="nv-form__check-label">
+                <input type="checkbox" class="nv-ausbilder-cb" value="${esc(k.oid)}" ${aktiv.has(k.oid) ? 'checked' : ''}>
+                ${esc(k.name)} <span class="nv-table__email">${esc(k.email)}</span>
+              </label>`).join('')
+          : '<p class="form-hint">Keine ausbilderfähigen Nutzer vorhanden.</p>';
+      }).catch(e => { ausbilderList.innerHTML = `<p style="color:var(--color-error)">Fehler: ${esc(e.message)}</p>`; });
+    } else {
+      ausbilderBlock.hidden = true;
+      ausbilderList.innerHTML = '';
+    }
 
     document.getElementById(modalId).classList.add('open');
     document.body.style.overflow = 'hidden';
@@ -163,6 +189,11 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     try {
       const updated = await DB.updateUser(editingUser.oid, fields);
+      /* Dauerhafte Ausbilder nur bei Azubis mitschreiben */
+      if (editingUser.role === 'azubi') {
+        const oids = [...document.querySelectorAll('.nv-ausbilder-cb:checked')].map(cb => cb.value);
+        await DB.setAusbilderFuerAzubi(editingUser.oid, oids);
+      }
       /* Patch in-memory user array */
       const idx = users.findIndex(u => u.oid === editingUser.oid);
       if (idx !== -1) {
