@@ -143,6 +143,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       ausbilderList.innerHTML = '<p class="form-hint">Lädt…</p>';
       const kandidaten = users.filter(x => x.istAusbilder);
       DB.getAusbilderFuerAzubi(u.oid).then(zugewiesen => {
+        if (!editingUser || editingUser.oid !== u.oid) return; // Modal inzwischen für anderen Nutzer geöffnet
         const aktiv = new Set((zugewiesen || []).map(a => a.oid));
         ausbilderList.innerHTML = kandidaten.length
           ? kandidaten.map(k => `
