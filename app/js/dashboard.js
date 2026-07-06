@@ -1007,11 +1007,20 @@ function renderPlanerSignale(sig) {
 
 async function getMeineAzubis(user) {
   const heute = new Date().toISOString().split('T')[0];
+  const byId = new Map();
+  // (1) Aktuell laufende befristete Zuweisungen (Verantwortliche/r per E-Mail).
   const meineZuw = (await DB.getZuweisungenFuerVerantw(user.email))
     .filter(z => z.von <= heute && z.bis >= heute);
   const azubiIds = [...new Set(meineZuw.map(z => z.azubiId))];
-  const users = await Promise.all(azubiIds.map(id => DB.getUser(id)));
-  return users.filter(Boolean);
+  for (const u of (await Promise.all(azubiIds.map(id => DB.getUser(id)))).filter(Boolean)) {
+    byId.set(u.oid, u);
+  }
+  // (2) Dauerhafte Ausbilder-Zuordnung (OID-basiert) – immer „meine" Azubis,
+  //     unabhängig von befristeten Zuweisungen/der Zuweisungs-E-Mail.
+  for (const u of await DB.getDauerhafteAzubis()) {
+    if (!byId.has(u.oid)) byId.set(u.oid, u);
+  }
+  return [...byId.values()];
 }
 
 function renderReviewItem(w, idx) {

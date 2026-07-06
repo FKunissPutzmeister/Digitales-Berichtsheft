@@ -379,14 +379,20 @@ const DB = {
     // (2) Dauerhafte Ausbilder-Zuordnung (AusbilderAzubis, OID-basiert). Robust,
     // unabhängig von der verantwEmail der Zuweisungen – deckt u.a. .demo-Accounts
     // ab, deren namensabgeleitete Zuweisungs-Mail nie zur Login-Mail passt.
-    try {
-      const dauerhaft = await apiFetch('/users/me/azubis');
-      for (const u of dauerhaft) {
-        const nu = normalizeUser(u.oid, u);
-        if (!byId.has(nu.oid)) byId.set(nu.oid, nu);
-      }
-    } catch (e) { /* Backend ohne /me/azubis (alt) → nur Zuweisungen */ }
+    for (const u of await this.getDauerhafteAzubis()) {
+      if (!byId.has(u.oid)) byId.set(u.oid, u);
+    }
     return [...byId.values()];
+  },
+
+  // Dauerhaft zugeordnete Azubis des aktuellen Nutzers (AusbilderAzubis,
+  // OID-basiert). Gemeinsame Quelle für getBetreuteAzubis (Selektoren) und das
+  // Ausbilder-Dashboard. Fehlt der Endpoint (altes Backend) → leere Liste.
+  async getDauerhafteAzubis() {
+    try {
+      const data = await apiFetch('/users/me/azubis');
+      return data.map(u => normalizeUser(u.oid, u));
+    } catch (e) { return []; }
   },
 
   // Azubi-Quelle für die Selektoren (Wochen-/Jahresansicht) – EINE gemeinsame,
