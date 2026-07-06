@@ -916,6 +916,46 @@ select.form-control {
   background: var(--pm-white);
 }
 
+/* ── Toggle-Switch (iOS-Stil) ────────────────────────────────────
+   Wiederverwendbar; Zustand kommt vom versteckten Checkbox-Input. */
+.pm-switch {
+  position: relative;
+  display: inline-flex;
+  flex-shrink: 0;
+}
+.pm-switch__input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+.pm-switch__track {
+  width: 38px;
+  height: 22px;
+  padding: 2px;
+  border-radius: var(--r-full);
+  background: var(--pm-grey-400);
+  display: inline-flex;
+  align-items: center;
+  transition: background var(--t-fast);
+}
+.pm-switch__thumb {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
+  transition: transform var(--t-fast);
+}
+.pm-switch__input:checked + .pm-switch__track { background: var(--pm-yellow); }
+.pm-switch__input:checked + .pm-switch__track .pm-switch__thumb { transform: translateX(16px); }
+.pm-switch__input:focus-visible + .pm-switch__track { box-shadow: var(--ring-yellow); }
+.pm-switch__input:disabled { cursor: default; }
+.pm-switch__input:disabled + .pm-switch__track { opacity: 0.6; }
+
 /* Kompatibilitäts-Stile: PMSelect kopiert beim Wrapping alle Klassen vom
    nativen <select> auf den Wrapper-Div. Damit dort keine nativen Select-
    Styles (eigener Chevron, Border, Background) durchschlagen und mit

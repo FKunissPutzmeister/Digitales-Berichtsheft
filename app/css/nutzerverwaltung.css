@@ -3,13 +3,32 @@
    Minimale, themefähige Ergänzungen; das Gros kommt aus components.css.
    =================================================================== */
 
-/* ── Toolbar (Suche) ── */
+/* ── Toolbar (Suche + Rollen-Filter) ── */
 .nv-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-3);
+  align-items: center;
   margin-bottom: var(--sp-5);
 }
 
-.nv-toolbar .form-control {
+.nv-toolbar__search {
+  flex: 1 1 260px;
   max-width: 400px;
+}
+
+/* Rollen-Filter bewusst schmal halten. Achtung: PmSelect (app.js) wandelt
+   jedes .form-control-<select> in einen .pm-select--block-Wrapper um, der
+   width:100% erzwingt (Spezifität .pm-select.pm-select--block = 0,2,0). Die
+   Klassen des <select> wandern dabei auf den Wrapper, daher greifen wir ihn
+   über .nv-toolbar .pm-select.nv-toolbar__role (0,3,0) ab und überstimmen so
+   den Block-Modus. Erste Regel = Fallback fürs native <select> vor dem JS. */
+.nv-toolbar__role,
+.nv-toolbar .pm-select.nv-toolbar__role {
+  flex: 0 0 auto;
+  width: auto;
+  min-width: 200px;
+  max-width: 280px;
 }
 
 /* ── Tabelle ── */

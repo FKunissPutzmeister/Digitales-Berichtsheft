@@ -110,6 +110,15 @@ app.get('/api/auth/me', devAuth, (req, res) => {
   res.json({ user: req.user });
 });
 
+// Dev-View-Switch umlegen. Nur für Allowlist-Nutzer (req.user.devViewEligible,
+// serverseitig in requireAuth gesetzt). Speichert lediglich den Wunsch in der
+// Session; die eigentliche Elevation passiert bei jedem Request in requireAuth.
+app.post('/api/auth/dev-view', devAuth, (req, res) => {
+  if (!req.user.devViewEligible) return res.status(403).json({ error: 'Nicht berechtigt.' });
+  req.session.devView = !!(req.body && req.body.on);
+  res.json({ devViewActive: req.session.devView });
+});
+
 // ── Geschützte API-Routen ─────────────────────────────────────────
 const usersRouter          = require('./routes/users');
 const wochenRouter         = require('./routes/wochen');

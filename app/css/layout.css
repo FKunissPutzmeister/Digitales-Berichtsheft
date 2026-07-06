@@ -235,10 +235,43 @@ html:not([data-ist-ausbilder="1"]) .nav-ausbilder-only {
   border-top: 1px solid rgba(255,255,255,0.06);
   flex-shrink: 0;
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
   gap: var(--sp-3);
 }
+
+/* Dev-View-Switch: eigene Zeile oberhalb der Profil/Theme-Zeile. */
+.sidebar__devview {
+  order: -1;
+  flex: 1 1 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-2);
+  padding: var(--sp-2) var(--sp-3);
+  margin-bottom: var(--sp-1);
+  border-radius: var(--r-md);
+  cursor: pointer;
+}
+/* Sidebar-Textfarbe kommt pro Theme (nicht über --on-inverse-text, das global
+   #FFF bleibt): Basis = dunkle Sidebar → weiß; [data-theme="light"] → dunkel;
+   getönte Skins → mittelgrau, analog zu .sidebar__link. Alle Varianten hier
+   gebündelt, da kein Theme-File dieses neue Label kennt (→ sonst greift die
+   „Custom-Themes fehlen Overrides"-Falle). */
+.sidebar__devview-label {
+  font-size: var(--text-xs);
+  font-weight: var(--fw-medium);
+  color: rgba(255,255,255,0.78);
+}
+[data-theme="light"] .sidebar__devview-label { color: rgba(26,26,26,0.70); }
+[data-theme="halloween"] .sidebar__devview-label,
+[data-theme="christmas"] .sidebar__devview-label,
+[data-theme="cmd"] .sidebar__devview-label,
+[data-theme="hyperspace"] .sidebar__devview-label { color: var(--pm-grey-600); }
+/* Im eingeklappten Zustand kein Platz für Text-Switch → ausblenden. */
+.sidebar.collapsed .sidebar__devview,
+html.sidebar-init-collapsed .sidebar__devview { display: none !important; }
 /* Profil-Link im Footer: Avatar + Name in einer Pille. Klick öffnet
    die Mein-Profil-Seite. Auf dieser Seite (active) bekommt das Avatar
    einen gelben Ring als Indikator. Abmelden ist nicht mehr hier,
@@ -565,6 +598,7 @@ body[data-page="wochenansicht"] .main-content,
 body[data-page="jahresansicht"] .main-content,
 body[data-page="ausbildungsstand"] .main-content,
 body[data-page="berichtsheftverwaltung"] .main-content,
+body[data-page="nutzerverwaltung"] .main-content,
 body[data-page="azubi-planer"] .main-content,
 body[data-page="profil"] .main-content {
   max-width: min(2200px, 100%);

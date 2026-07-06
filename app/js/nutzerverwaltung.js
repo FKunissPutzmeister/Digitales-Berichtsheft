@@ -10,6 +10,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     return;
   }
 
+  /* Volle Seitenbreite: aktiviert den body[data-page="nutzerverwaltung"]-
+     Override in layout.css. Muss hier gesetzt werden, weil der SPA-Router
+     data-page bei jeder Navigation löscht (siehe profil.js). */
+  document.body.dataset.page = 'nutzerverwaltung';
+
   const main = document.getElementById('mainContent');
 
   /* ── XSS-Schutz: alle user-supplied strings durch esc() jagen ── */
@@ -196,8 +201,12 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     try {
       const updated = await DB.updateUser(editingUser.oid, fields);
-      /* Dauerhafte Ausbilder nur bei Azubis (inkl. getaggter) mitschreiben */
-      if (editingUser.istAzubi) {
+      /* Dauerhafte Ausbilder nur schreiben, wenn das Ziel NACH dieser Änderung noch
+         Azubi ist. Maßgeblich ist der neue Zustand (fields), nicht das veraltete
+         editingUser — sonst würde beim Demoten (azubi→prüfer) ein PUT abgesetzt, den
+         das Backend zu Recht mit 400 „kein Azubi" ablehnt und der den Save abbricht. */
+      const zielIstAzubi = fields.role === 'azubi' || fields.istAzubi;
+      if (zielIstAzubi) {
         const oids = [...document.querySelectorAll('.nv-ausbilder-cb:checked')].map(cb => cb.value);
         await DB.setAusbilderFuerAzubi(editingUser.oid, oids);
       }
@@ -270,16 +279,26 @@ document.addEventListener('DOMContentLoaded', async () => {
     bindRowEvents();
   }
 
-  /* ── Suche ── */
-  function filterUsers(query) {
-    const q = query.trim().toLowerCase();
-    if (!q) return users;
+  /* ── Filter (Suche + Rolle, kombiniert) ── */
+  function matchesQuery(u, q) {
+    if (!q) return true;
+    return (u.name  || '').toLowerCase().includes(q) ||
+           (u.email || '').toLowerCase().includes(q) ||
+           (u.role  || '').toLowerCase().includes(q) ||
+           ((ROLE_LABELS[u.role] || '').toLowerCase().includes(q));
+  }
+
+  function filterUsers(query, role) {
+    const q = (query || '').trim().toLowerCase();
     return users.filter(u =>
-      (u.name  || '').toLowerCase().includes(q) ||
-      (u.email || '').toLowerCase().includes(q) ||
-      (u.role  || '').toLowerCase().includes(q) ||
-      ((ROLE_LABELS[u.role] || '').toLowerCase().includes(q))
+      (!role || u.role === role) && matchesQuery(u, q)
     );
+  }
+
+  function applyFilters() {
+    const q    = document.getElementById('nvSearch')?.value || '';
+    const role = document.getElementById('nvRoleFilter')?.value || '';
+    renderPage(filterUsers(q, role));
   }
 
   /* ── Seite aufbauen ── */
@@ -294,8 +313,16 @@ document.addEventListener('DOMContentLoaded', async () => {
     <div class="card">
       <div class="card__body">
         <div class="nv-toolbar">
-          <input class="form-control" type="search" id="nvSearch"
+          <input class="form-control nv-toolbar__search" type="search" id="nvSearch"
                  placeholder="Suchen (Name, E-Mail, Rolle)…" autocomplete="off">
+          <select class="form-control nv-toolbar__role" id="nvRoleFilter" aria-label="Nach Rolle filtern">
+            <option value="">Alle Rollen</option>
+            <option value="azubi">Auszubildende</option>
+            <option value="pruefer">Prüfer / Ausbilder</option>
+            <option value="admin">Administrator</option>
+            <option value="dhstudent">DH-Student/in</option>
+            <option value="developer">Developer</option>
+          </select>
         </div>
         <div style="overflow-x:auto">
           <table class="nv-table">
@@ -321,8 +348,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   /* Initiale Tabelle */
   renderPage(users);
 
-  /* Suche verdrahten */
-  document.getElementById('nvSearch').addEventListener('input', (e) => {
-    renderPage(filterUsers(e.target.value));
-  });
+  /* Filter verdrahten (Suche + Rolle greifen kombiniert) */
+  document.getElementById('nvSearch').addEventListener('input', applyFilters);
+  document.getElementById('nvRoleFilter').addEventListener('change', applyFilters);
 });

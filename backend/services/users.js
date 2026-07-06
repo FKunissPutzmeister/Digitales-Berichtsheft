@@ -10,6 +10,15 @@ const { backfillVerantwortlicheByEmail, normalizeEmail } = require('./abteilunge
 const ROLE_CLAIM = 'http://schemas.microsoft.com/ws/2008/06/identity/claims/role';
 const AZURE_ROLES = ['azubi', 'pruefer'];
 
+// Nutzer, die ihre Ansicht per Session-Switch auf "developer" heben dürfen
+// (Entwickler-Escape-Hatch). Bewusst als Code-Allowlist statt DB-Flag: betrifft
+// aktuell genau einen Nutzer. E-Mail-Vergleich case-insensitiv.
+const DEV_VIEW_EMAILS = new Set(['florian.kern@putzmeister.com']);
+
+function canUseDevView(email) {
+  return DEV_VIEW_EMAILS.has((email || '').trim().toLowerCase());
+}
+
 // Rollen-Claim aus der Assertion lesen (String ODER Array), auf bekannte
 // Azure-Basisrollen einschränken. Unbekannt/fehlend → null.
 function parseRoleClaim(profile) {
@@ -192,6 +201,6 @@ async function updateUserProfile(oid, fields) {
 }
 
 module.exports = {
-  parseRoleClaim, buildReqUser, validateUserPatch,
+  parseRoleClaim, buildReqUser, validateUserPatch, canUseDevView,
   upsertUser, getUserByOid, getUserByEmail, listUsers, updateUserProfile,
 };

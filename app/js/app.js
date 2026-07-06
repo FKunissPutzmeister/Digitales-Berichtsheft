@@ -62,6 +62,48 @@ function applyCapabilities(caps) {
   }
 }
 
+/* Dev-View-Switch (Sidebar-Fußzeile). Nur für serverseitig berechtigte Nutzer
+   (user.devViewEligible). Beim Umlegen wird der Wunsch an den Server geschickt
+   und die Seite neu geladen, damit Rollen-Gating, Nav und evtl. Redirects sauber
+   für die neue effektive Rolle greifen. Default = aus (= Azubi-Ansicht). */
+function setupDevViewSwitch(user) {
+  const wrap = document.getElementById('sidebarDevView');
+  const toggle = document.getElementById('devViewToggle');
+  if (!wrap || !toggle) return;
+  if (!user.devViewEligible) { wrap.style.display = 'none'; return; }
+
+  wrap.style.display = '';
+  toggle.checked = !!user.devViewActive;
+
+  if (toggle.dataset.bound) return;
+  toggle.dataset.bound = '1';
+  toggle.addEventListener('change', async () => {
+    toggle.disabled = true;
+    try {
+      await DB.setDevView(toggle.checked);
+      // Fähigkeits-Cache SYNCHRON auf die neue Ansicht bringen, BEVOR neu
+      // geladen wird: sonst liest der Pre-Paint (theme.js) noch die alten
+      // cap*-localStorage-Werte und die Planer-/Verwaltungs-Reiter blitzen
+      // beim Wechsel developer→azubi kurz auf. fetchCurrentUser liefert die
+      // neue effektive Rolle; applyCapabilities schreibt die cap*-Keys.
+      const u = await DB.fetchCurrentUser();
+      if (u) applyCapabilities({
+        kannPlanen:   !!u.kannPlanen,
+        istAusbilder: !!u.istAusbilder,
+        istAzubi:     !!u.istAzubi,
+        istDhStudent: !!u.istDhStudent,
+        korrektur:    !!u.istAusbilder,
+        role:         u.role,
+      });
+      window.location.reload();
+    } catch (e) {
+      toggle.checked = !toggle.checked; // Zustand zurückdrehen
+      toggle.disabled = false;
+      if (window.Toast) Toast.error('Ansicht konnte nicht gewechselt werden: ' + e.message);
+    }
+  });
+}
+
 /* ── Sidebar & Navigation ── */
 async function initLayout(activeNavId) {
   const user = await requireAuth();
@@ -153,6 +195,8 @@ async function initLayout(activeNavId) {
     korrektur:    istKorrektor,
     role:         user.role,
   });
+
+  setupDevViewSwitch(user);
 
   // Abmelden-Button via Event-Delegation an document.body. Der Button
   // wird je nach Seite zu unterschiedlichen Zeitpunkten in den DOM

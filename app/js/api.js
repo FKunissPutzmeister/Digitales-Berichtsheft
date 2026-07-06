@@ -284,6 +284,11 @@ const DB = {
     cacheUserRole(null);
   },
 
+  // Dev-View-Switch (nur für berechtigte Nutzer, serverseitig geprüft).
+  async setDevView(on) {
+    return await apiFetch('/auth/dev-view', { method: 'POST', body: { on: !!on } });
+  },
+
   /* Benutzer */
   async getAzubis() {
     const data = await apiFetch('/users?role=azubi');

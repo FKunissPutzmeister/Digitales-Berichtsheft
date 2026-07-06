@@ -71,6 +71,13 @@ function buildSidebar(activeNavId) {
     </nav>
 
     <div class="sidebar__footer">
+      <label class="sidebar__devview" id="sidebarDevView" style="display:none" title="Zwischen Azubi- und Developer-Ansicht wechseln">
+        <span class="sidebar__devview-label">Developer-Ansicht</span>
+        <span class="pm-switch">
+          <input type="checkbox" id="devViewToggle" class="pm-switch__input">
+          <span class="pm-switch__track" aria-hidden="true"><span class="pm-switch__thumb"></span></span>
+        </span>
+      </label>
       <a href="profil.html" class="sidebar__user-link" id="nav-profil"
          aria-label="Mein Profil" title="Mein Profil">
         <div class="avatar avatar--sm" id="sidebarUserInitials">?</div>
