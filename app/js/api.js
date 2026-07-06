@@ -375,6 +375,18 @@ const DB = {
     return users.filter(Boolean);
   },
 
+  // Azubi-Quelle für die Selektoren (Wochen-/Jahresansicht) – EINE gemeinsame,
+  // rollenbewusste Logik, damit beide Ansichten konsistent sind:
+  //   admin/developer → alle Azubis (Gesamtüberblick),
+  //   sonst (prüfer/ausbilder) → nur zugewiesene (betreute) Azubis.
+  async getSelectableAzubis() {
+    const me = this.getCurrentUser();
+    if (me && (me.role === 'admin' || me.role === 'developer')) {
+      return await this.getAzubis();
+    }
+    return await this.getBetreuteAzubis();
+  },
+
   async addZuweisung(zuweisung) {
     const data = await apiFetch('/zuweisungen', { method: 'POST', body: {
       azubiOid:     zuweisung.azubiId,

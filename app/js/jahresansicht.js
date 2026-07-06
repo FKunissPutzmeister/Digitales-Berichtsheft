@@ -18,7 +18,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     viewAzubiId = savedAzubiId;
     sessionStorage.removeItem('gotoAzubiId');
   } else if (!user.istAzubi && !viewAzubiId) {
-    const firstAzubi = (await DB.getAzubis())[0];
+    const firstAzubi = (await DB.getSelectableAzubis())[0];
     if (firstAzubi) viewAzubiId = firstAzubi.id;
   }
 
@@ -158,7 +158,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   async function renderAzubiSelector(currentId) {
-    const azubis = await DB.getAzubis();
+    const azubis = await DB.getSelectableAzubis();
     return `
       <div style="margin-bottom:var(--sp-5);display:flex;align-items:center;gap:var(--sp-3);flex-wrap:wrap">
         <span style="font-size:var(--text-sm);font-weight:700;color:var(--pm-grey-600)">Azubi:</span>
