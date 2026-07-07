@@ -137,3 +137,28 @@ test('aktivVerantwortlichFuer: dauer + befristet, dedupliziert', () => {
     dauerAusbilderAzubiOids: ['AZ', 'AZ3'] };
   assert.deepEqual(Z.aktivVerantwortlichFuer(user, kontext).sort(), ['AZ', 'AZ3']);
 });
+
+// ── verantwortlichFuerZuweisung (Beurteilung: datumsunabhängig) ──
+{
+  const vfzUser = { oid: 'u-1', email: 'Max.Muster@pm.com' };
+
+  test('verantwortlichFuerZuweisung: E-Mail matcht (case-insensitiv, datumsunabhängig)', () => {
+    const z = { azubiOid: 'a-1', verantwortlicherEmail: 'max.muster@pm.com' };
+    assert.equal(Z.verantwortlichFuerZuweisung(vfzUser, z, { dauerAusbilderAzubiOids: [] }), true);
+  });
+
+  test('verantwortlichFuerZuweisung: fremde E-Mail ohne Dauer-Zuordnung = false', () => {
+    const z = { azubiOid: 'a-1', verantwortlicherEmail: 'other@pm.com' };
+    assert.equal(Z.verantwortlichFuerZuweisung(vfzUser, z, { dauerAusbilderAzubiOids: [] }), false);
+  });
+
+  test('verantwortlichFuerZuweisung: dauerhafter Ausbilder des Azubis = true', () => {
+    const z = { azubiOid: 'a-9', verantwortlicherEmail: 'other@pm.com' };
+    assert.equal(Z.verantwortlichFuerZuweisung(vfzUser, z, { dauerAusbilderAzubiOids: ['a-9'] }), true);
+  });
+
+  test('verantwortlichFuerZuweisung: ohne email und ohne Dauer = false', () => {
+    const z = { azubiOid: 'a-1', verantwortlicherEmail: '' };
+    assert.equal(Z.verantwortlichFuerZuweisung({ oid: 'u-1', email: '' }, z, {}), false);
+  });
+}

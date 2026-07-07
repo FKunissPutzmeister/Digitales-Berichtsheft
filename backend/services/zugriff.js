@@ -87,7 +87,19 @@ function aktivVerantwortlichFuer(user, kontext) {
   return [...set];
 }
 
+// Datums-UNABHÄNGIGE Verantwortlichkeit für GENAU EINE Zuweisung.
+// Wird gebraucht, weil Beurteilungen NACH Ende des Durchlaufs (bis < heute)
+// entstehen – aktivVerantwortlichFuer (datumsaktiv) würde hier fälschlich abweisen.
+function verantwortlichFuerZuweisung(user, zuweisung, kontext) {
+  if (!zuweisung) return false;
+  const dauer = (kontext && kontext.dauerAusbilderAzubiOids) || [];
+  if (zuweisung.azubiOid && dauer.includes(zuweisung.azubiOid)) return true;
+  const email = (user && user.email || '').toLowerCase();
+  return !!email && (zuweisung.verantwortlicherEmail || '').toLowerCase() === email;
+}
+
 module.exports = {
   ymd, istAktiv, wocheFaelltInZuweisung, hatKorrigiert, istDauerAusbilder,
   darfWocheKorrigieren, darfWocheSehen, aktivVerantwortlichFuer,
+  verantwortlichFuerZuweisung,
 };
