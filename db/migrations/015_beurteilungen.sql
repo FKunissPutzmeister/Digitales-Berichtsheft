@@ -73,3 +73,14 @@ BEGIN
   PRINT 'Spalte Benachrichtigungen.Typ auf NVARCHAR(40) verbreitert (Nullability beibehalten).';
 END
 ELSE PRINT 'Benachrichtigungen.Typ ist bereits >= NVARCHAR(40).';
+
+-- 3c) WocheId NULL-erlaubt machen: Beurteilungs-Mitteilungen (fällig/abgeschlossen)
+--     referenzieren eine Zuweisung, keine Woche -> WocheId bleibt bei ihnen NULL.
+--     Nur ändern, falls die Spalte existiert und aktuell NOT NULL ist (idempotent).
+IF EXISTS (SELECT 1 FROM sys.columns
+           WHERE object_id = OBJECT_ID('dbo.Benachrichtigungen') AND name = 'WocheId' AND is_nullable = 0)
+BEGIN
+  ALTER TABLE dbo.Benachrichtigungen ALTER COLUMN WocheId INT NULL;
+  PRINT 'Spalte Benachrichtigungen.WocheId auf NULL-erlaubt gesetzt.';
+END
+ELSE PRINT 'Benachrichtigungen.WocheId ist bereits NULL-erlaubt (oder Spalte fehlt).';
