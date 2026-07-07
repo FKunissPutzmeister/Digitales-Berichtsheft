@@ -95,4 +95,20 @@ router.delete('/:id', nurPlaner, async (req, res) => {
   }
 });
 
+// GET /api/zuweisungen/:id – eine einzelne Zuweisung (für die Beurteilungsseite,
+// die die Zuweisung direkt per Id auflöst statt über nutzergebundene Listen).
+router.get('/:id', async (req, res) => {
+  try {
+    const pool = await getPool();
+    const result = await pool.request()
+      .input('id', sql.Int, Number(req.params.id) || 0)
+      .query('SELECT * FROM dbo.Zuweisungen WHERE Id = @id');
+    const row = result.recordset[0];
+    if (!row) return res.status(404).json({ error: 'Zuweisung nicht gefunden.' });
+    res.json(row);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 module.exports = router;

@@ -81,15 +81,13 @@ async function loadContext(zuweisungId) {
   return { zuweisung, beurteilung, azubi, editable: !!editable && me.oid !== zuweisung.azubiId };
 }
 
-// Zuweisung robust auflösen: bevorzugt über die Azubi-Zuweisungen des aktuellen Users bzw. der betreuten Azubis.
-async function resolveZuweisung(zuweisungId, beurteilung) {
-  const me = DB.getCurrentUser();
-  const azubiId = beurteilung?.azubiId || me.oid;
-  const listen = [];
-  try { listen.push(await DB.getZuweisungenFuerAzubi(azubiId)); } catch (e) {}
-  if (me.email) { try { listen.push(await DB.getZuweisungenFuerVerantw(me.email)); } catch (e) {} }
-  const alle = [].concat(...listen);
-  return alle.find(z => String(z.id) === String(zuweisungId)) || null;
+// Zuweisung DIREKT per Id holen (robust: unabhängig davon, ob der aktuelle Nutzer
+// über verantwEmail ODER dauerhafte AusbilderAzubis-Zuordnung betreut, und ob schon
+// eine Beurteilung existiert). Der eigentliche Zugriffsschutz läuft zuvor serverseitig
+// über getBeurteilung; die Zuweisungs-Basisdaten (Name/Abteilung/Zeitraum) sind hier unkritisch.
+async function resolveZuweisung(zuweisungId) {
+  try { return await DB.getZuweisung(zuweisungId); }
+  catch (e) { return null; }
 }
 
 // Rendert die Aktionsleiste (Speichern/Abschließen/PDF/Berichte für Verantwortliche, Kenntnisnahme/PDF für Azubi/DH).

@@ -367,6 +367,11 @@ const DB = {
     return data.map(normalizeZuweisung);
   },
 
+  async getZuweisung(id) {
+    const data = await apiFetch(`/zuweisungen/${encodeURIComponent(id)}`);
+    return normalizeZuweisung(data);
+  },
+
   async getZuweisungenFuerVerantw(email) {
     const data = await apiFetch(`/zuweisungen?verantwEmail=${encodeURIComponent(email)}`);
     return data.map(normalizeZuweisung);
