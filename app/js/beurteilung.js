@@ -124,7 +124,7 @@ function renderActions(ctx) {
           await DB.patchBeurteilung(id, st);
           Toast.success('Aktualisiert', 'Beurteilung wurde aktualisiert (Azubi wird informiert).');
         } else {
-          if (!id) id = await DB.saveBeurteilungEntwurf({ zuweisungId: zuweisung.id, ...st });
+          id = await DB.saveBeurteilungEntwurf({ zuweisungId: zuweisung.id, ...st });
           await DB.abschliessenBeurteilung(id);
           Toast.success('Abgeschlossen', 'Beurteilung abgeschlossen. Der Azubi wurde benachrichtigt.');
         }

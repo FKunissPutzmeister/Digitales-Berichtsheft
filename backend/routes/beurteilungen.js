@@ -1,6 +1,7 @@
 const router = require('express').Router();
 const { getPool, sql } = require('../db/connection');
 const svc = require('../services/beurteilungen');
+const { ladeKorrekturKontext } = require('../services/zugriffContext');
 
 // GET /api/beurteilungen?zuweisungId=..  | ?azubiOid=..
 router.get('/', async (req, res) => {
@@ -9,13 +10,23 @@ router.get('/', async (req, res) => {
     const { zuweisungId, azubiOid } = req.query;
 
     if (azubiOid) {
-      // Azubi darf nur die EIGENE Liste sehen; Verantwortliche/dev jede.
+      // Azubi sieht nur die EIGENE Liste (nur Abgeschlossene). Verantwortliche nur
+      // für BETREUTE Azubis (befristet per E-Mail ODER dauerhaft, datumsunabhängig);
+      // dev/admin alle.
       const eigen = req.user.oid === azubiOid;
-      const darf = eigen || req.user.istAusbilder || req.user.kannPlanen
-                 || req.user.role === 'developer' || req.user.role === 'admin';
+      const istPrivilegiert = req.user.role === 'developer' || req.user.role === 'admin';
+      let darf = eigen || istPrivilegiert;
+      if (!darf) {
+        const kontext = await ladeKorrekturKontext(pool, req.user);
+        const betreut = new Set([
+          ...kontext.zuweisungen.map(z => z.azubiOid),
+          ...(kontext.dauerAusbilderAzubiOids || []),
+        ]);
+        darf = betreut.has(azubiOid);
+      }
       if (!darf) return res.status(403).json({ error: 'Kein Zugriff.' });
       let list = await svc.listByAzubi(pool, azubiOid);
-      if (eigen && !req.user.istAusbilder && req.user.role !== 'developer' && req.user.role !== 'admin') {
+      if (eigen && !istPrivilegiert) {
         list = list.filter(b => b.Status === 'abgeschlossen'); // Azubi sieht nur Abgeschlossene
       }
       return res.json(list);
