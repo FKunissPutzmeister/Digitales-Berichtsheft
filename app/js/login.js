@@ -26,7 +26,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   const base = (window.location.port === '5500')
     ? `http://${window.location.hostname}:3000/api` : '/api';
   let samlReady = false;
-  let demoLogin = true;
+  let demoLogin = false;
   try {
     const r = await fetch(`${base}/auth/saml/status`, { credentials: 'include' });
     if (!r.ok) console.warn('[saml] status-Endpoint antwortete nicht OK:', r.status);
@@ -45,13 +45,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   });
 
-  if (!demoLogin) {
-    // style.display statt [hidden]: .login-form/.login-divider setzen display:flex,
-    // das würde das hidden-Attribut überstimmen.
+  // Demo-Bereich ist im HTML per style="display:none" versteckt (kein Aufblitzen
+  // in Produktion) und wird nur bei vorhandenem Demo-Login freigeschaltet.
+  if (demoLogin) {
     for (const el of [document.querySelector('.login-divider'),
                       document.getElementById('loginForm'),
                       document.getElementById('loginDemo')]) {
-      if (el) el.style.display = 'none';
+      if (el) el.style.display = '';
     }
   }
 
