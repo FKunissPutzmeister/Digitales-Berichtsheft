@@ -128,11 +128,13 @@ async function durchlaufBodyHtml(azubiId, ausbilderMode = false) {
   const card = z => {
     const s = durchlaufStatus(z, heute);
     const b = beurtByZuw[z.id];
-    const beendet = z.bis && z.bis < heute;
+    // Verantwortliche dürfen ab Beginn des Durchlaufs beurteilen (aktiv ODER beendet),
+    // aber nicht bei rein zukünftigen Durchläufen. Backend prüft datumsunabhängig.
+    const gestartet = z.von && z.von <= heute;
     let beurtBadge = '', klickbar = false;
     if (b && b.status === 'abgeschlossen') { beurtBadge = `<span class="badge badge--genehmigt durchlauf-card__beurt">Beurteilung ✓</span>`; klickbar = true; }
-    else if (ausbilderMode && beendet && (b && b.status === 'entwurf')) { beurtBadge = `<span class="badge badge--freigegeben durchlauf-card__beurt">Entwurf</span>`; klickbar = true; }
-    else if (ausbilderMode && beendet) { beurtBadge = `<span class="badge badge--grey durchlauf-card__beurt">Beurteilung offen</span>`; klickbar = true; }
+    else if (ausbilderMode && (b && b.status === 'entwurf')) { beurtBadge = `<span class="badge badge--freigegeben durchlauf-card__beurt">Entwurf</span>`; klickbar = true; }
+    else if (ausbilderMode && gestartet) { beurtBadge = `<span class="badge badge--grey durchlauf-card__beurt">Beurteilung offen</span>`; klickbar = true; }
     return `
     <div class="durchlauf-card${s.label === 'Aktuell' ? ' durchlauf-card--current' : ''}${klickbar ? ' durchlauf-card--clickable' : ''}"
          ${klickbar ? `data-zuw="${z.id}" role="button" tabindex="0"` : ''}>
