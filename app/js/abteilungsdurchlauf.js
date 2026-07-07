@@ -34,6 +34,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   const today = new Date();
   const heute = DateUtil.toISODate(today);
   let pendingScrollLeft = 0;   // Timeline-Scrollziel („heute"), nach Render angewandt
+  let beurtByZuw = {};         // Beurteilungen je ZuweisungId (Kachel-Badge); VOR try, damit cardHtml (Sibling-Funktion) sie sieht
 
   // Stabile Farbe je Abteilung (alphabetisch vorbelegt).
   const abtColorIdx = {}; let _nextIdx = 0;
@@ -53,7 +54,6 @@ document.addEventListener('DOMContentLoaded', async () => {
   try {
     const zuwRaw = await DB.getZuweisungenFuerAzubi(user.id);
     const zuw = zuwRaw.slice().sort((a, b) => (a.von || '').localeCompare(b.von || ''));
-    let beurtByZuw = {};
     try { (await DB.getBeurteilungenFuerAzubi(user.id)).forEach(b => { beurtByZuw[b.zuweisungId] = b; }); } catch (e) {}
     // Abteilungen vorab einfärben (sortiert → stabile Farbe je Abteilung).
     [...new Set(zuw.map(z => z.abteilung).filter(Boolean))].sort().forEach(colorFor);

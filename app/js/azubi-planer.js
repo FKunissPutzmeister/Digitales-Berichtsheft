@@ -115,7 +115,7 @@ function durchlaufStatus(z, heute) {
 
 /* Read-only Durchlauf-Inhalt (Timeline + Karten) EINES Azubis. Gemeinsame Basis
    für die Azubi-Eigensicht und die Ausbilder-Sicht. */
-async function durchlaufBodyHtml(azubiId) {
+async function durchlaufBodyHtml(azubiId, ausbilderMode = false) {
   const heute = DateUtil.toISODate(new Date());
   const planYear = new Date().getFullYear();
   const zuw = (await DB.getZuweisungenFuerAzubi(azubiId))
@@ -131,8 +131,8 @@ async function durchlaufBodyHtml(azubiId) {
     const beendet = z.bis && z.bis < heute;
     let beurtBadge = '', klickbar = false;
     if (b && b.status === 'abgeschlossen') { beurtBadge = `<span class="badge badge--genehmigt durchlauf-card__beurt">Beurteilung ✓</span>`; klickbar = true; }
-    else if (beendet && (b && b.status === 'entwurf')) { beurtBadge = `<span class="badge badge--freigegeben durchlauf-card__beurt">Entwurf</span>`; klickbar = true; }
-    else if (beendet) { beurtBadge = `<span class="badge badge--grey durchlauf-card__beurt">Beurteilung offen</span>`; klickbar = true; }
+    else if (ausbilderMode && beendet && (b && b.status === 'entwurf')) { beurtBadge = `<span class="badge badge--freigegeben durchlauf-card__beurt">Entwurf</span>`; klickbar = true; }
+    else if (ausbilderMode && beendet) { beurtBadge = `<span class="badge badge--grey durchlauf-card__beurt">Beurteilung offen</span>`; klickbar = true; }
     return `
     <div class="durchlauf-card${s.label === 'Aktuell' ? ' durchlauf-card--current' : ''}${klickbar ? ' durchlauf-card--clickable' : ''}"
          ${klickbar ? `data-zuw="${z.id}" role="button" tabindex="0"` : ''}>
@@ -224,7 +224,7 @@ async function renderAusbilderDurchlauf(user) {
       </div>`;
 
     async function renderFor(azubiId) {
-      main.innerHTML = `${header}${selectorHtml(azubiId)}${await durchlaufBodyHtml(azubiId)}`;
+      main.innerHTML = `${header}${selectorHtml(azubiId)}${await durchlaufBodyHtml(azubiId, true)}`;
       main.querySelectorAll('.ausbilder-chip').forEach(btn =>
         btn.addEventListener('click', () => renderFor(btn.dataset.azubiId)));
       scrollDurchlaufToToday();
