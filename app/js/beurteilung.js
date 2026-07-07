@@ -91,3 +91,76 @@ async function resolveZuweisung(zuweisungId, beurteilung) {
   const alle = [].concat(...listen);
   return alle.find(z => String(z.id) === String(zuweisungId)) || null;
 }
+
+// Rendert die Aktionsleiste (Speichern/Abschließen/PDF/Berichte für Verantwortliche, Kenntnisnahme/PDF für Azubi/DH).
+function renderActions(ctx) {
+  const { zuweisung, beurteilung, editable, form, user } = ctx;
+  const host = document.getElementById('beurtActions');
+  if (!host) return;
+  let id = beurteilung?.id || null;
+  const status = beurteilung?.status || (editable ? 'neu' : null);
+
+  if (editable) {
+    const abgeschlossen = status === 'abgeschlossen';
+    host.innerHTML = `
+      <button class="btn btn--secondary" id="beurtSave">Entwurf speichern</button>
+      <button class="btn btn--primary" id="beurtFinish">${abgeschlossen ? 'Änderungen speichern' : 'Abschließen'}</button>
+      <button class="btn btn--ghost" id="beurtPdf">Als PDF</button>
+      <button class="btn btn--ghost" id="beurtBerichte">Berichte des Zeitraums ansehen/korrigieren</button>`;
+
+    document.getElementById('beurtSave').addEventListener('click', async () => {
+      try {
+        const st = form.getState();
+        id = await DB.saveBeurteilungEntwurf({ zuweisungId: zuweisung.id, ...st });
+        Toast.success('Gespeichert', 'Entwurf wurde gespeichert.');
+      } catch (e) { Toast.error('Fehler', e.message); }
+    });
+
+    document.getElementById('beurtFinish').addEventListener('click', async () => {
+      const st = form.getState();
+      if (st.kriterien.length < 10) { Toast.error('Unvollständig', 'Bitte alle 10 Kriterien bewerten.'); return; }
+      try {
+        if (abgeschlossen) {
+          await DB.patchBeurteilung(id, st);
+          Toast.success('Aktualisiert', 'Beurteilung wurde aktualisiert (Azubi wird informiert).');
+        } else {
+          if (!id) id = await DB.saveBeurteilungEntwurf({ zuweisungId: zuweisung.id, ...st });
+          await DB.abschliessenBeurteilung(id);
+          Toast.success('Abgeschlossen', 'Beurteilung abgeschlossen. Der Azubi wurde benachrichtigt.');
+        }
+        setTimeout(() => location.reload(), 800);
+      } catch (e) { Toast.error('Fehler', e.message); }
+    });
+
+    document.getElementById('beurtPdf').addEventListener('click', () => exportBeurteilungPdf(ctx)); // Task 10
+
+    document.getElementById('beurtBerichte').addEventListener('click', () => {
+      // Verantwortliche landen in der Wochenansicht beim betreffenden Azubi.
+      sessionStorage.setItem('gotoAzubiId', String(zuweisung.azubiId));
+      const von = new Date(zuweisung.von + 'T00:00:00');
+      if (!isNaN(von)) {
+        const kw = DateUtil.getKW ? DateUtil.getKW(von) : null;
+        if (kw) { sessionStorage.setItem('gotoKW', String(kw)); sessionStorage.setItem('gotoYear', String(von.getFullYear())); }
+      }
+      window.location.href = 'wochenansicht.html';
+    });
+    return;
+  }
+
+  // Read-only (Azubi/DH): Kenntnisnahme + PDF.
+  const bestaetigt = !!beurteilung?.kenntnisnahmeAm;
+  host.innerHTML = `
+    <button class="btn btn--primary" id="beurtAck" ${bestaetigt ? 'disabled' : ''}>
+      ${bestaetigt ? 'Kenntnisnahme bestätigt' : 'Kenntnisnahme bestätigen'}</button>
+    <button class="btn btn--ghost" id="beurtPdf">Als PDF</button>`;
+  document.getElementById('beurtPdf').addEventListener('click', () => exportBeurteilungPdf(ctx));
+  if (!bestaetigt) {
+    document.getElementById('beurtAck').addEventListener('click', async () => {
+      try {
+        await DB.kenntnisnahmeBeurteilung(beurteilung.id);
+        Toast.success('Bestätigt', 'Kenntnisnahme wurde vermerkt.');
+        setTimeout(() => location.reload(), 800);
+      } catch (e) { Toast.error('Fehler', e.message); }
+    });
+  }
+}
