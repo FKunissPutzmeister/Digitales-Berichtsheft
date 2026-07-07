@@ -1850,4 +1850,72 @@
       html.setAttribute('data-page-enter', '');
     }
   } catch (e) {}
+
+  /* ── Testphasen-Hinweis ─────────────────────────────────────────
+     Dezente, fixe Pille oben rechts, die auf JEDER Seite (inkl. Login)
+     signalisiert, dass sich die Anwendung noch in der Testphase befindet.
+     Bewusst hier in theme.js, weil dieses Script als einziges nachweislich
+     auf allen Seiten im <head> geladen wird → ein Ort, alle Seiten, ohne
+     jede HTML-Datei anzufassen.
+
+     • Eigene, feste Farben (Bernstein) statt Theme-Variablen → konsistent
+       in hell/dunkel und allen Custom-Designs, ohne Nachpflege pro Theme.
+     • pointer-events:none → blockiert nie Klicks auf darunterliegende UI.
+     • Idempotent + SPA-sicher: Element hängt am <body> AUSSERHALB von
+       #mainContent (router.js lässt es unangetastet); doppeltes Einhängen
+       wird per id verhindert.
+     • theme.js läuft im <head> → bei fehlendem document.body auf
+       DOMContentLoaded verschieben (once). */
+  var TESTPHASE_BADGE = true;   // zum Deaktivieren nach der Testphase auf false setzen
+  var testphaseDeferred = false;
+  function ensureTestphaseBadge() {
+    if (!TESTPHASE_BADGE) return;
+    if (!document.body) {
+      if (!testphaseDeferred) {
+        testphaseDeferred = true;
+        document.addEventListener('DOMContentLoaded', function () {
+          testphaseDeferred = false;
+          ensureTestphaseBadge();
+        }, { once: true });
+      }
+      return;
+    }
+    if (!document.getElementById('pmTestphaseStyle')) {
+      var style = document.createElement('style');
+      style.id = 'pmTestphaseStyle';
+      style.textContent =
+        '#pmTestphaseBadge{' +
+          'position:fixed;top:12px;right:16px;z-index:9998;' +
+          'display:inline-flex;align-items:center;gap:7px;' +
+          'padding:5px 12px;border-radius:999px;' +
+          'font:600 11.5px/1 system-ui,-apple-system,"Segoe UI",sans-serif;' +
+          'letter-spacing:.04em;text-transform:uppercase;white-space:nowrap;' +
+          'color:#ffd43b;background:rgba(24,24,27,.6);' +
+          'border:1px solid rgba(245,197,24,.5);' +
+          '-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);' +
+          'box-shadow:0 2px 10px rgba(0,0,0,.25);' +
+          'pointer-events:none;user-select:none;' +
+        '}' +
+        '#pmTestphaseBadge::before{' +
+          'content:"";width:7px;height:7px;border-radius:50%;' +
+          'background:#ffd43b;box-shadow:0 0 6px rgba(255,212,59,.9);' +
+        '}' +
+        /* Blur ist teuer auf Software-Rendering → dann deckende Fläche. */
+        'html.perf-lite #pmTestphaseBadge{' +
+          '-webkit-backdrop-filter:none;backdrop-filter:none;' +
+          'background:rgba(24,24,27,.92);' +
+        '}' +
+        '@media print{#pmTestphaseBadge{display:none}}';
+      (document.head || document.documentElement).appendChild(style);
+    }
+    if (!document.getElementById('pmTestphaseBadge')) {
+      var badge = document.createElement('div');
+      badge.id = 'pmTestphaseBadge';
+      badge.setAttribute('aria-hidden', 'true');
+      badge.setAttribute('title', 'Diese Anwendung befindet sich aktuell in der Testphase.');
+      badge.textContent = 'Testphase';
+      document.body.appendChild(badge);
+    }
+  }
+  ensureTestphaseBadge();
 })();

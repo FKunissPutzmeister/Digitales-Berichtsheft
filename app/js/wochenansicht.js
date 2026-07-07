@@ -318,7 +318,12 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     const azubiSelectorHtml = isAusbilder ? await renderAzubiSelector(azubiId) : '';
 
-    const wochenKommentare = (woche?.kommentare || []).filter(k => k.tagId === null);
+    // Nur Wochen-Kommentare (tagId === null). Der 'abgelehnt'-Kommentar dient
+    // ausschließlich als Datenquelle für das Rückgabe-Banner oben und wird
+    // hier ausgeblendet – im Kommentarbereich erscheinen nur explizit
+    // hinzugefügte Kommentare (inkl. der als 'ausbilder' gespiegelten
+    // Rückgabe-Begründung, siehe rejectConfirmBtn-Handler).
+    const wochenKommentare = (woche?.kommentare || []).filter(k => k.tagId === null && k.typ !== 'abgelehnt');
     const wochenKommentareHtml = woche && wochenKommentare.length
       ? `<div class="card" style="margin-top:var(--sp-5)">
           <div class="card__header"><span class="card__title">Kommentare</span></div>
@@ -2207,9 +2212,16 @@ document.addEventListener('DOMContentLoaded', async () => {
       const reason = document.getElementById('rejectReason').value.trim();
       if (!reason) { Toast.error('Pflichtfeld', 'Bitte eine Begründung eingeben.'); return; }
       if (!woche) return;
+      const datum = new Date().toLocaleDateString('de-DE');
+      // 'abgelehnt'-Kommentar = Datenquelle für das Rückgabe-Banner (oben).
       await DB.addKommentar(woche.id, {
-        userId: user.id, text: reason,
-        datum: new Date().toLocaleDateString('de-DE'), typ: 'abgelehnt',
+        userId: user.id, text: reason, datum, typ: 'abgelehnt',
+      });
+      // Begründung zusätzlich als regulären Kommentar in den Thread, damit sie
+      // im Kommentarbereich als explizit hinzugefügter Kommentar erscheint und
+      // auch nach erneuter Freigabe (Banner weg) als Verlauf erhalten bleibt.
+      await DB.addKommentar(woche.id, {
+        userId: user.id, text: reason, datum, typ: 'ausbilder',
       });
       await DB.setWocheStatus(woche.id, 'abgelehnt');
       await DB.addBenachrichtigung({

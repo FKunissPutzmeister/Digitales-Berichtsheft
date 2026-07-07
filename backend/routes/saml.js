@@ -7,6 +7,7 @@ const router = require('express').Router();
 // Konfiguration wird einmalig beim Start ausgewertet; samlConfigured ist ein Load-Time-Snapshot (beabsichtigt).
 const { saml, samlConfigured } = require('../config/saml');
 const { parseRoleClaim, upsertUser } = require('../services/users');
+const { DEV_AUTH_ENABLED } = require('../middleware/auth');
 
 const DASHBOARD = '/app/dashboard.html';
 const LOGIN_PAGE = '/app/index.html';
@@ -56,8 +57,10 @@ function guard(req, res, next) {
   next();
 }
 
-// Frontend fragt, ob der Microsoft-Button aktiv sein soll.
-router.get('/status', (req, res) => res.json({ configured: samlConfigured }));
+// Frontend fragt, ob der Microsoft-Button aktiv sein soll — und ob es den
+// passwortlosen Demo-Login gibt (in Produktion nicht gemountet; die
+// Login-Seite blendet den Demo-Block dann komplett aus).
+router.get('/status', (req, res) => res.json({ configured: samlConfigured, demoLogin: DEV_AUTH_ENABLED }));
 
 // SP-initiierter Login → Redirect zum Azure-Login.
 router.get('/login', guard, async (req, res) => {

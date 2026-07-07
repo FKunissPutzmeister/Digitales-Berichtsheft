@@ -166,47 +166,6 @@ body.login-page {
 .login-form .form-group { gap: var(--sp-2); }
 .login-form .btn { width: 100%; margin-top: var(--sp-1); }
 
-.password-wrap {
-  position: relative;
-}
-.password-wrap .form-control {
-  padding-right: 44px;
-}
-.password-toggle {
-  position: absolute;
-  right: 0;
-  top: 0;
-  height: 40px;
-  width: 40px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--pm-grey-400);
-  cursor: pointer;
-  transition: color var(--t-fast);
-}
-.password-toggle:hover { color: var(--pm-grey-700); }
-.password-toggle svg { width: 18px; height: 18px; }
-
-.login-form__options {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-top: calc(var(--sp-1) * -1);
-}
-.login-form__forgot {
-  font-size: var(--text-sm);
-  font-weight: var(--fw-medium);
-  color: var(--pm-grey-500);
-  text-decoration: underline;
-  cursor: pointer;
-}
-.login-form__forgot:hover { color: var(--pm-grey-800); }
-
-/* „Angemeldet bleiben" – Medium statt Regular, damit der kleine Text
-   nicht zu zart wirkt (globales .checkbox-wrap span bleibt unberührt). */
-.login-form__options .checkbox-wrap span { font-weight: var(--fw-medium); }
-
 /* ── Fehlermeldung ── */
 .login-error {
   display: none;

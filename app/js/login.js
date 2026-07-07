@@ -17,37 +17,42 @@ document.addEventListener('DOMContentLoaded', async () => {
   const errorBox = document.getElementById('loginError');
   const errorText = document.getElementById('loginErrorText');
   const loginBtn = document.getElementById('loginBtn');
-  const pwToggle = document.getElementById('passwordToggle');
-  const pwInput = document.getElementById('password');
-
-  pwToggle?.addEventListener('click', () => {
-    const isPassword = pwInput.type === 'password';
-    pwInput.type = isPassword ? 'text' : 'password';
-    pwToggle.innerHTML = isPassword
-      ? `<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19m-6.72-1.07a3 3 0 11-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>`
-      : `<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>`;
-  });
 
   // Microsoft-SSO: aktiv, sobald das Backend SAML konfiguriert meldet.
+  // demoLogin sagt, ob der passwortlose Demo-Login existiert (nur außerhalb
+  // der Produktion) — wenn nicht, wird der komplette Demo-Block ausgeblendet.
   const msBtn = document.getElementById('msLoginBtn');
   const ssoHint = document.getElementById('ssoHint');
-  if (msBtn) {
-    const base = (window.location.port === '5500')
-      ? `http://${window.location.hostname}:3000/api` : '/api';
-    let samlReady = false;
-    try {
-      const r = await fetch(`${base}/auth/saml/status`, { credentials: 'include' });
-      if (!r.ok) console.warn('[saml] status-Endpoint antwortete nicht OK:', r.status);
-      samlReady = r.ok && (await r.json()).configured === true;
-    } catch { samlReady = false; }
+  const base = (window.location.port === '5500')
+    ? `http://${window.location.hostname}:3000/api` : '/api';
+  let samlReady = false;
+  let demoLogin = true;
+  try {
+    const r = await fetch(`${base}/auth/saml/status`, { credentials: 'include' });
+    if (!r.ok) console.warn('[saml] status-Endpoint antwortete nicht OK:', r.status);
+    if (r.ok) {
+      const status = await r.json();
+      samlReady = status.configured === true;
+      demoLogin = status.demoLogin !== false;
+    }
+  } catch { samlReady = false; }
 
-    msBtn.addEventListener('click', () => {
-      if (samlReady) {
-        window.location.href = `${base}/auth/saml/login`;
-      } else {
-        ssoHint?.classList.add('visible');
-      }
-    });
+  msBtn?.addEventListener('click', () => {
+    if (samlReady) {
+      window.location.href = `${base}/auth/saml/login`;
+    } else {
+      ssoHint?.classList.add('visible');
+    }
+  });
+
+  if (!demoLogin) {
+    // style.display statt [hidden]: .login-form/.login-divider setzen display:flex,
+    // das würde das hidden-Attribut überstimmen.
+    for (const el of [document.querySelector('.login-divider'),
+                      document.getElementById('loginForm'),
+                      document.getElementById('loginDemo')]) {
+      if (el) el.style.display = 'none';
+    }
   }
 
   // Demo-Zugänge ein-/ausklappen
@@ -77,16 +82,15 @@ document.addEventListener('DOMContentLoaded', async () => {
       const user = await DB.login(email);
       if (user) {
         window.location.href = landingFor(user);
-      } else {
-        showError('Ungültige E-Mail-Adresse.');
-        loginBtn.disabled = false;
-        loginBtn.textContent = 'Anmelden';
+        return;
       }
-    } catch {
-      showError('Anmeldung fehlgeschlagen. Bitte prüfe deine E-Mail-Adresse.');
-      loginBtn.disabled = false;
-      loginBtn.textContent = 'Anmelden';
+      showError('Ungültige E-Mail-Adresse.');
+    } catch (e) {
+      // Server-Meldung durchreichen (z.B. "Nur Demo-Konten können sich ohne SSO anmelden.")
+      showError(e.message || 'Anmeldung fehlgeschlagen. Bitte prüfe deine E-Mail-Adresse.');
     }
+    loginBtn.disabled = false;
+    loginBtn.textContent = 'Als Demo-Konto anmelden';
   }
 
   form?.addEventListener('submit', async (e) => {

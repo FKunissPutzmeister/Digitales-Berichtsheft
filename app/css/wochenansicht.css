@@ -3201,6 +3201,16 @@ body[data-page="wochenansicht"] .time-spinner__input.spinner-bump-down {
   background: rgba(255, 255, 255, 0.10);
   backdrop-filter: blur(8px);
 }
+/* Rückgabe-Begründung: Der Zitat-Kasten behielt seinen hellen
+   rgba(255,255,255,0.6)-Hintergrund, während die Text-/Stempelfarben im
+   Dark Mode auf helle Grautöne invertieren (--pm-grey-500/800) → hell auf
+   hell = unsichtbar. Deshalb hier ein dunkles Panel; die bestehenden
+   (invertiert-hellen) Textfarben tragen dann den nötigen Kontrast. */
+[data-theme="dark"] .week-status-banner__quote {
+  background: rgba(255, 255, 255, 0.06);
+}
+[data-theme="dark"] .week-status-banner__quote-text { color: var(--pm-grey-800); }
+[data-theme="dark"] .week-status-banner__quote-meta { color: var(--pm-grey-500); }
 
 /* Bottom-Bar (Gesamt-Stunden): minimalistisch, ohne grauen Balken.
    Hintergrund/Schatten bleiben transparent – nur Wochensumme in Brand-Gelb. */

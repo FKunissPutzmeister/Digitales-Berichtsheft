@@ -17,6 +17,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   const isAzubi = user.role === 'azubi' || !!user.istAzubi;
   const isAusbilder = user.role === 'pruefer';
   const isAdmin = user.role === 'admin';
+  const isDeveloper = user.role === 'developer';
 
   function getRoleLabel(role) {
     switch (role) {
@@ -125,6 +126,9 @@ document.addEventListener('DOMContentLoaded', async () => {
      Verhalten: Der Hell/Dunkel-Toggle in der Sidebar verlässt ein
      aktives Custom-Design und kehrt zum gewählten Standard-Modus
      zurück (implementiert in PMTheme.set/toggle, theme.js). */
+  /* Saison-Themes (Halloween/Christmas) sind während der Testphase nur für
+     Developer sichtbar; alle übrigen Nutzer sehen sie nicht in der Auswahl. */
+  const SEASONAL_DESIGNS = ['halloween', 'christmas'];
   const THEME_DESIGNS = [
     { id: '',           name: 'Standard',   sub: 'Putzmeister-Design' },
     { id: 'silk',       name: 'Silk',       sub: 'Liquid Glass · futuristisch' },
@@ -133,7 +137,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     { id: 'iceland',    name: 'Iceland',    sub: 'Schnee, Eis & Iglu' },
     { id: 'halloween',  name: 'Halloween',  sub: 'Geisterhaus & Nebel' },
     { id: 'christmas',  name: 'Christmas',  sub: 'Verschneit & festlich' },
-  ];
+  ].filter(d => isDeveloper || !SEASONAL_DESIGNS.includes(d.id));
 
   function buildDarstellung() {
     const mode   = window.PMTheme?.getMode?.()   || 'light';
@@ -151,12 +155,14 @@ document.addEventListener('DOMContentLoaded', async () => {
     const SUN  = '<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>';
     const MOON = '<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>';
 
-    /* Custom-Designs sind ein reines Azubi-Feature – Ausbilder/Admin
-       sehen nur den Hell/Dunkel-Umschalter: Titel ohne „& Themes",
-       kürzerer Hinweis, keine Custom-Design-Gruppe. */
-    const title = isAzubi ? 'Darstellung &amp; Themes' : 'Darstellung';
+    /* Custom-Designs sehen Azubis UND Developer – Ausbilder/Admin sehen nur
+       den Hell/Dunkel-Umschalter: Titel ohne „& Themes", keine Custom-Design-
+       Gruppe. (Developer erhalten zusätzlich die Saison-Themes, siehe
+       THEME_DESIGNS-Filter oben.) */
+    const showThemes = isAzubi || isDeveloper;
+    const title = showThemes ? 'Darstellung &amp; Themes' : 'Darstellung';
 
-    const customGroup = !isAzubi ? '' : `
+    const customGroup = !showThemes ? '' : `
           <div class="theme-group">
             <div class="theme-group__label">Custom-Design</div>
             <div class="theme-tiles">

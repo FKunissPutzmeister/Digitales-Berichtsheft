@@ -20,6 +20,10 @@ const THEME_DESIGNS = [
   { id: 'halloween',  name: 'Halloween',  sub: 'Geisterhaus & Nebel' },
   { id: 'christmas',  name: 'Christmas',  sub: 'Verschneit & festlich' },
 ];
+/* Saison-Themes (Halloween/Christmas) nur für Developer sichtbar. DH-Studenten
+   sind nie Developer → hier faktisch immer ausgeblendet (Gate dennoch konsistent
+   zur regulären Profil-Seite). */
+const SEASONAL_DESIGNS = ['halloween', 'christmas'];
 
 document.addEventListener('DOMContentLoaded', async () => {
   const user = await DB.fetchCurrentUser();
@@ -117,7 +121,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       <div class="theme-group">
         <div class="theme-group__label">Custom-Design</div>
         <div class="theme-tiles">
-          ${THEME_DESIGNS.map(d => `
+          ${THEME_DESIGNS.filter(d => user.role === 'developer' || !SEASONAL_DESIGNS.includes(d.id)).map(d => `
             <button type="button" class="theme-tile ${custom === d.id ? 'active' : ''}"
                     data-theme-design="${d.id}" aria-pressed="${custom === d.id}">
               <span class="theme-tile__swatch theme-tile__swatch--${d.id || 'standard'}" aria-hidden="true"></span>
