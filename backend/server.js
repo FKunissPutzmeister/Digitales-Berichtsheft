@@ -106,6 +106,7 @@ const kommentareRouter     = require('./routes/kommentare');
 const anhaengeRouter       = require('./routes/anhaenge');
 const benachrichtigungenRouter = require('./routes/benachrichtigungen');
 const fahrtgeldRouter      = require('./routes/fahrtgeld');
+const beurteilungenRouter  = require('./routes/beurteilungen');
 
 app.use('/api/users',               devAuth, usersRouter);
 app.use('/api/wochen',              devAuth, wochenRouter);
@@ -115,6 +116,7 @@ app.use('/api/wochen',              devAuth, kommentareRouter);   // POST /api/w
 app.use('/api/wochen',              devAuth, anhaengeRouter);     // /api/wochen/:id/anhaenge, /api/wochen/anhaenge/:id
 app.use('/api/benachrichtigungen',  devAuth, benachrichtigungenRouter);
 app.use('/api/fahrtgeld',           devAuth, fahrtgeldRouter);
+app.use('/api/beurteilungen',       devAuth, beurteilungenRouter);
 
 // ── Dev-Hilfsliste: alle verfügbaren Routen ───────────────────────
 if (process.env.NODE_ENV !== 'production') {
