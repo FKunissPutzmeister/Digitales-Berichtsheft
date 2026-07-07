@@ -233,15 +233,14 @@ test('berechne: unvollständig -> note null, vollstaendig false', () => {
   assert.equal(r.note, null);
 });
 
-test('berechne: kaufmännische Rundung des Gesamtwerts', () => {
-  // Gesamt 82,5 -> round -> 83 -> Note 2,2
-  // Konstruiere ØA=82,5 ØB=82,5 ØC=82,5 => summe 247,5 gesamt 82,5
-  const p = {};
-  B.KRITERIEN.forEach(k => { p[k.key] = 82; });         // alle 82 -> gesamt 82 -> Note noteFuerPunkte(82)
-  // separat: prüfe Rundung direkt über noteFuerPunkte-Aufruf im berechne
+test('berechne: kaufmännische Rundung (Gesamt 82,5 -> 83)', () => {
+  // ØA=85, ØB=85, ØC=77,5 ((77+77+78+78)/4) -> Summe 247,5 -> Gesamt 82,5 -> round 83
+  const p = {}; const cVals = [77, 77, 78, 78]; let ci = 0;
+  B.KRITERIEN.forEach(k => { p[k.key] = (k.block === 'C') ? cVals[ci++] : 85; });
   const r = B.berechne(p);
-  assert.equal(r.gesamt, 82);
-  assert.equal(r.note, B.noteFuerPunkte(82)); // 2,3
+  assert.equal(r.bloecke.C, 77.5);
+  assert.equal(r.gesamt, 82.5);
+  assert.equal(r.note, B.noteFuerPunkte(83)); // Math.round(82.5)=83 -> 2,2
 });
 ```
 
@@ -713,7 +712,7 @@ git commit -m "feat(beurteilung): Backend-Service (Persistenz, Berechnung, Mitte
 
 ```js
 const router = require('express').Router();
-const { getPool } = require('../db/connection');
+const { getPool, sql } = require('../db/connection');
 const svc = require('../services/beurteilungen');
 
 // GET /api/beurteilungen?zuweisungId=..  | ?azubiOid=..
@@ -777,8 +776,9 @@ router.post('/', async (req, res) => {
 // Gemeinsame Autorisierung für PATCH auf :id (Verantwortliche/dev).
 async function ladeUndAutorisiere(req, res) {
   const pool = await getPool();
-  const cur = await pool.request();
-  const r = await cur.query(`SELECT b.Id, b.ZuweisungId, b.AzubiOid FROM dbo.Beurteilungen b WHERE b.Id = ${Number(req.params.id) || 0}`);
+  const r = await pool.request()
+    .input('id', sql.Int, Number(req.params.id) || 0)
+    .query('SELECT b.Id, b.ZuweisungId, b.AzubiOid FROM dbo.Beurteilungen b WHERE b.Id = @id');
   const b = r.recordset[0];
   if (!b) { res.status(404).json({ error: 'Beurteilung nicht gefunden.' }); return null; }
   const zuw = await svc.ladeZuweisung(pool, b.ZuweisungId);
@@ -809,7 +809,7 @@ router.patch('/:id', async (req, res) => {
 router.patch('/:id/kenntnisnahme', async (req, res) => {
   try {
     const pool = await getPool();
-    const r = await pool.request().input('id', require('../db/connection').sql.Int, Number(req.params.id))
+    const r = await pool.request().input('id', sql.Int, Number(req.params.id))
       .query('SELECT AzubiOid FROM dbo.Beurteilungen WHERE Id=@id');
     const row = r.recordset[0];
     if (!row) return res.status(404).json({ error: 'Beurteilung nicht gefunden.' });
