@@ -154,6 +154,7 @@ function normalizeBenachrichtigung(b) {
     userId: b.UserOid,
     type: b.Typ,
     wocheId: b.WocheId,
+    zuweisungId: b.ZuweisungId ?? null,
     kw: b.KW,
     year: b.Jahr,
     azubiId: b.AzubiOid,

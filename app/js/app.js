@@ -283,9 +283,22 @@ async function initNotifications(user) {
   const ICON = {
     genehmigt: `<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>`,
     abgelehnt: `<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>`,
+    beurteilung_faellig: `<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>`,
+    beurteilung_abgeschlossen: `<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>`,
   };
 
   async function renderItem(b) {
+    if (b.type === 'beurteilung_faellig' || b.type === 'beurteilung_abgeschlossen') {
+      const faellig = b.type === 'beurteilung_faellig';
+      const title = faellig ? 'Beurteilung fällig' : 'Neue Beurteilung liegt vor';
+      const meta = relativeTime(b.timestamp);
+      return `
+        <button type="button" class="notif-item${b.gelesen ? '' : ' notif-item--unread'}" data-id="${b.id}" data-zuw="${b.zuweisungId || ''}" data-nav="beurteilung">
+          <span class="notif-item__icon notif-item__icon--${faellig ? 'error' : 'success'}">${ICON[b.type]}</span>
+          <span class="notif-item__body"><span class="notif-item__title">${title}</span><span class="notif-item__meta">${meta}</span></span>
+          ${b.gelesen ? '' : '<span class="notif-item__dot" aria-label="ungelesen"></span>'}
+        </button>`;
+    }
     const isApproved = b.type === 'genehmigt';
     const from = b.fromUserId ? await DB.getUser(b.fromUserId) : null;
     const fromName = from ? from.name : 'Ausbilder/in';
@@ -352,6 +365,10 @@ async function initNotifications(user) {
         const item = items.find(b => b.id === id);
         if (!item) return;
         await DB.markBenachrichtigungGelesen(id);
+        if (el.dataset.nav === 'beurteilung') {
+          const zuw = el.dataset.zuw;
+          if (zuw) { window.location.href = `beurteilung.html?zuw=${zuw}`; return; }
+        }
         // Navigations-Hinweise an wochenansicht.js übergeben
         if (item.kw)        sessionStorage.setItem('gotoKW',    String(item.kw));
         if (item.year)      sessionStorage.setItem('gotoYear',  String(item.year));
@@ -389,6 +406,11 @@ async function initNotifications(user) {
     await DB.markAlleBenachrichtigungenGelesen(user.id);
     await render();
   });
+
+  // Für Verantwortliche: fällige Beurteilungen ermitteln (legt serverseitig Mitteilungen an).
+  if (user && (user.istAusbilder || user.kannPlanen)) {
+    try { await DB.getFaelligeBeurteilungen(); } catch (e) { /* nicht blockierend */ }
+  }
 
   // Initial-Render (für korrekten Badge-Stand sofort beim Pageload)
   await render();
