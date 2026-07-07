@@ -21,11 +21,16 @@ document.addEventListener('DOMContentLoaded', async () => {
   document.getElementById('beurtBack')?.addEventListener('click', e => { e.preventDefault(); back(); });
 
   const main = document.getElementById('mainContent');
+  const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[c]));
   if (!zuw) { main.innerHTML = `<div class="beurt-empty">Keine Zuweisung angegeben.</div>`; return; }
 
   let data;
   try { data = await loadContext(zuw); }
-  catch (err) { main.innerHTML = `<div class="beurt-empty">${err.message || 'Beurteilung konnte nicht geladen werden.'}</div>`; return; }
+  catch (err) {
+    console.error('Beurteilung konnte nicht geladen werden:', err);
+    main.innerHTML = `<div class="beurt-empty">${esc(err.message || 'Beurteilung konnte nicht geladen werden.')}</div>`;
+    return;
+  }
 
   const { zuweisung, beurteilung, azubi, editable } = data;
 
