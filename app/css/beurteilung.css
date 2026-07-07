@@ -1,0 +1,25 @@
+/* Beurteilungsbogen – Formular + Print. Nutzt Design-Tokens (variables.css). */
+.beurt-page .dh-main { max-width: 1000px; margin: 0 auto; padding: var(--sp-5, 24px); }
+.beurt-loading, .beurt-empty { padding: var(--sp-6, 32px); text-align: center; color: var(--pm-grey-500, #888); }
+.beurt__kopf { display: grid; grid-template-columns: repeat(2, 1fr); gap: var(--sp-3, 12px); margin-bottom: var(--sp-4, 16px); }
+.beurt__label { font-size: 11px; text-transform: uppercase; letter-spacing: .4px; color: var(--pm-grey-500, #888); }
+.beurt__val { font-weight: 600; }
+.beurt__katalog-btn { grid-column: 1 / -1; justify-self: start; }
+.beurt-table { width: 100%; border-collapse: collapse; margin: var(--sp-3,12px) 0; }
+.beurt-table th, .beurt-table td { border: 1px solid var(--pm-grey-300, #d5d5d5); padding: 6px 8px; text-align: left; vertical-align: middle; }
+.beurt-th-sub { font-weight: 400; font-size: 10px; color: var(--pm-grey-500,#888); }
+.beurt-block__head th { background: var(--pm-grey-100, #f0f0f0); font-weight: 700; }
+.beurt-block__sum td, .beurt-block__sum th { background: var(--pm-grey-50, #f7f7f7); font-weight: 700; }
+.beurt-row__stufen { white-space: nowrap; }
+.beurt-stufe { display: inline-flex; flex-direction: column; align-items: center; margin-right: 8px; font-size: 11px; cursor: pointer; }
+.beurt-pkt-input { width: 64px; padding: 4px 6px; }
+.beurt-fuss { display: flex; flex-wrap: wrap; gap: var(--sp-4,16px); justify-content: flex-end; margin: var(--sp-3,12px) 0; }
+.beurt-fuss > div { display: flex; gap: 8px; align-items: baseline; }
+.beurt-fuss__note b { font-size: 20px; color: var(--pm-yellow-700, #b58900); }
+.beurt-indiv textarea { width: 100%; }
+.beurt-actions { display: flex; gap: var(--sp-3,12px); flex-wrap: wrap; margin-top: var(--sp-4,16px); }
+.beurt-katalog { max-height: 70vh; overflow-y: auto; }
+.katalog-krit { margin-bottom: var(--sp-3,12px); }
+.katalog-krit__desc { font-style: italic; color: var(--pm-grey-500,#888); margin: 2px 0 4px; }
+/* DH-Variante: leicht andere Optik (kompakter Kopf) */
+.beurt-page--dh .beurt__kopf { grid-template-columns: 1fr; }

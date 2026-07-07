@@ -1,0 +1,88 @@
+/* ===================================================================
+   BEURTEILUNG.JS – Controller der Beurteilungsseite (beurteilung.html).
+   Rollen-/Shell-bewusst: Verantwortliche bearbeiten, Azubi/DH lesen.
+   =================================================================== */
+document.addEventListener('DOMContentLoaded', async () => {
+  const user = await DB.fetchCurrentUser();
+  if (!user) { window.location.href = 'index.html'; return; }
+
+  document.getElementById('dhThemeToggle')?.addEventListener('click', () => {
+    if (window.PMTheme) window.PMTheme.set(window.PMTheme.get() === 'dark' ? 'light' : 'dark');
+  });
+
+  // DH-Studenten in eigener Optik (Body-Marker fürs CSS).
+  if (user.istDhStudent) document.body.classList.add('beurt-page--dh');
+
+  const zuw = new URLSearchParams(location.search).get('zuw');
+  const back = () => {
+    if (document.referrer && history.length > 1) history.back();
+    else window.location.href = user.istDhStudent ? 'abteilungsdurchlauf.html' : 'azubi-planer.html';
+  };
+  document.getElementById('beurtBack')?.addEventListener('click', e => { e.preventDefault(); back(); });
+
+  const main = document.getElementById('mainContent');
+  if (!zuw) { main.innerHTML = `<div class="beurt-empty">Keine Zuweisung angegeben.</div>`; return; }
+
+  let data;
+  try { data = await loadContext(zuw); }
+  catch (err) { main.innerHTML = `<div class="beurt-empty">${err.message || 'Beurteilung konnte nicht geladen werden.'}</div>`; return; }
+
+  const { zuweisung, beurteilung, azubi, editable } = data;
+
+  if (!editable && !beurteilung) {
+    main.innerHTML = `<div class="beurt-empty">Für diesen Zeitraum liegt noch keine abgeschlossene Beurteilung vor.</div>`;
+    return;
+  }
+
+  const kopf = {
+    name: azubi ? azubi.name : '',
+    abteilung: zuweisung.abteilung || '',
+    zeitraum: `${DateUtil.formatDate(zuweisung.von)} – ${DateUtil.formatDate(zuweisung.bis)}`,
+    beurteilende: zuweisung.verantwName || '',
+    beruf: azubi ? (azubi.beruf || azubi.studiengang || '') : '',
+  };
+  const punkteByKey = {};
+  (beurteilung?.kriterien || []).forEach(k => { punkteByKey[k.kriteriumKey] = k.punkte; });
+
+  main.innerHTML = `
+    <div class="page-header"><h1 class="page-title">Beurteilungsbogen</h1>
+      <span class="badge ${beurteilung?.status === 'abgeschlossen' ? 'badge--genehmigt' : 'badge--grey'}">
+        ${beurteilung?.status === 'abgeschlossen' ? 'Abgeschlossen' : (beurteilung ? 'Entwurf' : 'Neu')}</span></div>
+    <div id="beurtFormHost"></div>
+    <div class="beurt-actions" id="beurtActions"></div>`;
+
+  const form = window.Beurteilung.renderForm(document.getElementById('beurtFormHost'), {
+    kopf, punkteByKey, individuell: beurteilung?.individuelleBeurteilung || '',
+    gespraechAm: beurteilung?.gespraechAm || '', editable,
+  });
+
+  renderActions({ user, zuweisung, beurteilung, azubi, editable, form }); // defined in Tasks 9–10
+});
+
+// Lädt Zuweisung (via Azubi-Liste), bestehende Beurteilung, Azubi-User und leitet den Modus ab.
+async function loadContext(zuweisungId) {
+  const beurteilung = await DB.getBeurteilung(zuweisungId);      // null erlaubt
+  // Zuweisung selbst: aus der Azubi-/Verantwortlichen-Liste beziehen – wir kennen den Azubi erst über die Beurteilung
+  // ODER über die Zuweisungsliste. Robust: Zuweisung über den dedizierten Endpoint der Beurteilung mitliefern.
+  const zuweisung = await resolveZuweisung(zuweisungId, beurteilung);
+  if (!zuweisung) throw new Error('Zuweisung nicht gefunden.');
+  const me = DB.getCurrentUser();
+  const azubi = await DB.getUser(zuweisung.azubiId);
+  // editable, wenn ich verantwortlich bin (E-Mail-Match) ODER developer/admin – der Server prüft es endgültig.
+  const email = (me.email || '').toLowerCase();
+  const editable = me.role === 'developer' || me.role === 'admin'
+    || (!!zuweisung.verantwEmail && zuweisung.verantwEmail.toLowerCase() === email)
+    || (me.istAusbilder && !me.istAzubi && me.oid !== zuweisung.azubiId);
+  return { zuweisung, beurteilung, azubi, editable: !!editable && me.oid !== zuweisung.azubiId };
+}
+
+// Zuweisung robust auflösen: bevorzugt über die Azubi-Zuweisungen des aktuellen Users bzw. der betreuten Azubis.
+async function resolveZuweisung(zuweisungId, beurteilung) {
+  const me = DB.getCurrentUser();
+  const azubiId = beurteilung?.azubiId || me.oid;
+  const listen = [];
+  try { listen.push(await DB.getZuweisungenFuerAzubi(azubiId)); } catch (e) {}
+  if (me.email) { try { listen.push(await DB.getZuweisungenFuerVerantw(me.email)); } catch (e) {} }
+  const alle = [].concat(...listen);
+  return alle.find(z => String(z.id) === String(zuweisungId)) || null;
+}
