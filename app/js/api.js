@@ -163,6 +163,27 @@ function normalizeBenachrichtigung(b) {
   };
 }
 
+function normalizeBeurteilung(b) {
+  if (!b) return null;
+  return {
+    id: b.Id,
+    zuweisungId: b.ZuweisungId,
+    azubiId: b.AzubiOid,
+    status: b.Status,
+    individuelleBeurteilung: b.IndividuelleBeurteilung ?? '',
+    gesamtPunkte: b.GesamtPunkte != null ? Number(b.GesamtPunkte) : null,
+    note: b.Note != null ? Number(b.Note) : null,
+    gespraechAm: toDateStr(b.GespraechAm),
+    beurteiltVon: b.BeurteiltVon ?? null,
+    abgeschlossenAm: b.AbgeschlossenAm ?? null,
+    kenntnisnahmeVon: b.KenntnisnahmeVon ?? null,
+    kenntnisnahmeAm: b.KenntnisnahmeAm ?? null,
+    korrigiertVon: b.KorrigiertVon ?? null,
+    korrigiertAm: b.KorrigiertAm ?? null,
+    kriterien: (b.kriterien || []).map(k => ({ kriteriumKey: k.kriteriumKey, punkte: k.punkte })),
+  };
+}
+
 /* ── Aktuell eingeloggter User (nach initPage gesetzt) ────────── */
 let _currentUser = null;
 
@@ -625,5 +646,36 @@ const DB = {
 
   async markAlleBenachrichtigungenGelesen() {
     await apiFetch('/benachrichtigungen/alle-gelesen', { method: 'PATCH' });
+  },
+
+  /* Beurteilungen */
+  async getBeurteilung(zuweisungId) {
+    const data = await apiFetch(`/beurteilungen?zuweisungId=${encodeURIComponent(zuweisungId)}`);
+    return normalizeBeurteilung(data);
+  },
+  async getBeurteilungenFuerAzubi(azubiOid) {
+    const data = await apiFetch(`/beurteilungen?azubiOid=${encodeURIComponent(azubiOid)}`);
+    return data.map(b => ({
+      zuweisungId: b.ZuweisungId, status: b.Status,
+      note: b.Note != null ? Number(b.Note) : null,
+      gesamtPunkte: b.GesamtPunkte != null ? Number(b.GesamtPunkte) : null,
+      abgeschlossenAm: b.AbgeschlossenAm ?? null,
+    }));
+  },
+  async getFaelligeBeurteilungen() {
+    try { return await apiFetch('/beurteilungen/faellig'); } catch (e) { return []; }
+  },
+  async saveBeurteilungEntwurf(payload) {
+    const data = await apiFetch('/beurteilungen', { method: 'POST', body: payload });
+    return data.id;
+  },
+  async abschliessenBeurteilung(id) {
+    await apiFetch(`/beurteilungen/${id}/abschliessen`, { method: 'PATCH' });
+  },
+  async patchBeurteilung(id, payload) {
+    await apiFetch(`/beurteilungen/${id}`, { method: 'PATCH', body: payload });
+  },
+  async kenntnisnahmeBeurteilung(id) {
+    await apiFetch(`/beurteilungen/${id}/kenntnisnahme`, { method: 'PATCH' });
   },
 };
