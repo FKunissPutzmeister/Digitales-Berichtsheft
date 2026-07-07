@@ -61,10 +61,15 @@ END
 ELSE PRINT 'Benachrichtigungen.ZuweisungId existiert bereits.';
 
 -- 3b) Typ verbreitern (beurteilung_abgeschlossen = 24 Zeichen > 20).
---     Typ hat keinen CHECK-Constraint -> unkritisch.
+--     Typ hat keinen CHECK-Constraint. Bestehende Nullability BEIBEHALTEN
+--     (nicht implizit auf NULL herabstufen), falls die Spalte NOT NULL ist.
 IF COL_LENGTH('dbo.Benachrichtigungen', 'Typ') < 80   -- NVARCHAR(40) => 80 Bytes
 BEGIN
-  ALTER TABLE dbo.Benachrichtigungen ALTER COLUMN Typ NVARCHAR(40) NULL;
-  PRINT 'Spalte Benachrichtigungen.Typ auf NVARCHAR(40) verbreitert.';
+  IF EXISTS (SELECT 1 FROM sys.columns
+             WHERE object_id = OBJECT_ID('dbo.Benachrichtigungen') AND name = 'Typ' AND is_nullable = 0)
+    ALTER TABLE dbo.Benachrichtigungen ALTER COLUMN Typ NVARCHAR(40) NOT NULL;
+  ELSE
+    ALTER TABLE dbo.Benachrichtigungen ALTER COLUMN Typ NVARCHAR(40) NULL;
+  PRINT 'Spalte Benachrichtigungen.Typ auf NVARCHAR(40) verbreitert (Nullability beibehalten).';
 END
 ELSE PRINT 'Benachrichtigungen.Typ ist bereits >= NVARCHAR(40).';
