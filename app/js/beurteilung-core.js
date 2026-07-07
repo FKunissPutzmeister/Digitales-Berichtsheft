@@ -164,7 +164,171 @@
     return { bloecke, summe, gesamt, note, vollstaendig };
   }
 
-  const api = { KRITERIEN, BLOECKE, BLOCK_LABELS, STUFEN, PUNKTE_ZU_NOTE, clampPunkte, stufeFuerPunkte, noteFuerPunkte, berechne };
+  function esc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[c])); }
+  function fmt1(n) { return (Math.round(n * 10) / 10).toLocaleString('de-DE', { minimumFractionDigits: 1, maximumFractionDigits: 1 }); }
+  function fmtNote(n) { return n == null ? '–' : n.toLocaleString('de-DE', { minimumFractionDigits: 1, maximumFractionDigits: 1 }); }
+
+  // Zeichnet EIN Kriterium (Zeile): 6 Stufen-Radios + Punkte-Feld, gekoppelt.
+  function kriteriumRowHtml(k, punkte, editable) {
+    const dis = editable ? '' : 'disabled';
+    const st = STUFEN.map(s =>
+      `<label class="beurt-stufe" title="${esc(s.verbal)} (${s.max}–${s.min})">
+         <input type="radio" name="stufe_${k.key}" value="${s.stufe}" ${dis}>
+         <span>${s.stufe}</span></label>`).join('');
+    return `
+      <tr class="beurt-row" data-key="${k.key}">
+        <th class="beurt-row__krit"><span class="beurt-row__label">${esc(k.label)}</span></th>
+        <td class="beurt-row__stufen">${st}</td>
+        <td class="beurt-row__pkt">
+          <input type="number" min="0" max="100" step="1" class="beurt-pkt-input"
+                 data-key="${k.key}" value="${(punkte ?? '') === '' ? '' : esc(punkte)}" ${dis} aria-label="Punkte ${esc(k.label)}">
+        </td>
+      </tr>`;
+  }
+
+  function blockHtml(block, punkteByKey, editable) {
+    const rows = BLOECKE[block].keys.map(key => {
+      const k = KRITERIEN.find(x => x.key === key);
+      return kriteriumRowHtml(k, punkteByKey[key], editable);
+    }).join('');
+    return `
+      <tbody class="beurt-block" data-block="${block}">
+        <tr class="beurt-block__head"><th colspan="3">${block} · ${esc(BLOCK_LABELS[block])}</th></tr>
+        ${rows}
+        <tr class="beurt-block__sum"><th colspan="2">Summe Punkte : Anzahl Kriterien (${BLOECKE[block].keys.length})</th>
+            <td class="beurt-block__avg" data-block-avg="${block}">0,0</td></tr>
+      </tbody>`;
+  }
+
+  function renderForm(container, opts) {
+    const o = opts || {};
+    const editable = !!o.editable;
+    const punkteByKey = Object.assign({}, o.punkteByKey || {});
+    const kopf = o.kopf || {};
+    const dis = editable ? '' : 'disabled';
+
+    container.innerHTML = `
+      <div class="beurt">
+        <div class="beurt__kopf">
+          <div><span class="beurt__label">Name, Vorname</span><div class="beurt__val">${esc(kopf.name)}</div></div>
+          <div><span class="beurt__label">Abteilung</span><div class="beurt__val">${esc(kopf.abteilung)}</div></div>
+          <div><span class="beurt__label">Zeitraum</span><div class="beurt__val">${esc(kopf.zeitraum)}</div></div>
+          <div><span class="beurt__label">Beurteilende/-r</span><div class="beurt__val">${esc(kopf.beurteilende)}</div></div>
+          <div><span class="beurt__label">Ausbildungs-/Studienberuf</span><div class="beurt__val">${esc(kopf.beruf)}</div></div>
+          <button type="button" class="btn btn--ghost beurt__katalog-btn" id="beurtKatalogBtn">Kriterienkatalog</button>
+        </div>
+        <table class="beurt-table">
+          <thead><tr><th>Beurteilungskriterien</th>
+            <th>Beurteilungsstufen<br><span class="beurt-th-sub">1&nbsp;=&nbsp;100–92 … 6&nbsp;=&nbsp;29–0</span></th>
+            <th>Punkte</th></tr></thead>
+          ${blockHtml('A', punkteByKey, editable)}
+          ${blockHtml('B', punkteByKey, editable)}
+          ${blockHtml('C', punkteByKey, editable)}
+        </table>
+        <div class="beurt-fuss">
+          <div><span>Summe (ØA + ØB + ØC)</span><b data-fuss="summe">0,0</b></div>
+          <div><span>Beurteilungspunkte ÷ 3 = Gesamt</span><b data-fuss="gesamt">0,0</b></div>
+          <div class="beurt-fuss__note"><span>Note</span><b data-fuss="note">–</b></div>
+        </div>
+        <div class="beurt-indiv">
+          <label class="beurt__label" for="beurtIndiv">Individuelle Beurteilung</label>
+          <textarea id="beurtIndiv" rows="6" ${dis}>${esc(o.individuell || '')}</textarea>
+        </div>
+        <div class="beurt-gespraech">
+          <label class="beurt__label" for="beurtGespraech">Beurteilungsgespräch geführt am</label>
+          <input type="date" id="beurtGespraech" value="${esc(o.gespraechAm || '')}" ${dis}>
+        </div>
+      </div>`;
+
+    // Initiale Stufen-Markierung aus vorhandenen Punkten.
+    KRITERIEN.forEach(k => {
+      const p = punkteByKey[k.key];
+      if (p !== '' && p != null && !isNaN(Number(p))) markStufe(k.key, stufeFuerPunkte(p));
+    });
+
+    function markStufe(key, stufe) {
+      container.querySelectorAll(`input[name="stufe_${key}"]`).forEach(r => { r.checked = (Number(r.value) === stufe); });
+    }
+    function currentPunkte() {
+      const map = {};
+      container.querySelectorAll('.beurt-pkt-input').forEach(inp => {
+        const v = inp.value === '' ? null : clampPunkte(inp.value);
+        map[inp.dataset.key] = v;
+      });
+      return map;
+    }
+    function refresh() {
+      const map = currentPunkte();
+      const r = berechne(map);
+      for (const b of ['A', 'B', 'C']) {
+        const el = container.querySelector(`[data-block-avg="${b}"]`); if (el) el.textContent = fmt1(r.bloecke[b]);
+      }
+      container.querySelector('[data-fuss="summe"]').textContent = fmt1(r.summe);
+      container.querySelector('[data-fuss="gesamt"]').textContent = fmt1(r.gesamt);
+      container.querySelector('[data-fuss="note"]').textContent = fmtNote(r.note);
+    }
+
+    if (editable) {
+      // Punkte-Eingabe -> Stufe automatisch markieren + neu rechnen.
+      container.querySelectorAll('.beurt-pkt-input').forEach(inp => {
+        inp.addEventListener('input', () => {
+          if (inp.value !== '') { inp.value = String(clampPunkte(inp.value)); markStufe(inp.dataset.key, stufeFuerPunkte(inp.value)); }
+          refresh();
+        });
+      });
+      // Stufe klicken -> Punkte in den Bandbereich ziehen (nur wenn außerhalb), dann rechnen.
+      container.querySelectorAll('.beurt-stufe input[type="radio"]').forEach(radio => {
+        radio.addEventListener('change', () => {
+          const key = radio.name.slice('stufe_'.length);
+          const stufe = Number(radio.value);
+          const band = STUFEN.find(s => s.stufe === stufe);
+          const inp = container.querySelector(`.beurt-pkt-input[data-key="${key}"]`);
+          const cur = inp.value === '' ? null : clampPunkte(inp.value);
+          if (cur == null || cur < band.min || cur > band.max) inp.value = String(band.max); // Bandobergrenze als Default
+          refresh();
+        });
+      });
+    }
+    refresh();
+
+    document.getElementById('beurtKatalogBtn')?.addEventListener('click', openKatalogModal);
+
+    return {
+      refresh,
+      getState() {
+        return {
+          kriterien: KRITERIEN.map(k => ({ kriteriumKey: k.key, punkte: currentPunkte()[k.key] }))
+                              .filter(x => x.punkte != null),
+          individuelleBeurteilung: (document.getElementById('beurtIndiv')?.value || ''),
+          gespraechAm: (document.getElementById('beurtGespraech')?.value || ''),
+        };
+      },
+    };
+  }
+
+  function openKatalogModal() {
+    let ov = document.getElementById('beurtKatalogModal');
+    if (!ov) {
+      ov = document.createElement('div');
+      ov.id = 'beurtKatalogModal';
+      ov.className = 'modal-overlay';
+      const blocks = ['A', 'B', 'C'].map(b => `
+        <h3>${b} · ${esc(BLOCK_LABELS[b])}</h3>
+        ${BLOECKE[b].keys.map(key => {
+          const k = KRITERIEN.find(x => x.key === key);
+          return `<div class="katalog-krit"><b>${esc(k.label)}</b><div class="katalog-krit__desc">${esc(k.beschreibung)}</div>
+            <ol class="katalog-krit__stufen">${k.stufen.map(s => `<li>${esc(s)}</li>`).join('')}</ol></div>`;
+        }).join('')}`).join('');
+      ov.innerHTML = `<div class="modal modal--lg"><div class="modal__head"><h2>Kriterienkatalog</h2>
+        <button class="modal__close" type="button" data-modal-close aria-label="Schließen">×</button></div>
+        <div class="modal__body beurt-katalog">${blocks}</div></div>`;
+      document.body.appendChild(ov);
+      ov.addEventListener('click', e => { if (e.target === ov || e.target.closest('[data-modal-close]')) ov.classList.remove('open'); });
+    }
+    ov.classList.add('open');
+  }
+
+  const api = { KRITERIEN, BLOECKE, BLOCK_LABELS, STUFEN, PUNKTE_ZU_NOTE, clampPunkte, stufeFuerPunkte, noteFuerPunkte, berechne, renderForm, openKatalogModal };
   if (typeof module !== 'undefined' && module.exports) module.exports = api; // Node/Tests/Backend
   root.Beurteilung = Object.assign(root.Beurteilung || {}, api);             // Browser
 })(typeof window !== 'undefined' ? window : globalThis);
