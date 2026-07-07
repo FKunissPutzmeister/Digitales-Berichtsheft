@@ -120,14 +120,27 @@ async function durchlaufBodyHtml(azubiId) {
   const planYear = new Date().getFullYear();
   const zuw = (await DB.getZuweisungenFuerAzubi(azubiId))
     .slice().sort((a, b) => (a.von || '').localeCompare(b.von || ''));
+  let beurtByZuw = {};
+  try {
+    (await DB.getBeurteilungenFuerAzubi(azubiId)).forEach(b => { beurtByZuw[b.zuweisungId] = b; });
+  } catch (e) { /* Endpoint evtl. nicht verfügbar -> ohne Badges weiter */ }
+
   const card = z => {
     const s = durchlaufStatus(z, heute);
+    const b = beurtByZuw[z.id];
+    const beendet = z.bis && z.bis < heute;
+    let beurtBadge = '', klickbar = false;
+    if (b && b.status === 'abgeschlossen') { beurtBadge = `<span class="badge badge--genehmigt durchlauf-card__beurt">Beurteilung ✓</span>`; klickbar = true; }
+    else if (beendet && (b && b.status === 'entwurf')) { beurtBadge = `<span class="badge badge--freigegeben durchlauf-card__beurt">Entwurf</span>`; klickbar = true; }
+    else if (beendet) { beurtBadge = `<span class="badge badge--grey durchlauf-card__beurt">Beurteilung offen</span>`; klickbar = true; }
     return `
-    <div class="durchlauf-card${s.label === 'Aktuell' ? ' durchlauf-card--current' : ''}">
+    <div class="durchlauf-card${s.label === 'Aktuell' ? ' durchlauf-card--current' : ''}${klickbar ? ' durchlauf-card--clickable' : ''}"
+         ${klickbar ? `data-zuw="${z.id}" role="button" tabindex="0"` : ''}>
       <span class="badge ${s.badge} durchlauf-card__badge">${s.label}</span>
       <div class="durchlauf-card__abt">${escHtml(z.abteilung) || '–'}</div>
       <div class="durchlauf-card__zeit">${DateUtil.formatDate(z.von)} – ${DateUtil.formatDate(z.bis)}</div>
       <div class="durchlauf-card__verantw">Ansprechpartner: <strong>${escHtml(z.verantwName || '–')}</strong></div>
+      ${beurtBadge}
     </div>`;
   };
   return `
@@ -135,6 +148,15 @@ async function durchlaufBodyHtml(azubiId) {
     ${zuw.length
       ? `<div class="durchlauf-list">${zuw.map(card).join('')}</div>`
       : `<div class="durchlauf-empty">Aktuell keine Abteilung zugewiesen.</div>`}`;
+}
+
+// Kachel-Klick -> Beurteilungsseite (Delegation; einmal pro Render aufrufen).
+function wireBeurteilungKacheln(root) {
+  (root || document).querySelectorAll('.durchlauf-card--clickable').forEach(el => {
+    const go = () => { window.location.href = `beurteilung.html?zuw=${el.dataset.zuw}`; };
+    el.addEventListener('click', go);
+    el.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); go(); } });
+  });
 }
 
 /* Timeline nach dem Rendern auf „heute" scrollen. */
@@ -163,6 +185,7 @@ async function renderAzubiDurchlauf(user) {
     </div></div>
     ${await durchlaufBodyHtml(user.id)}`;
     scrollDurchlaufToToday();
+    wireBeurteilungKacheln(main);
   } catch (err) {
     main.innerHTML = `<div class="durchlauf-empty">Abteilungsdurchlauf konnte nicht geladen werden.</div>`;
     if (window.Toast && typeof Toast.error === 'function') Toast.error('Fehler', 'Abteilungsdurchlauf konnte nicht geladen werden.');
@@ -205,6 +228,7 @@ async function renderAusbilderDurchlauf(user) {
       main.querySelectorAll('.ausbilder-chip').forEach(btn =>
         btn.addEventListener('click', () => renderFor(btn.dataset.azubiId)));
       scrollDurchlaufToToday();
+      wireBeurteilungKacheln(main);
     }
 
     await renderFor(azubis[0].id);

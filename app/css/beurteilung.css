@@ -23,3 +23,8 @@
 .katalog-krit__desc { font-style: italic; color: var(--pm-grey-500,#888); margin: 2px 0 4px; }
 /* DH-Variante: leicht andere Optik (kompakter Kopf) */
 .beurt-page--dh .beurt__kopf { grid-template-columns: 1fr; }
+
+/* Abteilungsdurchlauf-Kacheln: klickbar zur Beurteilungsseite (Task 11). */
+.durchlauf-card--clickable { cursor: pointer; }
+.durchlauf-card--clickable:hover { box-shadow: 0 4px 16px rgba(0,0,0,.12); }
+.durchlauf-card__beurt { display: inline-block; margin-top: 8px; }

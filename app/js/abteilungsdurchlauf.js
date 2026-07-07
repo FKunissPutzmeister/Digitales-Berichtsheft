@@ -53,6 +53,8 @@ document.addEventListener('DOMContentLoaded', async () => {
   try {
     const zuwRaw = await DB.getZuweisungenFuerAzubi(user.id);
     const zuw = zuwRaw.slice().sort((a, b) => (a.von || '').localeCompare(b.von || ''));
+    let beurtByZuw = {};
+    try { (await DB.getBeurteilungenFuerAzubi(user.id)).forEach(b => { beurtByZuw[b.zuweisungId] = b; }); } catch (e) {}
     // Abteilungen vorab einfärben (sortiert → stabile Farbe je Abteilung).
     [...new Set(zuw.map(z => z.abteilung).filter(Boolean))].sort().forEach(colorFor);
 
@@ -73,6 +75,10 @@ document.addEventListener('DOMContentLoaded', async () => {
         ? `<div class="durchlauf-list">${rows.map(cardHtml).join('')}</div>`
         : `<div class="dh-empty">Dir ist aktuell keine Abteilung zugewiesen. Sobald die Personalabteilung deine Abteilungen plant, erscheinen sie hier.</div>`}
     `;
+
+    main.querySelectorAll('.durchlauf-card--clickable').forEach(el => {
+      el.addEventListener('click', () => { window.location.href = `beurteilung.html?zuw=${el.dataset.zuw}`; });
+    });
 
     // Timeline auf „heute" scrollen (heute ~3 Tage vom linken Rand).
     const sc = document.getElementById('azubiGanttScroll');
@@ -201,12 +207,16 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   /* ── Karte je Abteilung (bestehende .durchlauf-card) ── */
   function cardHtml(r) {
+    const b = beurtByZuw[r.z.id];
+    const abgeschlossen = b && b.status === 'abgeschlossen';
     return `
-      <div class="durchlauf-card${r.status.key === 'aktuell' ? ' durchlauf-card--current' : ''}">
+      <div class="durchlauf-card${r.status.key === 'aktuell' ? ' durchlauf-card--current' : ''}${abgeschlossen ? ' durchlauf-card--clickable' : ''}"
+           ${abgeschlossen ? `data-zuw="${r.z.id}" role="button" tabindex="0"` : ''}>
         <span class="badge ${r.status.badge} durchlauf-card__badge">${r.status.label}</span>
         <div class="durchlauf-card__abt">${esc(r.z.abteilung) || '–'}</div>
         <div class="durchlauf-card__zeit">${DateUtil.formatDate(r.z.von)} – ${DateUtil.formatDate(r.z.bis)}</div>
         <div class="durchlauf-card__verantw">Ansprechpartner: <strong>${esc(r.verantw)}</strong></div>
+        ${abgeschlossen ? `<span class="badge badge--genehmigt durchlauf-card__beurt">Beurteilung ansehen</span>` : ''}
       </div>`;
   }
 });
