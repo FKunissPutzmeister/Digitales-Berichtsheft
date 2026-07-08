@@ -1243,6 +1243,29 @@ select.form-control {
 }
 .ausbilder-chip .avatar { width: 28px; height: 28px; font-size: 11px; }
 
+/* ── Azubi-Auswahl als einheitliches Such-Dropdown ──────────────────
+   Löst die Chip-Liste ab: ein Label + ein PMSelect (Type-Ahead-Suche).
+   Verwendet in Wochen-/Jahresansicht, Ausbildungsstand, Abteilungsdurchlauf. */
+.azubi-select-row {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  flex-wrap: wrap;
+  margin-bottom: var(--sp-4);
+}
+.azubi-select-row__label {
+  font-size: var(--text-sm);
+  font-weight: 700;
+  color: var(--pm-grey-600);
+}
+/* PMSelect kopiert die <select>-Klassen auf den Wrapper und macht
+   .form-control-Selects full-width (.pm-select--block). Hier wieder auf eine
+   handliche Breite begrenzen – (0,3,0) überstimmt .pm-select--block (0,2,0). */
+.pm-select.azubi-select.pm-select--block {
+  width: min(320px, 100%);
+  flex: 0 0 auto;
+}
+
 /* Auf Mobile bis zur Bildschirmbreite begrenzen und am rechten Rand
    andocken (Dropdown__menu setzt right:0, das bleibt – nur Breite cappen) */
 @media (max-width: 480px) {

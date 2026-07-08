@@ -92,9 +92,10 @@ document.addEventListener('DOMContentLoaded', async () => {
       scrollToCurrentWeek();
     });
 
-    document.querySelectorAll('.ausbilder-chip[data-azubi-id]').forEach(btn => {
-      btn.addEventListener('click', () => { viewAzubiId = btn.dataset.azubiId; render(); });
-    });
+    const azubiSelectEl = document.getElementById('azubiSelect');
+    if (azubiSelectEl) {
+      azubiSelectEl.addEventListener('change', () => { viewAzubiId = azubiSelectEl.value; render(); });
+    }
 
     bindWeekRows();
   }
@@ -159,17 +160,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   async function renderAzubiSelector(currentId) {
     const azubis = await DB.getSelectableAzubis();
-    return `
-      <div style="margin-bottom:var(--sp-5);display:flex;align-items:center;gap:var(--sp-3);flex-wrap:wrap">
-        <span style="font-size:var(--text-sm);font-weight:700;color:var(--pm-grey-600)">Azubi:</span>
-        ${azubis.map(a => `
-          <button class="ausbilder-chip ${a.id === currentId ? 'selected' : ''}" data-azubi-id="${a.id}">
-            <div class="avatar" style="width:28px;height:28px;font-size:11px">${a.initials}</div>
-            ${a.name}
-          </button>
-        `).join('')}
-      </div>
-    `;
+    return renderAzubiSelect(azubis, currentId);
   }
 
   function buildYearCalendar(year, wochen) {

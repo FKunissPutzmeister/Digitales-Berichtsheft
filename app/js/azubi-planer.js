@@ -215,20 +215,20 @@ async function renderAusbilderDurchlauf(user) {
       return;
     }
 
-    const selectorHtml = (currentId) => `
-      <div style="margin-bottom:var(--sp-4);display:flex;align-items:center;gap:var(--sp-3);flex-wrap:wrap">
-        <span style="font-size:var(--text-sm);font-weight:700;color:var(--pm-grey-600)">Azubi:</span>
-        ${azubis.map(a => `
-          <button class="ausbilder-chip ${a.id === currentId ? 'selected' : ''}" data-azubi-id="${a.id}">
-            <div class="avatar" style="width:28px;height:28px;font-size:11px">${a.initials}</div>
-            ${escHtml(a.name)}
-          </button>`).join('')}
-      </div>`;
+    const selectorHtml = (currentId) => renderAzubiSelect(azubis, currentId);
 
     async function renderFor(azubiId) {
+      // Vorherige PMSelect-Instanz (Azubi-Dropdown) sauber trennen, bevor
+      // innerHTML ersetzt wird – sonst lecken MutationObserver auf detachten Nodes.
+      if (typeof PMSelect !== 'undefined') {
+        PMSelect.closeAll();
+        main.querySelectorAll('select[data-pm-enhanced]').forEach(s => {
+          try { s._pmInstance && s._pmInstance.destroy(); } catch (e) { /* defensiv */ }
+        });
+      }
       main.innerHTML = `${header}${selectorHtml(azubiId)}${await durchlaufBodyHtml(azubiId, true)}`;
-      main.querySelectorAll('.ausbilder-chip').forEach(btn =>
-        btn.addEventListener('click', () => renderFor(btn.dataset.azubiId)));
+      const azubiSelectEl = main.querySelector('#azubiSelect');
+      if (azubiSelectEl) azubiSelectEl.addEventListener('change', () => renderFor(azubiSelectEl.value));
       scrollDurchlaufToToday();
       wireBeurteilungKacheln(main);
     }
