@@ -92,7 +92,9 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   /* ── Hero (dunkles Welcome-Banner, in allen Themes konsistent) ── */
   function heroHtml(u, date, aktuell) {
-    const first = (u.name || '').split(' ')[0];
+    // firstName() (app.js) beherrscht das Entra-Format "Nachname, Vorname" –
+    // naives split(' ')[0] ergäbe dort den Nachnamen.
+    const first = (typeof firstName === 'function') ? firstName(u.name) : (u.name || '').split(' ')[0];
     const greeting = (typeof getGreeting === 'function') ? getGreeting() : 'Hallo';
     const weekday = date.toLocaleDateString('de-DE', { weekday: 'long' });
     const info = [
