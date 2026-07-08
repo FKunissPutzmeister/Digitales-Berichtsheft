@@ -127,9 +127,9 @@ async function upsertUser(data) {
     WHEN MATCHED THEN UPDATE SET
       Name  = COALESCE(@name, t.Name),
       Email = COALESCE(@email, t.Email),
-      -- Basisrolle nur setzen, wenn aktuelle Rolle azubi/pruefer/leer ist:
+      -- Basisrolle nur setzen, wenn aktuelle Rolle azubi/pruefer/dhstudent/leer ist:
       Role  = CASE WHEN @role IS NULL THEN t.Role
-                   WHEN t.Role IN ('azubi','pruefer') OR t.Role IS NULL THEN @role
+                   WHEN t.Role IN ('azubi','pruefer','dhstudent') OR t.Role IS NULL THEN @role
                    ELSE t.Role END,
       KannPlanen   = COALESCE(@kannPlanen, t.KannPlanen),
       IstAusbilder = COALESCE(@istAusbilder, t.IstAusbilder),
@@ -200,7 +200,29 @@ async function updateUserProfile(oid, fields) {
   await r.query(`UPDATE dbo.Users SET ${sets.join(', ')} WHERE Oid = @oid`);
 }
 
+// Aktive Nutzer mit einer der verwalteten Rollen (für den Deaktivierungs-Abgleich).
+async function listManagedUsers(roles) {
+  if (!roles || !roles.length) return [];
+  const pool = await getPool();
+  const r = pool.request();
+  const params = roles.map((role, i) => { r.input(`r${i}`, sql.NVarChar(20), role); return `@r${i}`; });
+  const res = await r.query(`SELECT Oid, Role FROM dbo.Users WHERE Aktiv = 1 AND Role IN (${params.join(',')})`);
+  return res.recordset.map((x) => ({ oid: x.Oid, role: x.Role }));
+}
+
+// Aktiv-Flag für eine OID-Liste setzen (parametrisiert). No-op bei leerer Liste.
+async function setUsersAktiv(oids, aktiv) {
+  if (!oids || !oids.length) return 0;
+  const pool = await getPool();
+  const r = pool.request();
+  r.input('aktiv', sql.Bit, aktiv ? 1 : 0);
+  const params = oids.map((oid, i) => { r.input(`o${i}`, sql.NVarChar(36), oid); return `@o${i}`; });
+  const res = await r.query(`UPDATE dbo.Users SET Aktiv = @aktiv, AktualisiertAm = SYSUTCDATETIME() WHERE Oid IN (${params.join(',')})`);
+  return res.rowsAffected[0];
+}
+
 module.exports = {
   parseRoleClaim, buildReqUser, validateUserPatch, canUseDevView,
   upsertUser, getUserByOid, getUserByEmail, listUsers, updateUserProfile,
+  listManagedUsers, setUsersAktiv,
 };
