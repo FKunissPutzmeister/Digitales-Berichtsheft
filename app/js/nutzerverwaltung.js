@@ -137,6 +137,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     document.getElementById('nvRole').value         = u.role || 'azubi';
     document.getElementById('nvBeruf').value        = u.beruf || '';
     document.getElementById('nvBerichtTyp').value   = u.berichtTyp || 'wöchentlich';
+    /* Berichtstyp nur für echte Azubis (role azubi ODER IstAzubi-Tag, z.B. Florian Kern)
+       editierbar; für Admin/Prüfer/DH-Student/Developer ausgrauen. */
+    document.getElementById('nvBerichtTyp').disabled = !u.istAzubi;
     /* READ uses ausbildungsBeginn/ausbildungsEnde (with medial 's') */
     document.getElementById('nvAusbildungBeginn').value = u.ausbildungsBeginn || '';
     document.getElementById('nvAusbildungEnde').value   = u.ausbildungsEnde   || '';
