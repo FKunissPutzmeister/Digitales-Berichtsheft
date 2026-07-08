@@ -1945,37 +1945,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
   }
 
-  // ── Tages-Kommentar-Felder für Genehmigungs-/Ablehnungs-Modal ────
-
-  function buildDayCommentFields(woche, monday) {
-    const dayNames = ['Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag'];
-    const monthsShort = ['Jan', 'Feb', 'Mrz', 'Apr', 'Mai', 'Jun', 'Jul', 'Aug', 'Sep', 'Okt', 'Nov', 'Dez'];
-    const fields = [];
-    for (let i = 0; i < 5; i++) {
-      const date = new Date(monday);
-      date.setDate(monday.getDate() + i);
-      const dateStr = DateUtil.toISODate(date);
-      const tag = woche?.tage?.find(t => t.datum === dateStr);
-      if (!tag?.id) continue;
-      const dateLabel = `${date.getDate()}. ${monthsShort[date.getMonth()]}`;
-      fields.push(`
-        <div class="form-group" style="margin-bottom:var(--sp-3)">
-          <label class="form-label" style="font-size:var(--text-sm);font-weight:var(--fw-bold)">${dayNames[i]}, ${dateLabel}</label>
-          <textarea class="form-control" rows="2"
-                    placeholder="Kommentar zu diesem Tag (optional)…"
-                    data-day-comment="${tag.id}"></textarea>
-        </div>
-      `);
-    }
-    if (!fields.length) return '';
-    return `
-      <div style="margin-top:var(--sp-4);padding-top:var(--sp-4);border-top:1px solid var(--pm-grey-100)">
-        <p style="font-size:var(--text-sm);font-weight:var(--fw-bold);color:var(--pm-grey-600);margin:0 0 var(--sp-3)">Kommentare zu einzelnen Tagen (optional)</p>
-        ${fields.join('')}
-      </div>
-    `;
-  }
-
   // ── Events ────────────────────────────────────────────────────────
 
   async function renderComment(k) {
@@ -2111,9 +2080,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
 
     document.getElementById('approveBtn')?.addEventListener('click', () => {
-      const dayFields = buildDayCommentFields(woche, monday);
-      document.getElementById('approveDayComments').innerHTML = dayFields ||
-        '<p style="color:var(--pm-grey-500);font-size:var(--text-sm);margin:0">Möchtest du diese Woche genehmigen?</p>';
       Modal.open('approveModal');
     });
     document.getElementById('rejectBtn')?.addEventListener('click', () => {
@@ -2176,21 +2142,10 @@ document.addEventListener('DOMContentLoaded', async () => {
       render();
     });
 
-    // Genehmigen bestätigen (Ausbilder) – inkl. optionaler Tages-Kommentare.
+    // Genehmigen bestätigen (Ausbilder).
     document.getElementById('approveConfirmBtn')?.addEventListener('click', async () => {
       const woche = currentWoche;
       if (!woche) return;
-      const dayCommentInputs = document.querySelectorAll('#approveDayComments [data-day-comment]');
-      for (const input of dayCommentInputs) {
-        const text = input.value.trim();
-        if (text) {
-          await DB.addKommentar(woche.id, {
-            userId: user.id, text,
-            datum: new Date().toLocaleDateString('de-DE'), typ: 'ausbilder',
-            tagId: parseInt(input.dataset.dayComment),
-          });
-        }
-      }
       await DB.setWocheStatus(woche.id, 'genehmigt');
       await DB.addBenachrichtigung({
         userId: woche.azubiId,

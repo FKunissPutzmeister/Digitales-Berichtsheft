@@ -1,30 +1,216 @@
-/* Beurteilungsbogen – Formular + Print. Nutzt Design-Tokens (variables.css). */
-.beurt-page .dh-main { max-width: 1000px; margin: 0 auto; padding: var(--sp-5, 24px); }
-.beurt-loading, .beurt-empty { padding: var(--sp-6, 32px); text-align: center; color: var(--pm-grey-500, #888); }
-.beurt__kopf { display: grid; grid-template-columns: repeat(2, 1fr); gap: var(--sp-3, 12px); margin-bottom: var(--sp-4, 16px); }
-.beurt__label { font-size: 11px; text-transform: uppercase; letter-spacing: .4px; color: var(--pm-grey-500, #888); }
-.beurt__val { font-weight: 600; }
-.beurt__katalog-btn { grid-column: 1 / -1; justify-self: start; }
-.beurt-table { width: 100%; border-collapse: collapse; margin: var(--sp-3,12px) 0; }
-.beurt-table th, .beurt-table td { border: 1px solid var(--pm-grey-300, #d5d5d5); padding: 6px 8px; text-align: left; vertical-align: middle; }
-.beurt-th-sub { font-weight: 400; font-size: 10px; color: var(--pm-grey-500,#888); }
-.beurt-block__head th { background: var(--pm-grey-100, #f0f0f0); font-weight: 700; }
-.beurt-block__sum td, .beurt-block__sum th { background: var(--pm-grey-50, #f7f7f7); font-weight: 700; }
+/* ===================================================================
+   BEURTEILUNGSBOGEN – Formular + Kriterienkatalog-Modal
+   -------------------------------------------------------------------
+   Ausschließlich über Design-Tokens (var(--pm-*), --sp-*, --r-* …)
+   gestylt, damit Hell/Dunkel UND alle Custom-Themes automatisch greifen.
+   Struktur folgt dem Rest der App: Welcome-Banner-Hero + .card-Container.
+   =================================================================== */
+
+/* Lesbare Dokumentbreite (etwas schmaler als der DH-Standard 1180px). */
+.beurt-page .dh-main { max-width: 1040px; }
+
+/* ── Ladezustand ── */
+.beurt-loading {
+  padding: var(--sp-10) var(--sp-6);
+  text-align: center;
+  color: var(--pm-grey-500);
+}
+
+/* ── Kopf / Stammdaten (Name, Abteilung, Zeitraum …) ── */
+.beurt__kopf {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--sp-4);
+  padding-bottom: var(--sp-4);
+  margin-bottom: var(--sp-5);
+  border-bottom: 1px solid var(--pm-grey-100);
+}
+.beurt__label {
+  display: block;
+  font-size: var(--text-xs);
+  font-weight: var(--fw-bold);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--pm-grey-500);
+  margin-bottom: var(--sp-1);
+}
+.beurt__val {
+  font-size: var(--text-base);
+  font-weight: var(--fw-medium);
+  color: var(--pm-grey-900);
+}
+.beurt__katalog-btn { grid-column: 1 / -1; justify-self: start; margin-top: var(--sp-1); }
+
+/* ── Kriterien-Tabelle ── */
+.beurt-tablewrap { overflow-x: auto; margin: 0; }
+.beurt-table {
+  width: 100%;
+  min-width: 620px;
+  border-collapse: collapse;
+  font-size: var(--text-sm);
+}
+.beurt-table th,
+.beurt-table td {
+  border: 1px solid var(--pm-grey-200);
+  padding: var(--sp-2) var(--sp-3);
+  text-align: left;
+  vertical-align: middle;
+}
+.beurt-table thead th {
+  background: var(--pm-grey-50);
+  color: var(--pm-grey-700);
+  font-weight: var(--fw-bold);
+}
+.beurt-th-sub { font-weight: var(--fw-regular); font-size: var(--text-xs); color: var(--pm-grey-500); }
+
+.beurt-block__head th {
+  background: var(--pm-grey-100);
+  color: var(--pm-grey-900);
+  font-weight: var(--fw-bold);
+  letter-spacing: 0.02em;
+}
+.beurt-block__sum th,
+.beurt-block__sum td {
+  background: var(--pm-grey-50);
+  font-weight: var(--fw-bold);
+  color: var(--pm-grey-900);
+}
+.beurt-row__krit { width: 34%; font-weight: var(--fw-medium); color: var(--pm-grey-800); }
+.beurt-row:hover td { background: var(--pm-grey-50); }
+.beurt-block__sum:hover th,
+.beurt-block__sum:hover td { background: var(--pm-grey-50); }
+
+/* Stufen-Auswahl (6 Radios, gestapelt Zahl über Punkt) */
 .beurt-row__stufen { white-space: nowrap; }
-.beurt-stufe { display: inline-flex; flex-direction: column; align-items: center; margin-right: 8px; font-size: 11px; cursor: pointer; }
-.beurt-pkt-input { width: 64px; padding: 4px 6px; }
-.beurt-fuss { display: flex; flex-wrap: wrap; gap: var(--sp-4,16px); justify-content: flex-end; margin: var(--sp-3,12px) 0; }
-.beurt-fuss > div { display: flex; gap: 8px; align-items: baseline; }
-.beurt-fuss__note b { font-size: 20px; color: var(--pm-yellow-700, #b58900); }
-.beurt-indiv textarea { width: 100%; }
-.beurt-actions { display: flex; gap: var(--sp-3,12px); flex-wrap: wrap; margin-top: var(--sp-4,16px); }
-.beurt-katalog { max-height: 70vh; overflow-y: auto; }
-.katalog-krit { margin-bottom: var(--sp-3,12px); }
-.katalog-krit__desc { font-style: italic; color: var(--pm-grey-500,#888); margin: 2px 0 4px; }
-/* DH-Variante: leicht andere Optik (kompakter Kopf) */
+.beurt-stufe {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  margin-right: var(--sp-2);
+  font-size: var(--text-xs);
+  color: var(--pm-grey-600);
+  cursor: pointer;
+}
+.beurt-stufe input[type="radio"] { accent-color: var(--pm-yellow); cursor: pointer; }
+.beurt-stufe input[type="radio"]:disabled { cursor: default; }
+
+/* Punkte-Eingabe – kompaktes Feld im .form-control-Stil */
+.beurt-row__pkt,
+.beurt-block__avg { text-align: center; width: 96px; }
+.beurt-pkt-input {
+  width: 68px;
+  height: 34px;
+  padding: 0 var(--sp-2);
+  text-align: center;
+  font-family: var(--font-body);
+  font-size: var(--text-base);
+  font-weight: var(--fw-medium);
+  color: var(--pm-grey-900);
+  background: var(--pm-white);
+  border: 1.5px solid var(--pm-grey-300);
+  border-radius: var(--r-md);
+  outline: none;
+  transition: border-color var(--t-fast), box-shadow var(--t-fast), background var(--t-fast);
+}
+.beurt-pkt-input:hover:not(:focus):not(:disabled) {
+  border-color: var(--pm-grey-400);
+  background: var(--pm-grey-50);
+}
+.beurt-pkt-input:focus { border-color: var(--pm-yellow); box-shadow: var(--ring-yellow); }
+.beurt-pkt-input:disabled { background: var(--pm-grey-100); color: var(--pm-grey-500); cursor: not-allowed; }
+
+/* ── Ergebnis-Fuß (Summe / Gesamt / Note) ── */
+.beurt-fuss {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: var(--sp-2);
+  margin-top: var(--sp-5);
+}
+.beurt-fuss > div {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--sp-6);
+  min-width: 300px;
+}
+.beurt-fuss span { color: var(--pm-grey-500); font-size: var(--text-sm); }
+.beurt-fuss b { font-family: var(--font-heading); font-weight: var(--fw-bold); color: var(--pm-grey-900); }
+.beurt-fuss__note {
+  margin-top: var(--sp-1);
+  padding-top: var(--sp-3);
+  border-top: 1px solid var(--pm-grey-200);
+}
+.beurt-fuss__note span { color: var(--pm-grey-700); font-weight: var(--fw-bold); }
+.beurt-fuss__note b { font-size: var(--text-2xl); color: var(--pm-yellow-darker); line-height: 1; }
+
+/* ── Individuelle Beurteilung + Gesprächsdatum ── */
+.beurt-indiv {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  margin-top: var(--sp-6);
+}
+.beurt-gespraech {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  margin-top: var(--sp-5);
+  max-width: 260px;
+}
+
+/* ── Aktionsleiste ── */
+.beurt-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: var(--sp-3);
+  margin-top: var(--sp-6);
+  padding-top: var(--sp-5);
+  border-top: 1px solid var(--pm-grey-200);
+}
+
+/* ── Kriterienkatalog-Modal ── */
+.modal--lg { max-width: 720px; }
+.beurt-katalog h3 {
+  font-family: var(--font-heading);
+  font-size: var(--text-md);
+  font-weight: var(--fw-bold);
+  color: var(--pm-grey-900);
+  margin: var(--sp-5) 0 var(--sp-3);
+  padding-bottom: var(--sp-1);
+  border-bottom: 2px solid var(--pm-yellow);
+}
+.beurt-katalog h3:first-child { margin-top: 0; }
+.katalog-krit { padding: var(--sp-3) 0; border-bottom: 1px solid var(--pm-grey-100); }
+.katalog-krit:last-child { border-bottom: none; }
+.katalog-krit > b { color: var(--pm-grey-900); }
+.katalog-krit__desc { font-style: italic; color: var(--pm-grey-500); margin: 2px 0 var(--sp-2); font-size: var(--text-sm); }
+.katalog-krit__stufen {
+  margin: 0;
+  padding-left: var(--sp-5);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+  color: var(--pm-grey-700);
+  font-size: var(--text-sm);
+}
+.katalog-krit__stufen li { line-height: var(--lh-snug); }
+
+/* ── DH-Variante: einspaltiger Kopf (kompakter) ── */
 .beurt-page--dh .beurt__kopf { grid-template-columns: 1fr; }
 
-/* Abteilungsdurchlauf-Kacheln: klickbar zur Beurteilungsseite (Task 11). */
+/* ── Responsive ── */
+@media (max-width: 720px) {
+  .beurt__kopf { grid-template-columns: 1fr; }
+  .beurt-fuss > div { min-width: 0; width: 100%; }
+}
+
+/* ===================================================================
+   Abteilungsdurchlauf-Kacheln: klickbar zur Beurteilungsseite (Task 11).
+   (Bleibt unverändert – wird hier belassen, um Regressionen zu vermeiden.)
+   =================================================================== */
 .durchlauf-card--clickable { cursor: pointer; }
 .durchlauf-card--clickable:hover { box-shadow: 0 4px 16px rgba(0,0,0,.12); }
 .durchlauf-card__beurt { display: inline-block; margin-top: 8px; }

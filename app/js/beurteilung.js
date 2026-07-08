@@ -22,20 +22,20 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   const main = document.getElementById('mainContent');
   const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[c]));
-  if (!zuw) { main.innerHTML = `<div class="beurt-empty">Keine Zuweisung angegeben.</div>`; return; }
+  if (!zuw) { main.innerHTML = `<div class="dh-empty">Keine Zuweisung angegeben.</div>`; return; }
 
   let data;
   try { data = await loadContext(zuw); }
   catch (err) {
     console.error('Beurteilung konnte nicht geladen werden:', err);
-    main.innerHTML = `<div class="beurt-empty">${esc(err.message || 'Beurteilung konnte nicht geladen werden.')}</div>`;
+    main.innerHTML = `<div class="dh-empty">${esc(err.message || 'Beurteilung konnte nicht geladen werden.')}</div>`;
     return;
   }
 
   const { zuweisung, beurteilung, azubi, editable } = data;
 
   if (!editable && !beurteilung) {
-    main.innerHTML = `<div class="beurt-empty">Für diesen Zeitraum liegt noch keine abgeschlossene Beurteilung vor.</div>`;
+    main.innerHTML = `<div class="dh-empty">Für diesen Zeitraum liegt noch keine abgeschlossene Beurteilung vor.</div>`;
     return;
   }
 
@@ -49,10 +49,14 @@ document.addEventListener('DOMContentLoaded', async () => {
   const punkteByKey = {};
   (beurteilung?.kriterien || []).forEach(k => { punkteByKey[k.kriteriumKey] = k.punkte; });
 
+  const statusAbg = beurteilung?.status === 'abgeschlossen';
+  const statusLabel = statusAbg ? 'Abgeschlossen' : (beurteilung ? 'Entwurf' : (editable ? 'Neu' : 'Offen'));
+  const statusBadge = statusAbg ? 'badge--genehmigt' : (beurteilung ? 'badge--yellow' : 'badge--grey');
   main.innerHTML = `
-    <div class="page-header"><h1 class="page-title">Beurteilungsbogen</h1>
-      <span class="badge ${beurteilung?.status === 'abgeschlossen' ? 'badge--genehmigt' : 'badge--grey'}">
-        ${beurteilung?.status === 'abgeschlossen' ? 'Abgeschlossen' : (beurteilung ? 'Entwurf' : 'Neu')}</span></div>
+    <div class="page-header">
+      <h1 class="page-title">Beurteilungsbogen</h1>
+      <span class="badge ${statusBadge}">${statusLabel}</span>
+    </div>
     <div id="beurtFormHost"></div>
     <div class="beurt-actions" id="beurtActions"></div>`;
 
@@ -101,10 +105,9 @@ function renderActions(ctx) {
   if (editable) {
     const abgeschlossen = status === 'abgeschlossen';
     host.innerHTML = `
-      <button class="btn btn--secondary" id="beurtSave">Entwurf speichern</button>
-      <button class="btn btn--primary" id="beurtFinish">${abgeschlossen ? 'Änderungen speichern' : 'Abschließen'}</button>
-      <button class="btn btn--ghost" id="beurtPdf">Als PDF</button>
-      <button class="btn btn--ghost" id="beurtBerichte">Berichte des Zeitraums ansehen/korrigieren</button>`;
+      <button class="btn btn-ghost" id="beurtPdf">Als PDF</button>
+      <button class="btn btn-secondary" id="beurtSave">Entwurf speichern</button>
+      <button class="btn btn-primary" id="beurtFinish">${abgeschlossen ? 'Änderungen speichern' : 'Abschließen'}</button>`;
 
     document.getElementById('beurtSave').addEventListener('click', async () => {
       try {
@@ -131,26 +134,15 @@ function renderActions(ctx) {
     });
 
     document.getElementById('beurtPdf').addEventListener('click', () => exportBeurteilungPdf(ctx)); // Task 10
-
-    document.getElementById('beurtBerichte').addEventListener('click', () => {
-      // Verantwortliche landen in der Wochenansicht beim betreffenden Azubi.
-      sessionStorage.setItem('gotoAzubiId', String(zuweisung.azubiId));
-      const von = new Date(zuweisung.von + 'T00:00:00');
-      if (!isNaN(von)) {
-        const kw = DateUtil.getKW ? DateUtil.getKW(von) : null;
-        if (kw) { sessionStorage.setItem('gotoKW', String(kw)); sessionStorage.setItem('gotoYear', String(von.getFullYear())); }
-      }
-      window.location.href = 'wochenansicht.html';
-    });
     return;
   }
 
   // Read-only (Azubi/DH): Kenntnisnahme + PDF.
   const bestaetigt = !!beurteilung?.kenntnisnahmeAm;
   host.innerHTML = `
-    <button class="btn btn--primary" id="beurtAck" ${bestaetigt ? 'disabled' : ''}>
-      ${bestaetigt ? 'Kenntnisnahme bestätigt' : 'Kenntnisnahme bestätigen'}</button>
-    <button class="btn btn--ghost" id="beurtPdf">Als PDF</button>`;
+    <button class="btn btn-ghost" id="beurtPdf">Als PDF</button>
+    <button class="btn btn-primary" id="beurtAck" ${bestaetigt ? 'disabled' : ''}>
+      ${bestaetigt ? 'Kenntnisnahme bestätigt' : 'Kenntnisnahme bestätigen'}</button>`;
   document.getElementById('beurtPdf').addEventListener('click', () => exportBeurteilungPdf(ctx));
   if (!bestaetigt) {
     document.getElementById('beurtAck').addEventListener('click', async () => {

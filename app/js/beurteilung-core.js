@@ -215,16 +215,18 @@
           <div><span class="beurt__label">Zeitraum</span><div class="beurt__val">${esc(kopf.zeitraum)}</div></div>
           <div><span class="beurt__label">Beurteilende/-r</span><div class="beurt__val">${esc(kopf.beurteilende)}</div></div>
           <div><span class="beurt__label">Ausbildungs-/Studienberuf</span><div class="beurt__val">${esc(kopf.beruf)}</div></div>
-          <button type="button" class="btn btn--ghost beurt__katalog-btn" id="beurtKatalogBtn">Kriterienkatalog</button>
+          <button type="button" class="btn btn-ghost btn-sm beurt__katalog-btn" id="beurtKatalogBtn">Kriterienkatalog</button>
         </div>
-        <table class="beurt-table">
-          <thead><tr><th>Beurteilungskriterien</th>
-            <th>Beurteilungsstufen<br><span class="beurt-th-sub">1&nbsp;=&nbsp;100–92 … 6&nbsp;=&nbsp;29–0</span></th>
-            <th>Punkte</th></tr></thead>
-          ${blockHtml('A', punkteByKey, editable)}
-          ${blockHtml('B', punkteByKey, editable)}
-          ${blockHtml('C', punkteByKey, editable)}
-        </table>
+        <div class="beurt-tablewrap">
+          <table class="beurt-table">
+            <thead><tr><th>Beurteilungskriterien</th>
+              <th>Beurteilungsstufen<br><span class="beurt-th-sub">1&nbsp;=&nbsp;100–92 … 6&nbsp;=&nbsp;29–0</span></th>
+              <th>Punkte</th></tr></thead>
+            ${blockHtml('A', punkteByKey, editable)}
+            ${blockHtml('B', punkteByKey, editable)}
+            ${blockHtml('C', punkteByKey, editable)}
+          </table>
+        </div>
         <div class="beurt-fuss">
           <div><span>Summe (ØA + ØB + ØC)</span><b data-fuss="summe">0,0</b></div>
           <div><span>Beurteilungspunkte ÷ 3 = Gesamt</span><b data-fuss="gesamt">0,0</b></div>
@@ -232,11 +234,11 @@
         </div>
         <div class="beurt-indiv">
           <label class="beurt__label" for="beurtIndiv">Individuelle Beurteilung</label>
-          <textarea id="beurtIndiv" rows="6" ${dis}>${esc(o.individuell || '')}</textarea>
+          <textarea id="beurtIndiv" class="form-control" rows="6" ${dis}>${esc(o.individuell || '')}</textarea>
         </div>
         <div class="beurt-gespraech">
           <label class="beurt__label" for="beurtGespraech">Beurteilungsgespräch geführt am</label>
-          <input type="date" id="beurtGespraech" value="${esc(o.gespraechAm || '')}" ${dis}>
+          <input type="date" id="beurtGespraech" class="form-control" value="${esc(o.gespraechAm || '')}" ${dis}>
         </div>
       </div>`;
 
@@ -319,7 +321,7 @@
           return `<div class="katalog-krit"><b>${esc(k.label)}</b><div class="katalog-krit__desc">${esc(k.beschreibung)}</div>
             <ol class="katalog-krit__stufen">${k.stufen.map(s => `<li>${esc(s)}</li>`).join('')}</ol></div>`;
         }).join('')}`).join('');
-      ov.innerHTML = `<div class="modal modal--lg"><div class="modal__head"><h2>Kriterienkatalog</h2>
+      ov.innerHTML = `<div class="modal modal--lg"><div class="modal__header"><h2 class="modal__title">Kriterienkatalog</h2>
         <button class="modal__close" type="button" data-modal-close aria-label="Schließen">×</button></div>
         <div class="modal__body beurt-katalog">${blocks}</div></div>`;
       document.body.appendChild(ov);
