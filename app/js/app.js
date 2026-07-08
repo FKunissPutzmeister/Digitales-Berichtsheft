@@ -925,6 +925,27 @@ class PMSelect {
 }
 PMSelect._openInstance = null;
 
+/* ===================================================================
+   Einheitliche Azubi-Auswahl
+   -------------------------------------------------------------------
+   Rendert ein <select class="form-control azubi-select">, das der globale
+   PMSelect-Observer automatisch in ein Such-Dropdown (Type-Ahead) verwandelt.
+   Einzige Markup-Quelle für die Azubi-Auswahl in Wochen-/Jahresansicht,
+   Ausbildungsstand und Abteilungsdurchlauf – ersetzt die früheren Chip-Listen.
+   Event-Anbindung beim Aufrufer: change-Listener auf #<id> (Default 'azubiSelect').
+   =================================================================== */
+function renderAzubiSelect(azubis, currentId, opts = {}) {
+  const { id = 'azubiSelect', label = 'Azubi:' } = opts;
+  const cur = currentId != null ? String(currentId) : '';
+  const options = (azubis || []).map(a =>
+    `<option value="${_pmEscapeHtml(a.id)}"${String(a.id) === cur ? ' selected' : ''}>${_pmEscapeHtml(a.name)}</option>`
+  ).join('');
+  return `<div class="azubi-select-row">
+      <label class="azubi-select-row__label" for="${id}">${_pmEscapeHtml(label)}</label>
+      <select class="form-control azubi-select" id="${id}" aria-label="Azubi auswählen" data-pm-search="Azubi suchen …">${options}</select>
+    </div>`;
+}
+
 /* Auto-Enhancement: bei Seitenload und bei dynamisch eingefügten Selects */
 const _pmSelectMutationObserver = new MutationObserver(mutations => {
   let needsEnhance = false;

@@ -317,6 +317,13 @@ const DB = {
     return data.map(u => normalizeUser(u.oid, u));
   },
 
+  // DH-Studenten (eigene Rolle, führen kein Berichtsheft). Aktuell nur vom
+  // Abteilungs-Planer genutzt, der Azubis + DH-Studenten gemischt plant.
+  async getDhStudenten() {
+    const data = await apiFetch('/users?role=dhstudent');
+    return data.map(u => normalizeUser(u.oid, u));
+  },
+
   async getAusbilder() {
     const data = await apiFetch('/users?role=pruefer');
     return data.map(u => normalizeUser(u.oid, u));
@@ -354,6 +361,10 @@ const DB = {
   },
   async setAusbilderFuerAzubi(oid, ausbilderOids) {
     await apiFetch(`/users/${oid}/ausbilder`, { method: 'PUT', body: { ausbilderOids } });
+  },
+
+  async runEntraSync() {
+    return await apiFetch('/sync/entra', { method: 'POST' });
   },
 
   /* Zuweisungen */

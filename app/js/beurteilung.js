@@ -16,7 +16,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   const zuw = new URLSearchParams(location.search).get('zuw');
   const back = () => {
     if (document.referrer && history.length > 1) history.back();
-    else window.location.href = user.istDhStudent ? 'abteilungsdurchlauf.html' : 'azubi-planer.html';
+    else window.location.href = user.istDhStudent ? 'abteilungsdurchlauf.html' : 'abteilungs-planer.html';
   };
   document.querySelectorAll('[data-back]').forEach(el =>
     el.addEventListener('click', e => { e.preventDefault(); back(); }));

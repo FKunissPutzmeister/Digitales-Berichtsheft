@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <link rel="preload" href="../Corporate Design/Fonts/librefranklin-bold.ttf" as="font" type="font/ttf" crossorigin>
+  <link rel="preload" href="../Corporate Design/Fonts/librefranklin-light.ttf" as="font" type="font/ttf" crossorigin>
+  <link rel="preload" href="../Corporate Design/Fonts/OpenSans-Variable.ttf" as="font" type="font/ttf" crossorigin>
+  <link rel="preload" href="js/api.js" as="script">
+  <link rel="preload" href="js/app.js" as="script">
+  <title>Abteilungs-Planer – Berichtsheft | Putzmeister</title>
+  <!-- Theme-Init muss VOR den Stylesheets laufen, damit kein Hell/Dunkel-Flash entsteht -->
+  <script src="js/theme.js"></script>
+  <link rel="stylesheet" href="css/variables.css">
+  <link rel="stylesheet" href="css/base.css">
+  <link rel="stylesheet" href="css/components.css">
+  <link rel="stylesheet" href="css/layout.css">
+  <link rel="stylesheet" href="css/abteilungs-planer.css">
+  <link rel="stylesheet" href="css/glass.css">
+  <link rel="stylesheet" href="css/theme-hyperspace.css">
+  <link rel="stylesheet" href="css/theme-cmd.css">
+  <link rel="stylesheet" href="css/theme-candy.css">
+  <link rel="stylesheet" href="css/theme-iceland.css">
+  <link rel="stylesheet" href="css/theme-silk.css">
+  <link rel="stylesheet" href="css/theme-halloween.css">
+  <link rel="stylesheet" href="css/theme-christmas.css">
+  <link rel="stylesheet" href="css/themes.css">
+</head>
+<body>
+<div class="app-shell">
+  <aside class="sidebar" id="sidebar"></aside>
+  <div class="sidebar-overlay" id="sidebarOverlay"></div>
+  <div class="main-wrapper">
+    <header class="topbar" id="topbar"></header>
+    <main class="main-content" id="mainContent"></main>
+  </div>
+</div>
+
+<!-- Bestätigungs-Modal für Zuweisung löschen -->
+<div class="modal-overlay" id="zuweisungDeleteModal">
+  <div class="modal">
+    <div class="modal__header">
+      <h3 class="modal__title">Zuweisung löschen?</h3>
+      <button class="modal__close" data-modal-close>
+        <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="width:18px;height:18px"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <div class="modal__body">
+      <p id="zuweisungDeleteText" style="margin:0;color:var(--pm-grey-700);font-size:var(--text-sm);line-height:1.5">
+        Diese Zuweisung wird unwiderruflich entfernt. Möchtest du fortfahren?
+      </p>
+    </div>
+    <div class="modal__footer">
+      <button class="btn btn-outline" data-modal-close>Abbrechen</button>
+      <button class="btn btn-danger" id="zuweisungDeleteConfirmBtn">Löschen</button>
+    </div>
+  </div>
+</div>
+
+<!-- Zuweisung-Modal -->
+<div class="modal-overlay" id="zuweisungModal">
+  <div class="modal">
+    <div class="modal__header">
+      <h3 class="modal__title">Zuweisung bearbeiten</h3>
+      <button class="modal__close" data-modal-close>
+        <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="width:18px;height:18px"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <div class="modal__body">
+      <div class="zuweisung-form">
+        <div class="form-group">
+          <label class="form-label">Person</label>
+          <select class="form-control" id="zuweisungAzubi"></select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Abteilung</label>
+          <select class="form-control" id="zuweisungAbteilung"></select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Verantwortliche/r</label>
+          <select class="form-control" id="zuweisungAusbilder"></select>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--sp-4)">
+          <div class="form-group">
+            <label class="form-label">Von</label>
+            <input type="date" class="form-control" id="zuweisungVon">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Bis</label>
+            <input type="date" class="form-control" id="zuweisungBis">
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="modal__footer">
+      <button class="btn btn-outline" data-modal-close>Abbrechen</button>
+      <button class="btn btn-secondary" id="zuweisungSaveBtn">Speichern</button>
+    </div>
+  </div>
+</div>
+
+<script src="js/abteilungen-helpers.js"></script>
+<script src="js/api.js"></script>
+<script src="js/icons.js"></script>
+<script src="js/topbar-ds.js"></script>
+<script src="js/app.js"></script>
+<script src="js/sidebar.js"></script>
+<script src="js/router.js"></script>
+<script src="js/react-theme-layer.js"></script>
+<script src="js/abteilungs-planer.js"></script>
+</body>
+</html>

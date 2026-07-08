@@ -604,7 +604,7 @@ body[data-page="jahresansicht"] .main-content,
 body[data-page="ausbildungsstand"] .main-content,
 body[data-page="berichtsheftverwaltung"] .main-content,
 body[data-page="nutzerverwaltung"] .main-content,
-body[data-page="azubi-planer"] .main-content,
+body[data-page="abteilungs-planer"] .main-content,
 body[data-page="profil"] .main-content {
   max-width: min(2200px, 100%);
 }

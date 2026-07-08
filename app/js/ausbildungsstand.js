@@ -24,21 +24,22 @@ document.addEventListener('DOMContentLoaded', async () => {
     const azubis = await DB.getAzubis();
 
     const main = document.getElementById('mainContent');
+
+    // Vorherige PMSelect-Instanz (Azubi-Dropdown) sauber trennen, bevor
+    // innerHTML ersetzt wird – sonst lecken MutationObserver auf detachten Nodes.
+    if (typeof PMSelect !== 'undefined') {
+      PMSelect.closeAll();
+      main.querySelectorAll('select[data-pm-enhanced]').forEach(s => {
+        try { s._pmInstance && s._pmInstance.destroy(); } catch (e) { /* defensiv */ }
+      });
+    }
+
     main.innerHTML = `
       <div class="page-header">
         <div class="page-header__left">
           <h1 class="page-title">Ausbildungsstand</h1>
         </div>
-        ${isAusbilder ? `
-        <div class="page-header__actions">
-          ${azubis.map(a => `
-            <button class="ausbilder-chip ${a.id === viewAzubiId ? 'selected' : ''}" data-azubi-id="${a.id}">
-              <div class="avatar" style="width:28px;height:28px;font-size:11px">${a.initials}</div>
-              ${a.name}
-            </button>
-          `).join('')}
-        </div>
-        ` : ''}
+        ${isAusbilder ? `<div class="page-header__actions">${renderAzubiSelect(azubis, viewAzubiId)}</div>` : ''}
       </div>
 
       <div class="stand-summary">
@@ -72,9 +73,10 @@ document.addEventListener('DOMContentLoaded', async () => {
       });
     }, 100);
 
-    document.querySelectorAll('.ausbilder-chip[data-azubi-id]').forEach(btn => {
-      btn.addEventListener('click', () => { viewAzubiId = btn.dataset.azubiId; render(); });
-    });
+    const azubiSelectEl = document.getElementById('azubiSelect');
+    if (azubiSelectEl) {
+      azubiSelectEl.addEventListener('change', () => { viewAzubiId = azubiSelectEl.value; render(); });
+    }
   }
 
   await render();

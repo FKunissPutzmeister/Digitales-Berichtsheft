@@ -1,6 +1,7 @@
 /* ===================================================================
-   AZUBI-PLANER.JS
+   ABTEILUNGS-PLANER.JS (ehemals azubi-planer.js)
 
+   Plant Abteilungs-Zuweisungen für Azubis UND DH-Studenten.
    Drei klar getrennte Zonen (siehe Design 2026-06-12):
      1. Kopf   – Filter + Auswertung (KPIs, Roster=Legende, Suche)
      2. Mitte  – Timeline (Gantt)
@@ -178,7 +179,7 @@ async function renderAzubiDurchlauf(user) {
 
   const main = document.getElementById('mainContent');
   // Volle Seitenbreite (gleicher Marker wie der Planer) – die Timeline nutzt so den ganzen Platz.
-  document.body.dataset.page = 'azubi-planer';
+  document.body.dataset.page = 'abteilungs-planer';
 
   try {
     main.innerHTML = `
@@ -200,7 +201,7 @@ async function renderAzubiDurchlauf(user) {
 async function renderAusbilderDurchlauf(user) {
   document.getElementById('nav-planer')?.classList.remove('active');
   document.getElementById('nav-abteilungsplan')?.classList.add('active');
-  document.body.dataset.page = 'azubi-planer';
+  document.body.dataset.page = 'abteilungs-planer';
   const main = document.getElementById('mainContent');
 
   try {
@@ -215,20 +216,20 @@ async function renderAusbilderDurchlauf(user) {
       return;
     }
 
-    const selectorHtml = (currentId) => `
-      <div style="margin-bottom:var(--sp-4);display:flex;align-items:center;gap:var(--sp-3);flex-wrap:wrap">
-        <span style="font-size:var(--text-sm);font-weight:700;color:var(--pm-grey-600)">Azubi:</span>
-        ${azubis.map(a => `
-          <button class="ausbilder-chip ${a.id === currentId ? 'selected' : ''}" data-azubi-id="${a.id}">
-            <div class="avatar" style="width:28px;height:28px;font-size:11px">${a.initials}</div>
-            ${escHtml(a.name)}
-          </button>`).join('')}
-      </div>`;
+    const selectorHtml = (currentId) => renderAzubiSelect(azubis, currentId);
 
     async function renderFor(azubiId) {
+      // Vorherige PMSelect-Instanz (Azubi-Dropdown) sauber trennen, bevor
+      // innerHTML ersetzt wird – sonst lecken MutationObserver auf detachten Nodes.
+      if (typeof PMSelect !== 'undefined') {
+        PMSelect.closeAll();
+        main.querySelectorAll('select[data-pm-enhanced]').forEach(s => {
+          try { s._pmInstance && s._pmInstance.destroy(); } catch (e) { /* defensiv */ }
+        });
+      }
       main.innerHTML = `${header}${selectorHtml(azubiId)}${await durchlaufBodyHtml(azubiId, true)}`;
-      main.querySelectorAll('.ausbilder-chip').forEach(btn =>
-        btn.addEventListener('click', () => renderFor(btn.dataset.azubiId)));
+      const azubiSelectEl = main.querySelector('#azubiSelect');
+      if (azubiSelectEl) azubiSelectEl.addEventListener('change', () => renderFor(azubiSelectEl.value));
       scrollDurchlaufToToday();
       wireBeurteilungKacheln(main);
     }
@@ -241,7 +242,7 @@ async function renderAusbilderDurchlauf(user) {
 }
 
 document.addEventListener('DOMContentLoaded', async () => {
-  const user = await initPage('nav-planer', [{ label: 'Azubi-Planer', href: 'azubi-planer.html' }]);
+  const user = await initPage('nav-planer', [{ label: 'Abteilungs-Planer', href: 'abteilungs-planer.html' }]);
   if (!user) return;
 
   // Über „Abteilungsdurchlauf" (?mein=1) sehen Azubis immer den EIGENEN
@@ -262,10 +263,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     return;
   }
 
-  /* Layout-Marker: erlaubt dem Azubi-Planer die volle Seitenbreite (Override
+  /* Layout-Marker: erlaubt dem Abteilungs-Planer die volle Seitenbreite (Override
      der globalen --content-max-Beschränkung in layout.css) – die Timeline
      braucht den Platz für die 12 Monate. */
-  document.body.dataset.page = 'azubi-planer';
+  document.body.dataset.page = 'abteilungs-planer';
 
   // Balken-/Punktfarben kommen aus der zentralen GANTT_PALETTE (15 Farben,
   // siehe oben). Die Länge steuert auch das Modulo in colorIndexFor().
@@ -288,8 +289,13 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Einmal aufgelöste Zeilendaten (Azubi-Objekt + Verantwortlichen-Name).
   let zuwRowData = [];
 
-  // Verantwortliche-Auswahl = alle Nicht-Azubi-Nutzer (nicht nur Ausbilder).
-  const azubis = await DB.getAzubis();
+  // Planbare Personen = Azubis + DH-Studenten. Bewusst NUR hier im Planer
+  // gemischt (Frontend-Merge) – die Backend-Azubi-Liste bleibt unverändert,
+  // damit DH-Studenten (führen kein Berichtsheft) nicht in Wochen-/Jahres-
+  // ansicht & Co. auftauchen. `azubis` behält seinen Namen: er zieht sich
+  // durch die gesamte Datei (Filter, KPIs, Gantt).
+  const azubis = [...await DB.getAzubis(), ...await DB.getDhStudenten()]
+    .sort((a, b) => a.name.localeCompare(b.name, 'de'));
   // Abteilungs-Katalog (nur aktive) für das Zuweisungs-Dropdown.
   const abteilungenKatalog = await DB.getAbteilungen();
 
@@ -345,7 +351,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       </div>`;
     return `
       <div class="planer-kpis">
-        ${tile(k.azubisTotal, 'Azubis gesamt')}
+        ${tile(k.azubisTotal, 'Personen gesamt')}
         ${tile(k.aktiveZuweisungen, 'Aktive Zuweisungen')}
         ${tile(k.ohneZuweisung, 'Ohne aktuelle Zuweisung', k.ohneZuweisung > 0 ? ' planer-kpi--warn' : '')}
         ${tile(k.ausbilderAktiv, 'Verantwortliche aktiv')}
@@ -417,7 +423,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     main.innerHTML = `
       <div class="page-header">
         <div class="page-header__left">
-          <h1 class="page-title">Azubi-Planer</h1>
+          <h1 class="page-title">Abteilungs-Planer</h1>
         </div>
       </div>
 
@@ -425,7 +431,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
       <div class="planer-filterbar">
         <div class="planer-search">
-          <input type="search" id="azubiSearch" class="form-control" placeholder="Azubi suchen …" value="${searchText}">
+          <input type="search" id="azubiSearch" class="form-control" placeholder="Person suchen …" value="${searchText}">
         </div>
         <select class="form-control" id="filterVerantw">${buildVerantwOptions()}</select>
         <select class="form-control" id="filterAbteilung">${buildAbteilungOptions()}</select>
@@ -493,10 +499,11 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Linke Liste: ein Eintrag je (gefiltertem) Azubi mit aktueller Zuweisung/Status.
   function buildAzubiListe() {
     const list = gefilterteAzubis();
-    if (!list.length) return `<div class="planer-empty">Keine Azubis für die aktuelle Filterung.</div>`;
+    if (!list.length) return `<div class="planer-empty">Keine Personen für die aktuelle Filterung.</div>`;
     return list.map(a => {
       const akt = getAktuelleZuweisung(a.id);
-      const lj = lehrjahrVon(a);
+      // DH-Studenten: "DH"-Tag statt Lehrjahr (gleiche Optik wie das LJ-Label).
+      const ljTag = a.istDhStudent ? 'DH' : (lehrjahrVon(a) ? `${lehrjahrVon(a)}. LJ` : '');
       let badge, sub;
       if (!akt) { badge = `<span class="badge badge--abgelehnt">Keine Zuweisung</span>`; sub = '—'; }
       else {
@@ -508,7 +515,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         <button class="planer-list-item ${a.id === selectedAzubiId ? 'selected' : ''}" data-azubi-id="${a.id}">
           <div class="avatar avatar--sm">${a.initials}</div>
           <div class="planer-list-item__main">
-            <div class="planer-list-item__name">${a.name}${lj ? ` <span class="planer-list-item__lj">${lj}. LJ</span>` : ''}</div>
+            <div class="planer-list-item__name">${a.name}${ljTag ? ` <span class="planer-list-item__lj">${ljTag}</span>` : ''}</div>
             <div class="planer-list-item__sub">${sub}</div>
           </div>
           ${badge}
@@ -518,9 +525,9 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // Rechtes Detailpanel: Rotationsplan des gewählten Azubis.
   function buildDetail(azubiId) {
-    if (!azubiId) return `<div class="planer-detail__empty">Azubi links auswählen, um den Rotationsplan zu sehen.</div>`;
+    if (!azubiId) return `<div class="planer-detail__empty">Person links auswählen, um den Rotationsplan zu sehen.</div>`;
     const azubi = azubis.find(a => a.id === azubiId);
-    if (!azubi) return `<div class="planer-detail__empty">Azubi nicht gefunden.</div>`;
+    if (!azubi) return `<div class="planer-detail__empty">Person nicht gefunden.</div>`;
     // Alle Zuweisungen dieses Azubis aus zuwRowData, chronologisch.
     const rows = zuwRowData.filter(r => r.z.azubiId === azubiId)
       .sort((a, b) => a.z.von.localeCompare(b.z.von));
@@ -585,7 +592,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
     return `
       <div class="gantt-header">
-        <div class="gantt-header__name-col">Auszubildende/r</div>
+        <div class="gantt-header__name-col">Person</div>
         <div class="gantt-header__timeline">
           <div class="gantt-months">${monate}</div>
           <div class="gantt-days">${tage.join('')}${buildTodayMarker()}</div>
@@ -610,7 +617,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     if (!filteredAzubis.length) {
-      return `<div style="padding:var(--sp-8);text-align:center;color:var(--pm-grey-400)">Keine Auszubildenden gefunden.</div>`;
+      return `<div style="padding:var(--sp-8);text-align:center;color:var(--pm-grey-400)">Keine Personen gefunden.</div>`;
     }
 
     const rows = await Promise.all(filteredAzubis.map(async azubi => {
@@ -622,7 +629,7 @@ document.addEventListener('DOMContentLoaded', async () => {
           <div class="gantt-row__info">
             <div class="avatar avatar--sm">${azubi.initials}</div>
             <div class="gantt-row__info-text">
-              <div class="gantt-row__name" title="${azubi.name}">${azubi.name}</div>
+              <div class="gantt-row__name" title="${azubi.name}">${azubi.name}${azubi.istDhStudent ? ' <span class="planer-list-item__lj">DH</span>' : ''}</div>
               <div class="gantt-row__beruf" title="${azubi.beruf || ''}">${azubi.beruf || ''}</div>
             </div>
           </div>
@@ -779,7 +786,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   function getBarColor(idx) { return ganttColor(idx); }
 
   // Beide Modal-Inits einmalig binden (Modal-Markup ist statisch in
-  // azubi-planer.html). Innerhalb von render() würden Listener mehrfach
+  // abteilungs-planer.html). Innerhalb von render() würden Listener mehrfach
   // angehängt, was zu Mehrfach-Einfügungen/-Löschungen führen könnte.
   initZuweisungDeleteModal();
   initZuweisungModal();

@@ -107,6 +107,7 @@ const anhaengeRouter       = require('./routes/anhaenge');
 const benachrichtigungenRouter = require('./routes/benachrichtigungen');
 const fahrtgeldRouter      = require('./routes/fahrtgeld');
 const beurteilungenRouter  = require('./routes/beurteilungen');
+const syncRouter           = require('./routes/sync');
 
 app.use('/api/users',               devAuth, usersRouter);
 app.use('/api/wochen',              devAuth, wochenRouter);
@@ -117,6 +118,7 @@ app.use('/api/wochen',              devAuth, anhaengeRouter);     // /api/wochen
 app.use('/api/benachrichtigungen',  devAuth, benachrichtigungenRouter);
 app.use('/api/fahrtgeld',           devAuth, fahrtgeldRouter);
 app.use('/api/beurteilungen',       devAuth, beurteilungenRouter);
+app.use('/api/sync',                devAuth, syncRouter);
 
 // ── Dev-Hilfsliste: alle verfügbaren Routen ───────────────────────
 if (process.env.NODE_ENV !== 'production') {
@@ -161,3 +163,15 @@ app.listen(PORT, () => {
   console.log(`→ App:  http://localhost:${PORT}/  (öffnet /app/index.html)`);
   console.log(`→ API:  http://localhost:${PORT}/api/...`);
 });
+
+// ── Automatischer Entra-Gruppen-Sync ─────────────────────────────
+const { syncConfigured: entraConfigured, runSync: entraRunSync } = require('./services/entraSync');
+const entraCfg = entraConfigured();
+if (entraCfg.configured) {
+  entraRunSync().catch((e) => console.error('[entra-sync] Start-Lauf:', e.message));
+  setInterval(() => { entraRunSync().catch((e) => console.error('[entra-sync]', e.message)); },
+    entraCfg.intervalHours * 3600 * 1000);
+  console.log(`[entra-sync] aktiv — Intervall ${entraCfg.intervalHours} h.`);
+} else {
+  console.warn('[entra-sync] NICHT konfiguriert — Gruppen-Sync deaktiviert.');
+}

@@ -137,6 +137,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     document.getElementById('nvRole').value         = u.role || 'azubi';
     document.getElementById('nvBeruf').value        = u.beruf || '';
     document.getElementById('nvBerichtTyp').value   = u.berichtTyp || 'wöchentlich';
+    /* Berichtstyp nur für echte Azubis (role azubi ODER IstAzubi-Tag, z.B. Florian Kern)
+       editierbar; für Admin/Prüfer/DH-Student/Developer ausgrauen. */
+    document.getElementById('nvBerichtTyp').disabled = !u.istAzubi;
     /* READ uses ausbildungsBeginn/ausbildungsEnde (with medial 's') */
     document.getElementById('nvAusbildungBeginn').value = u.ausbildungsBeginn || '';
     document.getElementById('nvAusbildungEnde').value   = u.ausbildungsEnde   || '';
@@ -308,6 +311,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         <h1 class="page-title">Nutzerverwaltung</h1>
         <p class="page-subtitle">Rollen, Rechte und Profildaten aller Nutzer verwalten</p>
       </div>
+      <div class="page-header__right">
+        <button class="btn btn-outline" type="button" id="nvSyncBtn">Jetzt synchronisieren</button>
+      </div>
     </div>
 
     <div class="card">
@@ -351,4 +357,27 @@ document.addEventListener('DOMContentLoaded', async () => {
   /* Filter verdrahten (Suche + Rolle greifen kombiniert) */
   document.getElementById('nvSearch').addEventListener('input', applyFilters);
   document.getElementById('nvRoleFilter').addEventListener('change', applyFilters);
+
+  /* Manueller Entra-Sync (developer-only Seite) */
+  document.getElementById('nvSyncBtn')?.addEventListener('click', async () => {
+    const btn = document.getElementById('nvSyncBtn');
+    btn.disabled = true;
+    const label = btn.textContent;
+    btn.textContent = 'Synchronisiere…';
+    try {
+      const r = await DB.runEntraSync();
+      if (r.ok) {
+        Toast.success('Sync abgeschlossen', `${r.upserted} aktualisiert, ${r.deactivated} deaktiviert`);
+        users = await DB.getAllUsers();
+        renderPage(users);
+      } else {
+        Toast.error('Sync fehlgeschlagen', r.errors?.[0] || 'unbekannt');
+      }
+    } catch (e) {
+      Toast.error('Sync fehlgeschlagen', e.message);
+    } finally {
+      btn.disabled = false;
+      btn.textContent = label;
+    }
+  });
 });
