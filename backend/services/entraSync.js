@@ -30,7 +30,7 @@ function resolveMembers(groupResults) {
       if (!oid || out.has(oid)) continue;
       // Name ist in dbo.Users NOT NULL. Fehlt der Azure-displayName, auf E-Mail
       // und zuletzt die OID zurückfallen, statt den ganzen Lauf am INSERT zu brechen.
-      out.set(oid, { oid, name: m.name || m.email || oid, email: m.email ?? null, role });
+      out.set(oid, { oid, name: m.name || m.email || oid, email: m.email ?? null, role, jobTitle: m.jobTitle ?? null, department: m.department ?? null });
     }
   }
   return out;
@@ -79,7 +79,7 @@ async function getGraphToken({ tenantId, clientId, clientSecret }) {
 
 // Gruppen-Mitglieder (nur User) inkl. Paging. Wirft bei HTTP-Fehler.
 async function fetchGroupMembers(token, groupId) {
-  let url = `https://graph.microsoft.com/v1.0/groups/${groupId}/members?$select=id,displayName,mail,userPrincipalName&$top=999`;
+  let url = `https://graph.microsoft.com/v1.0/groups/${groupId}/members?$select=id,displayName,mail,userPrincipalName,jobTitle,department&$top=999`;
   const out = [];
   while (url) {
     const r = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
@@ -89,7 +89,7 @@ async function fetchGroupMembers(token, groupId) {
       const isUser = String(m['@odata.type'] || '').toLowerCase().endsWith('.user') || !!m.userPrincipalName;
       if (!isUser) continue;
       const email = String(m.mail || m.userPrincipalName || '').trim().toLowerCase();
-      out.push({ oid: m.id, name: m.displayName ?? null, email: email || null });
+      out.push({ oid: m.id, name: m.displayName ?? null, email: email || null, jobTitle: m.jobTitle ?? null, department: m.department ?? null });
     }
     url = j['@odata.nextLink'] || null;
   }
@@ -110,7 +110,7 @@ async function runSync(env = process.env) {
     const resolved = resolveMembers(groupResults);
     const members = [...resolved.values()];
     for (const u of members) {
-      await upsertUser({ oid: u.oid, name: u.name, email: u.email, role: u.role, letzterLogin: false });
+      await upsertUser({ oid: u.oid, name: u.name, email: u.email, role: u.role, beruf: berufAusJobtitle(u.jobTitle), berichtTyp: berichtTypAusDepartment(u.department), letzterLogin: false });
     }
     const aktivOids = members.map((u) => u.oid);
     await setUsersAktiv(aktivOids, true);
@@ -126,4 +126,19 @@ async function runSync(env = process.env) {
   }
 }
 
-module.exports = { buildGroupRoleMap, resolveMembers, computeDeactivations, syncConfigured, getGraphToken, fetchGroupMembers, runSync };
+// "Auszubildender Mechatroniker" → "Mechatroniker"; leer → null (Präfix wie SAML-Beruf).
+function berufAusJobtitle(jobTitle) {
+  const s = String(jobTitle || '').replace(/^auszubildende[r]?\s+/i, '').trim();
+  return s || null;
+}
+
+// Department → Berichtstyp: "gewerblich…" → täglich, "kaufmänn…" → wöchentlich,
+// sonst null (Berichtstyp unverändert lassen).
+function berichtTypAusDepartment(department) {
+  const d = String(department || '').toLowerCase();
+  if (d.includes('gewerblich')) return 'täglich';
+  if (d.includes('kaufm')) return 'wöchentlich';
+  return null;
+}
+
+module.exports = { buildGroupRoleMap, resolveMembers, computeDeactivations, syncConfigured, getGraphToken, fetchGroupMembers, runSync, berufAusJobtitle, berichtTypAusDepartment };

@@ -73,3 +73,27 @@ test('syncConfigured: keine Gruppe gesetzt → configured false', () => {
   const c = S.syncConfigured({ GRAPH_TENANT_ID: 't', GRAPH_CLIENT_ID: 'c', GRAPH_CLIENT_SECRET: 's' });
   assert.equal(c.configured, false);
 });
+
+test('berufAusJobtitle: entfernt Auszubildende(r)-Präfix, sonst unverändert; leer → null', () => {
+  assert.equal(S.berufAusJobtitle('Auszubildender Mechatroniker'), 'Mechatroniker');
+  assert.equal(S.berufAusJobtitle('Auszubildende Industriekauffrau'), 'Industriekauffrau');
+  assert.equal(S.berufAusJobtitle('Fachinformatiker für Systemintegration'), 'Fachinformatiker für Systemintegration');
+  assert.equal(S.berufAusJobtitle(''), null);
+  assert.equal(S.berufAusJobtitle(null), null);
+});
+
+test('berichtTypAusDepartment: gewerblich→täglich, kaufmännisch→wöchentlich, sonst null', () => {
+  assert.equal(S.berichtTypAusDepartment('Gewerbliche Auszubildende'), 'täglich');
+  assert.equal(S.berichtTypAusDepartment('Kaufmännische Auszubildende'), 'wöchentlich');
+  assert.equal(S.berichtTypAusDepartment('Sonstiges'), null);
+  assert.equal(S.berichtTypAusDepartment(''), null);
+  assert.equal(S.berichtTypAusDepartment(null), null);
+});
+
+test('resolveMembers: reicht jobTitle und department durch', () => {
+  const m = S.resolveMembers([{ role: 'azubi', members: [
+    { oid: 'A', name: 'Ann', email: 'a@x', jobTitle: 'Auszubildender Mechatroniker', department: 'Gewerbliche Auszubildende' },
+  ] }]);
+  assert.equal(m.get('A').jobTitle, 'Auszubildender Mechatroniker');
+  assert.equal(m.get('A').department, 'Gewerbliche Auszubildende');
+});
