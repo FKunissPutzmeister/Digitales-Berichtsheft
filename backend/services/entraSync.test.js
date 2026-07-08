@@ -39,6 +39,15 @@ test('resolveMembers: leere/fehlende OID wird verworfen', () => {
   assert.deepEqual([...m.keys()], ['C']);
 });
 
+test('resolveMembers: fehlender Name fällt auf E-Mail bzw. OID zurück (Name ist NOT NULL)', () => {
+  const m = S.resolveMembers([{ role: 'azubi', members: [
+    { oid: 'A', email: 'a@x' }, // kein Name → E-Mail
+    { oid: 'B' },               // kein Name, keine E-Mail → OID
+  ] }]);
+  assert.equal(m.get('A').name, 'a@x');
+  assert.equal(m.get('B').name, 'B');
+});
+
 test('computeDeactivations: managed-Nutzer nicht in aktivOids → deaktivieren', () => {
   const db = [{ oid: 'A', role: 'azubi' }, { oid: 'B', role: 'pruefer' }, { oid: 'C', role: 'dhstudent' }];
   assert.deepEqual(S.computeDeactivations(db, ['A', 'C']).sort(), ['B']);

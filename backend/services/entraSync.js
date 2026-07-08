@@ -28,7 +28,9 @@ function resolveMembers(groupResults) {
     for (const m of (members || [])) {
       const oid = String(m.oid || '').trim();
       if (!oid || out.has(oid)) continue;
-      out.set(oid, { oid, name: m.name ?? null, email: m.email ?? null, role });
+      // Name ist in dbo.Users NOT NULL. Fehlt der Azure-displayName, auf E-Mail
+      // und zuletzt die OID zurückfallen, statt den ganzen Lauf am INSERT zu brechen.
+      out.set(oid, { oid, name: m.name || m.email || oid, email: m.email ?? null, role });
     }
   }
   return out;
