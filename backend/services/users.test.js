@@ -2,7 +2,7 @@
 process.env.NODE_ENV = 'test';
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { parseRoleClaim, buildReqUser, validateUserPatch } = require('./users');
+const { parseRoleClaim, buildReqUser, validateUserPatch, landingPathForUser } = require('./users');
 
 const ROLE_URI = 'http://schemas.microsoft.com/ws/2008/06/identity/claims/role';
 
@@ -90,4 +90,12 @@ test('buildReqUser: dhstudent positiv', () => {
 test('buildReqUser: aktiv=false wird durchgereicht', () => {
   const u = buildReqUser({ Oid: 'g6', Role: 'azubi', Aktiv: false });
   assert.equal(u.aktiv, false);
+});
+
+test('landingPathForUser: dhstudent → Abteilungsdurchlauf, sonst Dashboard', () => {
+  assert.equal(landingPathForUser(buildReqUser({ Oid: 'g5', Role: 'dhstudent' })), '/app/abteilungsdurchlauf.html');
+  assert.equal(landingPathForUser(buildReqUser({ Oid: 'g1', Role: 'azubi' })), '/app/dashboard.html');
+  assert.equal(landingPathForUser(buildReqUser({ Oid: 'g2', Role: 'pruefer' })), '/app/dashboard.html');
+  assert.equal(landingPathForUser(buildReqUser({ Oid: 'g3', Role: 'developer' })), '/app/dashboard.html');
+  assert.equal(landingPathForUser(null), '/app/dashboard.html');
 });

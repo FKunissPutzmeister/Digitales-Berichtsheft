@@ -28,6 +28,17 @@ function parseRoleClaim(profile) {
   return list.find((r) => AZURE_ROLES.includes(r)) || null;
 }
 
+// Server-seitige Landeseite je effektiver Rolle (Pendant zu landingPageFor im
+// Frontend, app.js). DH-Studenten sehen ausschließlich den Abteilungsdurchlauf
+// (schlanke Seite OHNE Sidebar); alle anderen das Dashboard.
+// WICHTIG: Muss aus der EFFEKTIVEN Rolle (buildReqUser → istDhStudent) abgeleitet
+// werden, nicht aus dem SAML-Rollen-Claim — der kennt nur azubi/pruefer, die
+// dhstudent-Rolle steht in der DB. Ohne diese Weiche landet ein DH-Student nach
+// SSO erst auf der Sidebar-Seite und wird von initLayout weggebounct (Flash).
+function landingPathForUser(user) {
+  return user && user.istDhStudent ? '/app/abteilungsdurchlauf.html' : '/app/dashboard.html';
+}
+
 // DB-Zeile → req.user-Form mit abgeleiteten Flags.
 function buildReqUser(row) {
   if (!row) return null;
@@ -223,7 +234,7 @@ async function setUsersAktiv(oids, aktiv) {
 }
 
 module.exports = {
-  parseRoleClaim, buildReqUser, validateUserPatch, canUseDevView,
+  parseRoleClaim, buildReqUser, landingPathForUser, validateUserPatch, canUseDevView,
   upsertUser, getUserByOid, getUserByEmail, listUsers, updateUserProfile,
   listManagedUsers, setUsersAktiv,
 };
