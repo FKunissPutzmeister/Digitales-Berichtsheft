@@ -18,7 +18,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (document.referrer && history.length > 1) history.back();
     else window.location.href = user.istDhStudent ? 'abteilungsdurchlauf.html' : 'azubi-planer.html';
   };
-  document.getElementById('beurtBack')?.addEventListener('click', e => { e.preventDefault(); back(); });
+  document.querySelectorAll('[data-back]').forEach(el =>
+    el.addEventListener('click', e => { e.preventDefault(); back(); }));
 
   const main = document.getElementById('mainContent');
   const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[c]));
@@ -65,7 +66,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     gespraechAm: beurteilung?.gespraechAm || '', editable,
   });
 
-  renderActions({ user, zuweisung, beurteilung, azubi, editable, form }); // defined in Tasks 9–10
+  renderActions({ user, zuweisung, beurteilung, azubi, editable, form, back }); // defined in Tasks 9–10
 });
 
 // Lädt Zuweisung (via Azubi-Liste), bestehende Beurteilung, Azubi-User und leitet den Modus ab.
@@ -96,7 +97,7 @@ async function resolveZuweisung(zuweisungId) {
 
 // Rendert die Aktionsleiste (Speichern/Abschließen/PDF/Berichte für Verantwortliche, Kenntnisnahme/PDF für Azubi/DH).
 function renderActions(ctx) {
-  const { zuweisung, beurteilung, editable, form, user } = ctx;
+  const { zuweisung, beurteilung, editable, form, user, back } = ctx;
   const host = document.getElementById('beurtActions');
   if (!host) return;
   let id = beurteilung?.id || null;
@@ -129,7 +130,7 @@ function renderActions(ctx) {
           await DB.abschliessenBeurteilung(id);
           Toast.success('Abgeschlossen', 'Beurteilung abgeschlossen. Der Azubi wurde benachrichtigt.');
         }
-        setTimeout(() => location.reload(), 800);
+        setTimeout(back, 800); // nach dem Abgeben zurück zur Ausgangsseite
       } catch (e) { Toast.error('Fehler', e.message); }
     });
 

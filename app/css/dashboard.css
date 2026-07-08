@@ -2056,10 +2056,9 @@ html[data-theme="dark"] .b-recent::before {
   display: inline-flex; align-items: center; gap: 6px;
   font-weight: 600; font-size: 11px; line-height: 1;
 }
-/* Status-Dot entfernt (alle Themes, beide Kartentypen) – Status steht im Text
+/* Status-Dot entfernt (alle Themes) – Status steht im Text
    + Signalfarbe der Kachel, der Punkt war redundant. */
-.b-wkcard__status .d,
-.b-daycard__status .d { display: none; }
+.b-wkcard__status .d { display: none; }
 /* Status-Text folgt der Signalfarbe; nur freigegeben (Theme-Akzent) nutzt die
    dunklere Akzentvariante, damit es auf hellem Grund lesbar bleibt. */
 .b-wkcard__status { color: var(--sig, var(--pm-grey-500)); }
@@ -2073,88 +2072,6 @@ html[data-theme="dark"] .b-recent::before {
 }
 [data-theme="dark"] .b-wkcard__kw { color: #fff; }
 [data-theme="dark"] .b-wkcard:hover { border-color: color-mix(in srgb, var(--sig, #ffffff) 48%, transparent); }
-
-/* ── Day-Card: kompakte Variante für gewerbliche Azubis (täglich).
-   Layout: Wochentag groß, Datum klein darunter, Status am Fuß.
-   Top-Border in Status-Farbe (wie .b-wkcard). ── */
-.b-daycard {
-  position: relative;
-  background: #fff;
-  border: 1px solid var(--pm-grey-200);
-  border-radius: 14px;
-  padding: 14px 14px 12px;
-  cursor: pointer;
-  transition: all .2s ease;
-  text-decoration: none;
-  color: inherit;
-  overflow: hidden;
-  display: flex; flex-direction: column;
-  gap: 2px;
-}
-.b-daycard::before {
-  content: ""; position: absolute;
-  top: 0; left: 0; right: 0; height: 3px;
-  background: var(--pm-grey-300);
-}
-.b-daycard--ok::before    { background: var(--color-success, #00A26B); }
-.b-daycard--fr::before    { background: var(--info, #2C82F0); }
-.b-daycard--er::before    { background: var(--color-error, #E03B3B); }
-.b-daycard--draft::before { background: var(--pm-yellow); }
-.b-daycard--leer::before  { background: var(--pm-grey-300); }
-.b-daycard:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 1px 2px rgba(14,17,22,0.04), 0 8px 28px rgba(14,17,22,0.08);
-  border-color: var(--pm-grey-300);
-}
-.b-daycard__wd {
-  display: block;
-  font-weight: 700; font-size: 11px; line-height: 1;
-  letter-spacing: 0.12em;
-  color: var(--pm-grey-500);
-  margin-bottom: 6px;
-}
-.b-daycard__num {
-  display: inline-block;
-  font-weight: 800; font-size: 26px; line-height: 1;
-  letter-spacing: -0.025em;
-  color: var(--pm-grey-900);
-  font-feature-settings: "tnum";
-}
-.b-daycard__mon {
-  display: inline-block;
-  font-weight: 500; font-size: 12px; line-height: 1;
-  color: var(--pm-grey-500);
-  letter-spacing: 0.02em;
-  margin-left: 2px;
-}
-.b-daycard__status {
-  display: inline-flex; align-items: center; gap: 6px;
-  font-weight: 600; font-size: 11px; line-height: 1;
-  margin-top: 10px;
-  color: var(--pm-grey-500);
-}
-.b-daycard__status .d {
-  width: 6px; height: 6px; border-radius: 50%;
-  background: var(--pm-grey-300);
-}
-.b-daycard--ok    .b-daycard__status,
-.b-daycard--ok    .b-daycard__status .d { color: var(--color-success, #00A26B); }
-.b-daycard--ok    .b-daycard__status .d { background: var(--color-success, #00A26B); }
-.b-daycard--fr    .b-daycard__status,
-.b-daycard--fr    .b-daycard__status .d { color: var(--info, #2C82F0); }
-.b-daycard--fr    .b-daycard__status .d { background: var(--info, #2C82F0); }
-.b-daycard--er    .b-daycard__status,
-.b-daycard--er    .b-daycard__status .d { color: var(--color-error, #E03B3B); }
-.b-daycard--er    .b-daycard__status .d { background: var(--color-error, #E03B3B); }
-.b-daycard--draft .b-daycard__status    { color: var(--pm-yellow-darker, #C58E00); }
-.b-daycard--draft .b-daycard__status .d { background: var(--pm-yellow); }
-[data-theme="dark"] .b-daycard {
-  background: rgba(255,255,255,0.04);
-  border-color: rgba(255,255,255,0.08);
-  color: #fff;
-}
-[data-theme="dark"] .b-daycard__num { color: #fff; }
-[data-theme="dark"] .b-daycard:hover { border-color: rgba(255,255,255,0.18); }
 
 /* ───────── Stats / Sparkline (4×2 — rechts neben Recent) ───────── */
 .b-stats {

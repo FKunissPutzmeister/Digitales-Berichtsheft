@@ -102,9 +102,9 @@ document.addEventListener('DOMContentLoaded', async () => {
       }))
       .sort((a, b) => b.monatKey.localeCompare(a.monatKey));
   }
-  function fehlendeFelder() {
+  function fehlendeFelder(quelle = konfig) {
     return PFLICHT.filter(k => {
-      const v = konfig?.[k];
+      const v = quelle?.[k];
       if (k === 'betragProTag') return !(Number(v) > 0);
       return !v || !String(v).trim();
     });
@@ -363,7 +363,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             </div>
             <div class="form-group" style="max-width:200px">
               <label class="form-label" for="fgm-betragProTag">Tagessatz (€)</label>
-              <input class="form-control" id="fgm-betragProTag" type="number" step="0.01" min="0" placeholder="z.B. 8,30" value="${v.betragProTag}">
+              <input class="form-control" id="fgm-betragProTag" type="text" inputmode="decimal" placeholder="z.B. 8,30" value="${String(v.betragProTag).replace('.', ',')}">
             </div>
           </div>
           <div class="modal__footer">
@@ -459,6 +459,13 @@ document.addEventListener('DOMContentLoaded', async () => {
       nachHaltestelle: val('fgm-nachHaltestelle'),
       betragProTag: Number(val('fgm-betragProTag').replace(',', '.')) || 0,
     };
+    // Unvollständig? Nicht speichern – sonst landet man mit Erfolgs-Toast
+    // wieder im Setup-Screen und wundert sich.
+    const fehlt = fehlendeFelder(neu);
+    if (fehlt.length) {
+      Toast.warning('Unvollständig', `Bitte noch ausfüllen: ${fehlt.map(k => FELD_LABELS[k]).join(', ')}.`);
+      return;
+    }
     const btn = document.getElementById('fg-modal-save');
     if (btn) { btn.disabled = true; btn.textContent = 'Speichere …'; }
     try {

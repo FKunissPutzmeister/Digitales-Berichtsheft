@@ -53,7 +53,9 @@
   border: 1px solid var(--pm-grey-200);
   border-radius: var(--r-xl);
   box-shadow: var(--shadow-sm);
+  cursor: grab; /* Drag-to-Pan (abteilungen-helpers.js) */
 }
+.gantt-scroll.is-panning { cursor: grabbing; user-select: none; }
 .gantt-grid { min-width: calc(280px + var(--num-days) * var(--day-px)); }
 
 /* Dickerer horizontaler Scrollbalken NUR in der Azubi-Timeline, damit er

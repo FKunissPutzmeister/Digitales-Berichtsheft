@@ -127,14 +127,16 @@ document.addEventListener('DOMContentLoaded', async () => {
   let currentBerichtTyp = null;
   let shellEventsBound = false;
 
-  // Korrektur-Ansicht für alle Nicht-Azubis (Verantwortliche/Ausbilder);
-  // ein Azubi sieht ausschließlich sein eigenes Heft.
-  const isAusbilder = !user.istAzubi;
+  // Korrektur-Ansicht für alle Nicht-Azubis (Verantwortliche/Ausbilder).
+  // admin/developer bekommen sie auch dann, wenn sie selbst Azubi sind
+  // (Dev-View-Switch: Rolle wird 'developer', IstAzubi bleibt) — inkl.
+  // Azubi-Wechsler. Ein normaler Azubi sieht nur sein eigenes Heft.
+  const isAusbilder = !user.istAzubi || user.role === 'admin' || user.role === 'developer';
   let viewAzubiId = user.istAzubi ? user.id : null;
-  if (savedAzubiId && !user.istAzubi) {
+  if (savedAzubiId && isAusbilder) {
     viewAzubiId = savedAzubiId;
     sessionStorage.removeItem('gotoAzubiId');
-  } else if (!user.istAzubi && !viewAzubiId) {
+  } else if (isAusbilder && !viewAzubiId) {
     // Korrektor ohne Vorauswahl: ersten auswählbaren Azubi anzeigen
     const firstAzubi = (await DB.getSelectableAzubis())[0];
     if (firstAzubi) viewAzubiId = firstAzubi.id;
@@ -624,6 +626,18 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   async function renderAzubiSelector(currentId) {
     const azubis = await DB.getSelectableAzubis();
+    const me = DB.getCurrentUser();
+    // admin/developer sehen ALLE Azubis → Chips skalieren nicht; stattdessen
+    // durchsuchbares Dropdown (PMSelect mit data-pm-search).
+    if (me && (me.role === 'admin' || me.role === 'developer')) {
+      return `
+        <div style="margin-bottom:var(--sp-4);display:flex;align-items:center;gap:var(--sp-3);flex-wrap:wrap">
+          <span style="font-size:var(--text-sm);font-weight:700;color:var(--pm-grey-600)">Azubi:</span>
+          <select id="azubiSwitchSelect" class="form-control azubi-switch" data-pm-search="Azubi suchen …">
+            ${azubis.map(a => `<option value="${a.id}" ${a.id === currentId ? 'selected' : ''}>${a.name}</option>`).join('')}
+          </select>
+        </div>`;
+    }
     return `
       <div style="margin-bottom:var(--sp-4);display:flex;align-items:center;gap:var(--sp-3);flex-wrap:wrap">
         <span style="font-size:var(--text-sm);font-weight:700;color:var(--pm-grey-600)">Azubi:</span>
@@ -1993,6 +2007,11 @@ document.addEventListener('DOMContentLoaded', async () => {
         viewAzubiId = btn.dataset.azubiId;
         render();
       });
+    });
+    // Azubi-Wechsel (admin/developer: durchsuchbares Dropdown)
+    document.getElementById('azubiSwitchSelect')?.addEventListener('change', (e) => {
+      viewAzubiId = e.target.value;
+      render();
     });
 
     // (Format-Toggle entfernt: berichtTyp ist pro Azubi fest in DB.users

@@ -34,7 +34,7 @@
   var SEL = {
     frost: ['.card', '.stat-card', '.welcome-hero', '.b-hero', '.b-azubi', '.b-recent',
             '.modal', '.pm-select__menu', '.dropdown__menu', '.week-status-bar'],
-    flat:  ['.b-tile', '.b-wkcard', '.b-daycard', '.b-day', '.day-card', '.tag-row',
+    flat:  ['.b-tile', '.b-wkcard', '.b-day', '.day-card', '.tag-row',
             '.time-spinner', '.dash-out-item', '.quick-access-tile'],
     btn:   ['.btn', '.b-btn-primary', '.demo-login-btn', '.btn-ms', '.week-nav__btn',
             '.pm-select__trigger', '.week-actions button'],

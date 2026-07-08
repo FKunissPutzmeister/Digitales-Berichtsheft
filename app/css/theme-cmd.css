@@ -435,13 +435,6 @@ html[data-theme="cmd"] .b-recent::before {
   border-color: var(--sig, rgba(255,255,255,0.4));
   box-shadow: 0 0 0 1px var(--sig, transparent);
 }
-[data-theme="cmd"] .b-daycard {
-  background: rgba(255,255,255,0.04);
-  border-color: rgba(255,255,255,0.08);
-  color: #fff;
-}
-[data-theme="cmd"] .b-daycard__num { color: #fff; }
-[data-theme="cmd"] .b-daycard:hover { border-color: rgba(255,255,255,0.18); }
 
 /* Glass-Inhalte (Hero, Recent, Stats) + Mini-Wochenkalender */
 [data-theme="cmd"] .b-hero__kw,
@@ -804,8 +797,7 @@ html[data-theme="cmd"] .bento .b-recent {
 
 /* Dashboard Wochen-/Tageskarten, Variante „ok" (grün): Text auf dunkler
    Karte → weiß; der farbige Status-Punkt (.d) bleibt grün. */
-[data-theme="cmd"] .b-wkcard--ok  .b-wkcard__status,
-[data-theme="cmd"] .b-daycard--ok .b-daycard__status { color: rgba(255, 255, 255, 0.92); }
+[data-theme="cmd"] .b-wkcard--ok  .b-wkcard__status { color: rgba(255, 255, 255, 0.92); }
 
 /* Jahresansicht-Legende: Standardtext war --pm-grey-600 (= grün). Die
    Legenden-Pille ist im CMD hell (fehlender Dark-Override) → schwarzer
@@ -843,7 +835,6 @@ html[data-theme="cmd"] .bento .b-recent {
 /* — Harte Radien der Kacheln scharf stellen — */
 [data-theme="cmd"] .bento .b-tile,
 [data-theme="cmd"] .b-wkcard,
-[data-theme="cmd"] .b-daycard,
 [data-theme="cmd"] .b-day,
 [data-theme="cmd"] .welcome-hero,
 [data-theme="cmd"] .dash-error-card__detail {
@@ -865,12 +856,10 @@ html[data-theme="cmd"] .b-tile--glass,
 html[data-theme="cmd"] .b-azubi,
 html[data-theme="cmd"] .b-mitteilungen,
 html[data-theme="cmd"] .b-wkcard,
-html[data-theme="cmd"] .b-daycard,
 html[data-theme="cmd"] .b-day {
   border-color: rgba(0, 230, 77, 0.30);
 }
-html[data-theme="cmd"] .b-wkcard:hover,
-html[data-theme="cmd"] .b-daycard:hover {
+html[data-theme="cmd"] .b-wkcard:hover {
   border-color: rgba(0, 230, 77, 0.55);
 }
 

@@ -244,6 +244,13 @@ document.addEventListener('DOMContentLoaded', async () => {
   const user = await initPage('nav-planer', [{ label: 'Azubi-Planer', href: 'azubi-planer.html' }]);
   if (!user) return;
 
+  // Über „Abteilungsdurchlauf" (?mein=1) sehen Azubis immer den EIGENEN
+  // Durchlauf – auch Planer/Developer, die selbst Azubi sind (Dev-Hybrid).
+  if (user.istAzubi && new URLSearchParams(location.search).has('mein')) {
+    await renderAzubiDurchlauf(user);
+    return;
+  }
+
   if (!user.kannPlanen) {
     if (user.istAzubi) {
       await renderAzubiDurchlauf(user);       // read-only: eigener Abteilungsdurchlauf

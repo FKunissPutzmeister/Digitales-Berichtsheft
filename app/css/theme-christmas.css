@@ -417,13 +417,6 @@ html[data-theme="christmas"] .b-recent::before {
 }
 [data-theme="christmas"] .b-wkcard__kw { color: #fff; }
 [data-theme="christmas"] .b-wkcard:hover { border-color: rgba(255, 255, 255, 0.18); }
-[data-theme="christmas"] .b-daycard {
-  background: rgba(255, 255, 255, 0.04);
-  border-color: rgba(255, 255, 255, 0.08);
-  color: #fff;
-}
-[data-theme="christmas"] .b-daycard__num { color: #fff; }
-[data-theme="christmas"] .b-daycard:hover { border-color: rgba(255, 255, 255, 0.18); }
 
 [data-theme="christmas"] .b-hero__kw,
 [data-theme="christmas"] .b-recent__head h3,

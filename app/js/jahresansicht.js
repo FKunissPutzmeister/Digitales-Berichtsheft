@@ -95,6 +95,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     document.querySelectorAll('.ausbilder-chip[data-azubi-id]').forEach(btn => {
       btn.addEventListener('click', () => { viewAzubiId = btn.dataset.azubiId; render(); });
     });
+    document.getElementById('azubiSwitchSelect')?.addEventListener('change', (e) => {
+      viewAzubiId = e.target.value; render();
+    });
 
     bindWeekRows();
   }
@@ -159,6 +162,18 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   async function renderAzubiSelector(currentId) {
     const azubis = await DB.getSelectableAzubis();
+    const me = DB.getCurrentUser();
+    // admin/developer sehen ALLE Azubis → durchsuchbares Dropdown statt Chips
+    // (gleiches Muster wie wochenansicht.js).
+    if (me && (me.role === 'admin' || me.role === 'developer')) {
+      return `
+        <div style="margin-bottom:var(--sp-5);display:flex;align-items:center;gap:var(--sp-3);flex-wrap:wrap">
+          <span style="font-size:var(--text-sm);font-weight:700;color:var(--pm-grey-600)">Azubi:</span>
+          <select id="azubiSwitchSelect" class="form-control azubi-switch" data-pm-search="Azubi suchen …">
+            ${azubis.map(a => `<option value="${a.id}" ${a.id === currentId ? 'selected' : ''}>${a.name}</option>`).join('')}
+          </select>
+        </div>`;
+    }
     return `
       <div style="margin-bottom:var(--sp-5);display:flex;align-items:center;gap:var(--sp-3);flex-wrap:wrap">
         <span style="font-size:var(--text-sm);font-weight:700;color:var(--pm-grey-600)">Azubi:</span>

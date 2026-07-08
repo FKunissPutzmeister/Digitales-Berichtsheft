@@ -837,6 +837,45 @@ select.form-control {
   to   { opacity: 1; transform: translateY(0)    scale(1); }
 }
 
+/* Sichtbares Suchfeld im Menü (<select data-pm-search>) – klebt beim
+   Scrollen der Optionsliste oben. */
+.pm-select__search {
+  position: sticky;
+  top: calc(-1 * var(--sp-1)); /* Menü-Padding ausgleichen */
+  margin: calc(-1 * var(--sp-1)) calc(-1 * var(--sp-1)) var(--sp-1);
+  padding: var(--sp-2);
+  background: var(--pm-white);
+  border-bottom: 1px solid var(--pm-grey-200);
+  z-index: 1;
+}
+.pm-select__search input {
+  width: 100%;
+  padding: var(--sp-2) var(--sp-3);
+  border: 1px solid var(--pm-grey-300);
+  border-radius: var(--r-sm);
+  font-family: var(--font-body);
+  font-size: var(--text-sm);
+  color: var(--pm-grey-800);
+  background: var(--pm-white);
+}
+.pm-select__search input:focus {
+  outline: none;
+  border-color: var(--pm-yellow-darker);
+}
+[data-theme="dark"] .pm-select__search {
+  background: var(--inverse-surface-soft); /* wie das Dark-Menü selbst */
+  border-color: rgba(255, 255, 255, 0.08);
+}
+[data-theme="dark"] .pm-select__search input {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.12);
+  color: #fff;
+}
+/* Azubi-Wechsler (Wochen-/Jahresansicht, admin/developer): kompakt statt
+   block-breit – die Klasse wandert vom nativen <select> auf den Wrapper. */
+.pm-select.azubi-switch,
+select.azubi-switch { max-width: 340px; }
+
 .pm-select__option {
   display: flex;
   align-items: center;

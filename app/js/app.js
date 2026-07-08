@@ -598,6 +598,24 @@ class PMSelect {
     this.menu.setAttribute('role', 'listbox');
     this.menu.hidden = true;
 
+    // Optionales sichtbares Suchfeld im Menü (Opt-in: <select data-pm-search>).
+    // Nutzt denselben filterByQuery-Pfad wie der unsichtbare Type-ahead-Puffer.
+    this.searchInput = null;
+    this.searchWrap = null;
+    if (nativeSelect.dataset.pmSearch != null) {
+      this.searchWrap = document.createElement('div');
+      this.searchWrap.className = 'pm-select__search';
+      this.searchInput = document.createElement('input');
+      this.searchInput.type = 'search';
+      this.searchInput.placeholder = nativeSelect.dataset.pmSearch || 'Suchen …';
+      this.searchInput.setAttribute('aria-label', 'Optionen durchsuchen');
+      this.searchInput.addEventListener('input', () => {
+        this.query = this.searchInput.value;
+        this.filterByQuery();
+      });
+      this.searchWrap.appendChild(this.searchInput);
+    }
+
     // <select> in den Wrapper verschieben, daneben Trigger einfügen
     nativeSelect.parentNode.insertBefore(this.wrapper, nativeSelect);
     this.wrapper.appendChild(nativeSelect);
@@ -618,6 +636,7 @@ class PMSelect {
   rebuildOptions() {
     this.query = '';
     this.menu.innerHTML = '';
+    if (this.searchWrap) this.menu.appendChild(this.searchWrap); // Suchfeld überlebt Rebuilds
     Array.from(this.native.options).forEach((opt, idx) => {
       const btn = document.createElement('button');
       btn.type = 'button';
@@ -671,6 +690,19 @@ class PMSelect {
   // Tippen sammelt sich in einem unsichtbaren Puffer (verfällt nach 1,5 s).
   // Space NICHT abfangen (bleibt Auswahl/öffnen). Liefert true, wenn behandelt.
   typeAhead(e) {
+    if (this.searchInput) {
+      // Sichtbares Suchfeld ist die Quelle der Wahrheit: Tippen mit Fokus auf
+      // Trigger/Option landet dort statt im unsichtbaren Puffer (kein Verfall).
+      if (e.key.length === 1 && e.key !== ' ' && !e.ctrlKey && !e.metaKey && !e.altKey) {
+        e.preventDefault();
+        this.searchInput.focus();
+        this.searchInput.value += e.key;
+        this.query = this.searchInput.value;
+        this.filterByQuery();
+        return true;
+      }
+      return false;
+    }
     if (e.key === 'Backspace') { e.preventDefault(); this.query = this.query.slice(0, -1); this._afterQuery(); return true; }
     if (e.key.length === 1 && e.key !== ' ' && !e.ctrlKey && !e.metaKey && !e.altKey) {
       e.preventDefault();
@@ -724,6 +756,14 @@ class PMSelect {
     });
 
     this.menu.addEventListener('keydown', (e) => {
+      // Events aus dem Suchfeld: nur Navigation/Auswahl abfangen, Tippen
+      // (inkl. Leerzeichen/Backspace) normal im Input landen lassen.
+      if (this.searchInput && e.target === this.searchInput) {
+        const first = this.menu.querySelector('.pm-select__option:not(:disabled):not([hidden])');
+        if (e.key === 'ArrowDown') { e.preventDefault(); first?.focus(); }
+        else if (e.key === 'Enter') { e.preventDefault(); first?.click(); }
+        return;
+      }
       if (this.typeAhead(e)) return;
       const focused = document.activeElement;
       const options = Array.from(this.menu.querySelectorAll('.pm-select__option:not(:disabled):not([hidden])'));
@@ -818,8 +858,10 @@ class PMSelect {
     document.body.appendChild(this.menu);
     this.menu.hidden = false;
     this.query = '';
+    if (this.searchInput) { this.searchInput.value = ''; }
     this.filterByQuery();
     this.position();
+    if (this.searchInput) this.searchInput.focus();
     this.trigger.setAttribute('aria-expanded', 'true');
     this.wrapper.classList.add('pm-select--open');
     PMSelect._openInstance = this;
@@ -834,6 +876,7 @@ class PMSelect {
     if (this.menu.hidden) return;
     clearTimeout(this.queryTimer);
     this.query = '';
+    if (this.searchInput) this.searchInput.value = '';
     this.menu.hidden = true;
     this.trigger.setAttribute('aria-expanded', 'false');
     this.wrapper.classList.remove('pm-select--open');

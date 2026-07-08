@@ -843,13 +843,6 @@ html[data-theme="halloween"] .b-recent::before {
 }
 [data-theme="halloween"] .b-wkcard__kw { color: #fff; }
 [data-theme="halloween"] .b-wkcard:hover { border-color: rgba(255, 255, 255, 0.18); }
-[data-theme="halloween"] .b-daycard {
-  background: rgba(255, 255, 255, 0.04);
-  border-color: rgba(255, 255, 255, 0.08);
-  color: #fff;
-}
-[data-theme="halloween"] .b-daycard__num { color: #fff; }
-[data-theme="halloween"] .b-daycard:hover { border-color: rgba(255, 255, 255, 0.18); }
 
 [data-theme="halloween"] .b-hero__kw,
 [data-theme="halloween"] .b-recent__head h3,

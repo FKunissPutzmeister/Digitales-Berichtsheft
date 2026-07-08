@@ -254,13 +254,15 @@ async function renderAzubiDashboard(user) {
           else                                      { kind = 'draft'; lbl = 'Entwurf'; }
         }
 
+        // Gleiche Karte wie die Wochen-Variante (.b-wkcard), nur mit
+        // Tages-Inhalt – so greifen alle Theme-Styles (Silk-Gradient etc.)
+        // automatisch auch hier. 'leer' hat kein --sig → graue Fallbacks.
         html += `
-          <a class="b-daycard b-daycard--${kind}" href="wochenansicht.html"
+          <a class="b-wkcard b-wkcard--${kind}" href="wochenansicht.html"
              data-goto-kw="${wkw}" data-goto-year="${wyr}">
-            <span class="b-daycard__wd">${WD_SHORT[wd]}</span>
-            <span class="b-daycard__num">${d.getDate()}.</span>
-            <span class="b-daycard__mon">${M_SHORT[d.getMonth()]}</span>
-            <span class="b-daycard__status"><span class="d"></span>${lbl}</span>
+            <span class="b-wkcard__kw">${d.getDate()}.<small>${WD_SHORT[wd]}</small></span>
+            <span class="b-wkcard__range">${M_SHORT[d.getMonth()]}</span>
+            <span class="b-wkcard__status"><span class="d"></span>${lbl}</span>
           </a>`;
         count++;
       }

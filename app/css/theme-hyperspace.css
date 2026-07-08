@@ -565,13 +565,6 @@ html[data-theme="hyperspace"] .b-recent::before {
 }
 [data-theme="hyperspace"] .b-wkcard__kw { color: #fff; }
 [data-theme="hyperspace"] .b-wkcard:hover { border-color: rgba(255,255,255,0.18); }
-[data-theme="hyperspace"] .b-daycard {
-  background: rgba(255,255,255,0.04);
-  border-color: rgba(255,255,255,0.08);
-  color: #fff;
-}
-[data-theme="hyperspace"] .b-daycard__num { color: #fff; }
-[data-theme="hyperspace"] .b-daycard:hover { border-color: rgba(255,255,255,0.18); }
 
 /* Glass-Inhalte (Hero, Recent, Stats) + Mini-Wochenkalender */
 [data-theme="hyperspace"] .b-hero__kw,
