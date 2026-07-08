@@ -205,8 +205,9 @@ async function listManagedUsers(roles) {
   if (!roles || !roles.length) return [];
   const pool = await getPool();
   const r = pool.request();
+  r.input('demo', sql.NVarChar(20), '%.demo@%');
   const params = roles.map((role, i) => { r.input(`r${i}`, sql.NVarChar(20), role); return `@r${i}`; });
-  const res = await r.query(`SELECT Oid, Role FROM dbo.Users WHERE Aktiv = 1 AND Role IN (${params.join(',')})`);
+  const res = await r.query(`SELECT Oid, Role FROM dbo.Users WHERE Aktiv = 1 AND Role IN (${params.join(',')}) AND (Email IS NULL OR Email NOT LIKE @demo)`);
   return res.recordset.map((x) => ({ oid: x.Oid, role: x.Role }));
 }
 

@@ -53,3 +53,6 @@ backend/sessions/
 
 # Claude Code – lokale Agent-Worktrees & Arbeitsdateien (nicht versionieren)
 .claude/
+
+# Klartext-Secret (Entra-App-Clientkey) — niemals committen
+Secret Clientkey.txt

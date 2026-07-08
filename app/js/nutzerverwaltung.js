@@ -364,14 +364,14 @@ document.addEventListener('DOMContentLoaded', async () => {
     try {
       const r = await DB.runEntraSync();
       if (r.ok) {
-        Toast.success(`Sync ok: ${r.upserted} aktualisiert, ${r.deactivated} deaktiviert`);
+        Toast.success('Sync abgeschlossen', `${r.upserted} aktualisiert, ${r.deactivated} deaktiviert`);
         users = await DB.getAllUsers();
         renderPage(users);
       } else {
-        Toast.error('Sync fehlgeschlagen: ' + (r.errors?.[0] || 'unbekannt'));
+        Toast.error('Sync fehlgeschlagen', r.errors?.[0] || 'unbekannt');
       }
     } catch (e) {
-      Toast.error('Sync fehlgeschlagen: ' + e.message);
+      Toast.error('Sync fehlgeschlagen', e.message);
     } finally {
       btn.disabled = false;
       btn.textContent = label;
