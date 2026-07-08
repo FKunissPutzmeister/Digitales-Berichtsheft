@@ -356,6 +356,10 @@ const DB = {
     await apiFetch(`/users/${oid}/ausbilder`, { method: 'PUT', body: { ausbilderOids } });
   },
 
+  async runEntraSync() {
+    return await apiFetch('/sync/entra', { method: 'POST' });
+  },
+
   /* Zuweisungen */
   async getAllZuweisungen() {
     const data = await apiFetch('/zuweisungen');
