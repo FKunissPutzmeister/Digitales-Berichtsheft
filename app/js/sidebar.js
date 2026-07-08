@@ -44,16 +44,16 @@ function buildSidebar(activeNavId) {
         <span class="sidebar__link-icon">${Icon('document')}</span>
         <span class="sidebar__link-label">Fahrgelderstattung</span>
       </a>
-      <a href="azubi-planer.html" class="sidebar__link nav-durchlauf" id="nav-abteilungsplan">
+      <a href="abteilungs-planer.html" class="sidebar__link nav-durchlauf" id="nav-abteilungsplan">
         <span class="sidebar__link-icon">${Icon('planer')}</span>
         <span class="sidebar__link-label">Abteilungsdurchlauf</span>
       </a>
 
       <div class="sidebar__divider nav-planer-only"></div>
       <span class="sidebar__section-label nav-planer-only">Verwaltung</span>
-      <a href="azubi-planer.html" class="sidebar__link nav-planer-only" id="nav-planer">
+      <a href="abteilungs-planer.html" class="sidebar__link nav-planer-only" id="nav-planer">
         <span class="sidebar__link-icon">${Icon('planer')}</span>
-        <span class="sidebar__link-label">Azubi-Planer</span>
+        <span class="sidebar__link-label">Abteilungs-Planer</span>
       </a>
       <a href="berichtsheftverwaltung.html" class="sidebar__link nav-planer-only" id="nav-verwaltung">
         <span class="sidebar__link-icon">${Icon('verwaltung')}</span>

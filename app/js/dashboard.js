@@ -695,7 +695,7 @@ async function renderAusbilderDashboard(user) {
         <div class="card animate-fade-in">
           <div class="card__header">
             <span class="card__title">Meine Azubis</span>
-            ${user.kannPlanen ? `<a href="azubi-planer.html" class="btn btn-sm btn-ghost">Verwalten</a>` : ''}
+            ${user.kannPlanen ? `<a href="abteilungs-planer.html" class="btn btn-sm btn-ghost">Verwalten</a>` : ''}
           </div>
           <div class="azubi-overview-list">
             ${azubiStats.length > 0 ? azubiStats.map(s => renderAzubiOverviewItem(s)).join('') : `
@@ -976,13 +976,13 @@ function renderPlanerSignale(sig) {
     const tiles = rows.slice(0, MAX).map(kachel).join('');
     const rest = rows.length - MAX;
     const mehr = rest > 0
-      ? `<a href="azubi-planer.html" class="signal-tile signal-tile--more">+${rest} weitere im Planer →</a>`
+      ? `<a href="abteilungs-planer.html" class="signal-tile signal-tile--more">+${rest} weitere im Planer →</a>`
       : '';
     return `<div class="signal-tiles">${tiles}${mehr}</div>`;
   };
   const spalte = (rows, label, sub, mod, leer) => `
     <div class="signal-col signal-col--${mod}">
-      <a href="azubi-planer.html" class="stat-card animate-fade-in" style="text-decoration:none">
+      <a href="abteilungs-planer.html" class="stat-card animate-fade-in" style="text-decoration:none">
         <div class="stat-card__icon stat-card__icon--${mod}">${Icon('planer')}</div>
         <div class="stat-card__content">
           <div class="stat-card__label">${label}</div>
