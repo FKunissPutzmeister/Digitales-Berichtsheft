@@ -6,10 +6,9 @@
 const router = require('express').Router();
 // Konfiguration wird einmalig beim Start ausgewertet; samlConfigured ist ein Load-Time-Snapshot (beabsichtigt).
 const { saml, samlConfigured } = require('../config/saml');
-const { parseRoleClaim, upsertUser } = require('../services/users');
+const { parseRoleClaim, upsertUser, getUserByOid, buildReqUser, landingPathForUser } = require('../services/users');
 const { DEV_AUTH_ENABLED } = require('../middleware/auth');
 
-const DASHBOARD = '/app/dashboard.html';
 const LOGIN_PAGE = '/app/index.html';
 
 // Assertion-Profil → unsere User-Form. objectid ist der Custom-Claim mit der
@@ -80,12 +79,19 @@ router.post('/acs', guard, async (req, res) => {
     const data = assertionToUserData(profile);
     if (!data.oid) throw new Error('Assertion ohne objectid-Claim');
     await upsertUser({ ...data, letzterLogin: true });
+
+    // Landeseite anhand der EFFEKTIVEN Rolle aus der DB (nach upsert) wählen.
+    // Der SAML-Claim kennt nur azubi/pruefer; die dhstudent-Rolle steht in der
+    // DB. Würde man hart aufs Dashboard leiten, landet ein DH-Student erst auf
+    // der Sidebar-Seite und wird von initLayout weggebounct → sichtbarer Flash.
+    const landing = landingPathForUser(buildReqUser(await getUserByOid(data.oid)));
+
     req.session.regenerate((err) => {
       if (err) { console.error('[saml] session.regenerate:', err); return res.redirect(`${LOGIN_PAGE}?error=sso`); }
       req.session.user = { oid: data.oid };
       req.session.save((saveErr) => {
         if (saveErr) { console.error('[saml] session.save:', saveErr); return res.redirect(`${LOGIN_PAGE}?error=sso`); }
-        res.redirect(DASHBOARD);
+        res.redirect(landing);
       });
     });
   } catch (e) {
