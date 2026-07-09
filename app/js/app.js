@@ -412,8 +412,22 @@ async function initNotifications(user) {
     try { await DB.getFaelligeBeurteilungen(); } catch (e) { /* nicht blockierend */ }
   }
 
-  // Initial-Render (für korrekten Badge-Stand sofort beim Pageload)
-  await render();
+  // Initial nur den Ungelesen-Zähler (Badge) laden. Die Items – inkl.
+  // GET /users/:oid pro Benachrichtigung für den Absendernamen – werden
+  // erst beim Öffnen der Glocke gerendert (render() im Klick-Handler);
+  // spart bis zu ~30 Requests auf JEDEM Seitenload.
+  try {
+    const unread = await DB.getUngeleseneBenachrichtigungenCount(user.id);
+    if (badge) {
+      if (unread > 0) {
+        badge.textContent = unread > 9 ? '9+' : String(unread);
+        badge.classList.remove('hidden');
+      } else {
+        badge.classList.add('hidden');
+      }
+    }
+    if (markAllBtn) markAllBtn.disabled = unread === 0;
+  } catch (e) { /* Badge ist nicht kritisch */ }
 }
 
 /* ── Toast-System ── */

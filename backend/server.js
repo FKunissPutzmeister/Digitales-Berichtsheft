@@ -108,6 +108,8 @@ const benachrichtigungenRouter = require('./routes/benachrichtigungen');
 const fahrtgeldRouter      = require('./routes/fahrtgeld');
 const beurteilungenRouter  = require('./routes/beurteilungen');
 const syncRouter           = require('./routes/sync');
+const apiKeysRouter        = require('./routes/apiKeys');
+const mcpRouter            = require('./mcp/server');
 
 app.use('/api/users',               devAuth, usersRouter);
 app.use('/api/wochen',              devAuth, wochenRouter);
@@ -119,6 +121,9 @@ app.use('/api/benachrichtigungen',  devAuth, benachrichtigungenRouter);
 app.use('/api/fahrtgeld',           devAuth, fahrtgeldRouter);
 app.use('/api/beurteilungen',       devAuth, beurteilungenRouter);
 app.use('/api/sync',                devAuth, syncRouter);
+app.use('/api/apikeys',             devAuth, apiKeysRouter);
+// MCP-Endpunkt: KEIN devAuth (eigene Bearer-API-Key-Auth in mcp/server.js).
+app.use('/mcp',                     mcpRouter);
 
 // ── Dev-Hilfsliste: alle verfügbaren Routen ───────────────────────
 if (process.env.NODE_ENV !== 'production') {

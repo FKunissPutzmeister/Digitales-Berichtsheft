@@ -346,6 +346,26 @@ document.addEventListener('DOMContentLoaded', async () => {
           </table>
         </div>
       </div>
+    </div>
+
+    <div class="card" style="margin-top:var(--sp-5)">
+      <div class="card__body">
+        <div class="nv-toolbar" style="justify-content:space-between;align-items:flex-start">
+          <div>
+            <h2 style="margin:0;font-size:var(--text-lg)">API-Zugriff (MCP)</h2>
+            <p class="form-hint" style="margin:4px 0 0;max-width:70ch">Nutzer, die den Berichtsheft-MCP aus ihrem lokal laufenden Claude (Desktop/Code) verwenden dürfen. Jeder Schlüssel wirkt mit den Rechten seines Besitzers. Der Schlüssel wird nur einmal bei der Erstellung angezeigt.</p>
+          </div>
+          <button class="btn btn-primary" type="button" id="akAddBtn">+ Nutzer aufnehmen</button>
+        </div>
+        <div style="overflow-x:auto">
+          <table class="nv-table">
+            <thead>
+              <tr><th>Nutzer</th><th>Bezeichnung</th><th>Erstellt</th><th>Zuletzt genutzt</th><th>Status</th><th></th></tr>
+            </thead>
+            <tbody id="akTableBody"></tbody>
+          </table>
+        </div>
+      </div>
     </div>`;
 
   /* Modal einmalig bauen */
@@ -380,4 +400,118 @@ document.addEventListener('DOMContentLoaded', async () => {
       btn.textContent = label;
     }
   });
+
+  /* ── API-Zugriff (MCP) ───────────────────────────────────────────── */
+  let apiKeys = [];
+  const akBody = document.getElementById('akTableBody');
+
+  function fmtDate(s) {
+    if (!s) return '—';
+    const d = new Date(s);
+    return d.toLocaleDateString('de-DE') + ' ' + d.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
+  }
+
+  function renderApiKeys() {
+    if (!apiKeys.length) {
+      akBody.innerHTML = `<tr><td colspan="6"><div class="nv-empty">Noch niemand für den API-Zugriff aufgenommen.</div></td></tr>`;
+      return;
+    }
+    akBody.innerHTML = apiKeys.map(k => `
+      <tr data-id="${k.Id}">
+        <td><div class="nv-table__name">${esc(k.UserName || '—')}</div><div class="nv-table__email">${esc(k.UserEmail || '')}</div></td>
+        <td>${esc(k.Label || '—')}</td>
+        <td>${fmtDate(k.ErstelltAm)}</td>
+        <td>${fmtDate(k.ZuletztGenutzt)}</td>
+        <td>${k.Aktiv ? '<span class="badge badge--genehmigt">aktiv</span>' : '<span class="badge badge--grey">deaktiviert</span>'}</td>
+        <td class="nv-table__actions">
+          <button class="btn btn-sm btn-outline ak-toggle" type="button" data-id="${k.Id}" data-aktiv="${k.Aktiv ? 1 : 0}">${k.Aktiv ? 'Deaktivieren' : 'Aktivieren'}</button>
+          <button class="btn btn-sm btn-outline ak-del" type="button" data-id="${k.Id}">Löschen</button>
+        </td>
+      </tr>`).join('');
+    akBody.querySelectorAll('.ak-toggle').forEach(b => b.addEventListener('click', async () => {
+      try { await DB.setApiKeyAktiv(Number(b.dataset.id), b.dataset.aktiv !== '1'); await loadApiKeys(); }
+      catch (e) { Toast.error('Fehler', e.message); }
+    }));
+    akBody.querySelectorAll('.ak-del').forEach(b => b.addEventListener('click', async () => {
+      if (!confirm('Diesen API-Schlüssel unwiderruflich löschen? Der Zugriff wird sofort gesperrt.')) return;
+      try { await DB.deleteApiKey(Number(b.dataset.id)); await loadApiKeys(); Toast.success('Gelöscht'); }
+      catch (e) { Toast.error('Fehler', e.message); }
+    }));
+  }
+
+  async function loadApiKeys() {
+    try { apiKeys = await DB.getApiKeys(); }
+    catch (e) { apiKeys = []; Toast.error('API-Schlüssel konnten nicht geladen werden', e.message); }
+    renderApiKeys();
+  }
+
+  function openAkAdd() {
+    let ov = document.getElementById('akAddModal'); if (ov) ov.remove();
+    ov = document.createElement('div'); ov.className = 'modal-overlay'; ov.id = 'akAddModal';
+    const opts = users.filter(u => u.aktiv !== false)
+      .map(u => `<option value="${esc(u.oid)}">${esc(u.name)} — ${esc(u.email)}</option>`).join('');
+    ov.innerHTML = `
+      <div class="modal" role="dialog" aria-modal="true">
+        <div class="modal__header"><h2 class="modal__title">Nutzer für API-Zugriff aufnehmen</h2>
+          <button class="modal__close" type="button" data-x aria-label="Schließen">&times;</button></div>
+        <div class="modal__body">
+          <div class="form-group">
+            <label class="form-label" for="akUser">Nutzer</label>
+            <select class="form-control" id="akUser" data-pm-search="Nutzer suchen …">${opts}</select>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="akLabel">Bezeichnung <span class="form-hint">· z.B. Gerät oder Client</span></label>
+            <input class="form-control" id="akLabel" placeholder="z.B. Claude Desktop – Laptop" autocomplete="off">
+          </div>
+        </div>
+        <div class="modal__footer">
+          <button class="btn btn-outline" type="button" data-x>Abbrechen</button>
+          <button class="btn btn-primary" type="button" id="akCreate">Schlüssel erstellen</button>
+        </div>
+      </div>`;
+    document.body.appendChild(ov); ov.classList.add('open');
+    ov.querySelectorAll('[data-x]').forEach(b => b.addEventListener('click', () => ov.remove()));
+    ov.addEventListener('click', e => { if (e.target === ov) ov.remove(); });
+    ov.querySelector('#akCreate').addEventListener('click', async () => {
+      const userOid = document.getElementById('akUser').value;
+      const labelVal = document.getElementById('akLabel').value.trim();
+      if (!userOid) { Toast.error('Bitte einen Nutzer wählen.'); return; }
+      try {
+        const res = await DB.createApiKey(userOid, labelVal);
+        ov.remove();
+        showKeyOnce(res.key);
+        await loadApiKeys();
+      } catch (e) { Toast.error('Fehler', e.message); }
+    });
+  }
+
+  function showKeyOnce(key) {
+    const ov = document.createElement('div'); ov.className = 'modal-overlay open'; ov.id = 'akKeyModal';
+    ov.innerHTML = `
+      <div class="modal" role="dialog" aria-modal="true">
+        <div class="modal__header"><h2 class="modal__title">API-Schlüssel erstellt</h2></div>
+        <div class="modal__body">
+          <p style="margin:0 0 12px;color:var(--pm-grey-700);font-size:var(--text-sm);line-height:1.5">
+            <strong>Nur jetzt sichtbar.</strong> Kopieren und im Client hinterlegen — danach ist nur der Hash gespeichert und der Schlüssel nicht mehr abrufbar. Verloren? Einfach einen neuen erstellen.</p>
+          <div style="display:flex;gap:8px">
+            <input class="form-control" id="akKeyVal" readonly value="${esc(key)}" style="font-family:ui-monospace,Menlo,monospace">
+            <button class="btn btn-secondary" type="button" id="akCopy">Kopieren</button>
+          </div>
+        </div>
+        <div class="modal__footer"><button class="btn btn-primary" type="button" id="akKeyClose">Fertig</button></div>
+      </div>`;
+    document.body.appendChild(ov);
+    const close = () => ov.remove();
+    ov.querySelector('#akKeyClose').addEventListener('click', close);
+    ov.addEventListener('click', e => { if (e.target === ov) close(); });
+    ov.querySelector('#akCopy').addEventListener('click', () => {
+      const inp = document.getElementById('akKeyVal'); inp.select();
+      const done = () => Toast.success('Kopiert');
+      if (navigator.clipboard) navigator.clipboard.writeText(inp.value).then(done).catch(() => { try { document.execCommand('copy'); done(); } catch (_) {} });
+      else { try { document.execCommand('copy'); done(); } catch (_) {} }
+    });
+  }
+
+  document.getElementById('akAddBtn')?.addEventListener('click', openAkAdd);
+  loadApiKeys();
 });
