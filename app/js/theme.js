@@ -1852,7 +1852,7 @@
   } catch (e) {}
 
   /* ── Testphasen-Hinweis ─────────────────────────────────────────
-     Dezente, fixe Pille oben rechts, die auf JEDER Seite (inkl. Login)
+     Dezente, fixe Pille oben mittig, die auf JEDER Seite (inkl. Login)
      signalisiert, dass sich die Anwendung noch in der Testphase befindet.
      Bewusst hier in theme.js, weil dieses Script als einziges nachweislich
      auf allen Seiten im <head> geladen wird → ein Ort, alle Seiten, ohne
@@ -1885,7 +1885,7 @@
       style.id = 'pmTestphaseStyle';
       style.textContent =
         '#pmTestphaseBadge{' +
-          'position:fixed;top:12px;right:16px;z-index:9998;' +
+          'position:fixed;top:12px;left:50%;transform:translateX(-50%);z-index:9998;' +
           'display:inline-flex;align-items:center;gap:7px;' +
           'padding:5px 12px;border-radius:999px;' +
           'font:600 11.5px/1 system-ui,-apple-system,"Segoe UI",sans-serif;' +

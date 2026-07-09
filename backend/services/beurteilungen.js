@@ -103,9 +103,11 @@ async function upsertEntwurf(pool, { zuweisungId, azubiOid, kriterien, individue
 }
 
 // Serverseitige Mitteilung (inkl. ZuweisungId; kein offener Client-POST).
-async function erzeugeBenachrichtigung(pool, { userOid, typ, zuweisungId, fromUserOid }) {
+// `runner` = Pool ODER laufende Transaktion – so kann der INSERT atomar
+// gemeinsam mit dem Status-Update ausgeführt werden (siehe abschliessen).
+async function erzeugeBenachrichtigung(runner, { userOid, typ, zuweisungId, fromUserOid }) {
   if (!userOid) return; // Empfänger ohne OID (nie eingeloggt) -> später self-healing
-  await pool.request()
+  await new sql.Request(runner)
     .input('userOid', sql.NVarChar(36), userOid)
     .input('typ', sql.NVarChar(40), typ)
     .input('zid', sql.Int, zuweisungId)
@@ -119,15 +121,23 @@ async function abschliessen(pool, id, autorOid) {
     .query('SELECT Id, ZuweisungId, AzubiOid FROM dbo.Beurteilungen WHERE Id=@id');
   const b = cur.recordset[0];
   if (!b) throw new Error('Beurteilung nicht gefunden.');
-  await pool.request()
-    .input('id', sql.Int, id)
-    .input('von', sql.NVarChar(36), autorOid)
-    .query(`UPDATE dbo.Beurteilungen SET Status='abgeschlossen',
-              AbgeschlossenAm=SYSUTCDATETIME(), BeurteiltVon=@von, AktualisiertAm=SYSUTCDATETIME()
-            WHERE Id=@id`);
-  await erzeugeBenachrichtigung(pool, {
-    userOid: b.AzubiOid, typ: 'beurteilung_abgeschlossen', zuweisungId: b.ZuweisungId, fromUserOid: autorOid,
-  });
+  // Status-Update UND Azubi-Mitteilung atomar: schlägt der Benachrichtigungs-
+  // INSERT fehl (z.B. CHECK-Constraint), wird auch der Abschluss zurückgerollt –
+  // kein stiller Zustand "abgeschlossen ohne Mitteilung".
+  const tx = new sql.Transaction(pool);
+  await tx.begin();
+  try {
+    await new sql.Request(tx)
+      .input('id', sql.Int, id)
+      .input('von', sql.NVarChar(36), autorOid)
+      .query(`UPDATE dbo.Beurteilungen SET Status='abgeschlossen',
+                AbgeschlossenAm=SYSUTCDATETIME(), BeurteiltVon=@von, AktualisiertAm=SYSUTCDATETIME()
+              WHERE Id=@id`);
+    await erzeugeBenachrichtigung(tx, {
+      userOid: b.AzubiOid, typ: 'beurteilung_abgeschlossen', zuweisungId: b.ZuweisungId, fromUserOid: autorOid,
+    });
+    await tx.commit();
+  } catch (e) { await tx.rollback(); throw e; }
 }
 
 async function patchNachAbschluss(pool, id, { kriterien, individuelleBeurteilung, gespraechAm }, autorOid) {
@@ -150,11 +160,12 @@ async function patchNachAbschluss(pool, id, { kriterien, individuelleBeurteilung
                 Note=@note, GespraechAm=@gespr, KorrigiertVon=@von, KorrigiertAm=SYSUTCDATETIME(),
                 AktualisiertAm=SYSUTCDATETIME() WHERE Id=@id`);
     await schreibeKriterien(tx, id, kriterien);
+    // Mitteilung im selben Transaktions-Rahmen (atomar mit der Korrektur).
+    await erzeugeBenachrichtigung(tx, {
+      userOid: b.AzubiOid, typ: 'beurteilung_abgeschlossen', zuweisungId: b.ZuweisungId, fromUserOid: autorOid,
+    });
     await tx.commit();
   } catch (e) { await tx.rollback(); throw e; }
-  await erzeugeBenachrichtigung(pool, {
-    userOid: b.AzubiOid, typ: 'beurteilung_abgeschlossen', zuweisungId: b.ZuweisungId, fromUserOid: autorOid,
-  });
 }
 
 async function kenntnisnahme(pool, id, azubiOid) {
