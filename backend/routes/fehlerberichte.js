@@ -1,5 +1,5 @@
 const router = require('express').Router();
-const { logError, listErrors, markResolved } = require('../services/fehlerberichte');
+const { logError, listErrors, markResolved, setSchweregrad, SCHWEREGRADE } = require('../services/fehlerberichte');
 
 // Nur Server setzt 'backend'. Der Client darf ausschließlich diese Quellen melden.
 const CLIENT_QUELLEN = new Set(['frontend', 'manual']);
@@ -37,13 +37,14 @@ router.post('/errors', async (req, res) => {
 // GET /api/dev/errors — Liste (developer-only). Query: quelle, erledigt, benutzerOid, seit, limit.
 router.get('/dev/errors', nurDeveloper, async (req, res) => {
   try {
-    const { quelle, erledigt, benutzerOid, seit, limit } = req.query;
+    const { quelle, erledigt, benutzerOid, seit, limit, schweregrad } = req.query;
     const rows = await listErrors({
       quelle: quelle || undefined,
       erledigt: erledigt === undefined ? undefined : erledigt === 'true' || erledigt === '1',
       benutzerOid: benutzerOid || undefined,
       seit: seit || undefined,
       limit: limit || undefined,
+      schweregrad: schweregrad || undefined,
     });
     res.json(rows);
   } catch (e) {
@@ -52,9 +53,16 @@ router.get('/dev/errors', nurDeveloper, async (req, res) => {
   }
 });
 
-// PATCH /api/dev/errors/:id — als erledigt markieren (developer-only).
+// PATCH /api/dev/errors/:id — { schweregrad } setzt die Schwere um,
+// ohne Body (oder ohne schweregrad-Feld) wird wie bisher „erledigt" markiert.
 router.patch('/dev/errors/:id', nurDeveloper, async (req, res) => {
   try {
+    const { schweregrad } = req.body || {};
+    if (schweregrad !== undefined) {
+      if (!SCHWEREGRADE.includes(schweregrad)) return res.status(400).json({ error: 'Ungültiger Schweregrad.' });
+      await setSchweregrad(req.params.id, schweregrad);
+      return res.json({ ok: true });
+    }
     await markResolved(req.params.id, req.user.name);
     res.json({ ok: true });
   } catch (e) {

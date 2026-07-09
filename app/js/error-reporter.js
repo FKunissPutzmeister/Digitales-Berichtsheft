@@ -62,7 +62,8 @@
     window.apiFetch = async function (path, options) {
       try { return await orig(path, options); }
       catch (e) {
-        melde('frontend', `apiFetch ${path}: ${e.message}`, e.stack, { apiPfad: path });
+        melde('frontend', `apiFetch ${path}: ${e.message}`, e.stack,
+          { apiPfad: path, methode: ((options && options.method) || 'GET').toUpperCase() });
         throw e;
       }
     };
