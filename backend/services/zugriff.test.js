@@ -88,16 +88,6 @@ test('darfWocheSehen: Lockout ohne Zuweisung/Historie → false', () => {
   assert.equal(Z.darfWocheSehen(user, woche(), kontext), false);
 });
 
-// ── aktivVerantwortlichFuer ────────────────────────────────────
-test('aktivVerantwortlichFuer: nur aktive, dedupliziert', () => {
-  const kontext = { stichtag: '2026-06-15', zuweisungen: [
-    zuw({ azubiOid: 'AZ' }),
-    zuw({ azubiOid: 'AZ2', von: '2026-01-01', bis: '2026-02-01' }), // abgelaufen
-    zuw({ azubiOid: 'AZ' }), // Dublette
-  ]};
-  assert.deepEqual(Z.aktivVerantwortlichFuer(user, kontext).sort(), ['AZ']);
-});
-
 // ── Härtung: leere/fehlende OID darf nichts öffnen ─────────────
 test('darfWocheSehen: leere/fehlende OID öffnet nichts', () => {
   const kontext = { zuweisungen: [], stichtag: '2026-06-15' };
@@ -131,13 +121,6 @@ test('istDauerAusbilder: leere azubiOid öffnet nichts', () => {
   const kontext = { zuweisungen: [], stichtag: '2026-06-15', dauerAusbilderAzubiOids: [''] };
   assert.equal(Z.istDauerAusbilder(woche({ azubiOid: '' }), kontext), false);
 });
-test('aktivVerantwortlichFuer: dauer + befristet, dedupliziert', () => {
-  const kontext = { stichtag: '2026-06-15',
-    zuweisungen: [zuw({ azubiOid: 'AZ' })],
-    dauerAusbilderAzubiOids: ['AZ', 'AZ3'] };
-  assert.deepEqual(Z.aktivVerantwortlichFuer(user, kontext).sort(), ['AZ', 'AZ3']);
-});
-
 // ── verantwortlichFuerZuweisung (Beurteilung: datumsunabhängig) ──
 {
   const vfzUser = { oid: 'u-1', email: 'Max.Muster@pm.com' };

@@ -72,24 +72,9 @@ function darfWocheSehen(user, woche, kontext) {
   return false;
 }
 
-// Azubi-OIDs, für die der Nutzer verantwortlich ist (aktiv befristet ODER dauerhaft).
-function aktivVerantwortlichFuer(user, kontext) {
-  const set = new Set();
-  const email = (user.email || '').toLowerCase();
-  if (email) {
-    for (const z of ((kontext && kontext.zuweisungen) || [])) {
-      if ((z.verantwortlicherEmail || '').toLowerCase() === email && istAktiv(z, kontext.stichtag)) set.add(z.azubiOid);
-    }
-  }
-  for (const oid of ((kontext && kontext.dauerAusbilderAzubiOids) || [])) {
-    if (oid) set.add(oid);
-  }
-  return [...set];
-}
-
 // Datums-UNABHÄNGIGE Verantwortlichkeit für GENAU EINE Zuweisung.
 // Wird gebraucht, weil Beurteilungen NACH Ende des Durchlaufs (bis < heute)
-// entstehen – aktivVerantwortlichFuer (datumsaktiv) würde hier fälschlich abweisen.
+// entstehen – eine datumsaktive Prüfung würde hier fälschlich abweisen.
 function verantwortlichFuerZuweisung(user, zuweisung, kontext) {
   if (!zuweisung) return false;
   const dauer = (kontext && kontext.dauerAusbilderAzubiOids) || [];
@@ -100,6 +85,6 @@ function verantwortlichFuerZuweisung(user, zuweisung, kontext) {
 
 module.exports = {
   ymd, istAktiv, wocheFaelltInZuweisung, hatKorrigiert, istDauerAusbilder,
-  darfWocheKorrigieren, darfWocheSehen, aktivVerantwortlichFuer,
+  darfWocheKorrigieren, darfWocheSehen,
   verantwortlichFuerZuweisung,
 };

@@ -18,9 +18,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   const main = document.getElementById('mainContent');
 
   /* ── XSS-Schutz: alle user-supplied strings durch esc() jagen ── */
-  function esc(s) {
-    return String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-  }
+  const esc = window.escapeHtml;
 
   /* ── Nutzer laden ── */
   let users;

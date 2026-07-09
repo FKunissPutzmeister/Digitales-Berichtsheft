@@ -30,8 +30,7 @@ const BerichtsheftExport = (() => {
   let _backup = null;   // { data, neu, ueberschreiben, geschuetzt, ungueltig }
 
   /* ── HTML-Escaping + Rich-Text-Whitelist ───────────────────────── */
-  const ESC = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' };
-  function esc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, c => ESC[c]); }
+  const esc = window.escapeHtml;
 
   // Quill-Rich-Text (bereits HTML mit Entities): mit DOMParser parsen statt
   // blind escapen (sonst würde getipptes & als &amp;amp; doppelt escaped).

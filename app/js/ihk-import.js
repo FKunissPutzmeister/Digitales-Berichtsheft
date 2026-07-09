@@ -22,11 +22,7 @@ const IhkImport = (() => {
   let _parsed = null;  // { wochen, warnungen } von IhkParser
   let _infos  = {};    // key "${year}-${kw}" → { readonly, exists }
 
-  function esc(s) {
-    return String(s == null ? '' : s)
-      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
-  }
+  const esc = window.escapeHtml;
 
   // ── 1) Profil-Sektion ──────────────────────────────────────────
   function renderSection(user) {

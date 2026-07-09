@@ -33,11 +33,7 @@
     root.setAttribute('aria-autocomplete', 'list');
     root.setAttribute('aria-expanded', 'false');
 
-    function esc(s) {
-      return String(s)
-        .replace(/&/g, '&amp;').replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-    }
+    const esc = window.escapeHtml;
 
     // Aktuelle Cursor-Zeile bis zum Cursor als Query lesen.
     function readQuery() {

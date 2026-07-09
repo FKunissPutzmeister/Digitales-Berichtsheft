@@ -34,7 +34,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             <h2>Dashboard konnte nicht geladen werden</h2>
           </div>
           <p>Beim Aufbau des Dashboards ist ein Fehler aufgetreten. Die anderen Seiten (Wochenansicht, Jahresansicht) funktionieren wahrscheinlich weiterhin.</p>
-          <pre class="dash-error-card__detail">${(err && err.stack ? err.stack : String(err)).replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]))}</pre>
+          <pre class="dash-error-card__detail">${escapeHtml(err && err.stack ? err.stack : String(err))}</pre>
           <button type="button" class="btn btn-sm btn-outline" onclick="window.location.reload()">Neu laden</button>
         </div>
       `;
@@ -116,46 +116,6 @@ async function renderAzubiDashboard(user) {
         </a>`;
     }
     return `<div class="dash-weekgrid">${html}</div>`;
-  }
-
-  function renderHero() {
-    if (berichtTyp === 'wöchentlich') {
-      return `
-        <section class="dash-tile dash-hero animate-fade-in">
-          <div class="dash-tile__head">
-            <div>
-              <span class="dash-tile__eyebrow">Deine Wochen</span>
-              <h2 class="dash-tile__title">Letzte Kalenderwochen</h2>
-            </div>
-            <a href="wochenansicht.html" class="btn btn-sm btn-outline" data-goto-kw="${kw}" data-goto-year="${kwYear}">Aktuelle Woche →</a>
-          </div>
-          ${renderRecentWeeksGrid(8)}
-          <div class="dash-weekgrid__legend">
-            <span><i class="dash-dot dash-dot--abgegeben"></i> Abgegeben</span>
-            <span><i class="dash-dot dash-dot--entwurf"></i> Entwurf</span>
-            <span><i class="dash-dot dash-dot--leer"></i> Leer / offen</span>
-          </div>
-        </section>`;
-    }
-    return `
-      <section class="dash-tile dash-hero animate-fade-in status-${aktStatus}">
-        <div class="dash-tile__head">
-          <div>
-            <span class="dash-tile__eyebrow">Aktuelle Woche</span>
-            <h2 class="dash-tile__title">KW ${kw} · ${range}</h2>
-          </div>
-        </div>
-        <div class="week-status-list dash-hero__days">
-          ${renderWeekStatusDays(aktuelleWoche, kw, kwYear)}
-        </div>
-        <div class="dash-hero__foot">
-          <span class="dash-hero__sum">Diese Woche: <strong>${wocheTage} / 5 Tage</strong></span>
-          <a href="wochenansicht.html" class="btn btn-primary" data-goto-kw="${kw}" data-goto-year="${kwYear}">
-            Zur aktuellen Woche
-            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="width:16px;height:16px"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
-          </a>
-        </div>
-      </section>`;
   }
 
   /* ── Bento-Daten aufbereiten ──
@@ -292,7 +252,7 @@ async function renderAzubiDashboard(user) {
   const MT_ICON_OK = '<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>';
   const MT_ICON_ER = '<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>';
   const MT_ICON_REM = '<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="9"/><path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l2.5 1.5"/></svg>';
-  const mtEsc = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  const mtEsc = window.escapeHtml;
   const mtRelTime = ts => {
     if (!ts) return '';
     const s = Math.floor((Date.now() - ts) / 1000);
@@ -961,7 +921,7 @@ async function getPlanerSignale() {
    Namen, die übrigen zusätzlich Abteilung und Zeitraum. Max. MAX Kacheln
    je Spalte, der Rest verweist in den Planer. */
 function renderPlanerSignale(sig) {
-  const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[c]));
+  const esc = window.escapeHtml;
   const MAX = 8;
   const zeitraum = r => (r.von || r.bis)
     ? `${DateUtil.formatDateShort(r.von)} – ${DateUtil.formatDateShort(r.bis)}` : '';

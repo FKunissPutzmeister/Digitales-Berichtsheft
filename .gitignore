@@ -56,3 +56,6 @@ backend/sessions/
 
 # Klartext-Secret (Entra-App-Clientkey) — niemals committen
 Secret Clientkey.txt
+
+# Graphify-Analyse-Output (generiertes Tooling-Artefakt)
+graphify-out/

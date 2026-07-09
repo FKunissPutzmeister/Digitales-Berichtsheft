@@ -11,7 +11,7 @@
 const GANTT_PALETTE = ['#4F9D9A','#5B86C2','#5FAE72','#D8835A','#9B7BC4',
   '#C75C6B','#C99A3E','#6B8E4E','#C77FB2','#4F8FB8','#7E70BE','#B06A52','#5BA98C','#6E7E8C','#A86FA0'];
 
-function esc(s) { return String(s ?? '').replace(/[&<>"]/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[c])); }
+const esc = window.escapeHtml;
 
 document.addEventListener('DOMContentLoaded', async () => {
   const user = await DB.fetchCurrentUser();
@@ -24,7 +24,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // Topbar: Avatar + Theme-Toggle
   const avatar = document.getElementById('dhAvatar');
-  if (avatar) avatar.textContent = user.initials || (user.name || '').split(' ').map(n => n[0]).join('').toUpperCase();
+  if (avatar) avatar.textContent = user.initials || getInitials(user.name);
   document.getElementById('dhThemeToggle')?.addEventListener('click', () => {
     if (!window.PMTheme) return;
     window.PMTheme.set(window.PMTheme.get() === 'dark' ? 'light' : 'dark');

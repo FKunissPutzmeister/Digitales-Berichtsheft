@@ -8,7 +8,7 @@
    dasselbe Theme-API (window.PMTheme aus theme.js).
    =================================================================== */
 
-function esc(s) { return String(s ?? '').replace(/[&<>"]/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[c])); }
+const esc = window.escapeHtml;
 
 /* Theme-Designs identisch zur regulären Profil-Seite (profil.js). */
 const THEME_DESIGNS = [
@@ -34,7 +34,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   const avatar = document.getElementById('dhAvatar');
-  if (avatar) avatar.textContent = user.initials || (user.name || '').split(' ').map(n => n[0]).join('').toUpperCase();
+  if (avatar) avatar.textContent = user.initials || getInitials(user.name);
   document.getElementById('dhThemeToggle')?.addEventListener('click', () => {
     if (!window.PMTheme) return;
     window.PMTheme.set(window.PMTheme.get() === 'dark' ? 'light' : 'dark');

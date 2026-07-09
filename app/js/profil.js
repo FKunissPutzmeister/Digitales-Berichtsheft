@@ -361,7 +361,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const itemsArr = sorted.map(z => {
       const verantwName = z.verantwName || '–';
       const initials = verantwName !== '–'
-        ? verantwName.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase()
+        ? getInitials(verantwName).slice(0, 2)
         : '?';
       const isCurrent = z.von <= today && z.bis >= today;
       const dotClass = isCurrent ? 'current' : 'past';

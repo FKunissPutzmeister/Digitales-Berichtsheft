@@ -200,10 +200,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     return azubiUser?.berichtTyp || 'täglich';
   }
 
-  async function getCurrentWoche() {
-    return await DB.getWoche(viewAzubiId || user.id, currentKW, currentYear);
-  }
-
   // Tagdauer-Pill (Ganztag/Halbtag) im Liquid-Glass-Design des V2-Brand-
   // Selectors. Beide Optionen sind gleich breit → der Glas-Indikator wird
   // rein per CSS-transform verschoben (data-dauer), kein JS-Messen nötig.
@@ -2510,10 +2506,7 @@ function clearWochenKachel(kachelId) {
   }
 }
 
-function escapeHtml(str) {
-  if (!str) return '';
-  return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-}
+/* escapeHtml kommt zentral aus api.js (window.escapeHtml). */
 
 /* Tagdauer-Pill: Klick auf Ganztag/Halbtag setzt den Wert, verschiebt den
    Glas-Indikator (per data-dauer/CSS) und löst denselben Auto-Save aus wie

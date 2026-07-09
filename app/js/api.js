@@ -57,6 +57,17 @@ async function apiUpload(path, formData) {
   return res.json();
 }
 
+/* ── Gemeinsame Helfer für alle Seiten-Skripte ────────────────── */
+/* Zentrales HTML-Escaping (api.js wird auf jeder Seite als erstes Skript
+   geladen). Escapt auch Quotes, damit die Ausgabe in Attribut-Kontexten
+   sicher ist. beurteilung-core.js und ihk-parser.js behalten bewusst
+   eigene Kopien (Node-testbar, dürfen nicht von api.js abhängen). */
+window.escapeHtml = s => String(s ?? '').replace(/[&<>"']/g,
+  c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+window.getInitials = name =>
+  (name || '').split(' ').map(n => n[0]).join('').toUpperCase();
+
 /* ── Normalisierung: DB PascalCase → Frontend camelCase ───────── */
 function toDateStr(val) {
   if (!val) return '';
@@ -64,7 +75,7 @@ function toDateStr(val) {
 }
 
 function normalizeUser(oid, u) {
-  const initials = u.initials || (u.name || '').split(' ').map(n => n[0]).join('').toUpperCase();
+  const initials = u.initials || getInitials(u.name);
   const berichtTyp = u.berichtTyp || 'wöchentlich';
   return { ...u, id: oid, oid, initials, berichtTyp };
 }
@@ -209,7 +220,7 @@ function cacheUserRole(role) {
   } catch (e) { /* localStorage kann in Privacy-Modi blockieren */ }
 }
 
-/* ── DateUtil (identisch zu data.js) ─────────────────────────── */
+/* ── DateUtil ─────────────────────────────────────────────────── */
 const DateUtil = {
   getKW(date) {
     const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));

@@ -27,11 +27,7 @@ const ZeitnachweisUpload = (() => {
   let _wochen = [];
 
   // ── kleine Helfer ──────────────────────────────────────────────
-  function esc(s) {
-    return String(s == null ? '' : s)
-      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
-  }
+  const esc = window.escapeHtml;
   function decToTime(dec) {
     const mins = Math.round((dec || 0) * 60);
     return `${Math.floor(mins / 60)}:${String(mins % 60).padStart(2, '0')}`;
