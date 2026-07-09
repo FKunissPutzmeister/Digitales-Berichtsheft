@@ -108,6 +108,7 @@ const benachrichtigungenRouter = require('./routes/benachrichtigungen');
 const fahrtgeldRouter      = require('./routes/fahrtgeld');
 const beurteilungenRouter  = require('./routes/beurteilungen');
 const syncRouter           = require('./routes/sync');
+const fehlerRouter         = require('./routes/fehlerberichte');
 
 app.use('/api/users',               devAuth, usersRouter);
 app.use('/api/wochen',              devAuth, wochenRouter);
@@ -119,6 +120,7 @@ app.use('/api/benachrichtigungen',  devAuth, benachrichtigungenRouter);
 app.use('/api/fahrtgeld',           devAuth, fahrtgeldRouter);
 app.use('/api/beurteilungen',       devAuth, beurteilungenRouter);
 app.use('/api/sync',                devAuth, syncRouter);
+app.use('/api',                     devAuth, fehlerRouter);   // /api/errors, /api/dev/errors
 
 // ── Dev-Hilfsliste: alle verfügbaren Routen ───────────────────────
 if (process.env.NODE_ENV !== 'production') {
