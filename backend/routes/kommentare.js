@@ -2,6 +2,7 @@ const router = require('express').Router();
 const { getPool, sql } = require('../db/connection');
 const { darfWocheKorrigieren } = require('../services/zugriff');
 const { ladeKorrekturKontext, ladeWocheFuerZugriff } = require('../services/zugriffContext');
+const { logError } = require('../services/fehlerberichte');
 
 const ERLAUBTE_TYPEN = ['ausbilder', 'abgelehnt'];
 
@@ -33,6 +34,8 @@ router.post('/:wocheId/kommentare', async (req, res) => {
       `);
     res.json({ id: result.recordset[0].Id });
   } catch (err) {
+    logError({ quelle: 'backend', nachricht: `[kommentare] create: ${err.message}`, stack: err.stack,
+      kontext: { route: req.path, methode: req.method }, benutzerOid: req.user && req.user.oid, benutzerName: req.user && req.user.name });
     res.status(500).json({ error: err.message });
   }
 });
@@ -47,6 +50,8 @@ router.delete('/kommentare/:id', async (req, res) => {
       .query('DELETE FROM dbo.Kommentare WHERE Id = @id AND UserOid = @userOid');
     res.json({ ok: true });
   } catch (err) {
+    logError({ quelle: 'backend', nachricht: `[kommentare] delete: ${err.message}`, stack: err.stack,
+      kontext: { route: req.path, methode: req.method }, benutzerOid: req.user && req.user.oid, benutzerName: req.user && req.user.name });
     res.status(500).json({ error: err.message });
   }
 });

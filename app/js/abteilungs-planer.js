@@ -6,9 +6,7 @@
    – Read-only-Sichten: eigener Durchlauf (Azubi) / betreute Azubis (Ausbilder).
    =================================================================== */
 
-function escHtml(s) {
-  return String(s ?? '').replace(/[&<>"]/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[c]));
-}
+const escHtml = window.escapeHtml;
 
 /* Intervalltest: zwei Zeiträume desselben Azubis überschneiden sich, wenn
    neu.von ≤ vorhanden.bis UND vorhanden.von ≤ neu.bis. Leeres Bis = offen

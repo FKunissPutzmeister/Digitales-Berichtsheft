@@ -2,6 +2,7 @@ const router = require('express').Router();
 const { getPool, sql } = require('../db/connection');
 const svc = require('../services/beurteilungen');
 const { ladeKorrekturKontext } = require('../services/zugriffContext');
+const { logError } = require('../services/fehlerberichte');
 
 // GET /api/beurteilungen?zuweisungId=..  | ?azubiOid=..
 router.get('/', async (req, res) => {
@@ -45,7 +46,11 @@ router.get('/', async (req, res) => {
     }
 
     return res.status(400).json({ error: 'zuweisungId oder azubiOid erforderlich.' });
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) {
+    logError({ quelle: 'backend', nachricht: `[beurteilungen] list: ${err.message}`, stack: err.stack,
+      kontext: { route: req.path, methode: req.method }, benutzerOid: req.user && req.user.oid, benutzerName: req.user && req.user.name });
+    res.status(500).json({ error: err.message });
+  }
 });
 
 // GET /api/beurteilungen/faellig  -> beendete Durchläufe ohne Abschluss (+ legt Mitteilungen an)
@@ -53,7 +58,11 @@ router.get('/faellig', async (req, res) => {
   try {
     const pool = await getPool();
     res.json(await svc.ermittleUndErzeugeFaellige(pool, req.user));
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) {
+    logError({ quelle: 'backend', nachricht: `[beurteilungen] faellig: ${err.message}`, stack: err.stack,
+      kontext: { route: req.path, methode: req.method }, benutzerOid: req.user && req.user.oid, benutzerName: req.user && req.user.name });
+    res.status(500).json({ error: err.message });
+  }
 });
 
 // POST /api/beurteilungen  { zuweisungId, kriterien:[{kriteriumKey,punkte}], individuelleBeurteilung, gespraechAm }
@@ -68,7 +77,11 @@ router.post('/', async (req, res) => {
       zuweisungId: zuw.id, azubiOid: zuw.azubiOid, kriterien, individuelleBeurteilung, gespraechAm,
     });
     res.json({ id });
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) {
+    logError({ quelle: 'backend', nachricht: `[beurteilungen] create: ${err.message}`, stack: err.stack,
+      kontext: { route: req.path, methode: req.method }, benutzerOid: req.user && req.user.oid, benutzerName: req.user && req.user.name });
+    res.status(500).json({ error: err.message });
+  }
 });
 
 // Gemeinsame Autorisierung für PATCH auf :id (Verantwortliche/dev).
@@ -90,7 +103,11 @@ router.patch('/:id/abschliessen', async (req, res) => {
     const ctx = await ladeUndAutorisiere(req, res); if (!ctx) return;
     await svc.abschliessen(ctx.pool, ctx.b.Id, req.user.oid);
     res.json({ ok: true });
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) {
+    logError({ quelle: 'backend', nachricht: `[beurteilungen] abschliessen: ${err.message}`, stack: err.stack,
+      kontext: { route: req.path, methode: req.method }, benutzerOid: req.user && req.user.oid, benutzerName: req.user && req.user.name });
+    res.status(500).json({ error: err.message });
+  }
 });
 
 // PATCH /api/beurteilungen/:id   (Korrektur nach Abschluss)
@@ -100,7 +117,11 @@ router.patch('/:id', async (req, res) => {
     const { kriterien, individuelleBeurteilung, gespraechAm } = req.body;
     await svc.patchNachAbschluss(ctx.pool, ctx.b.Id, { kriterien, individuelleBeurteilung, gespraechAm }, req.user.oid);
     res.json({ ok: true });
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) {
+    logError({ quelle: 'backend', nachricht: `[beurteilungen] patch: ${err.message}`, stack: err.stack,
+      kontext: { route: req.path, methode: req.method }, benutzerOid: req.user && req.user.oid, benutzerName: req.user && req.user.name });
+    res.status(500).json({ error: err.message });
+  }
 });
 
 // PATCH /api/beurteilungen/:id/kenntnisnahme  (nur der Azubi selbst)
@@ -114,7 +135,11 @@ router.patch('/:id/kenntnisnahme', async (req, res) => {
     if (row.AzubiOid !== req.user.oid) return res.status(403).json({ error: 'Nur der Azubi kann bestätigen.' });
     await svc.kenntnisnahme(pool, Number(req.params.id), req.user.oid);
     res.json({ ok: true });
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) {
+    logError({ quelle: 'backend', nachricht: `[beurteilungen] kenntnisnahme: ${err.message}`, stack: err.stack,
+      kontext: { route: req.path, methode: req.method }, benutzerOid: req.user && req.user.oid, benutzerName: req.user && req.user.name });
+    res.status(500).json({ error: err.message });
+  }
 });
 
 module.exports = router;

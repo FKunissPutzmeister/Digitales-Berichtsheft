@@ -22,7 +22,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     el.addEventListener('click', e => { e.preventDefault(); back(); }));
 
   const main = document.getElementById('mainContent');
-  const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[c]));
+  const esc = window.escapeHtml;
   if (!zuw) { main.innerHTML = `<div class="dh-empty">Keine Zuweisung angegeben.</div>`; return; }
 
   let data;
@@ -168,7 +168,7 @@ function exportBeurteilungPdf(ctx) {
   const indiv = form ? form.getState().individuelleBeurteilung : (beurteilung?.individuelleBeurteilung || '');
   const gespraech = form ? form.getState().gespraechAm : (beurteilung?.gespraechAm || '');
   const r = B.berechne(punkteByKey);
-  const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[c]));
+  const esc = window.escapeHtml;
   const f1 = n => (Math.round(n * 10) / 10).toLocaleString('de-DE', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
 
   const rowsFor = block => B.BLOECKE[block].keys.map(key => {

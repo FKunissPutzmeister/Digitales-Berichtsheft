@@ -1,5 +1,6 @@
 const router = require('express').Router();
 const { getPool, sql } = require('../db/connection');
+const { logError } = require('../services/fehlerberichte');
 
 /* Fahrtgeld-Stammdaten je Azubi. Der eingeloggte User (req.user.oid) ist
    die Quelle – Azubis verwalten nur ihre eigene Konfiguration. */
@@ -22,6 +23,8 @@ router.get('/konfig', async (req, res) => {
       betragProTag:    row.BetragProTag ?? 0,
     });
   } catch (err) {
+    logError({ quelle: 'backend', nachricht: `[fahrtgeld] konfig get: ${err.message}`, stack: err.stack,
+      kontext: { route: req.path, methode: req.method }, benutzerOid: req.user && req.user.oid, benutzerName: req.user && req.user.name });
     res.status(500).json({ error: err.message });
   }
 });
@@ -52,6 +55,8 @@ router.put('/konfig', async (req, res) => {
       `);
     res.json({ ok: true });
   } catch (err) {
+    logError({ quelle: 'backend', nachricht: `[fahrtgeld] konfig put: ${err.message}`, stack: err.stack,
+      kontext: { route: req.path, methode: req.method }, benutzerOid: req.user && req.user.oid, benutzerName: req.user && req.user.name });
     res.status(500).json({ error: err.message });
   }
 });

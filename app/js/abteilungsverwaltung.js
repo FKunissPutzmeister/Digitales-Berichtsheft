@@ -7,7 +7,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   if (user.role !== 'developer') { window.location.href = 'dashboard.html'; return; }
 
   const main = document.getElementById('mainContent');
-  const esc = (s) => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  const esc = window.escapeHtml;
 
   let abteilungen;
   try { abteilungen = await DB.getAbteilungen({ all: true }); }

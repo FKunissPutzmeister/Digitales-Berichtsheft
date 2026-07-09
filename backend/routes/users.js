@@ -1,6 +1,7 @@
 const router = require('express').Router();
 const { listUsers, getUserByOid, updateUserProfile, validateUserPatch, buildReqUser } = require('../services/users');
 const { listFuerAzubi, listAzubisFuerAusbilder, validateZuordnung, setFuerAzubi } = require('../services/ausbilderAzubis');
+const { logError } = require('../services/fehlerberichte');
 
 // GET /api/users?role=azubi | ?exclRole=azubi
 router.get('/', async (req, res) => {
@@ -8,7 +9,11 @@ router.get('/', async (req, res) => {
     const inclInactive = ['admin', 'developer'].includes(req.user.role);
     const rows = await listUsers({ role: req.query.role, exclRole: req.query.exclRole, inclInactive });
     res.json(rows.map(buildReqUser));
-  } catch (e) { console.error('[users] list:', e); res.status(500).json({ error: 'Fehler' }); }
+  } catch (e) {
+    logError({ quelle: 'backend', nachricht: `[users] list: ${e.message}`, stack: e.stack,
+      kontext: { route: req.path, methode: req.method }, benutzerOid: req.user && req.user.oid, benutzerName: req.user && req.user.name });
+    res.status(500).json({ error: 'Fehler' });
+  }
 });
 
 // GET /api/users/me/azubis – Azubis, die dem aktuellen Nutzer DAUERHAFT als
@@ -19,7 +24,11 @@ router.get('/me/azubis', async (req, res) => {
   try {
     const rows = await listAzubisFuerAusbilder(req.user.oid);
     res.json(rows.map(buildReqUser));
-  } catch (e) { console.error('[users] me/azubis:', e); res.status(500).json({ error: 'Fehler' }); }
+  } catch (e) {
+    logError({ quelle: 'backend', nachricht: `[users] me/azubis: ${e.message}`, stack: e.stack,
+      kontext: { route: req.path, methode: req.method }, benutzerOid: req.user && req.user.oid, benutzerName: req.user && req.user.name });
+    res.status(500).json({ error: 'Fehler' });
+  }
 });
 
 // GET /api/users/:oid
@@ -28,7 +37,11 @@ router.get('/:oid', async (req, res) => {
     const row = await getUserByOid(req.params.oid);
     if (!row) return res.status(404).json({ error: 'User nicht gefunden' });
     res.json(buildReqUser(row));
-  } catch (e) { console.error('[users] get/:oid:', e); res.status(500).json({ error: 'Fehler' }); }
+  } catch (e) {
+    logError({ quelle: 'backend', nachricht: `[users] get/:oid: ${e.message}`, stack: e.stack,
+      kontext: { route: req.path, methode: req.method }, benutzerOid: req.user && req.user.oid, benutzerName: req.user && req.user.name });
+    res.status(500).json({ error: 'Fehler' });
+  }
 });
 
 // PATCH /api/users/:oid  – nur developer
@@ -43,7 +56,11 @@ router.patch('/:oid', async (req, res) => {
     const row = await getUserByOid(req.params.oid);
     if (!row) return res.status(404).json({ error: 'User nicht gefunden' });
     res.json(buildReqUser(row));
-  } catch (e) { console.error('[users] patch:', e); res.status(500).json({ error: 'Fehler' }); }
+  } catch (e) {
+    logError({ quelle: 'backend', nachricht: `[users] patch: ${e.message}`, stack: e.stack,
+      kontext: { route: req.path, methode: req.method }, benutzerOid: req.user && req.user.oid, benutzerName: req.user && req.user.name });
+    res.status(500).json({ error: 'Fehler' });
+  }
 });
 
 // GET /api/users/:azubiOid/ausbilder – aktuell zugewiesene Ausbilder
@@ -51,7 +68,11 @@ router.get('/:azubiOid/ausbilder', async (req, res) => {
   if (req.user.role !== 'developer') return res.status(403).json({ error: 'Nur Developer' });
   try {
     res.json(await listFuerAzubi(req.params.azubiOid));
-  } catch (e) { console.error('[users] ausbilder list:', e); res.status(500).json({ error: 'Fehler' }); }
+  } catch (e) {
+    logError({ quelle: 'backend', nachricht: `[users] ausbilder list: ${e.message}`, stack: e.stack,
+      kontext: { route: req.path, methode: req.method }, benutzerOid: req.user && req.user.oid, benutzerName: req.user && req.user.name });
+    res.status(500).json({ error: 'Fehler' });
+  }
 });
 
 // PUT /api/users/:azubiOid/ausbilder – Menge ersetzen (nur developer)
@@ -64,7 +85,11 @@ router.put('/:azubiOid/ausbilder', async (req, res) => {
     if (!check.ok) return res.status(check.status).json({ error: check.error });
     await setFuerAzubi(req.params.azubiOid, oids);
     res.json({ ok: true });
-  } catch (e) { console.error('[users] ausbilder set:', e); res.status(500).json({ error: 'Fehler' }); }
+  } catch (e) {
+    logError({ quelle: 'backend', nachricht: `[users] ausbilder set: ${e.message}`, stack: e.stack,
+      kontext: { route: req.path, methode: req.method }, benutzerOid: req.user && req.user.oid, benutzerName: req.user && req.user.name });
+    res.status(500).json({ error: 'Fehler' });
+  }
 });
 
 module.exports = router;

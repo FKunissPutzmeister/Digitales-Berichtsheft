@@ -1,5 +1,6 @@
 const router = require('express').Router();
 const { getPool, sql } = require('../db/connection');
+const { logError } = require('../services/fehlerberichte');
 
 // GET /api/benachrichtigungen
 router.get('/', async (req, res) => {
@@ -16,6 +17,8 @@ router.get('/', async (req, res) => {
       `);
     res.json(result.recordset);
   } catch (err) {
+    logError({ quelle: 'backend', nachricht: `[benachrichtigungen] list: ${err.message}`, stack: err.stack,
+      kontext: { route: req.path, methode: req.method }, benutzerOid: req.user && req.user.oid, benutzerName: req.user && req.user.name });
     res.status(500).json({ error: err.message });
   }
 });
@@ -32,6 +35,8 @@ router.get('/count', async (req, res) => {
       `);
     res.json({ ungelesen: result.recordset[0].ungelesen });
   } catch (err) {
+    logError({ quelle: 'backend', nachricht: `[benachrichtigungen] count: ${err.message}`, stack: err.stack,
+      kontext: { route: req.path, methode: req.method }, benutzerOid: req.user && req.user.oid, benutzerName: req.user && req.user.name });
     res.status(500).json({ error: err.message });
   }
 });
@@ -53,6 +58,8 @@ router.post('/', async (req, res) => {
       `);
     res.json({ id: result.recordset[0].Id });
   } catch (err) {
+    logError({ quelle: 'backend', nachricht: `[benachrichtigungen] create: ${err.message}`, stack: err.stack,
+      kontext: { route: req.path, methode: req.method }, benutzerOid: req.user && req.user.oid, benutzerName: req.user && req.user.name });
     res.status(500).json({ error: err.message });
   }
 });
@@ -67,6 +74,8 @@ router.patch('/:id/gelesen', async (req, res) => {
       .query('UPDATE dbo.Benachrichtigungen SET Gelesen = 1 WHERE Id = @id AND UserOid = @userOid');
     res.json({ ok: true });
   } catch (err) {
+    logError({ quelle: 'backend', nachricht: `[benachrichtigungen] gelesen: ${err.message}`, stack: err.stack,
+      kontext: { route: req.path, methode: req.method }, benutzerOid: req.user && req.user.oid, benutzerName: req.user && req.user.name });
     res.status(500).json({ error: err.message });
   }
 });
@@ -80,6 +89,8 @@ router.patch('/alle-gelesen', async (req, res) => {
       .query('UPDATE dbo.Benachrichtigungen SET Gelesen = 1 WHERE UserOid = @userOid AND Gelesen = 0');
     res.json({ ok: true });
   } catch (err) {
+    logError({ quelle: 'backend', nachricht: `[benachrichtigungen] alle-gelesen: ${err.message}`, stack: err.stack,
+      kontext: { route: req.path, methode: req.method }, benutzerOid: req.user && req.user.oid, benutzerName: req.user && req.user.name });
     res.status(500).json({ error: err.message });
   }
 });

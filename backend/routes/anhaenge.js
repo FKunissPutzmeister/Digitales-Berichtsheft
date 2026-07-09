@@ -3,6 +3,7 @@ const multer = require('multer');
 const { getPool, sql } = require('../db/connection');
 const { darfWocheKorrigieren, darfWocheSehen } = require('../services/zugriff');
 const { ladeKorrekturKontext, ladeWocheFuerZugriff } = require('../services/zugriffContext');
+const { logError } = require('../services/fehlerberichte');
 
 // ── Upload-Konfiguration ──────────────────────────────────────────
 // memoryStorage: die Datei landet als Buffer in req.file.buffer und geht
@@ -70,6 +71,8 @@ router.get('/:wocheId/anhaenge', async (req, res) => {
       `);
     res.json(result.recordset);
   } catch (err) {
+    logError({ quelle: 'backend', nachricht: `[anhaenge] list: ${err.message}`, stack: err.stack,
+      kontext: { route: req.path, methode: req.method }, benutzerOid: req.user && req.user.oid, benutzerName: req.user && req.user.name });
     res.status(500).json({ error: err.message });
   }
 });
@@ -108,6 +111,8 @@ router.post('/:wocheId/anhaenge', uploadSingle, async (req, res) => {
       `);
     res.json(result.recordset[0]);
   } catch (err) {
+    logError({ quelle: 'backend', nachricht: `[anhaenge] upload: ${err.message}`, stack: err.stack,
+      kontext: { route: req.path, methode: req.method }, benutzerOid: req.user && req.user.oid, benutzerName: req.user && req.user.name });
     res.status(500).json({ error: err.message });
   }
 });
@@ -133,6 +138,8 @@ router.get('/anhaenge/:id/download', async (req, res) => {
     res.setHeader('Content-Disposition', `attachment; filename*=UTF-8''${encoded}`);
     res.send(row.Inhalt); // VARBINARY → Buffer
   } catch (err) {
+    logError({ quelle: 'backend', nachricht: `[anhaenge] download: ${err.message}`, stack: err.stack,
+      kontext: { route: req.path, methode: req.method }, benutzerOid: req.user && req.user.oid, benutzerName: req.user && req.user.name });
     res.status(500).json({ error: err.message });
   }
 });
@@ -157,6 +164,8 @@ router.delete('/anhaenge/:id', async (req, res) => {
       .query('DELETE FROM dbo.Anhaenge WHERE Id = @id');
     res.json({ ok: true });
   } catch (err) {
+    logError({ quelle: 'backend', nachricht: `[anhaenge] delete: ${err.message}`, stack: err.stack,
+      kontext: { route: req.path, methode: req.method }, benutzerOid: req.user && req.user.oid, benutzerName: req.user && req.user.name });
     res.status(500).json({ error: err.message });
   }
 });

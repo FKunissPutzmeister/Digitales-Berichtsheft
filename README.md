@@ -307,7 +307,7 @@ Der SP-Handshake ist implementiert und end-to-end getestet (echter Login → Mic
 
 - **Iteration 2 – Rollen-Mapping:** `role`-Claim (`azubi`/`pruefer`) in die Session mappen → richtige Ansicht (aktuell landet jeder SSO-User rollenlos in der Default-Ansicht).
 - **Iteration 2 – Identität ↔ Daten:** reale Azure-OIDs mit App-Daten verknüpfen (aktuell an Demo-OIDs `00000000-…` gebunden) → sonst laden keine Inhalte.
-- **Session-Store:** `session-file-store` wirft unter Windows sporadisch `EPERM` beim atomaren Rename (Retries fangen es ab); für Produktion robusteren (DB-gestützten) Store erwägen.
+- **Session-Store:** `session-file-store` wirft unter Windows sporadisch `EPERM` beim atomaren Rename. Der Schreibpfad (`set`/`touch`) hat KEINE Retries (die greifen nur beim `get`), daher wurde der per-Request TTL-Bump (`touch`) als `[unhandled]` in den Fehlerbericht gespammt. Behoben via `bestEffortTouch` (`services/session-store.js`), das den harmlosen `touch`-Fehler schluckt. Für Produktion robusteren (DB-gestützten) Store erwägen.
 - **Session-Cookie:** in Produktion `cookie.secure` auf `true` setzen (aktuell `false` in `backend/server.js`).
 - **IIS-Reverse-Proxy:** muss `/api/auth/saml/acs` (POST von Azure) an Node auf `localhost:3000` durchreichen.
 

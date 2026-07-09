@@ -5,6 +5,7 @@
    Session-userOid).
    =================================================================== */
 const { getUserByOid, buildReqUser, canUseDevView } = require('../services/users');
+const { logError } = require('../services/fehlerberichte');
 
 // Dev-Login (X-Dev-OID-Header, passwortloses /api/auth/login → session.userOid)
 // ist NUR außerhalb der Produktion aktiv. In Produktion authentifiziert
@@ -48,7 +49,7 @@ async function requireAuth(req, res, next) {
     req.user.devViewActive = active;
     next();
   } catch (e) {
-    console.error('[auth] requireAuth:', e);
+    logError({ quelle: 'backend', nachricht: `[auth] requireAuth: ${e.message}`, stack: e.stack, kontext: { route: req.path } });
     res.status(500).json({ error: 'Authentifizierung fehlgeschlagen.' });
   }
 }

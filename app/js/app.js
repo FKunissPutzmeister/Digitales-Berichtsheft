@@ -12,16 +12,6 @@ async function requireAuth() {
   return user;
 }
 
-async function requireRole(...roles) {
-  const user = await requireAuth();
-  if (!user) return null;
-  if (user.role !== 'developer' && !roles.includes(user.role)) {
-    window.location.href = 'dashboard.html';
-    return null;
-  }
-  return user;
-}
-
 /* Spiegelt die Fähigkeiten des Nutzers auf <html data-*> (für CSS-Gating),
    persistiert sie für den Pre-Paint-Read in theme.js (kein Flash beim nächsten
    Load) und blendet die Nav-Items zusätzlich per JS ein/aus (belt-and-suspenders). */
@@ -175,9 +165,9 @@ async function initLayout(activeNavId) {
     const label = ROLE_LABELS[user.role] || user.role;
     userRole.innerHTML = `<span class="role-badge" data-role="${user.role}">${label}</span>`;
   }
-  if (userInitials) userInitials.textContent = user.initials || user.name.split(' ').map(n => n[0]).join('');
+  if (userInitials) userInitials.textContent = user.initials || getInitials(user.name);
   if (topbarName) topbarName.textContent = user.name;
-  if (topbarInitials) topbarInitials.textContent = user.initials || user.name.split(' ').map(n => n[0]).join('');
+  if (topbarInitials) topbarInitials.textContent = user.initials || getInitials(user.name);
 
   // Fähigkeits-Gating der Navigation.
   // "Korrektur-berechtigt" = Ausbilder ODER hat (aktuelle/frühere) Zuweisungen
@@ -324,11 +314,7 @@ async function initNotifications(user) {
     `;
   }
 
-  function escapeHtmlSafe(s) {
-    return String(s)
-      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;').replace(/'/g, '&#039;');
-  }
+  const escapeHtmlSafe = window.escapeHtml;
 
   async function render() {
     const items = await DB.getBenachrichtigungenFuerUser(user.id);
@@ -572,9 +558,7 @@ function firstName(fullName) {
 /* ===================================================================
    PMSelect – moderner Dropdown-Ersatz für native <select>
    =================================================================== */
-function _pmEscapeHtml(s) {
-  return String(s).replace(/[&<>"]/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[c]));
-}
+const _pmEscapeHtml = window.escapeHtml;
 
 class PMSelect {
   constructor(nativeSelect) {

@@ -361,7 +361,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const itemsArr = sorted.map(z => {
       const verantwName = z.verantwName || '–';
       const initials = verantwName !== '–'
-        ? verantwName.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase()
+        ? getInitials(verantwName).slice(0, 2)
         : '?';
       const isCurrent = z.von <= today && z.bis >= today;
       const dotClass = isCurrent ? 'current' : 'past';
@@ -484,6 +484,27 @@ document.addEventListener('DOMContentLoaded', async () => {
     `;
   }
 
+  /* Fehler melden: öffnet das gemeinsame Modal aus error-reporter.js
+     (window.oeffneFehlerMeldung, Task 7). Für alle Rollen sichtbar. */
+  function buildFehlerMelden() {
+    return `
+      <section class="profil-section">
+        <div class="profil-section__header">
+          <div class="profil-section__icon">
+            ${Icon('warning')}
+          </div>
+          <div class="profil-section__title">Fehler melden</div>
+        </div>
+        <div class="profil-section__body-wrap"><div class="profil-section__body">
+          <p class="form-hint" style="margin:0 0 var(--sp-3)">
+            Ist dir ein Fehler oder ein unerwartetes Verhalten aufgefallen? Beschreibe kurz, was passiert ist.
+          </p>
+          <button class="btn btn-outline" id="btnFehlerMelden" type="button">Fehler melden</button>
+        </div></div>
+      </section>
+    `;
+  }
+
   /* Abmelde-Block am Ende der Profil-Seite. Der bestehende
      app.js-Handler greift via id="logoutBtn" automatisch. */
   function buildLogoutBlock() {
@@ -597,6 +618,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         ${await buildAzubiListe()}
         ${buildEingabehilfen()}
         ${buildDarstellung()}
+        ${buildFehlerMelden()}
         ${buildLogoutBlock()}
       </div>
 
@@ -613,6 +635,9 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // Tabs: Profil- vs. Import-Panel clientseitig umschalten.
     if (hasImport) initProfilTabs();
+
+    // Fehler melden (Modal aus error-reporter.js, Task 7)
+    document.getElementById('btnFehlerMelden')?.addEventListener('click', () => window.oeffneFehlerMeldung && window.oeffneFehlerMeldung());
 
     // Passwort-Modal
     document.getElementById('changePasswordBtn')?.addEventListener('click', () => {

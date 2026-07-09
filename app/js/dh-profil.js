@@ -8,7 +8,7 @@
    dasselbe Theme-API (window.PMTheme aus theme.js).
    =================================================================== */
 
-function esc(s) { return String(s ?? '').replace(/[&<>"]/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[c])); }
+const esc = window.escapeHtml;
 
 /* Theme-Designs identisch zur regulären Profil-Seite (profil.js). */
 const THEME_DESIGNS = [
@@ -34,7 +34,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   const avatar = document.getElementById('dhAvatar');
-  if (avatar) avatar.textContent = user.initials || (user.name || '').split(' ').map(n => n[0]).join('').toUpperCase();
+  if (avatar) avatar.textContent = user.initials || getInitials(user.name);
   document.getElementById('dhThemeToggle')?.addEventListener('click', () => {
     if (!window.PMTheme) return;
     window.PMTheme.set(window.PMTheme.get() === 'dark' ? 'light' : 'dark');
@@ -198,6 +198,24 @@ document.addEventListener('DOMContentLoaded', async () => {
     window.addEventListener('pm-silk-color-change', syncDarstellung);
   }
 
+  /* ── Fehler melden: öffnet das gemeinsame Modal aus error-reporter.js
+     (window.oeffneFehlerMeldung, Task 7). ── */
+  function buildFehlerMelden() {
+    return `
+      <section class="profil-section">
+        <div class="profil-section__header">
+          <div class="profil-section__icon">${Icon('warning')}</div>
+          <div class="profil-section__title">Fehler melden</div>
+        </div>
+        <div class="profil-section__body-wrap"><div class="profil-section__body">
+          <p class="form-hint" style="margin:0 0 var(--sp-3)">
+            Ist dir ein Fehler oder ein unerwartetes Verhalten aufgefallen? Beschreibe kurz, was passiert ist.
+          </p>
+          <button class="btn btn-outline" id="btnFehlerMelden" type="button">Fehler melden</button>
+        </div></div>
+      </section>`;
+  }
+
   /* ── Abmelden ── */
   function buildLogout() {
     return `
@@ -220,10 +238,14 @@ document.addEventListener('DOMContentLoaded', async () => {
       ${await buildStammdaten()}
       ${buildPersoenlicheDaten()}
       ${buildDarstellung()}
+      ${buildFehlerMelden()}
       ${buildLogout()}
     </div>`;
 
   bindDarstellung();
+
+  // Fehler melden (Modal aus error-reporter.js, Task 7)
+  document.getElementById('btnFehlerMelden')?.addEventListener('click', () => window.oeffneFehlerMeldung && window.oeffneFehlerMeldung());
 
   // Logout (auf dieser Seite läuft kein initLayout, daher hier direkt binden).
   document.getElementById('logoutBtn')?.addEventListener('click', async () => {

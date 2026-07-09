@@ -5,6 +5,7 @@ const path = require('path');
 const os = require('os');
 const session = require('express-session');
 const FileStore = require('session-file-store')(session);
+const { bestEffortTouch } = require('./services/session-store');
 const { devAuth, DEV_AUTH_ENABLED } = require('./middleware/auth');
 
 const app = express();
@@ -46,17 +47,26 @@ app.use(express.urlencoded({ extended: false }));
 // änderung und lädt die Seite im Dauertakt neu (Flackern/Spam-Refresh).
 const SESSION_DIR = path.join(os.tmpdir(), 'berichtsheft-sessions');
 app.use(session({
-  store: new FileStore({
+  // bestEffortTouch: der per-Request TTL-Bump (store.touch) schreibt die
+  // Session-Datei komplett neu (atomares Rename). Unter Windows kollidieren
+  // parallele Renames auf dieselbe Datei sporadisch mit EPERM; da der
+  // Schreibpfad von session-file-store KEINE Retries hat, würde express-session
+  // den Fehler an den globalen Handler durchreichen (spammt den Fehlerbericht
+  // bei jedem Reiterwechsel). Ein fehlgeschlagener TTL-Bump ist harmlos → wir
+  // schlucken ihn. Echte Schreibfehler (set) bleiben sichtbar. Siehe
+  // services/session-store.js.
+  store: bestEffortTouch(new FileStore({
     path: SESSION_DIR,
     ttl: 60 * 60 * 24 * 7,   // 7 Tage (in Sekunden)
     // Windows: das atomare Rename beim Session-Schreiben kollidiert sporadisch
-    // mit Datei-Locks (Virenscanner/paralleler Zugriff) → EPERM. Mit retries:0
-    // ging dadurch die frisch gesetzte Session verloren ("Nicht angemeldet"
-    // bei Folge-Requests). Ein paar Retries machen den Login zuverlässig.
+    // mit Datei-Locks (Virenscanner/paralleler Zugriff) → EPERM. Die retries
+    // greifen nur beim LESEN (get) — sie machten das Login zuverlässig, weil
+    // der Folge-Request die frisch geschriebene Session zuverlässig liest
+    // (mit retries:0 ging sie sonst verloren: "Nicht angemeldet").
     retries: 5,
     retryDelay: 60,
     logFn: () => {},         // Store-Logs unterdrücken (sonst sehr spammy)
-  }),
+  })),
   secret: process.env.SESSION_SECRET || 'dev-secret-change-in-prod',
   resave: false,
   saveUninitialized: false,
@@ -110,6 +120,8 @@ const beurteilungenRouter  = require('./routes/beurteilungen');
 const syncRouter           = require('./routes/sync');
 const apiKeysRouter        = require('./routes/apiKeys');
 const mcpRouter            = require('./mcp/server');
+const fehlerRouter         = require('./routes/fehlerberichte');
+const { logError: logFehler, cleanupAlt: cleanupFehler } = require('./services/fehlerberichte');
 
 app.use('/api/users',               devAuth, usersRouter);
 app.use('/api/wochen',              devAuth, wochenRouter);
@@ -122,6 +134,7 @@ app.use('/api/fahrtgeld',           devAuth, fahrtgeldRouter);
 app.use('/api/beurteilungen',       devAuth, beurteilungenRouter);
 app.use('/api/sync',                devAuth, syncRouter);
 app.use('/api/apikeys',             devAuth, apiKeysRouter);
+app.use('/api',                     devAuth, fehlerRouter);   // /api/errors, /api/dev/errors
 // MCP-Endpunkt: KEIN devAuth (eigene Bearer-API-Key-Auth in mcp/server.js).
 app.use('/mcp',                     mcpRouter);
 
@@ -163,11 +176,43 @@ app.use(express.static(ROOT, {
 }));
 app.get('/', (req, res) => res.redirect('/app/index.html'));
 
+// Globaler Fehler-Handler: fängt alles ab, was eine Route per next(err) oder
+// als geworfener Fehler durchreicht. Persistiert + antwortet 500.
+app.use((err, req, res, next) => {
+  logFehler({
+    quelle: 'backend',
+    nachricht: `[unhandled] ${err && err.message ? err.message : String(err)}`,
+    stack: err && err.stack,
+    kontext: { route: req.path, methode: req.method },
+    benutzerOid: req.user && req.user.oid,
+    benutzerName: req.user && req.user.name,
+  });
+  if (res.headersSent) return next(err);
+  res.status(500).json({ error: 'Interner Serverfehler.' });
+});
+
 app.listen(PORT, () => {
   console.log(`Backend + Frontend laufen auf http://localhost:${PORT}`);
   console.log(`→ App:  http://localhost:${PORT}/  (öffnet /app/index.html)`);
   console.log(`→ API:  http://localhost:${PORT}/api/...`);
 });
+
+// Letzte Fangnetze: unbehandelte Rejections/Exceptions protokollieren.
+process.on('unhandledRejection', (reason) => {
+  logFehler({ quelle: 'backend', nachricht: `[unhandledRejection] ${reason && reason.message ? reason.message : String(reason)}`,
+    stack: reason && reason.stack });
+});
+process.on('uncaughtException', (err) => {
+  logFehler({ quelle: 'backend', nachricht: `[uncaughtException] ${err.message}`, stack: err.stack });
+});
+
+// Täglicher Cleanup: Einträge älter als 90 Tage entfernen (Muster wie entra-sync).
+cleanupFehler(90).then(n => n && console.log(`[fehler-cleanup] ${n} alte Einträge entfernt.`))
+  .catch(e => console.error('[fehler-cleanup] Start:', e.message));
+setInterval(() => {
+  cleanupFehler(90).then(n => n && console.log(`[fehler-cleanup] ${n} alte Einträge entfernt.`))
+    .catch(e => console.error('[fehler-cleanup]', e.message));
+}, 24 * 3600 * 1000);
 
 // ── Automatischer Entra-Gruppen-Sync ─────────────────────────────
 const { syncConfigured: entraConfigured, runSync: entraRunSync } = require('./services/entraSync');

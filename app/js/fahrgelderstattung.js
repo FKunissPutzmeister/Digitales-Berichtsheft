@@ -16,7 +16,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   document.body.dataset.page = 'fahrgelderstattung';
 
   const main = document.getElementById('mainContent');
-  const esc = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const esc = window.escapeHtml;
 
   const FELD_LABELS = {
     name: 'Name', persNr: 'Personalnummer', kst: 'Kostenstelle',

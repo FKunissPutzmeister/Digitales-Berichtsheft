@@ -2,6 +2,7 @@ const router = require('express').Router();
 const { getPool, sql } = require('../db/connection');
 const { darfWocheSehen, darfWocheKorrigieren } = require('../services/zugriff');
 const { ladeKorrekturKontext, ladeWocheFuerZugriff } = require('../services/zugriffContext');
+const { logError } = require('../services/fehlerberichte');
 
 // GET /api/wochen?azubiOid=...  – liefert nur Wochen, die der Nutzer sehen darf
 router.get('/', async (req, res) => {
@@ -31,6 +32,8 @@ router.get('/', async (req, res) => {
     const sichtbar = rows.filter(w => darfWocheSehen(user, normWoche(w), kontext));
     res.json(sichtbar);
   } catch (err) {
+    logError({ quelle: 'backend', nachricht: `[wochen] list: ${err.message}`, stack: err.stack,
+      kontext: { route: req.path, methode: req.method }, benutzerOid: req.user && req.user.oid, benutzerName: req.user && req.user.name });
     res.status(500).json({ error: err.message });
   }
 });
@@ -56,6 +59,8 @@ router.get('/:id', async (req, res) => {
     }
     res.json(woche);
   } catch (err) {
+    logError({ quelle: 'backend', nachricht: `[wochen] get/:id: ${err.message}`, stack: err.stack,
+      kontext: { route: req.path, methode: req.method }, benutzerOid: req.user && req.user.oid, benutzerName: req.user && req.user.name });
     res.status(500).json({ error: err.message });
   }
 });
@@ -149,6 +154,8 @@ router.post('/', async (req, res) => {
 
     res.json({ id: wocheId });
   } catch (err) {
+    logError({ quelle: 'backend', nachricht: `[wochen] upsert: ${err.message}`, stack: err.stack,
+      kontext: { route: req.path, methode: req.method }, benutzerOid: req.user && req.user.oid, benutzerName: req.user && req.user.name });
     res.status(500).json({ error: err.message });
   }
 });
@@ -191,6 +198,8 @@ router.patch('/:id/status', async (req, res) => {
     await request.query(`UPDATE dbo.Wochen SET ${setClause} WHERE Id = @id`);
     res.json({ ok: true });
   } catch (err) {
+    logError({ quelle: 'backend', nachricht: `[wochen] status: ${err.message}`, stack: err.stack,
+      kontext: { route: req.path, methode: req.method }, benutzerOid: req.user && req.user.oid, benutzerName: req.user && req.user.name });
     res.status(500).json({ error: err.message });
   }
 });

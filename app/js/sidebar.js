@@ -52,7 +52,7 @@ function buildSidebar(activeNavId) {
       <div class="sidebar__divider nav-planer-only"></div>
       <span class="sidebar__section-label nav-planer-only">Verwaltung</span>
       <a href="abteilungs-planer.html" class="sidebar__link nav-planer-only" id="nav-planer">
-        <span class="sidebar__link-icon">${Icon('planer')}</span>
+        <span class="sidebar__link-icon">${Icon('clipboard')}</span>
         <span class="sidebar__link-label">Abteilungs-Planer</span>
       </a>
       <a href="berichtsheftverwaltung.html" class="sidebar__link nav-planer-only" id="nav-verwaltung">
@@ -64,8 +64,12 @@ function buildSidebar(activeNavId) {
         <span class="sidebar__link-label">Nutzerverwaltung</span>
       </a>
       <a href="abteilungsverwaltung.html" class="sidebar__link nav-developer-only" id="nav-abteilungsverwaltung" style="display:none">
-        <span class="sidebar__link-icon">${Icon('verwaltung')}</span>
+        <span class="sidebar__link-icon">${Icon('building')}</span>
         <span class="sidebar__link-label">Abteilungen</span>
+      </a>
+      <a href="fehlerberichte.html" class="sidebar__link nav-developer-only" id="nav-fehlerberichte" style="display:none">
+        <span class="sidebar__link-icon">${Icon('document')}</span>
+        <span class="sidebar__link-label">Fehlerberichte</span>
       </a>
 
     </nav>
