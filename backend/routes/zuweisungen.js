@@ -1,5 +1,6 @@
 const router = require('express').Router();
 const { getPool, sql } = require('../db/connection');
+const { logError } = require('../services/fehlerberichte');
 
 // Nur Nutzer mit Planungsrecht dürfen Zuweisungen anlegen/löschen.
 function nurPlaner(req, res, next) {
@@ -31,6 +32,8 @@ router.get('/', async (req, res) => {
     );
     res.json(result.recordset);
   } catch (err) {
+    logError({ quelle: 'backend', nachricht: `[zuweisungen] list: ${err.message}`, stack: err.stack,
+      kontext: { route: req.path, methode: req.method }, benutzerOid: req.user && req.user.oid, benutzerName: req.user && req.user.name });
     res.status(500).json({ error: err.message });
   }
 });
@@ -78,6 +81,8 @@ router.post('/', nurPlaner, async (req, res) => {
       `);
     res.json({ id: result.recordset[0].Id });
   } catch (err) {
+    logError({ quelle: 'backend', nachricht: `[zuweisungen] create: ${err.message}`, stack: err.stack,
+      kontext: { route: req.path, methode: req.method }, benutzerOid: req.user && req.user.oid, benutzerName: req.user && req.user.name });
     res.status(500).json({ error: err.message });
   }
 });
@@ -91,6 +96,8 @@ router.delete('/:id', nurPlaner, async (req, res) => {
       .query('DELETE FROM dbo.Zuweisungen WHERE Id = @id');
     res.json({ ok: true });
   } catch (err) {
+    logError({ quelle: 'backend', nachricht: `[zuweisungen] delete: ${err.message}`, stack: err.stack,
+      kontext: { route: req.path, methode: req.method }, benutzerOid: req.user && req.user.oid, benutzerName: req.user && req.user.name });
     res.status(500).json({ error: err.message });
   }
 });
@@ -107,6 +114,8 @@ router.get('/:id', async (req, res) => {
     if (!row) return res.status(404).json({ error: 'Zuweisung nicht gefunden.' });
     res.json(row);
   } catch (err) {
+    logError({ quelle: 'backend', nachricht: `[zuweisungen] get/:id: ${err.message}`, stack: err.stack,
+      kontext: { route: req.path, methode: req.method }, benutzerOid: req.user && req.user.oid, benutzerName: req.user && req.user.name });
     res.status(500).json({ error: err.message });
   }
 });
