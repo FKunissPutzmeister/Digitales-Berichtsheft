@@ -167,3 +167,42 @@ Cleanup-Interval), die o.g. Routen/Middleware (Catch → `logError`),
 `app/js/sidebar.js` (Nav-Eintrag developer-gated), alle Shell-`app/*.html`
 (`error-reporter.js` einbinden), `app/js/profil.js` (+ ggf. `dh-profil.js`)
 für den Melde-Button.
+
+---
+
+## Erweiterung (2026-07-09): Schweregrad
+
+Jeder Fehler bekommt einen Schweregrad `hoch` / `mittel` / `gering`, damit
+Developer nach Wichtigkeit triagieren können (Beispiel des Nutzers: Genehmigung
+oder Absenden funktioniert gar nicht → hoch; Kleinigkeiten → gering).
+
+**Entscheidungen (mit Nutzer abgestimmt):** Einstufung erfolgt **serverseitig
+regelbasiert** (Client-Angaben sind fälschbar/inkonsistent); Developer können
+die Schwere auf der Fehlerberichte-Seite **nachträglich ändern**; manuelle
+Meldungen starten mit **mittel**.
+
+**Regeln (`bewerteSchwere({ quelle, nachricht, kontext })`, rein & testbar):**
+
+| Regel (erste trifft) | Schwere |
+|---|---|
+| `quelle = 'manual'` | mittel |
+| Nachricht beginnt mit `[uncaughtException]`, `[unhandledRejection]`, `[unhandled]` oder `[auth]` | hoch |
+| `kontext.methode` ∈ POST/PATCH/PUT/DELETE (fehlgeschlagene Schreib-Aktion: Absenden, Genehmigen, Speichern …) | hoch |
+| `kontext.methode = 'GET'` (Lese-Fehler: Liste/Ansicht lädt nicht) | mittel |
+| sonst: `quelle = 'backend'` ohne Methode | mittel |
+| sonst (Frontend-JS-Fehler ohne API-Bezug) | gering |
+
+**Umsetzung:**
+- Migration `018_fehlerberichte_schweregrad.sql`: Spalte `Schweregrad NVARCHAR(10)
+  NOT NULL DEFAULT 'mittel'` + CHECK (`hoch`/`mittel`/`gering`), idempotent.
+- Service: `bewerteSchwere` (rein, TDD), `logError` schreibt den berechneten Wert;
+  bei Fingerprint-Gruppierung bleibt der bestehende Wert stehen (manuelle
+  Developer-Korrektur wird von Wiederholungen nicht überschrieben).
+  `listErrors` filtert optional nach `schweregrad`; `setSchweregrad(id, wert)`.
+- Route: `PATCH /api/dev/errors/:id` akzeptiert zusätzlich `{ schweregrad }`
+  (validiert gegen die drei Werte, developer-only wie bisher).
+- Frontend-Reporter: `apiFetch`-Fehler melden zusätzlich `kontext.methode`
+  (aus `options.method`, Default GET), damit die Regel greifen kann.
+- Developer-Seite: farbiges Schwere-Badge, Sortierung hoch → mittel → gering
+  (innerhalb dessen nach `LetzterZeitpunkt`), Filter-Dropdown, Schwere je
+  Eintrag per Dropdown änderbar.

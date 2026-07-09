@@ -846,3 +846,247 @@ git commit -m "feat(frontend): Developer-Seite Fehlerberichte + Sidebar-Eintrag"
 - [ ] `node --test backend/ app/js/*.test.js` → alle Tests grün (inkl. neuer Fingerprint-/Dedupe-Tests).
 - [ ] Browser-Durchlauf als Azubi, Developer, DH-Student: keine Konsolenfehler; automatische Erfassung (JS-Fehler + API-Fehler), manueller Button, Developer-Liste, Erledigt-Flow, 403 für Nicht-Developer.
 - [ ] Migration 017 auf `Berichtsheft_Dev` angewandt und idempotent.
+
+---
+
+# Erweiterung: Schweregrad (Tasks 9–12)
+
+Spec-Abschnitt „Erweiterung (2026-07-09): Schweregrad". Serverseitige regelbasierte
+Einstufung `hoch`/`mittel`/`gering`; Developer kann nachträglich ändern; manuelle
+Meldungen = mittel.
+
+### Task 9: Migration `018_fehlerberichte_schweregrad.sql`
+
+**Files:**
+- Create: `db/migrations/018_fehlerberichte_schweregrad.sql`
+
+**Interfaces:**
+- Produces: Spalte `Fehlerberichte.Schweregrad NVARCHAR(10) NOT NULL DEFAULT 'mittel'` + CHECK.
+
+- [ ] **Step 1: Migration schreiben**
+
+```sql
+-- ============================================================
+-- Migration 018 – Schweregrad für Fehlerberichte
+-- Ausführen gegen: Berichtsheft_Dev
+-- hoch = Kernaktion fehlgeschlagen (Absenden/Genehmigen/Speichern),
+-- mittel = Lese-Fehler/manuelle Meldung, gering = Kleinigkeit.
+-- Idempotent.
+-- ============================================================
+
+IF NOT EXISTS (SELECT 1 FROM sys.columns
+               WHERE object_id = OBJECT_ID('dbo.Fehlerberichte')
+                 AND name = 'Schweregrad')
+BEGIN
+  ALTER TABLE dbo.Fehlerberichte ADD Schweregrad NVARCHAR(10) NOT NULL
+    CONSTRAINT DF_Fehlerberichte_Schweregrad DEFAULT 'mittel';
+  PRINT 'Spalte Fehlerberichte.Schweregrad angelegt.';
+END
+ELSE PRINT 'Fehlerberichte.Schweregrad existiert bereits.';
+
+IF NOT EXISTS (SELECT 1 FROM sys.check_constraints
+               WHERE name = 'CK_Fehlerberichte_Schweregrad'
+                 AND parent_object_id = OBJECT_ID('dbo.Fehlerberichte'))
+BEGIN
+  ALTER TABLE dbo.Fehlerberichte ADD CONSTRAINT CK_Fehlerberichte_Schweregrad
+    CHECK (Schweregrad IN ('hoch','mittel','gering'));
+  PRINT 'CK_Fehlerberichte_Schweregrad angelegt.';
+END
+ELSE PRINT 'CK_Fehlerberichte_Schweregrad existiert bereits.';
+
+PRINT 'Migration 018 fertig.';
+```
+
+- [ ] **Step 2: Commit**
+
+```bash
+git add db/migrations/018_fehlerberichte_schweregrad.sql
+git commit -m "feat(db): Migration 018 – Schweregrad fuer Fehlerberichte"
+```
+
+(Ausführung gegen die DB macht der User manuell, zusammen mit 017.)
+
+---
+
+### Task 10: Service — `bewerteSchwere` (TDD) + Persistenz
+
+**Files:**
+- Modify: `backend/services/fehlerberichte.js`
+- Modify (Tests ergänzen): `backend/services/fehlerberichte.test.js`
+
+**Interfaces:**
+- Produces: `bewerteSchwere({ quelle, nachricht, kontext })` → `'hoch'|'mittel'|'gering'`;
+  `setSchweregrad(id, schweregrad)` → `Promise<void>`; `logError` schreibt `Schweregrad`
+  beim INSERT (UPDATE-Zweig unverändert → Developer-Korrektur überlebt Wiederholungen);
+  `listErrors` akzeptiert zusätzlich `schweregrad`.
+
+- [ ] **Step 1: Failing Tests ergänzen** (an bestehende Tests anhängen)
+
+```js
+// ── bewerteSchwere ─────────────────────────────────────────────
+test('bewerteSchwere: manual → mittel', () => {
+  assert.equal(F.bewerteSchwere({ quelle: 'manual', nachricht: 'kaputt', kontext: null }), 'mittel');
+});
+test('bewerteSchwere: uncaught/unhandled/auth → hoch', () => {
+  assert.equal(F.bewerteSchwere({ quelle: 'backend', nachricht: '[uncaughtException] x' }), 'hoch');
+  assert.equal(F.bewerteSchwere({ quelle: 'backend', nachricht: '[unhandledRejection] x' }), 'hoch');
+  assert.equal(F.bewerteSchwere({ quelle: 'backend', nachricht: '[unhandled] x' }), 'hoch');
+  assert.equal(F.bewerteSchwere({ quelle: 'backend', nachricht: '[auth] requireAuth: x' }), 'hoch');
+});
+test('bewerteSchwere: Schreibmethoden → hoch, GET → mittel', () => {
+  assert.equal(F.bewerteSchwere({ quelle: 'backend', nachricht: '[wochen] patch: x', kontext: { methode: 'PATCH' } }), 'hoch');
+  assert.equal(F.bewerteSchwere({ quelle: 'frontend', nachricht: 'apiFetch /wochen: x', kontext: { methode: 'POST' } }), 'hoch');
+  assert.equal(F.bewerteSchwere({ quelle: 'backend', nachricht: '[users] list: x', kontext: { methode: 'GET' } }), 'mittel');
+});
+test('bewerteSchwere: Fallbacks — backend ohne Methode mittel, Frontend-JS gering', () => {
+  assert.equal(F.bewerteSchwere({ quelle: 'backend', nachricht: 'x', kontext: {} }), 'mittel');
+  assert.equal(F.bewerteSchwere({ quelle: 'frontend', nachricht: 'TypeError: y is null', kontext: { url: 'u' } }), 'gering');
+});
+```
+
+- [ ] **Step 2: RED bestätigen** — `node --test backend/services/fehlerberichte.test.js` → neue Tests FAIL.
+
+- [ ] **Step 3: Implementieren**
+
+```js
+const SCHWEREGRADE = ['hoch', 'mittel', 'gering'];
+
+// Serverseitige Schwere-Einstufung (Client-Angaben wären fälschbar).
+// Reihenfolge: erste zutreffende Regel gewinnt. Siehe Spec-Tabelle.
+function bewerteSchwere({ quelle, nachricht, kontext }) {
+  if (quelle === 'manual') return 'mittel';
+  const msg = String(nachricht || '');
+  if (/^\[(uncaughtException|unhandledRejection|unhandled|auth)\]/.test(msg)) return 'hoch';
+  const methode = String((kontext && typeof kontext === 'object' && kontext.methode) || '').toUpperCase();
+  if (['POST', 'PATCH', 'PUT', 'DELETE'].includes(methode)) return 'hoch';
+  if (methode === 'GET') return 'mittel';
+  return quelle === 'backend' ? 'mittel' : 'gering';
+}
+```
+
+In `logError`: vor dem INSERT `const schwere = bewerteSchwere({ quelle, nachricht: msg, kontext });`
+und im INSERT `Schweregrad` mit `.input('schweregrad', sql.NVarChar(10), schwere)` mitschreiben.
+Der UPDATE-Zweig (Gruppierung) bleibt unverändert.
+
+`listErrors`: Parameter `schweregrad` ergänzen —
+`if (schweregrad && SCHWEREGRADE.includes(schweregrad)) { req.input('schweregrad', sql.NVarChar(10), schweregrad); bedingungen.push('Schweregrad = @schweregrad'); }`
+
+```js
+async function setSchweregrad(id, schweregrad) {
+  if (!SCHWEREGRADE.includes(schweregrad)) throw new Error('Ungültiger Schweregrad');
+  const pool = await getPool();
+  await pool.request()
+    .input('id', sql.Int, Number(id))
+    .input('schweregrad', sql.NVarChar(10), schweregrad)
+    .query('UPDATE dbo.Fehlerberichte SET Schweregrad = @schweregrad WHERE Id = @id');
+}
+```
+
+Exports ergänzen: `bewerteSchwere, setSchweregrad, SCHWEREGRADE`.
+
+- [ ] **Step 4: GREEN bestätigen** — alle Tests (alt + neu) grün.
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add backend/services/fehlerberichte.js backend/services/fehlerberichte.test.js
+git commit -m "feat(backend): Schweregrad-Regeln + Persistenz (bewerteSchwere)"
+```
+
+---
+
+### Task 11: Route-PATCH erweitert + Reporter meldet HTTP-Methode
+
+**Files:**
+- Modify: `backend/routes/fehlerberichte.js`
+- Modify: `app/js/error-reporter.js`
+
+**Interfaces:**
+- Consumes: `setSchweregrad, SCHWEREGRADE` aus dem Service (Task 10).
+- Produces: `PATCH /api/dev/errors/:id` mit Body `{ schweregrad }` ODER ohne Body (= erledigt,
+  wie bisher); `GET /api/dev/errors?schweregrad=hoch`-Filter; Frontend-`kontext.methode`.
+
+- [ ] **Step 1: Route erweitern**
+
+Import ergänzen (`setSchweregrad, SCHWEREGRADE`). PATCH-Handler:
+
+```js
+// PATCH /api/dev/errors/:id — { schweregrad } setzt die Schwere um,
+// ohne Body (oder ohne schweregrad-Feld) wird wie bisher „erledigt" markiert.
+router.patch('/dev/errors/:id', nurDeveloper, async (req, res) => {
+  try {
+    const { schweregrad } = req.body || {};
+    if (schweregrad !== undefined) {
+      if (!SCHWEREGRADE.includes(schweregrad)) return res.status(400).json({ error: 'Ungültiger Schweregrad.' });
+      await setSchweregrad(req.params.id, schweregrad);
+      return res.json({ ok: true });
+    }
+    await markResolved(req.params.id, req.user.name);
+    res.json({ ok: true });
+  } catch (e) {
+    console.error('[dev/errors] patch:', e.message);
+    res.status(500).json({ error: 'Fehler beim Aktualisieren.' });
+  }
+});
+```
+
+GET-Handler: `schweregrad: req.query.schweregrad || undefined` an `listErrors` durchreichen.
+
+- [ ] **Step 2: Reporter — Methode mitmelden**
+
+In `app/js/error-reporter.js`, apiFetch-Wrapper:
+
+```js
+melde('frontend', `apiFetch ${path}: ${e.message}`, e.stack,
+  { apiPfad: path, methode: ((options && options.method) || 'GET').toUpperCase() });
+```
+
+- [ ] **Step 3: Verifizieren** — `node --check` beide Dateien; `node --test backend/services/fehlerberichte.test.js app/js/error-reporter.test.js` grün.
+
+- [ ] **Step 4: Commit**
+
+```bash
+git add backend/routes/fehlerberichte.js app/js/error-reporter.js
+git commit -m "feat(backend): Schweregrad via PATCH aenderbar + Methode im Frontend-Kontext"
+```
+
+---
+
+### Task 12: Developer-Seite — Badge, Sortierung, Filter, Triage
+
+**Files:**
+- Modify: `app/js/fehlerberichte.js`
+- Modify: `app/css/fehlerberichte.css`
+
+**Interfaces:**
+- Consumes: Zeilenfeld `Schweregrad`, `PATCH /api/dev/errors/:id` mit `{ schweregrad }`,
+  `GET /api/dev/errors?schweregrad=…`.
+
+- [ ] **Step 1: Seite erweitern**
+
+- Sortierung client-seitig: `hoch(0) → mittel(1) → gering(2)`, innerhalb dessen nach
+  `LetzterZeitpunkt` absteigend (Server liefert zeitlich sortiert; nach dem Fetch
+  `rows.sort((a,b) => rang(a) - rang(b) || neuZuerst)`).
+- Schwere-Badge im Zeilenkopf: `<span class="fb-sev fb-sev--${esc(r.Schweregrad)}">${esc(r.Schweregrad)}</span>`.
+- Triage-Dropdown je Zeile (KEINE `form-control`-Klasse — PMSelect würde das Select
+  sonst zu einem full-width-Block wrappen): `<select class="fb-sev-select" data-sev-id="${r.Id}">`
+  mit den drei Optionen, aktuelle vorausgewählt; `change` →
+  `apiFetch('/dev/errors/' + id, { method: 'PATCH', body: { schweregrad: e.target.value } })`,
+  danach `laden()`; Fehler → `Toast.error('Fehler', 'Konnte Schweregrad nicht ändern.')`.
+- Filter im Header: Dropdown „Alle Schweregrade / hoch / mittel / gering"
+  (ebenfalls ohne `form-control`), Wert → Query-Param `&schweregrad=…` beim Laden.
+
+- [ ] **Step 2: CSS ergänzen**
+
+`.fb-sev` (Pill), Varianten: `--hoch` (Error-Tokens), `--mittel` (Gelb/Warn), `--gering`
+(Grau); `.fb-sev-select`, `.fb-filter-sev`. Bestehende Token-Konvention nutzen; Dark-Theme
+über vorhandene Variablen (keine hartkodierten Hex-Farben, außer via var()).
+
+- [ ] **Step 3: Verifizieren** — `node --check app/js/fehlerberichte.js`; jede neue Klasse hat eine CSS-Regel.
+
+- [ ] **Step 4: Commit**
+
+```bash
+git add app/js/fehlerberichte.js app/css/fehlerberichte.css
+git commit -m "feat(frontend): Schweregrad-Badge, -Filter und -Triage auf der Fehlerberichte-Seite"
+```
