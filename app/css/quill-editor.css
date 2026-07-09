@@ -282,6 +282,23 @@
 .ql-snow .ql-tooltip input[type=text]:focus {
   border-color: var(--pm-yellow);
 }
+
+/* ── Tabellen (quill-table-better) ─────────────────────────────── */
+/* --pm-grey-200 statt eines separaten [data-theme="dark"]-Overrides:
+   die Variable wird bereits in variables.css (Dark Mode) und in jedem
+   Custom-Theme (theme-*.css) passend neu definiert – ein hartkodiertes
+   rgba() hier würde in hyperspace/cmd nicht mitziehen. */
+.ql-editor table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 6px 0;
+}
+.ql-editor td,
+.ql-editor th {
+  border: 1px solid var(--pm-grey-200, #c9ced6);
+  padding: 4px 8px;
+  vertical-align: top;
+}
 .ql-snow .ql-tooltip a.ql-action::after { content: 'Speichern'; }
 .ql-snow .ql-tooltip a.ql-remove::before { content: 'Entfernen'; }
 .ql-snow .ql-tooltip[data-mode=link]::before { content: 'Link eingeben:'; }

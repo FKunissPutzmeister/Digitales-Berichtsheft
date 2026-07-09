@@ -44,6 +44,15 @@ function ueberLimitEditoren(monday, berichtTyp) {
   return offenders;
 }
 
+// quill-table-better global registrieren (Blots + Modul). Ohne Registrierung
+// würde dangerouslyPasteHTML <table>-HTML beim Laden verwerfen — auch in
+// Readonly-Instanzen (Ausbilder-Sicht) muss das Modul daher aktiv sein.
+if (window.QuillTableBetter) {
+  Quill.register({ 'modules/table-better': QuillTableBetter }, true);
+} else {
+  console.warn('[Wochenansicht] quill-table-better nicht geladen – Tabellen deaktiviert.');
+}
+
 const QUILL_TOOLBAR = [
   [{ header: [1, 2, 3, false] }],
   [{ align: '' }, { align: 'center' }, { align: 'right' }, { align: 'justify' }],
@@ -54,6 +63,7 @@ const QUILL_TOOLBAR = [
   [{ indent: '-1' }, { indent: '+1' }],
   ['image'],
   ['blockquote'],
+  ['table-better'],
   // Hinweis: KEINE 'undo'/'redo'-Buttons. Quill liefert für diese
   // Custom-Formate kein Icon, und die ::before-Pfeile aus quill-editor.css
   // greifen nicht (Quill hängt die Toolbar als GESCHWISTER von
@@ -61,6 +71,43 @@ const QUILL_TOOLBAR = [
   // unsichtbare Toolbar-Felder. Rückgängig/Wiederherstellen bleibt über die
   // Tastatur (Strg+Z / Strg+Y) via history-Modul verfügbar.
 ];
+
+// Gemeinsame Quill-Moduloptionen für alle Editor-Instanzen. Readonly-
+// Instanzen bekommen keine Tabellen-Menüs (nur Anzeige), aber das Modul
+// selbst, damit gespeicherte Tabellen gerendert werden.
+function quillModules(readonly) {
+  const hasTableBetter = !!window.QuillTableBetter;
+  // Achtung: quill-table-better greift bei der Modul-Initialisierung
+  // unconditional auf quill.getModule('toolbar').container zu (intern für das
+  // Whitelisting der Toolbar-Buttons) – bei toolbar:false wirft das eine
+  // TypeError, die den GESAMTEN new Quill(...)-Aufruf abbricht (auch für
+  // Readonly-Instanzen, die dann komplett leer bleiben, s. hideReadonlyToolbar).
+  // Daher bekommen Readonly-Instanzen ein leeres (Buttons-freies) Toolbar-Modul
+  // statt gar keines – es wird direkt nach dem Konstruieren ausgeblendet.
+  const mods = {
+    toolbar: readonly ? (hasTableBetter ? { container: [] } : false) : { container: QUILL_TOOLBAR },
+    history: { delay: 1000, maxStack: 100, userOnly: true },
+  };
+  if (hasTableBetter) {
+    mods.table = false;
+    mods['table-better'] = {
+      language: 'de_DE',
+      menus: readonly ? [] : ['column', 'row', 'merge', 'table', 'cell', 'wrap', 'delete'],
+      toolbarTable: !readonly,
+    };
+    mods.keyboard = { bindings: QuillTableBetter.keyboardBindings };
+  }
+  return mods;
+}
+// Blendet die für Readonly-Instanzen künstlich erzeugte, leere Toolbar aus
+// (siehe quillModules). Ohne echtes Toolbar-Modul stürzt quill-table-better
+// beim Initialisieren ab; mit Toolbar, aber ohne Buttons, bleibt nur ein
+// unsichtbarer Balken übrig, den wir hier per Inline-Style verstecken.
+function hideReadonlyToolbar(quill, readonly) {
+  if (!readonly) return;
+  const bar = quill.getModule('toolbar')?.container;
+  if (bar) bar.style.display = 'none';
+}
 
 document.addEventListener('DOMContentLoaded', async () => {
   const user = await initPage('nav-wochenansicht', [{ label: 'Wochenansicht', href: 'wochenansicht.html' }]);
@@ -1225,11 +1272,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         theme: 'snow',
         readOnly: readonly,
         placeholder: DAY_SECTION_META[kind].placeholder,
-        modules: {
-          toolbar: readonly ? false : { container: QUILL_TOOLBAR },
-          history: { delay: 1000, maxStack: 100, userOnly: true },
-        },
+        modules: quillModules(readonly),
       });
+      hideReadonlyToolbar(quill, readonly);
 
       if (content) {
         quill.clipboard.dangerouslyPasteHTML(content, 'silent');
@@ -1714,11 +1759,9 @@ document.addEventListener('DOMContentLoaded', async () => {
       theme: 'snow',
       readOnly: readonly,
       placeholder: WOCHEN_PLACEHOLDERS[id],
-      modules: {
-        toolbar: readonly ? false : { container: QUILL_TOOLBAR },
-        history: { delay: 1000, maxStack: 100, userOnly: true },
-      },
+      modules: quillModules(readonly),
     });
+    hideReadonlyToolbar(quill, readonly);
 
     const content = wochenKachelTextOf(id, woche);
     if (content) {
