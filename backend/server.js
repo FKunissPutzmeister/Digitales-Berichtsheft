@@ -5,6 +5,7 @@ const path = require('path');
 const os = require('os');
 const session = require('express-session');
 const FileStore = require('session-file-store')(session);
+const { bestEffortTouch } = require('./services/session-store');
 const { devAuth, DEV_AUTH_ENABLED } = require('./middleware/auth');
 
 const app = express();
@@ -46,17 +47,26 @@ app.use(express.urlencoded({ extended: false }));
 // änderung und lädt die Seite im Dauertakt neu (Flackern/Spam-Refresh).
 const SESSION_DIR = path.join(os.tmpdir(), 'berichtsheft-sessions');
 app.use(session({
-  store: new FileStore({
+  // bestEffortTouch: der per-Request TTL-Bump (store.touch) schreibt die
+  // Session-Datei komplett neu (atomares Rename). Unter Windows kollidieren
+  // parallele Renames auf dieselbe Datei sporadisch mit EPERM; da der
+  // Schreibpfad von session-file-store KEINE Retries hat, würde express-session
+  // den Fehler an den globalen Handler durchreichen (spammt den Fehlerbericht
+  // bei jedem Reiterwechsel). Ein fehlgeschlagener TTL-Bump ist harmlos → wir
+  // schlucken ihn. Echte Schreibfehler (set) bleiben sichtbar. Siehe
+  // services/session-store.js.
+  store: bestEffortTouch(new FileStore({
     path: SESSION_DIR,
     ttl: 60 * 60 * 24 * 7,   // 7 Tage (in Sekunden)
     // Windows: das atomare Rename beim Session-Schreiben kollidiert sporadisch
-    // mit Datei-Locks (Virenscanner/paralleler Zugriff) → EPERM. Mit retries:0
-    // ging dadurch die frisch gesetzte Session verloren ("Nicht angemeldet"
-    // bei Folge-Requests). Ein paar Retries machen den Login zuverlässig.
+    // mit Datei-Locks (Virenscanner/paralleler Zugriff) → EPERM. Die retries
+    // greifen nur beim LESEN (get) — sie machten das Login zuverlässig, weil
+    // der Folge-Request die frisch geschriebene Session zuverlässig liest
+    // (mit retries:0 ging sie sonst verloren: "Nicht angemeldet").
     retries: 5,
     retryDelay: 60,
     logFn: () => {},         // Store-Logs unterdrücken (sonst sehr spammy)
-  }),
+  })),
   secret: process.env.SESSION_SECRET || 'dev-secret-change-in-prod',
   resave: false,
   saveUninitialized: false,
