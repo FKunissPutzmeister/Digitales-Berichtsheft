@@ -109,6 +109,7 @@ const fahrtgeldRouter      = require('./routes/fahrtgeld');
 const beurteilungenRouter  = require('./routes/beurteilungen');
 const syncRouter           = require('./routes/sync');
 const fehlerRouter         = require('./routes/fehlerberichte');
+const { logError: logFehler, cleanupAlt: cleanupFehler } = require('./services/fehlerberichte');
 
 app.use('/api/users',               devAuth, usersRouter);
 app.use('/api/wochen',              devAuth, wochenRouter);
@@ -160,11 +161,43 @@ app.use(express.static(ROOT, {
 }));
 app.get('/', (req, res) => res.redirect('/app/index.html'));
 
+// Globaler Fehler-Handler: fängt alles ab, was eine Route per next(err) oder
+// als geworfener Fehler durchreicht. Persistiert + antwortet 500.
+app.use((err, req, res, next) => {
+  logFehler({
+    quelle: 'backend',
+    nachricht: `[unhandled] ${err && err.message ? err.message : String(err)}`,
+    stack: err && err.stack,
+    kontext: { route: req.path, methode: req.method },
+    benutzerOid: req.user && req.user.oid,
+    benutzerName: req.user && req.user.name,
+  });
+  if (res.headersSent) return next(err);
+  res.status(500).json({ error: 'Interner Serverfehler.' });
+});
+
 app.listen(PORT, () => {
   console.log(`Backend + Frontend laufen auf http://localhost:${PORT}`);
   console.log(`→ App:  http://localhost:${PORT}/  (öffnet /app/index.html)`);
   console.log(`→ API:  http://localhost:${PORT}/api/...`);
 });
+
+// Letzte Fangnetze: unbehandelte Rejections/Exceptions protokollieren.
+process.on('unhandledRejection', (reason) => {
+  logFehler({ quelle: 'backend', nachricht: `[unhandledRejection] ${reason && reason.message ? reason.message : String(reason)}`,
+    stack: reason && reason.stack });
+});
+process.on('uncaughtException', (err) => {
+  logFehler({ quelle: 'backend', nachricht: `[uncaughtException] ${err.message}`, stack: err.stack });
+});
+
+// Täglicher Cleanup: Einträge älter als 90 Tage entfernen (Muster wie entra-sync).
+cleanupFehler(90).then(n => n && console.log(`[fehler-cleanup] ${n} alte Einträge entfernt.`))
+  .catch(e => console.error('[fehler-cleanup] Start:', e.message));
+setInterval(() => {
+  cleanupFehler(90).then(n => n && console.log(`[fehler-cleanup] ${n} alte Einträge entfernt.`))
+    .catch(e => console.error('[fehler-cleanup]', e.message));
+}, 24 * 3600 * 1000);
 
 // ── Automatischer Entra-Gruppen-Sync ─────────────────────────────
 const { syncConfigured: entraConfigured, runSync: entraRunSync } = require('./services/entraSync');
