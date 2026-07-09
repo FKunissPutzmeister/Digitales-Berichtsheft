@@ -40,6 +40,7 @@ async function apiFetch(path, options = {}) {
     clearTimeout(t);
   }
 }
+window.apiFetch = apiFetch;
 
 /* Multipart-Upload (Datei-Anhänge). apiFetch serialisiert immer zu JSON und
    ist daher ungeeignet – hier wird FormData gesendet und KEIN Content-Type
