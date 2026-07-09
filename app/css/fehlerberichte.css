@@ -1,0 +1,93 @@
+/* Fehlerberichte – lehnt sich an abteilungsverwaltung.css an. */
+.fb-list { display: flex; flex-direction: column; gap: var(--sp-3); }
+
+.fb-row {
+  background: var(--pm-white);
+  border: 1px solid var(--pm-grey-200);
+  border-radius: var(--r-lg);
+  padding: var(--sp-4);
+}
+
+.fb-row__head {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  flex-wrap: wrap;
+}
+
+.fb-row__head .btn {
+  margin-left: auto;
+}
+
+.fb-row__msg {
+  margin-top: var(--sp-2);
+  font-size: var(--text-sm);
+}
+
+.fb-row__stack,
+.fb-row__ctx {
+  margin-top: var(--sp-2);
+}
+
+.fb-row__stack summary,
+.fb-row__ctx summary {
+  cursor: pointer;
+  font-size: var(--text-xs);
+  color: var(--pm-grey-500);
+  text-transform: uppercase;
+  letter-spacing: .04em;
+}
+
+.fb-row pre {
+  white-space: pre-wrap;
+  overflow-x: auto;
+  margin: var(--sp-2) 0 0;
+  padding: var(--sp-3);
+  background: var(--pm-grey-50);
+  border-radius: var(--r-sm);
+  font-size: var(--text-xs);
+}
+
+.fb-badge {
+  display: inline-block;
+  padding: 2px var(--sp-2);
+  border-radius: var(--r-sm);
+  font-size: var(--text-xs);
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  background: var(--pm-grey-500);
+  color: var(--pm-white);
+}
+
+.fb-badge--frontend { background: var(--color-error-mid); }
+.fb-badge--backend { background: var(--pm-yellow); color: var(--pm-grey-800); }
+.fb-badge--manual { background: var(--color-info); }
+
+.fb-count {
+  font-size: var(--text-sm);
+  color: var(--pm-grey-500);
+}
+
+.fb-time {
+  font-size: var(--text-xs);
+  color: var(--pm-grey-500);
+}
+
+.fb-user {
+  font-size: var(--text-sm);
+}
+
+.fb-empty {
+  padding: var(--sp-6);
+  text-align: center;
+  color: var(--pm-grey-500);
+}
+
+.fb-filter {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  font-size: var(--text-sm);
+  color: var(--pm-grey-500);
+  cursor: pointer;
+}

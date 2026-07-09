@@ -67,6 +67,10 @@ function buildSidebar(activeNavId) {
         <span class="sidebar__link-icon">${Icon('verwaltung')}</span>
         <span class="sidebar__link-label">Abteilungen</span>
       </a>
+      <a href="fehlerberichte.html" class="sidebar__link nav-developer-only" id="nav-fehlerberichte" style="display:none">
+        <span class="sidebar__link-icon">${Icon('document')}</span>
+        <span class="sidebar__link-label">Fehlerberichte</span>
+      </a>
 
     </nav>
 
