@@ -63,7 +63,7 @@ async function listErrors({ quelle, erledigt, benutzerOid, seit, limit } = {}) {
   if (benutzerOid) { req.input('benutzerOid', sql.NVarChar(36), benutzerOid); bedingungen.push('BenutzerOid = @benutzerOid'); }
   if (seit)        { req.input('seit', sql.DateTime2, new Date(seit)); bedingungen.push('LetzterZeitpunkt >= @seit'); }
   const where = bedingungen.length ? `WHERE ${bedingungen.join(' AND ')}` : '';
-  const top = Math.min(Number(limit) || 500, 2000);
+  const top = Math.max(1, Math.min(Math.floor(Number(limit)) || 500, 2000));
   const result = await req.query(`
     SELECT TOP (${top}) *
     FROM dbo.Fehlerberichte
