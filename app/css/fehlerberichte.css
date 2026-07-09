@@ -91,3 +91,34 @@
   color: var(--pm-grey-500);
   cursor: pointer;
 }
+
+.fb-header-controls {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-4);
+  flex-wrap: wrap;
+}
+
+.fb-sev {
+  display: inline-block;
+  padding: 2px var(--sp-2);
+  border-radius: var(--r-sm);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+}
+
+.fb-sev--hoch { background: var(--color-error-light); color: var(--color-error); }
+.fb-sev--mittel { background: var(--pm-yellow-bg); color: var(--pm-yellow-darker); }
+.fb-sev--gering { background: var(--pm-grey-100); color: var(--pm-grey-500); }
+
+.fb-sev-select,
+.fb-filter-sev {
+  font-size: var(--text-sm);
+  padding: var(--sp-1) var(--sp-2);
+  border: 1px solid var(--pm-grey-200);
+  border-radius: var(--r-sm);
+  background: var(--pm-white);
+  color: var(--pm-grey-800);
+}
