@@ -119,6 +119,52 @@ test('decodeStrokedBoxes wendet CTM-Transform an', () => {
   assert.deepEqual(boxes[0], { x0: 50, y0: 50, x1: 130, y1: 70 });
 });
 
+// ── Gitter-Clustering ──────────────────────────────────────────
+// 2×2-Gitter wie im IHK-Schule-Block: schmale Fach-Spalte, breite
+// Inhalts-Spalte, kleine Lücken (≈4–10pt) zwischen den Zellboxen.
+const GRID_BOXES = [
+  { x0: 50,  y0: 700, x1: 140, y1: 730 },  // Zeile 1, Spalte 1
+  { x0: 150, y0: 700, x1: 340, y1: 730 },  // Zeile 1, Spalte 2
+  { x0: 50,  y0: 660, x1: 140, y1: 696 },  // Zeile 2, Spalte 1
+  { x0: 150, y0: 660, x1: 340, y1: 696 },  // Zeile 2, Spalte 2
+];
+
+test('detectTableGrids erkennt 2x2-Gitter (Zeilen top→bottom, Zellen links→rechts)', () => {
+  const grids = P.detectTableGrids(GRID_BOXES);
+  assert.equal(grids.length, 1);
+  const g = grids[0];
+  assert.equal(g.rows.length, 2);
+  assert.equal(g.rows[0].length, 2);
+  assert.equal(g.rows[0][0].x0, 50);   // Zeile 1 = obere (y1=730)
+  assert.equal(g.rows[0][0].y1, 730);
+  assert.equal(g.rows[1][1].x0, 150);
+  assert.deepEqual({ x0: g.x0, y0: g.y0, x1: g.x1, y1: g.y1 }, { x0: 50, y0: 660, x1: 340, y1: 730 });
+});
+
+test('detectTableGrids ignoriert einspaltige Boxen-Stapel (Tageskarten)', () => {
+  assert.equal(P.detectTableGrids([
+    { x0: 50, y0: 700, x1: 340, y1: 730 },
+    { x0: 50, y0: 660, x1: 340, y1: 696 },
+    { x0: 50, y0: 620, x1: 340, y1: 656 },
+  ]).length, 0);
+});
+
+test('detectTableGrids ignoriert einzeilige Nachbar-Boxen und weit entfernte Boxen', () => {
+  assert.equal(P.detectTableGrids([
+    { x0: 50,  y0: 700, x1: 140, y1: 730 },
+    { x0: 150, y0: 700, x1: 340, y1: 730 },   // nur 1 Zeile
+    { x0: 400, y0: 100, x1: 500, y1: 130 },   // isoliert
+  ]).length, 0);
+});
+
+test('gridContaining trifft nur Punkte INNERHALB von Zellen', () => {
+  const grids = P.detectTableGrids(GRID_BOXES);
+  assert.ok(P.gridContaining(grids, 60, 710));            // in Zelle (1,1)
+  assert.ok(P.gridContaining(grids, 200, 670));           // in Zelle (2,2)
+  assert.equal(P.gridContaining(grids, 145, 710), null);  // Lücke zwischen Spalten
+  assert.equal(P.gridContaining(grids, 60, 500), null);   // außerhalb
+});
+
 // ── State-Machine: Kernbug (Multi-Page + Qualifikationen) ──────
 test('mehrseitige Woche: alle 5 Tage trotz Qualifikationen-Block & Seitenumbruch', () => {
   const page1 = [

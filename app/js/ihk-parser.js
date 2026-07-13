@@ -225,6 +225,89 @@
     return boxes;
   }
 
+  // ── Tabellen-Gitter aus Zellboxen ──────────────────────────────
+  function overlap1d(a0, a1, b0, b1) { return Math.min(a1, b1) - Math.max(a0, b0); }
+
+  // Benachbart = neben- oder untereinander mit kleiner Lücke (IHK-Export:
+  // Zellboxen haben ~4–10pt Abstand) und ausreichender Überlappung quer dazu.
+  function boxesAdjacent(a, b) {
+    const GAP = 14;
+    const hGap = Math.max(a.x0, b.x0) - Math.min(a.x1, b.x1);
+    const vGap = Math.max(a.y0, b.y0) - Math.min(a.y1, b.y1);
+    const vOv  = overlap1d(a.y0, a.y1, b.y0, b.y1);
+    const hOv  = overlap1d(a.x0, a.x1, b.x0, b.x1);
+    const minH = Math.min(a.y1 - a.y0, b.y1 - b.y0);
+    const minW = Math.min(a.x1 - a.x0, b.x1 - b.x0);
+    if (hGap > -2 && hGap <= GAP && vOv >= minH * 0.5) return true;
+    if (vGap > -2 && vGap <= GAP && hOv >= minW * 0.5) return true;
+    return false;
+  }
+
+  // Boxen zu Gittern clustern. Tabelle = Cluster mit ≥2 Zeilen UND ≥2 Spalten;
+  // alles andere (einspaltige Layout-Boxen, Einzelboxen) wird verworfen.
+  function detectTableGrids(boxes) {
+    const n = (boxes || []).length;
+    const parent = [];
+    for (let i = 0; i < n; i++) parent.push(i);
+    function find(i) { while (parent[i] !== i) { parent[i] = parent[parent[i]]; i = parent[i]; } return i; }
+    for (let i = 0; i < n; i++) {
+      for (let j = i + 1; j < n; j++) {
+        if (boxesAdjacent(boxes[i], boxes[j])) parent[find(i)] = find(j);
+      }
+    }
+    const groups = {};
+    for (let i = 0; i < n; i++) {
+      const r = find(i);
+      if (!groups[r]) groups[r] = [];
+      groups[r].push(boxes[i]);
+    }
+
+    const grids = [];
+    Object.values(groups).forEach(cells => {
+      if (cells.length < 4) return;
+      // Zeilen: Zellen mit ≥50% vertikaler Überlappung zur ersten Zelle der Zeile
+      const sorted = cells.slice().sort((a, b) => b.y1 - a.y1);
+      const rows = [];
+      for (const c of sorted) {
+        const row = rows.find(r =>
+          overlap1d(r[0].y0, r[0].y1, c.y0, c.y1) >= Math.min(r[0].y1 - r[0].y0, c.y1 - c.y0) * 0.5);
+        if (row) row.push(c); else rows.push([c]);
+      }
+      rows.forEach(r => r.sort((a, b) => a.x0 - b.x0));
+      // Spaltenzahl: distinkte x0-Werte (Toleranz 6pt)
+      const xs = [];
+      cells.forEach(c => { if (!xs.some(x => Math.abs(x - c.x0) <= 6)) xs.push(c.x0); });
+      if (rows.length < 2 || xs.length < 2) return;
+      grids.push({
+        x0: Math.min.apply(null, cells.map(c => c.x0)),
+        y0: Math.min.apply(null, cells.map(c => c.y0)),
+        x1: Math.max.apply(null, cells.map(c => c.x1)),
+        y1: Math.max.apply(null, cells.map(c => c.y1)),
+        rows,
+      });
+    });
+    return grids;
+  }
+
+  // Zellindex eines Punkts im Gitter (±1pt Toleranz), sonst null.
+  function cellAt(grid, x, y) {
+    for (let r = 0; r < grid.rows.length; r++) {
+      const row = grid.rows[r];
+      for (let c = 0; c < row.length; c++) {
+        const b = row[c];
+        if (x >= b.x0 - 1 && x <= b.x1 + 1 && y >= b.y0 - 1 && y <= b.y1 + 1) return { r, c };
+      }
+    }
+    return null;
+  }
+
+  // Gitter, in dessen ZELLE der Punkt liegt. Punkte in Zell-Lücken/Rändern
+  // bleiben im normalen Zeilenfluss (kein Textverlust durch Fehlzuordnung).
+  function gridContaining(grids, x, y) {
+    for (const g of (grids || [])) { if (cellAt(g, x, y)) return g; }
+    return null;
+  }
+
   // Liegt eine Unterstreichungs-Linie knapp unter der Baseline und ~ textbreit?
   function matchUnderline(item, segs) {
     // Toleranzen in PDF-Punkten, empirisch am IHK-Export kalibriert: Linie sitzt
@@ -495,6 +578,8 @@
     linesToHtml,
     decodeUnderlineSegments,
     decodeStrokedBoxes,
+    detectTableGrids,
+    gridContaining,
     matchUnderline,
     // Für direkte Node-Tests exportiert:
     _ddmmyyyyToISO: ddmmyyyyToISO,
