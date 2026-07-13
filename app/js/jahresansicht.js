@@ -11,15 +11,24 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   let currentYear = new Date().getFullYear();
   let viewAzubiId = user.istAzubi ? user.id : null;
+  const isAusbilder = ['pruefer', 'admin', 'developer'].includes(user.role);
 
   // Azubi aus sessionStorage übernehmen (Navigation von Wochenansicht/Dashboard)
   const savedAzubiId = sessionStorage.getItem('gotoAzubiId');
-  if (savedAzubiId && !user.istAzubi) {
+  if (savedAzubiId && isAusbilder) {
+    // Expliziter Sprung aus Wochenansicht/Dashboard hat Vorrang.
     viewAzubiId = savedAzubiId;
     sessionStorage.removeItem('gotoAzubiId');
-  } else if (!user.istAzubi && !viewAzubiId) {
-    const firstAzubi = (await DB.getSelectableAzubis())[0];
-    if (firstAzubi) viewAzubiId = firstAzubi.id;
+  } else if (isAusbilder) {
+    // Zuletzt gewählten Azubi wiederherstellen (geteilt mit der Wochenansicht,
+    // s. get/setPersistedAzubiId in app.js).
+    const selectable = await DB.getSelectableAzubis();
+    const persisted = getPersistedAzubiId();
+    if (persisted && selectable.some(a => String(a.id) === String(persisted))) {
+      viewAzubiId = persisted;
+    } else if (!viewAzubiId || !selectable.some(a => String(a.id) === String(viewAzubiId))) {
+      viewAzubiId = selectable[0]?.id || viewAzubiId;
+    }
   }
 
   function getStatusFuerTag(wochen, dateStr) {
@@ -94,7 +103,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     const azubiSelectEl = document.getElementById('azubiSelect');
     if (azubiSelectEl) {
-      azubiSelectEl.addEventListener('change', () => { viewAzubiId = azubiSelectEl.value; render(); });
+      azubiSelectEl.addEventListener('change', () => { viewAzubiId = azubiSelectEl.value; setPersistedAzubiId(viewAzubiId); render(); });
     }
 
     bindWeekRows();

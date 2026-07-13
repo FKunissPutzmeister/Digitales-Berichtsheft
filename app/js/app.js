@@ -930,6 +930,25 @@ function renderAzubiSelect(azubis, currentId, opts = {}) {
     </div>`;
 }
 
+/* Persistenz der Azubi-Auswahl (pro Gerät).
+   -------------------------------------------------------------------
+   Wochen- und Jahresansicht teilen sich denselben Schlüssel, sodass ein in der
+   einen Ansicht gewählter Azubi auch in der anderen – und nach einem Reload –
+   vorausgewählt bleibt. localStorage kann im Privat-/Kioskmodus werfen → immer
+   defensiv kapseln; scheitert die Persistenz, bleibt die Auswahl eben nur für
+   die aktuelle Sitzung erhalten. */
+const AZUBI_VIEW_STORAGE_KEY = 'berichtsheft.viewAzubiId';
+function getPersistedAzubiId() {
+  try { return localStorage.getItem(AZUBI_VIEW_STORAGE_KEY) || null; }
+  catch (e) { return null; }
+}
+function setPersistedAzubiId(id) {
+  try {
+    if (id) localStorage.setItem(AZUBI_VIEW_STORAGE_KEY, String(id));
+    else localStorage.removeItem(AZUBI_VIEW_STORAGE_KEY);
+  } catch (e) { /* Speicher nicht verfügbar → nur für diese Sitzung */ }
+}
+
 /* Auto-Enhancement: bei Seitenload und bei dynamisch eingefügten Selects */
 const _pmSelectMutationObserver = new MutationObserver(mutations => {
   let needsEnhance = false;

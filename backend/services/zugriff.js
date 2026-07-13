@@ -66,6 +66,11 @@ function darfWocheKorrigieren(user, woche, kontext) {
 
 // Darf der Nutzer die Woche SEHEN (eigenes Heft, aktiv verantwortlich, korrigiert)?
 function darfWocheSehen(user, woche, kontext) {
+  // admin/developer: globale Lesesicht (Gesamtüberblick über alle Azubis).
+  // Entspricht der Frontend-Selektorlogik getSelectableAzubis (admin/developer
+  // → alle Azubis). BEWUSST nur Lesen: darfWocheKorrigieren prüft die Rolle
+  // NICHT, Schreiben bleibt an Zuweisung/Dauer-Ausbilder gebunden.
+  if (user && (user.role === 'developer' || user.role === 'admin')) return true;
   if (user.oid && woche.azubiOid && user.oid === woche.azubiOid) return true;
   if (darfWocheKorrigieren(user, woche, kontext)) return true;
   if (hatKorrigiert(user, woche)) return true;

@@ -88,6 +88,22 @@ test('darfWocheSehen: Lockout ohne Zuweisung/Historie → false', () => {
   assert.equal(Z.darfWocheSehen(user, woche(), kontext), false);
 });
 
+// ── Developer/Admin: globale Lesesicht (Gesamtüberblick) ───────
+test('darfWocheSehen: developer sieht jede Woche ohne Zuweisung/Historie', () => {
+  const kontext = { zuweisungen: [], stichtag: '2026-12-01' };
+  assert.equal(Z.darfWocheSehen({ oid: 'DEV', email: 'd@pm.com', role: 'developer' }, woche(), kontext), true);
+});
+test('darfWocheSehen: admin sieht jede Woche ohne Zuweisung/Historie', () => {
+  const kontext = { zuweisungen: [], stichtag: '2026-12-01' };
+  assert.equal(Z.darfWocheSehen({ oid: 'ADM', email: 'a@pm.com', role: 'admin' }, woche(), kontext), true);
+});
+test('darfWocheKorrigieren: developer-Rolle allein gibt KEIN Schreibrecht', () => {
+  // Lesen ≠ Korrigieren: die globale Sicht ist read-only, Schreiben bleibt an
+  // Zuweisung/Dauer-Ausbilder gebunden.
+  const kontext = { zuweisungen: [], stichtag: '2026-12-01' };
+  assert.equal(Z.darfWocheKorrigieren({ oid: 'DEV', email: 'd@pm.com', role: 'developer' }, woche(), kontext), false);
+});
+
 // ── Härtung: leere/fehlende OID darf nichts öffnen ─────────────
 test('darfWocheSehen: leere/fehlende OID öffnet nichts', () => {
   const kontext = { zuweisungen: [], stichtag: '2026-06-15' };

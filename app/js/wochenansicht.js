@@ -204,12 +204,21 @@ document.addEventListener('DOMContentLoaded', async () => {
   const isAusbilder = !user.istAzubi || user.role === 'admin' || user.role === 'developer';
   let viewAzubiId = user.istAzubi ? user.id : null;
   if (savedAzubiId && isAusbilder) {
+    // Expliziter Sprung aus Jahresansicht/Dashboard hat Vorrang.
     viewAzubiId = savedAzubiId;
     sessionStorage.removeItem('gotoAzubiId');
-  } else if (isAusbilder && !viewAzubiId) {
-    // Korrektor ohne Vorauswahl: ersten auswählbaren Azubi anzeigen
-    const firstAzubi = (await DB.getSelectableAzubis())[0];
-    if (firstAzubi) viewAzubiId = firstAzubi.id;
+  } else if (isAusbilder) {
+    // Zuletzt gewählten Azubi wiederherstellen (pro Gerät, s. get/setPersistedAzubiId
+    // in app.js), damit die Auswahl über Reload und Navigation hinweg bleibt.
+    // Fällt auf den ersten auswählbaren Azubi zurück, wenn nichts Gültiges
+    // gespeichert ist (z. B. ein Azubi, für den keine Zuweisung mehr besteht).
+    const selectable = await DB.getSelectableAzubis();
+    const persisted = getPersistedAzubiId();
+    if (persisted && selectable.some(a => String(a.id) === String(persisted))) {
+      viewAzubiId = persisted;
+    } else if (!viewAzubiId || !selectable.some(a => String(a.id) === String(viewAzubiId))) {
+      viewAzubiId = selectable[0]?.id || viewAzubiId;
+    }
   }
 
   // ── Auto-Complete für Tätigkeiten ─────────────────────────────────
@@ -2046,6 +2055,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (azubiSelectEl) {
       azubiSelectEl.addEventListener('change', () => {
         viewAzubiId = azubiSelectEl.value;
+        setPersistedAzubiId(viewAzubiId);
         render();
       });
     }
