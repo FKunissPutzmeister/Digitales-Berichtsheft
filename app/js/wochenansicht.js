@@ -203,6 +203,9 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Azubi-Wechsler. Ein normaler Azubi sieht nur sein eigenes Heft.
   const isAusbilder = !user.istAzubi || user.role === 'admin' || user.role === 'developer';
   let viewAzubiId = user.istAzubi ? user.id : null;
+  // Dev-Hybrid (Azubi + Developer/Admin): das EIGENE Heft bleibt bearbeitbar
+  // wie für jeden Azubi – nur fremde Hefte sind Korrektur-Ansicht (readonly).
+  const viewingSelf = () => user.istAzubi && viewAzubiId === user.id;
   if (savedAzubiId && isAusbilder) {
     // Expliziter Sprung aus Jahresansicht/Dashboard hat Vorrang.
     viewAzubiId = savedAzubiId;
@@ -246,7 +249,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Index lazy laden (fire-and-forget). Nur für den eigenen, bearbeitbaren
   // Azubi-View; Ausbilder/Korrektoren bekommen keine Vorschläge (D5).
   function ensureSuggestionIndex(azubiId) {
-    if (isAusbilder || !azubiId || !window.ActivitySuggestions) return;
+    if ((isAusbilder && !viewingSelf()) || !azubiId || !window.ActivitySuggestions) return;
     if (suggestionIndexAzubi === azubiId && suggestionIndex) return;
     suggestionIndexAzubi = azubiId;
     // DB ist ein lexikalisches Global (kein window.DB) → Fetcher explizit injizieren.
@@ -257,7 +260,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // Typeahead an einen frisch erzeugten Quill-Editor hängen.
   function attachActivityAutocomplete(quill, kind) {
-    if (isAusbilder) return;                                 // D5
+    if (isAusbilder && !viewingSelf()) return;               // D5
     if (!suggestionsEnabled()) return;                       // Profil-Schalter aus
     if (!window.ActivityAutocomplete || !window.ActivitySuggestions) return;
     const azubiId = viewAzubiId || user.id;
@@ -360,8 +363,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     const sunday = new Date(monday);
     sunday.setDate(monday.getDate() + 6);
 
-    const isReadonly = isAusbilder || (woche && (woche.status === 'freigegeben' || woche.status === 'genehmigt'));
-    const canApprove = isAusbilder && woche && woche.status === 'freigegeben';
+    const isReadonly = (isAusbilder && !viewingSelf()) || (woche && (woche.status === 'freigegeben' || woche.status === 'genehmigt'));
+    const canApprove = isAusbilder && !viewingSelf() && woche && woche.status === 'freigegeben';
     // Freigabe-Button erscheint, wenn die Woche bearbeitbar ist:
     // – noch nicht angelegt
     // – status 'offen' (Erstfreigabe)
@@ -2065,7 +2068,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     //  Ein Wechsel zur Laufzeit würde die beiden Erfassungs-Workflows
     //  künstlich koppeln und ist fachlich nicht vorgesehen.)
 
-    const isReadonly = isAusbilder || (woche && (woche.status === 'freigegeben' || woche.status === 'genehmigt'));
+    const isReadonly = (isAusbilder && !viewingSelf()) || (woche && (woche.status === 'freigegeben' || woche.status === 'genehmigt'));
 
     if (berichtTyp === 'täglich') {
       bindDayCardEvents();
@@ -2382,7 +2385,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   function bindWochenEvents(woche, monday) {
-    const isReadonly = isAusbilder || (woche && (woche.status === 'freigegeben' || woche.status === 'genehmigt'));
+    const isReadonly = (isAusbilder && !viewingSelf()) || (woche && (woche.status === 'freigegeben' || woche.status === 'genehmigt'));
 
     // Lernort-Umschalter → Schule-Kachel sofort ein-/ausblenden (optimistisch),
     // Speichern im Hintergrund. Kein Voll-Rerender, kein Warten aufs Netzwerk.

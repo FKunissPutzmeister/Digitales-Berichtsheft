@@ -145,6 +145,9 @@ function normalizeZuweisung(z) {
     abteilung: z.Abteilung ?? '',
     von: toDateStr(z.Von),
     bis: toDateStr(z.Bis),
+    // Aus dem JOIN in GET /api/zuweisungen (optional – bei Einzelabruf leer).
+    azubiName: z.AzubiName ?? '',
+    azubiBeruf: z.AzubiBeruf ?? '',
   };
 }
 
@@ -468,6 +471,10 @@ const DB = {
     return data.id;
   },
 
+  async updateZuweisung(id, fields) {
+    await apiFetch(`/zuweisungen/${id}`, { method: 'PATCH', body: fields });
+  },
+
   async deleteZuweisung(id) {
     await apiFetch(`/zuweisungen/${id}`, { method: 'DELETE' });
   },
@@ -485,6 +492,15 @@ const DB = {
   async removeVerantwortliche(abteilungId, verantwId) {
     await apiFetch(`/abteilungen/${abteilungId}/verantwortliche/${verantwId}`, { method: 'DELETE' });
   },
+
+  /* API-Schlüssel (MCP-Zugriff, developer-only) */
+  async getApiKeys() { return await apiFetch('/apikeys'); },
+  async createApiKey(userOid, label) {
+    // Antwort enthält den Klartext-Key EINMALIG ({ id, key }).
+    return await apiFetch('/apikeys', { method: 'POST', body: { userOid, label } });
+  },
+  async setApiKeyAktiv(id, aktiv) { await apiFetch(`/apikeys/${id}`, { method: 'PATCH', body: { aktiv } }); },
+  async deleteApiKey(id) { await apiFetch(`/apikeys/${id}`, { method: 'DELETE' }); },
 
   /* Wochen */
   async getWochenFuerAzubi(azubiId) {
@@ -658,6 +674,11 @@ const DB = {
   async getBenachrichtigungenFuerUser() {
     const data = await apiFetch('/benachrichtigungen');
     return data.map(normalizeBenachrichtigung);
+  },
+
+  async getUngeleseneBenachrichtigungenCount() {
+    const data = await apiFetch('/benachrichtigungen/count');
+    return data.ungelesen || 0;
   },
 
   async addBenachrichtigung(notif) {
