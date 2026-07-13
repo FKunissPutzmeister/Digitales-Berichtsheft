@@ -109,6 +109,29 @@ function hideReadonlyToolbar(quill, readonly) {
   if (bar) bar.style.display = 'none';
 }
 
+// Initialinhalt laden. dangerouslyPasteHTML (= convert + setContents) baut
+// table-better-Tabellen beim Wiederherstellen nicht auf (Zeilen gehen
+// verloren) – offizieller Workaround des Moduls (Issue #78): Delta per
+// clipboard.convert erzeugen und via updateContents anwenden. USER-Source
+// ist nötig, damit das Modul die Tabellen-Blots korrekt aufbaut (mit
+// Quill.sources.API bleibt exakt dasselbe leere <table><temporary>-Gerüst
+// übrig wie beim alten dangerouslyPasteHTML-Bug – mit Playwright verifiziert).
+// Danach History leeren, sonst würde Strg+Z den geladenen Inhalt entfernen.
+// Readonly-Risiko (empirisch bestätigt, nicht nur theoretisch): Quills
+// interne modify()-Guard verwirft JEDEN USER-sourced Aufruf (auch
+// updateContents), wenn die Instanz disabled ist – ohne Fehler, der Editor
+// blieb bei readOnly:true komplett leer (Ausbilder-/Dev-View zeigte weder
+// Text noch Tabellen). Lösung A aus dem Auftrag: Instanz kurz aktivieren,
+// USER-Update anwenden, danach wieder in den ursprünglichen Zustand zurück.
+function setEditorHTML(quill, html) {
+  const wasDisabled = !quill.isEnabled();
+  if (wasDisabled) quill.enable(true);
+  const delta = quill.clipboard.convert({ html });
+  quill.updateContents(delta, Quill.sources.USER);
+  quill.history.clear();
+  if (wasDisabled) quill.enable(false);
+}
+
 document.addEventListener('DOMContentLoaded', async () => {
   const user = await initPage('nav-wochenansicht', [{ label: 'Wochenansicht', href: 'wochenansicht.html' }]);
   if (!user) return;
@@ -1277,7 +1300,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       hideReadonlyToolbar(quill, readonly);
 
       if (content) {
-        quill.clipboard.dangerouslyPasteHTML(content, 'silent');
+        setEditorHTML(quill, content);
       }
 
       quillInstances[editorKey] = quill;
@@ -1765,7 +1788,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     const content = wochenKachelTextOf(id, woche);
     if (content) {
-      quill.clipboard.dangerouslyPasteHTML(content, 'silent');
+      setEditorHTML(quill, content);
     }
 
     renderCharCount(document.getElementById('wochenCharCount_' + id), quill);
