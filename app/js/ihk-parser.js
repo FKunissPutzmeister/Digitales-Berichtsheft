@@ -84,7 +84,7 @@
     return cells.slice()
       .sort((a, b) => a.x - b.x)
       .map(c => {
-        const str = String(c.str).replace(/[\x02\x03]/g, ''); // In-band-Markerzeichen aus Nutztext fernhalten
+        const str = String(c.str).replace(/[\x02-\x05]/g, ''); // In-band-Markerzeichen aus Nutztext fernhalten
         const f = cellFlag(c);
         return f ? `\x02${f}${str}\x03` : str;
       })
@@ -101,17 +101,47 @@
     return html;
   }
 
+  // Eine Marker-Zeile (\x02flag…\x03-Läufe) → Inline-HTML.
+  function inlineHtml(line) {
+    const parts = String(line).split(/(\x02[1-7][^\x03]*\x03)/);
+    return parts.map(part => {
+      if (part.charAt(0) === '\x02') {
+        return wrapFlag(parseInt(part.charAt(1), 10), escapeHtml(part.slice(2, -1)));
+      }
+      return escapeHtml(part);
+    }).join('');
+  }
+
+  // Zellinhalt (Zeilen per \n) → <p>-Folge; leere Zelle → Quill-Leerabsatz.
+  function cellHtml(cellStr) {
+    const lines = String(cellStr).split('\n').map(s => s.trim()).filter(Boolean);
+    if (!lines.length) return '<p><br></p>';
+    return lines.map(l => `<p>${inlineHtml(l)}</p>`).join('');
+  }
+
+  // Tabellenmarker (\x04json\x05) → <table>-HTML; null bei defektem Marker.
+  function tableMarkerToHtml(line) {
+    const s = String(line);
+    if (s.charAt(0) !== '\x04' || s.charAt(s.length - 1) !== '\x05') return null;
+    let rows;
+    try { rows = JSON.parse(s.slice(1, -1)); } catch (e) { return null; }
+    if (!Array.isArray(rows) || !rows.length || !rows.every(Array.isArray)) return null;
+    const body = rows.map(r =>
+      '<tr>' + r.map(c => `<td>${cellHtml(c)}</td>`).join('') + '</tr>'
+    ).join('');
+    return `<table><tbody>${body}</tbody></table>`;
+  }
+
   function linesToHtml(lines) {
     if (!lines.length) return '';
     return lines.map(l => {
-      const parts = String(l).split(/(\x02[1-7][^\x03]*\x03)/);
-      const html = parts.map(part => {
-        if (part.charAt(0) === '\x02') {
-          return wrapFlag(parseInt(part.charAt(1), 10), escapeHtml(part.slice(2, -1)));
-        }
-        return escapeHtml(part);
-      }).join('');
-      return `<p>${html}</p>`;
+      if (String(l).charAt(0) === '\x04') {
+        const t = tableMarkerToHtml(l);
+        if (t) return t;
+        // Fallback: Markerzeichen entfernen, Inhalt als Absatz erhalten.
+        return `<p>${inlineHtml(String(l).replace(/[\x04\x05]/g, ''))}</p>`;
+      }
+      return `<p>${inlineHtml(l)}</p>`;
     }).join('');
   }
 
@@ -306,6 +336,28 @@
   function gridContaining(grids, x, y) {
     for (const g of (grids || [])) { if (cellAt(g, x, y)) return g; }
     return null;
+  }
+
+  // Items eines Gitters → Tabellenmarker. Je Zelle werden die Items wie in
+  // itemsToText nach y-Läufen gruppiert (Toleranz 3) und per assembleLine
+  // formatiert; mehrzeilige Zellinhalte verbinden sich per \n. JSON.stringify
+  // escaped die \x02/\x03-Formatmarker → der Marker bleibt EINE Zeile.
+  function assembleTable(grid, items) {
+    const buf = grid.rows.map(row => row.map(() => []));
+    for (const it of (items || [])) {
+      const pos = cellAt(grid, it.x, it.y);
+      if (!pos) continue;
+      const runs = buf[pos.r][pos.c];
+      const y = Math.round(it.y);
+      let run = runs.find(l => Math.abs(l.y - y) <= 3);
+      if (!run) { run = { y, cells: [] }; runs.push(run); }
+      run.cells.push({ x: it.x, str: it.str, bold: it.bold, italic: it.italic, underline: it.underline });
+    }
+    const rows = buf.map(row => row.map(runs => {
+      runs.sort((a, b) => b.y - a.y);
+      return runs.map(r => assembleLine(r.cells)).join('\n');
+    }));
+    return '\x04' + JSON.stringify(rows) + '\x05';
   }
 
   // Liegt eine Unterstreichungs-Linie knapp unter der Baseline und ~ textbreit?
@@ -576,6 +628,7 @@
     classifyFontName,
     assembleLine,
     linesToHtml,
+    assembleTable,
     decodeUnderlineSegments,
     decodeStrokedBoxes,
     detectTableGrids,

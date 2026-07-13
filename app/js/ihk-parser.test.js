@@ -4,6 +4,7 @@ const assert = require('node:assert/strict');
 const P = require('./ihk-parser.js');
 
 const B = '\x02', E = '\x03';
+const T = '\x04', TE = '\x05';
 const wByKw = (res, kw) => res.wochen.find(w => w.kw === kw);
 
 // ── Format-Helfer ──────────────────────────────────────────────
@@ -381,4 +382,56 @@ test('Tagesbasis: modus-Override greift unabhängig vom Seitenkopf', () => {
   const res = P.parse([page], { modus: 'täglich' });
   assert.equal(res.wochen[0].modus, 'täglich');
   assert.match(res.wochen[0].tage[0].eintragText, /Etwas gearbeitet/);
+});
+
+// ── Tabellenmarker & HTML ──────────────────────────────────────
+test('assembleTable ordnet Items Zellen zu und baut Marker mit Formatflags', () => {
+  const grid = P.detectTableGrids(GRID_BOXES)[0];
+  const items = [
+    { x: 55,  y: 712, str: 'BWL',        bold: true,  italic: false, underline: false },
+    { x: 155, y: 715, str: '• Prokura',  bold: false, italic: false, underline: false },
+    { x: 160, y: 704, str: 'o HGB',      bold: false, italic: false, underline: false }, // 2. Zeile derselben Zelle
+    { x: 55,  y: 670, str: 'SUK',        bold: false, italic: false, underline: false },
+    { x: 155, y: 670, str: '• Inventur', bold: false, italic: false, underline: false },
+  ];
+  const marker = P.assembleTable(grid, items);
+  assert.equal(marker.charAt(0), T);
+  assert.equal(marker.charAt(marker.length - 1), TE);
+  const rows = JSON.parse(marker.slice(1, -1));
+  assert.deepEqual(rows, [
+    ['\x021BWL\x03', '• Prokura\no HGB'],
+    ['SUK', '• Inventur'],
+  ]);
+});
+
+test('linesToHtml rendert Tabellenmarker als <table> mit Zell-Absaetzen', () => {
+  const marker = T + JSON.stringify([
+    ['\x021BWL\x03', '• Prokura\no HGB'],
+    ['SUK', ''],
+  ]) + TE;
+  assert.equal(P.linesToHtml(['davor', marker, 'danach']),
+    '<p>davor</p>' +
+    '<table><tbody>' +
+      '<tr><td><p><strong>BWL</strong></p></td><td><p>• Prokura</p><p>o HGB</p></td></tr>' +
+      '<tr><td><p>SUK</p></td><td><p><br></p></td></tr>' +
+    '</tbody></table>' +
+    '<p>danach</p>');
+});
+
+test('linesToHtml escaped HTML in Tabellenzellen', () => {
+  const marker = T + JSON.stringify([['<b>x</b>', 'a'], ['c', 'd']]) + TE;
+  assert.ok(P.linesToHtml([marker]).includes('<td><p>&lt;b&gt;x&lt;/b&gt;</p></td>'));
+});
+
+test('linesToHtml: defekter Marker faellt auf Absatz zurueck (kein Crash, kein Verlust)', () => {
+  const kaputt = T + '{kein json' + TE;
+  const html = P.linesToHtml([kaputt]);
+  assert.ok(html.startsWith('<p>'));
+  assert.ok(html.includes('{kein json'));
+  assert.ok(!html.includes('\x04'));
+});
+
+test('assembleLine entfernt Markerzeichen \\x04/\\x05 aus Nutztext', () => {
+  const line = P.assembleLine([{ x: 0, str: 'a\x04b\x05c', bold: false, italic: false, underline: false }]);
+  assert.equal(line, 'abc');
 });
