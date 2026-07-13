@@ -224,15 +224,17 @@ const IhkImport = (() => {
       // Pfad-Ops für die Unterstreichungs-Erkennung. Scheitert das für eine
       // einzelne Seite (z. B. defekte Seite), trotzdem weiterextrahieren –
       // Text ohne Formatierung ist besser als ein Totalabbruch des Imports.
-      let underlines = [];
+      let underlines = [], grids = [];
       try {
         const opList = await page.getOperatorList();
         underlines = IhkParser.decodeUnderlineSegments(opList.fnArray, opList.argsArray, pdfjsLib.OPS);
+        grids = IhkParser.detectTableGrids(
+          IhkParser.decodeStrokedBoxes(opList.fnArray, opList.argsArray, pdfjsLib.OPS));
       } catch (e) {
         console.warn(`[IhkImport] getOperatorList Seite ${p} fehlgeschlagen:`, e);
       }
       const content = await page.getTextContent();
-      pages.push(itemsToText(content.items, page, underlines));
+      pages.push(itemsToText(content.items, page, underlines, grids));
       page.cleanup();
     }
     return pages;
@@ -240,7 +242,10 @@ const IhkImport = (() => {
 
   // Items nach y-Koordinate zu Zeilen gruppieren; pro Lauf Bold/Italic (echter
   // Schriftname via commonObjs) und Underline (Fuell-Rechteck) bestimmen.
-  function itemsToText(items, page, underlines) {
+  // Items innerhalb erkannter Tabellengitter werden PRO ZELLE gesammelt und
+  // als eine Marker-Zeile (an der Oberkante des Gitters) einsortiert – so
+  // bleibt die Lesereihenfolge im Zeilenstrom erhalten.
+  function itemsToText(items, page, underlines, grids) {
     const fontFlags = {};
     function flagsFor(fontName) {
       if (fontFlags[fontName]) return fontFlags[fontName];
@@ -252,20 +257,34 @@ const IhkImport = (() => {
     }
 
     const rows = [];
+    const tableItems = new Map();  // grid → Items im Gitter
     items.forEach(it => {
       if (!it.str || !it.str.trim()) return;
-      const y = Math.round(it.transform[5]);
-      let row = rows.find(r => Math.abs(r.y - y) <= 3);
-      if (!row) { row = { y, cells: [] }; rows.push(row); }
       const f  = flagsFor(it.fontName);
       const x0 = it.transform[4];
-      const underline = IhkParser.matchUnderline(
-        { x0, x1: x0 + it.width, baseline: it.transform[5] }, underlines
-      );
+      const yB = it.transform[5];
+      const underline = IhkParser.matchUnderline({ x0, x1: x0 + it.width, baseline: yB }, underlines);
+
+      const grid = IhkParser.gridContaining(grids, x0, yB);
+      if (grid) {
+        if (!tableItems.has(grid)) tableItems.set(grid, []);
+        tableItems.get(grid).push({ x: x0, y: yB, str: it.str, bold: f.bold, italic: f.italic, underline });
+        return;
+      }
+
+      const y = Math.round(yB);
+      let row = rows.find(r => Math.abs(r.y - y) <= 3);
+      if (!row) { row = { y, cells: [] }; rows.push(row); }
       row.cells.push({ x: x0, str: it.str, bold: f.bold, italic: f.italic, underline });
     });
+
+    // Tabellen als synthetische Zeile an ihrer Oberkante einsortieren.
+    tableItems.forEach((tItems, grid) => {
+      rows.push({ y: Math.round(grid.y1), marker: IhkParser.assembleTable(grid, tItems) });
+    });
+
     rows.sort((a, b) => b.y - a.y); // oben → unten
-    return rows.map(r => IhkParser.assembleLine(r.cells)).join('\n');
+    return rows.map(r => r.marker || IhkParser.assembleLine(r.cells)).join('\n');
   }
 
   // ── 4) Vorschau-Dialog ─────────────────────────────────────────
