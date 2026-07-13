@@ -649,7 +649,12 @@ html[data-skin="silk"] body[data-page="wochenansicht"] .day-section .ql-editor {
   background: var(--pm-white);
   border: 1.5px solid var(--pm-grey-200);
   border-radius: var(--r-xl);
-  overflow: hidden;
+  /* overflow:hidden entfernt (T11, Bug 2): schnitt das schwebende
+     Tabellen-Bearbeitungsmenü (quill-table-better) ab, sobald eine Tabelle
+     nahe am unteren Kartenrand stand. Kein Bleed an den Ecken, da
+     wochen-kachel__header (auf dieser Seite transparent) und der Footer
+     denselben weißen Karten-Hintergrund zeigen. `contain: layout style`
+     bleibt (Performance-Containment, kein Clipping) unverändert erhalten. */
   box-shadow: var(--shadow-sm);
   display: flex;
   flex-direction: column;
@@ -2360,7 +2365,11 @@ body[data-page="wochenansicht"] .wochen-kachel {
   background: var(--pm-white);
   border: 1px solid var(--pm-grey-300);
   border-radius: var(--r-xl);
-  overflow: hidden;
+  /* overflow:hidden entfernt (T11, Bug 2): dies ist die auf dieser Seite
+     tatsächlich wirksame (spezifischere) Regel – die gleichnamige Basisregel
+     weiter oben in dieser Datei wird hier überschrieben. Schnitt sonst das
+     schwebende Tabellenmenü (quill-table-better) ab; Kopf (transparent) und
+     Footer teilen denselben weißen Kachel-Grund, daher kein Eckenbleed. */
   box-shadow: var(--shadow-sm);
   display: flex;
   flex-direction: column;

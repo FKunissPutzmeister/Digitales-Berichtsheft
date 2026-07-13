@@ -290,7 +290,7 @@
    rgba() hier würde in hyperspace/cmd nicht mitziehen. */
 .ql-editor table {
   border-collapse: collapse;
-  width: 100%;
+  max-width: 100%;
   margin: 6px 0;
 }
 .ql-editor td,
@@ -298,6 +298,50 @@
   border: 1px solid var(--pm-grey-200, #c9ced6);
   padding: 4px 8px;
   vertical-align: top;
+}
+/* Nicht-gewhitelistete Toolbar-Buttons (table-better deaktiviert bei aktiver
+   Tabellenzelle alles außer bold/italic/underline/strike/size/color/
+   background/font/list/header/align/link/image – bei uns zusätzlich clean,
+   indent, blockquote) bekommen von quill-table-better hart #f2f2f2-Hintergrund
+   + #999-Icons per !important. Auf dunklem Grund (Dark Mode/Custom-Themes)
+   ergibt das einen weißen, kaum lesbaren Kasten. Theme-tauglich überschreiben:
+   dezent ausgegraut statt weißer Fläche, Icon-Farbe über --pm-grey-*, die pro
+   Theme (inkl. hyperspace/cmd) neu definiert wird – kein separater Dark-Block
+   nötig. Kein .ql-editor-wrap-Präfix: die Toolbar hängt als GESCHWISTER von
+   .ql-editor-wrap im DOM (Quill fügt sie davor ein, s. Tablet-Kommentar unten),
+   ein Nachfahren-Selektor über .ql-editor-wrap würde die Buttons nie treffen. */
+.ql-table-button-disabled {
+  background: transparent !important;
+  opacity: .4;
+  pointer-events: none;
+}
+.ql-table-button-disabled svg .ql-fill {
+  fill: var(--pm-grey-500) !important;
+}
+.ql-table-button-disabled svg .ql-stroke {
+  stroke: var(--pm-grey-500) !important;
+}
+
+/* Schwebendes Tabellen-Bearbeitungsmenü (.ql-table-menus-container) nicht
+   abschneiden. quill-table-better hängt das Menü als ABSOLUT positioniertes
+   Kind direkt in quill.container – und Quill macht in dieser App das per
+   new Quill(wrap, …) übergebene .ql-editor-wrap-Element SELBST zu
+   .ql-container.ql-snow (keine separate Nachfahren-Node, siehe Kommentar
+   weiter unten zur Toolbar). Der Selektor „.ql-editor-wrap .ql-container.ql-snow"
+   (Nachfahre) trifft dieses Element deshalb nie – der tatsächliche Clipper ist
+   das eigene overflow:hidden dieses Knotens aus wochenansicht.css
+   (body[data-page="wochenansicht"] .day-section/.wochen-kachel .ql-editor-wrap),
+   das dort nur für die untere/obere Eckenrundung gesetzt ist. Das Innen-Padding
+   von .ql-editor (--sp-4) hält normalen Text/Tabelleninhalt ohnehin von der
+   Rundung fern, daher ist overflow:visible hier unauffällig – nur das
+   absichtlich herausragende Menü profitiert. Gleiche Selektoren wie dort,
+   höhere Ladereihenfolge (quill-editor.css nach wochenansicht.css) gewinnt. */
+body[data-page="wochenansicht"] .day-section .ql-editor-wrap,
+body[data-page="wochenansicht"] .wochen-kachel .ql-editor-wrap {
+  overflow: visible;
+}
+.ql-table-menus-container {
+  z-index: var(--z-sticky, 20);
 }
 .ql-snow .ql-tooltip a.ql-action::after { content: 'Speichern'; }
 .ql-snow .ql-tooltip a.ql-remove::before { content: 'Entfernen'; }
