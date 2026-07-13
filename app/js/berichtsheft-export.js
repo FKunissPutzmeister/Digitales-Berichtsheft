@@ -473,6 +473,7 @@ const BerichtsheftExport = (() => {
   .richtext table { border-collapse:collapse; width:100%; margin:2pt 0; }
   .richtext th, .richtext td { border:0.6pt solid #999; padding:2pt 5pt; vertical-align:top; }
   .richtext tr { page-break-inside:avoid; }
+  .richtext thead th { background:inherit; font-weight:inherit; text-align:inherit; font-size:inherit; }
   .stamm { margin:5mm 0 3mm; }
   .inhalt { }
   .bestaetigung { margin-top:6mm; }
