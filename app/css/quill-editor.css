@@ -343,6 +343,147 @@ body[data-page="wochenansicht"] .wochen-kachel .ql-editor-wrap {
 .ql-table-menus-container {
   z-index: var(--z-sticky, 20);
 }
+
+/* quill-table-better stylt seine schwebenden Popup-Flächen (Menüleiste,
+   Dropdown-Listen, Raster-Picker, Tooltip, Kopfzeile-Toggle, Eigenschaften-
+   Dialog) mit hartkodierten Farben (#fff/#ccced1/#f0f0f0 …, kein !important).
+   Auf dunklem Grund (Dark Mode/Custom-Themes) ergibt das dunkel-auf-dunkel.
+   Wie oben bei den Zellrahmen: auf --pm-* umstellen statt eines separaten
+   [data-theme="dark"]-Blocks – die Variablen sind pro Theme (variables.css
+   Dark Mode UND jedes theme-*.css) bereits passend neu definiert, ein
+   einziger unbedingter Block reicht für Light + Dark + Custom-Themes.
+   quill-editor.css lädt nach quill-table-better.css, bei gleicher
+   Spezifität gewinnt dieser Block (kein !important nötig). */
+.ql-table-border-shadow,
+.ql-table-select-container,
+.ql-table-dropdown-list,
+.ql-table-dropdown-properties-list,
+.ql-table-menus-container {
+  border: 1px solid var(--pm-grey-200);
+  background: var(--pm-white);
+  box-shadow: var(--shadow-md);
+}
+.ql-table-dropdown,
+.ql-table-dropdown-properties {
+  color: var(--pm-grey-700);
+}
+.ql-table-dropdown:hover,
+.ql-table-dropdown-properties:hover {
+  background: var(--pm-grey-100);
+}
+.ql-table-dropdown-properties {
+  border: 1px solid var(--pm-grey-200);
+}
+.ql-table-dropdown-list li,
+.ql-table-dropdown-properties-list li {
+  color: var(--pm-grey-700);
+}
+.ql-table-dropdown-list li:hover,
+.ql-table-dropdown-properties-list li:hover {
+  background-color: var(--pm-grey-100);
+  color: var(--pm-grey-900);
+}
+.ql-table-dropdown-label,
+.ql-table-dropdown-properties-label {
+  color: var(--pm-grey-900);
+}
+.ql-table-select-container .ql-table-select-label {
+  color: var(--pm-grey-700);
+}
+/* Raster-Picker-Zellen: Vendor-Rahmen ist #000 – im Dark Mode auf einen
+   sichtbaren, aber dezenten Grauton setzen statt schwarz-auf-dunkel. */
+.ql-table-select-container span {
+  border: 1px solid var(--pm-grey-400);
+}
+.ql-table-tooltip {
+  color: var(--pm-grey-700);
+  background: var(--pm-white);
+  border: 1px solid var(--pm-grey-200);
+}
+.ql-table-tooltip::before {
+  border-bottom-color: var(--pm-white) !important;
+}
+
+/* Kopfzeile-Toggle: inaktiver Track auf sichtbare Fläche statt Vendor-#ccc;
+   aktiver Zustand bleibt bewusst beim Vendor-Blau (kein Bruch mit dem
+   "an/aus"-Blau, das Nutzer aus anderen Apps kennen; Knopf bleibt weiß). */
+.ql-table-switch .ql-table-switch-inner {
+  background: var(--pm-grey-300);
+}
+.ql-table-switch .ql-table-switch-inner:before {
+  background: var(--pm-white);
+}
+
+/* Tabelleneigenschaften-Dialog (.ql-table-properties-form) */
+.ql-table-properties-form {
+  background: var(--pm-white);
+  box-shadow: var(--shadow-md);
+  color: var(--pm-grey-700);
+}
+.ql-table-properties-form .properties-form-header {
+  border-bottom: 1px solid var(--pm-grey-200);
+  color: var(--pm-grey-900);
+}
+.ql-table-properties-form .properties-form-row .ql-table-check-container {
+  border: 1px solid var(--pm-grey-200);
+}
+.ql-table-properties-form .properties-form-row .ql-table-check-container .ql-table-tooltip-hover:hover {
+  background: var(--pm-grey-100);
+}
+.ql-table-properties-form .properties-form-row .ql-table-check-container .ql-table-btns-checked {
+  background: var(--pm-yellow-pale);
+}
+.ql-table-properties-form .properties-form-action-row > button {
+  background: var(--pm-white);
+  color: var(--pm-grey-700);
+}
+.ql-table-properties-form .properties-form-action-row > button:hover {
+  background: var(--pm-grey-100);
+}
+.ql-table-input,
+.ql-table-color-container .label-field-view-color .property-input,
+.ql-table-properties-form .property-input {
+  border: 1px solid var(--pm-grey-200);
+  background: var(--pm-white);
+  color: var(--pm-grey-700);
+}
+.label-field-view-input-wrapper > label {
+  background: var(--pm-white);
+  color: var(--pm-grey-400);
+}
+/* Farbwähler (.ql-table-color-container): Interna (iro-Picker) müssen nicht
+   perfekt sein, dürfen aber nicht dunkel-auf-dunkel unlesbar werden. */
+.ql-table-color-container {
+  border: 1px solid var(--pm-grey-200);
+  background: var(--pm-white);
+}
+.ql-table-color-container .color-picker {
+  border-left: 1px solid var(--pm-grey-200);
+}
+.ql-table-color-container .color-picker .color-button {
+  border: 1px solid var(--pm-grey-200);
+}
+.ql-table-color-container .color-picker .color-picker-select {
+  background: var(--pm-white);
+  border: 1px solid var(--pm-grey-200);
+  box-shadow: var(--shadow-md);
+}
+.ql-table-color-container .color-picker .color-picker-select .erase-container:hover {
+  background: var(--pm-grey-100);
+}
+/* Vendor setzt am <button> nur background:inherit (kein color), das per se
+   zu transparent auflöst – Chromium/Edge malt dafür trotzdem die native
+   Button-Fläche (weiß) mit UA-Default-Textfarbe (die unter color-scheme:dark
+   ebenfalls weiß wird) → weiß auf weiß, unlesbar. Explizit setzen statt
+   inherit, damit die native Darstellung sicher überschrieben wird. */
+.ql-table-color-container .color-picker .color-picker-select .erase-container button {
+  background: var(--pm-white);
+  color: var(--pm-grey-700);
+}
+.ql-table-color-container .color-picker .color-picker-palette {
+  background: var(--pm-white);
+}
+
 .ql-snow .ql-tooltip a.ql-action::after { content: 'Speichern'; }
 .ql-snow .ql-tooltip a.ql-remove::before { content: 'Entfernen'; }
 .ql-snow .ql-tooltip[data-mode=link]::before { content: 'Link eingeben:'; }
