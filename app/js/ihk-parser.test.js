@@ -435,3 +435,57 @@ test('assembleLine entfernt Markerzeichen \\x04/\\x05 aus Nutztext', () => {
   const line = P.assembleLine([{ x: 0, str: 'a\x04b\x05c', bold: false, italic: false, underline: false }]);
   assert.equal(line, 'abc');
 });
+
+// ── Tabellenmarker durch parse() ───────────────────────────────
+test('parse (Wochenbasis): Tabellenmarker im Schule-Block landet als <table> in schuleText', () => {
+  const marker = T + JSON.stringify([['BWL', '• Prokura'], ['SUK', '• Inventur']]) + TE;
+  const page = [
+    'Eingereicht am 26.09.2024. Von Ausbilder:in Anika',
+    'Kailer am 09.04.2025 freigegeben.',
+    'Ausbildungswoche 09.09.2024 bis 15.09.2024',
+    'Schule/Betrieb',
+    'Schule:',
+    marker,
+    'Betrieb:',
+    'Poststelle sortiert',
+    'Mo | 09.09.2024 | Schule/Betrieb | anwesend 06:00',
+  ].join('\n');
+  const res = P.parse([page]);
+  assert.equal(res.wochen.length, 1);
+  const w = res.wochen[0];
+  assert.ok(w.schuleText.includes('<table><tbody>'));
+  assert.ok(w.schuleText.includes('<td><p>BWL</p></td>'));
+  assert.equal(w.betriebText, '<p>Poststelle sortiert</p>');
+});
+
+test('parse (Tagesbasis): Tabellenmarker in Tagesbeschreibung landet in eintragText', () => {
+  const marker = T + JSON.stringify([['A', 'B'], ['C', 'D']]) + TE;
+  const pages = [
+    'Ausbildungsnachweis auf Tagesbasis',
+    'Ausbildungswoche 09.09.2024 bis 15.09.2024',
+    'Mo | 09.09.2024 | Betrieb | anwesend 08:00',
+    'Werkbank aufgeräumt 08:00',
+    marker,
+    'Qualifikationen:',
+    '- Sonstige Qualifikation',
+  ].join('\n');
+  const res = P.parse([pages]);
+  assert.equal(res.wochen.length, 1);
+  const tag = res.wochen[0].tage[0];
+  assert.ok(tag.eintragText.includes('<p>Werkbank aufgeräumt</p>'));
+  assert.ok(tag.eintragText.includes('<table><tbody>'));
+});
+
+test('parse: Markerzeile matcht weder Tageszeile noch Rauschfilter', () => {
+  // Marker, dessen JSON-Inhalt einer Tageszeile ähnelt, darf keinen Tag erzeugen
+  const marker = T + JSON.stringify([['Mo | 01.01.2025 | Betrieb | anwesend 08:00', 'x'], ['a', 'b']]) + TE;
+  const page = [
+    'Ausbildungswoche 09.09.2024 bis 15.09.2024',
+    'Betrieb:',
+    marker,
+    'Mo | 09.09.2024 | Betrieb | anwesend 08:00',
+  ].join('\n');
+  const res = P.parse([page]);
+  assert.equal(res.wochen[0].tage.length, 1);
+  assert.equal(res.wochen[0].tage[0].datum, '2024-09-09');
+});
