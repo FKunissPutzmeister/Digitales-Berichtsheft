@@ -384,6 +384,104 @@ test('Tagesbasis: modus-Override greift unabhängig vom Seitenkopf', () => {
   assert.match(res.wochen[0].tage[0].eintragText, /Etwas gearbeitet/);
 });
 
+// ── Linienraster (echter IHK-Export: Kanten als 2-Punkt-Linien) ──
+test('decodeStrokedLines klassifiziert degenerierte gestrichene Pfade als H-/V-Linien', () => {
+  const res = P.decodeStrokedLines(
+    [OPS.constructPath, OPS.stroke, OPS.constructPath, OPS.stroke],
+    [
+      [ [OPS.rectangle], [69.7, 391.5, 183.9, 0] ], null,                 // horizontale Kante (0-hohes Rechteck)
+      [ [OPS.moveTo, OPS.lineTo], [253.1, 284, 253.1, 392] ], null,       // vertikale Kante (2-Punkt-Linie)
+    ], OPS);
+  assert.equal(res.hLines.length, 1);
+  assert.ok(Math.abs(res.hLines[0].y - 391.5) < 0.1);
+  assert.ok(Math.abs(res.hLines[0].x0 - 69.7) < 0.1);
+  assert.ok(Math.abs(res.hLines[0].x1 - 253.6) < 0.1);
+  assert.equal(res.vLines.length, 1);
+  assert.ok(Math.abs(res.vLines[0].x - 253.1) < 0.1);
+  // 2D-Boxen zählen weiterhin NICHT als Linien:
+  const box = P.decodeStrokedLines(
+    [OPS.constructPath, OPS.stroke],
+    [ [ [OPS.rectangle], [50, 700, 90, 30] ], null ], OPS);
+  assert.equal(box.hLines.length + box.vLines.length, 0);
+});
+
+test('cellsFromLines rekonstruiert 2x2-Zellen aus Linienraster (reale IHK-Toleranzen)', () => {
+  // 3 vertikale Kanten (x=70/253/457), 3 horizontale (y=284/338/392),
+  // Positionen leicht verrauscht wie im echten Export.
+  const lines = {
+    vLines: [
+      { x: 70.2,  y0: 284, y1: 392 },
+      { x: 253.1, y0: 284, y1: 392 },
+      { x: 457.0, y0: 284, y1: 392 },
+    ],
+    hLines: [
+      { y: 284.5, x0: 69.7, x1: 457.3 },
+      { y: 338.0, x0: 69.7, x1: 457.3 },
+      { y: 391.5, x0: 69.7, x1: 457.3 },
+    ],
+  };
+  const cells = P.cellsFromLines(lines);
+  assert.equal(cells.length, 4);
+  const grids = P.detectTableGrids(cells);
+  assert.equal(grids.length, 1);
+  assert.equal(grids[0].rows.length, 2);
+  assert.equal(grids[0].rows[0].length, 2);
+  // obere linke Zelle: x 70..253, y 338..391.5
+  assert.ok(Math.abs(grids[0].rows[0][0].x0 - 70.2) < 0.1);
+  assert.ok(Math.abs(grids[0].rows[0][0].y0 - 338) < 0.1);
+});
+
+test('cellsFromLines: geteilte Kanten aus Segment-Stuecken je Zelle werden gemergt', () => {
+  // Obere Kante als ZWEI Teilstücke (je Zelle eines) → muss als eine Kante zählen
+  const lines = {
+    vLines: [
+      { x: 70,  y0: 300, y1: 392 },
+      { x: 253, y0: 300, y1: 392 },
+      { x: 457, y0: 300, y1: 392 },
+    ],
+    hLines: [
+      { y: 300, x0: 70, x1: 253.5 }, { y: 300, x0: 253.5, x1: 457 },
+      { y: 392, x0: 70, x1: 253.5 }, { y: 392, x0: 253.5, x1: 457 },
+    ],
+  };
+  const cells = P.cellsFromLines(lines);
+  assert.equal(cells.length, 2); // 1 Zeile × 2 Spalten
+});
+
+test('cellsFromLines: einzelne Separator-Linie und Nx1-Boxen ergeben keine Tabelle', () => {
+  // Lone Header-Separator ohne Vertikale → keine Zellen
+  assert.equal(P.cellsFromLines({ hLines: [{ y: 736, x0: 57, x1: 298 }], vLines: [] }).length, 0);
+  // Karte: 2 Außenkanten vertikal + 3 horizontale Trenner → 2 Zellen in 1 Spalte → kein Gitter
+  const karte = P.cellsFromLines({
+    vLines: [ { x: 50, y0: 600, y1: 700 }, { x: 540, y0: 600, y1: 700 } ],
+    hLines: [
+      { y: 600, x0: 50, x1: 540 },
+      { y: 650, x0: 50, x1: 540 },
+      { y: 700, x0: 50, x1: 540 },
+    ],
+  });
+  assert.equal(karte.length, 2);
+  assert.equal(P.detectTableGrids(karte).length, 0); // nur 1 Spalte → keine Tabelle
+});
+
+test('cellsFromLines: Zwischenkante teilt Zelle (keine spaltenuebergreifende Riesenzelle)', () => {
+  const lines = {
+    vLines: [
+      { x: 70,  y0: 284, y1: 392 },
+      { x: 253, y0: 284, y1: 392 },
+      { x: 457, y0: 284, y1: 392 },
+    ],
+    hLines: [
+      { y: 284, x0: 70, x1: 457 },
+      { y: 392, x0: 70, x1: 457 },
+    ],
+  };
+  const cells = P.cellsFromLines(lines);
+  // Nur (70..253) und (253..457) – NICHT zusätzlich (70..457)
+  assert.equal(cells.length, 2);
+  assert.ok(cells.every(c => (c.x1 - c.x0) < 300));
+});
+
 // ── Tabellenmarker & HTML ──────────────────────────────────────
 test('assembleTable ordnet Items Zellen zu und baut Marker mit Formatflags', () => {
   const grid = P.detectTableGrids(GRID_BOXES)[0];

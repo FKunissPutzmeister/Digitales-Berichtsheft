@@ -198,32 +198,20 @@
     return segs;
   }
 
-  // → Bounding-Boxen GESTRICHENER Subpfade (Tabellen-Zellrahmen). Gegenstück
-  // zu decodeUnderlineSegments (das nur GEFÜLLTE Unterstreichungs-Rechtecke
-  // sammelt). Zellen im IHK-Export sind gestrichene (Rund-)Rechtecke; Linien
-  // (Separatoren) und flächige Container werden über die Größenfilter verworfen.
-  function decodeStrokedBoxes(fnArray, argsArray, OPS) {
+  // Läuft die Operatorliste ab und ruft cb mit der BBox jedes GESTRICHENEN
+  // Subpfads auf (Gerätekoordinaten). Gemeinsame Basis für decodeStrokedBoxes
+  // (geschlossene 2D-Zellboxen) und decodeStrokedLines (Kanten als Linien).
+  function eachStrokedSubpath(fnArray, argsArray, OPS, cb) {
     let ctm = [1, 0, 0, 1, 0, 0];
     const stack = [];
     let subpaths = [];
     let cur = null;
-    const boxes = [];
 
     function addPoint(x, y) {
       const p = matApply(ctm, x, y);
       if (!cur) { cur = { minX: p[0], minY: p[1], maxX: p[0], maxY: p[1] }; subpaths.push(cur); return; }
       cur.minX = Math.min(cur.minX, p[0]); cur.maxX = Math.max(cur.maxX, p[0]);
       cur.minY = Math.min(cur.minY, p[1]); cur.maxY = Math.max(cur.maxY, p[1]);
-    }
-    function flushStroke() {
-      for (const s of subpaths) {
-        const w = s.maxX - s.minX, h = s.maxY - s.minY;
-        // Plausible Zellgrößen (PDF-Punkte): schließt Separator-Linien
-        // (h≈0 bzw. w≈0) und den seitengroßen Karten-Container aus.
-        if (w >= 15 && w <= 520 && h >= 8 && h <= 500) {
-          boxes.push({ x0: s.minX, y0: s.minY, x1: s.maxX, y1: s.maxY });
-        }
-      }
     }
 
     for (let k = 0; k < fnArray.length; k++) {
@@ -249,10 +237,103 @@
           }
         }
       }
-      else if (fn === OPS.stroke || fn === OPS.closeStroke) { flushStroke(); subpaths = []; cur = null; }
+      else if (fn === OPS.stroke || fn === OPS.closeStroke) {
+        for (const s of subpaths) cb(s);
+        subpaths = []; cur = null;
+      }
       else if (fn === OPS.fill || fn === OPS.eoFill || fn === OPS.endPath) { subpaths = []; cur = null; }
     }
+  }
+
+  // → Bounding-Boxen GESTRICHENER Subpfade mit echter 2D-Ausdehnung
+  // (Zellen, die als geschlossener (Rund-)Rechteckpfad gezeichnet sind).
+  // Gegenstück zu decodeUnderlineSegments (das nur GEFÜLLTE Unterstreichungs-
+  // Rechtecke sammelt). Plausible Zellgrößen (PDF-Punkte): schließt Separator-
+  // Linien (h≈0 bzw. w≈0) und den seitengroßen Karten-Container aus.
+  function decodeStrokedBoxes(fnArray, argsArray, OPS) {
+    const boxes = [];
+    eachStrokedSubpath(fnArray, argsArray, OPS, s => {
+      const w = s.maxX - s.minX, h = s.maxY - s.minY;
+      if (w >= 15 && w <= 520 && h >= 8 && h <= 500) {
+        boxes.push({ x0: s.minX, y0: s.minY, x1: s.maxX, y1: s.maxY });
+      }
+    });
     return boxes;
+  }
+
+  // → degenerierte GESTRICHENE Subpfade (Dicke < 2pt) als Kantenlinien.
+  // Der echte IHK-Export zeichnet jede Zellkante als eigenen 2-Punkt-
+  // Linienzug – decodeStrokedBoxes verwirft genau diese; hier werden sie
+  // eingesammelt und von cellsFromLines zu Zellen rekonstruiert.
+  function decodeStrokedLines(fnArray, argsArray, OPS) {
+    const hLines = [], vLines = [];
+    eachStrokedSubpath(fnArray, argsArray, OPS, s => {
+      const w = s.maxX - s.minX, h = s.maxY - s.minY;
+      if (h < 2 && w >= 15)      hLines.push({ y: (s.minY + s.maxY) / 2, x0: s.minX, x1: s.maxX });
+      else if (w < 2 && h >= 8)  vLines.push({ x: (s.minX + s.maxX) / 2, y0: s.minY, y1: s.maxY });
+    });
+    return { hLines, vLines };
+  }
+
+  // Segmente einer Achse zu Kanten clustern (Position ±2.5pt), je Kante
+  // kollineare Läufe mergen (Lücke ≤ 4pt) – geteilte Kantenstücke benachbarter
+  // Zellen zählen so als eine durchgehende Kante.
+  function clusterEdges(segs, posKey, aKey, bKey) {
+    const edges = [];
+    for (const s of segs) {
+      let e = null;
+      for (const cand of edges) { if (Math.abs(cand.pos - s[posKey]) <= 2.5) { e = cand; break; } }
+      if (!e) { e = { pos: s[posKey], runs: [] }; edges.push(e); }
+      e.runs.push({ a: s[aKey], b: s[bKey] });
+    }
+    for (const e of edges) {
+      e.runs.sort((r, q) => r.a - q.a);
+      const merged = [];
+      for (const r of e.runs) {
+        const last = merged[merged.length - 1];
+        if (last && r.a <= last.b + 4) last.b = Math.max(last.b, r.b);
+        else merged.push({ a: r.a, b: r.b });
+      }
+      e.runs = merged;
+    }
+    edges.sort((e, f) => e.pos - f.pos);
+    return edges;
+  }
+
+  function edgeCovers(edge, from, to) {
+    return edge.runs.some(r => r.a <= from + 3 && r.b >= to - 3);
+  }
+
+  // Zellen aus dem Linienraster: Ein Paar vertikaler Kanten (links/rechts) ×
+  // ein Paar horizontaler Kanten (unten/oben) bildet eine Zelle, wenn alle
+  // vier Kanten die jeweilige Spanne abdecken und keine weitere Kante die
+  // Fläche teilt (sonst entstünden spalten-/zeilenübergreifende Riesenzellen).
+  function cellsFromLines(lines) {
+    const vEdges = clusterEdges((lines && lines.vLines) || [], 'x', 'y0', 'y1');
+    const hEdges = clusterEdges((lines && lines.hLines) || [], 'y', 'x0', 'x1');
+    const cells = [];
+    for (let a = 0; a < vEdges.length; a++) {
+      for (let b = a + 1; b < vEdges.length; b++) {
+        const xL = vEdges[a].pos, xR = vEdges[b].pos, w = xR - xL;
+        if (w < 15) continue;
+        if (w > 520) break;
+        for (let c = 0; c < hEdges.length; c++) {
+          for (let d = c + 1; d < hEdges.length; d++) {
+            const y0 = hEdges[c].pos, y1 = hEdges[d].pos, h = y1 - y0;
+            if (h < 8) continue;
+            if (h > 500) break;
+            if (!edgeCovers(vEdges[a], y0, y1) || !edgeCovers(vEdges[b], y0, y1)) continue;
+            if (!edgeCovers(hEdges[c], xL, xR) || !edgeCovers(hEdges[d], xL, xR)) continue;
+            const splitV = vEdges.some(e => e.pos > xL + 2 && e.pos < xR - 2 && edgeCovers(e, y0 + 2, y1 - 2));
+            if (splitV) continue;
+            const splitH = hEdges.some(e => e.pos > y0 + 2 && e.pos < y1 - 2 && edgeCovers(e, xL + 2, xR - 2));
+            if (splitH) continue;
+            cells.push({ x0: xL, y0: y0, x1: xR, y1: y1 });
+          }
+        }
+      }
+    }
+    return cells;
   }
 
   // ── Tabellen-Gitter aus Zellboxen ──────────────────────────────
@@ -631,6 +712,8 @@
     assembleTable,
     decodeUnderlineSegments,
     decodeStrokedBoxes,
+    decodeStrokedLines,
+    cellsFromLines,
     detectTableGrids,
     gridContaining,
     matchUnderline,

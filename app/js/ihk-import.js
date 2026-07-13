@@ -229,7 +229,9 @@ const IhkImport = (() => {
         const opList = await page.getOperatorList();
         underlines = IhkParser.decodeUnderlineSegments(opList.fnArray, opList.argsArray, pdfjsLib.OPS);
         grids = IhkParser.detectTableGrids(
-          IhkParser.decodeStrokedBoxes(opList.fnArray, opList.argsArray, pdfjsLib.OPS));
+          IhkParser.decodeStrokedBoxes(opList.fnArray, opList.argsArray, pdfjsLib.OPS).concat(
+            IhkParser.cellsFromLines(
+              IhkParser.decodeStrokedLines(opList.fnArray, opList.argsArray, pdfjsLib.OPS))));
       } catch (e) {
         console.warn(`[IhkImport] getOperatorList Seite ${p} fehlgeschlagen:`, e);
       }
