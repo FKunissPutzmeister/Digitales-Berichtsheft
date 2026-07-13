@@ -107,6 +107,13 @@
   animation: fadeIn var(--t-normal) both;
 }
 .day-card:hover { box-shadow: var(--shadow-md); }
+/* Hinweis T13: .day-card wird von KEINEM aktuellen Template mehr erzeugt
+   (nur .day-card__select/__footer/__char-count leben als geteilte
+   Utility-Klassen in .tag-row weiter, s. app/js/wochenansicht.js) – die
+   Tagesansicht rendert stattdessen .tag-row. Der reale Fix für das
+   Stacking-Problem (schwebende Tabellen-Popups von quill-table-better werden
+   von nachfolgenden Tageskarten übermalt) sitzt daher unten bei .tag-row,
+   nicht hier. */
 .day-card.has-entry { border-color: var(--pm-grey-300); }
 .day-card.status-genehmigt { border-left: 4px solid var(--color-success); }
 .day-card.status-abgelehnt { border-left: 4px solid var(--color-error); }
@@ -661,6 +668,30 @@ html[data-skin="silk"] body[data-page="wochenansicht"] .day-section .ql-editor {
   animation: fadeIn var(--t-normal) both;
   transition: border-color var(--t-fast), box-shadow var(--t-fast);
   contain: layout style;
+}
+/* T13: die aktive Wochen-Kachel über die nachfolgende Stunden-Tabelle
+   (.wochen-tage-tabelle bzw. .tag-row--compact-Zeilen, ebenfalls kein
+   eigenes z-index) heben, damit die schwebenden Tabellen-Popups von
+   quill-table-better (Menüleiste, Dropdowns, Tabelleneigenschaften-Dialog)
+   nicht von ihnen übermalt werden. `contain: layout style` oben bleibt
+   unverändert (kein Paint-Containment, blockiert das Anheben live
+   nachweislich nicht).
+   :has() zusätzlich zu :focus-within, weil quill-table-better beim Öffnen
+   von Menüleiste/Dropdown-Liste/Eigenschaften-Dialog selbst blur() auf den
+   Editor aufruft – document.activeElement springt auf <body>, live per
+   Playwright verifiziert. :focus-within würde daher genau im gemeldeten
+   Moment ("beim Aufklappen") NICHT greifen, sondern erst sobald der Nutzer
+   zusätzlich ein Eingabefeld im Dialog anklickt. .ql-table-menus-container
+   bekommt vom Plugin die Klasse ql-hidden, wenn keine Zelle ausgewählt ist
+   oder der Eigenschaften-Dialog offen ist; .ql-table-properties-form ist nur
+   im DOM vorhanden, während der Dialog offen ist. :focus-within bleibt als
+   zusätzliche Absicherung (z.B. während der Nutzer in einem Dialogfeld
+   tippt). Gleiche Begründung unten bei .tag-row (Tagesansicht). */
+.wochen-kachel:focus-within,
+.wochen-kachel:has(.ql-table-menus-container:not(.ql-hidden)),
+.wochen-kachel:has(.ql-table-properties-form) {
+  position: relative;
+  z-index: var(--z-sticky, 10);
 }
 /* Stunden-Tabelle: einzelne Zeile mit fehlender Anwesenheit/Stunden im
    wöchentlich-Format markieren. */
@@ -1744,6 +1775,25 @@ body[data-page="wochenansicht"] .tag-row {
   /* Offset für scrollIntoView, damit die aufgeklappte Kachel nicht hinter
      der sticky Topbar landet (auto-Aufklappen bei Ort-Wahl). */
   scroll-margin-top: calc(var(--topbar-h) + var(--sp-4));
+}
+/* T13: .tag-row ist die tatsächlich zur Laufzeit gerenderte Tageskarte
+   (Tagesansicht: volle Karte mit day-sections/Quill-Editor; Wochenansicht:
+   .tag-row--compact-Anwesenheitszeilen unter der .wochen-kachel – siehe
+   app/js/wochenansicht.js). `.day-card` weiter oben in dieser Datei wird von
+   keinem Template mehr erzeugt (nur .day-card__select/__footer als geteilte
+   Utility-Klassen leben weiter) – der reale Fix für die Tagesansicht muss
+   daher hier ansetzen. .tag-row hat bereits position:relative (s.o.), aber
+   kein eigenes z-index → gleiche Paint-Reihenfolge-Problematik wie bei
+   .wochen-kachel: nachfolgende .tag-row-Geschwister (später im DOM, ebenfalls
+   position:relative ohne z-index) übermalen die schwebenden Tabellen-Popups
+   der AKTIVEN Zeile. Nur die aktive Zeile anheben; :has() zusätzlich zu
+   :focus-within aus demselben Grund wie bei .wochen-kachel oben (quill-
+   table-better blurt den Editor beim Öffnen von Menüleiste/Dropdown/
+   Eigenschaften-Dialog – ausführliche Begründung dort). */
+body[data-page="wochenansicht"] .tag-row:focus-within,
+body[data-page="wochenansicht"] .tag-row:has(.ql-table-menus-container:not(.ql-hidden)),
+body[data-page="wochenansicht"] .tag-row:has(.ql-table-properties-form) {
+  z-index: var(--z-sticky, 10);
 }
 body[data-page="wochenansicht"] .tag-row:hover {
   /* Sanfterer Hover: nur halb so starker Rahmen-Wechsel wie grey-300. */
