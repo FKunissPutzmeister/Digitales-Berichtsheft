@@ -5,7 +5,7 @@ const path = require('path');
 const os = require('os');
 const session = require('express-session');
 const FileStore = require('session-file-store')(session);
-const { bestEffortTouch } = require('./services/session-store');
+const { hardenWrites } = require('./services/session-store');
 const { devAuth, DEV_AUTH_ENABLED } = require('./middleware/auth');
 
 const app = express();
@@ -47,15 +47,14 @@ app.use(express.urlencoded({ extended: false }));
 // änderung und lädt die Seite im Dauertakt neu (Flackern/Spam-Refresh).
 const SESSION_DIR = path.join(os.tmpdir(), 'berichtsheft-sessions');
 app.use(session({
-  // bestEffortTouch: der per-Request TTL-Bump (store.touch) schreibt die
-  // Session-Datei komplett neu (atomares Rename). Unter Windows kollidieren
-  // parallele Renames auf dieselbe Datei sporadisch mit EPERM; da der
-  // Schreibpfad von session-file-store KEINE Retries hat, würde express-session
-  // den Fehler an den globalen Handler durchreichen (spammt den Fehlerbericht
-  // bei jedem Reiterwechsel). Ein fehlgeschlagener TTL-Bump ist harmlos → wir
-  // schlucken ihn. Echte Schreibfehler (set) bleiben sichtbar. Siehe
-  // services/session-store.js.
-  store: bestEffortTouch(new FileStore({
+  // hardenWrites: session-file-store hat NUR beim Lesen (get) Retries — der
+  // Schreibpfad (set/touch) nicht. Unter Windows kollidiert das atomare Rename
+  // sporadisch mit einem Datei-Lock (EPERM); der per-Request TTL-Bump (touch)
+  // wurde dadurch als [unhandled] in den Fehlerbericht gespammt (ein
+  // Reiterwechsel feuert mehrere Requests parallel). hardenWrites versieht
+  // set/touch mit Retries und schluckt einen endgültigen touch-Fehler (harmlos,
+  // reiner TTL-Bump). Siehe services/session-store.js.
+  store: hardenWrites(new FileStore({
     path: SESSION_DIR,
     ttl: 60 * 60 * 24 * 7,   // 7 Tage (in Sekunden)
     // Windows: das atomare Rename beim Session-Schreiben kollidiert sporadisch

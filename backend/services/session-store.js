@@ -1,33 +1,53 @@
 'use strict';
 
-// Macht das `touch` eines Session-Stores best-effort (schluckt Fehler).
+// Härtet den Schreibpfad eines session-file-store gegen Windows-EPERM ab.
 //
-// Hintergrund: express-session ruft bei JEDEM Request einer bestehenden,
-// unveränderten Session `store.touch()` auf, um nur die Ablaufzeit (TTL) zu
-// verlängern. session-file-store schreibt dafür die komplette Session-Datei
-// neu — Temp-Datei + atomares Rename. Unter Windows kollidieren mehrere
-// PARALLELE Renames auf DIESELBE Session-Datei sporadisch mit `EPERM`
-// (ein Reiterwechsel feuert gleich mehrere API-Requests parallel). Anders als
-// der Lesepfad `get()` hat der Schreibpfad von session-file-store KEINE Retries
-// (die `retries`-Option greift nur bei `get`), der Fehler landet daher via
-// `defer(next, err)` (express-session/index.js) im globalen Fehler-Handler und
-// wird als `[unhandled]` (Schweregrad „hoch") protokolliert → der Fehlerbericht
-// wird bei jedem Reiterwechsel zugespammt.
+// Hintergrund: session-file-store schreibt Sessions atomar (Temp-Datei +
+// Rename). Unter Windows kollidiert das Rename sporadisch mit einem
+// kurzzeitigen Datei-Lock (Virenscanner, Such-Indexer, paralleler Zugriff) →
+// `EPERM`/`EBUSY`/`EACCES`. Der Store hat NUR beim Lesen (`get`) Retries; der
+// Schreibpfad (`set`/`touch`) hat KEINE. express-session ruft aber bei JEDEM
+// Request einer bestehenden Session `store.touch()` (TTL-Bump) und leitet einen
+// Fehler via `defer(next, err)` an den globalen Handler → protokolliert als
+// `[unhandled]` (Schweregrad „hoch"). Ein Reiterwechsel feuert mehrere
+// Requests parallel → mehrere Renames auf dieselbe Datei → Fehler-Spam.
 //
-// Ein fehlgeschlagenes `touch` ist harmlos: es verlängert nur die TTL, die
-// Session-DATEN liegen bereits unverändert auf der Platte (echte Änderungen
-// laufen über `set`, nicht `touch`). Wir schlucken den Fehler daher, statt ihn
-// zum Request-Fehler zu eskalieren. Echte Schreibfehler (`set`) bleiben
-// unangetastet und weiterhin sichtbar.
-function bestEffortTouch(store) {
-  const original = store && store.touch;
-  if (typeof original !== 'function') return store;
-  store.touch = function (sessionId, session, callback) {
-    original.call(store, sessionId, session, function (_err, result) {
-      if (callback) callback(null, result);
-    });
+// Lösung: den Schreibpfad selbst mit Retries versehen (analog zur `get`-Logik,
+// die es schon gibt). `touch` ist reiner TTL-Bump — schlägt es endgültig fehl,
+// wird der Fehler geschluckt (harmlos: die Session-Daten liegen unverändert auf
+// der Platte). `set` (echte Speicherungen: Login, Dev-View-Umschaltung) wird
+// ebenfalls wiederholt, ein endgültiger Fehler aber DURCHGEREICHT — dort ist er
+// echt und die vorhandene Fehlerbehandlung (z.B. saml.js) soll ihn sehen.
+
+// Vorübergehende, wiederholbare Datei-Fehler (Windows-Lock-Kollisionen).
+const TRANSIENT = new Set(['EPERM', 'EBUSY', 'EACCES', 'EEXIST']);
+
+function retryWrite(store, method, { retries, delayMs, swallow }) {
+  const original = store && store[method];
+  if (typeof original !== 'function') return;
+  store[method] = function (sessionId, session, callback) {
+    let attempt = 0;
+    const run = () => {
+      original.call(store, sessionId, session, (err, result) => {
+        if (err && TRANSIENT.has(err.code) && attempt < retries) {
+          attempt += 1;
+          // linear ansteigende Wartezeit gibt dem Lock Zeit, sich zu lösen.
+          setTimeout(run, delayMs * attempt);
+          return;
+        }
+        if (callback) callback(swallow ? null : err, result);
+      });
+    };
+    run();
   };
+}
+
+// Versieht `set` und `touch` des Stores mit Schreib-Retries. `touch` schluckt
+// einen endgültigen Fehler (best effort), `set` reicht ihn durch.
+function hardenWrites(store, { retries = 5, delayMs = 40 } = {}) {
+  retryWrite(store, 'set',   { retries, delayMs, swallow: false });
+  retryWrite(store, 'touch', { retries, delayMs, swallow: true });
   return store;
 }
 
-module.exports = { bestEffortTouch };
+module.exports = { hardenWrites, TRANSIENT };

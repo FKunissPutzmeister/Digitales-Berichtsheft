@@ -1,32 +1,63 @@
 'use strict';
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { bestEffortTouch } = require('./session-store.js');
+const { hardenWrites } = require('./session-store.js');
 
-test('bestEffortTouch: schluckt Fehler des Touch-Callbacks (kein Weiterreichen)', () => {
-  const store = {
-    touch(id, sess, cb) { cb(new Error("EPERM: operation not permitted, rename '…json.123' -> '…json'")); },
+// Hilfs-Store: `set`/`touch` scheitern die ersten `failTimes` Aufrufe mit dem
+// gegebenen Code, danach Erfolg. Zählt die Aufrufe.
+function makeStore({ failTimes = 0, code = 'EPERM' } = {}) {
+  const calls = { set: 0, touch: 0 };
+  const impl = (name) => (id, sess, cb) => {
+    calls[name] += 1;
+    if (calls[name] <= failTimes) {
+      const e = new Error(`${code}: rename …`); e.code = code; return cb(e);
+    }
+    cb(null, { ok: name });
   };
-  bestEffortTouch(store);
-  let received = 'nicht-aufgerufen';
-  store.touch('sid', {}, (err) => { received = err; });
-  assert.equal(received, null, 'Touch-Fehler darf nicht an express-session durchgereicht werden');
+  return { store: { set: impl('set'), touch: impl('touch') }, calls };
+}
+
+test('hardenWrites: touch wird bei EPERM wiederholt und läuft dann durch', async () => {
+  const { store, calls } = makeStore({ failTimes: 2 });
+  hardenWrites(store, { delayMs: 1 });
+  const err = await new Promise((res) => store.touch('sid', {}, res));
+  assert.equal(err, null);
+  assert.equal(calls.touch, 3, 'zwei Fehlversuche + ein Erfolg');
 });
 
-test('bestEffortTouch: reicht Erfolg (Ergebnis) durch', () => {
-  const store = {
-    touch(id, sess, cb) { cb(null, { ok: true }); },
-  };
-  bestEffortTouch(store);
-  let out;
-  store.touch('sid', {}, (err, result) => { out = { err, result }; });
-  assert.equal(out.err, null);
-  assert.deepEqual(out.result, { ok: true });
+test('hardenWrites: touch schluckt endgültigen Fehler (best effort)', async () => {
+  const { store, calls } = makeStore({ failTimes: 99 });
+  hardenWrites(store, { retries: 3, delayMs: 1 });
+  const err = await new Promise((res) => store.touch('sid', {}, res));
+  assert.equal(err, null, 'touch-Fehler darf NICHT an express-session gehen');
+  assert.equal(calls.touch, 4, 'Erstversuch + 3 Retries');
 });
 
-test('bestEffortTouch: ohne touch-Methode unverändert', () => {
-  const store = { set() {} };
-  const same = bestEffortTouch(store);
-  assert.equal(same, store);
-  assert.equal(typeof store.touch, 'undefined');
+test('hardenWrites: set wird wiederholt und läuft bei Erfolg durch', async () => {
+  const { store, calls } = makeStore({ failTimes: 1 });
+  hardenWrites(store, { delayMs: 1 });
+  const out = await new Promise((res) => store.set('sid', {}, (e, r) => res({ e, r })));
+  assert.equal(out.e, null);
+  assert.deepEqual(out.r, { ok: 'set' });
+  assert.equal(calls.set, 2);
+});
+
+test('hardenWrites: set reicht endgültigen Fehler DURCH (nicht schlucken)', async () => {
+  const { store } = makeStore({ failTimes: 99 });
+  hardenWrites(store, { retries: 2, delayMs: 1 });
+  const err = await new Promise((res) => store.set('sid', {}, res));
+  assert.ok(err, 'echter Speicherfehler muss sichtbar bleiben');
+  assert.equal(err.code, 'EPERM');
+});
+
+test('hardenWrites: nicht-transienter Fehler wird nicht wiederholt', async () => {
+  const { store, calls } = makeStore({ failTimes: 99, code: 'EINVAL' });
+  hardenWrites(store, { retries: 5, delayMs: 1 });
+  await new Promise((res) => store.touch('sid', {}, res));
+  assert.equal(calls.touch, 1, 'EINVAL ist kein Lock-Konflikt → kein Retry');
+});
+
+test('hardenWrites: ohne set/touch unverändert', () => {
+  const store = { get() {} };
+  assert.equal(hardenWrites(store), store);
 });
