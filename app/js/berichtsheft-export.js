@@ -36,7 +36,10 @@ const BerichtsheftExport = (() => {
   // blind escapen (sonst würde getipptes & als &amp;amp; doppelt escaped).
   // Nur Whitelist-Tags behalten, alle Attribute verwerfen, Textknoten genau
   // einmal escapen. DOMParser führt kein Skript aus.
-  const RICH_ALLOWED = new Set(['p', 'br', 'strong', 'em', 'u', 'b', 'i', 'ul', 'ol', 'li', 'span']);
+  const RICH_ALLOWED = new Set([
+    'p', 'br', 'strong', 'em', 'u', 'b', 'i', 'ul', 'ol', 'li', 'span',
+    'table', 'thead', 'tbody', 'tr', 'th', 'td',
+  ]);
   function serializeAllowed(node) {
     let out = '';
     node.childNodes.forEach(n => {
@@ -467,6 +470,9 @@ const BerichtsheftExport = (() => {
   .logo { width:45mm; height:auto; display:block; }
   .doktitel { font-family:'Libre Franklin','Segoe UI',Arial,sans-serif; font-weight:700; font-size:16pt; margin-top:4mm; }
   table { border-collapse:collapse; width:100%; }
+  .richtext table { border-collapse:collapse; width:100%; margin:2pt 0; }
+  .richtext th, .richtext td { border:0.6pt solid #999; padding:2pt 5pt; vertical-align:top; }
+  .richtext tr { page-break-inside:avoid; }
   .stamm { margin:5mm 0 3mm; }
   .inhalt { }
   .bestaetigung { margin-top:6mm; }
