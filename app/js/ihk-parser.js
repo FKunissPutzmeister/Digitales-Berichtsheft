@@ -168,6 +168,63 @@
     return segs;
   }
 
+  // → Bounding-Boxen GESTRICHENER Subpfade (Tabellen-Zellrahmen). Gegenstück
+  // zu decodeUnderlineSegments (das nur GEFÜLLTE Unterstreichungs-Rechtecke
+  // sammelt). Zellen im IHK-Export sind gestrichene (Rund-)Rechtecke; Linien
+  // (Separatoren) und flächige Container werden über die Größenfilter verworfen.
+  function decodeStrokedBoxes(fnArray, argsArray, OPS) {
+    let ctm = [1, 0, 0, 1, 0, 0];
+    const stack = [];
+    let subpaths = [];
+    let cur = null;
+    const boxes = [];
+
+    function addPoint(x, y) {
+      const p = matApply(ctm, x, y);
+      if (!cur) { cur = { minX: p[0], minY: p[1], maxX: p[0], maxY: p[1] }; subpaths.push(cur); return; }
+      cur.minX = Math.min(cur.minX, p[0]); cur.maxX = Math.max(cur.maxX, p[0]);
+      cur.minY = Math.min(cur.minY, p[1]); cur.maxY = Math.max(cur.maxY, p[1]);
+    }
+    function flushStroke() {
+      for (const s of subpaths) {
+        const w = s.maxX - s.minX, h = s.maxY - s.minY;
+        // Plausible Zellgrößen (PDF-Punkte): schließt Separator-Linien
+        // (h≈0 bzw. w≈0) und den seitengroßen Karten-Container aus.
+        if (w >= 15 && w <= 520 && h >= 8 && h <= 500) {
+          boxes.push({ x0: s.minX, y0: s.minY, x1: s.maxX, y1: s.maxY });
+        }
+      }
+    }
+
+    for (let k = 0; k < fnArray.length; k++) {
+      const fn = fnArray[k], a = argsArray[k];
+      if (fn === OPS.save) stack.push(ctm.slice());
+      else if (fn === OPS.restore) ctm = stack.pop() || [1, 0, 0, 1, 0, 0];
+      else if (fn === OPS.transform) ctm = matMul(ctm, a);
+      else if (fn === OPS.constructPath) {
+        const ops = a[0], c = a[1];
+        let i = 0;
+        for (const op of ops) {
+          if (op === OPS.moveTo)      { cur = null; addPoint(c[i], c[i+1]); i += 2; }
+          else if (op === OPS.lineTo) { addPoint(c[i], c[i+1]); i += 2; }
+          else if (op === OPS.curveTo) {
+            addPoint(c[i], c[i+1]); addPoint(c[i+2], c[i+3]); addPoint(c[i+4], c[i+5]); i += 6;
+          }
+          else if (op === OPS.rectangle) {
+            cur = null;
+            addPoint(c[i], c[i+1]);
+            addPoint(c[i] + c[i+2], c[i+1] + c[i+3]);
+            cur = null;
+            i += 4;
+          }
+        }
+      }
+      else if (fn === OPS.stroke || fn === OPS.closeStroke) { flushStroke(); subpaths = []; cur = null; }
+      else if (fn === OPS.fill || fn === OPS.eoFill || fn === OPS.endPath) { subpaths = []; cur = null; }
+    }
+    return boxes;
+  }
+
   // Liegt eine Unterstreichungs-Linie knapp unter der Baseline und ~ textbreit?
   function matchUnderline(item, segs) {
     // Toleranzen in PDF-Punkten, empirisch am IHK-Export kalibriert: Linie sitzt
@@ -437,6 +494,7 @@
     assembleLine,
     linesToHtml,
     decodeUnderlineSegments,
+    decodeStrokedBoxes,
     matchUnderline,
     // Für direkte Node-Tests exportiert:
     _ddmmyyyyToISO: ddmmyyyyToISO,

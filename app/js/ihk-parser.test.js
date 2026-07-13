@@ -74,6 +74,51 @@ test('matchUnderline verwirft zu breite Tabellenlinie', () => {
     [{ y: 684, x0: 298, x1: 539 }]), false);
 });
 
+// ── Zellrahmen-Geometrie (Tabellen) ────────────────────────────
+test('decodeStrokedBoxes findet gestrichenes Rechteck (rectangle-Op)', () => {
+  const boxes = P.decodeStrokedBoxes(
+    [OPS.constructPath, OPS.stroke],
+    [ [ [OPS.rectangle], [50, 700, 90, 30] ], null ], OPS);
+  assert.equal(boxes.length, 1);
+  assert.deepEqual(boxes[0], { x0: 50, y0: 700, x1: 140, y1: 730 });
+});
+
+test('decodeStrokedBoxes findet Subpfad aus moveTo/lineTo/curveTo (abgerundete Zelle)', () => {
+  // Rechteck-ähnlicher Pfad mit Kurvenecken → BBox über alle Punkte
+  const boxes = P.decodeStrokedBoxes(
+    [OPS.constructPath, OPS.stroke],
+    [ [ [OPS.moveTo, OPS.lineTo, OPS.curveTo, OPS.lineTo],
+        [55, 700,  135, 700,  140, 700, 140, 705, 140, 710,  140, 730] ], null ], OPS);
+  assert.equal(boxes.length, 1);
+  assert.equal(boxes[0].x0, 55);
+  assert.equal(boxes[0].x1, 140);
+  assert.equal(boxes[0].y0, 700);
+  assert.equal(boxes[0].y1, 730);
+});
+
+test('decodeStrokedBoxes ignoriert Linien (degeneriert) und gefuellte Pfade', () => {
+  // 0-hohe gestrichene Linie (Header-Separator) → raus
+  assert.equal(P.decodeStrokedBoxes(
+    [OPS.constructPath, OPS.stroke],
+    [ [ [OPS.rectangle], [57, 736, 241, 0] ], null ], OPS).length, 0);
+  // gefuelltes Rechteck (blaue Tagesleiste) → raus
+  assert.equal(P.decodeStrokedBoxes(
+    [OPS.constructPath, OPS.fill],
+    [ [ [OPS.rectangle], [50, 700, 90, 30] ], null ], OPS).length, 0);
+  // Seitengrosser Container (w>520) → raus
+  assert.equal(P.decodeStrokedBoxes(
+    [OPS.constructPath, OPS.stroke],
+    [ [ [OPS.rectangle], [30, 100, 540, 700] ], null ], OPS).length, 0);
+});
+
+test('decodeStrokedBoxes wendet CTM-Transform an', () => {
+  const boxes = P.decodeStrokedBoxes(
+    [OPS.transform, OPS.constructPath, OPS.stroke],
+    [ [2, 0, 0, 2, 10, 10], [ [OPS.rectangle], [20, 20, 40, 10] ], null ], OPS);
+  assert.equal(boxes.length, 1);
+  assert.deepEqual(boxes[0], { x0: 50, y0: 50, x1: 130, y1: 70 });
+});
+
 // ── State-Machine: Kernbug (Multi-Page + Qualifikationen) ──────
 test('mehrseitige Woche: alle 5 Tage trotz Qualifikationen-Block & Seitenumbruch', () => {
   const page1 = [
