@@ -40,11 +40,23 @@
     return Math.round((new Date(isoEnd + 'T00:00:00') - new Date(isoStart + 'T00:00:00')) / 86400000);
   }
 
+  // IHK-Quellstatus → interner Status. WICHTIG: In der IHK-Quelle heißt es, der
+  // Azubi „reicht ein" (eingereicht) und die/der Ausbilder:in „gibt frei"
+  // (freigegeben) – „freigegeben" bedeutet dort also ABGENOMMEN/genehmigt.
+  // Bei uns ist 'freigegeben' hingegen „vom Azubi abgegeben, wartet noch auf
+  // Prüfung" und 'genehmigt' = abgenommen. Deshalb:
+  //   „… freigegeben." / „genehmigt" / „akzeptiert"  → 'genehmigt'
+  //   „eingereicht" (nur abgegeben, keine Ausbilder-Freigabe) → 'freigegeben'
+  //   „abgelehnt" / „zurückgewiesen" / „zurückgegeben"        → 'abgelehnt'
+  //   „In Bearbeitung" / nichts erkannt                        → 'offen'
+  // Reihenfolge: Ablehnung zuerst (überstimmt eine frühere Freigabe), dann die
+  // Abnahme (deren Text „Eingereicht … freigegeben" auch „eingereicht" enthält,
+  // daher VOR der Abgabe-Prüfung), zuletzt die reine Abgabe.
   function mapStatus(text) {
     const t = String(text || '').toLowerCase();
-    if (/genehmigt/.test(t))                          return 'genehmigt';
-    if (/freigegeben|eingereicht|vom azubi/.test(t))  return 'freigegeben';
-    if (/abgelehnt|zur[üu]ckgegeben/.test(t))         return 'abgelehnt';
+    if (/abgelehnt|zur[üu]ckgewiesen|zur[üu]ckgegeben/.test(t)) return 'abgelehnt';
+    if (/freigegeben|genehmigt|akzeptiert/.test(t))            return 'genehmigt';
+    if (/eingereicht|vom azubi/.test(t))                       return 'freigegeben';
     return 'offen';
   }
 
@@ -498,8 +510,59 @@
     return out;
   }
 
+  // Manche IHK-Exporte rahmen den KOMPLETTEN Wochentext als Tabelle – dann
+  // stecken die Abschnitts-Überschriften („Schule:" / „Betrieb:" /
+  // „Unterweisung:") samt Inhalt IN einer Tabellenzelle statt als eigene
+  // Zeilen. Die section-basierte Zuordnung in parseWeekBody liefe dann leer
+  // (betriebText/schuleText blieben trotz vorhandenem Inhalt leer, s. echter
+  // Fall KW21/2026). Solche „Container-Tabellen" werden hier wieder in ihre
+  // Einzelzeilen zerlegt (Reihenfolge + Format-Marker erhalten), sodass die
+  // normale Zeilenlogik greift. ECHTE Inhaltstabellen (z. B. BWL|Prokura)
+  // tragen KEINE Abschnitts-Labels und bleiben unangetastet (→ <table>).
+  const SECTION_LABEL_RE = /^(Schule|Betrieb|Unterweisung):/i;
+
+  function decodeTableRows(line) {
+    const s = String(line);
+    if (s.charAt(0) !== '\x04' || s.charAt(s.length - 1) !== '\x05') return null;
+    try {
+      const rows = JSON.parse(s.slice(1, -1));
+      if (Array.isArray(rows) && rows.length && rows.every(Array.isArray)) return rows;
+    } catch (e) { /* defekter Marker → nicht zerlegen */ }
+    return null;
+  }
+
+  function isSectionContainerTable(rows) {
+    return rows.some(row => row.some(cell =>
+      SECTION_LABEL_RE.test(strip(String(cell)).trim())));
+  }
+
+  function expandSectionTables(lines) {
+    const out = [];
+    for (const line of lines) {
+      const rows = (String(line).charAt(0) === '\x04') ? decodeTableRows(line) : null;
+      if (rows && isSectionContainerTable(rows)) {
+        // Zellen in Lesereihenfolge (Zeile für Zeile) zu Einzelzeilen auflösen;
+        // Zellinhalt ist per \n gegliedert (inkl. der Abschnitts-Überschrift als
+        // erster Zeile). Format-Marker bleiben erhalten.
+        for (const row of rows) {
+          for (const cell of row) {
+            const c = String(cell);
+            if (!c.trim()) continue;
+            for (const sub of c.split('\n')) {
+              if (sub.trim()) out.push(sub);
+            }
+          }
+        }
+      } else {
+        out.push(line);
+      }
+    }
+    return out;
+  }
+
   // Einen Wochen-Block parsen (Zeilen einer Woche, Marker erhalten).
   function parseWeekBody(startDate, endDate, lines, status, warnungen) {
+    lines = expandSectionTables(lines);
     let skipQuali   = false;
     let textSection = null; // null | 'schule' | 'betrieb' | 'unterweisung'
     const rawByDatum = {};

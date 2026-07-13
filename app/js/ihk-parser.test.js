@@ -221,7 +221,8 @@ test('mehrseitige Woche: alle 5 Tage trotz Qualifikationen-Block & Seitenumbruch
   assert.equal(byTag.Mi.stunden, 7.42);
   assert.equal(byTag.Do.ort, 'Betrieb');
   assert.equal(byTag.Fr.stunden, 7);
-  assert.equal(w.status, 'freigegeben');
+  // „… vom Ausbilder freigegeben" = abgenommen → intern 'genehmigt'.
+  assert.equal(w.status, 'genehmigt');
   // Formatierung durchgereicht:
   assert.match(w.schuleText, /<strong><u>Dienstag:<\/u><\/strong>/);
   assert.match(w.schuleText, /<strong>GK:<\/strong> Sachmängel/);
@@ -256,8 +257,37 @@ test('Status wird der richtigen Woche zugeordnet (steht vor dem Marker)', () => 
   ].join('\n');
   const res = P.parse([page]);
   assert.equal(res.wochen.length, 2);
-  assert.equal(wByKw(res, 2).status, 'freigegeben');
+  assert.equal(wByKw(res, 2).status, 'genehmigt'); // „… freigegeben." = abgenommen
   assert.equal(wByKw(res, 3).status, 'abgelehnt');
+});
+
+test('mapStatus: IHK-Quellstatus → interner Status (Abnahme vs. reine Abgabe)', () => {
+  // Drei Wochen mit den drei realen IHK-Statusformulierungen (echte Vorlage:
+  // „in Prüfung" = nur eingereicht, „akzeptiert" = eingereicht + freigegeben,
+  // „in Bearbeitung" = offen).
+  const page = [
+    'Ausbilder Status',
+    'Weber, Anja Eingereicht am 01.10.2025.',          // nur abgegeben → freigegeben
+    'Ausbildungswoche 06.01.2025 bis 12.01.2025',
+    'Mo | 06.01.2025 | Betrieb | anwesend 08:00',
+    'Qualifikationen:',
+    '- Irgendwas',
+    'Ausbilder Status',
+    'Weber, Anja Eingereicht am 01.10.2025. Von Ausbilder:in Anja',
+    'Weber am 05.10.2025 freigegeben.',                // abgenommen → genehmigt
+    'Ausbildungswoche 13.01.2025 bis 19.01.2025',
+    'Mo | 13.01.2025 | Betrieb | anwesend 08:00',
+    'Qualifikationen:',
+    '- Irgendwas',
+    'Ausbilder Status',
+    'In Bearbeitung.',                                  // noch offen
+    'Ausbildungswoche 20.01.2025 bis 26.01.2025',
+    'Mo | 20.01.2025 | Betrieb | anwesend 08:00',
+  ].join('\n');
+  const res = P.parse([page]);
+  assert.equal(wByKw(res, 2).status, 'freigegeben');
+  assert.equal(wByKw(res, 3).status, 'genehmigt');
+  assert.equal(wByKw(res, 4).status, 'offen');
 });
 
 test('Betrieb + Schule am selben Tag → Ort Betrieb/Schule, Stunden summiert', () => {
@@ -554,6 +584,50 @@ test('parse (Wochenbasis): Tabellenmarker im Schule-Block landet als <table> in 
   assert.ok(w.schuleText.includes('<table><tbody>'));
   assert.ok(w.schuleText.includes('<td><p>BWL</p></td>'));
   assert.equal(w.betriebText, '<p>Poststelle sortiert</p>');
+});
+
+test('parse (Wochenbasis): als Tabelle gerahmter Wochentext → Abschnitte korrekt zugeordnet', () => {
+  // Echter Fehlerfall (KW21/2026): Manche IHK-Exporte rahmen den KOMPLETTEN
+  // Wochentext als Tabelle – „Schule:"/„Betrieb:" stecken dann samt Inhalt in
+  // EINER Zelle. Der Inhalt muss trotzdem in schuleText/betriebText landen
+  // (nicht als <table>, nicht verloren).
+  const marker = T + JSON.stringify([
+    ['Schule/Betrieb'],
+    ['Schule:\nBWL • Projektpräsentation\nGK • Beitritt zur EU'],
+    ['Betrieb:\nAbteilung: Marketing\n• Globales Marketing'],
+  ]) + TE;
+  const page = [
+    'Ausbildungswoche 18.05.2026 bis 24.05.2026',
+    marker,
+    'Unterweisung:',
+    'Sicherheitsunterweisung',
+    'Mo | 18.05.2026 | Betrieb | anwesend 07:00',
+  ].join('\n');
+  const res = P.parse([page]);
+  assert.equal(res.wochen.length, 1);
+  const w = res.wochen[0];
+  assert.match(w.schuleText, /Projektpräsentation/);
+  assert.match(w.schuleText, /Beitritt zur EU/);
+  assert.doesNotMatch(w.schuleText, /<table>/);   // Container-Tabelle → Absätze, nicht <table>
+  assert.match(w.betriebText, /Abteilung: Marketing/);
+  assert.match(w.betriebText, /Globales Marketing/);
+  assert.match(w.unterweisungText, /Sicherheitsunterweisung/);
+  assert.equal(w.tage.length, 1);
+});
+
+test('parse (Wochenbasis): echte Inhaltstabelle OHNE Abschnitts-Label bleibt <table>', () => {
+  // Gegenprobe: eine Tabelle, die KEINE Schule:/Betrieb:-Labels trägt, bleibt
+  // als Tabelle innerhalb des aktiven Abschnitts erhalten (kein Fehlausbau).
+  const marker = T + JSON.stringify([['BWL', '• Prokura'], ['SUK', '• Inventur']]) + TE;
+  const page = [
+    'Ausbildungswoche 18.05.2026 bis 24.05.2026',
+    'Schule:',
+    marker,
+    'Mo | 18.05.2026 | Schule | anwesend 07:00',
+  ].join('\n');
+  const w = P.parse([page]).wochen[0];
+  assert.ok(w.schuleText.includes('<table><tbody>'));
+  assert.ok(w.schuleText.includes('<td><p>BWL</p></td>'));
 });
 
 test('parse (Tagesbasis): Tabellenmarker in Tagesbeschreibung landet in eintragText', () => {
