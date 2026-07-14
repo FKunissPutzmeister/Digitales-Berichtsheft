@@ -360,6 +360,16 @@ body[data-page="wochenansicht"] .wochen-kachel .ql-editor-wrap {
   stroke: #fff;
 }
 
+/* „Tabelle einfügen"-Button in der Haupt-Toolbar: quill-table-better
+   registriert dafür ein eigenes gefülltes Icon (<path fill="#515151">) in
+   Quills Icon-Registry – es nutzt NICHT die .ql-fill/.ql-stroke-Klassen, auf
+   die die übrigen Dark-Mode-Toolbar-Regeln zielen, und bliebe daher dunkel.
+   Im Dark Mode auf Weiß setzen. Ohne .ql-editor-wrap-Präfix, da die Toolbar
+   als Geschwister von .ql-editor-wrap hängt (s. Kommentar weiter unten). */
+[data-theme="dark"] .ql-toolbar button.ql-table-better svg path {
+  fill: #fff;
+}
+
 /* quill-table-better stylt seine schwebenden Popup-Flächen (Menüleiste,
    Dropdown-Listen, Raster-Picker, Tooltip, Kopfzeile-Toggle, Eigenschaften-
    Dialog) mit hartkodierten Farben (#fff/#ccced1/#f0f0f0 …, kein !important).
