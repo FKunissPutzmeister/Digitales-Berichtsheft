@@ -132,6 +132,46 @@ function setEditorHTML(quill, html) {
   if (wasDisabled) quill.enable(false);
 }
 
+// T14: quill-table-better setzt beim Einfügen über den Grid-Picker hart
+// `style="width:100%"` auf das <table>-Element selbst (per Playwright-DOM-
+// Dump verifiziert – es gibt dafür KEINE Konfig-Option, siehe Brief). Das
+// überstimmt unser CSS (.ql-editor table { max-width:100% }), weil ein
+// Inline-Style stärker wiegt als jede externe Regel ohne !important – und
+// !important am width würde wiederum das "Breite"-Feld im Eigenschaften-
+// Dialog aushebeln. Daher hier ein einmaliger Normalisierungs-Schritt NACH
+// dem Einfügen: jede noch unmarkierte Tabelle mit exakt width:100% wird auf
+// eine spaltenbasierte px-Breite gesetzt (72px/Spalte – derselbe Default-
+// Wert, den quill-table-better selbst beim Hinzufügen einer Spalte per
+// insertCol verwendet) und danach markiert. Einmal markierte Tabellen werden
+// nie wieder angefasst, damit spätere Nutzer-Resizes (Spaltenrand ziehen ODER
+// "Breite"-Feld im Dialog, inkl. eines bewusst gewählten 100%) erhalten
+// bleiben. Reine DOM-Style-Mutation (kein quill.update*-Aufruf) – falls
+// Quills interner MutationObserver das dennoch als weiteres text-change
+// meldet, ist der nächste Durchlauf ein No-op (Tabelle trägt bereits die
+// Markierung), also keine Endlosschleife.
+const T14_TABLE_WIDTH_ATTR = 'data-t14-width-init';
+const T14_TABLE_COL_PX = 72;
+function normalizeFreshTableWidths(quill) {
+  quill.root.querySelectorAll('table.ql-table-better').forEach(table => {
+    if (table.hasAttribute(T14_TABLE_WIDTH_ATTR)) return;
+    if (table.style.width !== '100%') {
+      // Kein Vollbreite-Default (z. B. IHK-Import ohne Breitenattribut) –
+      // nichts zu normalisieren, aber markieren, damit wir bei jedem
+      // Tastendruck nicht erneut prüfen müssen.
+      table.setAttribute(T14_TABLE_WIDTH_ATTR, '1');
+      return;
+    }
+    const colCount = table.rows[0] ? table.rows[0].cells.length : 0;
+    // Der Grid-Picker baut die Tabelle über mehrere DOM-Mutationen auf – bei
+    // 0 Spalten steht die Struktur noch nicht (Zeilen/Zellen fehlen). NICHT
+    // markieren, damit der nächste text-change-Durchlauf sie erneut prüft,
+    // sonst bliebe sie dauerhaft auf 100% hängen (empirisch beobachtet).
+    if (colCount === 0) return;
+    table.style.width = (colCount * T14_TABLE_COL_PX) + 'px';
+    table.setAttribute(T14_TABLE_WIDTH_ATTR, '1');
+  });
+}
+
 document.addEventListener('DOMContentLoaded', async () => {
   const user = await initPage('nav-wochenansicht', [{ label: 'Wochenansicht', href: 'wochenansicht.html' }]);
   if (!user) return;
@@ -1320,6 +1360,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
       if (!readonly) {
         quill.on('text-change', () => {
+          normalizeFreshTableWidths(quill);
           markQuillLimit(quill);
           updateDayCharCount(dateStr);
           debounceSave(dateStr);
@@ -1810,6 +1851,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     if (!readonly) {
       quill.on('text-change', () => {
+        normalizeFreshTableWidths(quill);
         markQuillLimit(quill);
         renderCharCount(document.getElementById('wochenCharCount_' + id), quill);
         debounceSaveWoche();
