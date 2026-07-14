@@ -344,6 +344,22 @@ body[data-page="wochenansicht"] .wochen-kachel .ql-editor-wrap {
   z-index: var(--z-sticky, 20);
 }
 
+/* Icons der Tabellen-Menüleiste im Dark Mode weiß zeichnen. quill-table-better
+   nutzt zwei Icon-Stile mit hartkodierten Farben: gefüllt (Spalte/Zeile/Zelle/
+   Verbinden: fill="#515151") und Strichgrafik (u. a. das Löschen-/Papierkorb-
+   Icon: fill="none" + stroke="#333"/"#db3700"). Auf dem dunklen Menü-Panel sind
+   sie kaum sichtbar. Getrennt nach fill/stroke überschreiben, damit Linien-Icons
+   (fill="none") nicht zugefüllt und gefüllte Icons nicht mit weißer Kontur
+   versehen werden; CSS überstimmt die inline SVG-Presentation-Attribute.
+   Der grüne Speichern-Haken (#008a00) sitzt im Eigenschaften-Dialog, nicht in
+   der Menüleiste, und bleibt daher unberührt. */
+[data-theme="dark"] .ql-table-menus-container svg path[fill]:not([fill="none"]) {
+  fill: #fff;
+}
+[data-theme="dark"] .ql-table-menus-container svg path[stroke]:not([stroke="none"]) {
+  stroke: #fff;
+}
+
 /* quill-table-better stylt seine schwebenden Popup-Flächen (Menüleiste,
    Dropdown-Listen, Raster-Picker, Tooltip, Kopfzeile-Toggle, Eigenschaften-
    Dialog) mit hartkodierten Farben (#fff/#ccced1/#f0f0f0 …, kein !important).
