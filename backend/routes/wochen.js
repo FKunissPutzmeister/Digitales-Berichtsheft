@@ -29,7 +29,9 @@ router.get('/', async (req, res) => {
 
     // Zugriffsfilter: eigenes Heft, aktive Zuweisung (in-Periode) oder Korrektur-Historie.
     const kontext = await ladeKorrekturKontext(pool, user);
-    const sichtbar = rows.filter(w => darfWocheSehen(user, normWoche(w), kontext));
+    const sichtbar = rows
+      .filter(w => darfWocheSehen(user, normWoche(w), kontext))
+      .map(w => annotiereWoche(w, user, kontext));
     res.json(sichtbar);
   } catch (err) {
     logError({ quelle: 'backend', nachricht: `[wochen] list: ${err.message}`, stack: err.stack,
@@ -57,6 +59,7 @@ router.get('/:id', async (req, res) => {
     if (!darfWocheSehen(req.user, normWoche(woche), kontext)) {
       return res.status(403).json({ error: 'Keine Berechtigung für diese Woche' });
     }
+    annotiereWoche(woche, req.user, kontext);
     res.json(woche);
   } catch (err) {
     logError({ quelle: 'backend', nachricht: `[wochen] get/:id: ${err.message}`, stack: err.stack,
@@ -198,6 +201,15 @@ router.patch('/:id/status', async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
+
+// Reichert eine parseWoche-Zeile mit der Betrachter-Sicht an:
+// viewerRolle + erlaubteAktionen (Aktions-Slugs) für das aktuelle Frontend.
+function annotiereWoche(row, user, kontext) {
+  const rolle = rolleFuerWoche(user, normWoche(row), kontext);
+  row.viewerRolle = rolle;
+  row.erlaubteAktionen = wochenAktionen(rolle, row.Status, row.EndabnahmeDirekt).map(a => a.aktion);
+  return row;
+}
 
 function parseWoche(row) {
   return {
