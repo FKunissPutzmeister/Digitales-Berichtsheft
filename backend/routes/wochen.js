@@ -90,69 +90,85 @@ router.post('/', async (req, res) => {
       }
     }
 
-    // Woche upserten
-    const upsert = await pool.request()
-      .input('azubiOid',            sql.NVarChar(36),      azubiOid)
-      .input('kw',                  sql.TinyInt,            kw)
-      .input('jahr',                sql.SmallInt,           jahr)
-      .input('startDatum',          sql.Date,               startDatum)
-      .input('endDatum',            sql.Date,               endDatum)
-      .input('status',              sql.NVarChar(20),       status || 'offen')
-      .input('gesamtstunden',       sql.Decimal(5, 2),      gesamtstunden || 0)
-      .input('typ',                 sql.NVarChar(20),       typ || null)
-      .input('wochenOrt',           sql.NVarChar(20),       wochenOrt || null)
-      .input('unterweisungAktiv',   sql.Bit,                unterweisungAktiv ? 1 : 0)
-      .input('betriebEintrag',      sql.NVarChar(sql.MAX),  betriebEintrag || null)
-      .input('schuleEintrag',       sql.NVarChar(sql.MAX),  schuleEintrag || null)
-      .input('unterweisungEintrag', sql.NVarChar(sql.MAX),  unterweisungEintrag || null)
-      .query(`
-        MERGE dbo.Wochen AS target
-        USING (SELECT @azubiOid AS AzubiOid, @kw AS KW, @jahr AS Jahr) AS source
-          ON target.AzubiOid = source.AzubiOid AND target.KW = source.KW AND target.Jahr = source.Jahr
-        WHEN MATCHED THEN
-          UPDATE SET StartDatum = @startDatum, EndDatum = @endDatum,
-                     Status = @status, Gesamtstunden = @gesamtstunden,
-                     Typ = @typ, WochenOrt = @wochenOrt, UnterweisungAktiv = @unterweisungAktiv,
-                     BetriebEintrag = @betriebEintrag, SchuleEintrag = @schuleEintrag,
-                     UnterweisungEintrag = @unterweisungEintrag
-        WHEN NOT MATCHED THEN
-          INSERT (AzubiOid, KW, Jahr, StartDatum, EndDatum, Status, Gesamtstunden,
-                  Typ, WochenOrt, UnterweisungAktiv,
-                  BetriebEintrag, SchuleEintrag, UnterweisungEintrag)
-          VALUES (@azubiOid, @kw, @jahr, @startDatum, @endDatum, @status, @gesamtstunden,
-                  @typ, @wochenOrt, @unterweisungAktiv,
-                  @betriebEintrag, @schuleEintrag, @unterweisungEintrag)
-        OUTPUT inserted.Id;
-      `);
+    // Woche + Tage in EINER Transaktion speichern. Ohne Transaktion können
+    // zwei parallele Autosave-POSTs derselben Woche (Autosave feuert pro Tag
+    // getrennt) den DELETE/INSERT-Ablauf verschränken:
+    //   A DELETE → B DELETE → A INSERT(Mo) → B INSERT(Mo) → UQ_Tage_Woche_Datum.
+    // In der Transaktion hält der DELETE seine Sperren bis zum Commit, sodass
+    // der zweite Request wartet und sauber serialisiert wird (kein Duplikat,
+    // kein halb geschriebener Zustand).
+    const tx = new sql.Transaction(pool);
+    await tx.begin();
+    let wocheId;
+    try {
+      const upsert = await new sql.Request(tx)
+        .input('azubiOid',            sql.NVarChar(36),      azubiOid)
+        .input('kw',                  sql.TinyInt,            kw)
+        .input('jahr',                sql.SmallInt,           jahr)
+        .input('startDatum',          sql.Date,               startDatum)
+        .input('endDatum',            sql.Date,               endDatum)
+        .input('status',              sql.NVarChar(20),       status || 'offen')
+        .input('gesamtstunden',       sql.Decimal(5, 2),      gesamtstunden || 0)
+        .input('typ',                 sql.NVarChar(20),       typ || null)
+        .input('wochenOrt',           sql.NVarChar(20),       wochenOrt || null)
+        .input('unterweisungAktiv',   sql.Bit,                unterweisungAktiv ? 1 : 0)
+        .input('betriebEintrag',      sql.NVarChar(sql.MAX),  betriebEintrag || null)
+        .input('schuleEintrag',       sql.NVarChar(sql.MAX),  schuleEintrag || null)
+        .input('unterweisungEintrag', sql.NVarChar(sql.MAX),  unterweisungEintrag || null)
+        .query(`
+          MERGE dbo.Wochen AS target
+          USING (SELECT @azubiOid AS AzubiOid, @kw AS KW, @jahr AS Jahr) AS source
+            ON target.AzubiOid = source.AzubiOid AND target.KW = source.KW AND target.Jahr = source.Jahr
+          WHEN MATCHED THEN
+            UPDATE SET StartDatum = @startDatum, EndDatum = @endDatum,
+                       Status = @status, Gesamtstunden = @gesamtstunden,
+                       Typ = @typ, WochenOrt = @wochenOrt, UnterweisungAktiv = @unterweisungAktiv,
+                       BetriebEintrag = @betriebEintrag, SchuleEintrag = @schuleEintrag,
+                       UnterweisungEintrag = @unterweisungEintrag
+          WHEN NOT MATCHED THEN
+            INSERT (AzubiOid, KW, Jahr, StartDatum, EndDatum, Status, Gesamtstunden,
+                    Typ, WochenOrt, UnterweisungAktiv,
+                    BetriebEintrag, SchuleEintrag, UnterweisungEintrag)
+            VALUES (@azubiOid, @kw, @jahr, @startDatum, @endDatum, @status, @gesamtstunden,
+                    @typ, @wochenOrt, @unterweisungAktiv,
+                    @betriebEintrag, @schuleEintrag, @unterweisungEintrag)
+          OUTPUT inserted.Id;
+        `);
 
-    const wocheId = upsert.recordset[0].Id;
+      wocheId = upsert.recordset[0].Id;
 
-    // Tage speichern (delete + re-insert)
-    if (Array.isArray(tage) && tage.length > 0) {
-      await pool.request()
-        .input('wocheId', sql.Int, wocheId)
-        .query('DELETE FROM dbo.Tage WHERE WocheId = @wocheId');
+      // Tage speichern (delete + re-insert)
+      if (Array.isArray(tage) && tage.length > 0) {
+        await new sql.Request(tx)
+          .input('wocheId', sql.Int, wocheId)
+          .query('DELETE FROM dbo.Tage WHERE WocheId = @wocheId');
 
-      for (const tag of tage) {
-        await pool.request()
-          .input('wocheId',             sql.Int,               wocheId)
-          .input('datum',               sql.Date,              tag.datum)
-          .input('anwesenheit',         sql.NVarChar(30),      tag.anwesenheit || null)
-          .input('ort',                 sql.NVarChar(30),      tag.ort || null)
-          .input('eintrag',             sql.NVarChar(sql.MAX), tag.eintrag || null)
-          .input('tagdauer',            sql.NVarChar(10),      (tag.tagdauer === 'halbtag' ? 'halbtag' : 'ganztag'))
-          .input('betriebEintrag',      sql.NVarChar(sql.MAX), tag.betriebEintrag || null)
-          .input('schuleEintrag',       sql.NVarChar(sql.MAX), tag.schuleEintrag || null)
-          .input('unterweisungEintrag', sql.NVarChar(sql.MAX), tag.unterweisungEintrag || null)
-          .query(`
-            INSERT INTO dbo.Tage
-              (WocheId, Datum, Anwesenheit, Ort, Eintrag, Tagdauer,
-               BetriebEintrag, SchuleEintrag, UnterweisungEintrag)
-            VALUES
-              (@wocheId, @datum, @anwesenheit, @ort, @eintrag, @tagdauer,
-               @betriebEintrag, @schuleEintrag, @unterweisungEintrag)
-          `);
+        for (const tag of tage) {
+          await new sql.Request(tx)
+            .input('wocheId',             sql.Int,               wocheId)
+            .input('datum',               sql.Date,              tag.datum)
+            .input('anwesenheit',         sql.NVarChar(30),      tag.anwesenheit || null)
+            .input('ort',                 sql.NVarChar(30),      tag.ort || null)
+            .input('eintrag',             sql.NVarChar(sql.MAX), tag.eintrag || null)
+            .input('tagdauer',            sql.NVarChar(10),      (tag.tagdauer === 'halbtag' ? 'halbtag' : 'ganztag'))
+            .input('betriebEintrag',      sql.NVarChar(sql.MAX), tag.betriebEintrag || null)
+            .input('schuleEintrag',       sql.NVarChar(sql.MAX), tag.schuleEintrag || null)
+            .input('unterweisungEintrag', sql.NVarChar(sql.MAX), tag.unterweisungEintrag || null)
+            .query(`
+              INSERT INTO dbo.Tage
+                (WocheId, Datum, Anwesenheit, Ort, Eintrag, Tagdauer,
+                 BetriebEintrag, SchuleEintrag, UnterweisungEintrag)
+              VALUES
+                (@wocheId, @datum, @anwesenheit, @ort, @eintrag, @tagdauer,
+                 @betriebEintrag, @schuleEintrag, @unterweisungEintrag)
+            `);
+        }
       }
+
+      await tx.commit();
+    } catch (txErr) {
+      await tx.rollback();
+      throw txErr;
     }
 
     res.json({ id: wocheId });

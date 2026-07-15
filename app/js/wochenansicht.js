@@ -1908,7 +1908,23 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // ── Auto-Save ─────────────────────────────────────────────────────
 
-  async function autoSaveWoche() {
+  // Autosave feuert pro Tag getrennt (saveTimers[dateStr]) und zusätzlich für
+  // die Wochenfelder. Ohne Serialisierung liefen zwei Read-Modify-Write-Zyklen
+  // (getWoche → mutieren → saveWoche) parallel: Beide lesen denselben Stand,
+  // die POSTs überholen sich → serverseitige UNIQUE-Kollision auf dbo.Tage und
+  // verlorene Änderungen (letzter Writer gewinnt). Diese Kette erzwingt, dass
+  // immer nur ein Speichervorgang läuft; der nächste liest erst danach neu.
+  let saveChain = Promise.resolve();
+  function enqueueSave(task) {
+    const run = saveChain.then(task, task);
+    saveChain = run.catch(() => {});
+    return run;
+  }
+
+  function autoSaveWoche() { return enqueueSave(autoSaveWocheImpl); }
+  function autoSave(dateStr) { return enqueueSave(() => autoSaveImpl(dateStr)); }
+
+  async function autoSaveWocheImpl() {
     const azubiId = viewAzubiId || user.id;
     let woche = await DB.getWoche(azubiId, currentKW, currentYear);
     if (!woche) {
@@ -1946,7 +1962,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     updateAutosaveTimestamp();
   }
 
-  async function autoSave(dateStr) {
+  async function autoSaveImpl(dateStr) {
     const azubiId = viewAzubiId || user.id;
     let woche = await DB.getWoche(azubiId, currentKW, currentYear);
     if (!woche) {

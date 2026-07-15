@@ -13,9 +13,24 @@
     return true;
   }
 
-  // Node/Test-Kontext: nur die reine Funktion exportieren, nichts anhängen.
+  // Transiente Verbindungsfehler: der Client konnte den Server schlicht nicht
+  // erreichen (Server-Neustart, DB kurz weg, Netzwerk-Blip). Diese haben KEINEN
+  // diagnostischen Wert – der Nutzer versucht es Sekunden später erneut – und
+  // fluten sonst den Fehler-Posteingang. Echte App-Fehler (500 mit Meldung,
+  // reale 404, Validierung) enthalten diese Muster NICHT und werden weiter
+  // gemeldet. Deckt „Failed to fetch" (Chrome/Edge), „Load failed"/„NetworkError"
+  // (Safari/Firefox) und den apiFetch-Timeout ab.
+  function istTransienterVerbindungsfehler(nachricht) {
+    const s = String(nachricht || '');
+    return /Failed to fetch/i.test(s)
+        || /Load failed/i.test(s)
+        || /NetworkError|Network request failed/i.test(s)
+        || /nicht rechtzeitig geantwortet/i.test(s);
+  }
+
+  // Node/Test-Kontext: nur die reinen Funktionen exportieren, nichts anhängen.
   if (typeof window === 'undefined') {
-    module.exports = { sollMelden };
+    module.exports = { sollMelden, istTransienterVerbindungsfehler };
     return;
   }
 
@@ -28,6 +43,8 @@
 
   function melde(quelle, nachricht, stack, extra) {
     if (sendet) return;
+    // Manuelle Meldungen nie unterdrücken; transiente Verbindungsfehler schon.
+    if (quelle !== 'manual' && istTransienterVerbindungsfehler(nachricht)) return;
     const key = `${quelle}|${nachricht}|${String(stack || '').split('\n').slice(0, 2).join('|')}`;
     if (!sollMelden(key, Date.now(), gesehen, FENSTER_MS)) return;
     sendet = true;
