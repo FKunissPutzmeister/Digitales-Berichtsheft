@@ -303,6 +303,7 @@ label[for] {
 .badge--offen     { background: var(--status-offen-bg);       color: var(--status-offen); }
 .badge--freigegeben { background: var(--status-freigegeben-bg); color: var(--status-freigegeben); }
 .badge--genehmigt { background: var(--status-genehmigt-bg);   color: var(--status-genehmigt); }
+.badge--erstgenehmigt { background: var(--status-erstgenehmigt-bg); color: var(--status-erstgenehmigt); }
 .badge--abgelehnt { background: var(--status-abgelehnt-bg);   color: var(--status-abgelehnt); }
 .badge--yellow    { background: var(--pm-yellow-bg);          color: var(--pm-yellow-darker); }
 .badge--grey      { background: var(--pm-grey-100);           color: var(--pm-grey-600); }
@@ -1064,6 +1065,7 @@ select.form-control {
 [data-theme="dark"] .badge--offen        { color: #C8C8D0; }
 [data-theme="dark"] .badge--freigegeben  { color: #6FB1F2; }
 [data-theme="dark"] .badge--genehmigt    { color: #6BD089; }
+[data-theme="dark"] .badge--erstgenehmigt { color: #B794F6; }
 [data-theme="dark"] .badge--abgelehnt    { color: #F18581; }
 [data-theme="dark"] .badge--grey         { color: var(--pm-grey-700); }
 

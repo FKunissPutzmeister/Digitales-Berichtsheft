@@ -74,6 +74,8 @@
   --status-freigegeben-bg: #DDEEFF;
   --status-genehmigt:    #1B7E35;
   --status-genehmigt-bg: #E8F5EB;
+  --status-erstgenehmigt:    #6D28D9;
+  --status-erstgenehmigt-bg: #EDE6FB;
   --status-abgelehnt:    #B71C1C;
   --status-abgelehnt-bg: #FFEBEE;
 
@@ -227,6 +229,7 @@
   --status-offen-bg:        rgba(154, 154, 164, 0.18);
   --status-freigegeben-bg:  rgba(25, 118, 210, 0.22);
   --status-genehmigt-bg:    rgba(67, 168, 86, 0.18);
+  --status-erstgenehmigt-bg: rgba(124, 58, 237, 0.22);
   --status-abgelehnt-bg:    rgba(229, 57, 53, 0.22);
 
   /* Schatten – auf dunklem Untergrund deutlich tiefer / opaker.

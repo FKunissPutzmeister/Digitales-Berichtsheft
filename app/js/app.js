@@ -529,6 +529,7 @@ function getStatusLabel(status) {
   const map = {
     offen: 'Offen',
     freigegeben: 'Freigegeben',
+    erstgenehmigt: 'Erstgenehmigt',
     genehmigt: 'Genehmigt',
     abgelehnt: 'Abgelehnt',
   };

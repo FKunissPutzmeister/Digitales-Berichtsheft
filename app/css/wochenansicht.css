@@ -1040,6 +1040,12 @@ html[data-skin="silk"] body[data-page="wochenansicht"] .day-section .ql-editor {
 }
 .week-status-banner--abgelehnt .week-status-banner__icon { color: var(--color-error); }
 
+.week-status-banner--erstgenehmigt {
+  background: var(--status-erstgenehmigt-bg);
+  border-left-color: var(--status-erstgenehmigt);
+}
+.week-status-banner--erstgenehmigt .week-status-banner__icon { color: var(--status-erstgenehmigt); }
+
 /* ===================================================================
    TAG-LEGENDE & TAGES-VOLLSTÄNDIGKEITSPUNKT
    =================================================================== */
