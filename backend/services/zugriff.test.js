@@ -2,6 +2,9 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const Z = require('./zugriff.js');
+const {
+  istPeriodenPruefer, rolleFuerWoche, wochenAktionen,
+} = require('./zugriff');
 
 const user = { oid: 'U1', email: 'u1@pm.com' };
 const azubi = { oid: 'AZ' };
@@ -161,3 +164,75 @@ test('istDauerAusbilder: leere azubiOid öffnet nichts', () => {
     assert.equal(Z.verantwortlichFuerZuweisung({ oid: 'u-1', email: '' }, z, {}), false);
   });
 }
+
+// ── Zweistufiger Genehmigungs-Automat: istPeriodenPruefer / rolleFuerWoche / wochenAktionen ──
+const KONTEXT = {
+  stichtag: '2026-07-15',
+  dauerAusbilderAzubiOids: ['azubi-dauer'],
+  zuweisungen: [{
+    azubiOid: 'azubi-pruef', verantwortlicherEmail: 'pruefer@x.de',
+    von: '2026-07-01', bis: '2026-07-31',
+  }],
+};
+const wochePruef = { azubiOid: 'azubi-pruef', start: '2026-07-13', ende: '2026-07-19' };
+
+test('istPeriodenPruefer: aktive Zuweisung in Periode', () => {
+  assert.strictEqual(istPeriodenPruefer({ email: 'pruefer@x.de' }, wochePruef, KONTEXT), true);
+});
+test('istPeriodenPruefer: falsche E-Mail', () => {
+  assert.strictEqual(istPeriodenPruefer({ email: 'wer@x.de' }, wochePruef, KONTEXT), false);
+});
+test('rolleFuerWoche: Ausbilder schlägt Prüfer', () => {
+  const w = { azubiOid: 'azubi-dauer', start: '2026-07-13', ende: '2026-07-19' };
+  assert.strictEqual(rolleFuerWoche({ oid: 'x', email: 'pruefer@x.de' }, w, KONTEXT), 'ausbilder');
+});
+test('rolleFuerWoche: nur Prüfer', () => {
+  assert.strictEqual(rolleFuerWoche({ oid: 'x', email: 'pruefer@x.de' }, wochePruef, KONTEXT), 'pruefer');
+});
+test('rolleFuerWoche: Eigentümer = azubi', () => {
+  const w = { azubiOid: 'ich', start: '2026-07-13', ende: '2026-07-19' };
+  assert.strictEqual(rolleFuerWoche({ oid: 'ich', email: 'a@x.de' }, w, KONTEXT), 'azubi');
+});
+test('rolleFuerWoche: fremd = null', () => {
+  const w = { azubiOid: 'fremd', start: '2026-07-13', ende: '2026-07-19' };
+  assert.strictEqual(rolleFuerWoche({ oid: 'ich', email: 'a@x.de' }, w, KONTEXT), null);
+});
+
+function aktionenSet(rolle, status, flag) {
+  return wochenAktionen(rolle, status, flag).map(a => `${a.aktion}:${a.zielStatus}:${a.endabnahmeDirekt}`).sort();
+}
+
+test('azubi offen → einreichen', () => {
+  assert.deepStrictEqual(aktionenSet('azubi', 'offen', 0), ['einreichen:freigegeben:0']);
+});
+test('azubi abgelehnt behält Flag beim Einreichen', () => {
+  assert.deepStrictEqual(aktionenSet('azubi', 'abgelehnt', 1), ['einreichen:freigegeben:1']);
+});
+test('azubi freigegeben → zurueckziehen', () => {
+  assert.deepStrictEqual(aktionenSet('azubi', 'freigegeben', 0), ['zurueckziehen:offen:0']);
+});
+test('pruefer freigegeben Flag0 → erstgenehmigen + zurueckgeben', () => {
+  assert.deepStrictEqual(aktionenSet('pruefer', 'freigegeben', 0),
+    ['erstgenehmigen:erstgenehmigt:0', 'zurueckgeben:abgelehnt:0']);
+});
+test('pruefer freigegeben Flag1 → gesperrt', () => {
+  assert.deepStrictEqual(aktionenSet('pruefer', 'freigegeben', 1), []);
+});
+test('pruefer erstgenehmigt → nichts', () => {
+  assert.deepStrictEqual(aktionenSet('pruefer', 'erstgenehmigt', 0), []);
+});
+test('ausbilder freigegeben Flag0 → Bypass genehmigen + zurueckgeben(Flag1)', () => {
+  assert.deepStrictEqual(aktionenSet('ausbilder', 'freigegeben', 0),
+    ['endgenehmigen:genehmigt:0', 'zurueckgeben:abgelehnt:1']);
+});
+test('ausbilder erstgenehmigt → endgenehmigen + zurueckgeben(Flag1)', () => {
+  assert.deepStrictEqual(aktionenSet('ausbilder', 'erstgenehmigt', 0),
+    ['endgenehmigen:genehmigt:0', 'zurueckgeben:abgelehnt:1']);
+});
+test('ausbilder freigegeben Flag1 → endgenehmigen möglich', () => {
+  assert.deepStrictEqual(aktionenSet('ausbilder', 'freigegeben', 1),
+    ['endgenehmigen:genehmigt:0', 'zurueckgeben:abgelehnt:1']);
+});
+test('null-Rolle → nichts', () => {
+  assert.deepStrictEqual(aktionenSet(null, 'freigegeben', 0), []);
+});

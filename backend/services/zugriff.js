@@ -50,11 +50,10 @@ function istDauerAusbilder(woche, kontext) {
   return oids.includes(woche.azubiOid);
 }
 
-// Darf der Nutzer die Woche AKTIV korrigieren (schreiben)?
-function darfWocheKorrigieren(user, woche, kontext) {
-  if (!woche.azubiOid) return false;
-  if (istDauerAusbilder(woche, kontext)) return true; // dauerhaft: keine Datums-/Wochenprüfung
-  if (!user.email) return false;
+// Periodengebundener Prüfer: befristete Zuweisung (per E-Mail), am Stichtag
+// aktiv UND die Woche fällt in den Zuweisungszeitraum.
+function istPeriodenPruefer(user, woche, kontext) {
+  if (!woche.azubiOid || !user.email) return false;
   const zuweisungen = (kontext && kontext.zuweisungen) || [];
   return zuweisungen.some(z =>
     (z.verantwortlicherEmail || '').toLowerCase() === (user.email || '').toLowerCase() &&
@@ -62,6 +61,47 @@ function darfWocheKorrigieren(user, woche, kontext) {
     istAktiv(z, kontext.stichtag) &&
     wocheFaelltInZuweisung(woche, z)
   );
+}
+
+// Rolle des Nutzers bzgl. EINER Woche. Präzedenz: Ausbilder > Prüfer > Azubi.
+function rolleFuerWoche(user, woche, kontext) {
+  if (istDauerAusbilder(woche, kontext)) return 'ausbilder';
+  if (istPeriodenPruefer(user, woche, kontext)) return 'pruefer';
+  if (user && user.oid && woche.azubiOid && user.oid === woche.azubiOid) return 'azubi';
+  return null;
+}
+
+// Darf der Nutzer die Woche AKTIV korrigieren (schreiben)? (Lese-/Zugriffsgate.)
+function darfWocheKorrigieren(user, woche, kontext) {
+  if (!woche.azubiOid) return false;
+  if (istDauerAusbilder(woche, kontext)) return true; // dauerhaft: keine Datums-/Wochenprüfung
+  return istPeriodenPruefer(user, woche, kontext);
+}
+
+// Zweistufiger Genehmigungs-Automat: erlaubte Aktionen für (rolle, status, flag).
+// endabnahmeDirekt=1 ⇒ Prüfer-Stufe übersprungen (nur Ausbilder handelt noch).
+// Jede Aktion trägt ihren Ziel-Status, das Flag DANACH und ob es eine
+// Korrektur (KorrigiertVon/Am stempeln) ist.
+function wochenAktionen(rolle, status, endabnahmeDirekt) {
+  const flag = endabnahmeDirekt ? 1 : 0;
+  const out = [];
+  if (rolle === 'azubi') {
+    if (status === 'offen' || status === 'abgelehnt')
+      out.push({ aktion: 'einreichen', zielStatus: 'freigegeben', endabnahmeDirekt: flag, korrektur: false });
+    if (status === 'freigegeben')
+      out.push({ aktion: 'zurueckziehen', zielStatus: 'offen', endabnahmeDirekt: flag, korrektur: false });
+  } else if (rolle === 'pruefer') {
+    if (status === 'freigegeben' && flag === 0) {
+      out.push({ aktion: 'erstgenehmigen', zielStatus: 'erstgenehmigt', endabnahmeDirekt: 0, korrektur: true });
+      out.push({ aktion: 'zurueckgeben',   zielStatus: 'abgelehnt',     endabnahmeDirekt: 0, korrektur: true });
+    }
+  } else if (rolle === 'ausbilder') {
+    if (status === 'freigegeben' || status === 'erstgenehmigt') {
+      out.push({ aktion: 'endgenehmigen', zielStatus: 'genehmigt', endabnahmeDirekt: 0, korrektur: true });
+      out.push({ aktion: 'zurueckgeben',  zielStatus: 'abgelehnt', endabnahmeDirekt: 1, korrektur: true });
+    }
+  }
+  return out;
 }
 
 // Darf der Nutzer die Woche SEHEN (eigenes Heft, aktiv verantwortlich, korrigiert)?
@@ -92,4 +132,5 @@ module.exports = {
   ymd, istAktiv, wocheFaelltInZuweisung, hatKorrigiert, istDauerAusbilder,
   darfWocheKorrigieren, darfWocheSehen,
   verantwortlichFuerZuweisung,
+  istPeriodenPruefer, rolleFuerWoche, wochenAktionen,
 };
