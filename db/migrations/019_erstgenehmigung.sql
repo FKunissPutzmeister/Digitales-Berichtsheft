@@ -36,6 +36,10 @@ ALTER TABLE dbo.Wochen ADD CONSTRAINT CK_Wochen_Status
 PRINT 'CK_Wochen_Status neu angelegt (inkl. erstgenehmigt).';
 
 -- 3) Benachrichtigungstyp 'erstgenehmigt' erlauben (für Task 8)
+--    WICHTIG: Die Liste enthält ALLE in produktiven DBs bereits genutzten
+--    Typen (Beurteilung/Versetzung/Vertretung stammen aus Features außerhalb
+--    dieses Repos). Die Werteliste NIE verengen — sonst scheitert das
+--    ADD CONSTRAINT an vorhandenen Zeilen (Msg 547). Nur ergänzen.
 IF EXISTS (SELECT 1 FROM sys.check_constraints
            WHERE name = 'CK_Benachrichtigungen_Typ'
              AND parent_object_id = OBJECT_ID('dbo.Benachrichtigungen'))
@@ -45,5 +49,8 @@ BEGIN
 END
 
 ALTER TABLE dbo.Benachrichtigungen ADD CONSTRAINT CK_Benachrichtigungen_Typ
-  CHECK (Typ IN ('genehmigt','abgelehnt','erstgenehmigt','beurteilung_faellig','beurteilung_abgeschlossen'));
+  CHECK (Typ IN ('genehmigt','abgelehnt','erstgenehmigt',
+                 'beurteilung_faellig','beurteilung_abgeschlossen',
+                 'versetzung_neu','versetzung_entfernt',
+                 'vertretung_neu','vertretung_beendet'));
 PRINT 'CK_Benachrichtigungen_Typ neu angelegt (inkl. erstgenehmigt).';
