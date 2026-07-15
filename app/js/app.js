@@ -289,12 +289,15 @@ async function initNotifications(user) {
           ${b.gelesen ? '' : '<span class="notif-item__dot" aria-label="ungelesen"></span>'}
         </button>`;
     }
-    const isApproved = b.type === 'genehmigt';
+    const isErst = b.type === 'erstgenehmigt';
+    const isApproved = b.type === 'genehmigt' || isErst;
     const from = b.fromUserId ? await DB.getUser(b.fromUserId) : null;
-    const fromName = from ? from.name : 'Ausbilder/in';
-    const title = isApproved
-      ? `KW ${b.kw}/${b.year} wurde genehmigt`
-      : `KW ${b.kw}/${b.year} wurde zurückgegeben`;
+    const fromName = from ? from.name : (isErst ? 'Prüfer/in' : 'Ausbilder/in');
+    const title = isErst
+      ? `KW ${b.kw}/${b.year} wurde erstgenehmigt – Endabnahme nötig`
+      : isApproved
+        ? `KW ${b.kw}/${b.year} wurde genehmigt`
+        : `KW ${b.kw}/${b.year} wurde zurückgegeben`;
     const meta = `${fromName} · ${relativeTime(b.timestamp)}`;
     const preview = !isApproved && b.kommentar
       ? `<div class="notif-item__preview">${escapeHtmlSafe(b.kommentar)}</div>`

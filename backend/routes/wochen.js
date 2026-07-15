@@ -194,6 +194,23 @@ router.patch('/:id/status', async (req, res) => {
       setClause += ', KorrigiertVon = @korrigiertVon, KorrigiertAm = SYSUTCDATETIME()';
     }
     await request.query(`UPDATE dbo.Wochen SET ${setClause} WHERE Id = @id`);
+
+    if (treffer.zielStatus === 'erstgenehmigt') {
+      // Dauerhafte Ausbilder des Azubis über anstehende Endabnahme informieren.
+      const rd = await pool.request()
+        .input('azubiOid', sql.NVarChar(36), woche.azubiOid)
+        .query('SELECT AusbilderOid FROM dbo.AusbilderAzubis WHERE AzubiOid = @azubiOid');
+      for (const r of rd.recordset) {
+        await pool.request()
+          .input('userOid',     sql.NVarChar(36), r.AusbilderOid)
+          .input('typ',         sql.NVarChar(20), 'erstgenehmigt')
+          .input('wocheId',     sql.Int,          req.params.id)
+          .input('fromUserOid', sql.NVarChar(36), user.oid)
+          .query(`INSERT INTO dbo.Benachrichtigungen (UserOid, Typ, WocheId, FromUserOid)
+                  VALUES (@userOid, @typ, @wocheId, @fromUserOid)`);
+      }
+    }
+
     res.json({ ok: true });
   } catch (err) {
     logError({ quelle: 'backend', nachricht: `[wochen] status: ${err.message}`, stack: err.stack,
