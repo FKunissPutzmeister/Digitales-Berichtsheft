@@ -11,15 +11,19 @@
   else root.deriveName = deriveName;
 })(typeof window !== 'undefined' ? window : globalThis);
 
-/* Drag-to-Pan für alle Gantt-Timelines (.gantt-scroll): Linksklick + Ziehen
-   scrollt horizontal. Delegiert auf document, überlebt damit Re-Renders.
-   Erst ab 4px Bewegung aktiv, damit normale Klicks/Textauswahl nicht leiden. */
+/* Drag-to-Pan für alle Gantt-Timelines (.gantt-scroll, .pt-scroll im Voll-
+   Planer): Linksklick + Ziehen scrollt horizontal. Delegiert auf document,
+   überlebt damit Re-Renders. Erst ab 4px Bewegung aktiv, damit normale
+   Klicks/Textauswahl nicht leiden. Balken (.pt-bar) haben im Redesign einen
+   eigenen Pointer-Drag zum Verschieben – dort NICHT pannen (Spec: Drag auf
+   Balken = Bearbeiten, Drag auf freier Fläche = Pan). */
 (function () {
   if (typeof document === 'undefined') return; // Node/Test
   let el = null, startX = 0, startLeft = 0, dragging = false;
   document.addEventListener('mousedown', (e) => {
     if (e.button !== 0) return;
-    el = e.target.closest && e.target.closest('.gantt-scroll');
+    if (e.target.closest && e.target.closest('.pt-bar')) return; // Balken = Bearbeiten
+    el = e.target.closest && e.target.closest('.gantt-scroll, .pt-scroll');
     if (!el) return;
     startX = e.clientX; startLeft = el.scrollLeft; dragging = false;
   });

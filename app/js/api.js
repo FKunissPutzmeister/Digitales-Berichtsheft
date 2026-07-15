@@ -66,8 +66,21 @@ async function apiUpload(path, formData) {
 window.escapeHtml = s => String(s ?? '').replace(/[&<>"']/g,
   c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
-window.getInitials = name =>
-  (name || '').split(' ').map(n => n[0]).join('').toUpperCase();
+// Anzeige-Name: Entra liefert "Nachname, Vorname" – hier zu "Vorname Nachname"
+// drehen. Idempotent für Namen ohne Komma (bereits "Vorname Nachname").
+window.displayName = raw => {
+  const n = String(raw ?? '').trim();
+  if (!n.includes(',')) return n;
+  const [last, first] = n.split(',');
+  return `${first.trim()} ${last.trim()}`.trim();
+};
+
+// Initialen aus dem Anzeige-Namen: Vorname- + Nachname-Initiale, z. B. "FK".
+window.getInitials = name => {
+  const parts = displayName(name).split(/\s+/).filter(Boolean);
+  if (!parts.length) return '';
+  return ((parts[0][0] || '') + (parts.length > 1 ? parts[parts.length - 1][0] : '')).toUpperCase();
+};
 
 /* ── Normalisierung: DB PascalCase → Frontend camelCase ───────── */
 function toDateStr(val) {
@@ -480,6 +493,20 @@ const DB = {
 
   async deleteZuweisung(id) {
     await apiFetch(`/zuweisungen/${id}`, { method: 'DELETE' });
+  },
+
+  /* Vertretungen (Self-Service-Delegation) – meine vergebenen + erhaltenen */
+  async getVertretungen() {
+    try { return await apiFetch('/vertretungen'); }
+    catch (e) { return []; }
+  },
+  async addVertretung({ vertreterOid, von, bis }) {
+    return await apiFetch('/vertretungen', { method: 'POST', body: {
+      vertreterOid, von: von || null, bis: bis || null,
+    }});
+  },
+  async deleteVertretung(id) {
+    await apiFetch(`/vertretungen/${id}`, { method: 'DELETE' });
   },
 
   /* Abteilungs-Katalog */

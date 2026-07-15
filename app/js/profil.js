@@ -18,6 +18,8 @@ document.addEventListener('DOMContentLoaded', async () => {
   const isAusbilder = user.role === 'pruefer';
   const isAdmin = user.role === 'admin';
   const isDeveloper = user.role === 'developer';
+  // Betreuende Person = weder Azubi noch DH-Student → darf Vertreter benennen.
+  const isSupervisor = !isAzubi && !user.istDhStudent;
 
   function getRoleLabel(role) {
     switch (role) {
@@ -484,6 +486,147 @@ document.addEventListener('DOMContentLoaded', async () => {
     `;
   }
 
+  /* ── Vertretung ────────────────────────────────────────────────
+     Self-Service-Delegation: eine betreuende Person benennt Vertreter,
+     die ihre zugeordneten Azubis dauerhaft oder befristet mitbetreuen
+     (sehen + korrigieren + Beurteilungen + Benachrichtigungen). Nur für
+     Nicht-Azubis/Nicht-DH sichtbar. Die eigentliche Rechte-Union passiert
+     serverseitig (backend/services/zugriffContext.js). */
+  function vertretungZeitraum(v) {
+    if (!v.von && !v.bis) return 'unbefristet';
+    if (v.von && v.bis)   return `${DateUtil.formatDate(v.von)} – ${DateUtil.formatDate(v.bis)}`;
+    if (v.von)            return `ab ${DateUtil.formatDate(v.von)}`;
+    return `bis ${DateUtil.formatDate(v.bis)}`;
+  }
+
+  async function buildVertretung() {
+    if (!isSupervisor) return '';
+    const alle     = await DB.getVertretungen();
+    const vergeben = alle.filter(v => v.richtung === 'vergeben');
+    const erhalten = alle.filter(v => v.richtung === 'erhalten');
+
+    // Auswählbare Vertreter: betreuende Personen, nicht ich selbst, noch nicht eingetragen.
+    const kandidaten = (await DB.getVerantwortliche())
+      .filter(u => !u.istAzubi && !u.istDhStudent && u.oid !== user.id)
+      .filter(u => !vergeben.some(v => v.vertreterOid === u.oid));
+
+    const badge = v => v.aktiv
+      ? ' · <span class="badge badge--genehmigt">Aktiv</span>'
+      : ' · <span class="badge badge--grey">Inaktiv</span>';
+
+    const vergebenHtml = vergeben.length ? vergeben.map(v => `
+      <div class="settings-row">
+        <div class="settings-row__text">
+          <div class="settings-row__label">${v.vertreterName || '–'}</div>
+          <div class="settings-row__desc">${vertretungZeitraum(v)}${badge(v)}</div>
+        </div>
+        <button class="btn btn-ghost" data-vertretung-beenden="${v.id}" type="button">Beenden</button>
+      </div>
+    `).join('') : '<p class="form-hint" style="margin:0">Noch niemand eingetragen.</p>';
+
+    const addHtml = kandidaten.length ? `
+      <div class="form-group">
+        <label class="form-label">Vertreter/in hinzufügen</label>
+        <select class="form-control" id="vertreterSelect" data-pm-search="Person suchen…">
+          <option value="">Person wählen…</option>
+          ${kandidaten.map(u => `<option value="${u.oid}">${u.name}</option>`).join('')}
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Dauer</label>
+        <select class="form-control" id="vertretungDauer">
+          <option value="dauerhaft" selected>Für immer</option>
+          <option value="befristet">Zeitraum festlegen</option>
+        </select>
+      </div>
+      <div class="form-group" id="vertretungZeitraum" style="display:none">
+        <div style="display:flex;gap:var(--sp-3)">
+          <div style="flex:1"><label class="form-label">Von</label><input type="date" class="form-control" id="vertretungVon"></div>
+          <div style="flex:1"><label class="form-label">Bis</label><input type="date" class="form-control" id="vertretungBis"></div>
+        </div>
+      </div>
+      <button class="btn btn-primary" id="vertretungAddBtn" type="button">Vertreter/in hinzufügen</button>
+    ` : '<p class="form-hint" style="margin:0">Keine weiteren Personen verfügbar.</p>';
+
+    const erhaltenHtml = erhalten.length ? `
+      <div style="margin-top:var(--sp-5);padding-top:var(--sp-5);border-top:1px solid var(--pm-grey-100)">
+        <div class="settings-row__label" style="margin-bottom:var(--sp-2)">Ich vertrete zurzeit</div>
+        ${erhalten.map(v => `
+          <div class="settings-row">
+            <div class="settings-row__text">
+              <div class="settings-row__label">${v.vertretenerName || '–'}</div>
+              <div class="settings-row__desc">${vertretungZeitraum(v)}${badge(v)}</div>
+            </div>
+          </div>
+        `).join('')}
+      </div>` : '';
+
+    return `
+      <section class="profil-section">
+        <div class="profil-section__header">
+          <div class="profil-section__icon">${Icon('users')}</div>
+          <div class="profil-section__title">Vertretung</div>
+        </div>
+        <div class="profil-section__body-wrap"><div class="profil-section__body">
+          <div class="settings-row__label">Meine Vertreter</div>
+          <div class="settings-row__desc" style="margin-bottom:var(--sp-3)">Diese Personen dürfen dich vertreten und sehen bzw. bearbeiten währenddessen deine zugeordneten Auszubildenden.</div>
+          <div class="vertretung-liste">${vergebenHtml}</div>
+          <div style="margin-top:var(--sp-4);padding-top:var(--sp-4);border-top:1px solid var(--pm-grey-100)">
+            ${addHtml}
+          </div>
+          ${erhaltenHtml}
+        </div></div>
+      </section>
+    `;
+  }
+
+  function bindVertretung() {
+    if (!isSupervisor) return;
+    // Datumsfelder nur bei "Zeitraum festlegen" zeigen (Standard: Für immer).
+    const dauer = document.getElementById('vertretungDauer');
+    const zeitraum = document.getElementById('vertretungZeitraum');
+    dauer?.addEventListener('change', () => {
+      // Nicht das hidden-Attribut: .form-group hat display:flex (components.css)
+      // und würde [hidden]{display:none} überstimmen. Inline style.display gewinnt.
+      if (zeitraum) zeitraum.style.display = dauer.value === 'befristet' ? '' : 'none';
+    });
+
+    document.getElementById('vertretungAddBtn')?.addEventListener('click', async () => {
+      const vertreterOid = document.getElementById('vertreterSelect')?.value;
+      if (!vertreterOid) { Toast.error('Keine Person', 'Bitte eine Person auswählen.'); return; }
+      const typ = document.getElementById('vertretungDauer')?.value;
+      let von = null, bis = null;
+      if (typ === 'befristet') {
+        von = document.getElementById('vertretungVon')?.value || null;
+        bis = document.getElementById('vertretungBis')?.value || null;
+        if (!von || !bis) { Toast.error('Zeitraum unvollständig', 'Bitte Von- und Bis-Datum angeben.'); return; }
+        if (bis < von)    { Toast.error('Ungültiger Zeitraum', 'Das Bis-Datum liegt vor dem Von-Datum.'); return; }
+      }
+      try {
+        await DB.addVertretung({ vertreterOid, von, bis });
+        Toast.success('Vertreter/in hinzugefügt', 'Die Person kann dich jetzt vertreten.');
+        await render();
+      } catch (e) {
+        Toast.error('Fehler', e.message || 'Konnte nicht gespeichert werden.');
+      }
+    });
+
+    document.querySelectorAll('[data-vertretung-beenden]').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        try {
+          await DB.deleteVertretung(btn.getAttribute('data-vertretung-beenden'));
+          Toast.success('Vertretung beendet', 'Die Vertretung wurde entfernt.');
+          await render();
+        } catch (e) {
+          Toast.error('Fehler', e.message || 'Konnte nicht beendet werden.');
+        }
+      });
+    });
+
+    // Native <select> als durchsuchbares PMSelect verschönern (idempotent).
+    if (typeof PMSelect !== 'undefined' && PMSelect.enhance) { try { PMSelect.enhance(); } catch (e) { /* defensiv */ } }
+  }
+
   /* Fehler melden: öffnet das gemeinsame Modal aus error-reporter.js
      (window.oeffneFehlerMeldung, Task 7). Für alle Rollen sichtbar. */
   function buildFehlerMelden() {
@@ -616,6 +759,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         ${buildAusbildungsDaten()}
         ${await buildAusbilderTimeline()}
         ${await buildAzubiListe()}
+        ${await buildVertretung()}
         ${buildEingabehilfen()}
         ${buildDarstellung()}
         ${buildFehlerMelden()}
@@ -667,6 +811,9 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // Eingabehilfen-Schalter verdrahten (nur für Azubis gerendert)
     bindEingabehilfen();
+
+    // Vertretung verdrahten (nur für betreuende Personen gerendert)
+    bindVertretung();
 
     // Zeitnachweis-Import-Sektion verdrahten (nur für Azubis vorhanden)
     ZeitnachweisUpload.bind(user);

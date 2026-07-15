@@ -5,6 +5,7 @@ const { getPool, sql } = require('../db/connection');
 const { berechne } = require('../../app/js/beurteilung-core.js');
 const { ladeKorrekturKontext } = require('./zugriffContext');
 const { verantwortlichFuerZuweisung } = require('./zugriff');
+const { aktiveVertreteneEmails } = require('./vertretungen');
 
 const heuteYmd = () => new Date().toISOString().slice(0, 10);
 
@@ -180,14 +181,18 @@ async function kenntnisnahme(pool, id, azubiOid) {
 async function ermittleUndErzeugeFaellige(pool, user) {
   const email = String(user.email || '').toLowerCase();
   if (!email) return [];
-  const r = await pool.request()
-    .input('email', sql.NVarChar(255), email)
-    .input('heute', sql.Date, heuteYmd())
+  // Eigene Zuweisungen + die der aktuell Vertretenen (der Vertreter soll auch
+  // deren fällige Beurteilungen sehen/erledigen). Alle per VerantwEmail.
+  const delegiert = await aktiveVertreteneEmails(pool, user.oid);
+  const emails = [...new Set([email, ...delegiert])];
+  const req = pool.request().input('heute', sql.Date, heuteYmd());
+  const params = emails.map((e, i) => { req.input(`e${i}`, sql.NVarChar(255), e); return `@e${i}`; });
+  const r = await req
     .query(`
       SELECT z.Id AS ZuweisungId, z.Abteilung, z.Von, z.Bis, z.AzubiOid
       FROM dbo.Zuweisungen z
       LEFT JOIN dbo.Beurteilungen b ON b.ZuweisungId = z.Id AND b.Status = 'abgeschlossen'
-      WHERE z.VerantwEmail = @email AND z.Bis IS NOT NULL AND z.Bis < @heute AND b.Id IS NULL
+      WHERE z.VerantwEmail IN (${params.join(',')}) AND z.Bis IS NOT NULL AND z.Bis < @heute AND b.Id IS NULL
       ORDER BY z.Bis DESC`);
   for (const z of r.recordset) {
     const exists = await pool.request()

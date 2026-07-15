@@ -16,8 +16,11 @@
   display:flex; align-items:center; gap:var(--sp-2); flex-wrap:wrap; margin-bottom:var(--sp-4);
 }
 .pt-search { position:relative; }
-.pt-search input { width:240px; }
+.pt-search input { width:220px; }
 .pt-toolbar .form-control { height:36px; }
+/* Filter-Selects inline halten statt full-width gestapelt. (0,3,0) überstimmt
+   .pm-select--block (0,2,0), das sonst width:100% erzwingt → Zeilenumbruch. */
+.pt-toolbar .pm-select.pm-select--block { width:auto; flex:0 1 190px; min-width:150px; }
 .pt-toolbar__spacer { flex:1 1 auto; }
 
 .pt-stepper { display:inline-flex; align-items:center; border:1px solid var(--pm-grey-200); border-radius:var(--r-md); background:var(--pm-white); overflow:hidden; }
@@ -33,6 +36,7 @@
 /* ── Plantafel-Rahmen ── */
 .pt-wrap { border:1px solid var(--pm-grey-200); border-radius:var(--r-lg); background:var(--pm-white); box-shadow:var(--shadow-sm); display:flex; flex-direction:column; overflow:hidden; }
 .pt-scroll { overflow:auto; max-height:calc(100vh - 230px); }
+.pt-scroll.is-panning { cursor:grabbing; user-select:none; }
 .pt-board { --name-w:240px; --tl-w:1200px; min-width:calc(var(--name-w) + var(--tl-w)); position:relative; }
 
 .pt-head { position:sticky; top:0; z-index:6; display:grid; grid-template-columns:var(--name-w) var(--tl-w); background:var(--pm-white); border-bottom:1px solid var(--pm-grey-200); }
@@ -115,6 +119,7 @@
 .pt-stn { position:relative; padding:12px 13px; border:1px solid var(--pm-grey-200); border-radius:var(--r-md); margin-bottom:10px; background:var(--pm-white); }
 .pt-stn::before { content:""; position:absolute; left:0; top:11px; bottom:11px; width:3px; border-radius:3px; background:var(--pt-sd,var(--pm-grey-300)); }
 .pt-stn--cur { border-color:var(--pm-yellow); }
+.pt-stn--focus { outline:2px solid var(--pm-yellow); outline-offset:1px; }
 .pt-stn__top { display:flex; align-items:center; gap:8px; padding-right:52px; }
 .pt-stn__abt { font-size:var(--text-sm); font-weight:700; color:var(--pm-grey-900); }
 .pt-stn__badge { font-size:9.5px; font-weight:800; letter-spacing:.02em; padding:2px 8px; border-radius:20px; margin-left:auto; }

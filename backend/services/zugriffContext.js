@@ -2,30 +2,53 @@
 /* Unreine DB-Adapter für die Zugriffsprüfung: laden die normalisierten
    Eingaben, die backend/services/zugriff.js (rein) erwartet. */
 const { sql } = require('../db/connection');
+const { aktiveVertreteneOids } = require('./vertretungen');
 
-// Zuweisungen (befristet, per E-Mail) + dauerhafte Ausbilder-Zuordnungen (per OID)
-// des Nutzers + heutiger Stichtag (UTC-Kalendertag).
-async function ladeKorrekturKontext(pool, user) {
-  const email = String((user && user.email) || '').trim().toLowerCase();
-  const oid   = String((user && user.oid)   || '').trim();
-
+// Befristete Zuweisungen einer VerantwEmail, normalisiert. `alsEmail` schreibt
+// die effektive Identität in verantwortlicherEmail — bei delegierten Zuweisungen
+// wird so die E-Mail des Vertreters eingesetzt, damit der reine Check
+// (z.verantwortlicherEmail === user.email) unverändert greift.
+async function ladeZuweisungen(pool, verantwEmail, alsEmail) {
   const rz = await pool.request()
-    .input('email', sql.NVarChar(255), email)
+    .input('email', sql.NVarChar(255), verantwEmail)
     .query('SELECT AzubiOid, VerantwEmail, Von, Bis FROM dbo.Zuweisungen WHERE VerantwEmail = @email');
-  const zuweisungen = rz.recordset.map(z => ({
+  return rz.recordset.map(z => ({
     azubiOid: z.AzubiOid,
-    verantwortlicherEmail: z.VerantwEmail,
+    verantwortlicherEmail: alsEmail,
     von: z.Von,
     bis: z.Bis,
   }));
+}
 
+async function ladeDauerAzubiOids(pool, ausbilderOid) {
   const rd = await pool.request()
-    .input('oid', sql.NVarChar(36), oid)
+    .input('oid', sql.NVarChar(36), ausbilderOid)
     .query('SELECT AzubiOid FROM dbo.AusbilderAzubis WHERE AusbilderOid = @oid');
-  const dauerAusbilderAzubiOids = rd.recordset.map(r => r.AzubiOid);
+  return rd.recordset.map(r => r.AzubiOid);
+}
 
+// Zuweisungen (befristet, per E-Mail) + dauerhafte Ausbilder-Zuordnungen (per OID)
+// des Nutzers + heutiger Stichtag (UTC-Kalendertag). PLUS: die Quellen jeder
+// Person, die den Nutzer aktuell VERTRETEN lässt — additiv uniert, unter der
+// Identität (E-Mail) des Vertreters. Eine Ebene (keine Weiterdelegation).
+async function ladeKorrekturKontext(pool, user) {
+  const email = String((user && user.email) || '').trim().toLowerCase();
+  const oid   = String((user && user.oid)   || '').trim();
   const stichtag = new Date().toISOString().slice(0, 10);
-  return { zuweisungen, stichtag, dauerAusbilderAzubiOids };
+
+  const zuweisungen = await ladeZuweisungen(pool, email, email);
+  const dauerSet = new Set(await ladeDauerAzubiOids(pool, oid));
+
+  const vertretene = oid ? await aktiveVertreteneOids(pool, oid, stichtag) : [];
+  for (const vOid of vertretene) {
+    const vr = await pool.request().input('oid', sql.NVarChar(36), vOid)
+      .query('SELECT Email FROM dbo.Users WHERE Oid = @oid');
+    const vEmail = String((vr.recordset[0] && vr.recordset[0].Email) || '').trim().toLowerCase();
+    if (vEmail) zuweisungen.push(...await ladeZuweisungen(pool, vEmail, email));
+    for (const az of await ladeDauerAzubiOids(pool, vOid)) dauerSet.add(az);
+  }
+
+  return { zuweisungen, stichtag, dauerAusbilderAzubiOids: [...dauerSet] };
 }
 
 // Eine Woche normalisiert (inkl. Korrektur-Spuren) für die Zugriffsprüfung.

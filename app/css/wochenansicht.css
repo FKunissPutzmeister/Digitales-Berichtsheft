@@ -1388,6 +1388,57 @@ html[data-skin="silk"] body[data-page="wochenansicht"] .day-section .ql-editor {
   gap: var(--sp-3);
   flex-wrap: wrap;
 }
+
+/* Prüf-Aktionen: Genehmigen als prominenter grüner Haken-im-Kreis (häufig),
+   Zurückgeben dezent transparent daneben (selten → weniger präsent). */
+.btn-approve-circle {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  border: none;
+  background: var(--color-success);
+  color: var(--on-inverse-text);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background .15s ease, transform .1s ease;
+}
+.btn-approve-circle:hover:not(:disabled) { background: var(--color-success-mid); }
+.btn-approve-circle:active { transform: scale(0.94); }
+.btn-approve-circle:focus-visible { outline: none; box-shadow: 0 0 0 3px rgba(27, 126, 53, 0.3); }
+
+/* Sekundär, aber klar als Button erkennbar (Rand von .btn-outline);
+   färbt sich beim Hover rot, um die Aktion zu signalisieren. */
+.btn.btn-reject-subtle { color: var(--pm-grey-600); }
+.btn.btn-reject-subtle:hover:not(:disabled) {
+  color: var(--color-error);
+  border-color: var(--color-error);
+  background: transparent;
+}
+
+/* Inline-Rückgabe (statt Modal): Begründungsfeld klappt unter der Leiste auf. */
+.reject-inline {
+  margin-bottom: var(--sp-4);
+  padding: var(--sp-4);
+  border: 1px solid var(--pm-grey-200);
+  border-radius: var(--radius-md, 10px);
+  background: var(--pm-grey-50, rgba(0,0,0,0.02));
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+}
+[data-theme="dark"] .reject-inline {
+  border-color: rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.03);
+}
+.reject-inline__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--sp-3);
+  margin-top: var(--sp-1);
+}
 .week-toolbar__autosave {
   display: inline-flex;
   align-items: center;

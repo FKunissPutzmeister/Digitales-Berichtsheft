@@ -1,6 +1,8 @@
 const router = require('express').Router();
+const { getPool } = require('../db/connection');
 const { listUsers, getUserByOid, updateUserProfile, validateUserPatch, buildReqUser } = require('../services/users');
 const { listFuerAzubi, listAzubisFuerAusbilder, validateZuordnung, setFuerAzubi } = require('../services/ausbilderAzubis');
+const { listDelegierteAzubis } = require('../services/vertretungen');
 const { logError } = require('../services/fehlerberichte');
 
 // GET /api/users?role=azubi | ?exclRole=azubi
@@ -22,8 +24,14 @@ router.get('/', async (req, res) => {
 // kollidieren zwar nicht mit dem Ein-Segment-Param, aber der Klarheit halber).
 router.get('/me/azubis', async (req, res) => {
   try {
-    const rows = await listAzubisFuerAusbilder(req.user.oid);
-    res.json(rows.map(buildReqUser));
+    const pool = await getPool();
+    // Eigene dauerhafte Zuordnungen + Azubis, die über eine AKTIVE Vertretung
+    // sichtbar sind (dauerhaft ODER befristet des Vertretenen). Dedupe per OID.
+    const eigene     = await listAzubisFuerAusbilder(req.user.oid);
+    const delegierte = await listDelegierteAzubis(pool, req.user.oid);
+    const byOid = new Map();
+    for (const r of [...eigene, ...delegierte]) if (!byOid.has(r.Oid)) byOid.set(r.Oid, r);
+    res.json([...byOid.values()].map(buildReqUser));
   } catch (e) {
     logError({ quelle: 'backend', nachricht: `[users] me/azubis: ${e.message}`, stack: e.stack,
       kontext: { route: req.path, methode: req.method }, benutzerOid: req.user && req.user.oid, benutzerName: req.user && req.user.name });

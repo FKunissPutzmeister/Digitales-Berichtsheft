@@ -444,7 +444,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     // ausschließlich als Datenquelle für das Rückgabe-Banner oben und wird
     // hier ausgeblendet – im Kommentarbereich erscheinen nur explizit
     // hinzugefügte Kommentare (inkl. der als 'ausbilder' gespiegelten
-    // Rückgabe-Begründung, siehe rejectConfirmBtn-Handler).
+    // Rückgabe-Begründung, siehe rejectInlineSubmit-Handler).
     const wochenKommentare = (woche?.kommentare || []).filter(k => k.tagId === null && k.typ !== 'abgelehnt');
     const wochenKommentareHtml = woche && wochenKommentare.length
       ? `<div class="card" style="margin-top:var(--sp-5)">
@@ -478,10 +478,15 @@ document.addEventListener('DOMContentLoaded', async () => {
       <div class="week-toolbar">
         <div class="week-toolbar__left">
           ${canApprove ? `
-            <button class="btn btn-success btn-lg" id="approveBtn">${canErstgenehmigen ? 'Erstgenehmigen' : 'Genehmigen'}</button>
+            <button class="btn-approve-circle" id="approveBtn" type="button" title="${canErstgenehmigen ? 'Erstgenehmigen' : 'Genehmigen'}" aria-label="${canErstgenehmigen ? 'Erstgenehmigen' : 'Genehmigen'}">
+              <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3" style="width:22px;height:22px"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+            </button>
           ` : ''}
           ${canReject ? `
-            <button class="btn btn-danger" id="rejectBtn">Zurückgeben</button>
+            <button class="btn btn-outline btn-reject-subtle" id="rejectBtn" type="button">
+              <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" style="width:16px;height:16px"><path stroke-linecap="round" stroke-linejoin="round" d="M9 14 4 9l5-5"/><path stroke-linecap="round" stroke-linejoin="round" d="M4 9h11a5 5 0 0 1 5 5v1"/></svg>
+              Zurückgeben
+            </button>
           ` : ''}
           ${!canRelease && !canApprove && !canReject && woche ? `<span class="badge badge--${woche.status}">${getStatusLabel(woche.status)}</span>` : ''}
           ${canWithdraw ? `
@@ -514,7 +519,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             </button>
             <div class="${kwCoreCls}"${enterAttr}>
               <div class="week-kw-block__kw">KW ${currentKW}</div>
-              <div class="week-kw-block__range">${DateUtil.formatDateShort(DateUtil.toISODate(monday))} – ${DateUtil.formatDateShort(DateUtil.toISODate(sunday))}</div>
+              <div class="week-kw-block__range">${DateUtil.formatDate(DateUtil.toISODate(monday), { year: '2-digit' })} – ${DateUtil.formatDate(DateUtil.toISODate(sunday), { year: '2-digit' })}</div>
             </div>
             <button class="week-kw-block__nav" id="nextWeekBtn" aria-label="Nächste Woche">
               <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
@@ -522,6 +527,17 @@ document.addEventListener('DOMContentLoaded', async () => {
           </div>
         </div>
       </div>
+
+      ${canReject ? `
+      <div class="reject-inline" id="rejectInline" style="display:none">
+        <label class="form-label" for="rejectInlineReason">Begründung für die Rückgabe</label>
+        <textarea class="form-control" id="rejectInlineReason" rows="3" placeholder="Was soll überarbeitet werden? Der/die Azubi sieht diese Begründung."></textarea>
+        <div class="reject-inline__actions">
+          <button class="btn btn-ghost" id="rejectInlineCancel" type="button">Abbrechen</button>
+          <button class="btn btn-danger" id="rejectInlineSubmit" type="button">Woche zurückgeben</button>
+        </div>
+      </div>
+      ` : ''}
 
       <div class="${paneCls}"${enterAttr}>
       ${berichtTyp === 'wöchentlich'
@@ -718,7 +734,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (kwEl) kwEl.textContent = `KW ${currentKW}`;
     const rangeEl = document.querySelector('.week-kw-block__range');
     if (rangeEl) rangeEl.textContent =
-      `${DateUtil.formatDateShort(DateUtil.toISODate(monday))} – ${DateUtil.formatDateShort(DateUtil.toISODate(sunday))}`;
+      `${DateUtil.formatDate(DateUtil.toISODate(monday), { year: '2-digit' })} – ${DateUtil.formatDate(DateUtil.toISODate(sunday), { year: '2-digit' })}`;
     const tw = document.getElementById('thisWeekBtn');
     if (tw) tw.classList.toggle('is-hidden', currentKW === todayKW && currentYear === todayYear);
   }
@@ -2212,15 +2228,54 @@ document.addEventListener('DOMContentLoaded', async () => {
       Modal.open('releaseModal');
     });
 
-    document.getElementById('approveBtn')?.addEventListener('click', () => {
-      const erst = (currentWoche?.erlaubteAktionen || []).includes('erstgenehmigen');
-      document.querySelector('#approveModal .modal__title').textContent = erst ? 'Woche erstgenehmigen' : 'Woche genehmigen';
-      document.getElementById('approveConfirmBtn').textContent = erst ? 'Erstgenehmigen' : 'Genehmigen';
-      Modal.open('approveModal');
+    // Genehmigen ohne Zwischenbestätigung: direkt setzen (keine Modal-Abfrage).
+    // Zweistufige Abnahme bleibt erhalten: erstgenehmigen → 'erstgenehmigt'
+    // (weiter zur Endabnahme, keine Azubi-Mitteilung), sonst → 'genehmigt'.
+    document.getElementById('approveBtn')?.addEventListener('click', async () => {
+      const woche = currentWoche;
+      if (!woche) return;
+      const erst = (woche.erlaubteAktionen || []).includes('erstgenehmigen');
+      await DB.setWocheStatus(woche.id, erst ? 'erstgenehmigt' : 'genehmigt');
+      if (!erst) {
+        await DB.addBenachrichtigung({
+          userId: woche.azubiId, type: 'genehmigt', wocheId: woche.id,
+          azubiId: woche.azubiId, kw: woche.kw, year: woche.year, fromUserId: user.id,
+        });
+      }
+      if (erst) Toast.success('Erstgenehmigt', `KW ${currentKW} wurde erstgenehmigt und zur Endabnahme weitergeleitet.`);
+      else      Toast.success('Genehmigt', `KW ${currentKW} wurde genehmigt.`);
+      render();
     });
+    // Zurückgeben inline (kein Modal): Begründungsfeld direkt einblenden.
     document.getElementById('rejectBtn')?.addEventListener('click', () => {
-      document.getElementById('rejectReason').value = '';
-      Modal.open('rejectModal');
+      const panel = document.getElementById('rejectInline');
+      const ta = document.getElementById('rejectInlineReason');
+      if (!panel) return;
+      if (ta) ta.value = '';
+      panel.style.display = '';  // '' → Stylesheet greift (.reject-inline{display:flex}); nicht 'block' (verlöre gap)
+      ta?.focus();
+    });
+    document.getElementById('rejectInlineCancel')?.addEventListener('click', () => {
+      const panel = document.getElementById('rejectInline');
+      if (panel) panel.style.display = 'none';
+    });
+    document.getElementById('rejectInlineSubmit')?.addEventListener('click', async () => {
+      const woche = currentWoche;
+      if (!woche) return;
+      const reason = (document.getElementById('rejectInlineReason')?.value || '').trim();
+      if (!reason) { Toast.error('Pflichtfeld', 'Bitte eine Begründung eingeben.'); return; }
+      const datum = new Date().toLocaleDateString('de-DE');
+      // 'abgelehnt'-Kommentar = Datenquelle für das Rückgabe-Banner (oben).
+      await DB.addKommentar(woche.id, { userId: user.id, text: reason, datum, typ: 'abgelehnt' });
+      // Zusätzlich als regulärer Kommentar in den Thread (Verlauf bleibt erhalten).
+      await DB.addKommentar(woche.id, { userId: user.id, text: reason, datum, typ: 'ausbilder' });
+      await DB.setWocheStatus(woche.id, 'abgelehnt');
+      await DB.addBenachrichtigung({
+        userId: woche.azubiId, type: 'abgelehnt', wocheId: woche.id,
+        azubiId: woche.azubiId, kw: woche.kw, year: woche.year, fromUserId: user.id,
+      });
+      Toast.warning('Zurückgegeben', `KW ${currentKW} wurde zurückgegeben.`);
+      render();
     });
 
     document.getElementById('addCommentBtn')?.addEventListener('click', () => {
@@ -2278,56 +2333,9 @@ document.addEventListener('DOMContentLoaded', async () => {
       render();
     });
 
-    // Genehmigen bestätigen (Ausbilder).
-    document.getElementById('approveConfirmBtn')?.addEventListener('click', async () => {
-      const woche = currentWoche;
-      if (!woche) return;
-      const erst = (woche.erlaubteAktionen || []).includes('erstgenehmigen');
-      const target = erst ? 'erstgenehmigt' : 'genehmigt';
-      await DB.setWocheStatus(woche.id, target);
-      if (!erst) {
-        await DB.addBenachrichtigung({
-          userId: woche.azubiId, type: 'genehmigt', wocheId: woche.id,
-          azubiId: woche.azubiId, kw: woche.kw, year: woche.year, fromUserId: user.id,
-        });
-      }
-      Modal.closeAll();
-      if (erst) Toast.success('Erstgenehmigt', `KW ${currentKW} wurde erstgenehmigt und zur Endabnahme weitergeleitet.`);
-      else      Toast.success('Genehmigt', `KW ${currentKW} wurde genehmigt.`);
-      render();
-    });
+    // (Genehmigen läuft ohne Zwischenbestätigung direkt über den approveBtn-Handler.)
 
-    // Zurückgeben bestätigen (Ausbilder) – Begründung Pflicht.
-    document.getElementById('rejectConfirmBtn')?.addEventListener('click', async () => {
-      const woche = currentWoche;
-      const reason = document.getElementById('rejectReason').value.trim();
-      if (!reason) { Toast.error('Pflichtfeld', 'Bitte eine Begründung eingeben.'); return; }
-      if (!woche) return;
-      const datum = new Date().toLocaleDateString('de-DE');
-      // 'abgelehnt'-Kommentar = Datenquelle für das Rückgabe-Banner (oben).
-      await DB.addKommentar(woche.id, {
-        userId: user.id, text: reason, datum, typ: 'abgelehnt',
-      });
-      // Begründung zusätzlich als regulären Kommentar in den Thread, damit sie
-      // im Kommentarbereich als explizit hinzugefügter Kommentar erscheint und
-      // auch nach erneuter Freigabe (Banner weg) als Verlauf erhalten bleibt.
-      await DB.addKommentar(woche.id, {
-        userId: user.id, text: reason, datum, typ: 'ausbilder',
-      });
-      await DB.setWocheStatus(woche.id, 'abgelehnt');
-      await DB.addBenachrichtigung({
-        userId: woche.azubiId,
-        type: 'abgelehnt',
-        wocheId: woche.id,
-        azubiId: woche.azubiId,
-        kw: woche.kw,
-        year: woche.year,
-        fromUserId: user.id,
-      });
-      Modal.closeAll();
-      Toast.warning('Zurückgegeben', `KW ${currentKW} wurde zurückgegeben.`);
-      render();
-    });
+    // (Zurückgeben läuft inline über rejectInlineSubmit – kein Modal mehr.)
 
     // Kommentar speichern (Ausbilder) – Wochen- oder Tages-Kommentar.
     document.getElementById('commentSubmitBtn')?.addEventListener('click', async () => {

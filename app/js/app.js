@@ -159,14 +159,14 @@ async function initLayout(activeNavId) {
   const topbarName = document.getElementById('topbarUserName');
   const topbarInitials = document.getElementById('topbarUserInitials');
 
-  if (userName) userName.textContent = user.name;
+  if (userName) userName.textContent = displayName(user.name);
   if (userRole) {
     // Rollen-Badge: kleine farbige Pill, Farb-Variante per data-role
     const label = ROLE_LABELS[user.role] || user.role;
     userRole.innerHTML = `<span class="role-badge" data-role="${user.role}">${label}</span>`;
   }
   if (userInitials) userInitials.textContent = user.initials || getInitials(user.name);
-  if (topbarName) topbarName.textContent = user.name;
+  if (topbarName) topbarName.textContent = displayName(user.name);
   if (topbarInitials) topbarInitials.textContent = user.initials || getInitials(user.name);
 
   // Fähigkeits-Gating der Navigation.
@@ -275,9 +275,40 @@ async function initNotifications(user) {
     abgelehnt: `<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>`,
     beurteilung_faellig: `<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>`,
     beurteilung_abgeschlossen: `<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>`,
+    versetzung: `<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M8 7h12m0 0l-4-4m4 4l-4 4M16 17H4m0 0l4 4m-4-4l4-4"/></svg>`,
+    vertretung: `<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-2a4 4 0 0 0-3-3.87M9 20H4v-2a4 4 0 0 1 3-3.87m5-1.13a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm7-4a3 3 0 1 0 0-6"/></svg>`,
+  };
+  const VERSETZUNG_TITEL = {
+    versetzung_neu:       'Neue Abteilungszuweisung',
+    versetzung_geaendert: 'Abteilungszuweisung geändert',
+    versetzung_entfernt:  'Abteilungszuweisung entfernt',
+  };
+  const VERTRETUNG_TITEL = {
+    vertretung_neu:     'Du wurdest als Vertreter/in eingetragen',
+    vertretung_beendet: 'Eine Vertretung wurde beendet',
   };
 
   async function renderItem(b) {
+    if (VERSETZUNG_TITEL[b.type]) {
+      const entfernt = b.type === 'versetzung_entfernt';
+      const meta = relativeTime(b.timestamp);
+      return `
+        <button type="button" class="notif-item${b.gelesen ? '' : ' notif-item--unread'}" data-id="${b.id}" data-nav="planer">
+          <span class="notif-item__icon notif-item__icon--${entfernt ? 'error' : 'success'}">${ICON.versetzung}</span>
+          <span class="notif-item__body"><span class="notif-item__title">${VERSETZUNG_TITEL[b.type]}</span><span class="notif-item__meta">${meta}</span></span>
+          ${b.gelesen ? '' : '<span class="notif-item__dot" aria-label="ungelesen"></span>'}
+        </button>`;
+    }
+    if (VERTRETUNG_TITEL[b.type]) {
+      const beendet = b.type === 'vertretung_beendet';
+      const meta = relativeTime(b.timestamp);
+      return `
+        <button type="button" class="notif-item${b.gelesen ? '' : ' notif-item--unread'}" data-id="${b.id}" data-nav="profil">
+          <span class="notif-item__icon notif-item__icon--${beendet ? 'error' : 'success'}">${ICON.vertretung}</span>
+          <span class="notif-item__body"><span class="notif-item__title">${VERTRETUNG_TITEL[b.type]}</span><span class="notif-item__meta">${meta}</span></span>
+          ${b.gelesen ? '' : '<span class="notif-item__dot" aria-label="ungelesen"></span>'}
+        </button>`;
+    }
     if (b.type === 'beurteilung_faellig' || b.type === 'beurteilung_abgeschlossen') {
       const faellig = b.type === 'beurteilung_faellig';
       const title = faellig ? 'Beurteilung fällig' : 'Neue Beurteilung liegt vor';
@@ -358,6 +389,8 @@ async function initNotifications(user) {
           const zuw = el.dataset.zuw;
           if (zuw) { window.location.href = `beurteilung.html?zuw=${zuw}`; return; }
         }
+        if (el.dataset.nav === 'planer') { window.location.href = 'abteilungs-planer.html?mein=1'; return; }
+        if (el.dataset.nav === 'profil') { window.location.href = 'profil.html'; return; }
         // Navigations-Hinweise an wochenansicht.js übergeben
         if (item.kw)        sessionStorage.setItem('gotoKW',    String(item.kw));
         if (item.year)      sessionStorage.setItem('gotoYear',  String(item.year));

@@ -283,7 +283,10 @@ async function renderAzubiDashboard(user) {
     if (todayMid < last) return null;   // letzter Berufsschultag noch nicht vorbei
     return { month: DateUtil.MONTHS[mo], date: DateUtil.toISODate(last) };
   }
-  const mtItems = await DB.getBenachrichtigungenFuerUser(user.id);
+  // Versetzungs-Mitteilungen erscheinen nur in der Glocke, nicht in dieser
+  // KW-zentrischen Berichtsheft-Mitteilungsliste (hätten kein KW/Jahr).
+  const mtItems = (await DB.getBenachrichtigungenFuerUser(user.id))
+    .filter(b => !String(b.type || '').startsWith('versetzung_'));
   const mtUnread = mtItems.filter(b => !b.gelesen).length;
   const mtFahrgeld = computeFahrgeldReminder();
   const mtFahrgeldHtml = mtFahrgeld ? `

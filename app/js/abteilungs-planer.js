@@ -291,7 +291,21 @@ document.addEventListener('DOMContentLoaded', async () => {
   const [azubisRaw, dhRaw, abteilungenKatalog, alleZuweisungen] = await Promise.all([
     DB.getAzubis(), DB.getDhStudenten(), DB.getAbteilungen(), DB.getAllZuweisungen(),
   ]);
-  const azubis = [...azubisRaw, ...dhRaw].sort((a, b) => a.name.localeCompare(b.name, 'de'));
+  // Nach Nachname sortieren (unabhängig vom Speicherformat), dann Anzeige-
+  // Namen "Vorname Nachname" + Initialen "FK" setzen (initials via api.js).
+  const nachnameKey = raw => {
+    const n = String(raw ?? '').trim();
+    return (n.includes(',') ? n.split(',')[0] : n.split(/\s+/).slice(-1)[0] || n).toLowerCase();
+  };
+  // Nach OID deduplizieren: ein Konto, das sowohl in der Azubi- (Role='azubi'
+  // ODER IstAzubi=1) als auch in der DH-Liste steht, käme sonst doppelt als
+  // zwei Zeilen mit identischem Avatar. (Echte Namensdubletten = verschiedene
+  // OIDs = verschiedene Menschen und bleiben bewusst getrennt.)
+  const seenOid = new Set();
+  const azubis = [...azubisRaw, ...dhRaw]
+    .filter(a => (seenOid.has(a.id) ? false : (seenOid.add(a.id), true)))
+    .sort((a, b) => nachnameKey(a.name).localeCompare(nachnameKey(b.name), 'de'))
+    .map(a => ({ ...a, name: displayName(a.name), initials: getInitials(a.name) }));
   const azubiById = new Map(azubis.map(a => [a.id, a]));
 
   // Zuweisungen je Azubi (In-Memory-Index).
@@ -365,9 +379,47 @@ document.addEventListener('DOMContentLoaded', async () => {
     return set;
   }
 
+  // ── Suche: tippfehler-tolerant + diakritika-insensitiv ──
+  // ponytail: O(azubis × tokens × wortlänge) – bei ~Dutzenden Azubis irrelevant;
+  // erst bei Tausenden auf einen vorab normalisierten Index umstellen.
+  const normDia = s => String(s ?? '').toLowerCase()
+    .normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/ß/g, 'ss');
+  // Damerau-Levenshtein (OSA): benachbarte Vertauschung = 1 Edit ("kenr"→"kern").
+  function editDist(a, b) {
+    const m = a.length, n = b.length;
+    if (!m) return n; if (!n) return m;
+    const d = Array.from({ length: m + 1 }, () => new Array(n + 1).fill(0));
+    for (let i = 0; i <= m; i++) d[i][0] = i;
+    for (let j = 0; j <= n; j++) d[0][j] = j;
+    for (let i = 1; i <= m; i++) {
+      for (let j = 1; j <= n; j++) {
+        const cost = a[i - 1] === b[j - 1] ? 0 : 1;
+        d[i][j] = Math.min(d[i - 1][j] + 1, d[i][j - 1] + 1, d[i - 1][j - 1] + cost);
+        if (i > 1 && j > 1 && a[i - 1] === b[j - 2] && a[i - 2] === b[j - 1])
+          d[i][j] = Math.min(d[i][j], d[i - 2][j - 2] + 1);
+      }
+    }
+    return d[m][n];
+  }
+  // Query matcht, wenn jedes Query-Wort Teilstring ist ODER einem Token nah genug.
+  function fuzzyMatch(query, text) {
+    const q = normDia(query).trim();
+    if (!q) return true;
+    const t = normDia(text);
+    if (t.includes(q)) return true;
+    const toks = t.split(/\s+/).filter(Boolean);
+    return q.split(/\s+/).filter(Boolean).every(qw => {
+      const tol = qw.length <= 6 ? 1 : qw.length <= 9 ? 2 : 3;
+      // Exakter Teilstring gewinnt immer; die Fuzzy-Toleranz nur bei gleichem
+      // Anfangsbuchstaben zulassen – sonst matchen fremde Namen gleicher Länge
+      // (z. B. "muller"↔"haller" = Distanz 2) und blenden falsche Personen ein.
+      return toks.some(tw => tw.includes(qw) || (qw[0] === tw[0] && editDist(qw, tw) <= tol));
+    });
+  }
+
   // ── Filter ──
   function passtFilter(a) {
-    if (searchText && !`${a.name} ${a.beruf || ''}`.toLowerCase().includes(searchText)) return false;
+    if (searchText && !fuzzyMatch(searchText, `${a.name} ${a.beruf || ''}`)) return false;
     if (!showInaktive && a.aktiv === false) return false;
     if (filterBeruf && a.beruf !== filterBeruf) return false;
     if (filterJahrgang) {
@@ -450,7 +502,8 @@ document.addEventListener('DOMContentLoaded', async () => {
           <button type="button" data-z="jahr" class="${zoom === 'jahr' ? 'is-on' : ''}">Jahr</button>
         </div>
         <button type="button" class="btn btn-outline btn-sm" id="ptHeute">Heute</button>
-        <button type="button" class="btn btn-outline btn-sm" id="ptPrint">Drucken</button>
+        <button type="button" class="btn btn-outline btn-sm" id="ptExport" title="Aktuell gefilterte Personen + Zuweisungen als CSV (öffnet in Excel)">Export</button>
+        <button type="button" class="btn btn-outline btn-sm" id="ptPrint" title="Mit gesetztem Abteilungsfilter: diese Abteilung drucken. Sonst: gesamte Tafel.">Drucken</button>
         <button type="button" class="btn btn-secondary btn-sm" id="ptAdd">+ Zuweisung</button>
       </div>`;
   }
@@ -498,7 +551,8 @@ document.addEventListener('DOMContentLoaded', async () => {
       if (today < w.start || today > w.end) { ajStartYear = today.getMonth() >= 8 ? today.getFullYear() : today.getFullYear() - 1; afterAjOrZoom(); }
       scrollToToday(true);
     });
-    on('ptPrint', 'click', () => window.print());
+    on('ptExport', 'click', exportCsv);
+    on('ptPrint', 'click', () => filterAbteilung ? printAbteilung(filterAbteilung) : window.print());
     on('ptAdd', 'click', () => openZuwModal(null, selectedAzubiId));
     document.getElementById('ptZoom')?.addEventListener('click', e => {
       const b = e.target.closest('button'); if (!b) return;
@@ -663,7 +717,17 @@ document.addEventListener('DOMContentLoaded', async () => {
     renderPanel();
   }
 
-  async function renderPanel() {
+  // Klick (kein Ziehen) auf einen Balken → Panel immer öffnen (nicht toggeln)
+  // und die geklickte Station hervorheben. Zeitraum + Verantwortliche/r stehen
+  // dort je Station (renderPanel).
+  function focusStation(azubiId, zid) {
+    selectedAzubiId = azubiId;
+    document.getElementById('ptLayout')?.classList.add('pt-has-panel');
+    document.querySelectorAll('.pt-row').forEach(r => r.classList.toggle('is-sel', r.dataset.azubi === azubiId));
+    renderPanel(zid);
+  }
+
+  async function renderPanel(focusZid) {
     const panel = document.getElementById('ptPanel');
     if (!panel) return;
     if (!selectedAzubiId) { panel.hidden = true; panel.innerHTML = ''; return; }
@@ -718,7 +782,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         const konfMark = konf.has(z.id) ? ` <span class="pt-tag pt-tag--conf">Konflikt</span>` : '';
         const bisTxt = z.bis ? DateUtil.formatDate(z.bis) : 'offen';
         return `${luecke}
-          <div class="pt-stn ${st.key === 'aktuell' ? 'pt-stn--cur' : ''}" style="--pt-sd:${colorFor(z.abteilung)}">
+          <div class="pt-stn ${st.key === 'aktuell' ? 'pt-stn--cur' : ''}" data-stn="${z.id}" style="--pt-sd:${colorFor(z.abteilung)}">
             <div class="pt-stn__acts">
               <button type="button" data-edit="${z.id}" aria-label="Bearbeiten" title="Bearbeiten">✎</button>
               <button type="button" data-del="${z.id}" aria-label="Löschen" title="Löschen">✕</button>
@@ -730,9 +794,14 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
     const bodyEl = document.getElementById('ptPanelBody');
     if (bodyEl) {
-      bodyEl.innerHTML = `<div class="pt-label">Stationen · ${ajLabel()} (${stns.length})</div>${bodyHtml}`;
+      bodyEl.innerHTML = `<div class="pt-label">Alle Stationen (${stns.length})</div>${bodyHtml}`;
       bodyEl.querySelectorAll('[data-edit]').forEach(btn => btn.addEventListener('click', () => openZuwModal(findZuw(Number(btn.dataset.edit)), null)));
       bodyEl.querySelectorAll('[data-del]').forEach(btn => btn.addEventListener('click', () => askDelete(Number(btn.dataset.del))));
+      // Balken-Klick: zugehörige Station ins Blickfeld holen + kurz hervorheben.
+      if (focusZid != null) {
+        const stnEl = bodyEl.querySelector(`[data-stn="${focusZid}"]`);
+        if (stnEl) { stnEl.classList.add('pt-stn--focus'); stnEl.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); }
+      }
     }
   }
   function bindPanelFoot() {
@@ -764,6 +833,11 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Drag/Resize per window-Listener (statt setPointerCapture): robust auch
   // wenn der Zeiger die Leiste verlässt, und zuverlässig unter Automatisierung.
   let drag = null;
+  // Doppelklick auf einen Balken = Bearbeiten-Dialog. Über Zeitfenster erkannt
+  // (nicht via nativem dblclick), weil der Balken-Drag pointerdown mit
+  // preventDefault kapert und native click/dblclick-Events dadurch je nach
+  // Browser ausbleiben. Ein Klick ohne Bewegung landet in onDragUp.
+  let lastBarClick = null;
   function bindBoardDrag() {
     const board = document.getElementById('ptBoard'); if (!board) return;
     board.addEventListener('pointerdown', onDragDown);
@@ -802,7 +876,17 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (!drag) return;
     const d = drag; drag = null;
     d.bar.classList.remove('is-dragging');
-    if (!d.moved) { renderTimeline(); return; }
+    if (!d.moved) {
+      const now = Date.now();
+      if (lastBarClick && lastBarClick.id === d.z.id && now - lastBarClick.t < 350) {
+        lastBarClick = null;
+        openZuwModal(d.z, null);                          // Doppelklick = Bearbeiten
+      } else {
+        lastBarClick = { id: d.z.id, t: now };
+        focusStation(d.bar.dataset.azubi, d.z.id);        // Einfachklick = Details
+      }
+      return;
+    }
     // Auf Montag snappen; Dauer beim Verschieben erhalten.
     const origVon = d.von0, origBis = d.z.bis || '';
     let von = snapMondayISO(d.newVon);
@@ -1042,6 +1126,71 @@ document.addEventListener('DOMContentLoaded', async () => {
     w.document.close();
     w.focus();
     setTimeout(() => { try { w.print(); } catch (_) {} }, 250);
+  }
+
+  // ═══════════════════ DRUCK (eine Abteilung) ═══════════════════
+  // Alle Personen, die im aktuellen AJ-Fenster in dieser Abteilung sind.
+  function printAbteilung(abteilungName) {
+    const win = ajWindow();
+    const vonISO = DateUtil.toISODate(win.start), bisISO = DateUtil.toISODate(win.end);
+    const stns = alleZuweisungen
+      .filter(z => z.abteilung === abteilungName && zeitraeumeUeberschneiden(z.von, z.bis, vonISO, bisISO))
+      .sort((a, b) => (a.von || '').localeCompare(b.von || ''));
+    const rows = stns.map(z => {
+      const a = azubiById.get(z.azubiId);
+      return `<tr>
+        <td>${escHtml(a ? a.name : (z.azubiName || '–'))}${a && a.beruf ? ` <span class="b">${escHtml(a.beruf)}</span>` : ''}</td>
+        <td>${DateUtil.formatDate(z.von)} – ${z.bis ? DateUtil.formatDate(z.bis) : 'offen'}</td>
+        <td>${escHtml(z.verantwName || verantwNameFor(z.verantwEmail) || '–')}</td>
+      </tr>`;
+    }).join('') || `<tr><td colspan="3">Keine Personen in diesem Zeitraum.</td></tr>`;
+    const w = window.open('', '_blank', 'width=900,height=700');
+    if (!w) { Toast.error('Popup blockiert', 'Bitte Pop-ups für diese Seite erlauben.'); return; }
+    w.document.write(`<!DOCTYPE html><html lang="de"><head><meta charset="utf-8"><title>Abteilung ${escHtml(abteilungName)}</title>
+      <style>body{font-family:'Segoe UI',Arial,sans-serif;color:#1a1a1a;margin:32px}h1{font-size:20px;margin:0 0 4px}
+      .sub{color:#666;margin:0 0 20px;font-size:13px}table{width:100%;border-collapse:collapse;font-size:13px}
+      th,td{text-align:left;padding:8px 10px;border-bottom:1px solid #ddd}th{font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:#888}
+      .b{color:#888}@media print{@page{margin:16mm}}</style></head><body>
+      <h1>Abteilung – ${escHtml(abteilungName)}</h1>
+      <p class="sub">${ajLabel()} · Stand ${DateUtil.formatDate(todayISO)}</p>
+      <table><thead><tr><th>Person</th><th>Zeitraum</th><th>Verantwortlich</th></tr></thead><tbody>${rows}</tbody></table>
+      </body></html>`);
+    w.document.close();
+    w.focus();
+    setTimeout(() => { try { w.print(); } catch (_) {} }, 250);
+  }
+
+  // ═══════════════════ EXPORT (CSV für Excel) ═══════════════════
+  // Aktuell gefilterte Personen, eine Zeile je Zuweisung; ungeplante Personen
+  // bekommen eine Leerzeile, damit Vollständigkeit (wie in der Excel-Liste)
+  // sichtbar bleibt. Deutsches Excel: Semikolon-Delimiter + UTF-8-BOM (Umlaute).
+  function exportCsv() {
+    const cols = ['Nachname', 'Vorname', 'Beruf', 'Gruppe', 'Abteilung', 'Von', 'Bis', 'Verantwortliche/r', 'Status'];
+    const splitName = (n) => {
+      const parts = String(n || '').trim().split(/\s+/);        // Anzeige = "Vorname Nachname"
+      return parts.length < 2 ? { vor: '', nach: n || '' } : { vor: parts.slice(0, -1).join(' '), nach: parts[parts.length - 1] };
+    };
+    const rows = [];
+    azubis.filter(passtFilter).forEach(a => {
+      const { vor, nach } = splitName(a.name);
+      const gruppe = a.istDhStudent ? 'DH' : (lehrjahrVon(a) ? `${lehrjahrVon(a)}. LJ` : '');
+      const stns = zuwList(a.id);
+      if (!stns.length) {
+        rows.push([nach, vor, a.beruf || '', gruppe, '', '', '', '', 'ungeplant']);
+      } else {
+        stns.forEach(z => rows.push([nach, vor, a.beruf || '', gruppe, z.abteilung || '',
+          DateUtil.formatDate(z.von), z.bis ? DateUtil.formatDate(z.bis) : 'offen',
+          z.verantwName || verantwNameFor(z.verantwEmail) || '', statusOf(z).label]));
+      }
+    });
+    const esc = v => { const s = String(v ?? ''); return /[";\r\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s; };
+    const csv = '﻿' + [cols, ...rows].map(r => r.map(esc).join(';')).join('\r\n');
+    const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8;' }));
+    const link = document.createElement('a');
+    link.href = url; link.download = `abteilungsplaner_${ajLabel().replace(/[^\w]+/g, '_')}.csv`;
+    document.body.appendChild(link); link.click(); link.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    Toast.success('Exportiert', `${rows.length} Zeile(n) als CSV.`);
   }
 
   // Modals einmalig binden (Markup ist statisch in abteilungs-planer.html).
