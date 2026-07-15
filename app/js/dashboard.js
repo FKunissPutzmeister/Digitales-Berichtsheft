@@ -93,7 +93,7 @@ async function renderAzubiDashboard(user) {
   // Zustand einer Woche fürs farbliche Markieren in der Wochenübersicht.
   function weekState(w) {
     if (!w) return 'leer';
-    if (w.status === 'freigegeben' || w.status === 'genehmigt') return 'abgegeben';
+    if (w.status === 'freigegeben' || w.status === 'erstgenehmigt' || w.status === 'genehmigt') return 'abgegeben';
     const hatInhalt = (w.tage || []).some(t =>
         (t.anwesenheit === 'anwesend') || t.eintrag || t.betriebEintrag || t.schuleEintrag || t.unterweisungEintrag)
       || w.betriebEintrag || w.schuleEintrag || w.unterweisungEintrag;
@@ -130,6 +130,7 @@ async function renderAzubiDashboard(user) {
     if (!w) return 'draft';
     if (w.status === 'genehmigt')   return 'ok';
     if (w.status === 'freigegeben') return 'fr';
+    if (w.status === 'erstgenehmigt') return 'fr';
     if (w.status === 'abgelehnt')   return 'er';
     return 'draft';
   }
@@ -208,10 +209,11 @@ async function renderAzubiDashboard(user) {
         let kind = 'leer';
         let lbl  = 'Leer';
         if (hatInhalt) {
-          if (woche.status === 'genehmigt')        { kind = 'ok';    lbl = 'Genehmigt'; }
-          else if (woche.status === 'freigegeben') { kind = 'fr';    lbl = 'Freigegeben'; }
-          else if (woche.status === 'abgelehnt')   { kind = 'er';    lbl = 'Zurückgegeben'; }
-          else                                      { kind = 'draft'; lbl = 'Entwurf'; }
+          if (woche.status === 'genehmigt')          { kind = 'ok';    lbl = 'Genehmigt'; }
+          else if (woche.status === 'erstgenehmigt') { kind = 'fr';    lbl = 'Erstgenehmigt'; }
+          else if (woche.status === 'freigegeben')   { kind = 'fr';    lbl = 'Freigegeben'; }
+          else if (woche.status === 'abgelehnt')     { kind = 'er';    lbl = 'Zurückgegeben'; }
+          else                                        { kind = 'draft'; lbl = 'Entwurf'; }
         }
 
         // Gleiche Karte wie die Wochen-Variante (.b-wkcard), nur mit
@@ -542,9 +544,10 @@ async function renderAusbilderDashboard(user) {
     });
   }
 
-  // Posteingang: zur Abnahme freigegeben (älteste zuerst)
+  // Posteingang: alle Wochen, auf die der Betrachter reagieren kann
+  // (Prüfer: freigegeben → erstgenehmigen; Ausbilder: freigegeben/erstgenehmigt).
   const queue = allWochen
-    .filter(w => w.status === 'freigegeben')
+    .filter(w => (w.erlaubteAktionen || []).some(a => a === 'erstgenehmigen' || a === 'endgenehmigen'))
     .sort((a, b) => (a.year - b.year) || (a.kw - b.kw));
 
   const zurueckgegeben = allWochen.filter(w => w.status === 'abgelehnt').length;
@@ -557,7 +560,7 @@ async function renderAusbilderDashboard(user) {
     const wochen = await DB.getWochenFuerAzubi(a.id);
     return {
       azubi: a,
-      zuPruefen: wochen.filter(w => w.status === 'freigegeben').length,
+      zuPruefen: wochen.filter(w => (w.erlaubteAktionen || []).some(a => a === 'erstgenehmigen' || a === 'endgenehmigen')).length,
       offen:     wochen.filter(w => w.status === 'offen').length,
       abgelehnt: wochen.filter(w => w.status === 'abgelehnt').length,
       genehmigt: wochen.filter(w => w.status === 'genehmigt').length,
@@ -1149,8 +1152,9 @@ function initBulkActions(queue, currentUser) {
     if (!confirm(`${ids.length} Berichtshefte gemeinsam genehmigen?`)) return;
     for (const wocheId of ids) {
       const w = queueById.get(wocheId);
-      await DB.setWocheStatus(wocheId, 'genehmigt');
-      if (w) await DB.addBenachrichtigung({
+      const erst = (w?.erlaubteAktionen || []).includes('erstgenehmigen');
+      await DB.setWocheStatus(wocheId, erst ? 'erstgenehmigt' : 'genehmigt');
+      if (w && !erst) await DB.addBenachrichtigung({
         userId: w.azubiId, type: 'genehmigt',
         wocheId, azubiId: w.azubiId, kw: w.kw, year: w.year,
         fromUserId: currentUser.id,
