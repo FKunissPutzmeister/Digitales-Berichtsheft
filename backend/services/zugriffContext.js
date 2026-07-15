@@ -33,7 +33,7 @@ async function ladeWocheFuerZugriff(pool, wocheId) {
   const r = await pool.request()
     .input('id', sql.Int, wocheId)
     .query(`
-      SELECT w.AzubiOid, w.StartDatum, w.EndDatum, w.Status, w.KorrigiertVon,
+      SELECT w.AzubiOid, w.StartDatum, w.EndDatum, w.Status, w.KorrigiertVon, w.EndabnahmeDirekt,
         (SELECT k.UserOid FROM dbo.Kommentare k WHERE k.WocheId = w.Id FOR JSON PATH) AS autorenJson
       FROM dbo.Wochen w WHERE w.Id = @id
     `);
@@ -46,6 +46,7 @@ async function ladeWocheFuerZugriff(pool, wocheId) {
     start: row.StartDatum,
     ende: row.EndDatum,
     status: row.Status,
+    endabnahmeDirekt: row.EndabnahmeDirekt ? 1 : 0,
     korrigiertVon: row.KorrigiertVon,
     kommentarAutoren: autoren,
   };

@@ -1,6 +1,6 @@
 const router = require('express').Router();
 const { getPool, sql } = require('../db/connection');
-const { darfWocheSehen, darfWocheKorrigieren } = require('../services/zugriff');
+const { darfWocheSehen, darfWocheKorrigieren, rolleFuerWoche, wochenAktionen } = require('../services/zugriff');
 const { ladeKorrekturKontext, ladeWocheFuerZugriff } = require('../services/zugriffContext');
 const { logError } = require('../services/fehlerberichte');
 
@@ -161,8 +161,10 @@ router.post('/', async (req, res) => {
 });
 
 // PATCH /api/wochen/:id/status
-// Azubi (eigenes Heft): 'offen'/'freigegeben'. Korrektor (aktiv verantwortlich):
-// 'genehmigt'/'abgelehnt' → setzt KorrigiertVon/KorrigiertAm.
+// Übergang wird über rolleFuerWoche + wochenAktionen (services/zugriff.js)
+// validiert. Prüfer: freigegeben→erstgenehmigt|abgelehnt. Ausbilder:
+// freigegeben|erstgenehmigt→genehmigt|abgelehnt (Rückgabe setzt EndabnahmeDirekt=1).
+// Azubi: offen↔freigegeben. Korrektur-Aktionen stempeln KorrigiertVon/Am.
 router.patch('/:id/status', async (req, res) => {
   try {
     const { status } = req.body;
@@ -171,27 +173,20 @@ router.patch('/:id/status', async (req, res) => {
     if (!woche) return res.status(404).json({ error: 'Woche nicht gefunden' });
 
     const user = req.user;
-    const istEigenes = woche.azubiOid === user.oid;
     const kontext = await ladeKorrekturKontext(pool, user);
-    const istKorrektor = darfWocheKorrigieren(user, woche, kontext);
-
-    const AZUBI_STATUS = ['offen', 'freigegeben'];
-    const KORREKTOR_STATUS = ['genehmigt', 'abgelehnt'];
-
-    let setzeKorrektur = false;
-    if (istEigenes && AZUBI_STATUS.includes(status)) {
-      // Azubi gibt eigenes Heft frei oder nimmt zurück – keine Attribution.
-    } else if (istKorrektor && KORREKTOR_STATUS.includes(status)) {
-      setzeKorrektur = true;
-    } else {
+    const rolle = rolleFuerWoche(user, woche, kontext);
+    const treffer = wochenAktionen(rolle, woche.status, woche.endabnahmeDirekt)
+      .find(a => a.zielStatus === status);
+    if (!treffer) {
       return res.status(403).json({ error: 'Keine Berechtigung, diesen Status zu setzen.' });
     }
 
     const request = pool.request()
       .input('id',     sql.Int,          req.params.id)
-      .input('status', sql.NVarChar(20), status);
-    let setClause = 'Status = @status';
-    if (setzeKorrektur) {
+      .input('status', sql.NVarChar(20), status)
+      .input('flag',   sql.Bit,          treffer.endabnahmeDirekt);
+    let setClause = 'Status = @status, EndabnahmeDirekt = @flag';
+    if (treffer.korrektur) {
       request.input('korrigiertVon', sql.NVarChar(36), user.oid);
       setClause += ', KorrigiertVon = @korrigiertVon, KorrigiertAm = SYSUTCDATETIME()';
     }
