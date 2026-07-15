@@ -552,7 +552,7 @@ const DB = {
     const kw = DateUtil.getKW(d);
     const yr = DateUtil.getKWYear(d);
     const woche = wochen.find(w => w.kw === kw && w.year === yr) || null;
-    const readonly = !!woche && (woche.status === 'freigegeben' || woche.status === 'genehmigt');
+    const readonly = !!woche && (woche.status === 'freigegeben' || woche.status === 'erstgenehmigt' || woche.status === 'genehmigt');
     const tag = woche?.tage?.find(t => t.datum === datum) || null;
     const belegt = !!tag
       && tag.anwesenheit && tag.anwesenheit !== '' && tag.anwesenheit !== 'Wochenende';
@@ -590,7 +590,7 @@ const DB = {
     for (const g of Object.values(groups)) {
       let woche = wochen.find(w => w.kw === g.kw && w.year === g.year) || null;
 
-      if (woche && (woche.status === 'freigegeben' || woche.status === 'genehmigt')) {
+      if (woche && (woche.status === 'freigegeben' || woche.status === 'erstgenehmigt' || woche.status === 'genehmigt')) {
         summary.uebersprungenReadonly += g.tage.length;
         continue;
       }

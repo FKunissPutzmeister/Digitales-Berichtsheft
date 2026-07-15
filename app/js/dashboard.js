@@ -295,8 +295,11 @@ async function renderAzubiDashboard(user) {
             </span>
           </a>` : '';
   const mtNotifHtml = mtItems.slice(0, 6).map(b => {
-    const ok = b.type === 'genehmigt';
-    const title = ok ? `KW ${b.kw}/${b.year} genehmigt` : `KW ${b.kw}/${b.year} zurückgegeben`;
+    const isErst = b.type === 'erstgenehmigt';
+    const ok = b.type === 'genehmigt' || isErst;
+    const title = isErst
+      ? `KW ${b.kw}/${b.year} erstgenehmigt`
+      : ok ? `KW ${b.kw}/${b.year} genehmigt` : `KW ${b.kw}/${b.year} zurückgegeben`;
     const prev = (!ok && b.kommentar) ? `<span class="b-mitteilung__preview">${mtEsc(b.kommentar)}</span>` : '';
     return `
           <a class="b-mitteilung${b.gelesen ? '' : ' b-mitteilung--unread'}" href="wochenansicht.html"

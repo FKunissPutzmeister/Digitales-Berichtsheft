@@ -14,6 +14,7 @@ const IhkImport = (() => {
   const STATUS_LABELS = {
     'offen':       'Offen',
     'freigegeben': 'Freigegeben',
+    'erstgenehmigt': 'Erstgenehmigt',
     'genehmigt':   'Genehmigt',
     'abgelehnt':   'Abgelehnt',
   };
@@ -296,7 +297,7 @@ const IhkImport = (() => {
     for (const w of _parsed.wochen) {
       const existing = await DB.getWoche(_user.id, w.kw, w.year);
       _infos[`${w.year}-${w.kw}`] = {
-        readonly: !!(existing && (existing.status === 'freigegeben' || existing.status === 'genehmigt')),
+        readonly: !!(existing && (existing.status === 'freigegeben' || existing.status === 'erstgenehmigt' || existing.status === 'genehmigt')),
         exists:   !!existing,
       };
     }
@@ -485,7 +486,7 @@ const IhkImport = (() => {
       const existing = await DB.getWoche(_user.id, pw.kw, pw.year);
 
       // Doppelte Schreibschutz-Prüfung (Checkbox-State könnte manipuliert sein)
-      if (existing && (existing.status === 'freigegeben' || existing.status === 'genehmigt')) {
+      if (existing && (existing.status === 'freigegeben' || existing.status === 'erstgenehmigt' || existing.status === 'genehmigt')) {
         summary.uebersprungen++;
         continue;
       }

@@ -1221,7 +1221,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
         // Editoren initialisieren falls Tag erst jetzt ausklappt
         const w = await DB.getWoche(viewAzubiId || user.id, currentKW, currentYear);
-        const ro = w && (w.status === 'freigegeben' || w.status === 'genehmigt');
+        const ro = w && (w.status === 'freigegeben' || w.status === 'erstgenehmigt' || w.status === 'genehmigt');
         if (!quillInstances['day_betrieb_' + dateStr]) {
           initSingleDayEditor(dateStr, w, ro);
         }
@@ -2133,7 +2133,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     //  Ein Wechsel zur Laufzeit würde die beiden Erfassungs-Workflows
     //  künstlich koppeln und ist fachlich nicht vorgesehen.)
 
-    const isReadonly = (isAusbilder && !viewingSelf()) || (woche && (woche.status === 'freigegeben' || woche.status === 'genehmigt'));
+    const isReadonly = (isAusbilder && !viewingSelf()) || (woche && (woche.status === 'freigegeben' || woche.status === 'erstgenehmigt' || woche.status === 'genehmigt'));
 
     if (berichtTyp === 'täglich') {
       bindDayCardEvents();
@@ -2379,7 +2379,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
           if (!isAbwesend && !quillInstances['day_betrieb_' + dateStr]) {
             const w = await DB.getWoche(viewAzubiId || user.id, currentKW, currentYear);
-            const ro = w && (w.status === 'freigegeben' || w.status === 'genehmigt');
+            const ro = w && (w.status === 'freigegeben' || w.status === 'erstgenehmigt' || w.status === 'genehmigt');
             initSingleDayEditor(dateStr, w, ro);
           }
         }
@@ -2453,7 +2453,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   function bindWochenEvents(woche, monday) {
-    const isReadonly = (isAusbilder && !viewingSelf()) || (woche && (woche.status === 'freigegeben' || woche.status === 'genehmigt'));
+    const isReadonly = (isAusbilder && !viewingSelf()) || (woche && (woche.status === 'freigegeben' || woche.status === 'erstgenehmigt' || woche.status === 'genehmigt'));
 
     // Lernort-Umschalter → Schule-Kachel sofort ein-/ausblenden (optimistisch),
     // Speichern im Hintergrund. Kein Voll-Rerender, kein Warten aufs Netzwerk.
