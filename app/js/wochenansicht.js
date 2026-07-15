@@ -403,12 +403,14 @@ document.addEventListener('DOMContentLoaded', async () => {
     const sunday = new Date(monday);
     sunday.setDate(monday.getDate() + 6);
 
-    const isReadonly = (isAusbilder && !viewingSelf()) || (woche && (woche.status === 'freigegeben' || woche.status === 'genehmigt'));
-    const canApprove = isAusbilder && !viewingSelf() && woche && woche.status === 'freigegeben';
-    // Freigabe-Button erscheint, wenn die Woche bearbeitbar ist:
-    // – noch nicht angelegt
-    // – status 'offen' (Erstfreigabe)
-    // – status 'abgelehnt' (erneute Freigabe nach Rückgabe durch Ausbilder)
+    const aktionen = (woche && woche.erlaubteAktionen) || [];
+    const canErstgenehmigen = aktionen.includes('erstgenehmigen');
+    const canEndgenehmigen  = aktionen.includes('endgenehmigen');
+    const canApprove = canErstgenehmigen || canEndgenehmigen;
+    const canReject  = aktionen.includes('zurueckgeben');
+    const isReadonly = (isAusbilder && !viewingSelf())
+      || (woche && (woche.status === 'freigegeben' || woche.status === 'erstgenehmigt' || woche.status === 'genehmigt'));
+    // Freigabe-Button: Woche bearbeitbar (nicht angelegt / offen / nach Rückgabe).
     const canRelease = user.istAzubi
       && (!woche || woche.status === 'offen' || woche.status === 'abgelehnt');
     const canWithdraw = user.istAzubi && woche?.status === 'freigegeben';
@@ -476,10 +478,12 @@ document.addEventListener('DOMContentLoaded', async () => {
       <div class="week-toolbar">
         <div class="week-toolbar__left">
           ${canApprove ? `
-            <button class="btn btn-success btn-lg" id="approveBtn">Genehmigen</button>
+            <button class="btn btn-success btn-lg" id="approveBtn">${canErstgenehmigen ? 'Erstgenehmigen' : 'Genehmigen'}</button>
+          ` : ''}
+          ${canReject ? `
             <button class="btn btn-danger" id="rejectBtn">Zurückgeben</button>
           ` : ''}
-          ${!canRelease && !canApprove && woche ? `<span class="badge badge--${woche.status}">${getStatusLabel(woche.status)}</span>` : ''}
+          ${!canRelease && !canApprove && !canReject && woche ? `<span class="badge badge--${woche.status}">${getStatusLabel(woche.status)}</span>` : ''}
           ${canWithdraw ? `
             <button class="btn btn-outline" id="withdrawBtn" type="button">
               <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" style="width:16px;height:16px"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 0 0-2 2v11a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2v-5"/><path stroke-linecap="round" stroke-linejoin="round" d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
@@ -969,6 +973,25 @@ document.addEventListener('DOMContentLoaded', async () => {
           <div class="week-status-banner__body">
             <div class="week-status-banner__title">Diese Woche wurde genehmigt</div>
             <p class="week-status-banner__text">Die Einträge sind abgenommen und schreibgeschützt. ${azubiAusbilderName ? `Genehmigt durch <strong>${azubiAusbilderName}</strong>.` : ''}</p>
+          </div>
+        </div>
+      `;
+    }
+
+    if (woche.status === 'erstgenehmigt') {
+      const isAzubi = currentUser.istAzubi;
+      return `
+        <div class="week-status-banner week-status-banner--erstgenehmigt">
+          <div class="week-status-banner__icon" aria-hidden="true">
+            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+          </div>
+          <div class="week-status-banner__body">
+            <div class="week-status-banner__title">Erstgenehmigt – wartet auf Endabnahme</div>
+            <p class="week-status-banner__text">
+              ${isAzubi
+                ? `Ein Prüfer hat diese Woche erstgenehmigt. Die endgültige Genehmigung erfolgt durch deine Ausbilder/in.`
+                : `Vom Prüfer erstgenehmigt. Bitte als Endabnahme über <strong>Genehmigen</strong> oder <strong>Zurückgeben</strong> entscheiden.`}
+            </p>
           </div>
         </div>
       `;
@@ -2190,6 +2213,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
 
     document.getElementById('approveBtn')?.addEventListener('click', () => {
+      const erst = (currentWoche?.erlaubteAktionen || []).includes('erstgenehmigen');
+      document.querySelector('#approveModal .modal__title').textContent = erst ? 'Woche erstgenehmigen' : 'Woche genehmigen';
+      document.getElementById('approveConfirmBtn').textContent = erst ? 'Erstgenehmigen' : 'Genehmigen';
       Modal.open('approveModal');
     });
     document.getElementById('rejectBtn')?.addEventListener('click', () => {
@@ -2256,18 +2282,18 @@ document.addEventListener('DOMContentLoaded', async () => {
     document.getElementById('approveConfirmBtn')?.addEventListener('click', async () => {
       const woche = currentWoche;
       if (!woche) return;
-      await DB.setWocheStatus(woche.id, 'genehmigt');
-      await DB.addBenachrichtigung({
-        userId: woche.azubiId,
-        type: 'genehmigt',
-        wocheId: woche.id,
-        azubiId: woche.azubiId,
-        kw: woche.kw,
-        year: woche.year,
-        fromUserId: user.id,
-      });
+      const erst = (woche.erlaubteAktionen || []).includes('erstgenehmigen');
+      const target = erst ? 'erstgenehmigt' : 'genehmigt';
+      await DB.setWocheStatus(woche.id, target);
+      if (!erst) {
+        await DB.addBenachrichtigung({
+          userId: woche.azubiId, type: 'genehmigt', wocheId: woche.id,
+          azubiId: woche.azubiId, kw: woche.kw, year: woche.year, fromUserId: user.id,
+        });
+      }
       Modal.closeAll();
-      Toast.success('Genehmigt', `KW ${currentKW} wurde genehmigt.`);
+      if (erst) Toast.success('Erstgenehmigt', `KW ${currentKW} wurde erstgenehmigt und zur Endabnahme weitergeleitet.`);
+      else      Toast.success('Genehmigt', `KW ${currentKW} wurde genehmigt.`);
       render();
     });
 
