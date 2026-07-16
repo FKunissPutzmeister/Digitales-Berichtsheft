@@ -216,7 +216,10 @@ async function ermittleUndErzeugeFaellige(pool, user) {
 // ladeKorrekturKontext), mit Beurteilungsstatus. Speist den eigenen
 // "Beurteilungen"-Reiter (Ausbilder/Prüfer/Admin/Developer — NICHT Azubi,
 // der bleibt beim bestehenden Weg über die Durchlauf-Kacheln).
-async function listMeineBeurteilbaren(pool, user) {
+// Optionaler azubiOid-Filter (Admin/Developer + dauerhafte Ausbilder wählen
+// im Reiter einen Azubi aus): schränkt IMMER nur innerhalb der ohnehin schon
+// berechtigten Menge ein, weitet den Zugriff also nie aus.
+async function listMeineBeurteilbaren(pool, user, azubiOid) {
   if (user.istAzubi || user.istDhStudent) return [];
   const global = user.role === 'developer' || user.role === 'admin';
 
@@ -232,7 +235,13 @@ async function listMeineBeurteilbaren(pool, user) {
     const clauses = [];
     if (emailParams.length) clauses.push(`z.VerantwEmail IN (${emailParams.join(',')})`);
     if (oidParams.length) clauses.push(`z.AzubiOid IN (${oidParams.join(',')})`);
-    where = clauses.join(' OR ');
+    // Klammern nötig: sonst würde ein nachträgliches "AND z.AzubiOid=@filterAzubiOid"
+    // wegen SQL-Operatorpräzedenz (AND vor OR) nur an die zweite Klausel binden.
+    where = `(${clauses.join(' OR ')})`;
+  }
+  if (azubiOid) {
+    r.input('filterAzubiOid', sql.NVarChar(36), azubiOid);
+    where += ' AND z.AzubiOid = @filterAzubiOid';
   }
 
   const result = await r.query(`

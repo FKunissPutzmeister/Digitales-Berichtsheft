@@ -65,13 +65,15 @@ router.get('/faellig', async (req, res) => {
   }
 });
 
-// GET /api/beurteilungen/meine — flache Liste aller Zuweisungen, die der
-// aufrufende Nutzer beurteilen darf, mit Status offen/abgeschlossen. Speist
-// den eigenen Beurteilungen-Reiter (nicht für Azubis).
+// GET /api/beurteilungen/meine[?azubiOid=...] — flache Liste aller
+// Zuweisungen, die der aufrufende Nutzer beurteilen darf, mit Status
+// offen/abgeschlossen. Speist den eigenen Beurteilungen-Reiter (nicht für
+// Azubis). Optionaler azubiOid-Filter für den Azubi-Selector (Admin/Developer
+// + dauerhafte Ausbilder).
 router.get('/meine', async (req, res) => {
   try {
     const pool = await getPool();
-    res.json(await svc.listMeineBeurteilbaren(pool, req.user));
+    res.json(await svc.listMeineBeurteilbaren(pool, req.user, req.query.azubiOid));
   } catch (err) {
     logError({ quelle: 'backend', nachricht: `[beurteilungen] meine: ${err.message}`, stack: err.stack,
       kontext: { route: req.path, methode: req.method }, benutzerOid: req.user && req.user.oid, benutzerName: req.user && req.user.name });

@@ -754,8 +754,9 @@ const DB = {
   },
   // Flache Liste aller Zuweisungen, die der Nutzer beurteilen darf, für den
   // eigenen Beurteilungen-Reiter (nicht für Azubis).
-  async getMeineBeurteilungen() {
-    return await apiFetch('/beurteilungen/meine');
+  async getMeineBeurteilungen(azubiOid) {
+    const q = azubiOid ? `?azubiOid=${encodeURIComponent(azubiOid)}` : '';
+    return await apiFetch('/beurteilungen/meine' + q);
   },
   async saveBeurteilungEntwurf(payload) {
     const data = await apiFetch('/beurteilungen', { method: 'POST', body: payload });
