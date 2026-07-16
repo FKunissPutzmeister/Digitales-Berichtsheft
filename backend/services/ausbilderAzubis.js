@@ -36,6 +36,17 @@ async function listAzubisFuerAusbilder(ausbilderOid) {
   return r.recordset;
 }
 
+// Hat der Nutzer irgendeine dauerhafte Zuordnung als Ausbilder? Bestimmt in
+// requireAuth, ob ein Prüfer als "rein befristet" (reduzierte Sicht) oder als
+// vollwertiger Ausbilder gilt.
+async function hatDauerhafteZuordnung(ausbilderOid) {
+  const pool = await getPool();
+  const r = await pool.request()
+    .input('oid', sql.NVarChar(36), ausbilderOid)
+    .query('SELECT TOP 1 1 AS x FROM dbo.AusbilderAzubis WHERE AusbilderOid = @oid');
+  return r.recordset.length > 0;
+}
+
 // Prüft: Ziel ist Azubi, alle OIDs sind ausbilderfähig. Keine DB-Schreibzugriffe.
 async function validateZuordnung(azubiOid, ausbilderOids) {
   const azubi = await getUserByOid(azubiOid);
@@ -72,4 +83,4 @@ async function setFuerAzubi(azubiOid, ausbilderOids) {
   }
 }
 
-module.exports = { listFuerAzubi, listAzubisFuerAusbilder, validateZuordnung, setFuerAzubi };
+module.exports = { listFuerAzubi, listAzubisFuerAusbilder, validateZuordnung, setFuerAzubi, hatDauerhafteZuordnung };
