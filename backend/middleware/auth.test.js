@@ -8,6 +8,11 @@ const usersMod = require('../services/users');
 let STUB = null;
 usersMod.getUserByOid = async (oid) => (STUB && STUB.Oid === oid ? STUB : null);
 
+// hatDauerhafteZuordnung stubben (Abhängigkeit von ausbilderAzubis).
+const ausbilderAzubisMod = require('../services/ausbilderAzubis');
+let HAT_DAUERHAFT = false;
+ausbilderAzubisMod.hatDauerhafteZuordnung = async () => HAT_DAUERHAFT;
+
 const { requireAuth } = require('./auth');
 
 function makeRes() {
@@ -50,4 +55,41 @@ test('inaktiver Nutzer → 401', async () => {
   await requireAuth(req, res, () => { called = true; });
   assert.equal(called, false);
   assert.equal(res.statusCode, 401);
+});
+
+test('reiner Prüfer (keine Dauer-Zuordnung, kein manuelles Flag) → istReinerPruefer=true', async () => {
+  STUB = { Oid: 'pr-1', Role: 'pruefer', KannPlanen: false, IstAusbilder: false, Aktiv: true };
+  HAT_DAUERHAFT = false;
+  const req = { headers: { 'x-dev-oid': 'pr-1' }, session: {} };
+  const res = makeRes(); let called = false;
+  await requireAuth(req, res, () => { called = true; });
+  assert.equal(called, true);
+  assert.equal(req.user.istReinerPruefer, true);
+});
+
+test('Prüfer MIT dauerhafter Zuordnung → istReinerPruefer=false', async () => {
+  STUB = { Oid: 'pr-2', Role: 'pruefer', KannPlanen: false, IstAusbilder: false, Aktiv: true };
+  HAT_DAUERHAFT = true;
+  const req = { headers: { 'x-dev-oid': 'pr-2' }, session: {} };
+  const res = makeRes();
+  await requireAuth(req, res, () => {});
+  assert.equal(req.user.istReinerPruefer, false);
+});
+
+test('Prüfer mit manuellem IstAusbilder-Flag → istReinerPruefer=false', async () => {
+  STUB = { Oid: 'pr-3', Role: 'pruefer', KannPlanen: false, IstAusbilder: true, Aktiv: true };
+  HAT_DAUERHAFT = false;
+  const req = { headers: { 'x-dev-oid': 'pr-3' }, session: {} };
+  const res = makeRes();
+  await requireAuth(req, res, () => {});
+  assert.equal(req.user.istReinerPruefer, false);
+});
+
+test('Azubi → istReinerPruefer bleibt false', async () => {
+  STUB = { Oid: 'az-1', Role: 'azubi', KannPlanen: false, IstAusbilder: false, Aktiv: true };
+  HAT_DAUERHAFT = false;
+  const req = { headers: { 'x-dev-oid': 'az-1' }, session: {} };
+  const res = makeRes();
+  await requireAuth(req, res, () => {});
+  assert.equal(req.user.istReinerPruefer, false);
 });
