@@ -5,7 +5,7 @@
    Objekte (lowercase), entkoppelt vom DB-Schema:
      user      = { oid, email }
      woche     = { azubiOid, start, ende, korrigiertVon, kommentarAutoren[] }
-     zuweisung = { azubiOid, verantwortlicherEmail, von, bis }
+     zuweisung = { id, azubiOid, verantwortlicherEmail, abteilung, von, bis }
      kontext   = { zuweisungen: [zuweisung], stichtag }   // stichtag 'YYYY-MM-DD'
    ===================================================================== */
 

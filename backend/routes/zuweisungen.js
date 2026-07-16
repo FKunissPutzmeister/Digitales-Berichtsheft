@@ -2,6 +2,8 @@ const router = require('express').Router();
 const { getPool, sql } = require('../db/connection');
 const { logError } = require('../services/fehlerberichte');
 const { mitVertretern } = require('../services/vertretungen');
+const { ladeKorrekturKontext } = require('../services/zugriffContext');
+const { istZugreifbar, ymd, NACHLAUF_TAGE } = require('../services/zugriff');
 
 // Nur Nutzer mit Planungsrecht dürfen Zuweisungen anlegen/löschen.
 function nurPlaner(req, res, next) {
@@ -240,6 +242,52 @@ router.delete('/:id', nurPlaner, async (req, res) => {
     res.json({ ok: true });
   } catch (err) {
     logError({ quelle: 'backend', nachricht: `[zuweisungen] delete: ${err.message}`, stack: err.stack,
+      kontext: { route: req.path, methode: req.method }, benutzerOid: req.user && req.user.oid, benutzerName: req.user && req.user.name });
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// GET /api/zuweisungen/meine-pruefungen
+// Für Prüfer: die eigenen (inkl. per Vertretung geerbten) befristeten
+// Zuweisungen, je Azubi nur die zeitlich aktuellste (höchstes Von), gefiltert
+// auf den noch bestehenden Zugriff (Von…Bis + 6 Wochen Nachlauf). Speist das
+// Prüfer-Dashboard und die Wochenansicht-Fenstergrenzen.
+router.get('/meine-pruefungen', async (req, res) => {
+  try {
+    const pool = await getPool();
+    const kontext = await ladeKorrekturKontext(pool, req.user);
+
+    const neuesteJeAzubi = new Map();
+    for (const z of kontext.zuweisungen) {
+      const bisher = neuesteJeAzubi.get(z.azubiOid);
+      if (!bisher || ymd(z.von) > ymd(bisher.von)) neuesteJeAzubi.set(z.azubiOid, z);
+    }
+    const zugreifbare = [...neuesteJeAzubi.values()].filter(z => istZugreifbar(z, kontext.stichtag));
+    if (!zugreifbare.length) return res.json([]);
+
+    const r = pool.request();
+    const params = zugreifbare.map((z, i) => { r.input(`o${i}`, sql.NVarChar(36), z.azubiOid); return `@o${i}`; });
+    const namen = await r.query(`SELECT Oid, Name FROM dbo.Users WHERE Oid IN (${params.join(',')})`);
+    const nameByOid = new Map(namen.recordset.map(n => [n.Oid, n.Name]));
+
+    const liste = zugreifbare.map(z => {
+      const bis = ymd(z.bis);
+      const nachlaufDatum = new Date(bis + 'T00:00:00Z');
+      nachlaufDatum.setUTCDate(nachlaufDatum.getUTCDate() + NACHLAUF_TAGE);
+      return {
+        azubiOid: z.azubiOid,
+        azubiName: nameByOid.get(z.azubiOid) || '',
+        abteilung: z.abteilung || null,
+        von: ymd(z.von),
+        bis,
+        status: kontext.stichtag <= bis ? 'laeuft' : 'nachlauf',
+        nachlaufBis: nachlaufDatum.toISOString().slice(0, 10),
+      };
+    }).sort((a, b) => (a.von < b.von ? -1 : 1));
+
+    res.json(liste);
+  } catch (err) {
+    logError({ quelle: 'backend', nachricht: `[zuweisungen] meine-pruefungen: ${err.message}`, stack: err.stack,
       kontext: { route: req.path, methode: req.method }, benutzerOid: req.user && req.user.oid, benutzerName: req.user && req.user.name });
     res.status(500).json({ error: err.message });
   }
