@@ -1836,6 +1836,7 @@
     if (localStorage.getItem('capIstAusbilder') === '1') html.setAttribute('data-ist-ausbilder', '1');
     if (localStorage.getItem('capIstAzubi')     === '1') html.setAttribute('data-ist-azubi', '1');
     if (localStorage.getItem('capKorrektur')    === '1') html.setAttribute('data-korrektur', '1');
+    if (localStorage.getItem('capIstReinerPruefer') === '1') html.setAttribute('data-ist-reiner-pruefer', '1');
   } catch (e) {}
 
   /* ── Navigations-Übergang ───────────────────────────────────────

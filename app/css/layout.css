@@ -221,8 +221,17 @@ html:not([data-ist-azubi="1"]) .nav-azubi-only {
   display: none;
 }
 /* Abteilungsdurchlauf: Azubis (eigener Durchlauf) ODER Ausbilder (Durchlauf
-   der betreuten Azubis, read-only). */
-html:not([data-ist-azubi="1"]):not([data-ist-ausbilder="1"]) .nav-durchlauf {
+   der betreuten Azubis, read-only) — reine Prüfer ausgenommen (siehe
+   applyCapabilities in app.js). */
+html:not([data-ist-azubi="1"]):not([data-ist-ausbilder="1"]) .nav-durchlauf,
+html:not([data-ist-azubi="1"])[data-ist-reiner-pruefer="1"] .nav-durchlauf {
+  display: none;
+}
+/* Jahresansicht: wie Berichtsheft (eigenes Heft ODER korrektur-berechtigt),
+   aber reine Prüfer ausgenommen (Wochenansicht bleibt ihnen erhalten,
+   Jahresansicht nicht). */
+html:not([data-ist-azubi="1"]):not([data-korrektur="1"]) .nav-jahresansicht-only,
+html[data-ist-reiner-pruefer="1"] .nav-jahresansicht-only {
   display: none;
 }
 /* Ausbilder/Verwaltung: das STATISCHE Platzhalter-Nav in den HTML-Seiten

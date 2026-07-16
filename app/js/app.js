@@ -22,6 +22,7 @@ function applyCapabilities(caps) {
     'data-ist-ausbilder': caps.istAusbilder,
     'data-ist-azubi':     caps.istAzubi,
     'data-korrektur':     caps.korrektur,
+    'data-ist-reiner-pruefer': caps.istReinerPruefer,
   };
   for (const [attr, on] of Object.entries(attrs)) {
     if (on) html.setAttribute(attr, '1'); else html.removeAttribute(attr);
@@ -31,6 +32,7 @@ function applyCapabilities(caps) {
     localStorage.setItem('capIstAusbilder', caps.istAusbilder ? '1' : '0');
     localStorage.setItem('capIstAzubi',     caps.istAzubi     ? '1' : '0');
     localStorage.setItem('capKorrektur',    caps.korrektur    ? '1' : '0');
+    localStorage.setItem('capIstReinerPruefer', caps.istReinerPruefer ? '1' : '0');
   } catch (e) { /* localStorage kann blockieren */ }
   document.querySelectorAll('.nav-planer-only').forEach(el => {
     el.style.display = caps.kannPlanen ? '' : 'none';
