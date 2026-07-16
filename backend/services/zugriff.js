@@ -27,6 +27,24 @@ function istAktiv(zuweisung, stichtag) {
   return von <= t && t <= bis;
 }
 
+// 6 Wochen Nachlauffrist: wie lange nach Ablauf einer Zuweisung (bis) der
+// zugehörige Prüfer noch auf das Wochenfenster SEINER Zuweisung zugreifen darf
+// (siehe istPeriodenPruefer). Das Wochenfenster selbst (wocheFaelltInZuweisung)
+// bleibt davon unberührt — nur der Zugriffsschalter verlängert sich.
+const NACHLAUF_TAGE = 42;
+
+// Ist die Zuweisung am Stichtag noch ZUGREIFBAR (von ≤ stichtag ≤ bis + Nachlauffrist)?
+// Ersetzt istAktiv innerhalb von istPeriodenPruefer; istAktiv selbst bleibt
+// unverändert (wird von nichts anderem verwendet).
+function istZugreifbar(zuweisung, stichtag) {
+  const t = ymd(stichtag), von = ymd(zuweisung.von), bis = ymd(zuweisung.bis);
+  if (!t || !von || !bis) return false;
+  if (t < von) return false;
+  const grenze = new Date(bis + 'T00:00:00Z');
+  grenze.setUTCDate(grenze.getUTCDate() + NACHLAUF_TAGE);
+  return t <= grenze.toISOString().slice(0, 10);
+}
+
 // Überschneidet die Woche [start,ende] den Zuweisungs-Zeitraum [von,bis]?
 function wocheFaelltInZuweisung(woche, zuweisung) {
   const ws = ymd(woche.start), we = ymd(woche.ende);
@@ -51,14 +69,14 @@ function istDauerAusbilder(woche, kontext) {
 }
 
 // Periodengebundener Prüfer: befristete Zuweisung (per E-Mail), am Stichtag
-// aktiv UND die Woche fällt in den Zuweisungszeitraum.
+// zugreifbar UND die Woche fällt in den Zuweisungszeitraum.
 function istPeriodenPruefer(user, woche, kontext) {
   if (!woche.azubiOid || !user.email) return false;
   const zuweisungen = (kontext && kontext.zuweisungen) || [];
   return zuweisungen.some(z =>
     (z.verantwortlicherEmail || '').toLowerCase() === (user.email || '').toLowerCase() &&
     z.azubiOid === woche.azubiOid &&
-    istAktiv(z, kontext.stichtag) &&
+    istZugreifbar(z, kontext.stichtag) &&
     wocheFaelltInZuweisung(woche, z)
   );
 }
@@ -129,7 +147,7 @@ function verantwortlichFuerZuweisung(user, zuweisung, kontext) {
 }
 
 module.exports = {
-  ymd, istAktiv, wocheFaelltInZuweisung, hatKorrigiert, istDauerAusbilder,
+  ymd, istAktiv, istZugreifbar, NACHLAUF_TAGE, wocheFaelltInZuweisung, hatKorrigiert, istDauerAusbilder,
   darfWocheKorrigieren, darfWocheSehen,
   verantwortlichFuerZuweisung,
   istPeriodenPruefer, rolleFuerWoche, wochenAktionen,

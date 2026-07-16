@@ -37,6 +37,24 @@ test('istAktiv: Grenzen inklusive', () => {
   assert.equal(Z.istAktiv(z, '2026-07-01'), false); // Tag nach bis
 });
 
+// ── istZugreifbar (6-Wochen-Nachlauffrist) ─────────────────────
+test('istZugreifbar: verhält sich wie istAktiv innerhalb Von-Bis', () => {
+  const z = zuw(); // von 2026-06-01, bis 2026-06-30
+  assert.equal(Z.istZugreifbar(z, '2026-05-31'), false); // Tag vor von
+  assert.equal(Z.istZugreifbar(z, '2026-06-01'), true);
+  assert.equal(Z.istZugreifbar(z, '2026-06-30'), true);
+});
+test('istZugreifbar: bleibt bis 42 Tage nach Bis zugreifbar, danach nicht mehr', () => {
+  const z = zuw(); // bis 2026-06-30
+  assert.equal(Z.istZugreifbar(z, '2026-07-01'), true);  // 1 Tag danach
+  assert.equal(Z.istZugreifbar(z, '2026-08-11'), true);  // genau 42 Tage danach
+  assert.equal(Z.istZugreifbar(z, '2026-08-12'), false); // 43 Tage danach
+});
+test('istZugreifbar: fehlende Von/Bis-Werte → false', () => {
+  assert.equal(Z.istZugreifbar({ von: '2026-06-01', bis: null }, '2026-06-15'), false);
+  assert.equal(Z.istZugreifbar({ von: null, bis: '2026-06-30' }, '2026-06-15'), false);
+});
+
 // ── wocheFaelltInZuweisung ─────────────────────────────────────
 test('wocheFaelltInZuweisung: Überschneidung inklusive Randwochen', () => {
   const z = zuw({ von: '2026-06-10', bis: '2026-06-20' });
@@ -55,8 +73,8 @@ test('darfWocheKorrigieren: falscher Verantwortlicher → false', () => {
   const kontext = { zuweisungen: [zuw({ verantwortlicherEmail: 'x@pm.com' })], stichtag: '2026-06-15' };
   assert.equal(Z.darfWocheKorrigieren(user, woche(), kontext), false);
 });
-test('darfWocheKorrigieren: Zuweisung heute nicht aktiv → false', () => {
-  const kontext = { zuweisungen: [zuw()], stichtag: '2026-07-15' };
+test('darfWocheKorrigieren: Zuweisung auch nach Nachlauffrist nicht mehr zugreifbar → false', () => {
+  const kontext = { zuweisungen: [zuw()], stichtag: '2026-08-15' }; // 46 Tage nach Bis (2026-06-30)
   assert.equal(Z.darfWocheKorrigieren(user, woche(), kontext), false);
 });
 test('darfWocheKorrigieren: Woche außerhalb des Zeitraums → false', () => {
