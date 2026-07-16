@@ -50,6 +50,16 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Damit sieht der Ausbilder immer den aktuellen Stand des Posteingangs.
   window.addEventListener('pageshow', async (event) => {
     if (!event.persisted) return;
+    // Unter dem SPA-Router (router.js) bleibt das dashboard.html-Dokument
+    // physisch geladen, auch wenn per pushState längst zu einer anderen Seite
+    // (z. B. beurteilungen.html) navigiert wurde. Kommt der Nutzer dann per
+    // "Zurück" aus einer Vollseite (beurteilung.html) über den BFCache zurück,
+    // feuert dieser pageshow-Handler – würde er bedingungslos rendern, klatschte
+    // er das Dashboard über den korrekt gecachten Fremd-Content, ohne Nav/Layout
+    // zu aktualisieren (Nav bliebe auf "Beurteilungen"). Daher nur refreshen,
+    // wenn die aktuell sichtbare Seite wirklich noch das Dashboard ist.
+    const currentPage = location.pathname.split('/').pop() || 'dashboard.html';
+    if (currentPage !== 'dashboard.html') return;
     try {
       if (user.istAzubi) {
         await renderAzubiDashboard(user);
