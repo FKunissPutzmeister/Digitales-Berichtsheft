@@ -59,3 +59,6 @@ Secret Clientkey.txt
 
 # Graphify-Analyse-Output (generiertes Tooling-Artefakt)
 graphify-out/
+
+# Lokale Git-Worktrees (siehe using-git-worktrees Skill)
+.worktrees/
