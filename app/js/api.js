@@ -419,6 +419,13 @@ const DB = {
     return data.map(normalizeZuweisung);
   },
 
+  // Für rein befristete Prüfer: die eigenen aktuell zugreifbaren Zuweisungen
+  // (inkl. 6-Wochen-Nachlauf), je Azubi nur die aktuellste. Speist das
+  // Prüfer-Dashboard und die Wochenansicht-Fenstergrenzen.
+  async getMeinePruefungen() {
+    return await apiFetch('/zuweisungen/meine-pruefungen');
+  },
+
   async getAktuellerAusbilder(azubiId) {
     const zuweisungen = await this.getZuweisungenFuerAzubi(azubiId);
     const heute = new Date().toISOString().split('T')[0];
@@ -744,6 +751,11 @@ const DB = {
   },
   async getFaelligeBeurteilungen() {
     try { return await apiFetch('/beurteilungen/faellig'); } catch (e) { return []; }
+  },
+  // Flache Liste aller Zuweisungen, die der Nutzer beurteilen darf, für den
+  // eigenen Beurteilungen-Reiter (nicht für Azubis).
+  async getMeineBeurteilungen() {
+    return await apiFetch('/beurteilungen/meine');
   },
   async saveBeurteilungEntwurf(payload) {
     const data = await apiFetch('/beurteilungen', { method: 'POST', body: payload });
