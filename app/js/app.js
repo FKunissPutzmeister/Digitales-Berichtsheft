@@ -42,7 +42,13 @@ function applyCapabilities(caps) {
     el.style.display = caps.istAzubi ? '' : 'none';
   });
   document.querySelectorAll('.nav-durchlauf').forEach(el => {
-    el.style.display = (caps.istAzubi || caps.istAusbilder) ? '' : 'none';
+    el.style.display = (caps.istAzubi || (caps.istAusbilder && !caps.istReinerPruefer)) ? '' : 'none';
+  });
+  document.querySelectorAll('.nav-jahresansicht-only').forEach(el => {
+    el.style.display = ((caps.istAzubi || caps.korrektur) && !caps.istReinerPruefer) ? '' : 'none';
+  });
+  document.querySelectorAll('.nav-beurteilungen-only').forEach(el => {
+    el.style.display = (caps.istAusbilder || caps.role === 'admin') ? '' : 'none';
   });
   document.querySelectorAll('.nav-developer-only').forEach(el => {
     el.style.display = caps.role === 'developer' ? '' : 'none';
@@ -86,6 +92,7 @@ function setupDevViewSwitch(user) {
         istAzubi:     !!u.istAzubi,
         istDhStudent: !!u.istDhStudent,
         korrektur:    !!u.istAusbilder,
+        istReinerPruefer: !!u.istReinerPruefer,
         role:         u.role,
       });
       window.location.reload();
@@ -186,6 +193,7 @@ async function initLayout(activeNavId) {
     istAzubi:     !!user.istAzubi,
     istDhStudent: !!user.istDhStudent,
     korrektur:    istKorrektor,
+    istReinerPruefer: !!user.istReinerPruefer,
     role:         user.role,
   });
 
