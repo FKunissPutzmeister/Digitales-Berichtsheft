@@ -251,6 +251,8 @@ document.addEventListener('DOMContentLoaded', async () => {
   if (!user.kannPlanen) {
     if (user.istAzubi) {
       await renderAzubiDurchlauf(user);       // read-only: eigener Abteilungsdurchlauf
+    } else if (user.istReinerPruefer) {
+      window.location.href = 'dashboard.html'; // Abteilungsdurchlauf ist für reine Prüfer komplett unsichtbar
     } else if (user.istAusbilder) {
       await renderAusbilderDurchlauf(user);   // read-only: Durchlauf der betreuten Azubis
     } else {

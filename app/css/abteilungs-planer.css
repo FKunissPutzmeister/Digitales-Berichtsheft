@@ -621,4 +621,15 @@
 .durchlauf-card__abt { font-size: var(--text-lg); font-weight: var(--fw-bold); color: var(--pm-grey-800); padding-right: 90px; }
 .durchlauf-card__zeit { font-size: var(--text-sm); color: var(--pm-grey-600); margin-top: 2px; }
 .durchlauf-card__verantw { font-size: var(--text-sm); color: var(--pm-grey-700); margin-top: var(--sp-3); }
+.durchlauf-card--clickable {
+  cursor: pointer;
+  transition: transform 120ms ease, box-shadow 120ms ease, border-color 120ms ease;
+}
+.durchlauf-card--clickable:hover,
+.durchlauf-card--clickable:focus-visible {
+  border-color: var(--pm-yellow);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, .08);
+  transform: translateY(-2px);
+  outline: none;
+}
 .durchlauf-empty { padding: var(--sp-8); text-align: center; color: var(--pm-grey-500); }
