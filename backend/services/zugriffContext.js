@@ -11,10 +11,12 @@ const { aktiveVertreteneOids } = require('./vertretungen');
 async function ladeZuweisungen(pool, verantwEmail, alsEmail) {
   const rz = await pool.request()
     .input('email', sql.NVarChar(255), verantwEmail)
-    .query('SELECT AzubiOid, VerantwEmail, Von, Bis FROM dbo.Zuweisungen WHERE VerantwEmail = @email');
+    .query('SELECT Id, AzubiOid, VerantwEmail, Abteilung, Von, Bis FROM dbo.Zuweisungen WHERE VerantwEmail = @email');
   return rz.recordset.map(z => ({
+    id: z.Id,
     azubiOid: z.AzubiOid,
     verantwortlicherEmail: alsEmail,
+    abteilung: z.Abteilung,
     von: z.Von,
     bis: z.Bis,
   }));
