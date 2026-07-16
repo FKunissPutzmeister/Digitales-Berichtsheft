@@ -65,6 +65,20 @@ router.get('/faellig', async (req, res) => {
   }
 });
 
+// GET /api/beurteilungen/meine — flache Liste aller Zuweisungen, die der
+// aufrufende Nutzer beurteilen darf, mit Status offen/abgeschlossen. Speist
+// den eigenen Beurteilungen-Reiter (nicht für Azubis).
+router.get('/meine', async (req, res) => {
+  try {
+    const pool = await getPool();
+    res.json(await svc.listMeineBeurteilbaren(pool, req.user));
+  } catch (err) {
+    logError({ quelle: 'backend', nachricht: `[beurteilungen] meine: ${err.message}`, stack: err.stack,
+      kontext: { route: req.path, methode: req.method }, benutzerOid: req.user && req.user.oid, benutzerName: req.user && req.user.name });
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // POST /api/beurteilungen  { zuweisungId, kriterien:[{kriteriumKey,punkte}], individuelleBeurteilung, gespraechAm }
 router.post('/', async (req, res) => {
   try {
