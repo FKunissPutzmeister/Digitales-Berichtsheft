@@ -48,7 +48,7 @@ function applyCapabilities(caps) {
     el.style.display = ((caps.istAzubi || caps.korrektur) && !caps.istReinerPruefer) ? '' : 'none';
   });
   document.querySelectorAll('.nav-beurteilungen-only').forEach(el => {
-    el.style.display = (caps.istAusbilder || caps.role === 'admin') ? '' : 'none';
+    el.style.display = (caps.istAusbilder || caps.istReinerPruefer || caps.role === 'admin' || caps.role === 'developer') ? '' : 'none';
   });
   document.querySelectorAll('.nav-developer-only').forEach(el => {
     el.style.display = caps.role === 'developer' ? '' : 'none';
