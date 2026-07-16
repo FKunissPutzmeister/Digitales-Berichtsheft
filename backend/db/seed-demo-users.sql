@@ -7,7 +7,10 @@ MERGE dbo.Users AS t USING (VALUES
   ('00000000-0000-0000-0000-000000000005', N'Lena Müller',       'lena.mueller.demo@putzmeister.com', 'azubi',     0,0, N'Industriekauffrau',                 '2024-09-01','2027-08-31',N'wöchentlich'),
   ('00000000-0000-0000-0000-000000000006', N'Jonas Becker',      'jonas.becker.demo@putzmeister.com', 'azubi',     0,0, N'Mechatroniker',                     '2023-09-01','2026-08-31',N'täglich'),
   ('00000000-0000-0000-0000-000000000007', N'Jana Hofer',        'jana.hofer.demo@putzmeister.com',   'dhstudent', 0,0, N'DH Maschinenbau',                   '2025-10-01','2028-09-30',N'wöchentlich'),
-  ('00000000-0000-0000-0000-000000000099', N'Developer Demo',    'dev.demo@putzmeister.com',          'developer', 0,0, NULL, NULL, NULL, N'wöchentlich')
+  ('00000000-0000-0000-0000-000000000099', N'Developer Demo',    'dev.demo@putzmeister.com',          'developer', 0,0, NULL, NULL, NULL, N'wöchentlich'),
+  -- Temporärer Test-Account, um die normale Prüfer-Sicht (kein Admin/Ausbilder) auszuprobieren.
+  -- Manuell wieder entfernen, sobald der Test abgeschlossen ist (siehe Kommentar unten).
+  ('00000000-0000-0000-0000-000000000098', N'Test Prüfer (IT)',  'test.pruefer.demo@putzmeister.com', 'pruefer', 0,0, NULL, NULL, NULL, N'wöchentlich')
 ) AS s(Oid,Name,Email,Role,KannPlanen,IstAusbilder,Beruf,AusbildungBeginn,AusbildungEnde,BerichtTyp)
 ON t.Oid = s.Oid
 WHEN MATCHED THEN UPDATE SET Name=s.Name, Email=s.Email, Role=s.Role, KannPlanen=s.KannPlanen,
@@ -16,3 +19,15 @@ WHEN MATCHED THEN UPDATE SET Name=s.Name, Email=s.Email, Role=s.Role, KannPlanen
 WHEN NOT MATCHED THEN INSERT (Oid,Name,Email,Role,KannPlanen,IstAusbilder,Beruf,AusbildungBeginn,AusbildungEnde,BerichtTyp)
   VALUES (s.Oid,s.Name,s.Email,s.Role,s.KannPlanen,s.IstAusbilder,s.Beruf,s.AusbildungBeginn,s.AusbildungEnde,s.BerichtTyp);
 PRINT 'Demo-User geseedet.';
+
+-- Temporäre Verknüpfung des Test-Prüfers mit Abteilung "IT" im Abteilungsplaner.
+-- Zum Aufräumen: DELETE FROM dbo.AbteilungVerantwortliche WHERE Email = 'test.pruefer.demo@putzmeister.com';
+INSERT INTO dbo.AbteilungVerantwortliche (AbteilungId, Email)
+SELECT a.Id, 'test.pruefer.demo@putzmeister.com'
+FROM dbo.Abteilungen a
+WHERE a.Name = N'IT'
+  AND NOT EXISTS (
+    SELECT 1 FROM dbo.AbteilungVerantwortliche v
+    WHERE v.AbteilungId = a.Id AND v.Email = 'test.pruefer.demo@putzmeister.com'
+  );
+PRINT 'Test-Prüfer (IT) verknüpft.';
