@@ -82,6 +82,28 @@ window.getInitials = name => {
   return ((parts[0][0] || '') + (parts.length > 1 ? parts[parts.length - 1][0] : '')).toUpperCase();
 };
 
+// Avatar-Innenleben (Initialen + optionales Echtfoto): kein JS-State nötig –
+// hat der User kein per Entra-Sync hinterlegtes Foto (404) oder schlägt das
+// Laden fehl, entfernt sich das <img> per onerror selbst und die darunter
+// liegenden Initialen werden sichtbar (Layering per CSS, siehe .avatar img).
+function avatarInnerHTML(user) {
+  const initials = (user && (user.initials || getInitials(user.name))) || '?';
+  const oid = user && (user.oid || user.id);
+  if (!oid) return initials;
+  return `${initials}<img src="/api/users/${oid}/photo" alt="" loading="lazy" onerror="this.remove()">`;
+}
+
+// Fertiges Avatar-Markup, z.B. renderAvatar(user, 'avatar--sm').
+window.renderAvatar = (user, extraClass = '') => {
+  const cls = `avatar${extraClass ? ' ' + extraClass : ''}`;
+  return `<span class="${cls}">${avatarInnerHTML(user)}</span>`;
+};
+
+// Für bestehende, statische Avatar-Elemente im HTML (Sidebar/Topbar/Profil-Header).
+window.applyAvatar = (el, user) => {
+  if (el) el.innerHTML = avatarInnerHTML(user);
+};
+
 /* ── Normalisierung: DB PascalCase → Frontend camelCase ───────── */
 function toDateStr(val) {
   if (!val) return '';

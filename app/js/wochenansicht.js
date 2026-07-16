@@ -2161,7 +2161,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       <div class="comment comment--ausbilder" data-kommentar-id="${k.id}">
         <div class="comment__body">
           <div class="comment__header">
-            <div class="avatar avatar--sm">${author ? author.initials : '?'}</div>
+            ${renderAvatar(author, 'avatar--sm')}
             <span class="comment__name">${author ? author.name : 'Unbekannt'}</span>
             <span class="comment__date">${k.datum || ''}</span>
             ${canDelete ? `<button class="btn btn-sm btn-ghost comment__delete" data-delete-kommentar="${k.id}" title="Kommentar löschen" style="margin-left:auto;color:var(--color-error)">

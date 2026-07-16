@@ -3,6 +3,7 @@ const { getPool } = require('../db/connection');
 const { listUsers, getUserByOid, updateUserProfile, validateUserPatch, buildReqUser } = require('../services/users');
 const { listFuerAzubi, listAzubisFuerAusbilder, validateZuordnung, setFuerAzubi } = require('../services/ausbilderAzubis');
 const { listDelegierteAzubis } = require('../services/vertretungen');
+const { getPhoto } = require('../services/userPhotos');
 const { logError } = require('../services/fehlerberichte');
 
 // GET /api/users?role=azubi | ?exclRole=azubi
@@ -49,6 +50,23 @@ router.get('/:oid', async (req, res) => {
     logError({ quelle: 'backend', nachricht: `[users] get/:oid: ${e.message}`, stack: e.stack,
       kontext: { route: req.path, methode: req.method }, benutzerOid: req.user && req.user.oid, benutzerName: req.user && req.user.name });
     res.status(500).json({ error: 'Fehler' });
+  }
+});
+
+// GET /api/users/:oid/photo – Profilbild aus dem Entra-Sync (falls vorhanden).
+// Kein Treffer (kein Foto in Entra hinterlegt / noch nicht synchronisiert)
+// → 404; das Frontend fällt dann per onerror auf den Initialen-Avatar zurück.
+router.get('/:oid/photo', async (req, res) => {
+  try {
+    const photo = await getPhoto(req.params.oid);
+    if (!photo) return res.status(404).end();
+    res.setHeader('Content-Type', photo.ContentType || 'image/jpeg');
+    res.setHeader('Cache-Control', 'private, max-age=3600');
+    res.send(photo.Content);
+  } catch (e) {
+    logError({ quelle: 'backend', nachricht: `[users] photo: ${e.message}`, stack: e.stack,
+      kontext: { route: req.path, methode: req.method }, benutzerOid: req.user && req.user.oid, benutzerName: req.user && req.user.name });
+    res.status(500).end();
   }
 });
 

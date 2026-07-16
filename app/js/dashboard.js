@@ -1069,7 +1069,7 @@ function renderReviewItem(w, idx) {
           <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
         </span>
       </label>
-      <div class="review-item__avatar avatar">${a.initials}</div>
+      ${renderAvatar(a, 'review-item__avatar')}
       <div class="review-item__main">
         <div class="review-item__name">${a.name}</div>
         <div class="review-item__meta">
@@ -1098,7 +1098,7 @@ function renderAzubiOverviewItem(s) {
   const a = s.azubi;
   return `
     <div class="azubi-overview-item" data-azubi-id="${a.id}" tabindex="0" role="button">
-      <div class="avatar avatar--lg">${a.initials}</div>
+      ${renderAvatar(a, 'avatar--lg')}
       <div class="azubi-overview-item__info">
         <div class="azubi-overview-item__name">${a.name}</div>
         <div class="azubi-overview-item__role">${a.beruf || '–'}</div>

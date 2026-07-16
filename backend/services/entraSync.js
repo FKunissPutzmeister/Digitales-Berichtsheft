@@ -56,7 +56,8 @@ function syncConfigured(env = process.env) {
   };
 }
 
-const { upsertUser, listManagedUsers, setUsersAktiv } = require('./users');
+const { upsertUser, listUsers, listManagedUsers, setUsersAktiv } = require('./users');
+const { upsertPhoto, deletePhoto } = require('./userPhotos');
 
 // App-only-Token per Client-Credentials.
 async function getGraphToken({ tenantId, clientId, clientSecret }) {
@@ -96,6 +97,44 @@ async function fetchGroupMembers(token, groupId) {
   return out;
 }
 
+// Ein Profilfoto abrufen (96x96, reicht für die kleinen Avatare im UI).
+// 404 = kein Foto hinterlegt (Normalfall, kein Fehler) → null. Andere
+// HTTP-Fehler (z.B. 403 ohne User.Read.All) wirft die Funktion.
+async function fetchUserPhoto(token, oid) {
+  const r = await fetch(`https://graph.microsoft.com/v1.0/users/${oid}/photos/96x96/$value`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (r.status === 404) return null;
+  if (!r.ok) throw new Error(`Foto ${oid}: HTTP ${r.status}`);
+  const contentType = r.headers.get('content-type') || 'image/jpeg';
+  const content = Buffer.from(await r.arrayBuffer());
+  return { content, contentType };
+}
+
+// Fotos für alle übergebenen OIDs abgleichen. Anders als der Gruppen-Sync
+// bricht ein einzelner Fehler (z.B. fehlende Photo-Permission, ein User ohne
+// Mailbox) NICHT den gesamten Lauf ab — ein fehlendes Foto ist unkritisch,
+// im Gegensatz zu einer falschen Rollen-Zuordnung. Kleine Batches statt
+// alles parallel, um Graph nicht zu throtteln.
+async function syncUserPhotos(token, oids) {
+  const BATCH = 5;
+  let updated = 0, removed = 0, errors = 0;
+  for (let i = 0; i < oids.length; i += BATCH) {
+    const batch = oids.slice(i, i + BATCH);
+    await Promise.all(batch.map(async (oid) => {
+      try {
+        const photo = await fetchUserPhoto(token, oid);
+        if (photo) { await upsertPhoto(oid, photo.content, photo.contentType); updated++; }
+        else { await deletePhoto(oid); removed++; }
+      } catch (e) {
+        errors++;
+        console.error(`[entra-sync] Foto ${oid}:`, e.message);
+      }
+    }));
+  }
+  return { updated, removed, errors };
+}
+
 // Ein vollständiger Sync-Lauf. Bricht bei Token-/Gruppenfehler komplett ab
 // (kein Teil-Abgleich → keine fälschlichen Deaktivierungen).
 async function runSync(env = process.env) {
@@ -118,8 +157,15 @@ async function runSync(env = process.env) {
     const stale = computeDeactivations(dbManaged, aktivOids);
     await setUsersAktiv(stale, false);
     const proGruppe = Object.fromEntries(groupResults.map((g) => [g.role, g.members.length]));
-    console.log('[entra-sync] Lauf ok:', JSON.stringify(proGruppe), `upserted=${members.length} deactivated=${stale.length}`);
-    return { ok: true, proGruppe, upserted: members.length, reactivated: aktivOids.length, deactivated: stale.length, errors: [] };
+
+    // Fotos für ALLE aktiven User (nicht nur die gerade gruppen-synchronisierten
+    // Rollen) — auch manuell gepflegte admin/developer/dhstudent-Konten bekommen
+    // so ein Echtfoto, sofern in Entra vorhanden.
+    const alleAktiven = await listUsers({ inclInactive: false });
+    const photos = await syncUserPhotos(token, alleAktiven.map((u) => u.Oid));
+
+    console.log('[entra-sync] Lauf ok:', JSON.stringify(proGruppe), `upserted=${members.length} deactivated=${stale.length}`, `fotos=${JSON.stringify(photos)}`);
+    return { ok: true, proGruppe, upserted: members.length, reactivated: aktivOids.length, deactivated: stale.length, photos, errors: [] };
   } catch (e) {
     console.error('[entra-sync] Lauf fehlgeschlagen:', e.message);
     return { ok: false, proGruppe: {}, upserted: 0, reactivated: 0, deactivated: 0, errors: [e.message] };
@@ -141,4 +187,7 @@ function berichtTypAusDepartment(department) {
   return null;
 }
 
-module.exports = { buildGroupRoleMap, resolveMembers, computeDeactivations, syncConfigured, getGraphToken, fetchGroupMembers, runSync, berufAusJobtitle, berichtTypAusDepartment };
+module.exports = {
+  buildGroupRoleMap, resolveMembers, computeDeactivations, syncConfigured, getGraphToken, fetchGroupMembers,
+  fetchUserPhoto, syncUserPhotos, runSync, berufAusJobtitle, berichtTypAusDepartment,
+};

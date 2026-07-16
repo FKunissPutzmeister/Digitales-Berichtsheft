@@ -23,8 +23,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   // Topbar: Avatar + Theme-Toggle
-  const avatar = document.getElementById('dhAvatar');
-  if (avatar) avatar.textContent = user.initials || getInitials(user.name);
+  applyAvatar(document.getElementById('dhAvatar'), user);
   document.getElementById('dhThemeToggle')?.addEventListener('click', () => {
     if (!window.PMTheme) return;
     window.PMTheme.set(window.PMTheme.get() === 'dark' ? 'light' : 'dark');

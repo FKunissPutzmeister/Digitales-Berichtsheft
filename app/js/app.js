@@ -174,9 +174,9 @@ async function initLayout(activeNavId) {
     const label = ROLE_LABELS[user.role] || user.role;
     userRole.innerHTML = `<span class="role-badge" data-role="${user.role}">${label}</span>`;
   }
-  if (userInitials) userInitials.textContent = user.initials || getInitials(user.name);
+  applyAvatar(userInitials, user);
   if (topbarName) topbarName.textContent = displayName(user.name);
-  if (topbarInitials) topbarInitials.textContent = user.initials || getInitials(user.name);
+  applyAvatar(topbarInitials, user);
 
   // Fähigkeits-Gating der Navigation.
   // "Korrektur-berechtigt" = Ausbilder ODER hat (aktuelle/frühere) Zuweisungen
