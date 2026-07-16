@@ -20,6 +20,8 @@ document.addEventListener('DOMContentLoaded', async () => {
   try {
     if (user.istAzubi) {
       await renderAzubiDashboard(user);
+    } else if (user.istReinerPruefer) {
+      await renderReinerPrueferDashboard(user);
     } else {
       await renderAusbilderDashboard(user);
     }
@@ -51,6 +53,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     try {
       if (user.istAzubi) {
         await renderAzubiDashboard(user);
+      } else if (user.istReinerPruefer) {
+        await renderReinerPrueferDashboard(user);
       } else {
         await renderAusbilderDashboard(user);
       }
@@ -529,6 +533,46 @@ function iconCheck() {
 }
 function iconInbox() {
   return Icon('inbox');
+}
+
+/* ── Reiner-Prüfer-Dashboard: befristete Zuweisungen statt "Meine Azubis" ── */
+async function renderReinerPrueferDashboard(user) {
+  const main = document.getElementById('mainContent');
+  const pruefungen = await DB.getMeinePruefungen();
+  const STATUS_LABEL = p => p.status === 'laeuft'
+    ? 'Läuft'
+    : `Nachlauf bis ${DateUtil.formatDate(p.nachlaufBis)}`;
+
+  main.innerHTML = `
+    <div class="welcome-banner welcome-banner--ausbilder">
+      <div class="welcome-banner__content">
+        <p class="welcome-banner__greeting">${getGreeting()}, ${firstName(user.name)} 👋</p>
+        <h1 class="welcome-banner__title">Meine Prüfzeiträume</h1>
+        <p class="welcome-banner__info">${pruefungen.length} ${pruefungen.length === 1 ? 'Zuweisung' : 'Zuweisungen'}</p>
+      </div>
+    </div>
+    ${pruefungen.length ? `
+      <div class="durchlauf-list">
+        ${pruefungen.map(p => `
+          <div class="durchlauf-card">
+            <span class="badge ${p.status === 'laeuft' ? 'badge--genehmigt' : 'badge--grey'} durchlauf-card__badge">
+              ${STATUS_LABEL(p)}
+            </span>
+            <div class="durchlauf-card__abt">${escapeHtml(p.azubiName)}${p.abteilung ? ' · ' + escapeHtml(p.abteilung) : ''}</div>
+            <div class="durchlauf-card__zeit">${DateUtil.formatDate(p.von)} – ${DateUtil.formatDate(p.bis)}</div>
+            <div class="durchlauf-card__verantw">
+              <a href="wochenansicht.html" class="dash-pruefung-link" data-goto-azubi="${escapeHtml(p.azubiOid)}">Wochenansicht öffnen</a>
+              &nbsp;·&nbsp;
+              <a href="beurteilungen.html">Beurteilung</a>
+            </div>
+          </div>
+        `).join('')}
+      </div>
+    ` : `<div class="durchlauf-empty">Aktuell keine aktive Zuweisung.</div>`}
+  `;
+  main.querySelectorAll('.dash-pruefung-link').forEach(a => {
+    a.addEventListener('click', () => sessionStorage.setItem('gotoAzubiId', a.dataset.gotoAzubi));
+  });
 }
 
 /* ── Ausbilder-Cockpit ────────────────────────────────────────── */
