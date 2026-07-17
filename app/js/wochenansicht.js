@@ -286,6 +286,14 @@ document.addEventListener('DOMContentLoaded', async () => {
     catch (e) { return true; }
   }
 
+  // Nutzer-Einstellung „Unterweisung standardmäßig aktiv" (Profil → Eingabe-
+  // hilfen, pro Gerät). Steuert nur den Startwert NEUER (noch nicht gespei-
+  // cherter) Wochen; gespeicherte Wochen behalten ihren eigenen Wert. Default AUS.
+  function unterweisungDefaultOn() {
+    try { return localStorage.getItem(UNTERWEISUNG_DEFAULT_KEY) === '1'; }
+    catch (e) { return false; }
+  }
+
   // Index lazy laden (fire-and-forget). Nur für den eigenen, bearbeitbaren
   // Azubi-View; Ausbilder/Korrektoren bekommen keine Vorschläge (D5).
   function ensureSuggestionIndex(azubiId) {
@@ -396,9 +404,18 @@ document.addEventListener('DOMContentLoaded', async () => {
     const kwCoreCls = 'week-kw-block__core' + (enterDir ? ' week-kw-block__core--entering' : '');
     const enterAttr = enterDir ? ` data-dir="${enterDir}"` : '';
 
-    const berichtTyp = await getBerichtTyp();
     const azubiId = viewAzubiId || user.id;
-    const woche = await DB.getWoche(azubiId, currentKW, currentYear);
+    // Stammdaten (azubiUser), Woche und Zuweisung hängen nur von azubiId ab
+    // und sind voneinander unabhängig → PARALLEL laden statt als 4er-await-
+    // Kette (die alte Kette holte via getBerichtTyp() denselben User sogar
+    // doppelt). Gemessen: ~600–700ms sequenziell → ~1 Roundtrip; beschleunigt
+    // jede Navigation zur Wochenansicht UND jeden KW-Wechsel, alle Themes.
+    const [azubiUser, woche, azubiZuw] = await Promise.all([
+      DB.getUser(azubiId),
+      DB.getWoche(azubiId, currentKW, currentYear),
+      DB.getAktuellerAusbilder(azubiId)
+    ]);
+    const berichtTyp = azubiUser?.berichtTyp || 'täglich';   // = getBerichtTyp(), ohne Extra-Fetch
     const monday = DateUtil.getMondayOfKW(currentKW, currentYear);
     const sunday = new Date(monday);
     sunday.setDate(monday.getDate() + 6);
@@ -423,9 +440,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       })
     );
 
-    // Stammdaten des aktuell sichtbaren Azubis
-    const azubiUser = await DB.getUser(azubiId);
-    const azubiZuw  = await DB.getAktuellerAusbilder(azubiId);
+    // Stammdaten des aktuell sichtbaren Azubis (azubiUser/azubiZuw: oben parallel geladen)
     const azubiAusbilderName = azubiZuw ? (azubiZuw.verantwName || '') : '';
     const ausbildungsjahr = calcAusbildungsjahr(azubiUser?.ausbildungsBeginn);
 
@@ -1423,7 +1438,9 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   function renderWochenKacheln(woche, readonly, monday) {
     const ort = woche?.wochenOrt || 'betrieb';
-    const unterweisung = woche?.unterweisungAktiv || false;
+    // Neue (noch nicht gespeicherte) Woche → Startwert aus der Nutzer-Einstellung;
+    // gespeicherte Woche behält ihren eigenen Wert.
+    const unterweisung = woche ? !!woche.unterweisungAktiv : unterweisungDefaultOn();
 
     return `
       <div class="wochen-wrap">

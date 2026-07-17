@@ -178,33 +178,36 @@ html[data-skin="silk"][data-theme="dark"] .bento .b-recent {
   backdrop-filter: blur(2px);
 }
 
-/* ── Flash-Guard: statischer Border-Baseline für Buttons ──────────────────
-   Der Skin-Layer taggt Buttons erst per JS mit .silk-host--btn (Border →
-   transparent + Glas-::before). Bis dahin zeigen frische .btn ihre BASIS-
-   Border (grau-lila rgb(92,82,132)): beim Full-Load bis das React-Bundle da
-   ist (scan() no-op bei !api) UND bei async nachgerenderten Buttons bis der
-   90ms-MutationObserver greift → sichtbares Rand-Flackern beim Wechsel auf /
-   Refresh der Wochenansicht. theme-silk.css ist ein statischer <link> und
-   data-skin wird pre-paint gesetzt → diese Regel neutralisiert die Border ab
-   dem ERSTEN Paint, timing-unabhängig. silk-host--btn legt danach nur noch
-   das Glas darüber. (Selektoren = SEL.btn aus react-theme-layer.js.) */
-[data-skin="silk"] .btn,
-[data-skin="silk"] .b-btn-primary,
-[data-skin="silk"] .demo-login-btn,
-[data-skin="silk"] .btn-ms,
-[data-skin="silk"] .week-nav__btn,
-[data-skin="silk"] .week-today-btn,
-[data-skin="silk"] .pm-select__trigger,
-[data-skin="silk"] .week-actions button {
-  border-color: transparent !important;
-}
+/* ── Statischer Button-Skin (Flash-Guard v2): das KOMPLETTE Glas ──────────
+   Früher neutralisierte der Flash-Guard nur die border-color; das Glas
+   (::before-Ring) kam erst mit der JS-Klasse .silk-host--btn. Jeder Timing-
+   Pfad, in dem die Klasse noch fehlte, zeigte den Sprung „flach → Glas-Ring"
+   – v.a. die von PMSelect NACH dem Render (MutationObserver-Microtask)
+   erzeugten .pm-select__trigger-Pills der Wochenansicht, die erst der 90ms-
+   debounced Silk-Observer taggte; der Wechsel ANIMIERTE zusätzlich über die
+   Button-transition (~250ms Morph). Per Frame-Timeline gemessen (fresh load):
+   Pills painten untagged bei ~1684ms, Tagging ~1784ms, Morph bis ~1934ms =
+   DAS Rand-Flackern beim Öffnen/Refresh. Kein synchroner Re-Scan-Hook kann
+   das je vollständig schließen (die Pills entstehen nach jedem Hook-Zeitpunkt).
+   Fix nach „statische Baseline schlägt Timing-Jagd": ALLE .silk-host--btn-
+   Regeln liegen hier statisch auf denselben Selektoren, die scan() taggt
+   (SEL.btn aus react-theme-layer.js + .week-today-btn). Der ungetaggte
+   Zustand ist damit ab dem ersten Frame pixel-identisch mit dem getaggten –
+   das spätere Tagging (bleibt für den Hover-Spotlight) ändert visuell NICHTS
+   mehr, egal wann es kommt; dadurch feuert auch keine transition. data-skin
+   steht pre-paint, theme-silk.css ist statischer <link> → timing-unabhängig.
 
-/* Buttons: transparent – das CSS-::before-Backing IST das Glas.
+   Buttons: transparent – das CSS-::before-Backing IST das Glas.
    INDIGO getönt (nicht neutralweiß → sonst „grau" über dunklen Panels),
    heller Text. Ergebnis: lila Liquid-Glass-Pill wie das Demo. */
-[data-skin="silk"] .silk-host--btn {
+[data-skin="silk"] :is(.btn, .b-btn-primary, .demo-login-btn, .btn-ms,
+  .week-nav__btn, .week-today-btn, .pm-select__trigger,
+  .week-actions button, .silk-host--btn) {
   background: transparent !important;
-  border-color: transparent !important;
+  /* border KOMPLETT (nicht nur -color): normalisiert auch die Breite
+     (btn-outline/week-nav: 1.5–2px Basis vs. 1px .silk-host) → kein
+     1px-Größensprung mehr im Tagging-Moment. */
+  border: 1px solid transparent !important;
   box-shadow: none !important;
   color: hsl(var(--silk-hue,252) 100% 97%) !important;
   /* isolation:isolate → eigener Stacking-Context, damit das z-index:-1
@@ -213,10 +216,16 @@ html[data-skin="silk"][data-theme="dark"] .bento .b-recent {
   position: relative !important;
   isolation: isolate;
 }
-[data-skin="silk"] .silk-host--btn .pm-select__value,
-[data-skin="silk"] .silk-host--btn span,
-[data-skin="silk"] .silk-host--btn small { color: inherit !important; }
-[data-skin="silk"] .silk-host--btn svg { color: hsl(var(--silk-hue,252) 100% 94%) !important; }
+[data-skin="silk"] :is(.btn, .b-btn-primary, .demo-login-btn, .btn-ms,
+  .week-nav__btn, .week-today-btn, .pm-select__trigger,
+  .week-actions button, .silk-host--btn) :is(.pm-select__value, span, small) {
+  color: inherit !important;
+}
+[data-skin="silk"] :is(.btn, .b-btn-primary, .demo-login-btn, .btn-ms,
+  .week-nav__btn, .week-today-btn, .pm-select__trigger,
+  .week-actions button, .silk-host--btn) svg {
+  color: hsl(var(--silk-hue,252) 100% 94%) !important;
+}
 /* Button-Glas = reines CSS-::before (KEIN React-GlassSurface mehr): ein
    indigo-getöntes Frost-Backing hinter Text/Icon (z-index:-1, vom
    isolation:isolate des Hosts vor das Panel gehoben). Grund: das pro Button
@@ -226,7 +235,9 @@ html[data-skin="silk"][data-theme="dark"] .bento .b-recent {
    Clone wurde es für alle Buttons neu gemountet → die flackernden Buttons.
    Reines CSS ist synchron, mountet nie neu und überlebt Clones flimmerfrei
    (gleiche Entscheidung wie bei den Panels oben; nimmt Klicks nie ab). */
-[data-skin="silk"] .silk-host--btn::before {
+[data-skin="silk"] :is(.btn, .b-btn-primary, .demo-login-btn, .btn-ms,
+  .week-nav__btn, .week-today-btn, .pm-select__trigger,
+  .week-actions button, .silk-host--btn)::before {
   content: '';
   position: absolute; inset: 0; z-index: -1;
   border-radius: inherit; pointer-events: none;
@@ -239,13 +250,12 @@ html[data-skin="silk"][data-theme="dark"] .bento .b-recent {
     0 4px 14px hsl(var(--silk-hue,252) 73% 6% / 0.40);
 }
 /* Primär-Button: kräftigeres Indigo → Aktionshierarchie. */
-[data-skin="silk"] .btn-primary.silk-host--btn::before,
-[data-skin="silk"] .b-btn-primary.silk-host--btn::before {
+[data-skin="silk"] :is(.btn-primary, .b-btn-primary)::before {
   background: hsl(var(--silk-hue,252) 89% 63% / 0.52);
 }
 /* „Diese Woche" = niedrige Hierarchie: kein gefülltes Glas-Backing, nur Text
    + Hover-Border-Glow (silk-host::after). Quiet/transparent statt Pille. */
-[data-skin="silk"] .week-today-btn.silk-host--btn::before {
+[data-skin="silk"] .week-today-btn::before {
   background: transparent;
   box-shadow: none;
   -webkit-backdrop-filter: none;
@@ -267,7 +277,7 @@ html[data-skin="silk"][data-theme="dark"] .bento .b-recent {
   position: absolute; inset: 0; z-index: 4;
   border-radius: inherit; pointer-events: none;
   padding: 2px;                   /* Rand-Dicke des Glows */
-  background: radial-gradient(300px circle at var(--silk-mx, 50%) var(--silk-my, 50%),
+  background: radial-gradient(170px circle at var(--silk-mx, 50%) var(--silk-my, 50%),
               #FFFFFF, hsl(var(--silk-hue,252) 100% 87% / 1) 16%, hsl(var(--silk-hue,252) 100% 73% / 0.88) 44%,
               hsl(var(--silk-hue,252) 100% 68% / 0.34) 72%, transparent 85%);
   -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);

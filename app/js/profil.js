@@ -21,107 +21,9 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Betreuende Person = weder Azubi noch DH-Student → darf Vertreter benennen.
   const isSupervisor = !isAzubi && !user.istDhStudent;
 
-  function getRoleLabel(role) {
-    switch (role) {
-      case 'azubi':     return 'Auszubildende/r';
-      case 'pruefer': return 'Prüfer';
-      case 'admin':     return 'Administrator';
-      default:          return role;
-    }
-  }
-
-  /* Ausbildungsjahr-Berechnung — identisch zur (früheren) Logik der
-     Wochenansicht, damit beide Stellen dasselbe Jahr anzeigen. */
-  function calcAusbildungsjahr(beginnStr, refDate = new Date()) {
-    if (!beginnStr) return null;
-    const start = new Date(beginnStr + 'T00:00:00');
-    const months = (refDate.getFullYear() - start.getFullYear()) * 12 + (refDate.getMonth() - start.getMonth());
-    return Math.max(1, Math.min(4, Math.floor(months / 12) + 1));
-  }
-
-  /* Stammdaten-Kachel — von der Wochenansicht hierher umgezogen.
-     Gleiche Datenquelle wie dort: aktuelle Zuweisung über
-     DB.getAktuellerAusbilder, Ausbilder-Name über DB.getUser,
-     Ausbildungsjahr aus user.ausbildungsBeginn. */
-  async function buildStammdaten() {
-    if (!isAzubi) return '';
-
-    const zuw = await DB.getAktuellerAusbilder(user.id);
-    const ausbilderName = zuw ? (zuw.verantwName || '–') : null;
-    const ausbildungsjahr = calcAusbildungsjahr(user.ausbildungsBeginn);
-
-    const fields = [
-      { label: 'Auszubildende/r',         value: user.name },
-      { label: 'Beruf',                   value: user.beruf || '–' },
-      { label: 'Ausbildungsjahr',         value: ausbildungsjahr ? `${ausbildungsjahr}. Jahr` : '–' },
-      { label: 'Aktuelle Abteilung',      value: zuw?.abteilung || '–' },
-      { label: 'Aktuelle/r Ausbilder/in', value: ausbilderName || '–' },
-    ];
-
-    return `
-      <section class="profil-section">
-        <div class="profil-section__header">
-          <div class="profil-section__icon">
-            ${Icon('document')}
-          </div>
-          <div class="profil-section__title">Stammdaten</div>
-        </div>
-        <div class="profil-section__body-wrap"><div class="profil-section__body">
-          <dl class="profil-stammdaten__grid">
-            ${fields.map(f => `
-              <div class="profil-stammdaten__field">
-                <dt class="profil-stammdaten__label">${f.label}</dt>
-                <dd class="profil-stammdaten__value">${f.value}</dd>
-              </div>
-            `).join('')}
-          </dl>
-        </div></div>
-      </section>
-    `;
-  }
-
-  function buildPersoenlicheDaten() {
-    return `
-      <section class="profil-section">
-        <div class="profil-section__header">
-          <div class="profil-section__icon">
-            ${Icon('user')}
-          </div>
-          <div class="profil-section__title">Persönliche Daten</div>
-        </div>
-        <div class="profil-section__body-wrap"><div class="profil-section__body">
-          <div class="profil-data-grid">
-            <div class="profil-data-item">
-              <div class="profil-data-label">Vollständiger Name</div>
-              <div class="profil-data-value">${user.name}</div>
-            </div>
-            <div class="profil-data-item">
-              <div class="profil-data-label">E-Mail-Adresse</div>
-              <div class="profil-data-value">${user.email || '–'}</div>
-            </div>
-            <div class="profil-data-item">
-              <div class="profil-data-label">Rolle</div>
-              <div class="profil-data-value">${getRoleLabel(user.role)}</div>
-            </div>
-            <div class="profil-data-item">
-              <div class="profil-data-label">Kürzel</div>
-              <div class="profil-data-value">${user.initials}</div>
-            </div>
-          </div>
-          <div style="margin-top:var(--sp-5);padding-top:var(--sp-5);border-top:1px solid var(--pm-grey-100)">
-            <button class="btn btn-outline" id="changePasswordBtn">
-              <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" style="width:16px;height:16px"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-              Passwort ändern
-            </button>
-          </div>
-        </div></div>
-      </section>
-    `;
-  }
-
   /* ── Darstellung & Themes ──────────────────────────────────────
      Einstellungs-Karte: Standard-Modus (Hell/Dunkel) + Custom-Designs
-     (Hyperspace, CMD, Candy Land, Iceland). theme.js ist ein SHARED-
+     (Hyperspace, CMD, Candy Land). theme.js ist ein SHARED-
      Script (der SPA-Router führt es bei Navigationen nicht erneut aus)
      und exponiert das globale window.PMTheme-API – hier wird nur
      gerufen, nie neu initialisiert.
@@ -136,7 +38,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     { id: 'silk',       name: 'Silk',       sub: 'Liquid Glass · futuristisch' },
     { id: 'cmd',        name: 'CMD',        sub: 'Terminal, Grün auf Schwarz' },
     { id: 'candy',      name: 'Candy Land', sub: 'Pastell & Regenbogen' },
-    { id: 'iceland',    name: 'Iceland',    sub: 'Schnee, Eis & Iglu' },
     { id: 'halloween',  name: 'Halloween',  sub: 'Geisterhaus & Nebel' },
     { id: 'christmas',  name: 'Christmas',  sub: 'Verschneit & festlich' },
   ].filter(d => isDeveloper || !SEASONAL_DESIGNS.includes(d.id));
@@ -147,9 +48,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     const silkColor  = window.PMTheme?.getSilkColor?.() || 'indigo';
     const silkColors = window.PMTheme?.SILK_COLORS || [];
 
+    /* Bei aktivem Custom-Theme gibt es kein Hell/Dunkel → Buttons ausgrauen
+       und sperren; die aktive Markierung wird dann unterdrückt. */
+    const modeLocked = !!custom;
     const modeBtn = (val, label, icon) => `
-      <button type="button" class="theme-mode-btn ${mode === val ? 'active' : ''}"
-              data-theme-mode="${val}" aria-pressed="${mode === val}">
+      <button type="button" class="theme-mode-btn ${!modeLocked && mode === val ? 'active' : ''}"
+              data-theme-mode="${val}" aria-pressed="${!modeLocked && mode === val}"${modeLocked ? ' disabled' : ''}>
         ${icon}
         <span>${label}</span>
       </button>
@@ -218,8 +122,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (!window.PMTheme) return;
     const mode   = window.PMTheme.getMode();
     const custom = window.PMTheme.getCustom() || '';
+    const modeLocked = !!custom;
     document.querySelectorAll('[data-theme-mode]').forEach(btn => {
-      const on = btn.dataset.themeMode === mode;
+      btn.disabled = modeLocked;
+      const on = !modeLocked && btn.dataset.themeMode === mode;
       btn.classList.toggle('active', on);
       btn.setAttribute('aria-pressed', String(on));
     });
@@ -277,9 +183,17 @@ document.addEventListener('DOMContentLoaded', async () => {
     catch (e) { return true; }
   }
 
+  /* „Unterweisung standardmäßig aktiv": Opt-in, Default AUS. Neue Wochen
+     starten dann mit angehakter „mit Unterweisung"-Option (wochenansicht.js). */
+  function unterweisungDefaultEnabled() {
+    try { return localStorage.getItem(UNTERWEISUNG_DEFAULT_KEY) === '1'; }
+    catch (e) { return false; }
+  }
+
   function buildEingabehilfen() {
     if (!isAzubi) return '';
     const on = suggestionsEnabled();
+    const untOn = unterweisungDefaultEnabled();
     return `
       <section class="profil-section">
         <div class="profil-section__header">
@@ -300,6 +214,17 @@ document.addEventListener('DOMContentLoaded', async () => {
               <span class="ios-switch__track" aria-hidden="true"></span>
             </label>
           </div>
+          <div class="settings-row">
+            <div class="settings-row__text">
+              <div class="settings-row__label">Unterweisung standardmäßig aktiv</div>
+              <div class="settings-row__desc">Neue Wochen starten mit aktivierter Option „mit Unterweisung".</div>
+            </div>
+            <label class="ios-switch">
+              <input type="checkbox" id="unterweisungDefaultToggle" ${untOn ? 'checked' : ''}
+                     aria-label="Unterweisung standardmäßig aktiv">
+              <span class="ios-switch__track" aria-hidden="true"></span>
+            </label>
+          </div>
         </div></div>
       </section>
     `;
@@ -308,6 +233,10 @@ document.addEventListener('DOMContentLoaded', async () => {
   function bindEingabehilfen() {
     document.getElementById('suggestionsToggle')?.addEventListener('change', (e) => {
       try { localStorage.setItem(ACTIVITY_SUGGESTIONS_KEY, e.target.checked ? '1' : '0'); }
+      catch (err) { /* Privacy-Modus */ }
+    });
+    document.getElementById('unterweisungDefaultToggle')?.addEventListener('change', (e) => {
+      try { localStorage.setItem(UNTERWEISUNG_DEFAULT_KEY, e.target.checked ? '1' : '0'); }
       catch (err) { /* Privacy-Modus */ }
     });
   }
@@ -534,10 +463,10 @@ document.addEventListener('DOMContentLoaded', async () => {
       </div>
       <div class="form-group">
         <label class="form-label">Dauer</label>
-        <select class="form-control" id="vertretungDauer">
-          <option value="dauerhaft" selected>Für immer</option>
-          <option value="befristet">Zeitraum festlegen</option>
-        </select>
+        <div class="theme-mode-row" role="group" aria-label="Dauer" id="vertretungDauer">
+          <button type="button" class="theme-mode-btn active" data-dauer="dauerhaft" aria-pressed="true">Unbefristet</button>
+          <button type="button" class="theme-mode-btn" data-dauer="befristet" aria-pressed="false">Zeitraum festlegen</button>
+        </div>
       </div>
       <div class="form-group" id="vertretungZeitraum" style="display:none">
         <div style="display:flex;gap:var(--sp-3)">
@@ -545,7 +474,7 @@ document.addEventListener('DOMContentLoaded', async () => {
           <div style="flex:1"><label class="form-label">Bis</label><input type="date" class="form-control" id="vertretungBis"></div>
         </div>
       </div>
-      <button class="btn btn-primary" id="vertretungAddBtn" type="button">Vertreter/in hinzufügen</button>
+      <button class="btn btn-primary btn-sm vertretung-add__submit" id="vertretungAddBtn" type="button">Vertreter/in hinzufügen</button>
     ` : '<p class="form-hint" style="margin:0">Keine weiteren Personen verfügbar.</p>';
 
     const erhaltenHtml = erhalten.length ? `
@@ -572,7 +501,7 @@ document.addEventListener('DOMContentLoaded', async () => {
           <div class="settings-row__desc" style="margin-bottom:var(--sp-3)">Diese Personen dürfen dich vertreten und sehen bzw. bearbeiten währenddessen deine zugeordneten Auszubildenden.</div>
           <div class="vertretung-liste">${vergebenHtml}</div>
           <div style="margin-top:var(--sp-4);padding-top:var(--sp-4);border-top:1px solid var(--pm-grey-100)">
-            ${addHtml}
+            <div class="vertretung-add">${addHtml}</div>
           </div>
           ${erhaltenHtml}
         </div></div>
@@ -582,19 +511,26 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   function bindVertretung() {
     if (!isSupervisor) return;
-    // Datumsfelder nur bei "Zeitraum festlegen" zeigen (Standard: Für immer).
-    const dauer = document.getElementById('vertretungDauer');
+    // Dauer = Segmented-Control (Unbefristet | Zeitraum festlegen): Klick setzt
+    // die aktive Seite und blendet die Datumsfelder nur bei "befristet" ein.
+    const dauerGroup = document.getElementById('vertretungDauer');
     const zeitraum = document.getElementById('vertretungZeitraum');
-    dauer?.addEventListener('change', () => {
-      // Nicht das hidden-Attribut: .form-group hat display:flex (components.css)
-      // und würde [hidden]{display:none} überstimmen. Inline style.display gewinnt.
-      if (zeitraum) zeitraum.style.display = dauer.value === 'befristet' ? '' : 'none';
+    const dauerBtns = dauerGroup ? dauerGroup.querySelectorAll('[data-dauer]') : [];
+    dauerBtns.forEach(btn => {
+      btn.addEventListener('click', () => {
+        dauerBtns.forEach(b => {
+          const on = b === btn;
+          b.classList.toggle('active', on);
+          b.setAttribute('aria-pressed', String(on));
+        });
+        if (zeitraum) zeitraum.style.display = btn.dataset.dauer === 'befristet' ? '' : 'none';
+      });
     });
 
     document.getElementById('vertretungAddBtn')?.addEventListener('click', async () => {
       const vertreterOid = document.getElementById('vertreterSelect')?.value;
       if (!vertreterOid) { Toast.error('Keine Person', 'Bitte eine Person auswählen.'); return; }
-      const typ = document.getElementById('vertretungDauer')?.value;
+      const typ = dauerGroup?.querySelector('[data-dauer].active')?.dataset.dauer || 'dauerhaft';
       let von = null, bis = null;
       if (typ === 'befristet') {
         von = document.getElementById('vertretungVon')?.value || null;
@@ -670,39 +606,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     `;
   }
 
-  function buildPasswordModal() {
-    return `
-      <div class="modal-overlay" id="passwordModal" role="dialog" aria-modal="true" aria-label="Passwort ändern">
-        <div class="modal" style="max-width:400px">
-          <div class="modal__header">
-            <span class="modal__title">Passwort ändern</span>
-            <button class="modal__close" data-modal-close aria-label="Schließen">
-              <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-            </button>
-          </div>
-          <div class="modal__body">
-            <div class="form-group">
-              <label class="form-label">Aktuelles Passwort</label>
-              <input type="password" class="form-control" id="pwCurrent" placeholder="Aktuelles Passwort">
-            </div>
-            <div class="form-group">
-              <label class="form-label">Neues Passwort</label>
-              <input type="password" class="form-control" id="pwNew" placeholder="Mindestens 8 Zeichen">
-            </div>
-            <div class="form-group">
-              <label class="form-label">Neues Passwort bestätigen</label>
-              <input type="password" class="form-control" id="pwConfirm" placeholder="Passwort wiederholen">
-            </div>
-          </div>
-          <div class="modal__footer">
-            <button class="btn btn-ghost" data-modal-close>Abbrechen</button>
-            <button class="btn btn-primary" id="pwSaveBtn">Passwort speichern</button>
-          </div>
-        </div>
-      </div>
-    `;
-  }
-
   /* Profil/Import-Tabs: rein clientseitiges Anzeigen/Verbergen der Panels.
      Beide Panels bleiben im DOM (Import-Panel nur via [hidden] versteckt),
      damit ZeitnachweisUpload.bind()/IhkImport.bind() ihre Elemente finden. */
@@ -754,8 +657,6 @@ document.addEventListener('DOMContentLoaded', async () => {
       </div>` : ''}
 
       <div class="profil-panels" id="panel-profil"${hasImport ? ' role="tabpanel" aria-labelledby="tab-profil"' : ''}>
-        ${await buildStammdaten()}
-        ${buildPersoenlicheDaten()}
         ${buildAusbildungsDaten()}
         ${await buildAusbilderTimeline()}
         ${await buildAzubiListe()}
@@ -773,8 +674,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         ${zeitnachweisHtml}
         ${ihkHtml}
       </div>` : ''}
-
-      ${buildPasswordModal()}
     `;
 
     // Tabs: Profil- vs. Import-Panel clientseitig umschalten.
@@ -782,29 +681,6 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // Fehler melden (Modal aus error-reporter.js, Task 7)
     document.getElementById('btnFehlerMelden')?.addEventListener('click', () => window.oeffneFehlerMeldung && window.oeffneFehlerMeldung());
-
-    // Passwort-Modal
-    document.getElementById('changePasswordBtn')?.addEventListener('click', () => {
-      document.getElementById('pwCurrent').value = '';
-      document.getElementById('pwNew').value = '';
-      document.getElementById('pwConfirm').value = '';
-      Modal.open('passwordModal');
-    });
-
-    document.getElementById('pwSaveBtn')?.addEventListener('click', async () => {
-      const current = document.getElementById('pwCurrent').value;
-      const newPw   = document.getElementById('pwNew').value;
-      const confirm = document.getElementById('pwConfirm').value;
-
-      if (!current) { Toast.error('Pflichtfeld', 'Bitte aktuelles Passwort eingeben.'); return; }
-      if (current !== user.password) { Toast.error('Falsches Passwort', 'Das aktuelle Passwort ist falsch.'); return; }
-      if (newPw.length < 8) { Toast.error('Zu kurz', 'Das neue Passwort muss mindestens 8 Zeichen lang sein.'); return; }
-      if (newPw !== confirm) { Toast.error('Nicht übereinstimmend', 'Die Passwörter stimmen nicht überein.'); return; }
-
-      // Passwort-Änderung entfällt nach Azure-AD-Migration
-      Modal.closeAll();
-      Toast.info('Hinweis', 'Passwörter werden über das Putzmeister-Konto verwaltet.');
-    });
 
     // Darstellung & Themes verdrahten (Klick = sofort anwenden + persistieren)
     bindDarstellung();

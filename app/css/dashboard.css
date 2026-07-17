@@ -1396,6 +1396,165 @@
   transition: color var(--t-fast), transform var(--t-fast);
 }
 
+/* ===================================================================
+   AUSBILDER: Azubi-Karten (Posteingang, nach Azubi gruppiert)
+   Eine Karte pro Azubi mit offenen Berichten; aufklappbar zeigt sie die
+   einzelnen Wochen (.review-item) mit Checkboxen für die Sammel-Freigabe.
+   =================================================================== */
+.azubi-card {
+  position: relative;
+  border-bottom: 1px solid var(--pm-grey-100);
+  animation: slideInLeft var(--t-normal) both;
+}
+.azubi-card:last-child { border-bottom: none; }
+
+.azubi-card__header {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-4);
+  padding: var(--sp-4) var(--sp-5);
+  cursor: pointer;
+  transition: background var(--t-fast);
+}
+.azubi-card__header:hover { background: var(--pm-yellow-bg); }
+.azubi-card__header:focus-visible {
+  outline: 2px solid var(--pm-yellow);
+  outline-offset: -2px;
+}
+
+/* Dringlichkeits-Akzent (linke Kante) nach ältestem wartenden Bericht */
+.azubi-card--urgent::before,
+.azubi-card--warn::before {
+  content: '';
+  position: absolute;
+  left: 0; top: 0; bottom: 0;
+  width: 3px;
+}
+.azubi-card--urgent::before { background: var(--color-error-mid); }
+.azubi-card--warn::before   { background: var(--color-warning-mid); }
+
+.azubi-card__avatar { flex-shrink: 0; }
+
+.azubi-card__info { flex: 1; min-width: 0; }
+.azubi-card__name {
+  font-size: var(--text-base);
+  font-weight: var(--fw-bold);
+  color: var(--pm-grey-900);
+  line-height: 1.3;
+}
+.azubi-card__role {
+  font-size: var(--text-xs);
+  color: var(--pm-grey-500);
+  margin-bottom: 4px;
+}
+.azubi-card__status {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  flex-wrap: wrap;
+  font-size: var(--text-sm);
+  color: var(--pm-grey-600);
+}
+.azubi-card__count { font-weight: var(--fw-bold); color: var(--pm-grey-800); }
+.azubi-card--urgent .azubi-card__wait { color: var(--color-error);   font-weight: var(--fw-bold); }
+.azubi-card--warn   .azubi-card__wait { color: var(--color-warning); font-weight: var(--fw-bold); }
+.azubi-card__badge { margin-left: 2px; }
+
+.azubi-card__cta {
+  flex-shrink: 0;
+  background: var(--pm-yellow);
+  border: 1.5px solid var(--pm-yellow);
+  color: var(--on-yellow-text);
+}
+.azubi-card__cta:hover {
+  background: var(--pm-yellow-dark);
+  border-color: var(--pm-yellow-dark);
+  transform: translateX(2px);
+}
+
+.azubi-card__chevron {
+  flex-shrink: 0;
+  color: var(--pm-grey-400);
+  transition: transform var(--t-fast), color var(--t-fast);
+}
+.azubi-card__chevron svg { width: 18px; height: 18px; display: block; }
+.azubi-card__header:hover .azubi-card__chevron { color: var(--pm-yellow-darker); }
+.azubi-card--open .azubi-card__chevron { transform: rotate(180deg); }
+
+.azubi-card__body {
+  background: var(--pm-grey-50);
+  border-top: 1px solid var(--pm-grey-100);
+}
+[data-theme="dark"] .azubi-card__body { background: rgba(255,255,255,0.03); }
+
+/* Wochen-Zeilen im Karten-Body: Avatar/Name der Karte nicht je Zeile
+   wiederholen; Zeilen etwas einrücken. */
+.azubi-card__body .review-item__avatar,
+.azubi-card__body .review-item__name { display: none; }
+.azubi-card__body .review-item { padding-left: var(--sp-6); }
+
+.azubi-card__selectall {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: var(--sp-3) var(--sp-6) var(--sp-2);
+  font-size: var(--text-xs);
+  font-weight: var(--fw-bold);
+  color: var(--pm-grey-600);
+  cursor: pointer;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+.azubi-card__selectall input { cursor: pointer; }
+
+/* "Aktuell" – eingeklappte Gruppe der Azubis ohne offene Berichte */
+.azubi-done { border-top: 1px solid var(--pm-grey-100); }
+.azubi-done__summary {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: var(--sp-4) var(--sp-5);
+  font-size: var(--text-sm);
+  font-weight: var(--fw-medium);
+  color: var(--pm-grey-500);
+  cursor: pointer;
+  list-style: none;
+  user-select: none;
+}
+.azubi-done__summary::-webkit-details-marker { display: none; }
+.azubi-done__summary:hover { background: var(--pm-grey-50); color: var(--pm-grey-700); }
+.azubi-done__check { color: var(--color-success); display: inline-flex; }
+.azubi-done__caret {
+  width: 16px; height: 16px;
+  margin-left: auto;
+  transition: transform var(--t-fast);
+}
+.azubi-done[open] .azubi-done__caret { transform: rotate(180deg); }
+
+.azubi-done__item {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  padding: var(--sp-3) var(--sp-5);
+  border-top: 1px solid var(--pm-grey-100);
+  cursor: pointer;
+  transition: background var(--t-fast);
+}
+.azubi-done__item:hover { background: var(--pm-grey-50); }
+.azubi-done__avatar { width: 36px; height: 36px; font-size: var(--text-xs); flex-shrink: 0; }
+.azubi-done__info { flex: 1; min-width: 0; }
+.azubi-done__name { font-size: var(--text-sm); font-weight: var(--fw-bold); color: var(--pm-grey-800); }
+.azubi-done__role { font-size: var(--text-xs); color: var(--pm-grey-500); }
+
+/* Klickbare Aktivität (abgeschlossene Beurteilung) */
+.activity-item--link {
+  text-decoration: none;
+  cursor: pointer;
+  border-radius: var(--r-md);
+  transition: background var(--t-fast);
+}
+.activity-item--link:hover { background: var(--pm-grey-50); }
+
 /* ── Responsive ── */
 @media (max-width: 1200px) {
   .stats-grid { grid-template-columns: repeat(2, 1fr); }

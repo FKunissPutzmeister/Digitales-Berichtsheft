@@ -10,7 +10,7 @@
      Ohne Wahl gilt die System-Einstellung (prefers-color-scheme), die
      sich live mitändert, bis der Nutzer manuell wechselt.
    • CUSTOM-DESIGN   localStorage('customTheme')  = 'hyperspace' | 'cmd'
-     | 'candy' | 'iceland'. Ist ein Custom-Design aktiv, überlagert es
+     | 'candy'. Ist ein Custom-Design aktiv, überlagert es
      den Standard-Modus (data-theme = Custom-Name). Die Token-Overrides
      dazu liegen in css/themes.css.
 
@@ -26,7 +26,7 @@
 (function () {
   var STORAGE_KEY = 'theme';        // Standard-Modus: 'light' | 'dark'
   var CUSTOM_KEY  = 'customTheme';  // Custom-Design oder nicht gesetzt
-  var CUSTOM_THEMES = ['hyperspace', 'cmd', 'candy', 'iceland', 'silk', 'halloween', 'christmas'];
+  var CUSTOM_THEMES = ['hyperspace', 'cmd', 'candy', 'silk', 'halloween', 'christmas'];
   var html = document.documentElement;
 
   /* ── Perf-Lite: Software-Rendering erkennen ───────────────────────
@@ -198,16 +198,6 @@
       '<div class="pm-cd-gumdrop pm-cd-gumdrop--2"></div>' +
       '<canvas class="pm-cd-bubbles" aria-hidden="true"></canvas>',
 
-    /* ── FX-Template: iceland (wird vom Theme-Designer befüllt) ──
-       Schneesturm als <canvas>-Animation statt CSS/SVG-Szene: weiche
-       Glow-Schneeflocken in 3 Parallax-Ebenen, prozedurale Gletscher-
-       Silhouetten, driftende Nebelbänke und Seitenwind mit Böen. Der
-       requestAnimationFrame-Loop wird vom PMIcelandFX-Controller (oben)
-       gesteuert; ensureThemeFX() startet/stoppt ihn am FX-Lebenszyklus.
-       Styling/Fallback-Farbe in css/theme-iceland.css (.pm-is-bg). */
-    iceland:
-      '<canvas class="pm-is-bg" aria-hidden="true"></canvas>',
-
     /* ── FX-Template: halloween (wird vom Theme-Designer befüllt) ──
        Basis ist ein fertiges Hintergrundbild (.pm-hw-bg →
        assets/halloween-bg.png: Geisterhaus im Wald mit Mond, Toren,
@@ -271,275 +261,6 @@
       '</div>' +
       '<canvas class="pm-xm-snow" aria-hidden="true"></canvas>'
   };
-
-  /* ── Iceland-FX: Canvas-Schneesturm-Engine ───────────────────────
-     Der Iceland-Hintergrund ist – anders als die übrigen Custom-Themes –
-     keine reine CSS/SVG-Szene, sondern ein <canvas> mit requestAnimation-
-     Frame-Loop: weiche Glow-Schneeflocken in 3 Parallax-Ebenen, ein
-     echtes verschneites Bergfoto (assets/mountains.png) mit weich aus-
-     gefadeter Oberkante, driftender Nebel und Seitenwind mit
-     Böen. Dieser Controller kapselt den Loop und wird vom FX-Lebenszyklus
-     gesteuert (start beim Aufbau des iceland-FX, stop beim Theme-Wechsel /
-     Teardown). Konventionen aus themes.css werden mit-abgebildet, die für
-     ein <canvas> nicht über CSS greifen:
-       • prefers-reduced-motion → ein einziges statisches Standbild
-       • verstecktes Tab / offenes Modal → Loop pausiert (GPU sparen,
-         analog zur animation-play-state-Pause in themes.css).
-     Styling/Fallback-Farbe des <canvas> in css/theme-iceland.css. */
-  var PMIcelandFX = (function () {
-    var THEME = {
-      sky:     ['#0c141c', '#19262f', '#2b3a44'],
-      mountainSrc: 'assets/mountains.png', // echtes Bergfoto (ersetzt die früheren prozeduralen Gletscher-Ridges)
-      fog:     '#b6c6d2',
-      fogStrength: 0.34,
-      snow:    '#f4f8fc',
-      wind:    8.5,
-      flakeNear: 130, flakeMid: 340, flakeFar: 1100
-    };
-    var intensity = 0.4; // niedrigste Sturm-Stufe
-
-    var reduceMotion = !!(window.matchMedia &&
-      window.matchMedia('(prefers-reduced-motion: reduce)').matches);
-
-    /* Flocken-Sprites einmalig (lazy) bauen und wiederverwenden. */
-    var SPR_FAR = null, SPR_MID = null, SPR_NEAR = null;
-
-    /* Bergfoto: einmalig laden, dann pro resize() in einen bildschirm-
-       großen Offscreen-Canvas (cover-Fit, unten verankert, Oberkante weich
-       ausgefadet) vorrendern → pro Frame nur noch ein drawImage. */
-    var mountainImg = null, mountainReady = false;
-    var SPR_MTN = null;   // { c: <canvas> } – fertig ausgefadetes Bergband (W×H)
-
-    /* Laufzeit-State (wird pro start() neu aufgebaut). */
-    var canvas = null, ctx = null;
-    var raf = 0, running = false;
-    var W = 0, H = 0, DPR = 1;
-    var windT = 0, last = 0, fogPhase = 0;
-    var far = [], mid = [], near = [];
-
-    function hexToRgb(h) { var n = parseInt(h.slice(1), 16); return [(n >> 16) & 255, (n >> 8) & 255, n & 255]; }
-    function fogRgb() { return hexToRgb(THEME.fog); }
-
-    function makeFlakeSprite(size, softness) {
-      var c = document.createElement('canvas');
-      c.width = c.height = size;
-      var cx = c.getContext('2d');
-      var r = size / 2;
-      var g = cx.createRadialGradient(r, r, 0, r, r, r);
-      g.addColorStop(0, 'rgba(255,255,255,1)');
-      g.addColorStop(softness, 'rgba(255,255,255,0.85)');
-      g.addColorStop(0.7, 'rgba(255,255,255,0.25)');
-      g.addColorStop(1, 'rgba(255,255,255,0)');
-      cx.fillStyle = g;
-      cx.beginPath();
-      cx.arc(r, r, r, 0, Math.PI * 2);
-      cx.fill();
-      return c;
-    }
-    function ensureSprites() {
-      if (SPR_FAR) return;
-      SPR_FAR  = makeFlakeSprite(16, 0.55);
-      SPR_MID  = makeFlakeSprite(32, 0.40);
-      SPR_NEAR = makeFlakeSprite(64, 0.22);
-    }
-
-    function windAt(t) {
-      var base = THEME.wind;
-      var gust = Math.sin(t * 0.0004) * 0.42 + Math.sin(t * 0.0011 + 1.3) * 0.28 + Math.sin(t * 0.0027 + 2.7) * 0.14;
-      return base * (1 + gust) * intensity;
-    }
-    function updraft(t, x) { return Math.sin(t * 0.0009 + x * 0.004) * 1.1 * intensity; }
-
-    /* Bergfoto einmalig laden; nach dem Laden das Band neu aufbauen und –
-       falls reduced-motion (kein Loop) – das Standbild sofort nachziehen. */
-    function ensureMountainImg() {
-      if (mountainImg) return;
-      mountainImg = new Image();
-      mountainImg.onload = function () {
-        mountainReady = true;
-        buildMountain();
-        if (reduceMotion && ctx) renderOnce(2);
-      };
-      mountainImg.src = THEME.mountainSrc;
-    }
-
-    /* Bergband in einen bildschirmgroßen Offscreen vorrendern:
-       cover-Fit (füllt die ganze Breite), unten verankert, obere
-       Bildschirmhälfte per destination-out weich in den Himmel ausgefadet. */
-    function buildMountain() {
-      SPR_MTN = null;
-      if (!mountainReady || !mountainImg || !W || !H) return;
-      var iw = mountainImg.naturalWidth, ih = mountainImg.naturalHeight;
-      if (!iw || !ih) return;
-
-      var oc = document.createElement('canvas');
-      oc.width  = Math.floor(W * DPR);
-      oc.height = Math.floor(H * DPR);
-      var octx = oc.getContext('2d');
-      if (!octx) return;
-      octx.setTransform(DPR, 0, 0, DPR, 0, 0);
-
-      /* cover: skaliere so, dass Breite UND Höhe gefüllt sind … */
-      var scale = Math.max(W / iw, H / ih);
-      var dw = iw * scale, dh = ih * scale;
-      var dx = (W - dw) / 2;   // horizontal zentriert (überstehende Seiten beschnitten)
-      var dy = H - dh;         // … und unten verankert (Berge sitzen am unteren Rand)
-      octx.drawImage(mountainImg, dx, dy, dw, dh);
-
-      /* Weiche Oberkante: in Bildschirm-Koordinaten von oben (komplett
-         aufgelöst) bis ~52 % Höhe (volles Foto) ausradieren. */
-      octx.globalCompositeOperation = 'destination-out';
-      var fade = octx.createLinearGradient(0, 0, 0, H);
-      fade.addColorStop(0.00, 'rgba(0,0,0,1)');
-      fade.addColorStop(0.34, 'rgba(0,0,0,0.55)');
-      fade.addColorStop(0.52, 'rgba(0,0,0,0)');
-      octx.fillStyle = fade;
-      octx.fillRect(0, 0, W, H);
-      octx.globalCompositeOperation = 'source-over';
-
-      SPR_MTN = { c: oc };
-    }
-
-    function makeFar()  { return { x: Math.random() * W, y: Math.random() * H, s: Math.random() * 3 + 2,   speed: Math.random() * 0.5 + 0.4, drift: Math.random() * 0.4 + 0.1, alpha: Math.random() * 0.35 + 0.15 }; }
-    function makeMid()  { return { x: Math.random() * W, y: Math.random() * H, s: Math.random() * 6 + 5,   speed: Math.random() * 1.0 + 1.0, drift: Math.random() * 0.6 + 0.4, sway: Math.random() * 6.28, swaySpeed: Math.random() * 0.02 + 0.008, alpha: Math.random() * 0.4 + 0.5 }; }
-    function makeNear() { return { x: Math.random() * W, y: Math.random() * H, s: Math.random() * 18 + 16, speed: Math.random() * 1.6 + 2.0, drift: Math.random() * 0.9 + 0.7, sway: Math.random() * 6.28, swaySpeed: Math.random() * 0.03 + 0.01,  alpha: Math.random() * 0.3 + 0.4 }; }
-    function fillFlakes(arr, n, fn) { arr.length = 0; for (var i = 0; i < n; i++) arr.push(fn()); }
-    function rebuildAll() {
-      fillFlakes(far,  THEME.flakeFar,  makeFar);
-      fillFlakes(mid,  THEME.flakeMid,  makeMid);
-      fillFlakes(near, THEME.flakeNear, makeNear);
-    }
-
-    function resize() {
-      if (!canvas || !ctx) return;
-      DPR = Math.min(window.devicePixelRatio || 1, 2);
-      W = window.innerWidth; H = window.innerHeight;
-      canvas.width  = Math.floor(W * DPR);
-      canvas.height = Math.floor(H * DPR);
-      canvas.style.width = W + 'px'; canvas.style.height = H + 'px';
-      ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
-      rebuildAll();
-      buildMountain();
-      /* setzen von canvas.width leert die Fläche → bei reduced-motion
-         (kein Loop) das Standbild direkt neu zeichnen. */
-      if (reduceMotion) renderOnce(2);
-    }
-
-    function drawSky() {
-      var g = ctx.createLinearGradient(0, 0, 0, H);
-      g.addColorStop(0,    'rgb(' + hexToRgb(THEME.sky[0]).join(',') + ')');
-      g.addColorStop(0.55, 'rgb(' + hexToRgb(THEME.sky[1]).join(',') + ')');
-      g.addColorStop(1,    'rgb(' + hexToRgb(THEME.sky[2]).join(',') + ')');
-      ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
-    }
-    function recycle(f) {
-      if (f.y > H + f.s) { f.y = -f.s; f.x = Math.random() * W; }
-      if (f.x > W + f.s) f.x -= W + f.s * 2;
-      if (f.x < -f.s)    f.x += W + f.s * 2;
-    }
-    function drawFar(t, wind) {
-      for (var i = 0; i < far.length; i++) { var f = far[i];
-        f.x += wind * 0.22 * f.drift; f.y += f.speed * intensity * 0.7; recycle(f);
-        ctx.globalAlpha = f.alpha; ctx.drawImage(SPR_FAR, f.x - f.s / 2, f.y - f.s / 2, f.s, f.s);
-      }
-      ctx.globalAlpha = 1;
-    }
-    function drawMid(t, wind) {
-      for (var i = 0; i < mid.length; i++) { var f = mid[i];
-        f.sway += f.swaySpeed;
-        f.x += wind * 0.6 * f.drift + Math.sin(f.sway) * 0.7;
-        f.y += f.speed * intensity + updraft(t, f.x) * 0.3; recycle(f);
-        ctx.globalAlpha = f.alpha; ctx.drawImage(SPR_MID, f.x - f.s / 2, f.y - f.s / 2, f.s, f.s);
-      }
-      ctx.globalAlpha = 1;
-    }
-    function drawNear(t, wind) {
-      for (var i = 0; i < near.length; i++) { var f = near[i];
-        f.sway += f.swaySpeed;
-        f.x += wind * 1.2 * f.drift + Math.sin(f.sway) * 1.2;
-        f.y += f.speed * intensity * 1.6 + updraft(t, f.x); recycle(f);
-        ctx.globalAlpha = f.alpha; ctx.drawImage(SPR_NEAR, f.x - f.s / 2, f.y - f.s / 2, f.s, f.s);
-      }
-      ctx.globalAlpha = 1;
-    }
-    function drawMountain() {
-      if (!SPR_MTN) return;
-      /* Offscreen ist bereits in Geräte-Pixeln (W*DPR × H*DPR) aufgebaut;
-         hier 1:1 auf die (per setTransform auf CSS-Pixel skalierte) Fläche. */
-      ctx.drawImage(SPR_MTN.c, 0, 0, W, H);
-    }
-    function drawFog(t, wind) {
-      var strength = THEME.fogStrength;
-      var rgb = fogRgb(), r = rgb[0], g = rgb[1], b = rgb[2];
-      fogPhase += 0.0008 * (1 + Math.abs(wind) * 0.02);
-      ctx.save();
-      for (var i = 0; i < 3; i++) {
-        var yc = H * (0.3 + i * 0.25) + Math.sin(t * 0.0005 + i) * H * 0.08;
-        var band = H * 0.5;
-        var a = strength * (0.16 + Math.sin(fogPhase * 2 + i * 1.7) * 0.05);
-        var grad = ctx.createLinearGradient(0, yc - band, 0, yc + band);
-        grad.addColorStop(0,   'rgba(' + r + ',' + g + ',' + b + ',0)');
-        grad.addColorStop(0.5, 'rgba(' + r + ',' + g + ',' + b + ',' + Math.max(0, a) + ')');
-        grad.addColorStop(1,   'rgba(' + r + ',' + g + ',' + b + ',0)');
-        ctx.fillStyle = grad; ctx.fillRect(0, 0, W, H);
-      }
-      var gustHaze = strength * (0.08 + Math.max(0, Math.sin(t * 0.0004)) * 0.08);
-      ctx.fillStyle = 'rgba(' + r + ',' + g + ',' + b + ',' + gustHaze + ')';
-      ctx.fillRect(0, 0, W, H);
-      ctx.restore();
-    }
-
-    function renderOnce(wind) {
-      drawSky();
-      drawFar(windT, wind);
-      drawMountain();
-      drawFog(windT, wind);
-      drawMid(windT, wind);
-      drawNear(windT, wind);
-    }
-
-    /* Loop pausieren, wenn es nichts zu sehen gibt: Tab im Hintergrund
-       oder offenes Modal (dessen blur-Backdrop alles verdeckt). */
-    function isPaused() {
-      if (document.hidden) return true;
-      if (document.querySelector('.modal-overlay.open')) return true;
-      return false;
-    }
-
-    function frame(now) {
-      if (!running) return;
-      if (isPaused()) { last = now; raf = requestAnimationFrame(frame); return; }
-      var dt = Math.min(now - last, 50);
-      last = now; windT += dt;
-      renderOnce(windAt(windT));
-      raf = requestAnimationFrame(frame);
-    }
-
-    function start(cv) {
-      stop();               // idempotent: evtl. laufenden Loop sauber beenden
-      if (!cv) return;
-      canvas = cv;
-      ctx = canvas.getContext('2d', { alpha: false });
-      if (!ctx) { canvas = null; return; }
-      ensureSprites();
-      ensureMountainImg();  // Bergfoto laden (onload baut das Band auf)
-      resize();             // baut Szene auf (+ zeichnet bei reduced-motion)
-      window.addEventListener('resize', resize);
-      if (reduceMotion) return;   // statisches Standbild → kein Loop
-      running = true;
-      last = (window.performance && performance.now) ? performance.now() : 0;
-      raf = requestAnimationFrame(frame);
-    }
-
-    function stop() {
-      running = false;
-      if (raf) { cancelAnimationFrame(raf); raf = 0; }
-      window.removeEventListener('resize', resize);
-      canvas = null; ctx = null;
-    }
-
-    return { start: start, stop: stop };
-  })();
 
   /* ── CMD-FX: 0/1-Matrix-Hintergrund-Engine ───────────────────────
      Der CMD-Hintergrund ist – wie iceland – ein <canvas> mit requestAni-
@@ -1584,10 +1305,9 @@
     }
     var existing = document.getElementById('pmThemeFX');
     if (existing && existing.parentNode) existing.parentNode.removeChild(existing);
-    /* Beim Neuaufbau/Teardown evtl. laufende Canvas-Loops (iceland, cmd,
+    /* Beim Neuaufbau/Teardown evtl. laufende Canvas-Loops (cmd,
        candy-Seifenblasen, halloween-Nebel) sauber beenden – sonst rendern
        sie nach dem Theme-Wechsel weiter. Alle stop() sind idempotent. */
-    PMIcelandFX.stop();
     PMCmdFX.stop();
     PMCandyBubbles.stop();
     PMHalloweenFog.stop();
@@ -1614,12 +1334,9 @@
     el.innerHTML = tpl;
     document.body.appendChild(el);
 
-    /* iceland/cmd/candy/halloween: Canvas-Loop am frisch eingehängten
+    /* cmd/candy/halloween: Canvas-Loop am frisch eingehängten
        <canvas> starten (alle übrigen Layer sind rein CSS/SVG → kein Loop). */
-    if (theme === 'iceland') {
-      var isCanvas = el.querySelector('.pm-is-bg');
-      if (isCanvas) PMIcelandFX.start(isCanvas);
-    } else if (theme === 'cmd') {
+    if (theme === 'cmd') {
       var cmdCanvas = el.querySelector('.pm-cmd-bg');
       if (cmdCanvas) PMCmdFX.start(cmdCanvas);
     } else if (theme === 'candy') {

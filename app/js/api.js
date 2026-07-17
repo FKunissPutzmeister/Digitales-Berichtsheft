@@ -300,6 +300,12 @@ const DateUtil = {
    der Key nicht auseinanderdriftet. Fehlt der Wert → Feature AN (Default). */
 const ACTIVITY_SUGGESTIONS_KEY = 'pmActivitySuggestions';
 
+/* localStorage-Schlüssel der Nutzer-Einstellung „Unterweisung standardmäßig
+   aktiv": bei '1' starten NEUE (noch nicht gespeicherte) Wochen mit angehakter
+   „mit Unterweisung"-Option. Gemeinsam genutzt von profil.js (Schalter) und
+   wochenansicht.js (Auswertung). Fehlt der Wert → AUS (Default). */
+const UNTERWEISUNG_DEFAULT_KEY = 'pmUnterweisungDefault';
+
 /* ── DB-Objekt (async, gleiche Schnittstelle wie data.js) ─────── */
 const DB = {
 

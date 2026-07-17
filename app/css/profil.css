@@ -307,6 +307,23 @@ details.profil-section .profil-section__body-wrap > .profil-section__body {
   color: var(--on-yellow-text);
   box-shadow: var(--shadow-sm);
 }
+/* Deaktivierte Modus-Buttons (bei aktivem Custom-Theme gibt es kein Hell/Dunkel):
+   ausgegraut, nicht klickbar – aktive Markierung wird dann unterdrückt. */
+.theme-mode-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  background: transparent;
+  border-color: transparent;
+  color: var(--pm-grey-500);
+  box-shadow: none;
+}
+
+/* Vertretung: Formular schmaler halten – die Person-Auswahl (PMSelect rendert
+   .form-control als pm-select--block = 100 %) und die Datumsfelder sollen nicht
+   über die volle Panel-Breite laufen. Der Hinzufügen-Button ist kompakt (btn-sm)
+   und bekommt etwas Abstand zum Dauer-Segment darüber. */
+.vertretung-add { max-width: 480px; }
+.vertretung-add__submit { margin-top: var(--sp-3); }
 
 /* Custom-Design: Vorschau-Kacheln */
 .theme-tiles {
@@ -379,7 +396,6 @@ details.profil-section .profil-section__body-wrap > .profil-section__body {
 .theme-tile__swatch--standard,
 .theme-tile__swatch--silk,
 .theme-tile__swatch--candy,
-.theme-tile__swatch--iceland,
 .theme-tile__swatch--halloween,
 .theme-tile__swatch--christmas {
   background-position: center;
@@ -389,7 +405,6 @@ details.profil-section .profil-section__body-wrap > .profil-section__body {
 .theme-tile__swatch--standard  { background-image: url('../assets/themes/standard.png'); }
 .theme-tile__swatch--silk      { background-image: url('../assets/themes/silk.png'); }
 .theme-tile__swatch--candy     { background-image: url('../assets/themes/candy.png'); }
-.theme-tile__swatch--iceland   { background-image: url('../assets/themes/iceland.png'); }
 .theme-tile__swatch--halloween { background-image: url('../assets/themes/halloween.png'); }
 .theme-tile__swatch--christmas { background-image: url('../assets/themes/christmas.png'); }
 

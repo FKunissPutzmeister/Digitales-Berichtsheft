@@ -8,15 +8,12 @@
    dasselbe Theme-API (window.PMTheme aus theme.js).
    =================================================================== */
 
-const esc = window.escapeHtml;
-
 /* Theme-Designs identisch zur regulären Profil-Seite (profil.js). */
 const THEME_DESIGNS = [
   { id: '',           name: 'Standard',   sub: 'Putzmeister-Design' },
   { id: 'silk',       name: 'Silk',       sub: 'Liquid Glass · futuristisch' },
   { id: 'cmd',        name: 'CMD',        sub: 'Terminal, Grün auf Schwarz' },
   { id: 'candy',      name: 'Candy Land', sub: 'Pastell & Regenbogen' },
-  { id: 'iceland',    name: 'Iceland',    sub: 'Schnee, Eis & Iglu' },
   { id: 'halloween',  name: 'Halloween',  sub: 'Geisterhaus & Nebel' },
   { id: 'christmas',  name: 'Christmas',  sub: 'Verschneit & festlich' },
 ];
@@ -42,66 +39,6 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   const main = document.getElementById('mainContent');
 
-  /* ── Stammdaten (DH-spezifisch: Studiengang/Semester + aktuelle Abteilung) ── */
-  async function buildStammdaten() {
-    let abteilung = '–', verantw = '–';
-    try {
-      const zuw = await DB.getAktuellerAusbilder(user.id);   // aktuelle Zuweisung (oder null)
-      if (zuw) {
-        abteilung = zuw.abteilung || '–';
-        verantw = zuw.verantwName || '–';
-      }
-    } catch (e) { /* ohne Backend/Daten: Platzhalter */ }
-
-    const fields = [
-      { label: 'Name',                    value: user.name },
-      { label: 'Studiengang',             value: user.studiengang || '–' },
-      { label: 'Semester',                value: user.semester ? `${user.semester}. Semester` : '–' },
-      { label: 'Aktuelle Abteilung',      value: abteilung },
-      { label: 'Verantwortliche/r',       value: verantw },
-    ];
-    return `
-      <section class="profil-section">
-        <div class="profil-section__header">
-          <div class="profil-section__icon">${Icon('document')}</div>
-          <div class="profil-section__title">Stammdaten</div>
-        </div>
-        <div class="profil-section__body-wrap"><div class="profil-section__body">
-          <dl class="profil-stammdaten__grid">
-            ${fields.map(f => `
-              <div class="profil-stammdaten__field">
-                <dt class="profil-stammdaten__label">${esc(f.label)}</dt>
-                <dd class="profil-stammdaten__value">${esc(f.value)}</dd>
-              </div>`).join('')}
-          </dl>
-        </div></div>
-      </section>`;
-  }
-
-  /* ── Persönliche Daten ── */
-  function buildPersoenlicheDaten() {
-    const item = (label, value) => `
-      <div class="profil-data-item">
-        <div class="profil-data-label">${esc(label)}</div>
-        <div class="profil-data-value">${esc(value)}</div>
-      </div>`;
-    return `
-      <section class="profil-section">
-        <div class="profil-section__header">
-          <div class="profil-section__icon">${Icon('user')}</div>
-          <div class="profil-section__title">Persönliche Daten</div>
-        </div>
-        <div class="profil-section__body-wrap"><div class="profil-section__body">
-          <div class="profil-data-grid">
-            ${item('Vollständiger Name', user.name)}
-            ${item('E-Mail-Adresse', user.email || '–')}
-            ${item('Rolle', 'DH-Student/in')}
-            ${item('Kürzel', user.initials)}
-          </div>
-        </div></div>
-      </section>`;
-  }
-
   /* ── Darstellung & Themes (voll, inkl. Custom-Designs) ──
      Markup/Logik bewusst identisch zur Profil-Seite (profil.js), damit
      Aussehen, Verhalten und Theme-Persistenz exakt gleich sind. */
@@ -111,9 +48,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     const silkColor  = window.PMTheme?.getSilkColor?.() || 'indigo';
     const silkColors = window.PMTheme?.SILK_COLORS || [];
 
+    /* Bei aktivem Custom-Theme gibt es kein Hell/Dunkel → Buttons sperren/ausgrauen. */
+    const modeLocked = !!custom;
     const modeBtn = (val, label, icon) => `
-      <button type="button" class="theme-mode-btn ${mode === val ? 'active' : ''}"
-              data-theme-mode="${val}" aria-pressed="${mode === val}">${icon}<span>${label}</span></button>`;
+      <button type="button" class="theme-mode-btn ${!modeLocked && mode === val ? 'active' : ''}"
+              data-theme-mode="${val}" aria-pressed="${!modeLocked && mode === val}"${modeLocked ? ' disabled' : ''}>${icon}<span>${label}</span></button>`;
     const SUN  = '<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>';
     const MOON = '<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>';
 
@@ -164,8 +103,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (!window.PMTheme) return;
     const mode   = window.PMTheme.getMode();
     const custom = window.PMTheme.getCustom() || '';
+    const modeLocked = !!custom;
     document.querySelectorAll('[data-theme-mode]').forEach(btn => {
-      const on = btn.dataset.themeMode === mode;
+      btn.disabled = modeLocked;
+      const on = !modeLocked && btn.dataset.themeMode === mode;
       btn.classList.toggle('active', on); btn.setAttribute('aria-pressed', String(on));
     });
     document.querySelectorAll('[data-theme-design]').forEach(tile => {
@@ -235,8 +176,6 @@ document.addEventListener('DOMContentLoaded', async () => {
   main.innerHTML = `
     <div class="page-header"><div class="page-header__left"><h1 class="page-title">Mein Profil</h1></div></div>
     <div class="profil-panels">
-      ${await buildStammdaten()}
-      ${buildPersoenlicheDaten()}
       ${buildDarstellung()}
       ${buildFehlerMelden()}
       ${buildLogout()}

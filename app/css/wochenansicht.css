@@ -457,12 +457,12 @@ html[data-skin="silk"] body[data-page="wochenansicht"] #silk-react-root {
    theme-silk.css §4d). */
 html[data-skin="silk"] body[data-page="wochenansicht"] .day-section,
 html[data-skin="silk"] body[data-page="wochenansicht"] .day-section__header {
-  background: hsl(var(--silk-hue,252) 42% 27%) !important;
+  background: hsl(var(--silk-hue,252) 42% 40%) !important;
 }
 html[data-skin="silk"] body[data-page="wochenansicht"] .ql-toolbar,
 html[data-skin="silk"] body[data-page="wochenansicht"] .ql-container,
 html[data-skin="silk"] body[data-page="wochenansicht"] .day-section .ql-editor {
-  background: hsl(var(--silk-hue,252) 44% 25%) !important;
+  background: hsl(var(--silk-hue,252) 44% 37%) !important;
 }
 .wochen-tage-row {
   display: grid;

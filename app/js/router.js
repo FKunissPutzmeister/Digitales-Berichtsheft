@@ -121,7 +121,7 @@
        später injiziertes Seiten-CSS die Theme-Overrides – z.B. tauchten die
        Bento-Bilder im silk-Theme nach SPA-Navigation wieder auf.) */
     const THEME_SHEETS = ['theme-hyperspace', 'theme-cmd', 'theme-candy',
-      'theme-iceland', 'theme-silk', 'theme-halloween', 'themes'];
+      'theme-silk', 'theme-halloween', 'themes'];
     const isThemeSheet = href => THEME_SHEETS.some(n => href.indexOf('/css/' + n + '.css') !== -1);
     /* Erster Theme-<link> im Head = Einfügepunkt für neues Seiten-CSS. */
     const firstThemeLink = Array.from(document.querySelectorAll('link[rel="stylesheet"]'))

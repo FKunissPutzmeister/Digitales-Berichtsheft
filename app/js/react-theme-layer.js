@@ -301,8 +301,15 @@
   }
   function gcDetachedText() { textRoots = gcArr(textRoots); }
 
+  /* Glas-/Border-Klassen (silk-host*) sind REIN CSS (theme-silk.css = statischer
+     <link>, ab erstem Paint da) und brauchen KEIN React-Bundle; nur die Text-
+     Headings (BlurText/GradientText) mounten React und hängen an `api`. scan()
+     dekoriert das Glas daher IMMER sofort und ergänzt die Headings erst, sobald
+     das Bundle da ist. Früher bailte scan() komplett bei !api → frisch gerenderte
+     .tag-row/Panel-Ränder blieben bis zum async import() auf ihrer Basis-(Dark-)
+     Border und sprangen dann auf Silk um = das Rand-Flackern beim Laden/Refresh. */
   function scan() {
-    if (!api || scanning) return;
+    if (scanning) return;
     scanning = true;
     try {
       gcDetachedText();
@@ -326,8 +333,7 @@
         glass(SEL.frost, 'frost');
         glass(SEL.flat, 'flat');
         glass(SEL.btn, 'btn');
-        text(SEL.blur, 'blur');
-        text(SEL.grad, 'grad');
+        if (api) { text(SEL.blur, 'blur'); text(SEL.grad, 'grad'); }   // Headings brauchen React
       }
       tintLogo();
     } finally { scanning = false; }
@@ -401,13 +407,20 @@
     if (reduceMotion) return;
     var cfg = cfgFor(theme);
     if (!cfg) return;
+    /* Glas/Border + Hover-Tracking + Page-Observer SOFORT starten – alles reines
+       CSS/DOM, kein React-Bundle nötig. Früher hingen sie am loadBundle().then(),
+       sodass frisch gerenderte Ränder bis zum async import() auf ihrer Basis-
+       (Dark-)Border blieben und dann auf Silk umsprangen → Rand-Flackern beim
+       ersten Laden/Refresh. Jetzt sitzt das Glas ab dem ersten Paint der Inhalte;
+       das Bundle ergänzt nur noch WebGL-Hintergrund + Text-Headings. */
+    scan();
+    bindPointer();
+    startPageObserver();
     loadBundle(cfg).then(function (mod) {
       if (activeTheme !== theme) return;
       api = mod;
       mountBackground();
-      scan();
-      bindPointer();
-      startPageObserver();
+      scan();   // ergänzt jetzt die Text-Headings (BlurText/GradientText)
       // Scroll-Parallax deaktiviert: das Per-Element-translate verschob die
       // dicht gepackten Bento-Kacheln (und welcome-hero) um je ein anderes Y
       // → ungleiche Abstände im Dashboard. Gleiches Problem wie zuvor in der
@@ -447,7 +460,11 @@
 
   window.addEventListener('pm-theme-change', function (e) { sync(e && e.detail); });
   window.addEventListener('pm-silk-color-change', function () { if (activeTheme && api) recolorSilk(); });
-  window.addEventListener('pm-page-rendered', function () { if (activeTheme && api) scan(); });
+  /* Glas-Dekoration hängt NICHT am React-Bundle (siehe scan()): frisch gerenderte
+     Inhalte sofort dekorieren, auch wenn das Bundle noch lädt (fresh load/refresh)
+     – sonst zeigen die Ränder bis zum async import() ihre Basis-Border (Flackern).
+     Bei reduced-motion bleibt Silk wie gehabt undekoriert (kein Observer/Pointer). */
+  window.addEventListener('pm-page-rendered', function () { if (activeTheme && !reduceMotion) scan(); });
   /* Sidebar komplett neu aufgebaut (buildSidebar in sidebar.js) → das frische
      Logo-<img> erneut tönen. Unabhängig vom React-Bundle (tintLogo braucht nur
      Canvas); mit gecachter Maske synchron → kein „leeres/Standard-Logo"-Frame. */
