@@ -1199,6 +1199,9 @@ document.addEventListener('DOMContentLoaded', async () => {
    */
   function validateWocheWoechentlich(woche, monday) {
     const errors = [];
+    // Default-Ort = betrieb_schule (Schule/Betrieb ist Standardauswahl,
+    // vgl. renderWochenKacheln) → Schule-Eintrag ist bei ungesetztem
+    // wochenOrt pflichtig, damit UI-Anzeige und Validierung übereinstimmen.
 
     // Hinweis: Pro Werktag wird im Wochen-Modus KEINE Anwesenheit erzwungen –
     // Leerwert/undefined gilt als „anwesend" (siehe zaehleAnwesenheitstage),
@@ -1207,7 +1210,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // Wochen-Kacheln: Betrieb ist Pflicht, Schule + Unterweisung
     // nur wenn die jeweiligen Optionen aktiv sind.
-    const ort = woche?.wochenOrt || 'betrieb';
+    const ort = woche?.wochenOrt || 'betrieb_schule';
     const unterweisung = !!woche?.unterweisungAktiv;
 
     if (htmlIsEmpty(woche?.betriebEintrag || '')) {
@@ -1481,7 +1484,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   // ── Wöchentliches Berichtsheft ────────────────────────────────────
 
   function renderWochenKacheln(woche, readonly, monday) {
-    const ort = woche?.wochenOrt || 'betrieb';
+    const ort = woche?.wochenOrt || 'betrieb_schule';
     const unterweisung = woche?.unterweisungAktiv || false;
 
     return `
