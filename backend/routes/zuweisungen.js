@@ -293,6 +293,41 @@ router.get('/meine-pruefungen', async (req, res) => {
   }
 });
 
+// GET /api/zuweisungen/meine-pruefungen-kommend
+// Für Prüfer: die eigenen (inkl. per Vertretung geerbten) befristeten
+// Zuweisungen, die noch nicht begonnen haben (Von in der Zukunft). Speist
+// den "Demnächst"-Abschnitt im Prüfer-Dashboard. Keine Zugreifbarkeits-
+// prüfung nötig (die Zuweisung hat ja noch nicht begonnen), keine Dedup-
+// Notwendigkeit (mehrere künftige Rotationen zum selben Azubi sind
+// informativ und werden alle gezeigt).
+router.get('/meine-pruefungen-kommend', async (req, res) => {
+  try {
+    const pool = await getPool();
+    const kontext = await ladeKorrekturKontext(pool, req.user);
+    const kommende = kontext.zuweisungen.filter(z => ymd(z.von) > kontext.stichtag);
+    if (!kommende.length) return res.json([]);
+
+    const r = pool.request();
+    const params = kommende.map((z, i) => { r.input(`o${i}`, sql.NVarChar(36), z.azubiOid); return `@o${i}`; });
+    const namen = await r.query(`SELECT Oid, Name FROM dbo.Users WHERE Oid IN (${params.join(',')})`);
+    const nameByOid = new Map(namen.recordset.map(n => [n.Oid, n.Name]));
+
+    const liste = kommende.map(z => ({
+      azubiOid: z.azubiOid,
+      azubiName: nameByOid.get(z.azubiOid) || '',
+      abteilung: z.abteilung || null,
+      von: ymd(z.von),
+      bis: ymd(z.bis),
+    })).sort((a, b) => (a.von < b.von ? -1 : 1));
+
+    res.json(liste);
+  } catch (err) {
+    logError({ quelle: 'backend', nachricht: `[zuweisungen] meine-pruefungen-kommend: ${err.message}`, stack: err.stack,
+      kontext: { route: req.path, methode: req.method }, benutzerOid: req.user && req.user.oid, benutzerName: req.user && req.user.name });
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // GET /api/zuweisungen/:id – eine einzelne Zuweisung (für die Beurteilungsseite,
 // die die Zuweisung direkt per Id auflöst statt über nutzergebundene Listen).
 router.get('/:id', async (req, res) => {
