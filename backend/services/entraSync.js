@@ -56,8 +56,9 @@ function syncConfigured(env = process.env) {
   };
 }
 
-const { upsertUser, listUsers, listManagedUsers, setUsersAktiv } = require('./users');
+const { upsertUser, listUsers, listManagedUsers, setUsersAktiv, getUserByOid, buildReqUser } = require('./users');
 const { upsertPhoto, deletePhoto } = require('./userPhotos');
+const { syncAutoZuordnung } = require('./ausbilderAzubis');
 
 // App-only-Token per Client-Credentials.
 async function getGraphToken({ tenantId, clientId, clientSecret }) {
@@ -111,6 +112,56 @@ async function fetchUserPhoto(token, oid) {
   return { content, contentType };
 }
 
+// Direkten Vorgesetzten eines Users abrufen (Quelle für die automatische
+// dauerhafte Ausbilder-Zuordnung, dbo.AusbilderAzubis). 404 = kein Manager in
+// Entra hinterlegt (Normalfall bei technischen Azubis mit 2 Ausbildern, wo nur
+// einer über Entra abgebildet ist) → null, kein Fehler.
+async function fetchUserManager(token, oid) {
+  const r = await fetch(`https://graph.microsoft.com/v1.0/users/${oid}/manager?$select=id,displayName,mail,userPrincipalName`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (r.status === 404) return null;
+  if (!r.ok) throw new Error(`Manager ${oid}: HTTP ${r.status}`);
+  const j = await r.json();
+  const email = String(j.mail || j.userPrincipalName || '').trim().toLowerCase();
+  return { oid: j.id, name: j.displayName ?? null, email: email || null };
+}
+
+// Dauerhafte Ausbilder-Zuordnung (Quelle='auto') für alle übergebenen
+// Azubi-OIDs mit ihrem Entra-Manager abgleichen. Legt den Manager als Nutzer
+// an, falls er noch nicht existiert (role='pruefer', damit er sofort
+// ausbilderfähig ist); existiert er schon, wird NUR IstAusbilder=1 nachgezogen
+// (role=null → upsertUser lässt eine vorhandene Rolle unangetastet, siehe
+// Merge-Regel dort). Pro Azubi try/catch wie beim Fotosync — ein einzelner
+// Graph-Fehler bricht den Gesamtlauf nicht ab.
+async function syncAusbilderZuordnungen(token, azubiOids) {
+  const BATCH = 5;
+  let verarbeitet = 0, managerAngelegt = 0, errors = 0;
+  for (let i = 0; i < azubiOids.length; i += BATCH) {
+    const batch = azubiOids.slice(i, i + BATCH);
+    await Promise.all(batch.map(async (azubiOid) => {
+      try {
+        const manager = await fetchUserManager(token, azubiOid);
+        if (manager) {
+          const bestehend = await getUserByOid(manager.oid);
+          if (!bestehend) {
+            await upsertUser({ oid: manager.oid, name: manager.name, email: manager.email, role: 'pruefer', istAusbilder: true });
+            managerAngelegt++;
+          } else {
+            await upsertUser({ oid: manager.oid, name: manager.name, email: manager.email, role: null, istAusbilder: true });
+          }
+        }
+        await syncAutoZuordnung(azubiOid, manager ? manager.oid : null);
+        verarbeitet++;
+      } catch (e) {
+        errors++;
+        console.error(`[entra-sync] Ausbilder-Zuordnung ${azubiOid}:`, e.message);
+      }
+    }));
+  }
+  return { verarbeitet, managerAngelegt, errors };
+}
+
 // Fotos für alle übergebenen OIDs abgleichen. Anders als der Gruppen-Sync
 // bricht ein einzelner Fehler (z.B. fehlende Photo-Permission, ein User ohne
 // Mailbox) NICHT den gesamten Lauf ab — ein fehlendes Foto ist unkritisch,
@@ -162,10 +213,20 @@ async function runSync(env = process.env) {
     // Rollen) — auch manuell gepflegte admin/developer/dhstudent-Konten bekommen
     // so ein Echtfoto, sofern in Entra vorhanden.
     const alleAktiven = await listUsers({ inclInactive: false });
-    const photos = await syncUserPhotos(token, alleAktiven.map((u) => u.Oid));
 
-    console.log('[entra-sync] Lauf ok:', JSON.stringify(proGruppe), `upserted=${members.length} deactivated=${stale.length}`, `fotos=${JSON.stringify(photos)}`);
-    return { ok: true, proGruppe, upserted: members.length, reactivated: aktivOids.length, deactivated: stale.length, photos, errors: [] };
+    // Fotos (alle aktiven User) und Ausbilder-Zuordnung (alle aktiven Azubis,
+    // aus dem Entra-Manager) sind unabhängige Graph-Abgleiche für die gleiche
+    // Nutzerpopulation — parallel statt nacheinander laufen lassen, sonst
+    // verdoppelt sich die Laufzeit des manuellen "Jetzt synchronisieren"-Trigger
+    // (blockierender Request) unnötig und läuft in ein Client-Timeout.
+    const azubiOids = alleAktiven.filter((u) => buildReqUser(u).istAzubi).map((u) => u.Oid);
+    const [photos, ausbilder] = await Promise.all([
+      syncUserPhotos(token, alleAktiven.map((u) => u.Oid)),
+      syncAusbilderZuordnungen(token, azubiOids),
+    ]);
+
+    console.log('[entra-sync] Lauf ok:', JSON.stringify(proGruppe), `upserted=${members.length} deactivated=${stale.length}`, `fotos=${JSON.stringify(photos)}`, `ausbilder=${JSON.stringify(ausbilder)}`);
+    return { ok: true, proGruppe, upserted: members.length, reactivated: aktivOids.length, deactivated: stale.length, photos, ausbilder, errors: [] };
   } catch (e) {
     console.error('[entra-sync] Lauf fehlgeschlagen:', e.message);
     return { ok: false, proGruppe: {}, upserted: 0, reactivated: 0, deactivated: 0, errors: [e.message] };
@@ -189,5 +250,6 @@ function berichtTypAusDepartment(department) {
 
 module.exports = {
   buildGroupRoleMap, resolveMembers, computeDeactivations, syncConfigured, getGraphToken, fetchGroupMembers,
-  fetchUserPhoto, syncUserPhotos, runSync, berufAusJobtitle, berichtTypAusDepartment,
+  fetchUserPhoto, syncUserPhotos, fetchUserManager, syncAusbilderZuordnungen, runSync,
+  berufAusJobtitle, berichtTypAusDepartment,
 };

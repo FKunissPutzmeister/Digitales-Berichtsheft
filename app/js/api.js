@@ -417,7 +417,9 @@ const DB = {
   },
 
   async runEntraSync() {
-    return await apiFetch('/sync/entra', { method: 'POST' });
+    // Langläufer (Fotos + Ausbilder-Zuordnung über Graph für alle aktiven
+    // Nutzer): der generische 15s-Timeout von apiFetch reicht dafür nicht.
+    return await apiFetch('/sync/entra', { method: 'POST', timeout: 120000 });
   },
 
   /* Zuweisungen */
