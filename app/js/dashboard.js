@@ -438,113 +438,6 @@ async function renderAzubiDashboard(user) {
   }, 120);
 }
 
-/* ── Primärer CTA: Ausbilder-Sicht ──────────────────────────── */
-function renderAusbilderPrimaryCta(queue, azubiCount) {
-  if (queue.length === 0) {
-    return ctaTemplate({
-      variant: 'done',
-      eyebrow: 'Posteingang leer',
-      title: 'Alles geprüft',
-      sub: azubiCount === 1
-        ? 'Für deinen Azubi liegen aktuell keine Berichte zur Abnahme vor.'
-        : `Für deine ${azubiCount} Azubis liegen aktuell keine Berichte zur Abnahme vor.`,
-      icon: iconCheck(),
-    });
-  }
-
-  // Ältester wartender Bericht
-  const aelteste = queue[0];
-  const monday = DateUtil.getMondayOfKW(aelteste.kw, aelteste.year);
-  const sunday = new Date(monday);
-  sunday.setDate(monday.getDate() + 6);
-  const today = new Date();
-  const wochenSeitEnde = Math.max(0, Math.floor((today - sunday) / (1000 * 60 * 60 * 24 * 7)));
-
-  let warteText;
-  if (wochenSeitEnde === 0)      warteText = 'Ältester Bericht wurde diese Woche freigegeben.';
-  else if (wochenSeitEnde === 1) warteText = 'Ältester Bericht wartet seit 1 Woche.';
-  else                           warteText = `Ältester Bericht wartet seit ${wochenSeitEnde} Wochen.`;
-
-  const variant = wochenSeitEnde >= 2 ? 'urgent' : 'action';
-  const title = queue.length === 1
-    ? `1 Bericht zur Abnahme prüfen`
-    : `${queue.length} Berichte zur Abnahme prüfen`;
-
-  return ctaTemplate({
-    variant,
-    eyebrow: 'Posteingang',
-    title,
-    sub: warteText + ' Klicken, um den ältesten zuerst zu öffnen.',
-    icon: variant === 'urgent' ? iconAlert() : iconInbox(),
-    gotoAzubiId: aelteste.azubi.id,
-    gotoKW: aelteste.kw,
-    gotoYear: aelteste.year,
-  });
-}
-
-/* CTA-Markup-Builder. Variants ohne goto* sind nicht klickbar. */
-function ctaTemplate({ variant, eyebrow, title, sub, icon, gotoKW, gotoYear, gotoAzubiId }) {
-  const clickable = (variant === 'action' || variant === 'urgent' || variant === 'waiting')
-                    && (gotoKW || gotoAzubiId);
-  const tag = clickable ? 'a' : 'div';
-  const attrs = clickable
-    ? `class="primary-cta primary-cta--${variant}" href="wochenansicht.html"`
-      + ` data-cta-goto="1"`
-      + (gotoKW      ? ` data-goto-kw="${gotoKW}"`           : '')
-      + (gotoYear    ? ` data-goto-year="${gotoYear}"`       : '')
-      + (gotoAzubiId ? ` data-goto-azubi="${gotoAzubiId}"`   : '')
-    : `class="primary-cta primary-cta--${variant}" role="status"`;
-
-  const arrow = clickable
-    ? `<div class="primary-cta__arrow" aria-hidden="true">
-         <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
-           <line x1="5" y1="12" x2="19" y2="12"/>
-           <polyline points="12 5 19 12 12 19"/>
-         </svg>
-       </div>`
-    : '';
-
-  return `
-    <${tag} ${attrs}>
-      <div class="primary-cta__icon" aria-hidden="true">${icon}</div>
-      <div class="primary-cta__body">
-        <div class="primary-cta__eyebrow">${eyebrow}</div>
-        <div class="primary-cta__title">${title}</div>
-        <div class="primary-cta__sub">${sub}</div>
-      </div>
-      ${arrow}
-    </${tag}>
-  `;
-}
-
-/* Klick auf CTA → vor Navigation Goto-Werte in sessionStorage spiegeln,
-   damit die Wochenansicht direkt die richtige Woche / den richtigen
-   Azubi öffnet. */
-function bindPrimaryCtaNav() {
-  const el = document.querySelector('.primary-cta[data-cta-goto]');
-  if (!el) return;
-  el.addEventListener('click', (e) => {
-    const kw      = el.dataset.gotoKw;
-    const year    = el.dataset.gotoYear;
-    const azubiId = el.dataset.gotoAzubi;
-    if (kw)      sessionStorage.setItem('gotoKW', kw);
-    if (year)    sessionStorage.setItem('gotoYear', year);
-    if (azubiId) sessionStorage.setItem('gotoAzubiId', azubiId);
-    // <a href="wochenansicht.html"> übernimmt die Navigation
-  });
-}
-
-/* ── Inline-SVG-Icons für den CTA ─────────────────────────── */
-function iconAlert() {
-  return Icon('warning');
-}
-function iconCheck() {
-  return Icon('success');
-}
-function iconInbox() {
-  return Icon('inbox');
-}
-
 /* ── Reiner-Prüfer-Dashboard: befristete Zuweisungen statt "Meine Azubis" ── */
 async function renderReinerPrueferDashboard(user) {
   const main = document.getElementById('mainContent');
@@ -682,12 +575,12 @@ async function renderReinerPrueferDashboard(user) {
 /* ── Ausbilder-Cockpit ────────────────────────────────────────── */
 async function renderAusbilderDashboard(user) {
   const today = new Date();
-  const kw = DateUtil.getKW(today);
-  const kwYear = DateUtil.getKWYear(today);
+  const weekdayLong = ['Sonntag','Montag','Dienstag','Mittwoch','Donnerstag','Freitag','Samstag'][today.getDay()];
+  const heroEyebrow = DateUtil.MONTHS_SHORT[today.getMonth()];
+  const heroNum = String(today.getDate()).padStart(2, '0');
 
   const meineAzubis = await getMeineAzubis(user);
   const istKorrektor   = user.istAusbilder || meineAzubis.length > 0;
-  const planerSignale  = user.kannPlanen ? await getPlanerSignale() : null;
 
   // Alle Wochen aller zugewiesenen Azubis
   const allWochen = [];
@@ -699,139 +592,108 @@ async function renderAusbilderDashboard(user) {
   }
 
   // Posteingang: alle Wochen, auf die der Betrachter reagieren kann
-  // (Prüfer: freigegeben → erstgenehmigen; Ausbilder: freigegeben/erstgenehmigt).
+  // (Prüfer: freigegeben → erstgenehmigen; Ausbilder: freigegeben/erstgenehmigt),
+  // sortiert nach Wartedauer (älteste zuerst).
   const queue = allWochen
     .filter(w => (w.erlaubteAktionen || []).some(a => a === 'erstgenehmigen' || a === 'endgenehmigen'))
     .sort((a, b) => (a.year - b.year) || (a.kw - b.kw));
 
-  const zurueckgegeben = allWochen.filter(w => w.status === 'abgelehnt').length;
-  const genehmigtDieseWoche = allWochen.filter(w =>
-    w.status === 'genehmigt' && w.year === kwYear && w.kw === kw
-  ).length;
-
-  // Pro-Azubi-Stats für die rechte Liste
-  const azubiStatsRaw = await Promise.all(meineAzubis.map(async a => {
-    const wochen = await DB.getWochenFuerAzubi(a.id);
-    return {
-      azubi: a,
-      zuPruefen: wochen.filter(w => (w.erlaubteAktionen || []).some(a => a === 'erstgenehmigen' || a === 'endgenehmigen')).length,
-      offen:     wochen.filter(w => w.status === 'offen').length,
-      abgelehnt: wochen.filter(w => w.status === 'abgelehnt').length,
-      genehmigt: wochen.filter(w => w.status === 'genehmigt').length,
-    };
+  // Posteingang nach Azubi gruppieren → eine Karte pro Azubi statt einer
+  // flachen Wochen-Liste. queue ist bereits älteste-zuerst, also ist
+  // wochen[0] je Azubi der dringendste Bericht.
+  const byAzubi = new Map();
+  for (const w of queue) {
+    if (!byAzubi.has(w.azubi.id)) byAzubi.set(w.azubi.id, []);
+    byAzubi.get(w.azubi.id).push(w);
+  }
+  const cards = meineAzubis.map(a => ({
+    azubi: a,
+    wochen: byAzubi.get(a.id) || [],
+    abgelehnt: allWochen.filter(w => w.azubi.id === a.id && w.status === 'abgelehnt').length,
   }));
-  const azubiStats = azubiStatsRaw.sort((a, b) => b.zuPruefen - a.zuPruefen);
+  // Handlungsbedarf zuerst, sortiert nach ältestem wartenden Bericht.
+  const pending = cards.filter(c => c.wochen.length > 0)
+    .sort((x, y) => (x.wochen[0].year - y.wochen[0].year) || (x.wochen[0].kw - y.wochen[0].kw));
+  const erledigt = cards.filter(c => c.wochen.length === 0);
+
+  // Abgeschlossene Beurteilungen fürs Aktivitäten-Panel (pro Azubi ein
+  // Request, parallel via Promise.all).
+  // ponytail: N+1 – Batch-Endpoint erst, wenn viele Azubis das spürbar machen.
+  const beurteilungen = (await Promise.all(meineAzubis.map(async a => {
+    try {
+      const bs = await DB.getBeurteilungenFuerAzubi(a.oid);
+      return bs.filter(b => b.status === 'abgeschlossen' && b.abgeschlossenAm)
+               .map(b => ({ azubi: a, ...b }));
+    } catch (_) { return []; }
+  }))).flat();
+
+  // Durchlauf-Übersicht („wer ist wo"): Zuweisungen je Azubi (parallel).
+  // ponytail: N+1 wie oben – Batch-Endpoint erst, wenn viele Azubis das spürbar machen.
+  const durchlaufRows = await Promise.all(meineAzubis.map(async a => {
+    try { return { azubi: a, zuw: await DB.getZuweisungenFuerAzubi(a.oid) }; }
+    catch (_) { return { azubi: a, zuw: [] }; }
+  }));
+
+  const zeigeSuche = meineAzubis.length >= 6;
 
   const main = document.getElementById('mainContent');
   main.innerHTML = `
-    <div class="welcome-banner welcome-banner--ausbilder">
-      <div class="welcome-banner__content">
-        <p class="welcome-banner__greeting">${getGreeting()}, ${firstName(user.name)} 👋</p>
-        <h1 class="welcome-banner__title">${istKorrektor ? 'Ausbilder-Cockpit' : 'Planungs-Cockpit'}</h1>
-        <p class="welcome-banner__info">
-          ${istKorrektor
-            ? `${meineAzubis.length} Auszubildende${queue.length > 0 ? ` &nbsp;·&nbsp; <strong style="color:var(--pm-yellow)">${queue.length} ${queue.length === 1 ? 'Eintrag' : 'Einträge'} zur Abnahme</strong>` : ' &nbsp;·&nbsp; Keine offenen Prüfungen'}`
-            : 'Abteilungsdurchläufe & Zuweisungen verwalten'}
-        </p>
+    <section class="welcome-hero">
+      <div class="welcome-hero__body">
+        <h1 class="welcome-hero__name">${getGreeting(today)}, ${firstName(user.name)}</h1>
+        <p class="welcome-hero__sub">${weekdayLong}, ${today.getDate()}. ${DateUtil.MONTHS[today.getMonth()]}</p>
       </div>
-      <div class="welcome-banner__kw">
-        <div class="welcome-banner__kw-number">KW&nbsp;${kw}</div>
-        <div class="welcome-banner__kw-label">${DateUtil.MONTHS[today.getMonth()]} ${today.getFullYear()}</div>
+      <div class="welcome-hero__kw" aria-hidden="true">
+        <span class="welcome-hero__kw-eye">${heroEyebrow}</span>
+        <span class="welcome-hero__kw-num">${heroNum}</span>
       </div>
-    </div>
+    </section>
 
-    ${user.kannPlanen ? `
-    <section class="planer-signals">
-      <h2 class="dashboard-section-title" style="font-size:var(--text-base);margin:var(--sp-5) 0 var(--sp-3)">Planung</h2>
-      ${renderPlanerSignale(planerSignale)}
+    ${meineAzubis.length > 0 ? `
+    <section class="rot-section">
+      <h2 class="dashboard-section-title" style="font-size:var(--text-base);margin:var(--sp-5) 0 var(--sp-3)">Durchläufe</h2>
+      ${renderDurchlaufListe(durchlaufRows, today)}
     </section>
     ` : ''}
 
     ${istKorrektor ? `
-    ${renderAusbilderPrimaryCta(queue, meineAzubis.length)}
-
-    <div class="stats-grid stats-grid--3">
-      <div class="stat-card animate-fade-in" style="animation-delay:0ms">
-        <div class="stat-card__icon stat-card__icon--info">
-          ${Icon('users')}
-        </div>
-        <div class="stat-card__content">
-          <div class="stat-card__label">Aktive Azubis</div>
-          <div class="stat-card__value">${meineAzubis.length}</div>
-          <div class="stat-card__sub">aktuell zugewiesen</div>
-        </div>
-      </div>
-      <div class="stat-card animate-fade-in" style="animation-delay:60ms">
-        <div class="stat-card__icon stat-card__icon--success">
-          ${Icon('success')}
-        </div>
-        <div class="stat-card__content">
-          <div class="stat-card__label">Diese Woche genehmigt</div>
-          <div class="stat-card__value">${genehmigtDieseWoche}</div>
-          <div class="stat-card__sub">in KW ${kw}</div>
-        </div>
-      </div>
-      <div class="stat-card animate-fade-in" style="animation-delay:120ms">
-        <div class="stat-card__icon stat-card__icon--${zurueckgegeben > 0 ? 'error' : 'success'}">
-          ${Icon('refresh')}
-        </div>
-        <div class="stat-card__content">
-          <div class="stat-card__label">Zurückgegeben</div>
-          <div class="stat-card__value">${zurueckgegeben}</div>
-          <div class="stat-card__sub">${zurueckgegeben === 0 ? 'Keine Nacharbeit' : 'In Nacharbeit'}</div>
-        </div>
-      </div>
-    </div>
-
     <div class="dashboard-grid">
-      <!-- LINKS (Hero): Posteingang über die volle Spaltenhöhe -->
+      <!-- LINKS (Hero): Azubi-Karten, nach Azubi gruppiert -->
       <div class="dashboard-grid__col dashboard-grid__col--hero">
         <div class="card review-inbox animate-fade-in" id="reviewInboxCard">
           <div class="card__header review-inbox__header">
             <div>
-              <span class="card__title">Posteingang – Zu prüfende Berichtshefte</span>
-              <p class="review-inbox__subtitle" id="reviewInboxSubtitle">Sortiert nach Wartedauer · älteste zuerst</p>
+              <span class="card__title">Zu prüfen</span>
+              ${pending.length > 0 ? `<p class="review-inbox__subtitle">${pending.length} ${pending.length === 1 ? 'Azubi hat' : 'Azubis haben'} offene Berichte · dringendste zuerst</p>` : ''}
             </div>
-            ${queue.length > 0 ? `<span class="badge badge--freigegeben" id="reviewInboxCount">${queue.length} ${queue.length === 1 ? 'offen' : 'offen'}</span>` : ''}
+            ${queue.length > 0 ? `<span class="badge badge--freigegeben">${queue.length} offen</span>` : ''}
           </div>
-          ${queue.length > 0 ? renderReviewFilterBar(queue, meineAzubis) : ''}
+          ${zeigeSuche ? `
+          <div class="review-filter-bar">
+            <div class="review-filter-bar__field review-filter-bar__field--search">
+              ${Icon('search')}
+              <input type="search" id="azubiSearchInput" class="review-filter-bar__search"
+                     placeholder="Azubi suchen…" autocomplete="off" spellcheck="false">
+            </div>
+          </div>` : ''}
           <div class="review-list" id="reviewList">
-            ${queue.length > 0 ? queue.map((w, i) => renderReviewItem(w, i)).join('') : `
-              <div class="review-empty">
-                <div class="review-empty__icon">
-                  ${Icon('success', { size: 32 })}
-                </div>
-                <h3 class="review-empty__title">Alles geprüft!</h3>
-                <p class="review-empty__text">Aktuell warten keine Berichtshefte auf deine Abnahme.</p>
-              </div>
-            `}
+            ${pending.length > 0
+              ? pending.map((c, i) => renderAzubiCard(c, i)).join('')
+              : renderInboxEmpty(meineAzubis.length)}
           </div>
+          ${erledigt.length > 0 ? renderAzubiDoneGroup(erledigt) : ''}
         </div>
       </div>
 
-      <!-- RECHTS (gestapelt): Meine Azubis + Letzte Aktivitäten -->
+      <!-- RECHTS: Letzte Aktivitäten (inkl. abgeschlossener Beurteilungen) -->
       <div class="dashboard-grid__col">
-        <div class="card animate-fade-in">
-          <div class="card__header">
-            <span class="card__title">Meine Azubis</span>
-            ${user.kannPlanen ? `<a href="abteilungs-planer.html" class="btn btn-sm btn-ghost">Verwalten</a>` : ''}
-          </div>
-          <div class="azubi-overview-list">
-            ${azubiStats.length > 0 ? azubiStats.map(s => renderAzubiOverviewItem(s)).join('') : `
-              <div style="padding:var(--sp-6);text-align:center;color:var(--pm-grey-400);font-size:var(--text-sm)">
-                Keine Azubis zugewiesen.
-              </div>
-            `}
-          </div>
-        </div>
-
         <div class="card animate-fade-in">
           <div class="card__header">
             <span class="card__title">Letzte Aktivitäten</span>
           </div>
           <div class="card__body" style="padding-top:0;padding-bottom:0">
             <div class="activity-feed">
-              ${renderAusbilderActivities(allWochen)}
+              ${renderAusbilderActivities(allWochen, beurteilungen)}
             </div>
           </div>
         </div>
@@ -840,9 +702,269 @@ async function renderAusbilderDashboard(user) {
     ` : ''}
   `;
 
-  // Klick auf Review-Item: Direkt zur Wochenansicht des Azubis springen
-  // (Checkbox-Klick wird per stopPropagation am Label aufgehalten)
-  document.querySelectorAll('.review-item[data-azubi-id][data-kw]').forEach(item => {
+  bindAusbilderCards();
+  bindDurchlaufListe(main);
+
+  // Bulk-Action-System aufsetzen (findet die Checkboxen in den
+  // aufgeklappten Karten-Bodies innerhalb von #reviewList).
+  initBulkActions(queue, user);
+}
+
+/* ── Durchlauf-Übersicht („Wer ist wo") ────────────────────────────
+   Kompakte Zeile pro Azubi: aktuelle Abteilung → nächste (+ Datum).
+   Nach Dringlichkeit sortiert (ohne Zuweisung → endet bald ohne
+   Nachfolger → läuft). Ersetzt die frühere Signal-Kachel-Reihe. */
+function analyseDurchlauf(zuw, heute, grenze) {
+  const sorted  = [...zuw].sort((a, b) => (a.von || '').localeCompare(b.von || ''));
+  const current = sorted.find(z => z.von <= heute && z.bis >= heute) || null;
+  const next    = sorted.find(z => z.von > heute) || null;
+  const endetBald = !!current && current.bis <= grenze;
+  // Nahtloser Nachfolger = beginnt spätestens 3 Tage nach Ende der aktuellen.
+  let nahtlos = false;
+  if (current && next) {
+    const d = new Date(current.bis); d.setDate(d.getDate() + 3);
+    nahtlos = next.von <= d.toISOString().split('T')[0];
+  }
+  let tier, dot, rowMod = '';
+  if (!current)                        { tier = next ? 1 : 0; dot = 'crit'; rowMod = 'rot-row--crit'; }
+  else if (endetBald && !nahtlos)      { tier = 2; dot = 'warn'; rowMod = 'rot-row--warn'; }
+  else if (next && next.von <= grenze) { tier = 3; dot = 'ok'; }
+  else                                 { tier = 4; dot = 'ok'; }
+  const sortKey = (current && current.bis) || (next && next.von) || '9999';
+  return { current, next, tier, dot, rowMod, endetBald, sortKey };
+}
+
+const DLB_ARROW = `<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.2"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>`;
+
+function durchlaufRowHtml(azubi, m, dShort) {
+  const cur = m.current
+    ? `<span class="rot-lbl">aktuell · bis ${dShort(m.current.bis)}</span>
+       <span class="rot-pill rot-pill--cur">${escapeHtml(m.current.abteilung || '–')}</span>`
+    : `<span class="rot-lbl rot-lbl--crit">keine Zuweisung</span>
+       <span class="rot-pill rot-pill--open">nicht zugewiesen</span>`;
+  let nx;
+  if (m.next) {
+    const lbl = m.current ? `ab ${dShort(m.next.von)}` : `geplant ab ${dShort(m.next.von)}`;
+    nx = `<span class="rot-lbl">${lbl}</span>
+          <span class="rot-pill rot-pill--next">${escapeHtml(m.next.abteilung || '–')}</span>`;
+  } else {
+    nx = `<span class="rot-lbl">danach</span>
+          <span class="rot-pill rot-pill--open">noch offen</span>`;
+  }
+  return `
+    <a class="rot-row ${m.rowMod}" href="abteilungs-planer.html"
+       data-azubi-id="${azubi.id}" data-name="${escapeHtml((azubi.name || '').toLowerCase())}">
+      <span class="rot-dot rot-dot--${m.dot}"></span>
+      ${renderAvatar(azubi, 'rot-av')}
+      <span class="rot-id">
+        <span class="rot-name">${escapeHtml(azubi.name)}</span>
+        <span class="rot-beruf">${escapeHtml(azubi.beruf || '–')}</span>
+      </span>
+      <span class="rot-flow">
+        <span class="rot-cell">${cur}</span>
+        <span class="rot-arrow">${DLB_ARROW}</span>
+        <span class="rot-cell rot-cell--next">${nx}</span>
+      </span>
+      <span class="rot-chev"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg></span>
+    </a>`;
+}
+
+function renderDurchlaufListe(rows, today) {
+  const heute  = DateUtil.toISODate(today);
+  const gd = new Date(today); gd.setDate(gd.getDate() + 14);
+  const grenze = DateUtil.toISODate(gd);
+  const dShort = iso => { if (!iso) return ''; const p = iso.split('-'); return `${p[2]}.${p[1]}.`; };
+
+  const analysed = rows
+    .map(r => ({ azubi: r.azubi, m: analyseDurchlauf(r.zuw || [], heute, grenze) }))
+    .sort((x, y) => (x.m.tier - y.m.tier) || String(x.m.sortKey).localeCompare(String(y.m.sortKey)));
+
+  const ohne    = analysed.filter(o => !o.m.current).length;
+  const endet   = analysed.filter(o => o.m.tier === 2).length;
+  const wechsel = analysed.filter(o => o.m.tier === 3).length;
+  const zeigeSuche = analysed.length >= 8;
+
+  const sumItem = (c, l, col) => c
+    ? `<span class="rot-sum-item"><span class="rot-sum-dot" style="background:${col}"></span><b>${c}</b> ${l}</span>` : '';
+  const summary = (ohne || endet || wechsel)
+    ? `<div class="rot-summary">
+         ${sumItem(ohne, 'ohne Zuweisung', '#e5484d')}
+         ${sumItem(endet, 'enden bald (kein Nachfolger)', 'var(--pm-yellow, #FFC300)')}
+         ${sumItem(wechsel, 'Wechsel in ≤ 14 Tagen', '#3f9a54')}
+       </div>` : '';
+
+  const searchSvg = `<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>`;
+  const linkArrow = `<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="width:13px;height:13px"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>`;
+
+  return `
+    <div class="card rot" id="durchlaufCard">
+      <div class="rot__head">
+        <span class="card__title">Wer ist wo</span>
+        <span class="rot__count">${analysed.length} ${analysed.length === 1 ? 'Azubi' : 'Azubis'}</span>
+        <span class="rot__spacer"></span>
+        ${zeigeSuche ? `<span class="rot__search">${searchSvg}<input type="search" id="durchlaufSearch" placeholder="Azubi suchen…" autocomplete="off" spellcheck="false"></span>` : ''}
+        <a class="rot__link" href="abteilungs-planer.html">Planer öffnen ${linkArrow}</a>
+      </div>
+      ${summary}
+      <div class="rot__list" id="durchlaufList">
+        ${analysed.map(o => durchlaufRowHtml(o.azubi, o.m, dShort)).join('')}
+      </div>
+    </div>`;
+}
+
+function bindDurchlaufListe(root) {
+  const list = root.querySelector('#durchlaufList');
+  if (!list) return;
+  // Klick auf eine Zeile → diesen Azubi im Abteilungs-Planer vorwählen
+  // (das <a> navigiert selbst; sessionStorage wird davor synchron gesetzt).
+  list.querySelectorAll('.rot-row[data-azubi-id]').forEach(row => {
+    row.addEventListener('click', () => {
+      sessionStorage.setItem('gotoAzubiId', row.dataset.azubiId);
+    });
+  });
+  const s = root.querySelector('#durchlaufSearch');
+  if (s) s.addEventListener('input', () => {
+    const q = s.value.trim().toLowerCase();
+    list.querySelectorAll('.rot-row').forEach(r => {
+      r.style.display = (!q || (r.dataset.name || '').includes(q)) ? '' : 'none';
+    });
+  });
+}
+
+/* ── Azubi-Karte: ein Azubi mit seinen offenen Berichten ───────────
+   Aufklappbar; im Body die einzelnen Wochen (renderReviewItem) mit
+   Checkboxen für die Sammel-Freigabe. */
+function renderAzubiCard(c, idx) {
+  const a = c.azubi;
+  const n = c.wochen.length;
+  const oldest = c.wochen[0];
+  const monday = DateUtil.getMondayOfKW(oldest.kw, oldest.year);
+  const sunday = new Date(monday); sunday.setDate(monday.getDate() + 6);
+  const wochenSeit = Math.max(0, Math.floor((new Date() - sunday) / (1000 * 60 * 60 * 24 * 7)));
+  const dringlich = wochenSeit >= 2 ? 'urgent' : wochenSeit === 1 ? 'warn' : 'fresh';
+  const seitText = wochenSeit === 0 ? 'diese Woche freigegeben'
+                 : wochenSeit === 1 ? 'älteste wartet seit 1 Woche'
+                 : `älteste wartet seit ${wochenSeit} Wochen`;
+
+  return `
+    <div class="azubi-card azubi-card--${dringlich}" data-azubi-id="${a.id}" style="animation-delay:${idx * 50}ms">
+      <div class="azubi-card__header" role="button" tabindex="0" aria-expanded="false"
+           aria-label="${a.name}: ${n} ${n === 1 ? 'Bericht' : 'Berichte'} zu prüfen – aufklappen">
+        <div class="avatar avatar--lg azubi-card__avatar">${a.initials}</div>
+        <div class="azubi-card__info">
+          <div class="azubi-card__name">${a.name}</div>
+          <div class="azubi-card__role">${a.beruf || '–'}</div>
+          <div class="azubi-card__status">
+            <span class="azubi-card__count">${n} ${n === 1 ? 'Bericht' : 'Berichte'} offen</span>
+            <span class="review-item__sep">·</span>
+            <span class="azubi-card__wait">${seitText}</span>
+            ${c.abgelehnt > 0 ? `<span class="badge badge--abgelehnt azubi-card__badge">${c.abgelehnt} zurückgegeben</span>` : ''}
+          </div>
+        </div>
+        <a class="btn btn-sm azubi-card__cta" href="wochenansicht.html"
+           data-goto-azubi="${a.id}" data-goto-kw="${oldest.kw}" data-goto-year="${oldest.year}">
+          Älteste prüfen
+          <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="width:14px;height:14px"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+        </a>
+        <div class="azubi-card__chevron" aria-hidden="true">
+          <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+        </div>
+      </div>
+      <div class="azubi-card__body" hidden>
+        <label class="azubi-card__selectall">
+          <input type="checkbox" class="azubi-card__selectall-cb">
+          <span>Alle ${n} markieren</span>
+        </label>
+        ${c.wochen.map((w, i) => renderReviewItem(w, i)).join('')}
+      </div>
+    </div>
+  `;
+}
+
+/* ── "Aktuell": Azubis ohne offene Berichte, eingeklappt (native
+   <details>, kein JS für die Klappmechanik). */
+function renderAzubiDoneGroup(erledigt) {
+  const n = erledigt.length;
+  return `
+    <details class="azubi-done">
+      <summary class="azubi-done__summary">
+        <span class="azubi-done__check" aria-hidden="true">${Icon('success', { size: 16 })}</span>
+        <span>${n} ${n === 1 ? 'Azubi ist aktuell' : 'Azubis sind aktuell'} – keine offenen Berichte</span>
+        <svg class="azubi-done__caret" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
+      </summary>
+      <div class="azubi-done__list">
+        ${erledigt.map(c => `
+          <div class="azubi-done__item" data-azubi-id="${c.azubi.id}" role="button" tabindex="0">
+            <div class="avatar azubi-done__avatar">${c.azubi.initials}</div>
+            <div class="azubi-done__info">
+              <div class="azubi-done__name">${c.azubi.name}</div>
+              <div class="azubi-done__role">${c.azubi.beruf || '–'}</div>
+            </div>
+            ${c.abgelehnt > 0
+              ? `<span class="badge badge--abgelehnt">${c.abgelehnt} zurück</span>`
+              : `<span class="badge badge--genehmigt">Aktuell</span>`}
+            <div class="azubi-overview-item__chevron">
+              <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="width:16px;height:16px"><polyline points="9 18 15 12 9 6"/></svg>
+            </div>
+          </div>
+        `).join('')}
+      </div>
+    </details>
+  `;
+}
+
+function renderInboxEmpty(azubiCount) {
+  if (azubiCount === 0) {
+    return `
+      <div class="review-empty">
+        <div class="review-empty__icon" style="background:var(--pm-grey-100);color:var(--pm-grey-500)">
+          ${Icon('users', { size: 32 })}
+        </div>
+        <h3 class="review-empty__title">Keine Azubis zugewiesen</h3>
+        <p class="review-empty__text">Sobald dir Auszubildende zugewiesen sind, erscheinen sie hier.</p>
+      </div>`;
+  }
+  return `
+    <div class="review-empty">
+      <div class="review-empty__icon">${Icon('success', { size: 32 })}</div>
+      <h3 class="review-empty__title">Alles geprüft!</h3>
+      <p class="review-empty__text">Aktuell warten keine Berichtshefte auf deine Abnahme.</p>
+    </div>`;
+}
+
+/* Event-Handler für die Azubi-Karten (Auf-/Zuklappen, Sprünge,
+   Karten-Sammelauswahl, Suche). */
+function bindAusbilderCards() {
+  // Karte auf-/zuklappen
+  document.querySelectorAll('.azubi-card__header').forEach(h => {
+    const toggle = () => {
+      const card = h.closest('.azubi-card');
+      const body = card.querySelector('.azubi-card__body');
+      const open = card.classList.toggle('azubi-card--open');
+      h.setAttribute('aria-expanded', open ? 'true' : 'false');
+      if (body) body.hidden = !open;
+    };
+    h.addEventListener('click', (e) => {
+      if (e.target.closest('.azubi-card__cta')) return;   // CTA navigiert selbst
+      toggle();
+    });
+    h.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(); }
+    });
+  });
+
+  // "Älteste prüfen" → richtigen Sprung merken (das <a> navigiert selbst)
+  document.querySelectorAll('.azubi-card__cta[data-goto-azubi]').forEach(cta => {
+    cta.addEventListener('click', (e) => {
+      e.stopPropagation();
+      sessionStorage.setItem('gotoAzubiId', cta.dataset.gotoAzubi);
+      sessionStorage.setItem('gotoKW',      cta.dataset.gotoKw);
+      sessionStorage.setItem('gotoYear',    cta.dataset.gotoYear);
+    });
+  });
+
+  // Einzelne Woche im aufgeklappten Body → direkt zu dieser Woche
+  document.querySelectorAll('.azubi-card__body .review-item[data-azubi-id][data-kw]').forEach(item => {
     item.addEventListener('click', (e) => {
       if (e.target.closest('.review-item__check')) return;
       sessionStorage.setItem('gotoAzubiId', item.dataset.azubiId);
@@ -852,194 +974,41 @@ async function renderAusbilderDashboard(user) {
     });
   });
 
-  // Bulk-Action-System aufsetzen
-  initBulkActions(queue, user);
-
-  // Klick auf Azubi-Übersicht-Item: Zur aktuellen KW dieses Azubis
-  document.querySelectorAll('.azubi-overview-item[data-azubi-id]').forEach(item => {
-    item.addEventListener('click', (e) => {
-      if (e.target.closest('a, button')) return;
-      sessionStorage.setItem('gotoAzubiId', item.dataset.azubiId);
-      window.location.href = 'wochenansicht.html';
+  // Pro-Karte "Alle markieren" → Checkboxen der Karte toggeln (dispatch
+  // change, damit initBulkActions die Auswahl übernimmt)
+  document.querySelectorAll('.azubi-card__selectall-cb').forEach(sa => {
+    sa.addEventListener('change', () => {
+      const card = sa.closest('.azubi-card');
+      card.querySelectorAll('.review-item__checkbox').forEach(cb => {
+        if (cb.checked !== sa.checked) {
+          cb.checked = sa.checked;
+          cb.dispatchEvent(new Event('change', { bubbles: true }));
+        }
+      });
     });
   });
 
-  bindPrimaryCtaNav();
-  bindReviewFilterBar(queue);
-}
+  // "Aktuell"-Gruppe: Klick auf Azubi → dessen Wochenansicht
+  document.querySelectorAll('.azubi-done__item[data-azubi-id]').forEach(item => {
+    const go = () => {
+      sessionStorage.setItem('gotoAzubiId', item.dataset.azubiId);
+      window.location.href = 'wochenansicht.html';
+    };
+    item.addEventListener('click', go);
+    item.addEventListener('keydown', (e) => { if (e.key === 'Enter') go(); });
+  });
 
-/* ── Filter-Bar: Suche, Status, Sortierung über der Review-Inbox ────
-   Lokale Filterung (kein Netzwerk-Roundtrip), damit Ausbilder bei
-   wachsender Liste schnell finden was sie brauchen. */
-function renderReviewFilterBar(queue, azubis) {
-  if (!queue.length) return '';
-  return `
-    <div class="review-filter-bar" id="reviewFilterBar">
-      <div class="review-filter-bar__field review-filter-bar__field--search">
-        ${Icon('search')}
-        <input type="search" id="reviewSearchInput" class="review-filter-bar__search"
-               placeholder="Suche: Name oder KW…"
-               autocomplete="off" spellcheck="false">
-        <button type="button" class="review-filter-bar__clear" id="reviewSearchClear" aria-label="Suche leeren" hidden>
-          <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-        </button>
-      </div>
-
-      <label class="review-filter-bar__field" title="Nach Wartedauer filtern">
-        <span class="review-filter-bar__field-label">Wartet seit</span>
-        <select class="review-filter-bar__select" id="reviewWaitFilter">
-          <option value="all">Beliebig</option>
-          <option value="urgent">2+ Wochen (dringend)</option>
-          <option value="week1">1 Woche</option>
-          <option value="fresh">Diese Woche</option>
-        </select>
-      </label>
-
-      <label class="review-filter-bar__field" title="Sortier-Reihenfolge">
-        <span class="review-filter-bar__field-label">Sortierung</span>
-        <select class="review-filter-bar__select" id="reviewSortSelect">
-          <option value="oldest">Älteste zuerst</option>
-          <option value="newest">Neueste zuerst</option>
-          <option value="name">Name (A → Z)</option>
-        </select>
-      </label>
-
-      <label class="review-filter-bar__select-all" title="Alle sichtbaren Berichte markieren">
-        <input type="checkbox" id="reviewSelectAll">
-        <span class="review-filter-bar__select-all-box" aria-hidden="true">
-          <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
-        </span>
-        <span class="review-filter-bar__select-all-text">Alle</span>
-      </label>
-
-      <div class="review-filter-bar__count">
-        <span id="reviewFilterCount">${queue.length}</span> von ${queue.length}
-      </div>
-    </div>
-  `;
-}
-
-function bindReviewFilterBar(queue) {
-  const bar = document.getElementById('reviewFilterBar');
-  if (!bar) return;
-  const searchInp = document.getElementById('reviewSearchInput');
-  const clearBtn  = document.getElementById('reviewSearchClear');
-  const waitSel   = document.getElementById('reviewWaitFilter');
-  const sortSel   = document.getElementById('reviewSortSelect');
-  const list      = document.getElementById('reviewList');
-  const countEl   = document.getElementById('reviewFilterCount');
-  const subtitle  = document.getElementById('reviewInboxSubtitle');
-  const countBadge = document.getElementById('reviewInboxCount');
-
-  const subtitleByWait = {
-    all:    'Sortiert nach Wartedauer · älteste zuerst',
-    urgent: 'Nur dringende: 2+ Wochen wartend',
-    week1:  'Wartet seit ca. 1 Woche',
-    fresh:  'Diese Woche freigegeben',
-  };
-  const subtitleBySort = {
-    oldest: 'Sortiert nach Wartedauer · älteste zuerst',
-    newest: 'Sortiert nach Wartedauer · neueste zuerst',
-    name:   'Sortiert nach Name · A → Z',
-  };
-
-  function applyFilters() {
-    const q       = (searchInp?.value || '').trim().toLowerCase();
-    const wait    = waitSel?.value || 'all';
-    const sort    = sortSel?.value || 'oldest';
-    const today   = new Date();
-
-    let filtered = queue.slice();
-
-    // Such-Filter
-    if (q) {
-      filtered = filtered.filter(w => {
-        const name = (w.azubi.name || '').toLowerCase();
-        const kwStr = `kw ${w.kw}`;
-        return name.includes(q)
-            || String(w.kw).includes(q)
-            || kwStr.includes(q)
-            || String(w.year).includes(q);
+  // Azubi-Suche (nur bei vielen Azubis eingeblendet) – blendet Karten ein/aus
+  const search = document.getElementById('azubiSearchInput');
+  if (search) {
+    search.addEventListener('input', () => {
+      const q = search.value.trim().toLowerCase();
+      document.querySelectorAll('#reviewList .azubi-card').forEach(card => {
+        const name = (card.querySelector('.azubi-card__name')?.textContent || '').toLowerCase();
+        card.style.display = (!q || name.includes(q)) ? '' : 'none';
       });
-    }
-
-    // Wartedauer-Filter
-    if (wait !== 'all') {
-      filtered = filtered.filter(w => {
-        const monday = DateUtil.getMondayOfKW(w.kw, w.year);
-        const sunday = new Date(monday);
-        sunday.setDate(monday.getDate() + 6);
-        const wochenSeitEnde = Math.max(0, Math.floor((today - sunday) / (1000 * 60 * 60 * 24 * 7)));
-        if (wait === 'urgent') return wochenSeitEnde >= 2;
-        if (wait === 'week1')  return wochenSeitEnde === 1;
-        if (wait === 'fresh')  return wochenSeitEnde === 0;
-        return true;
-      });
-    }
-
-    // Sortierung
-    if (sort === 'oldest') {
-      filtered.sort((a, b) => (a.year - b.year) || (a.kw - b.kw));
-    } else if (sort === 'newest') {
-      filtered.sort((a, b) => (b.year - a.year) || (b.kw - a.kw));
-    } else if (sort === 'name') {
-      filtered.sort((a, b) => a.azubi.name.localeCompare(b.azubi.name, 'de'));
-    }
-
-    // Re-Render
-    if (filtered.length === 0) {
-      list.innerHTML = `
-        <div class="review-empty">
-          <div class="review-empty__icon" style="background:var(--pm-grey-100);color:var(--pm-grey-500)">
-            ${Icon('search', { size: 32 })}
-          </div>
-          <h3 class="review-empty__title">Keine Treffer</h3>
-          <p class="review-empty__text">Mit den aktuellen Filtern wurde nichts gefunden. Filter zurücksetzen, um alle ${queue.length} Einträge zu zeigen.</p>
-        </div>
-      `;
-    } else {
-      list.innerHTML = filtered.map((w, i) => renderReviewItem(w, i)).join('');
-      // Klick-Handler neu binden – Items wurden neu gerendert
-      list.querySelectorAll('.review-item[data-azubi-id][data-kw]').forEach(item => {
-        item.addEventListener('click', () => {
-          sessionStorage.setItem('gotoAzubiId', item.dataset.azubiId);
-          sessionStorage.setItem('gotoKW',      item.dataset.kw);
-          sessionStorage.setItem('gotoYear',    item.dataset.year);
-          window.location.href = 'wochenansicht.html';
-        });
-      });
-    }
-
-    // Zähler + Untertitel aktualisieren
-    if (countEl) countEl.textContent = filtered.length;
-    if (countBadge) {
-      // Solange kein Filter aktiv ist, lieber "X offen" zeigen statt "X von X"
-      countBadge.textContent = (filtered.length === queue.length)
-        ? `${queue.length} offen`
-        : `${filtered.length} von ${queue.length}`;
-    }
-    if (subtitle) {
-      // Untertitel-Logik: Filter dominiert, sonst Sortierung
-      subtitle.textContent = wait !== 'all'
-        ? subtitleByWait[wait]
-        : subtitleBySort[sort];
-    }
-    if (clearBtn) clearBtn.hidden = !q;
+    });
   }
-
-  // Debounce für Suche
-  let searchTimer;
-  searchInp?.addEventListener('input', () => {
-    clearTimeout(searchTimer);
-    searchTimer = setTimeout(applyFilters, 120);
-  });
-  clearBtn?.addEventListener('click', () => {
-    if (searchInp) searchInp.value = '';
-    applyFilters();
-    searchInp?.focus();
-  });
-  waitSel?.addEventListener('change', applyFilters);
-  sortSel?.addEventListener('change', applyFilters);
 }
 
 /* ── Hilfsfunktionen für Ausbilder-Dashboard ──────────────────── */
@@ -1198,28 +1167,6 @@ function renderReviewItem(w, idx) {
   `;
 }
 
-function renderAzubiOverviewItem(s) {
-  const a = s.azubi;
-  return `
-    <div class="azubi-overview-item" data-azubi-id="${a.id}" tabindex="0" role="button">
-      ${renderAvatar(a, 'avatar--lg')}
-      <div class="azubi-overview-item__info">
-        <div class="azubi-overview-item__name">${a.name}</div>
-        <div class="azubi-overview-item__role">${a.beruf || '–'}</div>
-        <div class="azubi-overview-item__badges">
-          ${s.zuPruefen > 0
-            ? `<span class="badge badge--freigegeben">${s.zuPruefen} zu prüfen</span>`
-            : `<span class="badge badge--genehmigt">Aktuell</span>`}
-          ${s.abgelehnt > 0 ? `<span class="badge badge--abgelehnt">${s.abgelehnt} zurück</span>` : ''}
-        </div>
-      </div>
-      <div class="azubi-overview-item__chevron">
-        <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="width:16px;height:16px"><polyline points="9 18 15 12 9 6"/></svg>
-      </div>
-    </div>
-  `;
-}
-
 /* ── Bulk-Actions in der Review-Inbox ────────────────────────────
    Checkbox-Pattern mit sticky Action-Toolbar – Genehmigung oder
    Rückgabe mehrerer Berichte in einem Schritt. Auswahl überlebt
@@ -1366,42 +1313,60 @@ function ensureBulkToolbar() {
   return toolbar;
 }
 
-function renderAusbilderActivities(allWochen) {
-  // Sortiere: kürzlich aktive Wochen zuerst (höchste KW/Year)
-  const sorted = allWochen
-    .filter(w => w.status !== 'offen')
-    .sort((a, b) => (b.year - a.year) || (b.kw - a.kw))
-    .slice(0, 8);
+function renderAusbilderActivities(allWochen, beurteilungen = []) {
+  // Wochen- und Beurteilungs-Ereignisse zu einem Feed zusammenführen,
+  // sortiert nach Zeitpunkt (neueste zuerst). Wochen haben keinen echten
+  // Timestamp – Sonntag der KW dient als Näherung.
+  const items = [];
+
+  allWochen.filter(w => w.status !== 'offen').forEach(w => {
+    const sunday = DateUtil.getMondayOfKW(w.kw, w.year);
+    sunday.setDate(sunday.getDate() + 6);
+    let type, verb;
+    if (w.status === 'genehmigt')        { type = 'success'; verb = 'genehmigt'; }
+    else if (w.status === 'freigegeben') { type = 'info';    verb = 'freigegeben'; }
+    else if (w.status === 'abgelehnt')   { type = 'error';   verb = 'zurückgegeben'; }
+    else                                 { type = 'yellow';  verb = ''; }
+    items.push({
+      ts:   sunday.getTime(),
+      type,
+      text: `<strong>${w.azubi.name}</strong>: KW ${w.kw} ${verb}`.trim(),
+      time: `KW ${w.kw}/${w.year}`,
+    });
+  });
+
+  // Abgeschlossene Beurteilungen – klickbar, öffnen den Bogen zum Ansehen.
+  beurteilungen.forEach(b => {
+    const d = new Date(b.abgeschlossenAm);
+    const note = b.note != null ? ` · Note ${b.note.toLocaleString('de-DE')}` : '';
+    items.push({
+      ts:   isNaN(d) ? 0 : d.getTime(),
+      type: 'yellow',
+      text: `<strong>${b.azubi.name}</strong>: Beurteilung abgeschlossen${note}`,
+      time: isNaN(d) ? '' : d.toLocaleDateString('de-DE'),
+      href: `beurteilung.html?zuw=${encodeURIComponent(b.zuweisungId)}`,
+    });
+  });
+
+  const sorted = items.sort((a, b) => b.ts - a.ts).slice(0, 8);
 
   if (!sorted.length) {
     return '<div class="empty-state" style="padding:var(--sp-8)"><p class="empty-state__text">Noch keine Aktivitäten.</p></div>';
   }
 
-  return sorted.map((w, i) => {
-    let type, text;
-    const azubiName = w.azubi.name;
-    if (w.status === 'genehmigt') {
-      type = 'success';
-      text = `<strong>${azubiName}</strong>: KW ${w.kw} genehmigt`;
-    } else if (w.status === 'freigegeben') {
-      type = 'info';
-      text = `<strong>${azubiName}</strong>: KW ${w.kw} freigegeben`;
-    } else if (w.status === 'abgelehnt') {
-      type = 'error';
-      text = `<strong>${azubiName}</strong>: KW ${w.kw} zurückgegeben`;
-    } else {
-      type = 'default';
-      text = `<strong>${azubiName}</strong>: KW ${w.kw}`;
-    }
-
+  return sorted.map((it, i) => {
+    const tag = it.href ? 'a' : 'div';
+    const attrs = it.href
+      ? `class="activity-item activity-item--link" href="${it.href}"`
+      : 'class="activity-item"';
     return `
-      <div class="activity-item" style="animation-delay:${i * 40}ms">
-        <div class="activity-item__dot activity-item__dot--${type === 'default' ? 'yellow' : type}"></div>
+      <${tag} ${attrs} style="animation-delay:${i * 40}ms">
+        <div class="activity-item__dot activity-item__dot--${it.type}"></div>
         <div class="activity-item__content">
-          <div class="activity-item__text">${text}</div>
-          <div class="activity-item__time">KW ${w.kw}/${w.year}</div>
+          <div class="activity-item__text">${it.text}</div>
+          <div class="activity-item__time">${it.time}</div>
         </div>
-      </div>
+      </${tag}>
     `;
   }).join('');
 }

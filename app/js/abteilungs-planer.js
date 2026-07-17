@@ -629,7 +629,11 @@ async function renderAusbilderDurchlauf(user) {
       wireBeurteilungKacheln(main);
     }
 
-    await renderFor(azubis[0].id);
+    // Vom Dashboard („Wer ist wo") kommt evtl. ein vorzuwählender Azubi.
+    const goto = sessionStorage.getItem('gotoAzubiId');
+    if (goto) sessionStorage.removeItem('gotoAzubiId');
+    const startId = (goto && azubis.some(a => a.id === goto)) ? goto : azubis[0].id;
+    await renderFor(startId);
   } catch (err) {
     main.innerHTML = `<div class="durchlauf-empty">Abteilungsdurchlauf konnte nicht geladen werden.</div>`;
     if (window.Toast && typeof Toast.error === 'function') Toast.error('Fehler', 'Abteilungsdurchlauf konnte nicht geladen werden.');
