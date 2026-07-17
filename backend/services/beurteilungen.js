@@ -4,7 +4,7 @@
 const { getPool, sql } = require('../db/connection');
 const { berechne } = require('../../app/js/beurteilung-core.js');
 const { ladeKorrekturKontext } = require('./zugriffContext');
-const { verantwortlichFuerZuweisung } = require('./zugriff');
+const { verantwortlichFuerZuweisung, ymd } = require('./zugriff');
 const { aktiveVertreteneEmails } = require('./vertretungen');
 
 const heuteYmd = () => new Date().toISOString().slice(0, 10);
@@ -211,7 +211,61 @@ async function ermittleUndErzeugeFaellige(pool, user) {
   }));
 }
 
+// Flache Liste aller Zuweisungen, die der Nutzer beurteilen darf (befristet
+// per E-Mail + dauerhaft per AusbilderAzubis, inkl. Vertretungen — via
+// ladeKorrekturKontext), mit Beurteilungsstatus. Speist den eigenen
+// "Beurteilungen"-Reiter (Ausbilder/Prüfer/Admin/Developer — NICHT Azubi,
+// der bleibt beim bestehenden Weg über die Durchlauf-Kacheln).
+// Optionaler azubiOid-Filter (Admin/Developer + dauerhafte Ausbilder wählen
+// im Reiter einen Azubi aus): schränkt IMMER nur innerhalb der ohnehin schon
+// berechtigten Menge ein, weitet den Zugriff also nie aus.
+async function listMeineBeurteilbaren(pool, user, azubiOid) {
+  if (user.istAzubi || user.istDhStudent) return [];
+  const global = user.role === 'developer' || user.role === 'admin';
+
+  let where = '1=1';
+  const r = pool.request();
+  if (!global) {
+    const kontext = await ladeKorrekturKontext(pool, user);
+    const emails = [...new Set(kontext.zuweisungen.map(z => z.verantwortlicherEmail).filter(Boolean))];
+    const dauerOids = kontext.dauerAusbilderAzubiOids || [];
+    if (!emails.length && !dauerOids.length) return [];
+    const emailParams = emails.map((e, i) => { r.input(`e${i}`, sql.NVarChar(255), e); return `@e${i}`; });
+    const oidParams = dauerOids.map((o, i) => { r.input(`o${i}`, sql.NVarChar(36), o); return `@o${i}`; });
+    const clauses = [];
+    if (emailParams.length) clauses.push(`z.VerantwEmail IN (${emailParams.join(',')})`);
+    if (oidParams.length) clauses.push(`z.AzubiOid IN (${oidParams.join(',')})`);
+    // Klammern nötig: sonst würde ein nachträgliches "AND z.AzubiOid=@filterAzubiOid"
+    // wegen SQL-Operatorpräzedenz (AND vor OR) nur an die zweite Klausel binden.
+    where = `(${clauses.join(' OR ')})`;
+  }
+  if (azubiOid) {
+    r.input('filterAzubiOid', sql.NVarChar(36), azubiOid);
+    where += ' AND z.AzubiOid = @filterAzubiOid';
+  }
+
+  const result = await r.query(`
+    SELECT z.Id AS ZuweisungId, z.AzubiOid, z.Abteilung, z.Von, z.Bis, u.Name AS AzubiName,
+           b.Status AS BeurteilungStatus
+    FROM dbo.Zuweisungen z
+    JOIN dbo.Users u ON u.Oid = z.AzubiOid
+    LEFT JOIN dbo.Beurteilungen b ON b.ZuweisungId = z.Id
+    WHERE ${where}
+    ORDER BY z.Bis DESC, z.Von DESC
+  `);
+  return result.recordset.map(row => ({
+    zuweisungId: row.ZuweisungId,
+    azubiOid: row.AzubiOid,
+    azubiName: row.AzubiName,
+    abteilung: row.Abteilung,
+    von: ymd(row.Von),
+    bis: ymd(row.Bis),
+    status: row.BeurteilungStatus === 'abgeschlossen' ? 'abgeschlossen' : 'offen',
+  }));
+}
+
 module.exports = {
   ladeZuweisung, darfBeurteilen, getByZuweisung, listByAzubi,
   upsertEntwurf, abschliessen, patchNachAbschluss, kenntnisnahme, ermittleUndErzeugeFaellige,
+  listMeineBeurteilbaren,
 };

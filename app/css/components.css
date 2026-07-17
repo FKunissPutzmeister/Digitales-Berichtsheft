@@ -318,6 +318,7 @@ label[for] {
 
 /* ── Avatar ── */
 .avatar {
+  position: relative;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -331,10 +332,21 @@ label[for] {
   font-size: var(--text-sm);
   flex-shrink: 0;
   user-select: none;
+  overflow: hidden;
 }
 .avatar--sm { width: 32px; height: 32px; font-size: var(--text-xs); }
 .avatar--lg { width: 52px; height: 52px; font-size: var(--text-lg); }
 .avatar--xl { width: 64px; height: 64px; font-size: var(--text-xl); }
+
+/* Echtfoto (Entra-Sync) liegt über den Initialen; ohne Foto/bei Ladefehler
+   entfernt sich das <img> selbst (onerror, siehe renderAvatar in api.js). */
+.avatar img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
 
 /* ── Formular-Elemente ── */
 .form-group {

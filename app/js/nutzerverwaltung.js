@@ -155,13 +155,17 @@ document.addEventListener('DOMContentLoaded', async () => {
       const kandidaten = users.filter(x => x.istAusbilder);
       DB.getAusbilderFuerAzubi(u.oid).then(zugewiesen => {
         if (!editingUser || editingUser.oid !== u.oid) return; // Modal inzwischen für anderen Nutzer geöffnet
-        const aktiv = new Set((zugewiesen || []).map(a => a.oid));
+        const quelleByOid = new Map((zugewiesen || []).map(a => [a.oid, a.quelle]));
         ausbilderList.innerHTML = kandidaten.length
-          ? kandidaten.map(k => `
+          ? kandidaten.map(k => {
+              const quelle = quelleByOid.get(k.oid);
+              const badge = quelle === 'auto' ? ' <span class="form-hint">(automatisch aus Entra)</span>' : '';
+              return `
               <label class="nv-form__check-label">
-                <input type="checkbox" class="nv-ausbilder-cb" value="${esc(k.oid)}" ${aktiv.has(k.oid) ? 'checked' : ''}>
-                ${esc(k.name)} <span class="nv-table__email">${esc(k.email)}</span>
-              </label>`).join('')
+                <input type="checkbox" class="nv-ausbilder-cb" value="${esc(k.oid)}" ${quelleByOid.has(k.oid) ? 'checked' : ''}>
+                ${esc(k.name)} <span class="nv-table__email">${esc(k.email)}</span>${badge}
+              </label>`;
+            }).join('')
           : '<p class="form-hint">Keine ausbilderfähigen Nutzer vorhanden.</p>';
       }).catch(e => { ausbilderList.innerHTML = `<p style="color:var(--color-error)">Fehler: ${esc(e.message)}</p>`; });
     } else {

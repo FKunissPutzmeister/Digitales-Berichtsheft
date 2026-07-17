@@ -652,6 +652,8 @@ document.addEventListener('DOMContentLoaded', async () => {
   if (!user.kannPlanen) {
     if (user.istAzubi) {
       await renderAzubiDurchlauf(user);       // read-only: eigener Abteilungsdurchlauf
+    } else if (user.istReinerPruefer) {
+      window.location.href = 'dashboard.html'; // Abteilungsdurchlauf ist für reine Prüfer komplett unsichtbar
     } else if (user.istAusbilder) {
       await renderAusbilderDurchlauf(user);   // read-only: Durchlauf der betreuten Azubis
     } else {
@@ -1047,7 +1049,7 @@ document.addEventListener('DOMContentLoaded', async () => {
           return `
             <div class="pt-row ${a.id === selectedAzubiId ? 'is-sel' : ''}" data-azubi="${a.id}">
               <div class="pt-name" tabindex="0" role="button" data-azubi="${a.id}" aria-label="${escHtml(a.name)} – Details">
-                <span class="avatar avatar--sm">${a.initials}</span>
+                ${renderAvatar(a, 'avatar--sm')}
                 <span class="pt-nm">
                   <span class="pt-nm__n"><span>${escHtml(a.name)}</span>${ljTag ? `<span class="pt-tag">${ljTag}</span>` : ''}${confTag}</span>
                   <span class="pt-nm__b">${escHtml(a.beruf || '')}</span>
@@ -1148,7 +1150,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       </div>`;
     const head = `
       <div class="pt-panel__head">
-        <span class="avatar">${a.initials}</span>
+        ${renderAvatar(a)}
         <div><div class="pt-panel__nm">${escHtml(a.name)}</div><div class="pt-panel__meta">${escHtml(a.beruf || '')} · ${escHtml(grp)}</div></div>
         <button type="button" class="pt-panel__close" id="ptPanelClose" aria-label="Panel schließen">
           <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.4" style="width:16px;height:16px"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>

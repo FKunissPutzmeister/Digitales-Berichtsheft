@@ -4,6 +4,7 @@
 document.addEventListener('DOMContentLoaded', async () => {
   const user = await initPage('nav-jahresansicht', [{ label: 'Jahresansicht', href: 'jahresansicht.html' }]);
   if (!user) return;
+  if (user.istReinerPruefer) { window.location.href = 'dashboard.html'; return; }
 
   // Layout-Marker: Jahresansicht braucht die volle Breite, damit die
   // 12-Monats-Kalenderkacheln nebeneinander Platz finden.

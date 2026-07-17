@@ -243,6 +243,10 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Azubi-Wechsler. Ein normaler Azubi sieht nur sein eigenes Heft.
   const isAusbilder = !user.istAzubi || user.role === 'admin' || user.role === 'developer';
   let viewAzubiId = user.istAzubi ? user.id : null;
+  // Reiner Prüfer: Map<azubiOid, {von,bis,azubiName,abteilung,status,nachlaufBis}>
+  // der noch zugreifbaren Zuweisungen. Bestimmt sowohl die Azubi-Auswahl als
+  // auch das navigierbare Wochenfenster (siehe render() und renderAzubiSelector unten).
+  let pruefungsFenster = null;
   // Dev-Hybrid (Azubi + Developer/Admin): das EIGENE Heft bleibt bearbeitbar
   // wie für jeden Azubi – nur fremde Hefte sind Korrektur-Ansicht (readonly).
   const viewingSelf = () => user.istAzubi && viewAzubiId === user.id;
@@ -250,6 +254,14 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Expliziter Sprung aus Jahresansicht/Dashboard hat Vorrang.
     viewAzubiId = savedAzubiId;
     sessionStorage.removeItem('gotoAzubiId');
+  } else if (user.istReinerPruefer) {
+    pruefungsFenster = new Map((await DB.getMeinePruefungen()).map(p => [String(p.azubiOid), p]));
+    const persisted = getPersistedAzubiId();
+    if (persisted && pruefungsFenster.has(String(persisted))) {
+      viewAzubiId = persisted;
+    } else {
+      viewAzubiId = pruefungsFenster.size ? [...pruefungsFenster.keys()][0] : null;
+    }
   } else if (isAusbilder) {
     // Zuletzt gewählten Azubi wiederherstellen (pro Gerät, s. get/setPersistedAzubiId
     // in app.js), damit die Auswahl über Reload und Navigation hinweg bleibt.
@@ -261,6 +273,24 @@ document.addEventListener('DOMContentLoaded', async () => {
       viewAzubiId = persisted;
     } else if (!viewAzubiId || !selectable.some(a => String(a.id) === String(viewAzubiId))) {
       viewAzubiId = selectable[0]?.id || viewAzubiId;
+    }
+  }
+
+  // Reiner Prüfer: Fenster-Map nachladen, falls sie oben noch nicht befüllt
+  // wurde (z. B. weil savedAzubiId den Sprung ausgelöst hat). Auf die erste
+  // Woche der Zuweisung springen (unabhängig vom heutigen Datum) NUR, wenn
+  // kein expliziter Sprung (gotoKW/gotoYear, z. B. von der neuen
+  // "Offene Berichte"-Kachel im Dashboard) vorliegt — ein expliziter Sprung
+  // hat immer Vorrang.
+  if (user.istReinerPruefer) {
+    if (!pruefungsFenster) pruefungsFenster = new Map((await DB.getMeinePruefungen()).map(p => [String(p.azubiOid), p]));
+    if (!(savedKW && savedYear)) {
+      const fenster = viewAzubiId ? pruefungsFenster.get(String(viewAzubiId)) : null;
+      if (fenster) {
+        const vonDatum = new Date(fenster.von + 'T00:00:00');
+        currentKW = DateUtil.getKW(vonDatum);
+        currentYear = DateUtil.getKWYear(vonDatum);
+      }
     }
   }
 
@@ -420,6 +450,30 @@ document.addEventListener('DOMContentLoaded', async () => {
     const sunday = new Date(monday);
     sunday.setDate(monday.getDate() + 6);
 
+    // Reiner Prüfer: Navigationsgrenzen aus dem geladenen Fenster (Von–Bis der
+    // aktuellsten Zuweisung zu diesem Azubi). Fehlt ein Fenster (z. B. Zuweisung
+    // inzwischen über die Nachlauffrist hinaus abgelaufen), bleibt die Navigation
+    // gesperrt (beide Buttons disabled).
+    const fenster = user.istReinerPruefer ? pruefungsFenster?.get(String(azubiId)) : null;
+    const vonMonday = fenster
+      ? DateUtil.getMondayOfKW(DateUtil.getKW(new Date(fenster.von + 'T00:00:00')), DateUtil.getKWYear(new Date(fenster.von + 'T00:00:00')))
+      : null;
+    const bisMonday = fenster
+      ? DateUtil.getMondayOfKW(DateUtil.getKW(new Date(fenster.bis + 'T00:00:00')), DateUtil.getKWYear(new Date(fenster.bis + 'T00:00:00')))
+      : null;
+    const prevWeekDisabled = user.istReinerPruefer && (!fenster || monday <= vonMonday);
+    const nextWeekDisabled = user.istReinerPruefer && (!fenster || monday >= bisMonday);
+
+    // Permanente, dezente Fristanzeige für reine Prüfer (nutzt das bereits
+    // geladene Fenster, keine neue Anfrage): zeigt, bis wann der Bericht
+    // dieses Azubis noch korrigiert werden darf. Wechselt bei Nachlauf auf
+    // Warnfarbe.
+    const fristHinweisHtml = (user.istReinerPruefer && fenster)
+      ? `<div class="wochen-frist-hinweis"${fenster.status === 'nachlauf' ? ' style="color:var(--status-abgelehnt)"' : ''}>
+          Korrektur möglich bis ${DateUtil.formatDate(fenster.nachlaufBis)}
+        </div>`
+      : '';
+
     const aktionen = (woche && woche.erlaubteAktionen) || [];
     const canErstgenehmigen = aktionen.includes('erstgenehmigen');
     const canEndgenehmigen  = aktionen.includes('endgenehmigen');
@@ -485,6 +539,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const main = document.getElementById('mainContent');
     main.innerHTML = `
       ${azubiSelectorHtml}
+      ${fristHinweisHtml}
 
       ${renderStammdatenPrintBlock(azubiUser, azubiAusbilderName, ausbildungsjahr, azubiZuw)}
 
@@ -524,19 +579,21 @@ document.addEventListener('DOMContentLoaded', async () => {
           ` : ''}
         </div>
         <div class="week-toolbar__right">
+          ${user.istReinerPruefer ? '' : `
           <button class="btn btn-ghost week-today-btn${currentKW === todayKW && currentYear === todayYear ? ' is-hidden' : ''}" id="thisWeekBtn" type="button">
             <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="width:15px;height:15px"><path stroke-linecap="round" stroke-linejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
             Diese Woche
           </button>
+          `}
           <div class="week-kw-block" role="group" aria-label="Kalenderwoche">
-            <button class="week-kw-block__nav" id="prevWeekBtn" aria-label="Vorherige Woche">
+            <button class="week-kw-block__nav" id="prevWeekBtn" aria-label="Vorherige Woche"${prevWeekDisabled ? ' disabled' : ''}>
               <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg>
             </button>
             <div class="${kwCoreCls}"${enterAttr}>
               <div class="week-kw-block__kw">KW ${currentKW}</div>
               <div class="week-kw-block__range">${DateUtil.formatDate(DateUtil.toISODate(monday), { year: '2-digit' })} – ${DateUtil.formatDate(DateUtil.toISODate(sunday), { year: '2-digit' })}</div>
             </div>
-            <button class="week-kw-block__nav" id="nextWeekBtn" aria-label="Nächste Woche">
+            <button class="week-kw-block__nav" id="nextWeekBtn" aria-label="Nächste Woche"${nextWeekDisabled ? ' disabled' : ''}>
               <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
             </button>
           </div>
@@ -778,7 +835,9 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   async function renderAzubiSelector(currentId) {
-    const azubis = await DB.getSelectableAzubis();
+    const azubis = user.istReinerPruefer
+      ? [...(pruefungsFenster ? pruefungsFenster.values() : [])].map(p => ({ id: p.azubiOid, name: p.azubiName }))
+      : await DB.getSelectableAzubis();
     return renderAzubiSelect(azubis, currentId);
   }
 
@@ -1155,6 +1214,9 @@ document.addEventListener('DOMContentLoaded', async () => {
    */
   function validateWocheWoechentlich(woche, monday) {
     const errors = [];
+    // Default-Ort = betrieb_schule (Schule/Betrieb ist Standardauswahl,
+    // vgl. renderWochenKacheln) → Schule-Eintrag ist bei ungesetztem
+    // wochenOrt pflichtig, damit UI-Anzeige und Validierung übereinstimmen.
 
     // Hinweis: Pro Werktag wird im Wochen-Modus KEINE Anwesenheit erzwungen –
     // Leerwert/undefined gilt als „anwesend" (siehe zaehleAnwesenheitstage),
@@ -1163,7 +1225,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // Wochen-Kacheln: Betrieb ist Pflicht, Schule + Unterweisung
     // nur wenn die jeweiligen Optionen aktiv sind.
-    const ort = woche?.wochenOrt || 'betrieb';
+    const ort = woche?.wochenOrt || 'betrieb_schule';
     const unterweisung = !!woche?.unterweisungAktiv;
 
     if (htmlIsEmpty(woche?.betriebEintrag || '')) {
@@ -1437,7 +1499,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   // ── Wöchentliches Berichtsheft ────────────────────────────────────
 
   function renderWochenKacheln(woche, readonly, monday) {
-    const ort = woche?.wochenOrt || 'betrieb';
+    const ort = woche?.wochenOrt || 'betrieb_schule';
     // Neue (noch nicht gespeicherte) Woche → Startwert aus der Nutzer-Einstellung;
     // gespeicherte Woche behält ihren eigenen Wert.
     const unterweisung = woche ? !!woche.unterweisungAktiv : unterweisungDefaultOn();
@@ -1925,7 +1987,23 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // ── Auto-Save ─────────────────────────────────────────────────────
 
-  async function autoSaveWoche() {
+  // Autosave feuert pro Tag getrennt (saveTimers[dateStr]) und zusätzlich für
+  // die Wochenfelder. Ohne Serialisierung liefen zwei Read-Modify-Write-Zyklen
+  // (getWoche → mutieren → saveWoche) parallel: Beide lesen denselben Stand,
+  // die POSTs überholen sich → serverseitige UNIQUE-Kollision auf dbo.Tage und
+  // verlorene Änderungen (letzter Writer gewinnt). Diese Kette erzwingt, dass
+  // immer nur ein Speichervorgang läuft; der nächste liest erst danach neu.
+  let saveChain = Promise.resolve();
+  function enqueueSave(task) {
+    const run = saveChain.then(task, task);
+    saveChain = run.catch(() => {});
+    return run;
+  }
+
+  function autoSaveWoche() { return enqueueSave(autoSaveWocheImpl); }
+  function autoSave(dateStr) { return enqueueSave(() => autoSaveImpl(dateStr)); }
+
+  async function autoSaveWocheImpl() {
     const azubiId = viewAzubiId || user.id;
     let woche = await DB.getWoche(azubiId, currentKW, currentYear);
     if (!woche) {
@@ -1963,7 +2041,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     updateAutosaveTimestamp();
   }
 
-  async function autoSave(dateStr) {
+  async function autoSaveImpl(dateStr) {
     const azubiId = viewAzubiId || user.id;
     let woche = await DB.getWoche(azubiId, currentKW, currentYear);
     if (!woche) {
@@ -2118,7 +2196,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       <div class="comment comment--ausbilder" data-kommentar-id="${k.id}">
         <div class="comment__body">
           <div class="comment__header">
-            <div class="avatar avatar--sm">${author ? author.initials : '?'}</div>
+            ${renderAvatar(author, 'avatar--sm')}
             <span class="comment__name">${author ? author.name : 'Unbekannt'}</span>
             <span class="comment__date">${k.datum || ''}</span>
             ${canDelete ? `<button class="btn btn-sm btn-ghost comment__delete" data-delete-kommentar="${k.id}" title="Kommentar löschen" style="margin-left:auto;color:var(--color-error)">
@@ -2157,6 +2235,14 @@ document.addEventListener('DOMContentLoaded', async () => {
       azubiSelectEl.addEventListener('change', () => {
         viewAzubiId = azubiSelectEl.value;
         setPersistedAzubiId(viewAzubiId);
+        if (user.istReinerPruefer) {
+          const fenster = pruefungsFenster?.get(String(viewAzubiId));
+          if (fenster) {
+            const vonDatum = new Date(fenster.von + 'T00:00:00');
+            currentKW = DateUtil.getKW(vonDatum);
+            currentYear = DateUtil.getKWYear(vonDatum);
+          }
+        }
         render();
       });
     }

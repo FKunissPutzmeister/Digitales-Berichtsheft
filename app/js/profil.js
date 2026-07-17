@@ -365,7 +365,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 <div class="profil-data-item">
                   <div class="profil-data-label">${a.beruf || 'Auszubildende/r'}</div>
                   <div class="profil-data-value" style="display:flex;align-items:center;gap:var(--sp-2)">
-                    <div class="avatar avatar--sm">${a.initials}</div>
+                    ${renderAvatar(a, 'avatar--sm')}
                     ${a.name}
                   </div>
                 </div>

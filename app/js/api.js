@@ -82,6 +82,28 @@ window.getInitials = name => {
   return ((parts[0][0] || '') + (parts.length > 1 ? parts[parts.length - 1][0] : '')).toUpperCase();
 };
 
+// Avatar-Innenleben (Initialen + optionales Echtfoto): kein JS-State nötig –
+// hat der User kein per Entra-Sync hinterlegtes Foto (404) oder schlägt das
+// Laden fehl, entfernt sich das <img> per onerror selbst und die darunter
+// liegenden Initialen werden sichtbar (Layering per CSS, siehe .avatar img).
+function avatarInnerHTML(user) {
+  const initials = (user && (user.initials || getInitials(user.name))) || '?';
+  const oid = user && (user.oid || user.id);
+  if (!oid) return initials;
+  return `${initials}<img src="/api/users/${oid}/photo" alt="" loading="lazy" onerror="this.remove()">`;
+}
+
+// Fertiges Avatar-Markup, z.B. renderAvatar(user, 'avatar--sm').
+window.renderAvatar = (user, extraClass = '') => {
+  const cls = `avatar${extraClass ? ' ' + extraClass : ''}`;
+  return `<span class="${cls}">${avatarInnerHTML(user)}</span>`;
+};
+
+// Für bestehende, statische Avatar-Elemente im HTML (Sidebar/Topbar/Profil-Header).
+window.applyAvatar = (el, user) => {
+  if (el) el.innerHTML = avatarInnerHTML(user);
+};
+
 /* ── Normalisierung: DB PascalCase → Frontend camelCase ───────── */
 function toDateStr(val) {
   if (!val) return '';
@@ -401,7 +423,9 @@ const DB = {
   },
 
   async runEntraSync() {
-    return await apiFetch('/sync/entra', { method: 'POST' });
+    // Langläufer (Fotos + Ausbilder-Zuordnung über Graph für alle aktiven
+    // Nutzer): der generische 15s-Timeout von apiFetch reicht dafür nicht.
+    return await apiFetch('/sync/entra', { method: 'POST', timeout: 120000 });
   },
 
   /* Zuweisungen */
@@ -423,6 +447,17 @@ const DB = {
   async getZuweisungenFuerVerantw(email) {
     const data = await apiFetch(`/zuweisungen?verantwEmail=${encodeURIComponent(email)}`);
     return data.map(normalizeZuweisung);
+  },
+
+  // Für rein befristete Prüfer: die eigenen aktuell zugreifbaren Zuweisungen
+  // (inkl. 6-Wochen-Nachlauf), je Azubi nur die aktuellste. Speist das
+  // Prüfer-Dashboard und die Wochenansicht-Fenstergrenzen.
+  async getMeinePruefungen() {
+    return await apiFetch('/zuweisungen/meine-pruefungen');
+  },
+
+  async getMeinePruefungenKommend() {
+    return await apiFetch('/zuweisungen/meine-pruefungen-kommend');
   },
 
   async getAktuellerAusbilder(azubiId) {
@@ -750,6 +785,12 @@ const DB = {
   },
   async getFaelligeBeurteilungen() {
     try { return await apiFetch('/beurteilungen/faellig'); } catch (e) { return []; }
+  },
+  // Flache Liste aller Zuweisungen, die der Nutzer beurteilen darf, für den
+  // eigenen Beurteilungen-Reiter (nicht für Azubis).
+  async getMeineBeurteilungen(azubiOid) {
+    const q = azubiOid ? `?azubiOid=${encodeURIComponent(azubiOid)}` : '';
+    return await apiFetch('/beurteilungen/meine' + q);
   },
   async saveBeurteilungEntwurf(payload) {
     const data = await apiFetch('/beurteilungen', { method: 'POST', body: payload });

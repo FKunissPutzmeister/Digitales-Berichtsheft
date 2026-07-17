@@ -4,6 +4,7 @@
 document.addEventListener('DOMContentLoaded', async () => {
   const user = await initPage('nav-ausbildungsstand', [{ label: 'Ausbildungsstand', href: 'ausbildungsstand.html' }]);
   if (!user) return;
+  if (user.istReinerPruefer) { window.location.href = 'dashboard.html'; return; }
 
   document.body.dataset.page = 'ausbildungsstand';
 

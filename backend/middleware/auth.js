@@ -5,6 +5,7 @@
    Session-userOid).
    =================================================================== */
 const { getUserByOid, buildReqUser, canUseDevView } = require('../services/users');
+const { hatDauerhafteZuordnung } = require('../services/ausbilderAzubis');
 const { logError } = require('../services/fehlerberichte');
 
 // Dev-Login (X-Dev-OID-Header, passwortloses /api/auth/login → session.userOid)
@@ -47,6 +48,15 @@ async function requireAuth(req, res, next) {
     req.user = buildReqUser(effectiveRow);
     req.user.devViewEligible = eligible;
     req.user.devViewActive = active;
+    // "Reiner Prüfer": Rolle pruefer, ausschließlich befristete Zuweisungen
+    // (kein manuelles IstAusbilder-Flag, keine AusbilderAzubis-Zeile als
+    // Ausbilder). Steuert die reduzierte Sicht im Frontend (Dashboard,
+    // Navigation, Wochenansicht-Fenster) — die istAusbilder-Capability oben
+    // bleibt bewusst unverändert (Eligibility für dauerhafte Zuordnungen).
+    req.user.istReinerPruefer = false;
+    if (req.user.role === 'pruefer' && !row.IstAusbilder) {
+      req.user.istReinerPruefer = !(await hatDauerhafteZuordnung(req.user.oid));
+    }
     next();
   } catch (e) {
     logError({ quelle: 'backend', nachricht: `[auth] requireAuth: ${e.message}`, stack: e.stack, kontext: { route: req.path } });
