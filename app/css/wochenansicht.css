@@ -3708,3 +3708,12 @@ select.field-error,
 /* Optionen im Dropdown ebenfalls etwas größer */
 .pm-select.tag-row__select .pm-select__option,
 .pm-select.day-card__select .pm-select__option { font-size: var(--text-base); }
+
+/* ── Reiner Prüfer: permanente Fristanzeige (nach dem Azubi-Selector) ──
+   Dezente Info-Zeile; wechselt im Nachlauf per Inline-Style (JS) auf
+   --status-abgelehnt (Warnfarbe). Default: gedämpftes Grau. */
+.wochen-frist-hinweis {
+  font-size: var(--text-sm);
+  color: var(--pm-grey-600);
+  margin-top: var(--sp-2);
+}
