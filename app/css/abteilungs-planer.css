@@ -618,8 +618,11 @@
 }
 .durchlauf-card--current { border-left-color: var(--pm-yellow); background: var(--pm-yellow-pale); }
 .durchlauf-card--warnung { border-left-color: var(--status-abgelehnt); background: var(--status-abgelehnt-bg); }
-.durchlauf-card__badge { position: absolute; top: var(--sp-4); right: var(--sp-4); }
-.durchlauf-card__abt { font-size: var(--text-lg); font-weight: var(--fw-bold); color: var(--pm-grey-800); padding-right: 90px; }
+/* max-width/white-space: die "Nachlauf bis DD.MM.YYYY"-Badge (Prüfer-Dashboard)
+   ist deutlich länger als die übrigen kurzen Badges (Läuft/Aktuell/Beendet) und
+   würde sonst einzeilig in den Titel hineinlaufen – bricht stattdessen um. */
+.durchlauf-card__badge { position: absolute; top: var(--sp-4); right: var(--sp-4); max-width: 130px; text-align: right; white-space: normal; line-height: 1.4; }
+.durchlauf-card__abt { font-size: var(--text-lg); font-weight: var(--fw-bold); color: var(--pm-grey-800); padding-right: 140px; }
 .durchlauf-card__zeit { font-size: var(--text-sm); color: var(--pm-grey-600); margin-top: 2px; }
 .durchlauf-card__verantw { font-size: var(--text-sm); color: var(--pm-grey-700); margin-top: var(--sp-3); }
 .durchlauf-card--clickable {
