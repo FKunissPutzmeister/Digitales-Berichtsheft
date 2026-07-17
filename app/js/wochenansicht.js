@@ -276,17 +276,21 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   }
 
-  // Reiner Prüfer: IMMER auf die erste Woche der Zuweisung springen (unabhängig
-  // vom heutigen Datum oder einer per Notification mitgegebenen KW/Jahr) und die
-  // Fenster-Map nachladen, falls sie oben noch nicht befüllt wurde (z. B. weil
-  // savedAzubiId den Sprung ausgelöst hat).
+  // Reiner Prüfer: Fenster-Map nachladen, falls sie oben noch nicht befüllt
+  // wurde (z. B. weil savedAzubiId den Sprung ausgelöst hat). Auf die erste
+  // Woche der Zuweisung springen (unabhängig vom heutigen Datum) NUR, wenn
+  // kein expliziter Sprung (gotoKW/gotoYear, z. B. von der neuen
+  // "Offene Berichte"-Kachel im Dashboard) vorliegt — ein expliziter Sprung
+  // hat immer Vorrang.
   if (user.istReinerPruefer) {
     if (!pruefungsFenster) pruefungsFenster = new Map((await DB.getMeinePruefungen()).map(p => [String(p.azubiOid), p]));
-    const fenster = viewAzubiId ? pruefungsFenster.get(String(viewAzubiId)) : null;
-    if (fenster) {
-      const vonDatum = new Date(fenster.von + 'T00:00:00');
-      currentKW = DateUtil.getKW(vonDatum);
-      currentYear = DateUtil.getKWYear(vonDatum);
+    if (!(savedKW && savedYear)) {
+      const fenster = viewAzubiId ? pruefungsFenster.get(String(viewAzubiId)) : null;
+      if (fenster) {
+        const vonDatum = new Date(fenster.von + 'T00:00:00');
+        currentKW = DateUtil.getKW(vonDatum);
+        currentYear = DateUtil.getKWYear(vonDatum);
+      }
     }
   }
 
@@ -443,6 +447,16 @@ document.addEventListener('DOMContentLoaded', async () => {
     const prevWeekDisabled = user.istReinerPruefer && (!fenster || monday <= vonMonday);
     const nextWeekDisabled = user.istReinerPruefer && (!fenster || monday >= bisMonday);
 
+    // Permanente, dezente Fristanzeige für reine Prüfer (nutzt das bereits
+    // geladene Fenster, keine neue Anfrage): zeigt, bis wann der Bericht
+    // dieses Azubis noch korrigiert werden darf. Wechselt bei Nachlauf auf
+    // Warnfarbe.
+    const fristHinweisHtml = (user.istReinerPruefer && fenster)
+      ? `<div class="wochen-frist-hinweis"${fenster.status === 'nachlauf' ? ' style="color:var(--status-abgelehnt)"' : ''}>
+          Korrektur möglich bis ${DateUtil.formatDate(fenster.nachlaufBis)}
+        </div>`
+      : '';
+
     const aktionen = (woche && woche.erlaubteAktionen) || [];
     const canErstgenehmigen = aktionen.includes('erstgenehmigen');
     const canEndgenehmigen  = aktionen.includes('endgenehmigen');
@@ -510,6 +524,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const main = document.getElementById('mainContent');
     main.innerHTML = `
       ${azubiSelectorHtml}
+      ${fristHinweisHtml}
 
       ${renderStammdatenPrintBlock(azubiUser, azubiAusbilderName, ausbildungsjahr, azubiZuw)}
 
