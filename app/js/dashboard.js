@@ -548,10 +548,50 @@ function iconInbox() {
 /* ── Reiner-Prüfer-Dashboard: befristete Zuweisungen statt "Meine Azubis" ── */
 async function renderReinerPrueferDashboard(user) {
   const main = document.getElementById('mainContent');
-  const pruefungen = await DB.getMeinePruefungen();
+  const [pruefungen, kommende, beurteilungen] = await Promise.all([
+    DB.getMeinePruefungen(),
+    DB.getMeinePruefungenKommend(),
+    DB.getMeineBeurteilungen(),
+  ]);
+
+  // Offene Berichte: über alle aktuell zugreifbaren Azubis die Wochen
+  // sammeln, auf die der Prüfer reagieren kann (nie 'endgenehmigen' — das
+  // bleibt dem dauerhaften Ausbilder vorbehalten). Älteste zuerst, wie im
+  // normalen Ausbilder-Posteingang.
+  const offeneBerichte = [];
+  for (const p of pruefungen) {
+    const wochen = await DB.getWochenFuerAzubi(p.azubiOid);
+    wochen.forEach(w => {
+      if ((w.erlaubteAktionen || []).includes('erstgenehmigen')) {
+        offeneBerichte.push({ ...w, azubiOid: p.azubiOid, azubiName: p.azubiName });
+      }
+    });
+  }
+  offeneBerichte.sort((a, b) => (a.year - b.year) || (a.kw - b.kw));
+
+  const offeneBeurteilungen = beurteilungen
+    .filter(b => b.status === 'offen')
+    .sort((a, b) => (a.bis < b.bis ? -1 : 1));
+
+  const warnungen = pruefungen.filter(p => p.status === 'nachlauf');
+
   const STATUS_LABEL = p => p.status === 'laeuft'
     ? 'Läuft'
     : `Nachlauf bis ${DateUtil.formatDate(p.nachlaufBis)}`;
+
+  const pruefungCard = p => `
+    <div class="durchlauf-card">
+      <span class="badge ${p.status === 'laeuft' ? 'badge--genehmigt' : 'badge--grey'} durchlauf-card__badge">
+        ${STATUS_LABEL(p)}
+      </span>
+      <div class="durchlauf-card__abt">${escapeHtml(p.azubiName)}${p.abteilung ? ' · ' + escapeHtml(p.abteilung) : ''}</div>
+      <div class="durchlauf-card__zeit">${DateUtil.formatDate(p.von)} – ${DateUtil.formatDate(p.bis)}</div>
+      <div class="durchlauf-card__verantw">
+        <a href="wochenansicht.html" class="dash-pruefung-link" data-goto-azubi="${escapeHtml(p.azubiOid)}">Wochenansicht öffnen</a>
+        &nbsp;·&nbsp;
+        <a href="beurteilungen.html">Beurteilung</a>
+      </div>
+    </div>`;
 
   main.innerHTML = `
     <div class="welcome-banner welcome-banner--ausbilder">
@@ -561,28 +601,82 @@ async function renderReinerPrueferDashboard(user) {
         <p class="welcome-banner__info">${pruefungen.length} ${pruefungen.length === 1 ? 'Zuweisung' : 'Zuweisungen'}</p>
       </div>
     </div>
-    ${pruefungen.length ? `
+
+    <div class="stats-grid stats-grid--3">
+      <div class="stat-card animate-fade-in" id="statOffeneBerichte" style="animation-delay:0ms${offeneBerichte.length ? ';cursor:pointer' : ''}"${offeneBerichte.length ? ' role="button" tabindex="0"' : ''}>
+        <div class="stat-card__icon stat-card__icon--${offeneBerichte.length ? 'error' : 'success'}">
+          ${Icon('document')}
+        </div>
+        <div class="stat-card__content">
+          <div class="stat-card__label">Offene Berichte</div>
+          <div class="stat-card__value">${offeneBerichte.length}</div>
+          <div class="stat-card__sub">${offeneBerichte.length ? 'warten auf Erstgenehmigung' : 'Keine offenen Berichte'}</div>
+        </div>
+      </div>
+      <div class="stat-card animate-fade-in" id="statOffeneBeurteilungen" style="animation-delay:60ms${offeneBeurteilungen.length ? ';cursor:pointer' : ''}"${offeneBeurteilungen.length ? ' role="button" tabindex="0"' : ''}>
+        <div class="stat-card__icon stat-card__icon--${offeneBeurteilungen.length ? 'error' : 'success'}">
+          ${Icon('cap')}
+        </div>
+        <div class="stat-card__content">
+          <div class="stat-card__label">Offene Beurteilungen</div>
+          <div class="stat-card__value">${offeneBeurteilungen.length}</div>
+          <div class="stat-card__sub">${offeneBeurteilungen.length ? 'noch zu erstellen' : 'Keine offenen Beurteilungen'}</div>
+        </div>
+      </div>
+    </div>
+
+    ${warnungen.length ? `
       <div class="durchlauf-list">
-        ${pruefungen.map(p => `
-          <div class="durchlauf-card">
-            <span class="badge ${p.status === 'laeuft' ? 'badge--genehmigt' : 'badge--grey'} durchlauf-card__badge">
-              ${STATUS_LABEL(p)}
-            </span>
-            <div class="durchlauf-card__abt">${escapeHtml(p.azubiName)}${p.abteilung ? ' · ' + escapeHtml(p.abteilung) : ''}</div>
-            <div class="durchlauf-card__zeit">${DateUtil.formatDate(p.von)} – ${DateUtil.formatDate(p.bis)}</div>
-            <div class="durchlauf-card__verantw">
-              <a href="wochenansicht.html" class="dash-pruefung-link" data-goto-azubi="${escapeHtml(p.azubiOid)}">Wochenansicht öffnen</a>
-              &nbsp;·&nbsp;
-              <a href="beurteilungen.html">Beurteilung</a>
-            </div>
+        ${warnungen.map(p => `
+          <div class="durchlauf-card durchlauf-card--warnung">
+            <div class="durchlauf-card__abt">Zugriff für ${escapeHtml(p.azubiName)} endet am ${DateUtil.formatDate(p.nachlaufBis)}</div>
+            <div class="durchlauf-card__zeit">Zuweisung (${p.abteilung ? escapeHtml(p.abteilung) : 'ohne Abteilung'}) endete bereits am ${DateUtil.formatDate(p.bis)} — danach ist keine Korrektur mehr möglich.</div>
           </div>
         `).join('')}
       </div>
-    ` : `<div class="durchlauf-empty">Aktuell keine aktive Zuweisung.</div>`}
+    ` : ''}
+
+    <h2 class="dashboard-section-title" style="font-size:var(--text-base);margin:var(--sp-6) 0 var(--sp-3)">Meine Prüfzeiträume</h2>
+    ${pruefungen.length
+      ? `<div class="durchlauf-list">${pruefungen.map(pruefungCard).join('')}</div>`
+      : `<div class="durchlauf-empty">Aktuell keine aktive Zuweisung.</div>`}
+
+    ${kommende.length ? `
+      <h2 class="dashboard-section-title" style="font-size:var(--text-base);margin:var(--sp-6) 0 var(--sp-3)">Demnächst</h2>
+      <div class="durchlauf-list">
+        ${kommende.map(k => `
+          <div class="durchlauf-card">
+            <span class="badge badge--grey durchlauf-card__badge">Kommend</span>
+            <div class="durchlauf-card__abt">${escapeHtml(k.azubiName)}${k.abteilung ? ' · ' + escapeHtml(k.abteilung) : ''}</div>
+            <div class="durchlauf-card__zeit">${DateUtil.formatDate(k.von)} – ${DateUtil.formatDate(k.bis)}</div>
+          </div>
+        `).join('')}
+      </div>
+    ` : ''}
   `;
+
   main.querySelectorAll('.dash-pruefung-link').forEach(a => {
     a.addEventListener('click', () => sessionStorage.setItem('gotoAzubiId', a.dataset.gotoAzubi));
   });
+
+  if (offeneBerichte.length) {
+    const goBerichte = () => {
+      const b = offeneBerichte[0];
+      sessionStorage.setItem('gotoAzubiId', b.azubiOid);
+      sessionStorage.setItem('gotoKW', String(b.kw));
+      sessionStorage.setItem('gotoYear', String(b.year));
+      window.location.href = 'wochenansicht.html';
+    };
+    const el = document.getElementById('statOffeneBerichte');
+    el.addEventListener('click', goBerichte);
+    el.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); goBerichte(); } });
+  }
+  if (offeneBeurteilungen.length) {
+    const goBeurteilung = () => { window.location.href = `beurteilung.html?zuw=${offeneBeurteilungen[0].zuweisungId}`; };
+    const el = document.getElementById('statOffeneBeurteilungen');
+    el.addEventListener('click', goBeurteilung);
+    el.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); goBeurteilung(); } });
+  }
 }
 
 /* ── Ausbilder-Cockpit ────────────────────────────────────────── */
