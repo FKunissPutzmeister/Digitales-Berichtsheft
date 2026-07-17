@@ -448,6 +448,10 @@ const DB = {
     return await apiFetch('/zuweisungen/meine-pruefungen');
   },
 
+  async getMeinePruefungenKommend() {
+    return await apiFetch('/zuweisungen/meine-pruefungen-kommend');
+  },
+
   async getAktuellerAusbilder(azubiId) {
     const zuweisungen = await this.getZuweisungenFuerAzubi(azubiId);
     const heute = new Date().toISOString().split('T')[0];
