@@ -46,3 +46,18 @@ test('bewerteSchwere: Fallbacks — backend ohne Methode mittel, Frontend-JS ger
   assert.equal(F.bewerteSchwere({ quelle: 'backend', nachricht: 'x', kontext: {} }), 'mittel');
   assert.equal(F.bewerteSchwere({ quelle: 'frontend', nachricht: 'TypeError: y is null', kontext: { url: 'u' } }), 'gering');
 });
+
+// ── istTransienterVerbindungsfehler (Server-Guard, spiegelt error-reporter.js) ──
+test('istTransienterVerbindungsfehler: erkennt transiente Muster', () => {
+  assert.equal(F.istTransienterVerbindungsfehler('apiFetch /wochen: Failed to fetch'), true);
+  assert.equal(F.istTransienterVerbindungsfehler('Load failed'), true);
+  assert.equal(F.istTransienterVerbindungsfehler('NetworkError when attempting to fetch resource.'), true);
+  assert.equal(F.istTransienterVerbindungsfehler('Network request failed'), true);
+  assert.equal(F.istTransienterVerbindungsfehler('Zeitüberschreitung – der Server hat nicht rechtzeitig geantwortet.'), true);
+});
+test('istTransienterVerbindungsfehler: echte App-Fehler bleiben unberührt', () => {
+  assert.equal(F.istTransienterVerbindungsfehler('apiFetch /wochen: Zugriff verweigert'), false);
+  assert.equal(F.istTransienterVerbindungsfehler('TypeError: y is null'), false);
+  assert.equal(F.istTransienterVerbindungsfehler(''), false);
+  assert.equal(F.istTransienterVerbindungsfehler(null), false);
+});

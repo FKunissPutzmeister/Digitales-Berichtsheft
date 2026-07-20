@@ -13,6 +13,21 @@ function berechneFingerprint({ quelle, nachricht, stack }) {
 
 const SCHWEREGRADE = ['hoch', 'mittel', 'gering'];
 
+// Transiente Verbindungsfehler: der Client konnte den Server schlicht nicht
+// erreichen (Server-Neustart, DB kurz weg, Netzwerk-Blip, abgebrochener Autosave
+// beim Tab-Schließen). Diese haben KEINEN diagnostischen Wert und würden sonst den
+// Fehler-Posteingang fluten. Der Client (error-reporter.js) filtert sie bereits,
+// aber gecachte/veraltete Frontend-Versionen melden weiter – deshalb hier serverseitig
+// als Defense-in-Depth dasselbe Muster ausfiltern. Muss zur Client-Regex passen.
+// Echte App-Fehler (500 mit Meldung, reale 404, Validierung) treffen diese Muster NICHT.
+function istTransienterVerbindungsfehler(nachricht) {
+  const s = String(nachricht || '');
+  return /Failed to fetch/i.test(s)
+      || /Load failed/i.test(s)
+      || /NetworkError|Network request failed/i.test(s)
+      || /nicht rechtzeitig geantwortet/i.test(s);
+}
+
 // Serverseitige Schwere-Einstufung (Client-Angaben wären fälschbar).
 // Reihenfolge: erste zutreffende Regel gewinnt. Siehe Spec-Tabelle.
 function bewerteSchwere({ quelle, nachricht, kontext }) {
@@ -31,6 +46,9 @@ function bewerteSchwere({ quelle, nachricht, kontext }) {
 // nachdem sie zusätzlich auf der Konsole gelandet sind (nssm-Datei-Boden).
 async function logError({ quelle, nachricht, stack, kontext, benutzerOid, benutzerName }) {
   const msg = String(nachricht == null ? '' : nachricht).slice(0, 8000);
+  // Transientes Verbindungs-Rauschen (z. B. „apiFetch /wochen: Failed to fetch")
+  // gar nicht erst persistieren – manuelle Meldungen bleiben ausgenommen.
+  if (quelle !== 'manual' && istTransienterVerbindungsfehler(msg)) return;
   const kontextStr = kontext == null ? null
     : (typeof kontext === 'string' ? kontext : JSON.stringify(kontext));
   console.error(`[fehler:${quelle}]`, msg, stack ? `\n${stack}` : '');
@@ -122,4 +140,4 @@ async function cleanupAlt(tage = 90) {
   return result.rowsAffected[0];
 }
 
-module.exports = { berechneFingerprint, logError, listErrors, markResolved, cleanupAlt, bewerteSchwere, setSchweregrad, SCHWEREGRADE };
+module.exports = { berechneFingerprint, logError, listErrors, markResolved, cleanupAlt, bewerteSchwere, setSchweregrad, istTransienterVerbindungsfehler, SCHWEREGRADE };
