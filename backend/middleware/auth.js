@@ -55,7 +55,16 @@ async function requireAuth(req, res, next) {
     // bleibt bewusst unverändert (Eligibility für dauerhafte Zuordnungen).
     req.user.istReinerPruefer = false;
     if (req.user.role === 'pruefer' && !row.IstAusbilder) {
-      req.user.istReinerPruefer = !(await hatDauerhafteZuordnung(req.user.oid));
+      // Die "reiner Prüfer"-Erkennung ist nur eine UI-Verfeinerung (reduzierte
+      // Sicht). Schlägt die Zuordnungs-Abfrage fehl (z. B. weil eine Migration
+      // noch aussteht — "Invalid column name 'Quelle'"), darf das NICHT die
+      // gesamte Authentifizierung mit 500 abbrechen — sonst wird die App für
+      // betroffene Prüfer komplett unbenutzbar. Fehler loggen, sicherer Default.
+      try {
+        req.user.istReinerPruefer = !(await hatDauerhafteZuordnung(req.user.oid));
+      } catch (e) {
+        logError({ quelle: 'backend', nachricht: `[auth] istReinerPruefer-Ermittlung fehlgeschlagen: ${e.message}`, stack: e.stack, kontext: { route: req.path, oid: req.user.oid } });
+      }
     }
     next();
   } catch (e) {
