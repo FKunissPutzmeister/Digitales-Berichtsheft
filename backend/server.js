@@ -34,7 +34,14 @@ app.use(cors({
   ],
   credentials: true,
 }));
-app.use(express.json());
+// Limit angehoben: Ein Wochen-Autosave (POST /api/wochen) serialisiert bis zu
+// ~24 Rich-Text-Felder (7 Tage × Betrieb/Schule/Unterweisung + Wochenfelder).
+// Gespeichert wird jeweils das Quill-HTML (root.innerHTML), das deutlich größer
+// ist als der im Frontend begrenzte Klartext (MAX_EINTRAG_ZEICHEN = 7000). Bei
+// einer gut gefüllten Woche sprengt das die body-parser-Standardgrenze (100 kb)
+// → PayloadTooLargeError, der VOR der Route im globalen Handler landet und als
+// generischer "Interner Serverfehler." (500) beim Client ankommt.
+app.use(express.json({ limit: '5mb' }));
 // Azure POSTet die SAMLResponse als application/x-www-form-urlencoded.
 // Ohne diesen Parser bliebe req.body leer → ACS-Validierung schlägt still fehl.
 app.use(express.urlencoded({ extended: false }));
