@@ -686,7 +686,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   const DAY_PX = { monat: 26, quartal: 9, jahr: 3.4 };
 
   // Filter-State
-  let searchText = '', filterBeruf = '', filterJahrgang = '', filterAbteilung = '',
+  let searchText = '', filterBeruf = '', filterAbteilung = '',
       filterVerantw = '', nurOhne = false, showInaktive = false;
   let selectedAzubiId = null;
   const collapsed = new Set();                         // eingeklappte Gruppen (Titel)
@@ -759,18 +759,14 @@ document.addEventListener('DOMContentLoaded', async () => {
     return { start, end, days };
   }
   function ajLabel() { return `AJ ${ajStartYear}/${String(ajStartYear + 1).slice(2)}`; }
-  function lehrjahrVon(a) {
-    if (a.istDhStudent || !a.ausbildungsBeginn) return null;
-    const s = new Date(a.ausbildungsBeginn + 'T00:00:00');
-    const m = (today.getFullYear() - s.getFullYear()) * 12 + (today.getMonth() - s.getMonth());
-    return Math.max(1, Math.min(4, Math.floor(m / 12) + 1));
-  }
+  // Lehrjahr wird aktuell nicht getrackt – daher keine Lehrjahr-Gruppen mehr.
+  // "Ohne Zuordnung" bedeutet hier wörtlich: aktuell keine laufende Zuweisung
+  // (aktuelleZuw === null), nicht "Lehrjahr unbekannt".
   function gruppeVon(a) {
     if (a.istDhStudent) return 'DH-Studenten';
-    const lj = lehrjahrVon(a);
-    return lj ? `${lj}. Lehrjahr` : 'Ohne Zuordnung';
+    return aktuelleZuw(a.id) ? 'Zugewiesen' : 'Ohne Zuordnung';
   }
-  const GROUP_ORDER = ['1. Lehrjahr', '2. Lehrjahr', '3. Lehrjahr', '4. Lehrjahr', 'DH-Studenten', 'Ohne Zuordnung'];
+  const GROUP_ORDER = ['Ohne Zuordnung', 'Zugewiesen', 'DH-Studenten'];
 
   function statusOf(z) {
     if (z.bis && z.bis < todayISO) return { key: 'beendet',    label: 'Beendet',    badge: 'badge--grey' };
@@ -829,10 +825,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (searchText && !fuzzyMatch(searchText, `${a.name} ${a.beruf || ''}`)) return false;
     if (!showInaktive && a.aktiv === false) return false;
     if (filterBeruf && a.beruf !== filterBeruf) return false;
-    if (filterJahrgang) {
-      if (filterJahrgang === 'DH') { if (!a.istDhStudent) return false; }
-      else if (String(lehrjahrVon(a)) !== filterJahrgang) return false;
-    }
     if (nurOhne && aktuelleZuw(a.id)) return false;
     if (filterAbteilung && !zuwList(a.id).some(z => z.abteilung === filterAbteilung)) return false;
     if (filterVerantw && !zuwList(a.id).some(z => z.verantwEmail === filterVerantw)) return false;
@@ -854,12 +846,6 @@ document.addEventListener('DOMContentLoaded', async () => {
   function berufOptions() {
     const set = [...new Set(azubis.map(a => a.beruf).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'de'));
     return `<option value="">Alle Berufe</option>` + set.map(b => opt(b, b, filterBeruf)).join('');
-  }
-  function jahrgangOptions() {
-    const ljs = [...new Set(azubis.map(lehrjahrVon).filter(Boolean))].sort();
-    let html = `<option value="">Alle Jahrgänge</option>` + ljs.map(j => opt(String(j), `${j}. Lehrjahr`, filterJahrgang)).join('');
-    if (azubis.some(a => a.istDhStudent)) html += opt('DH', 'DH-Studenten', filterJahrgang);
-    return html;
   }
   function abteilungOptions() {
     const set = [...new Set([
@@ -891,7 +877,6 @@ document.addEventListener('DOMContentLoaded', async () => {
           <input type="search" id="ptSearch" class="form-control" placeholder="Person suchen …" value="${escHtml(searchText)}" aria-label="Person suchen">
         </div>
         <select class="form-control" id="ptFilterBeruf" data-pm-search="Beruf suchen …" aria-label="Beruf filtern">${berufOptions()}</select>
-        <select class="form-control" id="ptFilterJahrgang" aria-label="Jahrgang filtern">${jahrgangOptions()}</select>
         <select class="form-control" id="ptFilterAbteilung" data-pm-search="Abteilung suchen …" aria-label="Abteilung filtern">${abteilungOptions()}</select>
         <select class="form-control" id="ptFilterVerantw" data-pm-search="Verantwortliche suchen …" aria-label="Verantwortliche filtern">${verantwOptions()}</select>
         <label class="pt-quickfilter" style="display:inline-flex;align-items:center;gap:6px;font-size:var(--text-sm);color:var(--pm-grey-700);white-space:nowrap">
@@ -946,7 +931,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     const on = (id, ev, fn) => document.getElementById(id)?.addEventListener(ev, fn);
     on('ptSearch', 'input', e => { searchText = e.target.value.toLowerCase(); renderTimeline(); });
     on('ptFilterBeruf', 'change', e => { filterBeruf = e.target.value; renderTimeline(); });
-    on('ptFilterJahrgang', 'change', e => { filterJahrgang = e.target.value; renderTimeline(); });
     on('ptFilterAbteilung', 'change', e => { filterAbteilung = e.target.value; renderTimeline(); });
     on('ptFilterVerantw', 'change', e => { filterVerantw = e.target.value; renderTimeline(); });
     on('ptNurOhne', 'change', e => { nurOhne = e.target.checked; renderTimeline(); });
@@ -1047,7 +1031,7 @@ document.addEventListener('DOMContentLoaded', async () => {
           // laut Legende). Kein Inline-Text – der würde beim Scrollen abschneiden.
           const emptyGap = zuwList(a.id).length === 0
             ? `<div class="pt-gap" style="left:0;width:100%"></div>` : '';
-          const ljTag = a.istDhStudent ? 'DH' : (lehrjahrVon(a) ? `${lehrjahrVon(a)}. LJ` : '');
+          const dhTag = a.istDhStudent ? 'DH' : '';
           const confTag = konf.size ? `<span class="pt-tag pt-tag--conf">Konflikt</span>` : '';
           const todayLine = todayInWin ? `<div class="pt-today" style="left:${pctLeftOf(today, win)}%"></div>` : '';
           return `
@@ -1055,7 +1039,7 @@ document.addEventListener('DOMContentLoaded', async () => {
               <div class="pt-name" tabindex="0" role="button" data-azubi="${a.id}" aria-label="${escHtml(a.name)} – Details">
                 ${renderAvatar(a, 'avatar--sm')}
                 <span class="pt-nm">
-                  <span class="pt-nm__n"><span>${escHtml(a.name)}</span>${ljTag ? `<span class="pt-tag">${ljTag}</span>` : ''}${confTag}</span>
+                  <span class="pt-nm__n"><span>${escHtml(a.name)}</span>${dhTag ? `<span class="pt-tag">${dhTag}</span>` : ''}${confTag}</span>
                   <span class="pt-nm__b">${escHtml(a.beruf || '')}</span>
                 </span>
               </div>
@@ -1580,7 +1564,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const rows = [];
     azubis.filter(passtFilter).forEach(a => {
       const { vor, nach } = splitName(a.name);
-      const gruppe = a.istDhStudent ? 'DH' : (lehrjahrVon(a) ? `${lehrjahrVon(a)}. LJ` : '');
+      const gruppe = gruppeVon(a);
       const stns = zuwList(a.id);
       if (!stns.length) {
         rows.push([nach, vor, a.beruf || '', gruppe, '', '', '', '', 'ungeplant']);

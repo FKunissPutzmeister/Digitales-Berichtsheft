@@ -2576,6 +2576,7 @@ html[data-theme="dark"] .welcome-hero {
 /* ── Durchlauf-Übersicht „Wer ist wo" (rot- = rotation) ──────────────
    Kompakte Liste im Dashboard: aktuelle → nächste Abteilung je Azubi.
    Nutzt die .card-Shell; hier nur Padding neutralisieren + Innenleben. */
+.rot-section { margin-bottom: var(--sp-6); }
 .rot { padding: 0; overflow: hidden; }
 .rot__head { display: flex; align-items: center; gap: 12px; padding: 16px 18px 12px; }
 .rot__count { font: 500 13px/1 'Open Sans', sans-serif; color: var(--pm-grey-500, #7a7f87); }
@@ -2596,7 +2597,7 @@ html[data-theme="dark"] .welcome-hero {
 .rot-sum-item b { font-weight: 700; }
 .rot-sum-dot { width: 8px; height: 8px; border-radius: 50%; }
 
-.rot__list { max-height: 452px; overflow-y: auto; border-top: 1px solid var(--pm-grey-100, #eef0f2); }
+.rot__list { max-height: 330px; overflow-y: auto; border-top: 1px solid var(--pm-grey-100, #eef0f2); }
 
 .rot-row { display: grid; grid-template-columns: 8px 34px minmax(0, 1fr) auto 18px;
   align-items: center; gap: 12px; padding: 11px 18px 11px 16px; text-decoration: none;
