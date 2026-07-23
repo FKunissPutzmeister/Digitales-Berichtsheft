@@ -20,6 +20,9 @@ document.addEventListener('DOMContentLoaded', async () => {
   /* ── XSS-Schutz: alle user-supplied strings durch esc() jagen ── */
   const esc = window.escapeHtml;
 
+  /* Mehrfachauswahl: OIDs der markierten Zeilen; überlebt Re-Renders/Filter. */
+  const selected = new Set();
+
   /* ── Nutzer laden ── */
   let users;
   try {
@@ -227,7 +230,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       if (row) {
         const u = users[idx] ?? editingUser;
         row.outerHTML = renderRow(u);
-        bindRowEvents();
+        // Kein Re-Binding nötig: Edit-Button + Checkbox laufen delegiert am #nvTableBody.
       }
       closeModal();
     } catch (e) {
@@ -243,8 +246,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     const aktivBadge = u.aktiv !== false
       ? `<span class="badge badge--genehmigt">aktiv</span>`
       : `<span class="badge badge--grey">inaktiv</span>`;
+    const sel = selected.has(u.oid);
     return `
-      <tr data-oid="${esc(u.oid)}">
+      <tr data-oid="${esc(u.oid)}"${sel ? ' class="nv-row--selected"' : ''}>
+        <td class="nv-table__check">
+          <input type="checkbox" class="nv-row-cb" data-oid="${esc(u.oid)}" aria-label="Auswählen"${sel ? ' checked' : ''}>
+        </td>
         <td>
           <div class="nv-table__name">${esc(u.name)}</div>
           <div class="nv-table__email">${esc(u.email)}</div>
@@ -261,19 +268,9 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   function renderTable(list) {
     if (!list.length) {
-      return `<tr><td colspan="6"><div class="nv-empty">Keine Nutzer gefunden.</div></td></tr>`;
+      return `<tr><td colspan="7"><div class="nv-empty">Keine Nutzer gefunden.</div></td></tr>`;
     }
     return list.map(renderRow).join('');
-  }
-
-  function bindRowEvents() {
-    document.querySelectorAll('.nv-edit-btn').forEach(btn => {
-      btn.addEventListener('click', () => {
-        const oid = btn.dataset.oid;
-        const u = users.find(x => x.oid === oid);
-        if (u) openModal(u);
-      });
-    });
   }
 
   /* ── Haupt-Render ── */
@@ -281,7 +278,35 @@ document.addEventListener('DOMContentLoaded', async () => {
     const tbody = document.getElementById('nvTableBody');
     if (!tbody) return;
     tbody.innerHTML = renderTable(list);
-    bindRowEvents();
+    updateBulkbar();
+  }
+
+  /* ── Mehrfachauswahl ──────────────────────────────────────────────── */
+  function selectedUsers() { return users.filter(u => selected.has(u.oid)); }
+
+  function visibleCheckboxes() {
+    return [...document.querySelectorAll('#nvTableBody .nv-row-cb')];
+  }
+
+  function setRowSelected(oid, on) {
+    if (on) selected.add(oid); else selected.delete(oid);
+    const row = document.querySelector(`tr[data-oid="${CSS.escape(oid)}"]`);
+    if (row) row.classList.toggle('nv-row--selected', on);
+  }
+
+  function updateBulkbar() {
+    const bar = document.getElementById('nvBulkbar');
+    if (!bar) return;
+    bar.hidden = selected.size === 0;
+    const count = document.getElementById('nvBulkCount');
+    if (count) count.textContent = String(selected.size);
+    const vis = visibleCheckboxes();
+    const selAll = document.getElementById('nvSelectAll');
+    if (selAll) {
+      const selVis = vis.filter(cb => selected.has(cb.dataset.oid)).length;
+      selAll.checked = vis.length > 0 && selVis === vis.length;
+      selAll.indeterminate = selVis > 0 && selVis < vis.length;
+    }
   }
 
   /* ── Filter (Suche + Rolle, kombiniert) ── */
@@ -332,10 +357,21 @@ document.addEventListener('DOMContentLoaded', async () => {
             <option value="developer">Developer</option>
           </select>
         </div>
+        <div class="nv-bulkbar" id="nvBulkbar" hidden>
+          <span class="nv-bulkbar__count"><b id="nvBulkCount">0</b> ausgewählt</span>
+          <div class="nv-bulkbar__actions">
+            <button class="btn btn-sm btn-outline" type="button" data-bulk="role">Rolle ändern</button>
+            <button class="btn btn-sm btn-outline" type="button" data-bulk="aktiv">Aktiv/Inaktiv</button>
+            <button class="btn btn-sm btn-outline" type="button" data-bulk="berichtTyp">Berichtstyp</button>
+            <button class="btn btn-sm btn-outline" type="button" data-bulk="ausbilder">Ausbilder zuweisen</button>
+          </div>
+          <button class="btn btn-sm btn-outline nv-bulkbar__clear" type="button" id="nvBulkClear">Auswahl aufheben</button>
+        </div>
         <div style="overflow-x:auto">
           <table class="nv-table">
             <thead>
               <tr>
+                <th class="nv-table__check"><input type="checkbox" id="nvSelectAll" aria-label="Alle sichtbaren auswählen"></th>
                 <th>Name</th>
                 <th>E-Mail</th>
                 <th>Rolle</th>
@@ -379,6 +415,169 @@ document.addEventListener('DOMContentLoaded', async () => {
   /* Filter verdrahten (Suche + Rolle greifen kombiniert) */
   document.getElementById('nvSearch').addEventListener('input', applyFilters);
   document.getElementById('nvRoleFilter').addEventListener('change', applyFilters);
+
+  /* ── Mehrfachauswahl verdrahten (einmalig; tbody bleibt über Re-Renders
+        bestehen, daher Delegation) ── */
+  document.getElementById('nvTableBody').addEventListener('change', (e) => {
+    const cb = e.target.closest('.nv-row-cb');
+    if (!cb) return;
+    setRowSelected(cb.dataset.oid, cb.checked);
+    updateBulkbar();
+  });
+  document.getElementById('nvTableBody').addEventListener('click', (e) => {
+    const btn = e.target.closest('.nv-edit-btn');
+    if (!btn) return;
+    const u = users.find(x => x.oid === btn.dataset.oid);
+    if (u) openModal(u);
+  });
+  document.getElementById('nvSelectAll')?.addEventListener('change', (e) => {
+    const on = e.target.checked;
+    visibleCheckboxes().forEach(cb => { cb.checked = on; setRowSelected(cb.dataset.oid, on); });
+    updateBulkbar();
+  });
+  document.getElementById('nvBulkClear')?.addEventListener('click', () => {
+    selected.clear();
+    visibleCheckboxes().forEach(cb => { cb.checked = false; });
+    document.querySelectorAll('#nvTableBody tr.nv-row--selected').forEach(tr => tr.classList.remove('nv-row--selected'));
+    updateBulkbar();
+  });
+  document.querySelectorAll('#nvBulkbar [data-bulk]').forEach(btn =>
+    btn.addEventListener('click', () => openBulkModal(btn.dataset.bulk)));
+
+  /* ── Bulk-Modal: baut je Aktion ein passendes Formular und wendet die
+        Änderung per client-seitiger Schleife auf alle Ausgewählten an. ── */
+  const BULK = {
+    role: {
+      title: 'Rolle ändern',
+      body: (t) => `
+        <div class="form-group">
+          <label class="form-label" for="bulkRole">Neue Rolle für ${t.length} Nutzer</label>
+          <select class="form-control" id="bulkRole">
+            <option value="azubi">Auszubildende/r</option>
+            <option value="pruefer">Prüfer</option>
+            <option value="admin">Administrator</option>
+            <option value="dhstudent">DH-Student/in</option>
+            <option value="developer">Developer</option>
+          </select>
+        </div>`,
+      apply: async (u) => DB.updateUser(u.oid, { role: document.getElementById('bulkRole').value }),
+    },
+    aktiv: {
+      title: 'Status setzen',
+      body: (t) => `
+        <div class="form-group">
+          <label class="form-label" for="bulkAktiv">Status für ${t.length} Nutzer</label>
+          <select class="form-control" id="bulkAktiv">
+            <option value="1">Aktiv</option>
+            <option value="0">Inaktiv</option>
+          </select>
+        </div>`,
+      apply: async (u) => DB.updateUser(u.oid, { aktiv: document.getElementById('bulkAktiv').value === '1' }),
+    },
+    berichtTyp: {
+      title: 'Berichtstyp setzen',
+      onlyAzubi: true,
+      body: () => `
+        <div class="form-group">
+          <label class="form-label" for="bulkBerichtTyp">Berichtstyp</label>
+          <select class="form-control" id="bulkBerichtTyp">
+            <option value="wöchentlich">Wöchentlich</option>
+            <option value="täglich">Täglich</option>
+          </select>
+        </div>`,
+      apply: async (u) => DB.updateUser(u.oid, { berichtTyp: document.getElementById('bulkBerichtTyp').value }),
+    },
+    ausbilder: {
+      title: 'Ausbilder zuweisen',
+      onlyAzubi: true,
+      body: () => {
+        const kandidaten = users.filter(x => x.istAusbilder);
+        return `
+        <div class="nv-bulk-mode">
+          <label><input type="radio" name="bulkAusbMode" value="add" checked> Ergänzen</label>
+          <label><input type="radio" name="bulkAusbMode" value="replace"> Ersetzen</label>
+        </div>
+        <p class="nv-bulk-hint">Ergänzen fügt hinzu, ohne bestehende zu entfernen. Ersetzen ersetzt die manuellen Zuordnungen (automatisch aus Entra zugeordnete bleiben erhalten).</p>
+        <div class="form-group">
+          <label class="form-label">Ausbilder</label>
+          <div class="nv-ausbilder-list">
+            ${kandidaten.length
+              ? kandidaten.map(k => `<label class="nv-form__check-label"><input type="checkbox" class="bulk-ausb-cb" value="${esc(k.oid)}"> ${esc(k.name)} <span class="nv-table__email">${esc(k.email)}</span></label>`).join('')
+              : '<p class="form-hint">Keine ausbilderfähigen Nutzer vorhanden.</p>'}
+          </div>
+        </div>`;
+      },
+      apply: async (u) => {
+        const mode = document.querySelector('input[name="bulkAusbMode"]:checked')?.value || 'add';
+        const chosen = [...document.querySelectorAll('.bulk-ausb-cb:checked')].map(cb => cb.value);
+        // Der PUT ist die vollständige Soll-Menge (nicht additiv): fehlt eine
+        // bestehende Zuordnung darin, wird sie entfernt. Deshalb MUSS die aktuelle
+        // Menge geladen werden — schlägt das fehl, NICHT schreiben (Fehler
+        // propagieren → Schleife zählt fail++, Datensatz bleibt unangetastet).
+        const cur = await DB.getAusbilderFuerAzubi(u.oid);
+        const base = mode === 'add'
+          ? (cur || []).map(a => a.oid)
+          : (cur || []).filter(a => a.quelle === 'auto').map(a => a.oid);
+        await DB.setAusbilderFuerAzubi(u.oid, [...new Set([...base, ...chosen])]);
+      },
+    },
+  };
+
+  function openBulkModal(action) {
+    const cfg = BULK[action];
+    if (!cfg) return;
+    let targets = selectedUsers();
+    if (cfg.onlyAzubi) targets = targets.filter(u => u.istAzubi);
+    if (!targets.length) {
+      Toast.warning('Nicht anwendbar', cfg.onlyAzubi ? 'Kein/e Azubi in der Auswahl.' : 'Keine Nutzer ausgewählt.');
+      return;
+    }
+    const skipped = selected.size - targets.length;
+
+    let ov = document.getElementById('nvBulkModal'); if (ov) ov.remove();
+    ov = document.createElement('div'); ov.className = 'modal-overlay'; ov.id = 'nvBulkModal';
+    ov.innerHTML = `
+      <div class="modal" role="dialog" aria-modal="true" aria-labelledby="nvBulkTitle">
+        <div class="modal__header">
+          <h2 class="modal__title" id="nvBulkTitle">${esc(cfg.title)}</h2>
+          <button class="modal__close" type="button" data-x aria-label="Schließen">&times;</button>
+        </div>
+        <div class="modal__body">
+          ${skipped > 0 ? `<p class="nv-bulk-hint">${targets.length} von ${selected.size} ausgewählten Nutzern betroffen (nur Azubis) – ${skipped} übersprungen.</p>` : ''}
+          <form class="nv-form" novalidate>${cfg.body(targets)}</form>
+        </div>
+        <div class="modal__footer">
+          <button class="btn btn-outline" type="button" data-x>Abbrechen</button>
+          <button class="btn btn-primary" type="button" id="nvBulkApply">Auf ${targets.length} anwenden</button>
+        </div>
+      </div>`;
+    document.body.appendChild(ov);
+    ov.classList.add('open');
+    document.body.style.overflow = 'hidden';
+    const close = () => { ov.remove(); document.body.style.overflow = ''; };
+    ov.querySelectorAll('[data-x]').forEach(b => b.addEventListener('click', close));
+    ov.addEventListener('click', (e) => { if (e.target === ov) close(); });
+
+    ov.querySelector('#nvBulkApply').addEventListener('click', async () => {
+      const btn = ov.querySelector('#nvBulkApply');
+      btn.disabled = true; btn.textContent = 'Wird angewendet…';
+      let ok = 0, fail = 0;
+      for (const u of targets) {
+        try {
+          const updated = await cfg.apply(u);
+          if (updated && updated.oid) {
+            const idx = users.findIndex(x => x.oid === updated.oid);
+            if (idx !== -1) users[idx] = { ...users[idx], ...updated };
+          }
+          ok++;
+        } catch (_) { fail++; }
+      }
+      close();
+      applyFilters();
+      if (fail === 0) Toast.success('Gespeichert', `${ok} ${ok === 1 ? 'Nutzer' : 'Nutzer'} aktualisiert.`);
+      else Toast.warning('Teilweise gespeichert', `${ok} aktualisiert, ${fail} fehlgeschlagen.`);
+    });
+  }
 
   /* Manueller Entra-Sync (developer-only Seite) */
   document.getElementById('nvSyncBtn')?.addEventListener('click', async () => {

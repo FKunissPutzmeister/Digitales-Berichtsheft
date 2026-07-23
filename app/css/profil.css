@@ -325,6 +325,18 @@ details.profil-section .profil-section__body-wrap > .profil-section__body {
 .vertretung-add { max-width: 480px; }
 .vertretung-add__submit { margin-top: var(--sp-3); }
 
+/* Dauer-Wahl: schlichte Radio-Punkte (wie Beurteilung/Fahrgeld), keine Pill */
+.vertretung-dauer { display: flex; gap: var(--sp-5); }
+.vertretung-dauer__opt {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  cursor: pointer;
+  color: var(--pm-grey-700);
+}
+.vertretung-dauer__opt input[type="radio"] { accent-color: var(--pm-yellow); cursor: pointer; }
+.vertretung-dauer__opt:has(input:checked) { color: var(--pm-grey-900); }
+
 /* Custom-Design: Vorschau-Kacheln */
 .theme-tiles {
   display: grid;
@@ -538,7 +550,8 @@ details.profil-section .profil-section__body-wrap > .profil-section__body {
 
 /* Dark-Mode */
 [data-theme="dark"] .profil-logout {
-  background: rgba(255,255,255,0.03);
+  /* opake Karten-Fläche wie die Geschwister-Karten (var(--pm-white) aus
+     der Basisregel), nicht durchsichtig — nur Rand für Dark abstimmen. */
   border-color: rgba(255,255,255,0.08);
   border-left-color: var(--color-error, #E53935);
 }

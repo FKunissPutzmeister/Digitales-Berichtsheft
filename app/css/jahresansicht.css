@@ -265,8 +265,9 @@
   border-radius: 50%;
   flex-shrink: 0;
 }
-.week-status-dot--offen       { background: var(--pm-grey-300); }
-.week-status-dot--freigegeben { background: var(--status-freigegeben); }
+.week-status-dot--offen         { background: var(--pm-grey-300); }
+.week-status-dot--freigegeben   { background: var(--status-freigegeben); }
+.week-status-dot--erstgenehmigt { background: var(--status-freigegeben); }
 .week-status-dot--genehmigt   { background: var(--color-success-mid); }
 .week-status-dot--abgelehnt   { background: var(--color-error-mid); }
 
@@ -283,9 +284,16 @@
   position: relative;
   color: var(--pm-grey-700);
 }
-.day-cell:hover { transform: scale(1.15); z-index: 1; }
+.day-cell:hover {
+  transform: scale(1.1);
+  z-index: 2;
+  /* Ring in der Kachel-Zwischenraum-Farbe (= month-block-Fläche, --pm-white
+     in Light UND Dark) trennt die vergrößerte Kachel sauber von den Nachbarn –
+     sonst verschwimmen die Ränder. Schatten hebt sie zusätzlich an. */
+  box-shadow: 0 0 0 2px var(--pm-white), var(--shadow-md);
+}
 .day-cell.empty { cursor: default; }
-.day-cell.empty:hover { transform: none; }
+.day-cell.empty:hover { transform: none; box-shadow: none; }
 .day-cell.today {
   background: var(--pm-yellow) !important;
   color: var(--pm-grey-900) !important;
@@ -294,13 +302,17 @@
 .day-cell.weekend { color: var(--pm-grey-400); }
 .day-cell.other-month { color: var(--pm-grey-300); }
 
-/* Statusfarben */
+/* Statusfarben: eingereicht/genehmigt/abgelehnt als volldeckende Chips
+   (100 % Deckkraft, weißer Text) statt blasser Tint-Flächen – identisch in
+   Light & Dark, da die Voll-Tokens im Dark-Mode NICHT auf rgba() umgestellt
+   werden (nur die -bg/-light-Varianten). "offen"/"frei" bleiben neutral. */
 .day-cell.status-offen        { background: var(--pm-grey-100); color: var(--pm-grey-600); }
-.day-cell.status-freigegeben  { background: var(--status-freigegeben-bg); color: var(--status-freigegeben); }
+.day-cell.status-freigegeben  { background: var(--status-freigegeben); color: #fff; }
+.day-cell.status-erstgenehmigt { background: var(--status-freigegeben); color: #fff; }
 .day-cell.status-teilweise    { background: var(--pm-yellow-pale); color: var(--pm-yellow-darker); }
 .day-cell.status-vollstaendig { background: #D4EDDA; color: var(--color-success); }
-.day-cell.status-genehmigt    { background: var(--color-success-light); color: var(--color-success); }
-.day-cell.status-abgelehnt    { background: var(--color-error-light); color: var(--color-error); }
+.day-cell.status-genehmigt    { background: var(--color-success); color: #fff; }
+.day-cell.status-abgelehnt    { background: var(--color-error); color: #fff; }
 .day-cell.status-frei         { color: var(--pm-grey-300); cursor: default; }
 
 /* ── Responsiv ── */

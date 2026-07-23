@@ -699,7 +699,8 @@
 .dlb-card__more { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; font-weight: var(--fw-bold); color: var(--pm-grey-400); }
 .dlb-card__more svg { width: 13px; height: 13px; color: var(--pm-grey-300); transition: transform 0.16s var(--ease-out-quart); }
 .dlb-dept.is-open .dlb-card__more svg { transform: rotate(90deg); }
-.dlb-card--plan .dlb-card__meta { justify-content: flex-end; }
+.dlb-card--plan .dlb-card__meta,
+.dlb-now .dlb-card__meta { justify-content: flex-end; }
 .dlb-detail { display: none; margin-top: 12px; padding-top: 11px; border-top: 1px solid var(--pm-grey-100); }
 .dlb-dept.is-open .dlb-detail { display: block; }
 .dlb-detail__row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 6px 0; font-size: 12px; border-top: 1px dashed var(--pm-grey-200); }
@@ -719,10 +720,6 @@
 /* Aktuell-Karte (hervorgehoben) */
 .dlb-now { position: relative; background: var(--pm-white); border: 1.5px solid var(--pm-yellow); border-radius: var(--r-xl); padding: 15px 18px 16px; box-shadow: 0 0 0 4px rgba(255, 195, 0, 0.16), var(--shadow-lg); overflow: hidden; }
 .dlb-now::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 5px; background: var(--edge, var(--pm-yellow)); }
-.dlb-here { display: inline-flex; align-items: center; gap: 8px; background: var(--pm-yellow); color: #3A2C00; font-size: 11px; font-weight: 800; padding: 5px 12px; border-radius: var(--r-full); letter-spacing: 0.05em; }
-.dlb-here .dlb-pulse { width: 8px; height: 8px; border-radius: 50%; background: #3A2C00; position: relative; }
-.dlb-here .dlb-pulse::after { content: ''; position: absolute; inset: 0; border-radius: 50%; animation: dlbpulse 2s var(--ease-out-quart) infinite; }
-@keyframes dlbpulse { 0% { box-shadow: 0 0 0 0 rgba(58, 44, 0, 0.5); } 70% { box-shadow: 0 0 0 6px rgba(58, 44, 0, 0); } 100% { box-shadow: 0 0 0 0 rgba(58, 44, 0, 0); } }
 .dlb-now .dlb-card__title { font-size: var(--text-lg); margin-top: 10px; }
 .dlb-mini { margin-top: 13px; background: var(--pm-yellow-bg); border: 1px solid var(--pm-yellow-light); border-radius: var(--r-md); padding: 10px 12px; }
 .dlb-mini__head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 8px; }
@@ -825,4 +822,3 @@
 
 @media (max-width: 1080px) { .dlb-cols { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (max-width: 720px) { .dlb-cols { grid-template-columns: 1fr; } }
-@media (prefers-reduced-motion: reduce) { .dlb-here .dlb-pulse::after { animation: none; } }

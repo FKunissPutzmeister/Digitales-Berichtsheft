@@ -1,0 +1,112 @@
+/* ===================================================================
+   MITTEILUNGEN.CSS – Vollseite „Alle Mitteilungen" (Filter + Suche)
+   .mt-* namespaced. Bewusst THEME-AGNOSTISCH: Eingaben nutzen .form-control
+   (vom Theme/Silk gestylt), die Zeilen sind randlos mit dezenter Trennlinie
+   auf App-Tokens (--pm-grey-*) – passt sich so automatisch an Standard/Dark/
+   Silk/Candy/… an, ohne pro-Theme-CSS.
+   =================================================================== */
+
+.mt-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-3);
+  align-items: center;
+  margin-bottom: var(--sp-4);
+}
+.mt-toolbar__search { flex: 1 1 240px; min-width: 200px; }
+/* PMSelect verschiebt die .form-control-Klassen auf den .pm-select-Wrapper –
+   beide Selektoren treffen, damit die Breite vor und nach dem Enhancement passt. */
+.mt-toolbar__select,
+.mt-toolbar .pm-select.mt-toolbar__select { flex: 0 0 auto; width: auto; min-width: 150px; }
+
+.mt-count {
+  font-size: var(--text-sm);
+  color: var(--pm-grey-500);
+  margin-bottom: var(--sp-2);
+}
+
+/* Randlose Zeilen mit dezenter Trennlinie (wie der Aktivitäten-Feed). */
+.mt-list { display: flex; flex-direction: column; }
+
+.mt-item {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--sp-3);
+  padding: 14px 12px;
+  border-bottom: 1px solid var(--pm-grey-100);
+  text-decoration: none;
+  color: inherit;
+  position: relative;
+  transition: background var(--t-fast);
+}
+.mt-item:last-child { border-bottom: 0; }
+a.mt-item { cursor: pointer; }
+a.mt-item:hover { background: var(--pm-grey-50); }
+
+/* „Neu seit letztem Besuch" — rein visuell: dünner Akzentstreifen links +
+   sehr dezenter Wash, kein Text. Verschwindet beim nächsten Aufruf. */
+.mt-item--new { background: rgba(59, 130, 246, 0.06); }
+.mt-item--new::before {
+  content: '';
+  position: absolute;
+  left: 0; top: 10px; bottom: 10px;
+  width: 3px;
+  border-radius: 0 3px 3px 0;
+  background: #3b82f6;
+}
+
+.mt-item__icon {
+  flex-shrink: 0;
+  width: 34px; height: 34px;
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+}
+.mt-item__icon svg { width: 18px; height: 18px; }
+.mt-item__icon--ok      { background: rgba(34, 197, 94, 0.16);  color: #16a34a; }
+.mt-item__icon--er      { background: rgba(239, 68, 68, 0.16);  color: #dc2626; }
+.mt-item__icon--info    { background: rgba(59, 130, 246, 0.16); color: #2563eb; }
+.mt-item__icon--warn    { background: color-mix(in srgb, var(--pm-yellow) 20%, transparent); color: var(--pm-yellow-darker, #C58E00); }
+.mt-item__icon--neutral { background: var(--pm-grey-100); color: var(--pm-grey-600); }
+
+.mt-item__body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.mt-item__title { font: 600 var(--text-sm) 'Open Sans', sans-serif; color: var(--pm-grey-900); }
+.mt-item__title strong { font-weight: 700; }
+.mt-item__meta {
+  display: flex; align-items: center; flex-wrap: wrap; gap: 6px;
+  font-size: 12px; color: var(--pm-grey-500);
+}
+.mt-item__chip {
+  font: 600 10.5px 'Libre Franklin', sans-serif;
+  letter-spacing: .03em;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--pm-grey-100);
+  color: var(--pm-grey-600);
+}
+.mt-item__chip--ok   { background: rgba(34, 197, 94, 0.14);  color: #16a34a; }
+.mt-item__chip--er   { background: rgba(239, 68, 68, 0.14);  color: #dc2626; }
+.mt-item__chip--info { background: rgba(59, 130, 246, 0.14); color: #2563eb; }
+/* Ungelesen: dezenter Punkt rechts (Theme-Akzent), kein Kasten. */
+.mt-item__dot {
+  position: absolute; top: 16px; right: 6px;
+  width: 8px; height: 8px; border-radius: 50%;
+  background: var(--pm-yellow);
+}
+
+.mt-empty {
+  padding: var(--sp-8);
+  text-align: center;
+  color: var(--pm-grey-500);
+  font-size: var(--text-sm);
+}
+
+/* ── Dark/Silk: nur, was die App-Tokens nicht schon abdecken ── */
+[data-theme="dark"] a.mt-item:hover { background: rgba(255, 255, 255, 0.04); }
+[data-theme="dark"] .mt-item--new { background: rgba(59, 130, 246, 0.12); }
+[data-theme="dark"] .mt-item--new::before { background: #60a5fa; }
+[data-theme="dark"] .mt-item__icon--neutral { background: rgba(255, 255, 255, 0.08); color: var(--pm-grey-300); }
+[data-theme="dark"] .mt-item__chip { background: rgba(255, 255, 255, 0.08); color: var(--pm-grey-300); }
+/* Farbige Typ-Chips im Dunkeln lesbar (NACH der neutralen Regel wg. Spezifität). */
+[data-theme="dark"] .mt-item__chip--info { background: rgba(59, 130, 246, 0.22); color: #93c5fd; }
+[data-theme="dark"] .mt-item__chip--ok   { background: rgba(34, 197, 94, 0.22);  color: #86efac; }
+[data-theme="dark"] .mt-item__chip--er   { background: rgba(239, 68, 68, 0.22);  color: #fca5a5; }

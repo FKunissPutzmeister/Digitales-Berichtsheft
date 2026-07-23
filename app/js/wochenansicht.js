@@ -53,7 +53,25 @@ if (window.QuillTableBetter) {
   console.warn('[Wochenansicht] quill-table-better nicht geladen – Tabellen deaktiviert.');
 }
 
+// quill-blot-formatter2: Bilder anklicken → Resize-Handles zum Ziehen,
+// Entf/Backspace löscht das ausgewählte Bild.
+if (window.QuillBlotFormatter2) {
+  Quill.register('modules/blotFormatter2', QuillBlotFormatter2.default, true);
+} else {
+  console.warn('[Wochenansicht] quill-blot-formatter2 nicht geladen – Bild-Resize deaktiviert.');
+}
+
+// Undo/Redo-Icons direkt in Quills Icon-Registry als Inline-SVG hinterlegen.
+// (CSS-::before-Pfeile funktionieren hier nicht, weil Quill die Toolbar als
+// GESCHWISTER von .ql-editor-wrap einhängt – Inline-SVG umgeht das komplett.)
+{
+  const icons = Quill.import('ui/icons');
+  icons['undo'] = '<svg viewbox="0 0 24 24"><path class="ql-stroke" d="M9 14 4 9l5-5"></path><path class="ql-stroke" d="M4 9h10.5a5.5 5.5 0 0 1 5.5 5.5 5.5 5.5 0 0 1-5.5 5.5H11"></path></svg>';
+  icons['redo'] = '<svg viewbox="0 0 24 24"><path class="ql-stroke" d="m15 14 5-5-5-5"></path><path class="ql-stroke" d="M20 9H9.5A5.5 5.5 0 0 0 4 14.5 5.5 5.5 0 0 0 9.5 20H13"></path></svg>';
+}
+
 const QUILL_TOOLBAR = [
+  ['undo', 'redo'],
   [{ header: [1, 2, 3, false] }],
   [{ align: '' }, { align: 'center' }, { align: 'right' }, { align: 'justify' }],
   ['bold', 'italic', 'underline'],
@@ -64,13 +82,12 @@ const QUILL_TOOLBAR = [
   ['image'],
   ['blockquote'],
   ['table-better'],
-  // Hinweis: KEINE 'undo'/'redo'-Buttons. Quill liefert für diese
-  // Custom-Formate kein Icon, und die ::before-Pfeile aus quill-editor.css
-  // greifen nicht (Quill hängt die Toolbar als GESCHWISTER von
-  // .ql-editor-wrap ein, nicht als Nachfahre) → es entstanden zwei leere,
-  // unsichtbare Toolbar-Felder. Rückgängig/Wiederherstellen bleibt über die
-  // Tastatur (Strg+Z / Strg+Y) via history-Modul verfügbar.
 ];
+
+const QUILL_TOOLBAR_HANDLERS = {
+  undo() { this.quill.history.undo(); },
+  redo() { this.quill.history.redo(); },
+};
 
 // Gemeinsame Quill-Moduloptionen für alle Editor-Instanzen. Readonly-
 // Instanzen bekommen keine Tabellen-Menüs (nur Anzeige), aber das Modul
@@ -85,7 +102,9 @@ function quillModules(readonly) {
   // Daher bekommen Readonly-Instanzen ein leeres (Buttons-freies) Toolbar-Modul
   // statt gar keines – es wird direkt nach dem Konstruieren ausgeblendet.
   const mods = {
-    toolbar: readonly ? (hasTableBetter ? { container: [] } : false) : { container: QUILL_TOOLBAR },
+    toolbar: readonly
+      ? (hasTableBetter ? { container: [] } : false)
+      : { container: QUILL_TOOLBAR, handlers: QUILL_TOOLBAR_HANDLERS },
     history: { delay: 1000, maxStack: 100, userOnly: true },
   };
   if (hasTableBetter) {
@@ -96,6 +115,15 @@ function quillModules(readonly) {
       toolbarTable: !readonly,
     };
     mods.keyboard = { bindings: QuillTableBetter.keyboardBindings };
+  }
+  // Bild-Resize/-Löschen nur im Edit-Modus (Readonly-Ansichten ohne Overlay).
+  if (!readonly && window.QuillBlotFormatter2) {
+    mods.blotFormatter2 = {
+      // nur Resize + Entf-Löschen — keine Ausricht-/Link-/Alt-Text-Buttons
+      align: { allowAligning: false },
+      image: { allowAltTitleEdit: false, linkOptions: { allowLinkEdit: false } },
+      video: { allowResizing: false },
+    };
   }
   return mods;
 }
@@ -992,9 +1020,6 @@ document.addEventListener('DOMContentLoaded', async () => {
               ${renderDaySection('betrieb',     dateStr, true, true, readonly, showBetrieb)}
               ${renderDaySection('schule',      dateStr, true, schuleExpanded, readonly, showSchule)}
               ${renderDaySection('unterweisung', dateStr, true, unterweisungExpanded, readonly, !!tag.ort || hasUnterweisung)}
-              ${!readonly ? `<div class="day-card__footer day-card__footer--actions">
-                <button class="btn btn-sm btn-ghost" onclick="clearDayEntry('${dateStr}')">Eintrag leeren</button>
-              </div>` : ''}
             </div>
             <div class="tag-row__absence-section" id="absenceSection_${dateStr}" style="${isAbwesend ? '' : 'display:none'}">
               <div class="form-group">
@@ -1054,7 +1079,13 @@ document.addEventListener('DOMContentLoaded', async () => {
   async function renderStatusBanner(woche, azubiAusbilderName, currentUser) {
     if (!woche) return '';
 
+    // Tatsächlich handelnde Person (KorrigiertVon) statt des statisch
+    // zugeordneten Ausbilders — ein Azubi kann mehrere Ausbilder haben.
+    const korrektor = woche.korrigiertVon ? await DB.getUser(woche.korrigiertVon) : null;
+    const korrektorName = korrektor ? korrektor.name : '';
+
     if (woche.status === 'genehmigt') {
+      const name = korrektorName || azubiAusbilderName;
       return `
         <div class="week-status-banner week-status-banner--genehmigt">
           <div class="week-status-banner__icon" aria-hidden="true">
@@ -1062,7 +1093,7 @@ document.addEventListener('DOMContentLoaded', async () => {
           </div>
           <div class="week-status-banner__body">
             <div class="week-status-banner__title">Diese Woche wurde genehmigt</div>
-            <p class="week-status-banner__text">Die Einträge sind abgenommen und schreibgeschützt. ${azubiAusbilderName ? `Genehmigt durch <strong>${azubiAusbilderName}</strong>.` : ''}</p>
+            <p class="week-status-banner__text">Die Einträge sind abgenommen und schreibgeschützt. ${name ? `Genehmigt durch <strong>${escapeHtml(name)}</strong>.` : ''}</p>
           </div>
         </div>
       `;
@@ -1070,6 +1101,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     if (woche.status === 'erstgenehmigt') {
       const isAzubi = currentUser.istAzubi;
+      const von = korrektorName ? ` von <strong>${escapeHtml(korrektorName)}</strong>` : '';
       return `
         <div class="week-status-banner week-status-banner--erstgenehmigt">
           <div class="week-status-banner__icon" aria-hidden="true">
@@ -1079,8 +1111,8 @@ document.addEventListener('DOMContentLoaded', async () => {
             <div class="week-status-banner__title">Erstgenehmigt – wartet auf Endabnahme</div>
             <p class="week-status-banner__text">
               ${isAzubi
-                ? `Ein Prüfer hat diese Woche erstgenehmigt. Die endgültige Genehmigung erfolgt durch deine Ausbilder/in.`
-                : `Vom Prüfer erstgenehmigt. Bitte als Endabnahme über <strong>Genehmigen</strong> oder <strong>Zurückgeben</strong> entscheiden.`}
+                ? `Diese Woche wurde${von} erstgenehmigt. Die endgültige Genehmigung erfolgt durch deine Ausbilder/in.`
+                : `Erstgenehmigt${von}. Bitte als Endabnahme über <strong>Genehmigen</strong> oder <strong>Zurückgeben</strong> entscheiden.`}
             </p>
           </div>
         </div>
@@ -1095,7 +1127,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
           </div>
           <div class="week-status-banner__body">
-            <div class="week-status-banner__title">Zur Abnahme freigegeben</div>
+            <div class="week-status-banner__title">Eingereicht</div>
             <p class="week-status-banner__text">
               ${isAzubi
                 ? `Wartet auf Prüfung${azubiAusbilderName ? ` durch <strong>${azubiAusbilderName}</strong>` : ''}. Du kannst noch nichts ändern – wenn deine Ausbilder/in zurückgibt, wird die Woche wieder editierbar.`
@@ -1670,7 +1702,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         <div class="ql-editor-wrap wochen-editor-wrap" id="wochenEditorWrap_${id}" data-kachel="${id}"></div>
         ${readonly ? '' : `<div class="day-card__footer">
           <span class="day-card__char-count" id="wochenCharCount_${id}" aria-live="polite"></span>
-          <button class="btn btn-sm btn-ghost" onclick="clearWochenKachel('${id}')">Leeren</button>
         </div>`}
       </div>
     `;
@@ -2432,7 +2463,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       if (!currentWoche) { Toast.warning('Keine Einträge', 'Bitte zuerst Einträge erfassen.'); Modal.closeAll(); return; }
       await DB.setWocheStatus(currentWoche.id, 'freigegeben');
       Modal.closeAll();
-      Toast.success('Freigegeben', `KW ${currentKW} wurde zur Abnahme freigegeben.`);
+      Toast.success('Eingereicht', `KW ${currentKW} wurde eingereicht.`);
       render();
     });
 
@@ -2740,28 +2771,11 @@ function handleTagRowToggle(e) {
   }
 }
 
-function clearDayEntry(dateStr) {
-  ['betrieb', 'schule', 'unterweisung'].forEach(kind => {
-    const q = quillInstances[`day_${kind}_${dateStr}`];
-    if (q) { q.setContents([]); markQuillLimit(q); }
-    renderCharCount(document.getElementById(`dayCharCount_${kind}_${dateStr}`), q);
-  });
-}
-
 function toggleDaySection(headerEl) {
   const section = headerEl.closest('.day-section');
   if (!section) return;
   const isExpanded = section.classList.toggle('day-section--expanded');
   headerEl.setAttribute('aria-expanded', String(isExpanded));
-}
-
-function clearWochenKachel(kachelId) {
-  const quill = quillInstances['woche_' + kachelId];
-  if (quill) {
-    quill.setContents([]);
-    markQuillLimit(quill);
-    renderCharCount(document.getElementById('wochenCharCount_' + kachelId), quill);
-  }
 }
 
 /* escapeHtml kommt zentral aus api.js (window.escapeHtml). */

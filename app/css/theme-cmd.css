@@ -329,7 +329,6 @@ html[data-theme="cmd"] { color-scheme: dark; }
 
 /* Profil-Logout-Karte (profil.css spiegelt nur dark) */
 [data-theme="cmd"] .profil-logout {
-  background: rgba(255,255,255,0.03);
   border-color: rgba(255,255,255,0.08);
   border-left-color: var(--color-error-mid);
 }

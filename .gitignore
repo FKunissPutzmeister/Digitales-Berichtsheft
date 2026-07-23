@@ -51,6 +51,10 @@ backend/.env
 # überleben Backend-Restarts. Gehören NICHT ins Repo.
 backend/sessions/
 
+# Serverseitig archivierte IHK-Import-PDFs (Original-Nachweise zur späteren
+# Fehlerprüfung). Enthalten personenbezogene Daten → NIEMALS ins Repo.
+backend/data/
+
 # Claude Code – lokale Agent-Worktrees & Arbeitsdateien (nicht versionieren)
 .claude/
 

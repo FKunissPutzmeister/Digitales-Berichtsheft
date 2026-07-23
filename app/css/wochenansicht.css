@@ -2268,10 +2268,7 @@ body[data-page="wochenansicht"] .day-section__body .ql-charcount {
   margin-top: 6px;
   text-align: right;
 }
-/* Tages-Footer ohne Zähler: „Eintrag leeren" rechtsbündig. */
-body[data-page="wochenansicht"] .day-card__footer--actions { justify-content: flex-end; }
-
-/* Footer mit Char-Count + Eintrag-leeren-Button */
+/* Footer mit Char-Count */
 body[data-page="wochenansicht"] .day-card__footer {
   margin-top: var(--sp-3);
   padding-top: var(--sp-3);

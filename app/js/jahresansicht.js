@@ -79,8 +79,8 @@ document.addEventListener('DOMContentLoaded', async () => {
       </div>
 
       <div class="year-legend">
-        <div class="legend-item"><div class="week-status-dot week-status-dot--offen" style="flex-shrink:0"></div> Noch nicht freigegeben</div>
-        <div class="legend-item"><div class="week-status-dot week-status-dot--freigegeben" style="flex-shrink:0"></div> Zur Abnahme freigegeben</div>
+        <div class="legend-item"><div class="week-status-dot week-status-dot--offen" style="flex-shrink:0"></div> Noch nicht eingereicht</div>
+        <div class="legend-item"><div class="week-status-dot week-status-dot--freigegeben" style="flex-shrink:0"></div> Eingereicht</div>
         <div class="legend-item"><div class="week-status-dot week-status-dot--genehmigt" style="flex-shrink:0"></div> Genehmigt</div>
         <div class="legend-item"><div class="week-status-dot week-status-dot--abgelehnt" style="flex-shrink:0"></div> Abgelehnt / Zurückgegeben</div>
         <div class="legend-item"><div class="legend-dot legend-dot--frei"></div> Wochenende / Frei</div>
@@ -143,7 +143,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     if (!cal || reduce) {
       const wochen = await wochenP;
-      if (cal) { cal.innerHTML = buildYearCalendar(currentYear, wochen); bindWeekRows(); }
+      if (cal) { cal.innerHTML = buildYearCalendar(currentYear, wochen, false); bindWeekRows(); }
       yearAnimating = false;
       return;
     }
@@ -155,7 +155,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // Daten holen UND die Exit-Animation (180ms) abwarten, dann erst swappen.
     const [wochen] = await Promise.all([wochenP, new Promise(r => setTimeout(r, 180))]);
-    cal.innerHTML = buildYearCalendar(currentYear, wochen);
+    cal.innerHTML = buildYearCalendar(currentYear, wochen, false);
     cal.classList.remove('year-calendar--leaving');
     cal.classList.add('year-calendar--entering');
     bindWeekRows();
@@ -173,13 +173,20 @@ document.addEventListener('DOMContentLoaded', async () => {
     return renderAzubiSelect(azubis, currentId);
   }
 
-  function buildYearCalendar(year, wochen) {
+  function buildYearCalendar(year, wochen, animateMonths = true) {
     return DateUtil.MONTHS.map((monthName, monthIdx) => {
       // Wochen des Monats bestimmen
       const weeks = getWeeksInMonth(year, monthIdx);
 
+      // Beim Jahreswechsel gleitet die ganze #yearCalendar-Ebene als EIN Block
+      // (Container-Slide). Die Per-Monats-Einblendung wird dann abgeschaltet
+      // (animation:none) – sonst spielt sie erneut ab, sobald die
+      // --entering-Klasse nach dem Slide entfernt wird ("Nach-Flackern").
+      const cls = animateMonths ? 'month-block animate-fade-in' : 'month-block';
+      const styleAttr = animateMonths ? `animation-delay:${monthIdx * 30}ms` : 'animation:none';
+
       return `
-        <div class="month-block animate-fade-in" style="animation-delay:${monthIdx * 30}ms">
+        <div class="${cls}" style="${styleAttr}">
           <div class="month-block__header">
             <span class="month-block__name">${monthName} ${year}</span>
           </div>

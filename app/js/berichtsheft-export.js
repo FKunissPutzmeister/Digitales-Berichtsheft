@@ -219,7 +219,7 @@ const BerichtsheftExport = (() => {
     if (data.azubi && data.azubi.oid && data.azubi.oid !== _user.oid)
       teile.push('<strong style="color:var(--color-warning,#d97706)">Achtung: Das Backup stammt von einem anderen Konto und wird in dein Berichtsheft übernommen.</strong>');
     teile.push(`<strong>${neu.length}</strong> neue Wochen werden angelegt, <strong>${ueberschreiben.length}</strong> bestehende überschrieben.`);
-    if (geschuetzt.length) teile.push(`${geschuetzt.length} freigegebene/genehmigte Wochen bleiben unangetastet.`);
+    if (geschuetzt.length) teile.push(`${geschuetzt.length} eingereichte/genehmigte Wochen bleiben unangetastet.`);
     if (ungueltig.length)  teile.push(`${ungueltig.length} unvollständige Einträge werden übersprungen.`);
     document.getElementById('bhxSummary').innerHTML = teile.join('<br>');
     document.getElementById('bhxPreview').hidden = false;
@@ -269,7 +269,7 @@ const BerichtsheftExport = (() => {
     else if (w.status === 'abgelehnt') ausbilderText = `Zur Überarbeitung zurückgegeben${genehmigtAm ? ` am ${genehmigtAm}` : ''}`;
     else                               ausbilderText = 'Prüfung ausstehend';
     return {
-      azubiText: azubiFreigegeben ? 'Berichtsheft geführt und zur Prüfung freigegeben' : 'Entwurf – noch nicht freigegeben',
+      azubiText: azubiFreigegeben ? 'Berichtsheft geführt und zur Prüfung eingereicht' : 'Entwurf – noch nicht eingereicht',
       ausbilderName: (w.status === 'genehmigt' || w.status === 'abgelehnt') ? (ausbilderName || 'Ausbilder/in') : '—',
       ausbilderText,
     };
@@ -407,7 +407,7 @@ const BerichtsheftExport = (() => {
 
   function statusLabel(w) {
     if (w.status === 'genehmigt')   return 'Genehmigt';
-    if (w.status === 'freigegeben') return 'In Prüfung';
+    if (w.status === 'freigegeben') return 'Eingereicht';
     if (w.status === 'abgelehnt')   return 'Zurückgewiesen';
     return 'In Bearbeitung';
   }

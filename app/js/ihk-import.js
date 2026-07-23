@@ -13,7 +13,7 @@ const IhkImport = (() => {
   const WORKER_SRC = 'js/vendor/pdf.worker.min.js';
   const STATUS_LABELS = {
     'offen':       'Offen',
-    'freigegeben': 'Freigegeben',
+    'freigegeben': 'Eingereicht',
     'erstgenehmigt': 'Erstgenehmigt',
     'genehmigt':   'Genehmigt',
     'abgelehnt':   'Abgelehnt',
@@ -21,7 +21,8 @@ const IhkImport = (() => {
 
   let _user   = null;
   let _parsed = null;  // { wochen, warnungen } von IhkParser
-  let _infos  = {};    // key "${year}-${kw}" → { readonly, exists }
+  let _file   = null;  // zuletzt eingelesene PDF-Datei (für serverseitige Sicherung)
+  let _infos  = {};    // key "${year}-${kw}" → { exists, vorherStatus }
 
   const esc = window.escapeHtml;
 
@@ -114,7 +115,7 @@ const IhkImport = (() => {
               IHK-PDF hochladen
             </button>
             <input type="file" id="ihkFileInput" accept="application/pdf,.pdf" hidden>
-            <div class="ztn-drop__hint">Nur PDF-Dateien · Die Datei bleibt lokal auf Ihrem Rechner.</div>
+            <div class="ztn-drop__hint">Nur PDF-Dateien · Die Datei wird zur späteren Prüfung im System gespeichert.</div>
           </div>
         </div></div>
       </details>
@@ -189,6 +190,7 @@ const IhkImport = (() => {
 
     const origLabel = btn ? btn.innerHTML : '';
     if (btn) { btn.disabled = true; btn.textContent = 'Wird gelesen…'; }
+    _file = file;   // für die serverseitige Sicherung nach erfolgreichem Import
 
     try {
       const pages  = await extractPages(await file.arrayBuffer());
@@ -292,13 +294,16 @@ const IhkImport = (() => {
 
   // ── 4) Vorschau-Dialog ─────────────────────────────────────────
   async function openPreview() {
-    // Bestehende Wochen-Status aus DB vorab laden (für Schreibschutz-Check)
+    // Bestehende Wochen vorab laden — nur noch für den Überschreiben-Hinweis.
+    // Ein erneuter Import DARF bestehende Wochen überschreiben (kein Schreib-
+    // schutz mehr): so lässt sich ein falsch gemappter IHK-Status geradeziehen,
+    // indem der Azubi den korrigierten Nachweis erneut einliest.
     _infos = {};
     for (const w of _parsed.wochen) {
       const existing = await DB.getWoche(_user.id, w.kw, w.year);
       _infos[`${w.year}-${w.kw}`] = {
-        readonly: !!(existing && (existing.status === 'freigegeben' || existing.status === 'erstgenehmigt' || existing.status === 'genehmigt')),
-        exists:   !!existing,
+        exists:       !!existing,
+        vorherStatus: existing ? existing.status : null,
       };
     }
     renderPreviewBody();
@@ -338,18 +343,18 @@ const IhkImport = (() => {
     const rows = _parsed.wochen.map((w, idx) => {
       const key      = `${w.year}-${w.kw}`;
       const info     = _infos[key] || {};
-      const disabled = info.readonly;
 
-      const hint = disabled
-        ? '<span class="ztn-hint ztn-hint--ro">bereits eingereicht/genehmigt</span>'
-        : (info.exists
-            ? '<span class="ztn-hint ztn-hint--belegt">wird überschrieben</span>'
-            : '<span class="ztn-hint ztn-hint--neu">neu</span>');
+      // Bestehende Woche wird überschrieben — den aktuellen Status mitzeigen,
+      // damit ein Überschreiben (z. B. einer bereits genehmigten Woche) sichtbar
+      // und bewusst passiert statt still.
+      const hint = info.exists
+        ? `<span class="ztn-hint ztn-hint--belegt">überschreibt${info.vorherStatus ? ' · aktuell: ' + esc(STATUS_LABELS[info.vorherStatus] || info.vorherStatus) : ''}</span>`
+        : '<span class="ztn-hint ztn-hint--neu">neu</span>';
 
       const hasText = w.modus === 'täglich'
         ? w.tage.some(t => t.eintragText && t.eintragText.trim())
         : !!(w.betriebText || w.schuleText || w.unterweisungText);
-      const textHint = (!disabled && hasText)
+      const textHint = hasText
         ? '<br><span class="ztn-hint ztn-hint--neu">+ Tätigkeitsbeschreibungen</span>'
         : '';
 
@@ -362,10 +367,9 @@ const IhkImport = (() => {
         : '';
 
       return `
-        <tr class="ztn-row${disabled ? ' ztn-row--disabled' : ''}">
+        <tr class="ztn-row">
           <td class="ztn-row__check">
-            <input type="checkbox" class="ztn-check" data-idx="${idx}"
-              ${disabled ? 'disabled' : 'checked'}>
+            <input type="checkbox" class="ztn-check" data-idx="${idx}" checked>
           </td>
           <td class="ztn-row__date"><strong>KW ${esc(w.kw)}</strong> · ${esc(w.year)}</td>
           <td class="ztn-row__date">${DateUtil.formatDateShort(w.startDate)} – ${DateUtil.formatDateShort(w.endDate)}</td>
@@ -484,13 +488,9 @@ const IhkImport = (() => {
 
     for (const pw of selected) {
       const existing = await DB.getWoche(_user.id, pw.kw, pw.year);
-
-      // Doppelte Schreibschutz-Prüfung (Checkbox-State könnte manipuliert sein)
-      if (existing && (existing.status === 'freigegeben' || existing.status === 'erstgenehmigt' || existing.status === 'genehmigt')) {
-        summary.uebersprungen++;
-        continue;
-      }
-
+      // Kein Schreibschutz mehr: ein erneuter Import überschreibt bewusst auch
+      // bereits eingereichte/genehmigte Wochen (korrigierter IHK-Status). Der
+      // Server erlaubt dem Azubi das Überschreiben des EIGENEN Hefts.
       const woche = existing || {
         azubiId:       _user.id,
         kw:            pw.kw,
@@ -520,6 +520,23 @@ const IhkImport = (() => {
     }
 
     renderSuccess(summary);
+    backupDatei(summary);   // Original-PDF serverseitig sichern (Best-effort)
+  }
+
+  // Die importierte PDF serverseitig ablegen, damit der Original-Nachweis
+  // später erneut geprüft werden kann ("guck dir die Datei nochmal an").
+  // Best-effort: ein Fehler hier darf den erfolgreichen Import NICHT kippen.
+  async function backupDatei(summary) {
+    if (!_file || !summary.uebernommen) return;
+    try {
+      await DB.saveIhkImportDatei(_file, {
+        wochen:    _parsed.wochen.map(w => ({ kw: w.kw, year: w.year, status: w.status })),
+        warnungen: _parsed.warnungen,
+        modus:     _parsed.modus,
+      });
+    } catch (e) {
+      console.warn('[IhkImport] Serverseitige Sicherung fehlgeschlagen:', e);
+    }
   }
 
   function renderSuccess(summary) {
@@ -540,7 +557,7 @@ const IhkImport = (() => {
           <p class="ztn-success__text">
             Aktualisierte Wochen: <strong>${wochenTxt}</strong>.
             ${summary.uebersprungen
-              ? `<br>${summary.uebersprungen} ${summary.uebersprungen === 1 ? 'Woche' : 'Wochen'} übersprungen (bereits genehmigt/freigegeben).`
+              ? `<br>${summary.uebersprungen} ${summary.uebersprungen === 1 ? 'Woche' : 'Wochen'} übersprungen (bereits eingereicht/genehmigt).`
               : ''}
             <br>Die Einträge findest du in der Wochenansicht.
           </p>

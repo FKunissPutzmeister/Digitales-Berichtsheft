@@ -87,6 +87,50 @@
   white-space: nowrap;
 }
 
+/* ── Mehrfachauswahl (Checkbox-Spalte + Sammel-Aktionsleiste) ── */
+.nv-table__check {
+  width: 40px;
+  text-align: center;
+  padding-right: 0;
+}
+.nv-table__check input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--pm-yellow);
+  cursor: pointer;
+  vertical-align: middle;
+}
+.nv-table tbody tr.nv-row--selected {
+  background: var(--pm-yellow-pale, #fffdf5);
+}
+
+.nv-bulkbar {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  flex-wrap: wrap;
+  margin-bottom: var(--sp-4);
+  padding: 10px 14px;
+  background: var(--pm-yellow-pale, #fffdf5);
+  border: 1px solid rgba(255, 195, 0, 0.4);
+  border-radius: var(--r-md);
+}
+.nv-bulkbar[hidden] { display: none; }
+.nv-bulkbar__count { font-size: var(--text-sm); color: var(--pm-grey-800); }
+.nv-bulkbar__count b { font-weight: 700; }
+.nv-bulkbar__actions { display: flex; flex-wrap: wrap; gap: var(--sp-2); }
+.nv-bulkbar__clear { margin-left: auto; }
+
+/* Bulk-Modal: Ausbilder-Modus (ergänzen/ersetzen) */
+.nv-bulk-mode { display: flex; gap: var(--sp-5); margin-bottom: var(--sp-3); }
+.nv-bulk-mode label { display: flex; align-items: center; gap: 6px; font-size: var(--text-sm); cursor: pointer; }
+.nv-bulk-mode input[type="radio"] { accent-color: var(--pm-yellow); cursor: pointer; }
+.nv-bulk-hint { font-size: var(--text-xs); color: var(--pm-grey-500); margin: 0 0 var(--sp-3); }
+
+[data-theme="dark"] .nv-table tbody tr.nv-row--selected { background: rgba(255, 195, 0, 0.08); }
+[data-theme="dark"] .nv-bulkbar { background: rgba(255, 195, 0, 0.08); border-color: rgba(255, 195, 0, 0.3); }
+[data-theme="dark"] .nv-bulkbar__count { color: var(--pm-grey-200); }
+
 /* ── Leere-Zustand ── */
 .nv-empty {
   padding: var(--sp-12) var(--sp-6);

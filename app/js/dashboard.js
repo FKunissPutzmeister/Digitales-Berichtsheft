@@ -184,7 +184,7 @@ async function renderAzubiDashboard(user) {
       const rec = lookupWoche(wkw, wyr);
       const kind = wkcardKind(rec);
       const lbl = kind === 'ok'    ? 'Genehmigt'
-               : kind === 'fr'     ? 'Freigegeben'
+               : kind === 'fr'     ? 'Eingereicht'
                : kind === 'er'     ? 'Zurückgegeben'
                :                     'Offen';
       html += `
@@ -225,7 +225,7 @@ async function renderAzubiDashboard(user) {
         if (hatInhalt) {
           if (woche.status === 'genehmigt')          { kind = 'ok';    lbl = 'Genehmigt'; }
           else if (woche.status === 'erstgenehmigt') { kind = 'fr';    lbl = 'Erstgenehmigt'; }
-          else if (woche.status === 'freigegeben')   { kind = 'fr';    lbl = 'Freigegeben'; }
+          else if (woche.status === 'freigegeben')   { kind = 'fr';    lbl = 'Eingereicht'; }
           else if (woche.status === 'abgelehnt')     { kind = 'er';    lbl = 'Zurückgegeben'; }
           else                                        { kind = 'draft'; lbl = 'Entwurf'; }
         }
@@ -299,8 +299,10 @@ async function renderAzubiDashboard(user) {
   }
   // Versetzungs-Mitteilungen erscheinen nur in der Glocke, nicht in dieser
   // KW-zentrischen Berichtsheft-Mitteilungsliste (hätten kein KW/Jahr).
+  // „genehmigt" erzeugt bewusst keine Mitteilung; Versetzungen laufen über die
+  // Glocke, nicht über diese KW-zentrische Liste.
   const mtItems = (await DB.getBenachrichtigungenFuerUser(user.id))
-    .filter(b => !String(b.type || '').startsWith('versetzung_'));
+    .filter(b => !String(b.type || '').startsWith('versetzung_') && b.type !== 'genehmigt');
   const mtUnread = mtItems.filter(b => !b.gelesen).length;
   const mtFahrgeld = computeFahrgeldReminder();
   const mtFahrgeldHtml = mtFahrgeld ? `
@@ -332,6 +334,10 @@ async function renderAzubiDashboard(user) {
   }).join('');
   const mtEmptyHtml = (!mtNotifHtml && !mtFahrgeldHtml)
     ? '<div class="b-mitteilungen__empty">Keine neuen Mitteilungen</div>' : '';
+  const mtMehrHtml = mtItems.length > 6
+    ? `<a class="b-mitteilungen__more" href="mitteilungen.html">Alle ${mtItems.length} anzeigen
+         <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg></a>`
+    : '';
   const mitteilungenSectionHtml = `
       <section class="b-tile b-mitteilungen animate-fade-in">
         <div class="b-azubi__head">
@@ -343,6 +349,7 @@ async function renderAzubiDashboard(user) {
           ${mtNotifHtml}
           ${mtEmptyHtml}
         </div>
+        ${mtMehrHtml}
       </section>`;
 
   main.innerHTML = `
@@ -636,6 +643,33 @@ async function renderAusbilderDashboard(user) {
 
   const zeigeSuche = meineAzubis.length >= 6;
 
+  // Mitteilungen (rechte Spalte): auf eine vernünftige Länge kappen; darüber
+  // hinaus führt ein subtiler Button auf die Vollseite mit Filter + Suche.
+  const MITT_CAP = 6;
+  const mittItems = buildAusbilderMitteilungen(allWochen, beurteilungen);
+  const mittListHtml = mittItems.length
+    ? renderActivityRows(mittItems.slice(0, MITT_CAP))
+    : '<div class="empty-state" style="padding:var(--sp-8)"><p class="empty-state__text">Noch keine Mitteilungen.</p></div>';
+  const mittMehrHtml = mittItems.length > MITT_CAP
+    ? `<a class="activity-more" href="mitteilungen.html">Alle ${mittItems.length} Mitteilungen anzeigen
+         <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg></a>`
+    : '';
+
+  const durchlaufHtml = meineAzubis.length > 0 ? renderDurchlaufListe(durchlaufRows, today) : '';
+
+  const mitteilungenCardHtml = `
+    <div class="card animate-fade-in">
+      <div class="card__header">
+        <span class="card__title">Mitteilungen</span>
+      </div>
+      <div class="card__body" style="padding-top:0;padding-bottom:0">
+        <div class="activity-feed">
+          ${mittListHtml}
+        </div>
+      </div>
+      ${mittMehrHtml}
+    </div>`;
+
   const main = document.getElementById('mainContent');
   main.innerHTML = `
     <section class="welcome-hero">
@@ -649,16 +683,9 @@ async function renderAusbilderDashboard(user) {
       </div>
     </section>
 
-    ${meineAzubis.length > 0 ? `
-    <section class="rot-section">
-      <h2 class="dashboard-section-title" style="font-size:var(--text-base);margin:var(--sp-5) 0 var(--sp-3)">Durchläufe</h2>
-      ${renderDurchlaufListe(durchlaufRows, today)}
-    </section>
-    ` : ''}
-
     ${istKorrektor ? `
     <div class="dashboard-grid">
-      <!-- LINKS (Hero): Azubi-Karten, nach Azubi gruppiert -->
+      <!-- LINKS (Hero): Zu prüfen + darunter der Abteilungsdurchlauf -->
       <div class="dashboard-grid__col dashboard-grid__col--hero">
         <div class="card review-inbox animate-fade-in" id="reviewInboxCard">
           <div class="card__header review-inbox__header">
@@ -683,23 +710,15 @@ async function renderAusbilderDashboard(user) {
           </div>
           ${erledigt.length > 0 ? renderAzubiDoneGroup(erledigt) : ''}
         </div>
+        ${durchlaufHtml}
       </div>
 
-      <!-- RECHTS: Letzte Aktivitäten (inkl. abgeschlossener Beurteilungen) -->
+      <!-- RECHTS: Mitteilungen (inkl. abgeschlossener Beurteilungen) -->
       <div class="dashboard-grid__col">
-        <div class="card animate-fade-in">
-          <div class="card__header">
-            <span class="card__title">Letzte Aktivitäten</span>
-          </div>
-          <div class="card__body" style="padding-top:0;padding-bottom:0">
-            <div class="activity-feed">
-              ${renderAusbilderActivities(allWochen, beurteilungen)}
-            </div>
-          </div>
-        </div>
+        ${mitteilungenCardHtml}
       </div>
     </div>
-    ` : ''}
+    ` : durchlaufHtml}
   `;
 
   bindAusbilderCards();
@@ -710,7 +729,7 @@ async function renderAusbilderDashboard(user) {
   initBulkActions(queue, user);
 }
 
-/* ── Durchlauf-Übersicht („Wer ist wo") ────────────────────────────
+/* ── Abteilungsdurchlauf-Übersicht ─────────────────────────────────
    Kompakte Zeile pro Azubi: aktuelle Abteilung → nächste (+ Datum).
    Nach Dringlichkeit sortiert (ohne Zuweisung → endet bald ohne
    Nachfolger → läuft). Ersetzt die frühere Signal-Kachel-Reihe. */
@@ -735,37 +754,44 @@ function analyseDurchlauf(zuw, heute, grenze) {
 }
 
 const DLB_ARROW = `<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.2"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>`;
+const DLB_CHEV = `<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>`;
+
+/* Eine Station der Journey. Gefüllt = wo der Azubi gerade ist, umrandet =
+   wohin es geht, gestrichelt = noch nicht geplant / nicht zugewiesen. */
+function durchlaufStop(mod, lbl, dept, date) {
+  return `
+    <div class="rot-stop rot-stop--${mod}">
+      <span class="rot-stop__lbl">${lbl}</span>
+      <span class="rot-stop__dept">${dept}</span>
+      <span class="rot-stop__date">${date || '&nbsp;'}</span>
+    </div>`;
+}
 
 function durchlaufRowHtml(azubi, m, dShort) {
   const cur = m.current
-    ? `<span class="rot-lbl">aktuell · bis ${dShort(m.current.bis)}</span>
-       <span class="rot-pill rot-pill--cur">${escapeHtml(m.current.abteilung || '–')}</span>`
-    : `<span class="rot-lbl rot-lbl--crit">keine Zuweisung</span>
-       <span class="rot-pill rot-pill--open">nicht zugewiesen</span>`;
-  let nx;
-  if (m.next) {
-    const lbl = m.current ? `ab ${dShort(m.next.von)}` : `geplant ab ${dShort(m.next.von)}`;
-    nx = `<span class="rot-lbl">${lbl}</span>
-          <span class="rot-pill rot-pill--next">${escapeHtml(m.next.abteilung || '–')}</span>`;
-  } else {
-    nx = `<span class="rot-lbl">danach</span>
-          <span class="rot-pill rot-pill--open">noch offen</span>`;
-  }
+    ? durchlaufStop('cur', 'Aktuell', escapeHtml(m.current.abteilung || '–'), `bis ${dShort(m.current.bis)}`)
+    : durchlaufStop('empty rot-stop--crit', 'Aktuell', 'Nicht zugewiesen', '');
+  const next = m.next
+    ? durchlaufStop('next', m.current ? 'Danach' : 'Geplant', escapeHtml(m.next.abteilung || '–'), `ab ${dShort(m.next.von)}`)
+    : durchlaufStop('empty', 'Danach', 'Noch offen', '');
+
   return `
     <a class="rot-row ${m.rowMod}" href="abteilungs-planer.html"
        data-azubi-id="${azubi.id}" data-name="${escapeHtml((azubi.name || '').toLowerCase())}">
-      <span class="rot-dot rot-dot--${m.dot}"></span>
-      ${renderAvatar(azubi, 'rot-av')}
-      <span class="rot-id">
-        <span class="rot-name">${escapeHtml(azubi.name)}</span>
-        <span class="rot-beruf">${escapeHtml(azubi.beruf || '–')}</span>
-      </span>
-      <span class="rot-flow">
-        <span class="rot-cell">${cur}</span>
-        <span class="rot-arrow">${DLB_ARROW}</span>
-        <span class="rot-cell rot-cell--next">${nx}</span>
-      </span>
-      <span class="rot-chev"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg></span>
+      <div class="rot-head">
+        <span class="rot-dot rot-dot--${m.dot}"></span>
+        ${renderAvatar(azubi, 'rot-av')}
+        <span class="rot-id">
+          <span class="rot-name">${escapeHtml(azubi.name)}</span>
+          <span class="rot-beruf">${escapeHtml(azubi.beruf || '–')}</span>
+        </span>
+        <span class="rot-chev">${DLB_CHEV}</span>
+      </div>
+      <div class="rot-journey">
+        ${cur}
+        <span class="rot-journey__arrow">${DLB_ARROW}</span>
+        ${next}
+      </div>
     </a>`;
 }
 
@@ -799,7 +825,7 @@ function renderDurchlaufListe(rows, today) {
   return `
     <div class="card rot" id="durchlaufCard">
       <div class="rot__head">
-        <span class="card__title">Wer ist wo</span>
+        <span class="card__title">Abteilungsdurchlauf</span>
         <span class="rot__count">${analysed.length} ${analysed.length === 1 ? 'Azubi' : 'Azubis'}</span>
         <span class="rot__spacer"></span>
         ${zeigeSuche ? `<span class="rot__search">${searchSvg}<input type="search" id="durchlaufSearch" placeholder="Azubi suchen…" autocomplete="off" spellcheck="false"></span>` : ''}
@@ -842,7 +868,7 @@ function renderAzubiCard(c, idx) {
   const sunday = new Date(monday); sunday.setDate(monday.getDate() + 6);
   const wochenSeit = Math.max(0, Math.floor((new Date() - sunday) / (1000 * 60 * 60 * 24 * 7)));
   const dringlich = wochenSeit >= 2 ? 'urgent' : wochenSeit === 1 ? 'warn' : 'fresh';
-  const seitText = wochenSeit === 0 ? 'diese Woche freigegeben'
+  const seitText = wochenSeit === 0 ? 'diese Woche eingereicht'
                  : wochenSeit === 1 ? 'älteste wartet seit 1 Woche'
                  : `älteste wartet seit ${wochenSeit} Wochen`;
 
@@ -1125,7 +1151,7 @@ function renderReviewItem(w, idx) {
   // Wartedauer berechnen (Endwoche-basiert)
   const today = new Date();
   const wochenSeitEnde = Math.max(0, Math.floor((today - sunday) / (1000 * 60 * 60 * 24 * 7)));
-  const wartetSeit = wochenSeitEnde === 0 ? 'Diese Woche freigegeben'
+  const wartetSeit = wochenSeitEnde === 0 ? 'Diese Woche eingereicht'
                    : wochenSeitEnde === 1 ? 'Wartet seit 1 Woche'
                    : `Wartet seit ${wochenSeitEnde} Wochen`;
   const wartendKlasse = wochenSeitEnde >= 2 ? ' review-item--urgent' : '';
@@ -1313,27 +1339,30 @@ function ensureBulkToolbar() {
   return toolbar;
 }
 
-function renderAusbilderActivities(allWochen, beurteilungen = []) {
-  // Wochen- und Beurteilungs-Ereignisse zu einem Feed zusammenführen,
-  // sortiert nach Zeitpunkt (neueste zuerst). Wochen haben keinen echten
-  // Timestamp – Sonntag der KW dient als Näherung.
+/* Mitteilungen des Ausbilders = Wochen- + Beurteilungs-Ereignisse als Feed,
+   neueste zuerst. Wochen haben keinen echten Timestamp – Sonntag der KW dient
+   als Näherung. „genehmigt" erscheint bewusst NICHT (der Ausbilder hat selbst
+   genehmigt – keine Mitteilung nötig). Abgabe des Azubis heißt „eingereicht". */
+function buildAusbilderMitteilungen(allWochen, beurteilungen = []) {
   const items = [];
 
-  allWochen.filter(w => w.status !== 'offen').forEach(w => {
-    const sunday = DateUtil.getMondayOfKW(w.kw, w.year);
-    sunday.setDate(sunday.getDate() + 6);
-    let type, verb;
-    if (w.status === 'genehmigt')        { type = 'success'; verb = 'genehmigt'; }
-    else if (w.status === 'freigegeben') { type = 'info';    verb = 'freigegeben'; }
-    else if (w.status === 'abgelehnt')   { type = 'error';   verb = 'zurückgegeben'; }
-    else                                 { type = 'yellow';  verb = ''; }
-    items.push({
-      ts:   sunday.getTime(),
-      type,
-      text: `<strong>${w.azubi.name}</strong>: KW ${w.kw} ${verb}`.trim(),
-      time: `KW ${w.kw}/${w.year}`,
+  allWochen
+    .filter(w => w.status !== 'offen' && w.status !== 'genehmigt')
+    .forEach(w => {
+      const sunday = DateUtil.getMondayOfKW(w.kw, w.year);
+      sunday.setDate(sunday.getDate() + 6);
+      let type, verb;
+      if (w.status === 'freigegeben')       { type = 'info';    verb = 'eingereicht'; }
+      else if (w.status === 'abgelehnt')    { type = 'error';   verb = 'zurückgegeben'; }
+      else if (w.status === 'erstgenehmigt'){ type = 'success'; verb = 'erstgenehmigt'; }
+      else                                  { type = 'yellow';  verb = ''; }
+      items.push({
+        ts:   sunday.getTime(),
+        type,
+        text: `<strong>${escapeHtml(w.azubi.name)}</strong>: KW ${w.kw} ${verb}`.trim(),
+        time: `KW ${w.kw}/${w.year}`,
+      });
     });
-  });
 
   // Abgeschlossene Beurteilungen – klickbar, öffnen den Bogen zum Ansehen.
   beurteilungen.forEach(b => {
@@ -1342,19 +1371,17 @@ function renderAusbilderActivities(allWochen, beurteilungen = []) {
     items.push({
       ts:   isNaN(d) ? 0 : d.getTime(),
       type: 'yellow',
-      text: `<strong>${b.azubi.name}</strong>: Beurteilung abgeschlossen${note}`,
+      text: `<strong>${escapeHtml(b.azubi.name)}</strong>: Beurteilung abgeschlossen${note}`,
       time: isNaN(d) ? '' : d.toLocaleDateString('de-DE'),
       href: `beurteilung.html?zuw=${encodeURIComponent(b.zuweisungId)}`,
     });
   });
 
-  const sorted = items.sort((a, b) => b.ts - a.ts).slice(0, 8);
+  return items.sort((a, b) => b.ts - a.ts);
+}
 
-  if (!sorted.length) {
-    return '<div class="empty-state" style="padding:var(--sp-8)"><p class="empty-state__text">Noch keine Aktivitäten.</p></div>';
-  }
-
-  return sorted.map((it, i) => {
+function renderActivityRows(items) {
+  return items.map((it, i) => {
     const tag = it.href ? 'a' : 'div';
     const attrs = it.href
       ? `class="activity-item activity-item--link" href="${it.href}"`

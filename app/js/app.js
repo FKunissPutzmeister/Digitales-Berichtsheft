@@ -574,7 +574,7 @@ const ORT_OPTS = ['', 'Betrieb', 'Schule', 'Betrieb/Schule', 'Zuhause', 'Dienstr
 function getStatusLabel(status) {
   const map = {
     offen: 'Offen',
-    freigegeben: 'Freigegeben',
+    freigegeben: 'Eingereicht',
     erstgenehmigt: 'Erstgenehmigt',
     genehmigt: 'Genehmigt',
     abgelehnt: 'Abgelehnt',

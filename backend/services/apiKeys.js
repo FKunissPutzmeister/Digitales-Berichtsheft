@@ -68,7 +68,29 @@ async function resolveApiKey(key) {
   return { keyId: row.Id, userOid: row.UserOid };
 }
 
+// Protokolliert einen MCP-JSON-RPC-Aufruf (fire-and-forget, wie ZuletztGenutzt
+// oben — Logging darf einen MCP-Request nie verzögern oder killen).
+function logMcpCall({ userOid, methode, toolName }) {
+  getPool().then(pool => pool.request()
+    .input('userOid', sql.NVarChar(36), userOid)
+    .input('methode', sql.NVarChar(50), methode)
+    .input('toolName', sql.NVarChar(100), toolName || null)
+    .query('INSERT INTO dbo.McpLog (UserOid, Methode, ToolName) VALUES (@userOid, @methode, @toolName)')
+  ).catch(() => { /* nicht kritisch */ });
+}
+
+async function listMcpLog(limit) {
+  const pool = await getPool();
+  const r = await pool.request().input('top', sql.Int, Math.min(Math.max(Number(limit) || 100, 1), 500))
+    .query(`SELECT TOP (@top) l.Id, l.UserOid, l.Methode, l.ToolName, l.Zeitpunkt,
+                   u.Name AS UserName
+            FROM dbo.McpLog l LEFT JOIN dbo.Users u ON u.Oid = l.UserOid
+            ORDER BY l.Zeitpunkt DESC`);
+  return r.recordset;
+}
+
 module.exports = {
   generateKey, hashKey, createApiKey, listApiKeys,
   setApiKeyAktiv, deleteApiKey, resolveApiKey,
+  logMcpCall, listMcpLog,
 };

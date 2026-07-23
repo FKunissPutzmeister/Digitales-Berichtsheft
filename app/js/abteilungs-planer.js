@@ -366,7 +366,7 @@ function durchlaufBoardHtml(user, zuw, heute) {
       </div>`;
     }
     return `<a class="dlb-now dlb-now--link" href="?mein=1&abt=${z.id}" style="--edge:${colorFor(z.abteilung)}">
-      <div class="dlb-card__meta"><span class="dlb-here"><span class="dlb-pulse"></span>DU BIST HIER</span><span class="dlb-card__more">Details ${DLB_ICO.chev}</span></div>
+      <div class="dlb-card__meta"><span class="dlb-card__more">Details ${DLB_ICO.chev}</span></div>
       <h3 class="dlb-card__title">${escHtml(z.abteilung || '–')}</h3>
       ${mini}
       <div class="dlb-foot dlb-foot--now">

@@ -28,6 +28,13 @@ router.post('/', nurDeveloper, async (req, res) => {
   } catch (e) { console.error('[apikeys] create', e); res.status(500).json({ error: 'Fehler' }); }
 });
 
+// GET /api/apikeys/log?limit=100 – letzte MCP-Aufrufe (initialize/ping/tools/list/
+// tools/call je Zeile), zur Nachvollziehbarkeit von ApiKeys.ZuletztGenutzt.
+router.get('/log', nurDeveloper, async (req, res) => {
+  try { res.json(await svc.listMcpLog(req.query.limit)); }
+  catch (e) { console.error('[apikeys] log', e); res.status(500).json({ error: 'Fehler' }); }
+});
+
 // PATCH /api/apikeys/:id {aktiv} – Schlüssel (de)aktivieren
 router.patch('/:id', nurDeveloper, async (req, res) => {
   try {

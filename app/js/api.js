@@ -725,6 +725,15 @@ const DB = {
     return `${API_BASE}/wochen/anhaenge/${id}/download`;
   },
 
+  /* Importierte IHK-PDF serverseitig archivieren (Original-Nachweis zur
+     späteren Fehlerprüfung). meta = { wochen:[{kw,year,status}], warnungen, modus }. */
+  async saveIhkImportDatei(file, meta) {
+    const fd = new FormData();
+    fd.append('datei', file);
+    if (meta) fd.append('meta', JSON.stringify(meta));
+    return apiUpload('/ihk-imports', fd);
+  },
+
   /* Fahrtgelderstattung – Stammdaten des eingeloggten Azubis */
   async getFahrtgeldKonfig() {
     return apiFetch('/fahrtgeld/konfig');

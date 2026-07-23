@@ -8,7 +8,7 @@
    tools/call, ping. Antworten sind reines JSON (kein SSE nötig, da der Server
    keine eigenen Nachrichten sendet). */
 const router = require('express').Router();
-const { resolveApiKey } = require('../services/apiKeys');
+const { resolveApiKey, logMcpCall } = require('../services/apiKeys');
 const { getUserByOid, buildReqUser } = require('../services/users');
 const { TOOLS, ToolError } = require('./tools');
 
@@ -86,6 +86,7 @@ router.post('/', async (req, res) => {
     if (msg.id === undefined || msg.id === null) {
       if (msg.method && msg.method.startsWith('notifications/')) continue;
     }
+    logMcpCall({ userOid: user.oid, methode: msg.method, toolName: msg.params && msg.params.name });
     responses.push(await dispatch(user, msg));
   }
 
