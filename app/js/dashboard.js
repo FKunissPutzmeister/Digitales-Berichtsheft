@@ -634,12 +634,28 @@ async function renderAusbilderDashboard(user) {
     } catch (_) { return []; }
   }))).flat();
 
-  // Durchlauf-Übersicht („wer ist wo"): Zuweisungen je Azubi (parallel).
-  // ponytail: N+1 wie oben – Batch-Endpoint erst, wenn viele Azubis das spürbar machen.
-  const durchlaufRows = await Promise.all(meineAzubis.map(async a => {
-    try { return { azubi: a, zuw: await DB.getZuweisungenFuerAzubi(a.oid) }; }
-    catch (_) { return { azubi: a, zuw: [] }; }
-  }));
+  // Durchlauf-Übersicht („wer ist wo"): Ausbilder mit eigenen Azubis sehen nur
+  // diese (N+1 auf wenige Zuweisungen ist unkritisch). Reine Planer OHNE eigene
+  // Azubis (z.B. Admin/Verwaltung) sähen sonst gar nichts – für sie stattdessen
+  // alle Azubis systemweit, aber über zwei Bulk-Endpunkte (getAzubis/
+  // getAllZuweisungen) statt N+1 Requests, da das hunderte Azubis sein können.
+  let durchlaufAzubis = meineAzubis;
+  let durchlaufRows;
+  if (meineAzubis.length === 0 && user.kannPlanen) {
+    const [alleAzubis, alleZuweisungen] = await Promise.all([DB.getAzubis(), DB.getAllZuweisungen()]);
+    const zuwByAzubi = new Map();
+    alleZuweisungen.forEach(z => {
+      if (!zuwByAzubi.has(z.azubiId)) zuwByAzubi.set(z.azubiId, []);
+      zuwByAzubi.get(z.azubiId).push(z);
+    });
+    durchlaufAzubis = alleAzubis;
+    durchlaufRows = alleAzubis.map(a => ({ azubi: a, zuw: zuwByAzubi.get(a.id) || [] }));
+  } else {
+    durchlaufRows = await Promise.all(meineAzubis.map(async a => {
+      try { return { azubi: a, zuw: await DB.getZuweisungenFuerAzubi(a.oid) }; }
+      catch (_) { return { azubi: a, zuw: [] }; }
+    }));
+  }
 
   const zeigeSuche = meineAzubis.length >= 6;
 
@@ -655,7 +671,10 @@ async function renderAusbilderDashboard(user) {
          <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg></a>`
     : '';
 
-  const durchlaufHtml = meineAzubis.length > 0 ? renderDurchlaufListe(durchlaufRows, today) : '';
+  // Gate auf durchlaufAzubis (nicht meineAzubis), damit die Übersicht auch für
+  // reine Planer/Admins ohne eigene Azubis erscheint (durchlaufAzubis = alleAzubis);
+  // kannPlanen steuert das Link-Label ("Planer öffnen" vs "Zum Abteilungsdurchlauf").
+  const durchlaufHtml = durchlaufAzubis.length > 0 ? renderDurchlaufListe(durchlaufRows, today, !!user.kannPlanen) : '';
 
   const mitteilungenCardHtml = `
     <div class="card animate-fade-in">
@@ -795,7 +814,7 @@ function durchlaufRowHtml(azubi, m, dShort) {
     </a>`;
 }
 
-function renderDurchlaufListe(rows, today) {
+function renderDurchlaufListe(rows, today, kannPlanen) {
   const heute  = DateUtil.toISODate(today);
   const gd = new Date(today); gd.setDate(gd.getDate() + 14);
   const grenze = DateUtil.toISODate(gd);
@@ -808,7 +827,7 @@ function renderDurchlaufListe(rows, today) {
   const ohne    = analysed.filter(o => !o.m.current).length;
   const endet   = analysed.filter(o => o.m.tier === 2).length;
   const wechsel = analysed.filter(o => o.m.tier === 3).length;
-  const zeigeSuche = analysed.length >= 8;
+  const zeigeSuche = analysed.length >= 5;
 
   const sumItem = (c, l, col) => c
     ? `<span class="rot-sum-item"><span class="rot-sum-dot" style="background:${col}"></span><b>${c}</b> ${l}</span>` : '';
@@ -829,7 +848,7 @@ function renderDurchlaufListe(rows, today) {
         <span class="rot__count">${analysed.length} ${analysed.length === 1 ? 'Azubi' : 'Azubis'}</span>
         <span class="rot__spacer"></span>
         ${zeigeSuche ? `<span class="rot__search">${searchSvg}<input type="search" id="durchlaufSearch" placeholder="Azubi suchen…" autocomplete="off" spellcheck="false"></span>` : ''}
-        <a class="rot__link" href="abteilungs-planer.html">Planer öffnen ${linkArrow}</a>
+        <a class="rot__link" href="abteilungs-planer.html">${kannPlanen ? 'Planer öffnen' : 'Zum Abteilungsdurchlauf'} ${linkArrow}</a>
       </div>
       ${summary}
       <div class="rot__list" id="durchlaufList">

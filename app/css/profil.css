@@ -276,6 +276,7 @@ details.profil-section .profil-section__body-wrap > .profil-section__body {
 /* Standard-Modus: segmentierte Buttons */
 .theme-mode-row {
   display: inline-flex;
+  align-self: flex-start;
   gap: var(--sp-2);
   padding: var(--sp-1);
   border: 1px solid var(--pm-grey-200);
