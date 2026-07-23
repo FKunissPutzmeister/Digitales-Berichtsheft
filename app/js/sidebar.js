@@ -38,11 +38,6 @@ function buildSidebar(activeNavId) {
         <span class="sidebar__link-icon">${Icon('jahresansicht')}</span>
         <span class="sidebar__link-label">Jahresansicht</span>
       </a>
-      <a href="beurteilungen.html" class="sidebar__link nav-beurteilungen-only" id="nav-beurteilungen" style="display:none">
-        <span class="sidebar__link-icon">${Icon('cap')}</span>
-        <span class="sidebar__link-label">Beurteilungen</span>
-      </a>
-
       <span class="sidebar__section-label nav-durchlauf">Sonstiges</span>
       <a href="fahrgelderstattung.html" class="sidebar__link nav-azubi-only" id="nav-fahrgelderstattung">
         <span class="sidebar__link-icon">${Icon('document')}</span>

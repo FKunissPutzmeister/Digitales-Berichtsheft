@@ -365,6 +365,43 @@ html[data-skin="silk"] .b-day--today .dnum { color: #FFFFFF !important; }
   background: var(--pm-white) !important;
 }
 
+/* ── 4f · Abteilungsdurchlauf-Board v2 (Hero + Verlaufs-Rail):
+   Silk-Hintergrund deutlich zurücknehmen (dunkler + weniger präsent, gleiche
+   Technik wie die Wochenansicht) und die Karten hell/fast-deckend davorsetzen,
+   damit Elemente & Text klar hervortreten. Gilt auch für die Detailseite und
+   den Ausbilder-Planer (alle body[data-page="abteilungs-planer"]). ── */
+html[data-skin="silk"] body[data-page="abteilungs-planer"] {
+  background-color: hsl(var(--silk-hue,252) 50% 8%) !important;
+}
+html[data-skin="silk"] body[data-page="abteilungs-planer"] #silk-react-root {
+  opacity: 0.30 !important;
+}
+[data-skin="silk"] .dlb-hero,
+[data-skin="silk"] .dlb-dhero,
+[data-skin="silk"] .dlb-mini-card,
+[data-skin="silk"] .dlb-panel {
+  background: hsl(var(--silk-hue,252) 40% 23% / 0.94) !important;
+  border-color: hsl(var(--silk-hue,252) 100% 84% / 0.30);
+  -webkit-backdrop-filter: blur(14px) saturate(1.35);
+  backdrop-filter: blur(14px) saturate(1.35);
+}
+/* Fokus-Hero (aktueller Einsatz) einen Tick heller → hebt sich klar ab */
+[data-skin="silk"] .dlb-hero--link {
+  background: linear-gradient(135deg, hsl(var(--silk-hue,252) 62% 33% / 0.95), hsl(var(--silk-hue,252) 42% 24% / 0.95)) !important;
+  border-color: hsl(var(--silk-hue,252) 100% 84% / 0.42) !important;
+}
+[data-skin="silk"] .dlb-rail-arrow {
+  background: hsl(var(--silk-hue,252) 40% 27% / 0.96) !important;
+  border-color: hsl(var(--silk-hue,252) 100% 84% / 0.34);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+}
+/* Geplante Knoten heller als der dunkle Grund → sichtbar */
+[data-skin="silk"] .dlb-stop--plan .dlb-stop__node {
+  background: hsl(var(--silk-hue,252) 40% 28%);
+  border-color: hsl(var(--silk-hue,252) 38% 50%);
+}
+
 /* ── 5 · Welcome-Hero: ebenfalls Glas (etwas dichter, weil weißer Text). */
 [data-skin="silk"] .welcome-hero.silk-host {
   background: hsl(var(--silk-hue,252) 49% 17% / 0.60) !important;

@@ -280,55 +280,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     `;
   }
 
-  async function buildAusbilderTimeline() {
-    if (!isAzubi) return '';
-
-    const zuweisungen = await DB.getZuweisungenFuerAzubi(user.id);
-    if (!zuweisungen.length) return '';
-
-    const today = DateUtil.toISODate(new Date());
-    const sorted = [...zuweisungen].sort((a, b) => a.von.localeCompare(b.von));
-
-    const itemsArr = sorted.map(z => {
-      const verantwName = z.verantwName || '–';
-      const initials = verantwName !== '–'
-        ? getInitials(verantwName).slice(0, 2)
-        : '?';
-      const isCurrent = z.von <= today && z.bis >= today;
-      const dotClass = isCurrent ? 'current' : 'past';
-
-      return `
-        <div class="ausbilder-tl-item">
-          <div class="ausbilder-tl-dot ${dotClass}">${initials}</div>
-          <div class="ausbilder-tl-info">
-            <div style="font-size:var(--text-xs);font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--pm-grey-400);margin-bottom:2px">Deine Ausbildungsbeauftragte/r</div>
-            <div class="ausbilder-tl-name">${verantwName}</div>
-            <div class="ausbilder-tl-abt">${z.abteilung || ''}</div>
-            <div class="ausbilder-tl-dates">${DateUtil.formatDate(z.von)} – ${DateUtil.formatDate(z.bis)}</div>
-            ${isCurrent ? '<span class="badge badge--genehmigt">Aktueller Zeitraum</span>' : '<span class="badge badge--grey">Vergangener Zeitraum</span>'}
-          </div>
-        </div>
-      `;
-    });
-    const items = itemsArr.join('');
-
-    return `
-      <section class="profil-section">
-        <div class="profil-section__header">
-          <div class="profil-section__icon">
-            ${Icon('clock')}
-          </div>
-          <div class="profil-section__title">Deine Ausbildungsbeauftragten</div>
-        </div>
-        <div class="profil-section__body-wrap"><div class="profil-section__body">
-          <div class="ausbilder-timeline">
-            ${items}
-          </div>
-        </div></div>
-      </section>
-    `;
-  }
-
   async function buildAzubiListe() {
     if (!isAusbilder && !isAdmin) return '';
 
@@ -463,9 +414,9 @@ document.addEventListener('DOMContentLoaded', async () => {
       </div>
       <div class="form-group">
         <label class="form-label">Dauer</label>
-        <div class="theme-mode-row" role="group" aria-label="Dauer" id="vertretungDauer">
-          <button type="button" class="theme-mode-btn active" data-dauer="dauerhaft" aria-pressed="true">Unbefristet</button>
-          <button type="button" class="theme-mode-btn" data-dauer="befristet" aria-pressed="false">Zeitraum festlegen</button>
+        <div class="vertretung-dauer" id="vertretungDauer">
+          <label class="vertretung-dauer__opt"><input type="radio" name="vertretungDauer" value="dauerhaft" checked> Unbefristet</label>
+          <label class="vertretung-dauer__opt"><input type="radio" name="vertretungDauer" value="befristet"> Zeitraum festlegen</label>
         </div>
       </div>
       <div class="form-group" id="vertretungZeitraum" style="display:none">
@@ -511,26 +462,19 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   function bindVertretung() {
     if (!isSupervisor) return;
-    // Dauer = Segmented-Control (Unbefristet | Zeitraum festlegen): Klick setzt
-    // die aktive Seite und blendet die Datumsfelder nur bei "befristet" ein.
+    // Dauer = Radio-Punkte (Unbefristet | Zeitraum festlegen): Datumsfelder
+    // nur bei "befristet" einblenden.
     const dauerGroup = document.getElementById('vertretungDauer');
     const zeitraum = document.getElementById('vertretungZeitraum');
-    const dauerBtns = dauerGroup ? dauerGroup.querySelectorAll('[data-dauer]') : [];
-    dauerBtns.forEach(btn => {
-      btn.addEventListener('click', () => {
-        dauerBtns.forEach(b => {
-          const on = b === btn;
-          b.classList.toggle('active', on);
-          b.setAttribute('aria-pressed', String(on));
-        });
-        if (zeitraum) zeitraum.style.display = btn.dataset.dauer === 'befristet' ? '' : 'none';
-      });
+    dauerGroup?.addEventListener('change', () => {
+      const typ = dauerGroup.querySelector('input:checked')?.value;
+      if (zeitraum) zeitraum.style.display = typ === 'befristet' ? '' : 'none';
     });
 
     document.getElementById('vertretungAddBtn')?.addEventListener('click', async () => {
       const vertreterOid = document.getElementById('vertreterSelect')?.value;
       if (!vertreterOid) { Toast.error('Keine Person', 'Bitte eine Person auswählen.'); return; }
-      const typ = dauerGroup?.querySelector('[data-dauer].active')?.dataset.dauer || 'dauerhaft';
+      const typ = dauerGroup?.querySelector('input:checked')?.value || 'dauerhaft';
       let von = null, bis = null;
       if (typ === 'befristet') {
         von = document.getElementById('vertretungVon')?.value || null;
@@ -658,7 +602,6 @@ document.addEventListener('DOMContentLoaded', async () => {
 
       <div class="profil-panels" id="panel-profil"${hasImport ? ' role="tabpanel" aria-labelledby="tab-profil"' : ''}>
         ${buildAusbildungsDaten()}
-        ${await buildAusbilderTimeline()}
         ${await buildAzubiListe()}
         ${await buildVertretung()}
         ${buildEingabehilfen()}

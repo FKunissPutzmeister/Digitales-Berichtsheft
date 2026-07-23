@@ -861,6 +861,13 @@ html[data-theme="cmd"] .b-day {
 html[data-theme="cmd"] .b-wkcard:hover {
   border-color: rgba(0, 230, 77, 0.55);
 }
+/* Die Mitteilungskachel ist als einzige Bento-Kachel kein .b-tile--glass und
+   trägt daher keine Border-Breite – der Phosphor-Rahmen oben (nur border-color)
+   blieb unsichtbar. 1px-Solid ergänzen, damit sie denselben Terminal-Rahmen wie
+   die übrigen Kacheln bekommt. */
+html[data-theme="cmd"] .b-mitteilungen {
+  border: 1px solid rgba(0, 230, 77, 0.30);
+}
 
 /* ===================================================================
    TERMINAL-FEINSCHLIFF (Wunsch: keine Bilder im Dashboard, eckige

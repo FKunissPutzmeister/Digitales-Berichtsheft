@@ -45,6 +45,7 @@ function azubiTimelineHtml(zuw, planYear) {
   const daysInYear = Math.round((new Date(planYear, 11, 31) - jan1) / 86400000) + 1;
   const dayOf = d => Math.round((d - jan1) / 86400000);
   const now = new Date();
+  now.setHours(0, 0, 0, 0);   // Mitternacht → dayOf() rundet nicht in den Folgetag; Heute-Linie sitzt exakt
 
   const monate = Array.from({ length: 12 }, (_, m) => {
     const dim = new Date(planYear, m + 1, 0).getDate();
@@ -57,9 +58,8 @@ function azubiTimelineHtml(zuw, planYear) {
       const date = new Date(planYear, m, d);
       const dow = date.getDay();
       const isWe = dow === 0 || dow === 6;
-      const isToday = now.getFullYear() === planYear && now.getMonth() === m && now.getDate() === d;
       const isMonthStart = d === 1;
-      tage.push(`<div class="gantt-day${isWe ? ' gantt-day--weekend' : ''}${isToday ? ' current' : ''}${isMonthStart ? ' gantt-day--month' : ''}">${d}</div>`);
+      tage.push(`<div class="gantt-day${isWe ? ' gantt-day--weekend' : ''}${isMonthStart ? ' gantt-day--month' : ''}">${d}</div>`);
     }
   }
   const bars = zuw.map((z, i) => {
@@ -78,8 +78,7 @@ function azubiTimelineHtml(zuw, planYear) {
   }).join('');
   const todayPct = now.getFullYear() === planYear ? (dayOf(now) + 0.5) / daysInYear * 100 : null;
   const todayLine = todayPct != null
-    ? `<div class="gantt-today-line" style="left:${todayPct}%"></div>
-       <div class="gantt-today-marker" style="left:${todayPct}%">Heute</div>`
+    ? `<div class="gantt-today-line" style="left:${todayPct}%"></div>`
     : '';
 
   return `
@@ -185,7 +184,6 @@ const DLB_ICO = {
   clock:    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7.5V12l3 1.7"/></svg>',
   cap:      '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/></svg>',
   scroll:   '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8 7l-4 5 4 5M16 7l4 5-4 5"/></svg>',
-  lock:     '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>',
 };
 
 function dlbInitials(name) {
@@ -229,76 +227,10 @@ function dlbBeurtBlock(z, b, statusKey) {
   return `<div class="dlb-beurt dlb-beurt--open">${DLB_ICO.circle} Noch nicht abgeschlossen</div>`;
 }
 
-/* Voller Ausbildungsverlauf als Gantt-Zeitstrahl (gleiche .gantt--lg-Optik wie der
-   Planer, über die gesamte Zuweisungs-Spanne). day-px skaliert mit der Länge. */
-function dlbTimelineHtml(zuw, colorFor, today) {
-  const withDates = zuw.filter(z => z.von && z.bis);
-  if (!withDates.length) return '';
-  const minVon = withDates.reduce((m, z) => (z.von < m ? z.von : m), withDates[0].von);
-  const maxBis = withDates.reduce((m, z) => (z.bis > m ? z.bis : m), withDates[0].bis);
-  const [sy, sm] = minVon.split('-').map(Number);
-  const [ey, em] = maxBis.split('-').map(Number);
-  const startDate = new Date(sy, sm - 1, 1);
-  const endDate = new Date(ey, em, 0);              // letzter Tag des End-Monats
-  const numDays = Math.round((endDate - startDate) / 86400000) + 1;
-  const dayOf = d => Math.round((d - startDate) / 86400000);
-  const dayPx = numDays > 500 ? 11 : numDays > 250 ? 15 : numDays > 90 ? 22 : 30;
-  // Bei kleiner Tagesbreite (mehrjährige Ansicht) die Tageszahlen ausblenden –
-  // zweistellige Zahlen überlappen sonst. Monatskopf + Wochenraster + „Heute"
-  // tragen die Orientierung; die Tageszellen bleiben (Raster/Wochenendschattierung).
-  const showDayNums = dayPx >= 20;
-  const MS = DateUtil.MONTHS_SHORT || ['Jan','Feb','Mär','Apr','Mai','Jun','Jul','Aug','Sep','Okt','Nov','Dez'];
-
-  let monate = '', tage = '';
-  let cur = new Date(startDate);
-  while (cur <= endDate) {
-    const y = cur.getFullYear(), m = cur.getMonth(), dim = new Date(y, m + 1, 0).getDate();
-    monate += `<div class="gantt-month" style="width:calc(${dim} * var(--day-px))">${MS[m]} ${String(y).slice(2)}</div>`;
-    for (let d = 1; d <= dim; d++) {
-      const dt = new Date(y, m, d), dow = dt.getDay(), we = dow === 0 || dow === 6;
-      const isToday = y === today.getFullYear() && m === today.getMonth() && d === today.getDate();
-      tage += `<div class="gantt-day${we ? ' gantt-day--weekend' : ''}${isToday ? ' current' : ''}${d === 1 ? ' gantt-day--month' : ''}">${showDayNums ? d : ''}</div>`;
-    }
-    cur = new Date(y, m + 1, 1);
-  }
-
-  let bars = '';
-  zuw.forEach(z => {
-    if (!z.von || !z.bis) return;
-    const s = Math.max(0, dayOf(new Date(z.von + 'T00:00:00')));
-    const e = Math.min(numDays - 1, dayOf(new Date(z.bis + 'T00:00:00')));
-    if (e < s) return;
-    const left = s / numDays * 100, width = (e - s + 1) / numDays * 100;
-    bars += `<div class="gantt-bar" style="left:${left}%;width:${width}%;background:${colorFor(z.abteilung)}"
-      title="${escHtml(z.abteilung || '–')} (${DateUtil.formatDate(z.von)} – ${DateUtil.formatDate(z.bis)})">
-      <span class="gantt-bar__label">${escHtml(z.abteilung || '')}</span></div>`;
-  });
-
-  let todayEls = '', todayX = '';
-  if (today >= startDate && today <= endDate) {
-    const pct = (dayOf(today) + 0.5) / numDays * 100;
-    todayEls = `<div class="gantt-today-line" style="left:${pct}%"></div><div class="gantt-today-marker" style="left:${pct}%">Heute</div>`;
-    todayX = String(Math.round(280 + (dayOf(today) + 0.5) * dayPx));
-  }
-
-  return `<div class="gantt-scroll" id="azubiGanttScroll" data-todayx="${todayX}">
-    <div class="gantt-grid gantt--lg" style="--num-days:${numDays};--day-px:${dayPx}px">
-      <div class="gantt-header">
-        <div class="gantt-header__name-col">${sy === ey ? sy : `${sy} – ${ey}`}</div>
-        <div class="gantt-header__timeline"><div class="gantt-months">${monate}</div><div class="gantt-days">${tage}</div></div>
-      </div>
-      <div class="gantt-body"><div class="gantt-row">
-        <div class="gantt-row__info"><span class="gantt-row__name">Abteilungen</span></div>
-        <div class="gantt-row__timeline">${todayEls}${bars}</div>
-      </div></div>
-    </div>
-  </div>`;
-}
-
 /* Baut das komplette Board (Zeitstrahl + 3 Spalten) als HTML-String.
    Beurteilungen werden hier NICHT geladen – sie erscheinen erst auf der
    Detailseite einer Abteilung (?abt=<id>). */
-function durchlaufBoardHtml(user, zuw, heute) {
+function durchlaufBoardHtml(user, zuw, heute, beurtByZuw = {}) {
   // Stabile Farbe je Abteilung (alphabetisch vorbelegt → gleiche Abteilung, gleiche Farbe).
   const cIdx = {}; let cN = 0;
   const colorFor = ab => {
@@ -309,6 +241,7 @@ function durchlaufBoardHtml(user, zuw, heute) {
   [...new Set(zuw.map(z => z.abteilung).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'de')).forEach(colorFor);
 
   const today = new Date();
+  today.setHours(0, 0, 0, 0);   // Mitternacht → Heute-Linie im Zeitstrahl trifft exakt den heutigen Tag
   const rows = zuw.map(z => ({ z, key: dlbStatusKey(z, heute) }));
   const done = rows.filter(r => r.key === 'beendet');
   const now  = rows.filter(r => r.key === 'aktuell');
@@ -324,123 +257,175 @@ function durchlaufBoardHtml(user, zuw, heute) {
   const wd = today.toLocaleDateString('de-DE', { weekday: 'short' });
   const stand = `<span class="dlb-stand">${DLB_ICO.clock}Stand: ${wd}, ${DateUtil.formatDate(heute)}</span>`;
 
-  // ── Zeitstrahl ──
-  const timeline = dlbTimelineHtml(zuw, colorFor, today);
-
-  // ── Abgeschlossen: kompaktes Archiv, nach Lehrjahr gruppiert. Klick → Detailseite
-  //    (?abt=<id>) mit Berichtsheft-Wochen + Beurteilung dieses Zeitraums. ──
-  function archiveRow(r) {
-    const z = r.z;
-    return `<a class="dlb-arow dlb-arow--link" href="?mein=1&abt=${z.id}">
-      <span class="dlb-arow__name">${escHtml(z.abteilung || '–')}</span><span class="dlb-arow__chev">${DLB_ICO.chev}</span>
-    </a>`;
+  // Kompaktes, gut lesbares Datumsformat für die Rail-Stationen.
+  function shortRange(von, bis) {
+    if (!von) return '';
+    const md = iso => new Date(iso + 'T00:00:00').toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' });
+    const full = iso => new Date(iso + 'T00:00:00').toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: '2-digit' });
+    if (!bis) return `ab ${full(von)}`;
+    return von.slice(0, 4) === bis.slice(0, 4) ? `${md(von)}–${full(bis)}` : `${full(von)}–${full(bis)}`;
   }
-  let doneHtml;
-  if (!done.length) {
-    doneHtml = `<div class="dlb-col__empty">Noch keine abgeschlossenen Abteilungen.</div>`;
-  } else {
-    const groups = new Map();
-    done.forEach(r => { const g = dlbLehrjahr(r.z.von, user.ausbildungsBeginn) ?? 0; if (!groups.has(g)) groups.set(g, []); groups.get(g).push(r); });
-    doneHtml = [...groups.keys()].sort((a, b) => a - b).map(g => {
-      const rs = groups.get(g);
-      const label = g ? `${g}. Lehrjahr` : 'Abteilungen';
-      return `<div class="dlb-grp">
-        <button class="dlb-grp__head" type="button" aria-expanded="true">${label} <span class="dlb-grp__count">(${rs.length})</span><span class="dlb-grp__chev">${DLB_ICO.chev}</span></button>
-        <div class="dlb-grp__body">${rs.map(archiveRow).join('')}</div>
-      </div>`;
-    }).join('');
-  }
+  const CHECK_SM = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="m5 13 4 4L19 7"/></svg>';
+  const CHEV_L = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m15 6-6 6 6 6"/></svg>';
 
-  // ── Aktuell: hervorgehobene Karte mit Zählwerk. Klick → Detailseite. ──
-  function nowCard(r) {
+  // ── Hero: aktueller Einsatz – oder ehrlicher Ersatz, wenn gerade keiner läuft ──
+  function heroCurrent(r) {
     const z = r.z;
     const von = new Date(z.von + 'T00:00:00'), bis = z.bis ? new Date(z.bis + 'T00:00:00') : null;
-    let mini = '';
+    let prog = '';
     if (bis) {
       const pct = Math.min(100, Math.max(0, Math.round((today - von) / (bis - von) * 100)));
       const rem = Math.max(0, Math.ceil((bis - today) / 86400000));
-      mini = `<div class="dlb-mini">
-        <div class="dlb-mini__head"><span class="dlb-mini__lab">${DLB_ICO.pin}Aktueller Einsatz</span><span class="dlb-mini__rem">läuft noch ${rem} ${rem === 1 ? 'Tag' : 'Tage'}</span></div>
+      prog = `<div class="dlb-hero__prog">
+        <div class="dlb-hero__proglab"><span>Aktueller Einsatz</span><b>läuft noch ${rem} ${rem === 1 ? 'Tag' : 'Tage'}</b></div>
         <div class="dlb-track"><div class="dlb-fill" style="width:${pct}%"></div></div>
-        <div class="dlb-mini__dates"><span>Beginn ${DateUtil.formatDate(z.von)}</span><span>Ende ${DateUtil.formatDate(z.bis)}</span></div>
       </div>`;
     }
-    return `<a class="dlb-now dlb-now--link" href="?mein=1&abt=${z.id}" style="--edge:${colorFor(z.abteilung)}">
-      <div class="dlb-card__meta"><span class="dlb-card__more">Details ${DLB_ICO.chev}</span></div>
-      <h3 class="dlb-card__title">${escHtml(z.abteilung || '–')}</h3>
-      ${mini}
-      <div class="dlb-foot dlb-foot--now">
+    return `<a class="dlb-hero dlb-hero--link" href="?mein=1&abt=${z.id}" style="--edge:${colorFor(z.abteilung)}">
+      <div class="dlb-hero__main">
+        <span class="dlb-hero__eye">${DLB_ICO.pin}Aktueller Einsatz</span>
+        <h2 class="dlb-hero__t">${escHtml(z.abteilung || '–')}</h2>
+        <div class="dlb-hero__when">${DLB_ICO.cal}<b>${DateUtil.formatDate(z.von)}</b><span>bis</span><b>${z.bis ? DateUtil.formatDate(z.bis) : 'offen'}</b></div>
+        ${prog}
+      </div>
+      <div class="dlb-hero__side">
         <span class="dlb-ap"><span class="dlb-avatar dlb-avatar--now" style="background:${colorFor(z.abteilung)}">${dlbInitials(z.verantwName)}</span>
-          <span class="dlb-ap__col"><span class="dlb-ap__name dlb-ap__name--now">${escHtml(z.verantwName || '–')}</span><span class="dlb-ap__role">Ansprechpartner</span></span></span>
+          <span class="dlb-ap__col"><span class="dlb-ap__name--now">${escHtml(z.verantwName || '–')}</span><span class="dlb-ap__role">Ansprechpartner</span></span></span>
+        <span class="dlb-hero__cta">Details ${DLB_ICO.chev}</span>
       </div>
     </a>`;
   }
-  const nowHtml = now.length ? now.map(nowCard).join('') : `<div class="dlb-col__empty">Derzeit keine laufende Abteilung.</div>`;
-
-  // ── Geplant: bekannte Einsätze (terminiert) + ehrlicher Platzhalter. Nicht
-  //    klickbar – vor Beginn gibt es weder Wochen noch Beurteilung zu zeigen. ──
-  function planCard(r) {
-    const z = r.z;
-    const dates = z.von ? `<div class="dlb-meta-row">${DLB_ICO.cal}<span>${DateUtil.formatDate(z.von)} – ${z.bis ? DateUtil.formatDate(z.bis) : 'offen'}</span></div>` : '';
-    return `<article class="dlb-card dlb-card--plan" style="--edge:${colorFor(z.abteilung)}">
-      <h3 class="dlb-card__title">${escHtml(z.abteilung || '–')}</h3>
-      ${dates}
-      <div class="dlb-foot">
-        <span class="dlb-ap"><span class="dlb-avatar">${dlbInitials(z.verantwName)}</span><span class="dlb-ap__name">${escHtml(z.verantwName || '–')}</span></span>
-        <span class="dlb-cert">${DLB_ICO.calCheck}terminiert</span>
-      </div>
-    </article>`;
+  function heroFallback() {
+    const nextR = plan[0];
+    if (nextR) {
+      const z = nextR.z;
+      return `<div class="dlb-hero dlb-hero--quiet"><div class="dlb-hero__main">
+        <span class="dlb-hero__eye dlb-hero__eye--muted">Kein aktueller Einsatz</span>
+        <h2 class="dlb-hero__t">Zwischen zwei Einsätzen</h2>
+        <p class="dlb-hero__note">Deine nächste Abteilung <b>${escHtml(z.abteilung || '–')}</b> beginnt am <b>${z.von ? DateUtil.formatDate(z.von) : '—'}</b>.</p>
+      </div></div>`;
+    }
+    if (done.length) {
+      return `<div class="dlb-hero dlb-hero--quiet"><div class="dlb-hero__main">
+        <span class="dlb-hero__eye dlb-hero__eye--muted">Kein aktueller Einsatz</span>
+        <h2 class="dlb-hero__t">Zurzeit keine laufende Abteilung</h2>
+        <p class="dlb-hero__note">Deine abgeschlossenen Abteilungen findest du unten.</p>
+      </div></div>`;
+    }
+    return `<div class="dlb-hero dlb-hero--quiet"><div class="dlb-hero__main">
+      <span class="dlb-hero__eye dlb-hero__eye--muted">Abteilungsdurchlauf</span>
+      <h2 class="dlb-hero__t">Noch keine Abteilung zugewiesen</h2>
+      <p class="dlb-hero__note">Sobald die Ausbildungsleitung deine erste Abteilung einträgt, erscheint sie hier.</p>
+    </div></div>`;
   }
-  // Platzhalter NUR, wenn gar nichts geplant ist. Sobald mind. eine Abteilung
-  // geplant ist, reicht deren Anzeige (der nächste Einsatz ist ohnehin nicht
-  // vorhersehbar – keine erklärende Prognose-Zeile).
-  const openCard = `<div class="dlb-open"><div class="dlb-open__t">Weitere Abteilungen noch nicht geplant</div></div>`;
-  const planHtml = plan.length ? plan.map(planCard).join('') : openCard;
+  const heroHtml = now.length ? now.map(heroCurrent).join('') : heroFallback();
+
+  // ── Verlaufs-Rail: alle Abteilungen chronologisch. Knoten liegen VOR der
+  //    durchgehenden Linie (deckende Füllung), aktuelle Station wird mittig
+  //    gescrollt, Pfeile blättern (s. wireDurchlaufBoard). ──
+  function stopHtml(r, i) {
+    const z = r.z;
+    const st = r.key === 'beendet' ? 'done' : r.key === 'aktuell' ? 'now' : 'plan';
+    const b = beurtByZuw[z.id];
+    const grade = (st === 'done' && b && b.status === 'abgeschlossen' && b.note != null)
+      ? b.note.toLocaleString('de-DE', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) : null;
+    const foot = st === 'done'
+      ? (grade ? `<span class="dlb-stop__grade">${grade}</span>` : `<span class="dlb-stop__soon">beendet</span>`)
+      : st === 'now' ? `<span class="dlb-stop__now">● aktuell</span>`
+      : `<span class="dlb-stop__soon">geplant</span>`;
+    const tag = st === 'plan' ? 'div' : 'a';
+    const href = st === 'plan' ? '' : ` href="?mein=1&abt=${z.id}"`;
+    return `<${tag} class="dlb-stop dlb-stop--${st}"${href}>
+      <div class="dlb-stop__nw"><span class="dlb-stop__node" style="--edge:${colorFor(z.abteilung)}">${st === 'done' ? CHECK_SM : (i + 1)}</span></div>
+      <div class="dlb-stop__name">${escHtml(z.abteilung || '–')}</div>
+      <div class="dlb-stop__date">${shortRange(z.von, z.bis)}</div>
+      ${foot}
+    </${tag}>`;
+  }
+  const railStops = rows.map(stopHtml).join('');
+
+  // ── Abgeschlossen: kompakte Karten mit Note (Klick → Detailseite) ──
+  function miniCard(r) {
+    const z = r.z;
+    const b = beurtByZuw[z.id];
+    const grade = (b && b.status === 'abgeschlossen' && b.note != null)
+      ? b.note.toLocaleString('de-DE', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) : null;
+    return `<a class="dlb-mini-card" href="?mein=1&abt=${z.id}" style="--edge:${colorFor(z.abteilung)}">
+      <div class="dlb-mini-card__top">
+        <div class="dlb-mini-card__body">
+          <div class="dlb-mini-card__t">${escHtml(z.abteilung || '–')}</div>
+          <div class="dlb-mini-card__date">${DLB_ICO.cal}${DateUtil.formatDate(z.von)} – ${z.bis ? DateUtil.formatDate(z.bis) : 'offen'}</div>
+        </div>
+        ${grade ? `<div class="dlb-grade"><span class="dlb-grade__val">${grade}</span><span class="dlb-grade__cap">Note</span></div>` : ''}
+      </div>
+      <div class="dlb-mini-card__foot">
+        <span class="dlb-ap"><span class="dlb-avatar" style="background:${colorFor(z.abteilung)};color:#fff">${dlbInitials(z.verantwName)}</span><span class="dlb-ap__name">${escHtml(z.verantwName || '–')}</span></span>
+        ${grade ? '' : `<span class="dlb-beurt dlb-beurt--open">${DLB_ICO.circle}offen</span>`}
+      </div>
+    </a>`;
+  }
 
   return `
-  <div class="dlb">
+  <div class="dlb dlb-board">
     <div class="dlb-head">
       <div><h1 class="dlb-h1">Mein Abteilungsdurchlauf</h1>${chips ? `<div class="dlb-h1meta">${chips}</div>` : ''}</div>
       ${stand}
     </div>
-    ${timeline ? `<section class="dlb-gantt" aria-label="Ausbildungsverlauf">
-      <div class="dlb-gantt__head"><span class="dlb-gantt__title">Ausbildungsverlauf</span><span class="dlb-gantt__hint">${DLB_ICO.scroll}horizontal scrollbar</span></div>
-      ${timeline}
-    </section>` : ''}
-    <div class="dlb-cols">
-      <section class="dlb-col dlb-col--done">
-        <div class="dlb-col__head"><span class="dlb-col__ico">${DLB_ICO.check}</span><span class="dlb-col__title">Abgeschlossen</span><span class="dlb-count">${done.length}</span></div>
-        <div class="dlb-col__cards">${doneHtml}</div>
-      </section>
-      <section class="dlb-col dlb-col--now">
-        <div class="dlb-col__head"><span class="dlb-col__ico">${DLB_ICO.pin}</span><span class="dlb-col__title">Aktuell</span><span class="dlb-count">${now.length}</span></div>
-        <div class="dlb-col__cards">${nowHtml}</div>
-      </section>
-      <section class="dlb-col dlb-col--plan">
-        <div class="dlb-col__head"><span class="dlb-col__ico">${DLB_ICO.cal}</span><span class="dlb-col__title">Geplant</span><span class="dlb-count">${plan.length}</span></div>
-        <div class="dlb-col__cards">${planHtml}</div>
-      </section>
+    ${heroHtml}
+    <div class="dlb-sec-h"><h2 class="dlb-sec-title">Verlauf</h2></div>
+    <div class="dlb-railwrap">
+      <button class="dlb-rail-arrow dlb-rail-arrow--l" id="dlbArrowL" type="button" aria-label="Frühere Abteilungen">${CHEV_L}</button>
+      <div class="dlb-rail-vp" id="dlbRailVp"><div class="dlb-rail" id="dlbRail"><div class="dlb-rail-base"></div><div class="dlb-rail-prog"></div>${railStops}</div></div>
+      <button class="dlb-rail-arrow dlb-rail-arrow--r" id="dlbArrowR" type="button" aria-label="Weitere Abteilungen">${DLB_ICO.chev}</button>
     </div>
-    <div class="dlb-legend"><span class="dlb-legend__note">${DLB_ICO.lock}Nur-Lese-Ansicht · gepflegt von der Ausbildungsleitung</span></div>
+    ${done.length ? `<div class="dlb-sec-h"><h2 class="dlb-sec-title">Abgeschlossen</h2><span class="dlb-count">${done.length}</span></div>
+    <div class="dlb-done-grid">${done.map(miniCard).join('')}</div>` : ''}
   </div>`;
 }
 
 /* Board-Interaktion: Lehrjahr-Gruppen ein-/ausklappen; Zeitstrahl auf „heute"
    vorscrollen. Die Abteilungen selbst sind native <a>-Links → Detailseite. */
 function wireDurchlaufBoard(root) {
-  const board = root.querySelector('.dlb');
-  if (!board) return;
-  board.addEventListener('click', e => {
-    const grpHead = e.target.closest('.dlb-grp__head');
-    if (!grpHead) return;
-    const grp = grpHead.closest('.dlb-grp');
-    const collapsed = grp.classList.toggle('collapsed');
-    grpHead.setAttribute('aria-expanded', String(!collapsed));
-  });
-  const gsc = root.querySelector('#azubiGanttScroll');
-  if (gsc && gsc.dataset.todayx) {
-    requestAnimationFrame(() => { gsc.scrollLeft = Math.max(0, Number(gsc.dataset.todayx) - gsc.clientWidth / 2); });
+  const vp = root.querySelector('#dlbRailVp');
+  const rail = root.querySelector('#dlbRail');
+  if (!vp || !rail) return;
+  const aL = root.querySelector('#dlbArrowL'), aR = root.querySelector('#dlbArrowR');
+  const base = rail.querySelector('.dlb-rail-base'), prog = rail.querySelector('.dlb-rail-prog');
+
+  function updateArrows() {
+    const max = vp.scrollWidth - vp.clientWidth - 2;
+    const fits = vp.scrollWidth <= vp.clientWidth + 2;
+    if (aL) aL.disabled = fits || vp.scrollLeft <= 2;
+    if (aR) aR.disabled = fits || vp.scrollLeft >= max;
   }
+  // Eine durchgehende Linie von der ersten bis zur letzten Station (grün bis zur
+  // aktuellen/letzten erreichten). Geometrie per Knoten-Mitte gemessen → robust
+  // bei Zentrierung, Scroll und beliebiger Stationszahl.
+  function layoutLine() {
+    if (!base || !prog) return;
+    const stops = [...rail.querySelectorAll('.dlb-stop')];
+    if (!stops.length) { base.style.display = prog.style.display = 'none'; return; }
+    const rr = rail.getBoundingClientRect();
+    const cx = s => { const n = s.querySelector('.dlb-stop__node').getBoundingClientRect(); return { x: n.left + n.width / 2 - rr.left, y: n.top + n.height / 2 - rr.top }; };
+    const f = cx(stops[0]), l = cx(stops[stops.length - 1]);
+    base.style.display = ''; base.style.left = f.x + 'px'; base.style.top = f.y + 'px'; base.style.width = Math.max(0, l.x - f.x) + 'px';
+    let reached = -1;
+    stops.forEach((s, i) => { if (s.classList.contains('dlb-stop--done') || s.classList.contains('dlb-stop--now')) reached = i; });
+    if (reached > 0) { const rc = cx(stops[reached]); prog.style.display = ''; prog.style.left = f.x + 'px'; prog.style.top = f.y + 'px'; prog.style.width = (rc.x - f.x) + 'px'; }
+    else { prog.style.display = 'none'; }
+  }
+  function center() {
+    const el = rail.querySelector('.dlb-stop--now') || rail.querySelector('.dlb-stop');
+    if (el) vp.scrollLeft = el.offsetLeft - vp.clientWidth / 2 + el.offsetWidth / 2;
+    updateArrows();
+  }
+  function relayout() { center(); layoutLine(); }
+
+  if (aL) aL.addEventListener('click', () => vp.scrollBy({ left: -336, behavior: 'smooth' }));
+  if (aR) aR.addEventListener('click', () => vp.scrollBy({ left: 336, behavior: 'smooth' }));
+  vp.addEventListener('scroll', updateArrows, { passive: true });
+  window.addEventListener('resize', relayout);
+  requestAnimationFrame(relayout);
 }
 
 /* Read-only Sicht für Azubis: der eigene Abteilungsdurchlauf (Status-Board). */
@@ -457,7 +442,9 @@ async function renderAzubiDurchlauf(user) {
     const heute = DateUtil.toISODate(new Date());
     const zuw = (await DB.getZuweisungenFuerAzubi(user.id))
       .slice().sort((a, b) => (a.von || '').localeCompare(b.von || ''));
-    main.innerHTML = durchlaufBoardHtml(user, zuw, heute);
+    const beurtByZuw = {};
+    try { (await DB.getBeurteilungenFuerAzubi(user.id)).forEach(b => { beurtByZuw[b.zuweisungId] = b; }); } catch (e) { /* ohne Noten weiter */ }
+    main.innerHTML = durchlaufBoardHtml(user, zuw, heute, beurtByZuw);
     wireDurchlaufBoard(main);
   } catch (err) {
     main.innerHTML = `<div class="durchlauf-empty">Abteilungsdurchlauf konnte nicht geladen werden.</div>`;
@@ -503,20 +490,19 @@ function durchlaufDetailHtml(z, beurt, wochen, heute) {
   if (!z) return `<div class="dlb dlb-detailpage">${back}<div class="durchlauf-empty">Abteilung nicht gefunden.</div></div>`;
   const statusKey = dlbStatusKey(z, heute);
   const statusLbl = { beendet: 'Beendet', aktuell: 'Aktuell', zukuenftig: 'Zukünftig', offen: 'Offen' }[statusKey] || '';
+  const statusIcon = { beendet: DLB_ICO.check, aktuell: DLB_ICO.pin }[statusKey] || DLB_ICO.cal;
   const weeksHtml = wochenDigestHtml(wochen);
   return `
   <div class="dlb dlb-detailpage">
     ${back}
-    <div class="dlb-head">
-      <div>
-        <h1 class="dlb-h1">${escHtml(z.abteilung || '–')}</h1>
-        <div class="dlb-h1meta">
-          <span class="dlb-chip">${DLB_ICO.cal}${DateUtil.formatDate(z.von)} – ${z.bis ? DateUtil.formatDate(z.bis) : 'offen'}</span>
-          ${z.verantwName ? `<span class="dlb-chip">${escHtml(z.verantwName)}</span>` : ''}
-          <span class="dlb-chip">${statusLbl}</span>
-        </div>
+    <header class="dlb-dhero dlb-dhero--${statusKey}">
+      <div class="dlb-dhero__main">
+        <span class="dlb-dhero__eye">${statusIcon}${statusLbl}</span>
+        <h1 class="dlb-dhero__t">${escHtml(z.abteilung || '–')}</h1>
+        <div class="dlb-dhero__when">${DLB_ICO.cal}<b>${DateUtil.formatDate(z.von)}</b><span>bis</span><b>${z.bis ? DateUtil.formatDate(z.bis) : 'offen'}</b></div>
       </div>
-    </div>
+      ${z.verantwName ? `<div class="dlb-dhero__ap"><span class="dlb-avatar dlb-avatar--now">${dlbInitials(z.verantwName)}</span><span class="dlb-ap__col"><span class="dlb-ap__name--now">${escHtml(z.verantwName)}</span><span class="dlb-ap__role">Ansprechpartner</span></span></div>` : ''}
+    </header>
     <div class="dlb-detailgrid">
       <section class="dlb-panel">
         <h2 class="dlb-panel__title">Berichtsheft-Wochen</h2>
