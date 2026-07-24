@@ -5,11 +5,13 @@
    Original-Formular F6344-1 (Logo, Rahmen, Unterschriftsblock).
    =================================================================== */
 
-/* ── Handschrift-Fonts für die Signatur-Erstellung (OFL, lokal) ── */
+/* ── Handschrift-Fonts für die Signatur-Erstellung (lokal, kein CDN) ──
+   Kalam + Caveat = SIL OFL (HANDWRITING-OFL.txt), Homemade Apple = Apache 2.0
+   (HOMEMADEAPPLE-APACHE-LICENSE.txt). Caveat wird auch fett (700) genutzt. */
 @font-face {
-  font-family: 'Dancing Script';
-  src: url('../assets/fonts/DancingScript.ttf') format('truetype-variations');
-  font-weight: 400 700;
+  font-family: 'Kalam';
+  src: url('../assets/fonts/Kalam.ttf') format('truetype');
+  font-weight: 400;
   font-style: normal;
   font-display: swap;
 }
@@ -21,8 +23,8 @@
   font-display: swap;
 }
 @font-face {
-  font-family: 'Sacramento';
-  src: url('../assets/fonts/Sacramento.ttf') format('truetype');
+  font-family: 'Homemade Apple';
+  src: url('../assets/fonts/HomemadeApple.ttf') format('truetype');
   font-weight: 400;
   font-style: normal;
   font-display: swap;

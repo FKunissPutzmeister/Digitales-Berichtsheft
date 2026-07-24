@@ -12,9 +12,9 @@
 
   // Handschrift-Stile fürs Tippen (font-family aus @font-face in CSS).
   const FONTS = [
-    { key: 'dancing',    label: 'Stil 1', family: 'Dancing Script', size: 64 },
-    { key: 'caveat',     label: 'Stil 2', family: 'Caveat',         size: 74 },
-    { key: 'sacramento', label: 'Stil 3', family: 'Sacramento',     size: 62 },
+    { key: 'kalam',    label: 'Stil 1', family: 'Kalam',          size: 56 },
+    { key: 'caveat',   label: 'Stil 2', family: 'Caveat',         size: 64, weight: 700 },
+    { key: 'homemade', label: 'Stil 3', family: 'Homemade Apple', size: 46 },
   ];
   const INK = '#1a1a2e';   // dunkle "Tinte" auf weißem Grund
 
@@ -48,7 +48,7 @@
             <div class="sig-panel" data-sig-panel="type">
               <input class="form-control" id="fg-sig-text" placeholder="Name eingeben" autocomplete="off">
               <div class="sig-styles" id="fg-sig-styles">
-                ${FONTS.map((f, i) => `<button class="sig-style${i === 0 ? ' is-active' : ''}" data-sig-font="${f.key}" type="button" style="font-family:'${f.family}',cursive">Beispiel</button>`).join('')}
+                ${FONTS.map((f, i) => `<button class="sig-style${i === 0 ? ' is-active' : ''}" data-sig-font="${f.key}" type="button" style="font-family:'${f.family}',cursive;font-weight:${f.weight || 400}">Beispiel</button>`).join('')}
               </div>
               <div class="sig-preview" id="fg-sig-preview" aria-live="polite"></div>
             </div>
@@ -152,10 +152,11 @@
   }
 
   async function renderTypedToCanvas(text, font) {
-    await document.fonts.load(`${font.size}px "${font.family}"`);
+    const spec = `${font.weight || 400} ${font.size}px "${font.family}"`;
+    await document.fonts.load(spec);
     const dpr = window.devicePixelRatio || 1;
     const meas = document.createElement('canvas').getContext('2d');
-    meas.font = `${font.size}px "${font.family}"`;
+    meas.font = spec;
     const w = Math.ceil(meas.measureText(text).width) + 40;
     const h = Math.ceil(font.size * 1.8);
     const c = document.createElement('canvas');
@@ -168,7 +169,7 @@
     ctx.fillStyle = INK;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.font = `${font.size}px "${font.family}"`;   // nach Resize erneut setzen
+    ctx.font = spec;   // nach Resize erneut setzen (inkl. Weight)
     ctx.fillText(text, w / 2, h / 2);
     return c;
   }
@@ -177,8 +178,9 @@
     const el = document.getElementById('fg-sig-preview');
     const text = (document.getElementById('fg-sig-text')?.value || '').trim();
     if (!el) return;
+    const f = state.currentFont;
     el.innerHTML = text
-      ? `<span style="font-family:'${state.currentFont.family}',cursive;font-size:44px;color:${INK}">${esc(text)}</span>`
+      ? `<span style="font-family:'${f.family}',cursive;font-weight:${f.weight || 400};font-size:${f.size}px;color:${INK}">${esc(text)}</span>`
       : '<span class="hint">Vorschau erscheint hier</span>';
   }
 
