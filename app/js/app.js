@@ -58,14 +58,6 @@ function applyCapabilities(caps) {
     const dash = document.getElementById('nav-dashboard');
     if (dash) dash.style.display = 'none';
   }
-
-  // Vorschau-Feature: Fahrgelderstattung für die Nicht-Developer-Ansicht ganz
-  // aus der Nav nehmen (Abteilungsdurchlauf bleibt sichtbar → Coming-Soon-Banner
-  // auf der Seite). Voll nur auf localhost oder mit aktiver Developer-Ansicht.
-  if (!previewUnlocked(caps.role)) {
-    const fg = document.getElementById('nav-fahrgelderstattung');
-    if (fg) fg.style.display = 'none';
-  }
 }
 
 /* ── Vorschau-Feature-Gate ─────────────────────────────────────────────
@@ -84,8 +76,13 @@ function previewUnlocked(role) {
 function renderComingSoon(titel) {
   const main = document.getElementById('mainContent');
   if (!main) return;
+  // #mainContent ist flex:1 in einer 100vh-Shell (~volle Höhe) → hier selbst zum
+  // Flex-Center machen, damit der Platzhalter mittig im Inhaltsbereich sitzt.
+  main.style.display = 'flex';
+  main.style.alignItems = 'center';
+  main.style.justifyContent = 'center';
   main.innerHTML = `
-    <div class="empty-state" style="min-height:60vh">
+    <div class="empty-state">
       <div class="empty-state__icon">${typeof Icon === 'function' ? Icon('clock') : ''}</div>
       <div class="empty-state__title">${titel} – kommt bald</div>
       <p class="empty-state__text">Diese Funktion ist noch in Arbeit und wird in Kürze für alle freigeschaltet.</p>
