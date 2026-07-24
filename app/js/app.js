@@ -76,16 +76,18 @@ function previewUnlocked(role) {
 function renderComingSoon(titel) {
   const main = document.getElementById('mainContent');
   if (!main) return;
-  // #mainContent ist flex:1 in einer 100vh-Shell (~volle Höhe) → hier selbst zum
-  // Flex-Center machen, damit der Platzhalter mittig im Inhaltsbereich sitzt.
-  main.style.display = 'flex';
-  main.style.alignItems = 'center';
-  main.style.justifyContent = 'center';
+  // WICHTIG: #mainContent NICHT per Inline-Style anfassen — der SPA-Router
+  // (router.js) tauscht nur dessen innerHTML und lässt Inline-Styles stehen;
+  // die würden auf die nächste Ansicht durchlecken und das Layout zerstören.
+  // Zentrierung deshalb in einen Kind-Wrapper, der beim Seitenwechsel mit
+  // ersetzt wird. min-height:100% füllt das flex:1-hohe #mainContent → mittig.
   main.innerHTML = `
-    <div class="empty-state">
-      <div class="empty-state__icon">${typeof Icon === 'function' ? Icon('clock') : ''}</div>
-      <div class="empty-state__title">${titel} – kommt bald</div>
-      <p class="empty-state__text">Diese Funktion ist noch in Arbeit und wird in Kürze für alle freigeschaltet.</p>
+    <div style="min-height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center">
+      <div class="empty-state">
+        <div class="empty-state__icon">${typeof Icon === 'function' ? Icon('clock') : ''}</div>
+        <div class="empty-state__title">${titel} – kommt bald</div>
+        <p class="empty-state__text">Diese Funktion ist noch in Arbeit und wird in Kürze für alle freigeschaltet.</p>
+      </div>
     </div>`;
 }
 
