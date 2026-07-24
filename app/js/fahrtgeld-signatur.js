@@ -145,11 +145,49 @@
     return out.toDataURL('image/png');
   }
 
+  async function renderTypedToCanvas(text, font) {
+    await document.fonts.load(`${font.size}px "${font.family}"`);
+    const dpr = window.devicePixelRatio || 1;
+    const meas = document.createElement('canvas').getContext('2d');
+    meas.font = `${font.size}px "${font.family}"`;
+    const w = Math.ceil(meas.measureText(text).width) + 40;
+    const h = Math.ceil(font.size * 1.8);
+    const c = document.createElement('canvas');
+    c.width = Math.round(w * dpr);
+    c.height = Math.round(h * dpr);
+    const ctx = c.getContext('2d');
+    ctx.scale(dpr, dpr);
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(0, 0, w, h);
+    ctx.fillStyle = INK;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.font = `${font.size}px "${font.family}"`;   // nach Resize erneut setzen
+    ctx.fillText(text, w / 2, h / 2);
+    return c;
+  }
+
+  function updateTypePreview() {
+    const el = document.getElementById('fg-sig-preview');
+    const text = (document.getElementById('fg-sig-text')?.value || '').trim();
+    if (!el) return;
+    el.innerHTML = text
+      ? `<span style="font-family:'${state.currentFont.family}',cursive;font-size:44px;color:${INK}">${esc(text)}</span>`
+      : '<span class="hint">Vorschau erscheint hier</span>';
+  }
+
   async function onApply() {
     let sig = null;
     if (state.activeTab === 'draw') {
       const canvas = document.getElementById('fg-sig-canvas');
       if (state.drawInk && canvas) {
+        const dataUrl = trimToDataUrl(canvas);
+        if (dataUrl) sig = { dataUrl, extension: 'png' };
+      }
+    } else if (state.activeTab === 'type') {
+      const text = (document.getElementById('fg-sig-text')?.value || '').trim();
+      if (text) {
+        const canvas = await renderTypedToCanvas(text, state.currentFont);
         const dataUrl = trimToDataUrl(canvas);
         if (dataUrl) sig = { dataUrl, extension: 'png' };
       }
@@ -170,6 +208,20 @@
     document.querySelectorAll('#fgSigModal .sig-tab').forEach(btn =>
       btn.addEventListener('click', () => switchTab(btn.dataset.sigTab)));
     document.getElementById('fg-sig-apply')?.addEventListener('click', onApply);
+
+    const textInput = document.getElementById('fg-sig-text');
+    if (textInput) {
+      textInput.value = name || '';
+      textInput.addEventListener('input', updateTypePreview);
+    }
+    document.querySelectorAll('#fgSigModal .sig-style').forEach(btn =>
+      btn.addEventListener('click', () => {
+        state.currentFont = FONTS.find(f => f.key === btn.dataset.sigFont) || FONTS[0];
+        document.querySelectorAll('#fgSigModal .sig-style').forEach(b =>
+          b.classList.toggle('is-active', b === btn));
+        updateTypePreview();
+      }));
+    updateTypePreview();
 
     window.Modal?.init?.();
     window.Modal?.open?.('fgSigModal');
