@@ -58,6 +58,38 @@ function applyCapabilities(caps) {
     const dash = document.getElementById('nav-dashboard');
     if (dash) dash.style.display = 'none';
   }
+
+  // Vorschau-Feature: Fahrgelderstattung für die Nicht-Developer-Ansicht ganz
+  // aus der Nav nehmen (Abteilungsdurchlauf bleibt sichtbar → Coming-Soon-Banner
+  // auf der Seite). Voll nur auf localhost oder mit aktiver Developer-Ansicht.
+  if (!previewUnlocked(caps.role)) {
+    const fg = document.getElementById('nav-fahrgelderstattung');
+    if (fg) fg.style.display = 'none';
+  }
+}
+
+/* ── Vorschau-Feature-Gate ─────────────────────────────────────────────
+   Abteilungsdurchlauf & Fahrgelderstattung sind noch nicht für echte Nutzer
+   reif. Voll verfügbar auf localhost (Entwicklung) ODER mit aktiver Developer-
+   Ansicht (effektive Rolle 'developer' — der Dev-Schalter stuft die Rolle sonst
+   auf 'azubi'). Auf dem Deploy sehen alle mit ausgeschaltetem Dev-Schalter —
+   auch der Entwickler selbst — denselben Coming-Soon-Platzhalter wie ein echter
+   Nutzer. ponytail: reine Client-Sicht-Sperre (versteckt unreife Features), ist
+   keine harte Zugriffskontrolle — die Backend-Endpunkte bleiben erreichbar. */
+function previewUnlocked(role) {
+  const h = location.hostname;
+  if (h === 'localhost' || h === '127.0.0.1' || h === '') return true;
+  return role === 'developer';
+}
+function renderComingSoon(titel) {
+  const main = document.getElementById('mainContent');
+  if (!main) return;
+  main.innerHTML = `
+    <div class="empty-state" style="min-height:60vh">
+      <div class="empty-state__icon">${typeof Icon === 'function' ? Icon('clock') : ''}</div>
+      <div class="empty-state__title">${titel} – kommt bald</div>
+      <p class="empty-state__text">Diese Funktion ist noch in Arbeit und wird in Kürze für alle freigeschaltet.</p>
+    </div>`;
 }
 
 /* Dev-View-Switch (Sidebar-Fußzeile). Nur für serverseitig berechtigte Nutzer

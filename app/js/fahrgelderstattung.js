@@ -13,6 +13,8 @@
 document.addEventListener('DOMContentLoaded', async () => {
   const user = await initPage('nav-fahrgelderstattung', [{ label: 'Fahrgelderstattung', href: 'fahrgelderstattung.html' }]);
   if (!user) return;
+  // Vorschau-Feature: außerhalb localhost/Developer-Ansicht kein Zugriff.
+  if (!previewUnlocked(user.role)) { renderComingSoon('Fahrgelderstattung'); return; }
   document.body.dataset.page = 'fahrgelderstattung';
 
   const main = document.getElementById('mainContent');

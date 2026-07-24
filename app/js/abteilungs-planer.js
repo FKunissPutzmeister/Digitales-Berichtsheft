@@ -630,6 +630,10 @@ document.addEventListener('DOMContentLoaded', async () => {
   const user = await initPage('nav-planer', [{ label: 'Abteilungs-Planer', href: 'abteilungs-planer.html' }]);
   if (!user) return;
 
+  // Vorschau-Feature: außerhalb localhost/Developer-Ansicht Coming-Soon statt
+  // Board (gilt für Azubi-Durchlauf ?mein=1, Ausbilder-Sicht und Planer).
+  if (!previewUnlocked(user.role)) { renderComingSoon('Abteilungsdurchlauf'); return; }
+
   // Über „Abteilungsdurchlauf" (?mein=1) sehen Azubis immer den EIGENEN
   // Durchlauf – auch Planer/Developer, die selbst Azubi sind (Dev-Hybrid).
   if (user.istAzubi && new URLSearchParams(location.search).has('mein')) {

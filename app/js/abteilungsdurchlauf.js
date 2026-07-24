@@ -29,6 +29,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     window.PMTheme.set(window.PMTheme.get() === 'dark' ? 'light' : 'dark');
   });
 
+  // Vorschau-Feature: außerhalb localhost/Developer-Ansicht Coming-Soon.
+  if (!previewUnlocked(user.role)) { renderComingSoon('Abteilungsdurchlauf'); return; }
+
   const main = document.getElementById('mainContent');
   const today = new Date();
   const heute = DateUtil.toISODate(today);
