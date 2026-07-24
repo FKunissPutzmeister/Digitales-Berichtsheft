@@ -232,6 +232,12 @@
         window.Toast?.warning?.('Format', 'Bitte ein PNG oder JPG hochladen.');
         e.target.value = ''; return;
       }
+      // Signatur landet im localStorage (~5 MB Quota, setSignature schluckt
+      // Fehler still) → große Bilder vorher abweisen.
+      if (file.size > 2 * 1024 * 1024) {
+        window.Toast?.warning?.('Zu groß', 'Das Bild darf höchstens 2 MB groß sein.');
+        e.target.value = ''; return;
+      }
       const reader = new FileReader();
       reader.onload = () => {
         state.pendingUpload = {
