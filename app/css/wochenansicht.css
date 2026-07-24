@@ -929,20 +929,31 @@ html[data-skin="silk"] body[data-page="wochenansicht"] .day-section .ql-editor {
   color: var(--pm-yellow);
 }
 
+/* Tag-Body: smooth aufklappen über echte Höhe (grid 0fr→1fr) statt Sprung.
+   ponytail: overflow springt per allow-discrete erst NACH der Animation auf
+   visible, damit schwebende Tabellenmenüs (quill-table-better) im offenen
+   Zustand nicht abgeschnitten werden; ohne allow-discrete-Support (alt) fällt
+   es sauber auf „ohne Höhen-Animation, aber kein Clip" zurück. */
 .tag-row__body {
-  display: none;
-  padding: var(--sp-5);
+  display: grid;
+  grid-template-rows: 0fr;
   border-top: 1px solid var(--pm-grey-100);
   background: var(--pm-white);
+  transition: grid-template-rows .42s cubic-bezier(.22, 1, .36, 1);
 }
-.tag-row.expanded .tag-row__body {
-  display: block;
-  animation: tag-row-expand .28s cubic-bezier(.34, 1.2, .5, 1) both;
-  transform-origin: top center;
+.tag-row.expanded .tag-row__body { grid-template-rows: 1fr; }
+.tag-row__body-inner {
+  overflow: hidden;
+  min-height: 0;
+  opacity: 0;
+  transform: translateY(-6px);
+  transition: opacity .28s ease, transform .4s cubic-bezier(.22, 1, .36, 1);
 }
-@keyframes tag-row-expand {
-  from { opacity: 0; transform: translateY(-6px) scaleY(0.985); }
-  to   { opacity: 1; transform: translateY(0)    scaleY(1); }
+.tag-row.expanded .tag-row__body-inner {
+  opacity: 1;
+  transform: none;
+  overflow: visible;
+  transition: opacity .3s ease .05s, transform .42s cubic-bezier(.22, 1, .36, 1) .05s, overflow 0s .42s allow-discrete;
 }
 
 .tag-row__absence-section .form-group { margin: 0; }
@@ -1279,17 +1290,22 @@ html[data-skin="silk"] body[data-page="wochenansicht"] .day-section .ql-editor {
 .day-section:not(.day-section--expanded) .day-section__action-collapse { display: none; }
 .day-section--expanded .day-section__action-collapse { transform: rotate(180deg); }
 
-.day-section__body {
-  display: none;
-  padding: 0 var(--sp-4) var(--sp-4);
-  border-top: 1px solid var(--pm-grey-100);
+/* Betrieb (nicht-collapsible): Editor direkt sichtbar, kein Kopf. */
+.day-section:not(.day-section--collapsible) .day-section__body { display: block; }
+/* Schule/Unterweisung (collapsible): smooth aufklappen (grid 0fr→1fr).
+   Gleicher overflow/allow-discrete-Trick wie beim Tag-Body – siehe dort. */
+.day-section--collapsible .day-section__body {
+  display: grid;
+  grid-template-rows: 0fr;
+  border-top: none;
+  transition: grid-template-rows .38s cubic-bezier(.22, 1, .36, 1);
 }
-.day-section--expanded .day-section__body {
-  display: block;
-  padding-top: var(--sp-3);
+.day-section--collapsible.day-section--expanded .day-section__body { grid-template-rows: 1fr; }
+.day-section__body-inner { overflow: hidden; min-height: 0; }
+.day-section--collapsible.day-section--expanded .day-section__body-inner {
+  overflow: visible;
+  transition: overflow 0s .38s allow-discrete;
 }
-/* Betrieb (immer expanded und nicht-collapsible) */
-.day-section--betrieb .day-section__body { display: block; padding-top: var(--sp-3); }
 
 /* ── Responsiv ── */
 @media (max-width: 768px) {
@@ -1863,6 +1879,17 @@ body[data-page="wochenansicht"] .tag-row--weekend {
   background: var(--pm-grey-50);
   border-color: var(--pm-grey-200);
 }
+/* Mehrfach-Auswahl (Strg+Klick / Long-Press): dezenter Marken-Ring +
+   getönter Rahmen. Hier (nicht oben) definiert, damit die Spezifität die
+   seiten-scoped `.tag-row { box-shadow:none }`-Regel schlägt. --pm-yellow
+   wird pro Theme remappt → Umrandung passt sich an. */
+body[data-page="wochenansicht"] .tag-row--selected {
+  border-color: var(--pm-yellow);
+  box-shadow: inset 0 0 0 2px var(--pm-yellow);
+}
+body[data-page="wochenansicht"] .tag-row--selected .tag-row__summary {
+  background: var(--pm-yellow-pale);
+}
 
 body[data-page="wochenansicht"] .tag-row__summary {
   display: grid;
@@ -2135,9 +2162,17 @@ body[data-page="wochenansicht"] .tag-row__chevron {
    !important mehr — sonst ist der Body permanent sichtbar und das
    Auf-/Zuklappen ist defekt. */
 body[data-page="wochenansicht"] .tag-row__body {
-  padding: 0 var(--sp-5) var(--sp-4);
   border-top: none;
   background: transparent;
+}
+/* Padding NUR im offenen Zustand – auf dem grid-Item (0fr) würde ein
+   Bottom-Padding sonst als Mindesthöhe stehenbleiben und einen Streifen
+   (z.B. den Zeichenzähler) im eingeklappten Tag durchscheinen lassen. */
+body[data-page="wochenansicht"] .tag-row__body-inner {
+  padding: 0;
+}
+body[data-page="wochenansicht"] .tag-row.expanded .tag-row__body-inner {
+  padding: 0 var(--sp-5) var(--sp-4);
 }
 body[data-page="wochenansicht"] .tag-row .tag-row__summary {
   border-bottom: none;
@@ -2186,46 +2221,95 @@ body[data-page="wochenansicht"] .day-section__icon {
   background: var(--pm-yellow-bg);
   color: var(--pm-yellow-darker);
 }
-body[data-page="wochenansicht"] .day-section__body {
-  padding: var(--sp-2) 0;
-  border-top: none;
+body[data-page="wochenansicht"] .day-section__body-inner {
+  padding: 0;
 }
-body[data-page="wochenansicht"] .day-section--expanded .day-section__body {
+/* Abstand des Schule/Unterweisung-Editors zum diskreten Umschalter – nur
+   ausgeklappt, sonst bliebe das Padding als Mindesthöhe (0fr-Streifen) stehen. */
+body[data-page="wochenansicht"] .day-section--collapsible.day-section--expanded .day-section__body-inner {
   padding-top: var(--sp-2);
 }
-body[data-page="wochenansicht"] .day-section--collapsible:not(.day-section--expanded) {
-  background: transparent;
-}
 
-/* Quill-Editor in den Tageskarten: schlanker Look, integriert */
+/* Editor „nackt" wie in der Wochenansicht (.wochen-kachel): KEIN eigener
+   Rahmen/Grund – der Text steht direkt auf der Tageskarte, die Toolbar bindet
+   sich nur über eine schmale Divider-Linie ein (gleiche Formatier-Leiste wie
+   im Wochen-Modus). */
 body[data-page="wochenansicht"] .day-section .ql-editor-wrap {
-  border: 1px solid var(--pm-grey-200);
-  border-top: none;                 /* obere Kante liefert die Toolbar */
-  border-radius: 0 0 var(--r-xl) var(--r-xl);
-  background: var(--pm-white);
+  border: none;
+  border-radius: 0;
+  background: transparent;
   overflow: hidden;
 }
-/* Toolbar mit umrandet, gleicher (weißer) Grund wie die Textbox. */
 body[data-page="wochenansicht"] .day-section .ql-toolbar.ql-snow {
-  border: 1px solid var(--pm-grey-200) !important;
+  border: none !important;
   border-bottom: 1px solid var(--pm-grey-200) !important;
-  background: var(--pm-white);
-  border-radius: var(--r-xl) var(--r-xl) 0 0;
+  background: transparent;
+  border-radius: 0 !important;
 }
 body[data-page="wochenansicht"] .day-section .ql-container.ql-snow {
   border: none !important;
   min-height: 100px;
 }
 
-/* „Normal"-Picker: gleicher Look wie Buttons – kein Box-Rahmen */
-body[data-page="wochenansicht"] .ql-toolbar .ql-picker.ql-header .ql-picker-label {
-  border: none !important;
-  background: transparent !important;
-  border-radius: var(--r-sm);
-  padding: 0 var(--sp-1) 0 var(--sp-2);
+/* ── Diskreter Umschalter für Schule/Unterweisung (ersetzt die Kopf-Kachel) ──
+   Eingeklappt: „＋ Titel hinzufügen" (gedämpft). Ausgeklappt: kleines
+   Großbuchstaben-Label; das ＋ dreht zu ✕ als Einklapp-Hinweis. */
+body[data-page="wochenansicht"] .day-section__toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: var(--sp-2) 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+  font-family: var(--font-body);
+  font-size: var(--text-sm);
+  color: var(--pm-grey-500);
+  transition: color var(--t-fast);
 }
-body[data-page="wochenansicht"] .ql-toolbar .ql-picker.ql-header .ql-picker-label:hover {
-  background: var(--pm-grey-100) !important;
+body[data-page="wochenansicht"] button.day-section__toggle:hover { color: var(--pm-grey-800); }
+body[data-page="wochenansicht"] .day-section__toggle--static { cursor: default; }
+.day-section__toggle-plus {
+  width: 15px;
+  height: 15px;
+  flex-shrink: 0;
+  stroke: var(--pm-yellow-darker);
+  stroke-width: 2.5;
+  fill: none;
+  stroke-linecap: round;
+  transition: transform var(--t-normal);
+}
+.day-section__toggle-suffix { color: var(--pm-grey-400); }
+/* Ausgeklappt → diskretes Label + ✕ (gedrehtes ＋) */
+.day-section--expanded .day-section__toggle { color: var(--pm-grey-400); }
+.day-section--expanded .day-section__toggle-title {
+  text-transform: uppercase;
+  font-size: var(--text-xs);
+  letter-spacing: 0.06em;
+  font-weight: var(--fw-bold);
+}
+.day-section--expanded .day-section__toggle-suffix { display: none; }
+.day-section--expanded .day-section__toggle-plus { transform: rotate(45deg); }
+/* Statisch (readonly): nur das Label, kein ＋/„hinzufügen" */
+.day-section__toggle--static .day-section__toggle-plus,
+.day-section__toggle--static .day-section__toggle-suffix { display: none; }
+.day-section__toggle--static .day-section__toggle-title {
+  text-transform: uppercase;
+  font-size: var(--text-xs);
+  letter-spacing: 0.06em;
+  font-weight: var(--fw-bold);
+  color: var(--pm-grey-500);
+}
+
+/* Größen-Feld (Schriftgröße) behält bewusst seinen Box-Rahmen aus quill-editor.css
+   (Word-artiges Zahlenfeld) – hier NICHT auf randlos überschreiben. */
+
+/* Grundschrift der Berichts-Editoren = 11 pt = „Standard" (11) des Größen-Felds,
+   sodass Text ohne Größen-Format genau als 11 dargestellt wird (wie Word).
+   Nur hier – die übrigen Editoren (Beurteilung, Mitteilungen …) bleiben unberührt. */
+body[data-page="wochenansicht"] .ql-editor,
+body[data-page="wochenansicht"] .ql-editor.ql-blank::before {
+  font-size: 11pt;
 }
 
 /* Footer: Char-Count + Eintrag-leeren-Button, sehr dezent */
@@ -2861,8 +2945,7 @@ body[data-page="wochenansicht"] .btn-lg {
 
 /* Quill-Editor Hintergrund anpassen */
 [data-theme="dark"] body[data-page="wochenansicht"] .day-section .ql-editor-wrap {
-  background: rgba(255, 255, 255, 0.02);
-  border-color: rgba(255, 255, 255, 0.08);
+  background: transparent;
 }
 /* Wochen-Kachel: Textbox transparent – der (opake) Kachelrahmen liefert
    den Grund, damit Kopf, Toolbar und Textbox exakt gleich aussehen. */
@@ -2880,10 +2963,9 @@ body[data-page="wochenansicht"] .btn-lg {
   border-bottom-color: rgba(255, 255, 255, 0.08);
 }
 [data-theme="dark"] body[data-page="wochenansicht"] .day-section .ql-toolbar.ql-snow {
-  /* Gleicher Grund wie die Textbox (rgba .02) – Toolbar bindet sich in den
-     Kachelrahmen ein; Rahmenfarbe an die übrigen Kanten angeglichen. */
-  background: rgba(255, 255, 255, 0.02);
-  border-color: rgba(255, 255, 255, 0.08) !important;
+  /* Nackt wie die Wochen-Kachel: transparent, nur die Divider-Linie sichtbar. */
+  background: transparent;
+  border-bottom-color: rgba(255, 255, 255, 0.08) !important;
 }
 /* Wochen-Kachel-Toolbar: transparent (zeigt den opaken Kachelgrund),
    nur die Divider-Linie sichtbar. */

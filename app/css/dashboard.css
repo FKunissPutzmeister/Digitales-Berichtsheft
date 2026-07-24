@@ -2204,12 +2204,19 @@ html[data-theme="dark"] .b-recent::before {
   overflow: hidden;
 }
 /* Status-Signalfarbe zentral pro Karte (genutzt von Balken, Wash, Gradient).
-   freigegeben = Theme-Akzent (--pm-yellow zieht pro Theme mit), offen = blau,
-   zurückgewiesen = rot, genehmigt = grün. */
+   freigegeben/eingereicht = blau (wie Jahresansicht + b-status-Badge), offen =
+   blau, zurückgewiesen = rot, genehmigt = grün. */
 .b-wkcard--ok    { --sig: var(--color-success, #00A26B); }   /* genehmigt */
-.b-wkcard--fr    { --sig: var(--pm-yellow); }                /* freigegeben → Theme-Farbe */
+.b-wkcard--fr    { --sig: var(--status-freigegeben, #1565C0); } /* eingereicht → blau */
 .b-wkcard--er    { --sig: var(--color-error, #E03B3B); }     /* zurückgewiesen */
-.b-wkcard--draft { --sig: var(--info, #2C82F0); }            /* offen → blau */
+.b-wkcard--draft,
+.b-wkcard--entwurf { --sig: var(--info, #2C82F0); }          /* Entwurf (angefangen) → Blau */
+/* Offen (Woche noch komplett leer) = leicht abgewandeltes, weicheres/helleres
+   Blau vom Entwurf – abgesetzt v.a. im Kopfbalken + in der Tönung. Der Status-
+   Text bleibt im satten Basis-Blau, weil ein helleres Blau auf weißer Kachel zu
+   kontrastarm zum Lesen wäre. */
+.b-wkcard--offen { --sig: color-mix(in srgb, var(--info, #2C82F0) 58%, #fff); }
+.b-wkcard--offen .b-wkcard__status { color: var(--info, #2C82F0); }
 .b-wkcard::before {
   content: ""; position: absolute;
   top: 0; left: 0; right: 0; height: 4px;
@@ -2244,6 +2251,18 @@ html[data-theme="dark"] .b-recent::before {
   text-transform: uppercase;
   margin-left: 4px;
 }
+/* Tages-Karten (Zuletzt, berichtTyp='täglich'): der Wochentag ist wichtiger als
+   die bloße Tageszahl → deutlich größer + kräftiger + kontrastreicher. Der Monat
+   entfällt hier ganz (steht schon in der Tageszahl-Gruppe). */
+.b-wkcard--day .b-wkcard__kw small {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--pm-grey-600);
+  margin-left: 6px;
+}
+[data-theme="dark"] .b-wkcard--day .b-wkcard__kw small {
+  color: rgba(255, 255, 255, 0.82);
+}
 .b-wkcard__range {
   font-weight: 500; font-size: 11px; line-height: 1.4;
   color: var(--pm-grey-500);
@@ -2257,10 +2276,8 @@ html[data-theme="dark"] .b-recent::before {
 /* Status-Dot entfernt (alle Themes) – Status steht im Text
    + Signalfarbe der Kachel, der Punkt war redundant. */
 .b-wkcard__status .d { display: none; }
-/* Status-Text folgt der Signalfarbe; nur freigegeben (Theme-Akzent) nutzt die
-   dunklere Akzentvariante, damit es auf hellem Grund lesbar bleibt. */
+/* Status-Text folgt der Signalfarbe der Karte. */
 .b-wkcard__status { color: var(--sig, var(--pm-grey-500)); }
-.b-wkcard--fr .b-wkcard__status { color: var(--pm-yellow-darker, #C58E00); }
 [data-theme="dark"] .b-wkcard {
   background:
     linear-gradient(180deg, color-mix(in srgb, var(--sig, transparent) 22%, transparent) 0%, rgba(255,255,255,0.04) 55%),
@@ -2270,6 +2287,11 @@ html[data-theme="dark"] .b-recent::before {
 }
 [data-theme="dark"] .b-wkcard__kw { color: #fff; }
 [data-theme="dark"] .b-wkcard:hover { border-color: color-mix(in srgb, var(--sig, #ffffff) 48%, transparent); }
+/* Das freigegeben-Blau (#1565C0) ist als Text auf dunklen Kacheln zu dunkel –
+   für den Dark-Mode aus dem Token Richtung Weiß aufhellen (keine Magic-Farbe). */
+[data-theme="dark"] .b-wkcard--fr .b-wkcard__status {
+  color: color-mix(in srgb, var(--status-freigegeben) 58%, #fff);
+}
 
 /* ───────── Stats / Sparkline (4×2 — rechts neben Recent) ───────── */
 .b-stats {

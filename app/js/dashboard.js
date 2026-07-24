@@ -140,13 +140,30 @@ async function renderAzubiDashboard(user) {
      - Frist: Bis Sonntag 23:59 (gelb).
      - Stats: Sparkline der letzten 12 Wochen + Streak-Pille. */
 
+  /* „Woche nicht mehr leer" = Entwurf. Es reicht EIN Zeichen in irgendeinem
+     Eintrag ODER ein echt gesetzter Anwesenheitsstatus (auch krank/urlaub).
+     Der leere Default ('') und der Auto-Wert 'Wochenende' zählen NICHT; ort/
+     tagdauer sind Auto-Defaults und zählen ebenfalls nicht. */
+  function tagHatInhalt(t) {
+    if (!t) return false;
+    const anwGesetzt = !!t.anwesenheit && t.anwesenheit !== 'Wochenende';
+    return anwGesetzt || !!t.eintrag || !!t.betriebEintrag || !!t.schuleEintrag || !!t.unterweisungEintrag;
+  }
+  function wocheHatInhalt(w) {
+    if (!w) return false;
+    return (w.tage || []).some(tagHatInhalt)
+      || !!w.betriebEintrag || !!w.schuleEintrag || !!w.unterweisungEintrag;
+  }
+
   function wkcardKind(w) {
-    if (!w) return 'draft';
-    if (w.status === 'genehmigt')   return 'ok';
-    if (w.status === 'freigegeben') return 'fr';
-    if (w.status === 'erstgenehmigt') return 'fr';
-    if (w.status === 'abgelehnt')   return 'er';
-    return 'draft';
+    if (w) {
+      if (w.status === 'genehmigt')     return 'ok';
+      if (w.status === 'freigegeben')   return 'fr';
+      if (w.status === 'erstgenehmigt') return 'fr';
+      if (w.status === 'abgelehnt')     return 'er';
+    }
+    // Nicht eingereicht → Inhalt entscheidet: angefangen = Entwurf, sonst Offen.
+    return wocheHatInhalt(w) ? 'entwurf' : 'offen';
   }
 
   /* Wochen-Mini: Mo–So, today gelb hervorgehoben. KEINE Tages-Stunden,
@@ -182,11 +199,12 @@ async function renderAzubiDashboard(user) {
       const wkw = DateUtil.getKW(mo), wyr = DateUtil.getKWYear(mo);
       const su = new Date(mo); su.setDate(mo.getDate() + 6);
       const rec = lookupWoche(wkw, wyr);
-      const kind = wkcardKind(rec);
-      const lbl = kind === 'ok'    ? 'Genehmigt'
-               : kind === 'fr'     ? 'Eingereicht'
-               : kind === 'er'     ? 'Zurückgegeben'
-               :                     'Offen';
+      const kind = wkcardKind(rec);   // ok | fr | er | entwurf | offen
+      const lbl = kind === 'ok'      ? 'Genehmigt'
+               : kind === 'fr'       ? 'Eingereicht'
+               : kind === 'er'       ? 'Zurückgegeben'
+               : kind === 'entwurf'  ? 'Entwurf'
+               :                       'Offen';
       html += `
         <a class="b-wkcard b-wkcard--${kind}" href="wochenansicht.html"
            data-goto-kw="${wkw}" data-goto-year="${wyr}">
@@ -204,7 +222,6 @@ async function renderAzubiDashboard(user) {
      woche.tage[i] gelesen. */
   function renderBentoRecentDays() {
     const WD_SHORT = ['SO','MO','DI','MI','DO','FR','SA'];
-    const M_SHORT  = ['Jan','Feb','Mär','Apr','Mai','Jun','Jul','Aug','Sep','Okt','Nov','Dez'];
     let html = '';
     let count = 0;
     const d = new Date(today);
@@ -234,10 +251,9 @@ async function renderAzubiDashboard(user) {
         // Tages-Inhalt – so greifen alle Theme-Styles (Silk-Gradient etc.)
         // automatisch auch hier. 'leer' hat kein --sig → graue Fallbacks.
         html += `
-          <a class="b-wkcard b-wkcard--${kind}" href="wochenansicht.html"
+          <a class="b-wkcard b-wkcard--day b-wkcard--${kind}" href="wochenansicht.html"
              data-goto-kw="${wkw}" data-goto-year="${wyr}">
             <span class="b-wkcard__kw">${d.getDate()}.<small>${WD_SHORT[wd]}</small></span>
-            <span class="b-wkcard__range">${M_SHORT[d.getMonth()]}</span>
             <span class="b-wkcard__status"><span class="d"></span>${lbl}</span>
           </a>`;
         count++;
@@ -314,6 +330,22 @@ async function renderAzubiDashboard(user) {
             </span>
           </a>` : '';
   const mtNotifHtml = mtItems.slice(0, 6).map(b => {
+    // Beurteilungs-Mitteilungen (kein KW/Jahr) korrekt beschriften + auf den
+    // Beurteilungsbogen verlinken statt in den zurückgegeben-Zweig zu fallen.
+    if (b.type === 'beurteilung_abgeschlossen' || b.type === 'beurteilung_faellig') {
+      const faellig = b.type === 'beurteilung_faellig';
+      const btitle = faellig ? 'Beurteilung fällig' : 'Neue Beurteilung liegt vor';
+      return `
+          <a class="b-mitteilung${b.gelesen ? '' : ' b-mitteilung--unread'}" href="beurteilung.html?zuw=${encodeURIComponent(b.zuweisungId || '')}"
+             data-notif-id="${b.id}" data-zuw="${b.zuweisungId || ''}">
+            <span class="b-mitteilung__icon b-mitteilung__icon--${faellig ? 'er' : 'ok'}">${faellig ? MT_ICON_ER : MT_ICON_OK}</span>
+            <span class="b-mitteilung__body">
+              <span class="b-mitteilung__title">${btitle}</span>
+              <span class="b-mitteilung__meta">${mtRelTime(b.timestamp)}</span>
+            </span>
+            ${b.gelesen ? '' : '<span class="b-mitteilung__dot" aria-hidden="true"></span>'}
+          </a>`;
+    }
     const isErst = b.type === 'erstgenehmigt';
     const ok = b.type === 'genehmigt' || isErst;
     const title = isErst
@@ -428,6 +460,7 @@ async function renderAzubiDashboard(user) {
       e.preventDefault();
       const id = parseInt(el.dataset.notifId, 10);
       if (!isNaN(id)) { try { await DB.markBenachrichtigungGelesen(id); } catch (_) {} }
+      if (el.dataset.zuw) { window.location.href = `beurteilung.html?zuw=${el.dataset.zuw}`; return; }
       if (el.dataset.kw)    sessionStorage.setItem('gotoKW', el.dataset.kw);
       if (el.dataset.year)  sessionStorage.setItem('gotoYear', el.dataset.year);
       if (el.dataset.azubi) sessionStorage.setItem('gotoAzubiId', el.dataset.azubi);

@@ -222,6 +222,7 @@ router.patch('/:id', nurPlaner, async (req, res) => {
 
 // DELETE /api/zuweisungen/:id
 router.delete('/:id', nurPlaner, async (req, res) => {
+  let tx;
   try {
     const pool = await getPool();
     const id = Number(req.params.id) || 0;
@@ -229,18 +230,31 @@ router.delete('/:id', nurPlaner, async (req, res) => {
     const pre = await pool.request().input('id', sql.Int, id)
       .query('SELECT AzubiOid, VerantwEmail FROM dbo.Zuweisungen WHERE Id = @id');
     const row = pre.recordset[0];
-    const result = await pool.request()
-      .input('id', sql.Int, id)
+    // Atomar aufräumen: es gibt KEINEN FK von Beurteilungen/Benachrichtigungen auf
+    // Zuweisungen. Ohne dies bliebe eine (ggf. abgeschlossene) Beurteilung als Waise
+    // zurück – mit totem Deep-Link in den Aktivitäts-Feeds und in der Mitteilung des
+    // Azubis. (BeurteilungKriterien hängen per FK ON DELETE CASCADE an Beurteilungen
+    // und verschwinden automatisch mit.)
+    tx = new sql.Transaction(pool);
+    await tx.begin();
+    await new sql.Request(tx).input('id', sql.Int, id)
+      .query("DELETE FROM dbo.Benachrichtigungen WHERE ZuweisungId = @id AND Typ LIKE 'beurteilung%'");
+    await new sql.Request(tx).input('id', sql.Int, id)
+      .query('DELETE FROM dbo.Beurteilungen WHERE ZuweisungId = @id');
+    const result = await new sql.Request(tx).input('id', sql.Int, id)
       .query('DELETE FROM dbo.Zuweisungen WHERE Id = @id');
     if (!result.rowsAffected[0]) {
+      await tx.rollback(); tx = null;
       return res.status(404).json({ error: 'Zuweisung nicht gefunden.' });
     }
+    await tx.commit(); tx = null;
     if (row) {
       await benachrichtige(pool, [row.AzubiOid, await oidForEmail(pool, row.VerantwEmail)],
         'versetzung_entfernt', req.user.oid);
     }
     res.json({ ok: true });
   } catch (err) {
+    if (tx) { try { await tx.rollback(); } catch (_) { /* nicht begonnen / schon zurückgerollt */ } }
     logError({ quelle: 'backend', nachricht: `[zuweisungen] delete: ${err.message}`, stack: err.stack,
       kontext: { route: req.path, methode: req.method }, benutzerOid: req.user && req.user.oid, benutzerName: req.user && req.user.name });
     res.status(500).json({ error: err.message });

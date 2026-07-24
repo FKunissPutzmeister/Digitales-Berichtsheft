@@ -95,6 +95,24 @@ document.addEventListener('DOMContentLoaded', async () => {
     const notifs = (await DB.getBenachrichtigungenFuerUser(user.id))
       .filter(b => !String(b.type || '').startsWith('versetzung_') && b.type !== 'genehmigt');
     return notifs.map(b => {
+      // Beurteilungs-Mitteilungen haben kein KW/Jahr (WocheId=NULL) und verlinken
+      // auf den Beurteilungsbogen – nicht auf die Wochenansicht. Ohne diesen Fall
+      // fielen sie in den zurueckgegeben-Zweig ("KW null/null zurückgegeben").
+      if (b.type === 'beurteilung_abgeschlossen' || b.type === 'beurteilung_faellig') {
+        const faellig = b.type === 'beurteilung_faellig';
+        return {
+          ts: b.timestamp || 0,
+          tone: faellig ? 'info' : 'ok',
+          typeKey: 'beurteilung',
+          typeLabel: 'Beurteilung',
+          title: faellig ? 'Beurteilung fällig' : 'Neue Beurteilung liegt vor',
+          meta: relTime(b.timestamp),
+          gelesen: !!b.gelesen,
+          notifId: b.id,
+          href: `beurteilung.html?zuw=${encodeURIComponent(b.zuweisungId || '')}`,
+          nav: null,
+        };
+      }
       const isErst = b.type === 'erstgenehmigt';
       const tone = isErst ? 'ok' : 'er';
       const typeKey = isErst ? 'erstgenehmigt' : 'zurueckgegeben';

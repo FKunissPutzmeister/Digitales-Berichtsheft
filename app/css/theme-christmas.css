@@ -439,7 +439,7 @@ html[data-theme="christmas"] .b-recent::before {
 html[data-theme="christmas"] .bento .b-hero {
   background-image:
     radial-gradient(130% 160% at 84% 6%, rgba(200, 16, 46, 0.10), transparent 55%),
-    linear-gradient(135deg, rgba(20,30,52,0.44) 0%, rgba(12,20,36,0.40) 100%) !important;
+    linear-gradient(135deg, rgba(20,30,52,0.86) 0%, rgba(12,20,36,0.90) 100%) !important;
   background-size: cover, cover !important;
   background-position: center, center !important;
   -webkit-backdrop-filter: blur(18px) saturate(1.6); backdrop-filter: blur(18px) saturate(1.6);
@@ -450,7 +450,7 @@ html[data-theme="christmas"] .bento .b-azubi,
 html[data-theme="christmas"] .bento .b-mitteilungen {
   background-image:
     radial-gradient(95% 95% at 50% 24%, rgba(30, 123, 60, 0.14), transparent 60%),
-    linear-gradient(160deg, rgba(20,32,54,0.44) 0%, rgba(12,20,36,0.40) 100%) !important;
+    linear-gradient(160deg, rgba(20,32,54,0.86) 0%, rgba(12,20,36,0.90) 100%) !important;
   background-size: cover, cover !important;
   background-position: center, center !important;
   -webkit-backdrop-filter: blur(18px) saturate(1.6); backdrop-filter: blur(18px) saturate(1.6);
@@ -460,7 +460,7 @@ html[data-theme="christmas"] .bento .b-mitteilungen {
 html[data-theme="christmas"] .bento .b-recent {
   background-image:
     radial-gradient(130% 140% at 12% 16%, rgba(200, 16, 46, 0.09), transparent 55%),
-    linear-gradient(120deg, rgba(20,30,50,0.44) 0%, rgba(11,19,34,0.40) 100%) !important;
+    linear-gradient(120deg, rgba(20,30,50,0.86) 0%, rgba(11,19,34,0.90) 100%) !important;
   background-size: cover, cover !important;
   background-position: center, center !important;
   -webkit-backdrop-filter: blur(18px) saturate(1.6); backdrop-filter: blur(18px) saturate(1.6);
@@ -473,12 +473,104 @@ html[data-theme="christmas"] .bento .b-recent {
 [data-theme="christmas"] .welcome-hero {
   background-image:
     radial-gradient(120% 150% at 80% 6%, rgba(200, 16, 46, 0.10), transparent 55%),
-    linear-gradient(135deg, rgba(20, 30, 52, 0.44) 0%, rgba(12, 20, 36, 0.40) 100%) !important;
+    linear-gradient(135deg, rgba(20, 30, 52, 0.86) 0%, rgba(12, 20, 36, 0.90) 100%) !important;
   background-size: cover, cover !important;
   background-position: center, center !important;
   -webkit-backdrop-filter: blur(18px) saturate(1.6); backdrop-filter: blur(18px) saturate(1.6);
   border: 1px solid rgba(255, 255, 255, 0.16) !important;
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.20), 0 14px 36px -10px rgba(0, 0, 0, 0.5) !important;
+}
+
+/* ===================================================================
+   ECHTES LIQUID GLASS (liquid-glass-Skill / GlassSurface) — Dashboard
+   -------------------------------------------------------------------
+   GlassSurface braucht backdrop-filter, der die Szene „sieht". Die fixe
+   FX-Szene (#pmThemeFX) liegt AUSSERHALB des Backdrop-Roots der Karten →
+   für den Filter unsichtbar (verifiziert: erzwungener Blur bleibt scharf).
+   Lösung (theme.js → PMChristmasGlass): ein SCHARFER Bild-Layer #pm-xm-glassbg
+   INNERHALB #mainContent (dessen fadeIn-Transform es zum Backdrop-Root macht).
+   Pro Karte ZWEI gestapelte Backings: unten .pm-xm-glass-blur (lokaler
+   backdrop-filter blur = Frost NUR auf der Kachel), darüber .pm-xm-glass
+   (GlassSurface-Refraktion, bricht den geblurrten Layer). Ergebnis: mattes
+   Milchglas mit Kanten-Brechung, Lücken bleiben scharf. Die obigen CSS-Glas-
+   Regeln bleiben Fallback, falls das Skript/Bundle nicht lädt (deckend lesbar).
+   =================================================================== */
+[data-theme="christmas"] #pm-xm-glassbg {
+  position: fixed; inset: 0; z-index: 0; pointer-events: none;
+  /* SCHARFE Szene (KEIN Blur!). Die Panels brechen dieses scharfe Bild = echtes
+     Glas, und die Lücken zwischen den Kacheln zeigen die knackige Szene. Der
+     Frost/Blur passiert LOKAL pro Kachel im .pm-xm-glass-blur-Backing, nicht
+     hier global — sonst wäre auch der Raum ZWISCHEN den Kacheln verwaschen. */
+  background: center center / cover no-repeat
+    url("../assets/backgrounds/Christmas Background.png");
+}
+/* Dekorierte Karte: transparent + eigener backdrop-filter AUS (das Glas
+   sitzt auf dem Backing). Selektoren mit Kachel-Spezifität, damit sie die
+   !important-„Finaler-Material-Layer"-Regeln oben zuverlässig schlagen. */
+html[data-theme="christmas"] .bento .b-hero.pm-xm-glass-card,
+html[data-theme="christmas"] .bento .b-mitteilungen.pm-xm-glass-card,
+html[data-theme="christmas"] .bento .b-recent.pm-xm-glass-card,
+html[data-theme="christmas"] .welcome-hero.pm-xm-glass-card {
+  background: transparent !important;
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+  /* Eigenen Rand + Box-Shadow der Karte ENTFERNEN — sonst liegt ihre helle
+     1px-Kante/der Inset-Highlight zusätzlich zum Glas-Rim des Backings auf
+     der Fläche = die „weißen Seitenränder". Der einzige sichtbare Rand soll
+     der Glow-Edge des GlassSurface-Backings sein. */
+  border: 0 !important;
+  box-shadow: none !important;
+}
+[data-theme="christmas"] .pm-xm-glass-card { position: relative; }
+/* Inhalt über BEIDE Glas-Backings heben */
+[data-theme="christmas"] .pm-xm-glass-card > *:not(.pm-xm-glass):not(.pm-xm-glass-blur) { position: relative; z-index: 2; }
+/* Unteres Backing: blurrt LOKAL nur diese Kachelfläche (der Chromium-Trick —
+   blur() geht nicht mit url(#svg) in EINEM backdrop-filter, also zwei gestapelte
+   Layer). Der dunkle Kühl-Ton darüber macht helle Schrift über der hellen
+   Schnee-Szene lesbar; border-radius:inherit clippt den Blur auf die runde
+   Kachel. Liegt UNTER dem Refraktions-Backing (z-index 0 < 1), damit dieses den
+   bereits geblurrten Layer bricht. */
+[data-theme="christmas"] .pm-xm-glass-blur {
+  position: absolute; inset: 0; z-index: 0; border-radius: inherit; pointer-events: none;
+  -webkit-backdrop-filter: blur(14px) saturate(1.1);
+  backdrop-filter: blur(14px) saturate(1.1);
+  background: rgba(14, 26, 46, 0.34);
+}
+/* Oberes Backing: GlassSurface-Refraktion — bricht das bereits geblurrte untere
+   Backing → mattes Milchglas MIT Kanten-Brechung + Glow-Rim. */
+[data-theme="christmas"] .pm-xm-glass { position: absolute; inset: 0; z-index: 1; border-radius: inherit; }
+
+/* „Weiße Ränder": der Glow-Edge des GlassSurface-Backings ist im dark-
+   color-scheme ein heller Rim (light-dark() → weiß). Auf den großen Karten
+   liest der sich als weißer Rand. Deutlich dezenter fassen — der Haupt-Glas-
+   Eindruck kommt ohnehin aus der Displacement-Brechung, nicht aus dem Rim. */
+[data-theme="christmas"] .pm-xm-glass.glass-surface--svg {
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.05),
+    inset 0 1px 1px rgba(255, 255, 255, 0.09),
+    0 10px 30px rgba(0, 0, 0, 0.30) !important;
+}
+/* „Dunkler Fleck": die Bento-Karten tragen dekorative Dark-Radial-Vignetten
+   im ::before (waren für den früher OPAKEN Grund gedacht). Über dem jetzt
+   transparenten Glas sind das dunkle Flecken → auf dekorierten Karten
+   abschalten. Die Lichterkette (.b-hero::after) bleibt unangetastet. */
+[data-theme="christmas"] .pm-xm-glass-card::before { background: none !important; }
+/* „Weiße Ränder / rot-grüner Streifen" rechts an Mitteilungen: das war der
+   Christmas-Scrollbar (heller Track rgba(255,255,255,0.03) + rot→grün-Thumb)
+   einer überlaufenden Liste (.b-mitteilungen__list). In den Glas-Karten
+   ausblenden — der Inhalt bleibt scrollbar, „Alle … anzeigen" führt zur
+   Vollliste, und die Kante bleibt sauber. */
+[data-theme="christmas"] .pm-xm-glass-card *::-webkit-scrollbar { width: 0 !important; height: 0 !important; }
+[data-theme="christmas"] .pm-xm-glass-card * { scrollbar-width: none; }
+/* DIE weißen Seitenränder: .b-mitteilungen::after / .b-recent::after tragen aus
+   dashboard.css einen Links/Rechts-Kanten-Fade über --tile-edge. Christmas hat
+   --tile-edge NICHT überschrieben → Default rgba(255,255,255,0.9) = weißer Rand
+   auf dem dunklen Glas. (Bei .b-hero unsichtbar, weil dort das ::after von der
+   Lichterkette überschrieben wird → deshalb nur hier sichtbar.) Auf den Glas-
+   Karten abschalten — Lichterkette (.b-hero::after) bleibt unberührt. */
+[data-theme="christmas"] .b-mitteilungen.pm-xm-glass-card::after,
+[data-theme="christmas"] .b-recent.pm-xm-glass-card::after {
+  background: none !important;
 }
 
 /* ── Jahresansicht-Legende (jahresansicht.css spiegelt nur [data-theme=
@@ -639,7 +731,10 @@ html[data-theme="christmas"] .bento .b-recent {
 [data-theme="christmas"] .week-toolbar,
 [data-theme="christmas"] .pm-select__menu,
 [data-theme="christmas"] .dropdown__menu {
-  background: rgba(20, 30, 50, 0.56);
+  /* Deckkraft von 0.56 auf 0.84 angehoben: über dem hellen Winterbild
+     (und wenn backdrop-filter nicht greift) war 0.56 zu durchsichtig,
+     Inhalt kaum lesbar. Bleibt dezent glasig, aber klar lesbar. */
+  background: rgba(20, 30, 50, 0.84);
   background-image: linear-gradient(180deg, rgba(214, 232, 255, 0.06) 0%, rgba(214, 232, 255, 0) 40%);
   border: 1px solid rgba(200, 222, 255, 0.26);
   -webkit-backdrop-filter: blur(14px) saturate(1.4);

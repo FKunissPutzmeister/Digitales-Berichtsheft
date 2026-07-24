@@ -1,0 +1,130 @@
+/* ============================================================================
+   LIQUID GLASS — ReactBits <GlassSurface>, vanilla port (no React, no build).
+   ----------------------------------------------------------------------------
+   The convincing-glass look comes from TWO things together — drop either and it
+   collapses into "just transparent":
+     (1) an SVG per-channel DISPLACEMENT backdrop-filter → real refraction +
+         chromatic aberration AT THE EDGE (set up in glass-surface.js), and
+     (2) the light-dark() inset GLOW-EDGE box-shadow below → the bright rim that
+         reads as a glass surface rather than a hole.
+   `color-scheme` MUST be set (dark → bright rim; light → dark rim). Chromium/
+   Edge only for the displacement; Safari/Firefox fall back to blur+saturate.
+   ============================================================================ */
+
+:root { color-scheme: dark; }   /* set per-container if you mix light/dark */
+
+.glass-surface {
+  position: relative;
+  display: flex; align-items: center; justify-content: center;
+  overflow: hidden;
+  transition: opacity .26s ease-out;
+  contain: layout style;                 /* perf: narrow style/layout recalc scope */
+}
+.glass-surface__filter  { width:100%; height:100%; pointer-events:none; position:absolute; inset:0; opacity:0; z-index:-1; }
+.glass-surface__content { width:100%; height:100%; display:flex; align-items:center; justify-content:center;
+                          padding:.5rem; border-radius:inherit; position:relative; z-index:1; }
+
+/* (2) THE GLOW EDGE — do not delete. This is what makes it look like glass. */
+.glass-surface--svg {
+  background: light-dark(hsl(0 0% 100% / var(--glass-frost, 0)), hsl(0 0% 0% / var(--glass-frost, 0)));
+  backdrop-filter: var(--filter-id, url(#glass-filter)) saturate(var(--glass-saturation, 1));
+  box-shadow:
+    0 0 2px 1px  light-dark(color-mix(in oklch, black, transparent 85%), color-mix(in oklch, white, transparent 65%)) inset,
+    0 0 10px 4px light-dark(color-mix(in oklch, black, transparent 90%), color-mix(in oklch, white, transparent 85%)) inset,
+    0 4px 16px rgba(17,17,26,.05), 0 8px 24px rgba(17,17,26,.05), 0 16px 56px rgba(17,17,26,.05),
+    0 4px 16px rgba(17,17,26,.05) inset, 0 8px 24px rgba(17,17,26,.05) inset, 0 16px 56px rgba(17,17,26,.05) inset;
+}
+
+/* Fallback (Safari/Firefox: no SVG-in-backdrop-filter). Plain frosted glass. */
+.glass-surface--fallback {
+  background: rgba(255,255,255,.10);
+  backdrop-filter: blur(12px) saturate(1.8) brightness(1.2);
+  -webkit-backdrop-filter: blur(12px) saturate(1.8) brightness(1.2);
+  border: 1px solid rgba(255,255,255,.2);
+  box-shadow: inset 0 1px 0 0 rgba(255,255,255,.2), inset 0 -1px 0 0 rgba(255,255,255,.1);
+}
+
+/* Perf: the off-screen gate (JS) toggles this to drop the expensive filter. */
+.glass-surface.is-off { backdrop-filter:none !important; -webkit-backdrop-filter:none !important; }
+
+/* A glass <button>/<a> carries a UA border/appearance that <div> panels never
+   have — reset it so a glass button matches the panels' edge exactly. */
+button.glass-surface, a.glass-surface {
+  appearance:none; -webkit-appearance:none; border:0; color:inherit; text-decoration:none; cursor:pointer;
+  /* Promote to its own compositing layer. CRITICAL for the press scale: without
+     it, a transform makes Chromium re-rasterize the backdrop-filter every frame
+     and the refraction swims/glitches. On its own layer the displacement is
+     rendered once and the layer is scaled as a unit → the glass scales cleanly,
+     refraction and all (this is the documented fix + verified with frame
+     capture). Also the standard perf hint for backdrop-filter elements. */
+  will-change: transform;
+}
+/* Hover = faint brighten via a veil (opacity only, never a transform on the
+   glass box). The press SCALE is JS (bindPress) — see glass-surface.js. */
+button.glass-surface::after, a.glass-surface::after {
+  content:""; position:absolute; inset:0; border-radius:inherit; pointer-events:none; z-index:0;
+  background:#fff; opacity:0; transition:opacity .16s ease;
+}
+button.glass-surface:hover::after, a.glass-surface:hover::after { opacity:.05; }
+.glass-surface:focus-visible { outline:2px solid light-dark(#007aff,#0a84ff); outline-offset:2px; }
+
+/* Button SIZE variants — drop the inline height/padding/font; set data-size.
+   md = default. The displacement map re-fits via ResizeObserver, so sizing in
+   CSS is safe; keep data-blur ~18-20 on buttons (thin → bottom-edge seam). */
+:is(button,a).glass-surface[data-size="sm"] { height:38px; padding:0 16px; font-size:13.5px; font-weight:700; }
+:is(button,a).glass-surface[data-size="md"] { height:46px; padding:0 22px; font-size:15px;   font-weight:700; }
+:is(button,a).glass-surface[data-size="lg"] { height:56px; padding:0 30px; font-size:17px;   font-weight:800; }
+:is(button,a).glass-surface[data-size="xl"] { height:64px; padding:0 40px; font-size:19px;   font-weight:800; }
+:is(button,a).glass-surface[data-size="block"] { width:100%; height:52px; font-size:16px; font-weight:800; }
+
+/* ============================================================================
+   KIT · NAV BAR (Apple "Liquid Glass" tab bar)
+   The bar is ONE glass surface. The active blob + hover are plain CSS — NEVER a
+   second backdrop-filter (nested displacement is expensive and double-refracts).
+   The liquid feel is in the MOTION (glass-surface.js): the active blob glides +
+   stretches to the clicked link, then springs onto its width. Hover ≠ glide;
+   hover is only a soft preview pill.
+   --glass-accent themes the active blob (default = Putzmeister V2 yellow).
+   ============================================================================ */
+.glass-nav { --glass-accent: 255,205,0; height:56px; }
+.glass-nav > .glass-surface__content { justify-content:space-between; padding:0 8px; gap:12px; }
+.glass-nav__brand { display:flex; align-items:center; gap:10px; font-weight:800; letter-spacing:.02em; white-space:nowrap; }
+.glass-nav__links { position:relative; display:flex; align-items:center; gap:4px; }
+.glass-nav__ind {
+  position:absolute; top:50%; left:0; width:0; height:38px; transform:translateY(-50%);
+  border-radius:999px; pointer-events:none; z-index:0;
+  background: rgba(var(--glass-accent), .13);   /* Liquid-Glass-Pill: dezenter Tint, kein gefülltes Feld */
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.6), inset 0 -1px 0 rgba(0,0,0,.12), 0 3px 12px rgba(0,0,0,.22);
+  /* Liquid-Glass-Pill-Bewegung: kein langer horizontaler Drag. Die Pille setzt
+     sich (fast) auf den neuen Link und macht dort eine GEDÄMPFTE HORIZONTALE
+     SCHWINGUNG (leicht links/rechts wackeln, abklingend) bis sie sich fixiert —
+     das macht die JS via gedämpftem Spring (Web Animations API). Position selbst
+     wird NICHT per CSS getweent (kein Schleifen); nur opacity. */
+  transition: opacity .12s ease;
+}
+.glass-nav__link {
+  position:relative; z-index:1; appearance:none; border:0; background:transparent; cursor:pointer; font:inherit;
+  color:rgba(255,255,255,.82); font-weight:600; padding:9px 16px; border-radius:999px; white-space:nowrap;
+  transition: color .18s ease, background .16s ease, box-shadow .16s ease;
+}
+.glass-nav__link.active { color:#fff; text-shadow:0 1px 2px rgba(0,0,0,.28); }
+.glass-nav__link:not(.active):hover { color:#fff; background:rgba(255,255,255,.10); box-shadow:0 1px 5px rgba(0,0,0,.14); }
+
+/* ============================================================================
+   KIT · SEGMENTED / BRAND SELECTOR (Putzmeister-V2 look)
+   Track = one glass surface; the active indicator is a CSS pill that slides.
+   ============================================================================ */
+.glass-seg { --glass-accent: 255,205,0; height:50px; }
+.glass-seg > .glass-surface__content { padding:5px; }
+.glass-seg__track { position:relative; display:flex; gap:2px; }
+.glass-seg__ind {
+  position:absolute; top:0; left:0; height:100%; border-radius:999px; pointer-events:none;
+  background: rgba(var(--glass-accent), .16);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.6), inset 0 -1px 0 rgba(0,0,0,.12), 0 2px 10px rgba(0,0,0,.2);
+  transition: transform .32s cubic-bezier(.34,1.2,.5,1), width .32s cubic-bezier(.34,1.2,.5,1);
+}
+.glass-seg__opt {
+  position:relative; z-index:1; appearance:none; border:0; background:transparent; cursor:pointer; font:inherit;
+  color:rgba(255,255,255,.8); font-weight:700; padding:8px 18px; border-radius:999px; white-space:nowrap; transition:color .2s ease;
+}
+.glass-seg__opt.active { color:#fff; text-shadow:0 1px 2px rgba(0,0,0,.28); }

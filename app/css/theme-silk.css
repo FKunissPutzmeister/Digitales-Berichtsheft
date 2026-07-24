@@ -349,10 +349,31 @@ html[data-skin="silk"] .b-day--today .dnum { color: #FFFFFF !important; }
   border-color: hsl(var(--silk-hue,252) 59% 67% / 0.30) !important;
 }
 [data-skin="silk"] .day-section__header--toggle:hover { background: hsl(var(--silk-hue,252) 42% 24%) !important; }
+/* Diskreter Schule/Unterweisung-Umschalter: auf dem deckenden Indigo lesbar halten. */
+[data-skin="silk"] .day-section__toggle { color: hsl(var(--silk-hue,252) 60% 82%) !important; }
+[data-skin="silk"] button.day-section__toggle:hover { color: hsl(var(--silk-hue,252) 71% 95%) !important; }
+[data-skin="silk"] .day-section__toggle-suffix { color: hsl(var(--silk-hue,252) 45% 68%) !important; }
+[data-skin="silk"] .day-section__toggle-plus { stroke: hsl(var(--silk-hue,252) 90% 78%) !important; }
 /* Quill-Editor-Toolbar + Eingabefläche ebenfalls deckend (kein Silk durch). */
 [data-skin="silk"] .ql-toolbar,
 [data-skin="silk"] .ql-container,
 [data-skin="silk"] .day-section .ql-editor { background: hsl(var(--silk-hue,252) 47% 17%) !important; }
+
+/* Größen-Menü (Schriftgröße) in Silk-Lavendel statt Standard-Grau/Gelb:
+   wochenansicht.css setzt für data-theme=dark ein Grau-Dropdown (#3D3D3D) und
+   eine gelbe Auswahl (--pm-yellow). Höhere Spezifität (html[data-skin] +
+   body[data-page]) + Theme-Sheet lädt zuletzt → gewinnt sicher. */
+html[data-skin="silk"] body[data-page="wochenansicht"] .ql-toolbar .ql-picker-options {
+  background: hsl(var(--silk-hue,252) 45% 15%) !important;
+  border-color: hsl(var(--silk-hue,252) 59% 67% / 0.30) !important;
+}
+html[data-skin="silk"] body[data-page="wochenansicht"] .ql-toolbar .ql-picker-item:hover {
+  background: hsl(var(--silk-hue,252) 100% 78% / 0.16) !important;
+}
+html[data-skin="silk"] body[data-page="wochenansicht"] .ql-toolbar .ql-picker-item.ql-selected {
+  background: hsl(var(--silk-hue,252) 100% 78% / 0.28) !important;
+  color: #fff !important;
+}
 
 /* ── 4e · Abteilungsdurchlauf „Aktuell"-Karte: NICHT durchscheinend ──
    Die aktuelle Zuweisung (.durchlauf-card--current) nimmt die Basis-Fläche

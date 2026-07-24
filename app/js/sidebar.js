@@ -213,9 +213,9 @@ function setupSidebarTooltips(sidebar) {
 
 /* Topbar = jetzt der DS-Header (sc-nav). Die in-page #topbar-Leiste ist
    per CSS ausgeblendet; wir reichen die Breadcrumb-Daten nur noch
-   weiter an topbar-ds.js → setBreadcrumbs(). Notifications + User-Pill
-   sind ebenfalls in die sc-nav gewandert und behalten ihre IDs, damit
-   app.js → initLayout()/initNotifications() unverändert greifen. */
+   weiter an topbar-ds.js → setBreadcrumbs(). Die User-Pill ist ebenfalls
+   in die sc-nav gewandert und behält ihre IDs, damit app.js → initLayout()
+   unverändert greift. */
 function buildTopbar(breadcrumbs) {
   // Falls topbar-ds.js den Header noch nicht initialisiert hat (z. B.
   // weil die Script-Reihenfolge unter Caching variiert), kurz retry'en.

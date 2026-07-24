@@ -38,7 +38,13 @@
             '.time-spinner', '.dash-out-item', '.quick-access-tile'],
     btn:   ['.btn', '.b-btn-primary', '.demo-login-btn', '.btn-ms', '.week-nav__btn',
             '.pm-select__trigger', '.week-actions button'],
-    blur:  ['.welcome-hero__name'],
+    /* blur (BlurText) bewusst LEER: das Per-Buchstabe-Reveal auf der Begrüßung
+       mountete erst nach dem async React-Bundle. Auf kaltem Load war die fertige
+       „Guten Morgen …" also schon sichtbar, wurde dann per silk-sr-only versteckt
+       und neu eingeblendet = „erst da, dann weg, dann Animation". Die Begrüßung
+       blendet jetzt sauber mit der Seiten-vt-in ein (statischer CSS-Baseline statt
+       Timing-Jagd). GradientText (grad) bleibt – reine Zahl, kein sichtbarer Flash. */
+    blur:  [],
     grad:  ['.b-hero__kw small', '.b-hero__kw-num']
   };
 

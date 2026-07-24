@@ -136,6 +136,93 @@
   content: 'Überschrift 3';
 }
 
+/* ── Größen-Picker (Schriftgröße – inline, wie Word) ──
+   WICHTIG: Quill hängt die Toolbar als GESCHWISTER von .ql-editor-wrap ein
+   (new Quill(wrap) → Toolbar = previousSibling). Ein Präfix „.ql-editor-wrap …"
+   greift die Picker daher NIE. Anker ist die Toolbar selbst: .ql-toolbar.ql-snow
+   (zwei Klassen → schlägt zugleich Quills eigene .ql-snow-Regeln aus quill.snow.css). */
+.ql-toolbar.ql-snow .ql-picker.ql-size {
+  font-family: var(--font-body);
+  font-size: var(--text-sm);
+  font-weight: var(--fw-bold);
+  color: var(--pm-grey-700);
+  width: 58px;
+  height: 28px;
+}
+.ql-toolbar.ql-snow .ql-picker.ql-size .ql-picker-label {
+  border: 1.5px solid var(--pm-grey-200);
+  border-radius: var(--r-md);
+  padding: 0 var(--sp-2);
+  height: 28px;
+  display: flex;
+  align-items: center;
+  background: var(--pm-grey-50);
+  transition: border-color var(--t-fast), background var(--t-fast);
+  font-size: var(--text-sm);
+  font-weight: var(--fw-bold);
+  color: var(--pm-grey-700);
+}
+.ql-toolbar.ql-snow .ql-picker.ql-size .ql-picker-label:hover {
+  border-color: var(--pm-grey-400);
+  background: var(--pm-grey-100);
+}
+.ql-toolbar.ql-snow .ql-picker.ql-size .ql-picker-label svg {
+  display: none;
+}
+.ql-toolbar.ql-snow .ql-picker.ql-size .ql-picker-label::after {
+  content: '';
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 24 24' fill='none' stroke='%236B6B6B' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: center;
+  margin-left: auto;
+  flex-shrink: 0;
+}
+/* Beschriftung: Standard (kein Wert = 11 pt) zeigt „11", sonst die pt-Zahl ohne
+   Einheit. EXPLIZITE Regeln je Wert (nicht attr(data-value)) – Quills eigenes
+   quill.snow.css setzt für den Size-Picker `content:'Normal'` bzw. attr(data-label);
+   nur diese höher gewichteten Einzelregeln gewinnen sicher dagegen. */
+.ql-toolbar.ql-snow .ql-picker.ql-size .ql-picker-label::before,
+.ql-toolbar.ql-snow .ql-picker.ql-size .ql-picker-item::before { content: '11'; }
+.ql-toolbar.ql-snow .ql-picker.ql-size .ql-picker-label[data-value="7pt"]::before,
+.ql-toolbar.ql-snow .ql-picker.ql-size .ql-picker-item[data-value="7pt"]::before { content: '7'; }
+.ql-toolbar.ql-snow .ql-picker.ql-size .ql-picker-label[data-value="9pt"]::before,
+.ql-toolbar.ql-snow .ql-picker.ql-size .ql-picker-item[data-value="9pt"]::before { content: '9'; }
+.ql-toolbar.ql-snow .ql-picker.ql-size .ql-picker-label[data-value="13pt"]::before,
+.ql-toolbar.ql-snow .ql-picker.ql-size .ql-picker-item[data-value="13pt"]::before { content: '13'; }
+.ql-toolbar.ql-snow .ql-picker.ql-size .ql-picker-label[data-value="15pt"]::before,
+.ql-toolbar.ql-snow .ql-picker.ql-size .ql-picker-item[data-value="15pt"]::before { content: '15'; }
+.ql-toolbar.ql-snow .ql-picker.ql-size .ql-picker-label[data-value="17pt"]::before,
+.ql-toolbar.ql-snow .ql-picker.ql-size .ql-picker-item[data-value="17pt"]::before { content: '17'; }
+.ql-toolbar.ql-snow .ql-picker.ql-size .ql-picker-label[data-value="19pt"]::before,
+.ql-toolbar.ql-snow .ql-picker.ql-size .ql-picker-item[data-value="19pt"]::before { content: '19'; }
+.ql-toolbar.ql-snow .ql-picker.ql-size .ql-picker-label[data-value="21pt"]::before,
+.ql-toolbar.ql-snow .ql-picker.ql-size .ql-picker-item[data-value="21pt"]::before { content: '21'; }
+.ql-toolbar.ql-snow .ql-picker.ql-size .ql-picker-label[data-value="23pt"]::before,
+.ql-toolbar.ql-snow .ql-picker.ql-size .ql-picker-item[data-value="23pt"]::before { content: '23'; }
+.ql-toolbar.ql-snow .ql-picker.ql-size .ql-picker-label[data-value="25pt"]::before,
+.ql-toolbar.ql-snow .ql-picker.ql-size .ql-picker-item[data-value="25pt"]::before { content: '25'; }
+
+/* Zahl im Feld und im Menü zentriert (Quill-Default ist linksbündig). */
+.ql-toolbar.ql-snow .ql-picker.ql-size .ql-picker-label::before {
+  flex: 1;
+  text-align: center;
+}
+.ql-toolbar.ql-snow .ql-picker.ql-size .ql-picker-item {
+  text-align: center;
+  padding: 5px 8px;
+  border-radius: var(--r-sm);
+}
+
+/* − / + Stepper: kompakt an den Größen-Picker angelegt (wie A−/A+ in Word). */
+.ql-toolbar.ql-snow button.ql-sizeDown,
+.ql-toolbar.ql-snow button.ql-sizeUp {
+  width: 24px;
+}
+.ql-toolbar.ql-snow .ql-formats .ql-picker.ql-size + button.ql-sizeUp { margin-left: 2px; }
+
 /* ── Align-Picker ── */
 .ql-editor-wrap .ql-snow .ql-picker.ql-align {
   width: 28px;
@@ -584,8 +671,14 @@ body[data-page="wochenansicht"] .wochen-kachel .ql-editor-wrap {
   background: rgba(255, 255, 255, 0.10);
   border-color: rgba(255, 255, 255, 0.24);
 }
-[data-theme="dark"] .ql-editor-wrap .ql-snow .ql-picker.ql-header .ql-picker-label::after {
+[data-theme="dark"] .ql-editor-wrap .ql-snow .ql-picker.ql-header .ql-picker-label::after,
+[data-theme="dark"] .ql-toolbar.ql-snow .ql-picker.ql-size .ql-picker-label::after {
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 24 24' fill='none' stroke='%23C8C8CC' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+}
+[data-theme="dark"] .ql-toolbar.ql-snow .ql-picker.ql-size .ql-picker-label {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.14);
+  color: var(--pm-grey-700);
 }
 [data-theme="dark"] .ql-editor-wrap .ql-toolbar.ql-snow .ql-formats + .ql-formats::before {
   background: rgba(255, 255, 255, 0.12);

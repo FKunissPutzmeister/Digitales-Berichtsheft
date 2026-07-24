@@ -89,10 +89,17 @@
 .week-row--pulse {
   animation: weekRowPulse 2200ms var(--ease-out-expo);
 }
-/* Aktuelle Woche dauerhaft dezent hervorheben */
-.week-row--current .week-row__kw.current-kw {
-  background: var(--pm-yellow);
-  color: var(--on-yellow-text);
+/* Aktuelle Woche dauerhaft hervorheben: sichtbarer Rahmen um die ganze
+   Wochenzeile statt Füllung der KW-Zelle. outline liegt außerhalb des
+   Box-Flusses → kein Layout-Versatz im dichten 2px-Grid. --pm-yellow zieht
+   pro Theme mit (Silk: Lavendel etc.), passt so zur „heute"-Kachel. */
+.week-row--current {
+  outline: 2px solid var(--pm-yellow);
+  outline-offset: 2px;
+  border-radius: var(--r-sm);
+  /* Etwas Luft ober-/unterhalb, damit die Umrandung nicht in die satten
+     Status-Chips der Nachbarwochen ragt (Zeilenabstand ist nur 2px). */
+  margin: 2px 0;
 }
 
 /* ── Legende (Frost-Glass-Pille) ──
@@ -254,8 +261,7 @@
   color: var(--pm-yellow-darker);
 }
 .week-row__kw.current-kw {
-  background: var(--pm-yellow);
-  color: var(--pm-grey-900);
+  color: var(--pm-yellow-darker);
 }
 
 /* ── Wochenstatus-Dot (unter KW-Nummer) ── */

@@ -68,17 +68,53 @@ if (window.QuillBlotFormatter2) {
   const icons = Quill.import('ui/icons');
   icons['undo'] = '<svg viewbox="0 0 24 24"><path class="ql-stroke" d="M9 14 4 9l5-5"></path><path class="ql-stroke" d="M4 9h10.5a5.5 5.5 0 0 1 5.5 5.5 5.5 5.5 0 0 1-5.5 5.5H11"></path></svg>';
   icons['redo'] = '<svg viewbox="0 0 24 24"><path class="ql-stroke" d="m15 14 5-5-5-5"></path><path class="ql-stroke" d="M20 9H9.5A5.5 5.5 0 0 0 4 14.5 5.5 5.5 0 0 0 9.5 20H13"></path></svg>';
+  // Minus/Plus für den Schriftgrößen-Stepper (wie das „A− / A+" in Word).
+  icons['sizeDown'] = '<svg viewbox="0 0 24 24"><path class="ql-stroke" d="M5 12h14"></path></svg>';
+  icons['sizeUp']   = '<svg viewbox="0 0 24 24"><path class="ql-stroke" d="M12 5v14M5 12h14"></path></svg>';
+}
+
+// Schriftgröße als INLINE-Format (wie Word): wirkt auf die Auswahl bzw. – ohne
+// Auswahl – auf den danach getippten Text, NICHT auf die ganze Zeile. (Das alte
+// 'header' war ein Block-Format und färbte darum immer die komplette Zeile.)
+// Style-Attributor statt Klassen → speichert inline `font-size:…`, sodass die
+// Größe beim Wiederherstellen UND in der Read-only-Prüfansicht ohne zusätzliche
+// ql-size-*-CSS erhalten bleibt. (Der offizielle Berichtsheft-Export normalisiert
+// die Formatierung ohnehin – er filtert Inline-Styles genauso wie Überschriften
+// weg; die Schriftgröße ist also ein Bildschirm-/Bearbeitungs-Feature.)
+//
+// Einheit: pt (wie Word). 11 pt = Standard = kein explizites Format (false) →
+// deckt sich mit der Grundschrift des Editors (.ql-editor { font-size: 11pt }).
+// „11" wird also angezeigt, ohne dass Text ein Größen-Attribut trägt.
+const QUILL_SIZE_WHITELIST = ['7pt', '9pt', '13pt', '15pt', '17pt', '19pt', '21pt', '23pt', '25pt'];
+// Reihenfolge im Auswahlmenü inkl. Standard (false = 11) an der richtigen Stelle.
+const QUILL_SIZE_OPTIONS = ['7pt', '9pt', false, '13pt', '15pt', '17pt', '19pt', '21pt', '23pt', '25pt'];
+// Geordnete Leiter fürs − / + (Standard 11 in der Mitte).
+const QUILL_SIZE_STEPS = QUILL_SIZE_OPTIONS;
+{
+  const SizeStyle = Quill.import('attributors/style/size');
+  SizeStyle.whitelist = QUILL_SIZE_WHITELIST;
+  Quill.register(SizeStyle, true);
+}
+
+// − / +: aktuelle Größe auf der Leiter suchen und einen Schritt gehen. Ohne
+// Auswahl setzt quill.format das aktive Format → der danach getippte Text
+// bekommt die Größe (Word-Verhalten). false = Standard (11 pt).
+function stepQuillSize(quill, dir) {
+  const cur = quill.getFormat().size || false;
+  let i = QUILL_SIZE_STEPS.indexOf(cur);
+  if (i === -1) i = QUILL_SIZE_STEPS.indexOf(false);
+  i = Math.max(0, Math.min(QUILL_SIZE_STEPS.length - 1, i + dir));
+  quill.format('size', QUILL_SIZE_STEPS[i], Quill.sources.USER);
 }
 
 const QUILL_TOOLBAR = [
   ['undo', 'redo'],
-  [{ header: [1, 2, 3, false] }],
+  // Ein zusammenhängendes Feld: −  [ 11 ▾ ]  +
+  ['sizeDown', { size: QUILL_SIZE_OPTIONS }, 'sizeUp'],
   [{ align: '' }, { align: 'center' }, { align: 'right' }, { align: 'justify' }],
   ['bold', 'italic', 'underline'],
   ['link'],
   [{ list: 'bullet' }, { list: 'ordered' }],
-  ['clean'],
-  [{ indent: '-1' }, { indent: '+1' }],
   ['image'],
   ['blockquote'],
   ['table-better'],
@@ -87,6 +123,8 @@ const QUILL_TOOLBAR = [
 const QUILL_TOOLBAR_HANDLERS = {
   undo() { this.quill.history.undo(); },
   redo() { this.quill.history.redo(); },
+  sizeDown() { stepQuillSize(this.quill, -1); },
+  sizeUp() { stepQuillSize(this.quill, +1); },
 };
 
 // Gemeinsame Quill-Moduloptionen für alle Editor-Instanzen. Readonly-
@@ -264,6 +302,10 @@ document.addEventListener('DOMContentLoaded', async () => {
   let currentMonday = null;
   let currentBerichtTyp = null;
   let shellEventsBound = false;
+
+  // Mehrfach-Auswahl: markierte Tage (dateStr) für Sammel-Änderung.
+  // Wird bei jedem render() geleert (das DOM wird ohnehin neu gebaut).
+  const selectedDates = new Set();
 
   // Korrektur-Ansicht für alle Nicht-Azubis (Verantwortliche/Ausbilder).
   // admin/developer bekommen sie auch dann, wenn sie selbst Azubi sind
@@ -1015,6 +1057,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
           ${!isWE ? `
           <div class="tag-row__body" id="dayBody_${dateStr}">
+            <div class="tag-row__body-inner">
             <div class="tag-row__validation" id="validationMsg_${dateStr}" role="alert" hidden></div>
             <div id="editorSection_${dateStr}" class="day-sections" style="${isAbwesend ? 'display:none' : ''}">
               ${renderDaySection('betrieb',     dateStr, true, true, readonly, showBetrieb)}
@@ -1055,6 +1098,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 Kommentar
               </button>
             ` : ''}
+            </div>
           </div>
           ` : ''}
         </div>
@@ -1437,42 +1481,33 @@ document.addEventListener('DOMContentLoaded', async () => {
     const collapsibleClass = meta.collapsible ? ' day-section--collapsible' : '';
     const hiddenClass = visible ? '' : ' day-section--hidden';
 
-    const headerInner = `
-      <span class="day-section__icon" aria-hidden="true">${meta.icon}</span>
-      <div class="day-section__titles">
-        <span class="day-section__title">${meta.title}</span>
-        <span class="day-section__hint">${meta.hint}</span>
-      </div>
-      ${meta.collapsible ? `
-        <span class="day-section__action">
-          <span class="day-section__action-add">
-            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="width:14px;height:14px"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-            Hinzufügen
-          </span>
-          <span class="day-section__action-collapse" aria-label="Sektion ein-/ausklappen">
-            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="width:16px;height:16px"><polyline points="6 9 12 15 18 9"/></svg>
-          </span>
-        </span>
-      ` : ''}
-    `;
-
-    const header = meta.collapsible
-      ? (readonly
-          ? `<div class="day-section__header">${headerInner}</div>`
-          : `<button type="button" class="day-section__header day-section__header--toggle"
-                  aria-expanded="${expanded}" aria-controls="editorWrap_${id}"
-                  onclick="toggleDaySection(this)">
-               ${headerInner}
-             </button>`)
-      : `<div class="day-section__header">${headerInner}</div>`;
+    // Betrieb (nicht-collapsible): kein Kopf – nur der Editor, direkt sichtbar.
+    // Schule/Unterweisung (collapsible): diskreter Text-Link statt Kopf-Kachel
+    //   – eingeklappt „＋ Titel hinzufügen", ausgeklappt ein kleines Label.
+    let header = '';
+    if (meta.collapsible) {
+      const inner = `
+        <svg class="day-section__toggle-plus" viewBox="0 0 24 24" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        <span class="day-section__toggle-title">${meta.title}</span>
+        <span class="day-section__toggle-suffix">&nbsp;hinzufügen</span>`;
+      header = readonly
+        ? `<div class="day-section__toggle day-section__toggle--static">${inner}</div>`
+        : `<button type="button" class="day-section__toggle"
+                aria-expanded="${expanded}" aria-controls="editorWrap_${id}"
+                onclick="toggleDaySection(this)">
+             ${inner}
+           </button>`;
+    }
 
     return `
       <div class="day-section day-section--${kind}${expandedClass}${collapsibleClass}${hiddenClass}"
            data-date="${dateStr}" data-section="${kind}">
         ${header}
         <div class="day-section__body">
-          <div class="ql-editor-wrap" id="editorWrap_${id}" data-date="${dateStr}" data-section="${kind}"></div>
-          ${readonly ? '' : `<div class="ql-charcount day-card__char-count" id="dayCharCount_${id}" aria-live="polite"></div>`}
+          <div class="day-section__body-inner">
+            <div class="ql-editor-wrap" id="editorWrap_${id}" data-date="${dateStr}" data-section="${kind}"></div>
+            ${readonly ? '' : `<div class="ql-charcount day-card__char-count" id="dayCharCount_${id}" aria-live="polite"></div>`}
+          </div>
         </div>
       </div>
     `;
@@ -2245,6 +2280,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     currentWoche = woche;
     currentMonday = monday;
     currentBerichtTyp = berichtTyp;
+    selectedDates.clear(); // DOM wird neu gebaut → alte Markierungen sind weg
 
     // Navigation
     document.getElementById('prevWeekBtn')?.addEventListener('click', () => navigateWeeks(-1, 'prev'));
@@ -2714,6 +2750,128 @@ document.addEventListener('DOMContentLoaded', async () => {
     const w = await DB.getWoche(viewAzubiId || user.id, currentKW, currentYear);
     await refreshAnhaenge(w?.id, false);
   });
+
+  // ── Mehrfach-Auswahl von Tagen (Sammel-Änderung) ──────────────────
+  // Strg/⌘+Klick (Desktop) bzw. langes Drücken (Tablet) markiert einen Tag;
+  // eine Änderung an Anwesenheit/Ort/ArbZ in einem markierten Tag gilt dann
+  // für alle markierten Tage. Alles einmalig am persistenten #mainContent
+  // gebunden – überlebt render() (das DOM darunter wird ausgetauscht).
+  (function initMultiSelect() {
+    const mc = document.getElementById('mainContent');
+
+    // Woche readonly? → keine Auswahl (Felder sind ohnehin gesperrt).
+    const weekReadonly = () =>
+      (isAusbilder && !viewingSelf()) ||
+      (currentWoche && ['freigegeben', 'erstgenehmigt', 'genehmigt'].includes(currentWoche.status));
+
+    // Auswahlfähige Tageszeile aus einem Klick-/Touch-Ziel ermitteln.
+    function selectableRow(target) {
+      const row = target.closest?.('.tag-row[data-date]');
+      if (!row || row.classList.contains('tag-row--weekend')) return null;
+      // Nur die Kopfzeile ist Auswahl-Zone (nicht die Editor-Bereiche darunter).
+      if (!target.closest('.tag-row__summary')) return null;
+      return row;
+    }
+
+    function toggleSelect(row) {
+      const date = row.dataset.date;
+      if (selectedDates.has(date)) { selectedDates.delete(date); row.classList.remove('tag-row--selected'); }
+      else                          { selectedDates.add(date);    row.classList.add('tag-row--selected'); }
+    }
+
+    function clearSelection() {
+      selectedDates.clear();
+      mc.querySelectorAll('.tag-row--selected').forEach(r => r.classList.remove('tag-row--selected'));
+    }
+
+    // Strg/⌘+Klick → markieren, Capture-Phase + stopPropagation verhindert
+    // das Auf-/Zuklappen (handleTagRowToggle) im selben Klick.
+    mc.addEventListener('click', (e) => {
+      if (!(e.ctrlKey || e.metaKey)) return;
+      if (weekReadonly()) return;
+      const row = selectableRow(e.target);
+      if (!row) return;
+      e.preventDefault();
+      e.stopPropagation();
+      toggleSelect(row);
+    }, true);
+
+    // Long-Press (Touch) → markieren. Kein preventDefault auf touchstart
+    // (würde Scrollen blocken); stattdessen unterdrücken wir den Folge-Klick.
+    let lpTimer = null, lpRow = null, lpStartY = 0, suppressClick = false;
+    mc.addEventListener('touchstart', (e) => {
+      suppressClick = false; // etwaiges Alt-Flag verwerfen (kein Leak auf den nächsten Tap)
+      if (weekReadonly() || e.touches.length !== 1) return;
+      const row = selectableRow(e.target);
+      if (!row) return;
+      // Nicht auf echten Bedienelementen starten (Select/Pille etc. tappen normal).
+      if (e.target.closest('select, option, input, textarea, button, .dauer-pill')) return;
+      lpRow = row; lpStartY = e.touches[0].clientY;
+      lpTimer = setTimeout(() => {
+        lpTimer = null; suppressClick = true;
+        toggleSelect(row);
+        if (navigator.vibrate) navigator.vibrate(15);
+      }, 500);
+    }, { passive: true });
+    const cancelLP = () => { if (lpTimer) { clearTimeout(lpTimer); lpTimer = null; } lpRow = null; };
+    mc.addEventListener('touchmove', (e) => {
+      if (lpTimer && Math.abs(e.touches[0].clientY - lpStartY) > 10) cancelLP();
+    }, { passive: true });
+    mc.addEventListener('touchend', cancelLP);
+    mc.addEventListener('touchcancel', cancelLP);
+    // Den Klick, den ein Long-Press nach sich zieht, schlucken (kein Aufklappen).
+    mc.addEventListener('click', (e) => {
+      if (suppressClick) { suppressClick = false; e.preventDefault(); e.stopPropagation(); }
+    }, true);
+
+    // Esc hebt die Auswahl auf.
+    document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && selectedDates.size) clearSelection(); });
+
+    // ── Propagierung: eine Änderung → alle markierten Tage ──────────
+    let propagating = false;
+    function propagate(sourceDate, apply) {
+      if (propagating || !selectedDates.has(sourceDate) || selectedDates.size < 2) return;
+      propagating = true;
+      try {
+        for (const d of selectedDates) if (d !== sourceDate) apply(d);
+      } finally { propagating = false; }
+    }
+
+    // Anwesenheit / Ort (Selects)
+    mc.addEventListener('change', (e) => {
+      const el = e.target;
+      if (!el.matches?.('select[data-field="anwesenheit"], select[data-field="ort"]')) return;
+      const date = el.closest('.tag-row[data-date]')?.dataset.date;
+      if (!date) return;
+      const field = el.dataset.field, val = el.value;
+      propagate(date, (d) => {
+        const t = document.querySelector(`.tag-row[data-date="${d}"] select[data-field="${field}"]`);
+        if (!t || t.disabled || t.value === val) return;
+        // Über die PMSelect-Instanz setzen, damit das sichtbare Custom-Label
+        // mitzieht. Ein reines native.value=… triggert PMSelects Observer NICHT
+        // (der lauscht nur aufs selected-ATTRIBUT), das Dropdown bliebe stehen.
+        // setValue() feuert selbst 'change' → der Per-Tag-Handler (ArbZ/Save) läuft.
+        if (t._pmInstance) t._pmInstance.setValue(val);
+        else { t.value = val; t.dispatchEvent(new Event('change', { bubbles: true })); }
+      });
+    });
+
+    // ArbZ (Ganztag/Halbtag-Pille). handleTagRowToggle/handleDauerClick am
+    // geklickten Tag lief hier schon; wir spiegeln nur auf die übrigen.
+    mc.addEventListener('click', (e) => {
+      const btn = e.target.closest?.('.dauer-pill__opt');
+      if (!btn) return;
+      const pill = btn.closest('.dauer-pill');
+      if (!pill || pill.classList.contains('dauer-pill--readonly')) return;
+      const date = btn.closest('.tag-row[data-date]')?.dataset.date;
+      if (!date) return;
+      const val = btn.dataset.dauerSet;
+      propagate(date, (d) => {
+        const t = document.querySelector(`.tag-row[data-date="${d}"] .dauer-pill:not(.dauer-pill--readonly) .dauer-pill__opt[data-dauer-set="${val}"]`);
+        if (t) handleDauerClick(t);
+      });
+    });
+  })();
 
   /* Toggle für Tag-Rows wird inline am .tag-row__summary aufgesetzt,
      siehe Markup unten. Dadurch braucht's keinen Delegation-Listener

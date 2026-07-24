@@ -1202,6 +1202,147 @@
     return { start: start, stop: stop };
   })();
 
+  /* ── Christmas: echtes Liquid Glass (GlassSurface-Skill) aufs Dashboard ──
+     Der Skill (app/{css,js}/vendor/glass-surface.*) braucht backdrop-filter,
+     der die Szene „sieht". Die fixe FX-Szene liegt außerhalb des Backdrop-
+     Roots der Karten → unsichtbar für den Filter. Fix: ein Bild-Layer
+     #pm-xm-glassbg INNERHALB #mainContent (dessen fadeIn-Transform es zum
+     Backdrop-Root macht) → die pro Karte eingehängten GlassSurface-Backings
+     (.pm-xm-glass) refraktieren dieses Bild. Nur in der App (nicht Login),
+     nur wenige Kacheln (Perf: GlassSurface ist count-gebunden). Re-Dekoration
+     bei jedem 'pm-page-rendered' (SPA-Nav ersetzt #mainContent-Inhalt). */
+  var PMChristmasGlass = (function () {
+    var GBID = 'pm-xm-glassbg';
+    var SELS = ['.welcome-hero', '.b-hero', '.b-mitteilungen', '.b-recent'];
+    var loaded = false, active = false;
+
+    function base() {
+      // Basis-URL relativ zu diesem Script (theme.js liegt in app/js/).
+      var s = document.currentScript || document.querySelector('script[src*="theme.js"]');
+      return s ? s.src.replace(/js\/theme\.js.*$/, '') : '';
+    }
+    function loadAssets(cb) {
+      if (loaded || (window.LiquidGlass)) { loaded = true; cb(); return; }
+      var root = base();
+      if (!document.querySelector('link[data-xm-glass]')) {
+        var css = document.createElement('link');
+        css.rel = 'stylesheet'; css.href = root + 'css/vendor/glass-surface.css';
+        css.setAttribute('data-xm-glass', ''); document.head.appendChild(css);
+      }
+      var js = document.createElement('script');
+      js.src = root + 'js/vendor/glass-surface.js'; js.setAttribute('data-xm-glass', '');
+      js.onload = function () { loaded = true; cb(); };
+      js.onerror = function () { cb(); };
+      document.head.appendChild(js);
+    }
+    function ensureBg() {
+      var mc = document.getElementById('mainContent');
+      if (!mc || document.getElementById(GBID)) return;
+      var bg = document.createElement('div');
+      bg.id = GBID; bg.setAttribute('aria-hidden', 'true');
+      mc.insertBefore(bg, mc.firstChild);
+    }
+    function addBacking(card) {
+      if (!card || card.__xmGlass) return;
+      card.__xmGlass = true;
+      card.classList.add('pm-xm-glass-card');
+      // Unteres Backing: lokaler backdrop-filter blur (frostet NUR diese Kachel).
+      // Reines CSS (kein data-glass) — der Blur + der dunkle Kühl-Ton stehen in
+      // theme-christmas.css (.pm-xm-glass-blur). Das ist die Frost-Schicht, die
+      // das GlassSurface-Backing darüber dann bricht.
+      var b = document.createElement('div');
+      b.className = 'pm-xm-glass-blur';
+      b.setAttribute('aria-hidden', 'true');
+      card.insertBefore(b, card.firstChild);
+      // Oberes Backing: GlassSurface-Refraktion, bricht den geblurrten Layer.
+      var g = document.createElement('div');
+      g.className = 'pm-xm-glass';
+      g.setAttribute('data-glass', '');
+      // data-radius weggelassen → glass-surface.js nimmt border-radius:inherit
+      g.setAttribute('data-distortion', '-90');   // Brechung sichtbar auch über dem bereits weichen (geblurrten)
+                                                  // Backing; UI-Bereich -70…-130 laut Skill, keine Kanten-Seams
+      g.setAttribute('data-blur', '22');          // hoher Map-Blur → weicher Kantenübergang (Gotcha #2)
+      g.setAttribute('data-displace', '0.6');     // leichtes Output-Weichzeichnen der Kante
+      // Chromatik gedämpft: Default 10/20 erzeugt über dem bunten Foto eine
+      // harte rot/grüne Kantenlinie (Skill-Gotcha #10). Niedrig = dezente
+      // Brechung ohne Regenbogen-Strich; die Brechung selbst bleibt (distortion).
+      g.setAttribute('data-green', '3');
+      g.setAttribute('data-blue', '6');
+      // data-frost 0: der Frost/die Lesbarkeit kommt jetzt aus dem .pm-xm-glass-
+      // blur-Backing (echter Blur + Ton), nicht mehr aus einem Veil auf dem Glas.
+      g.setAttribute('data-frost', '0');
+      card.insertBefore(g, b.nextSibling);   // g direkt hinter b → g (z1) über b (z0)
+      if (window.LiquidGlass) window.LiquidGlass.enhance(g);
+    }
+    function decorate() {
+      if (!active) return;
+      // Ziel-Karten sammeln. Nur wo es welche gibt (Dashboard), den Backdrop-
+      // Layer anlegen — sonst würde #pm-xm-glassbg andere Christmas-Seiten
+      // (Wochenansicht/Profil …) mit einem zweiten Szenenbild überlagern.
+      var cards = [];
+      for (var i = 0; i < SELS.length; i++) {
+        var els = document.querySelectorAll(SELS[i]);
+        for (var j = 0; j < els.length; j++) cards.push(els[j]);
+      }
+      if (!cards.length) {
+        var old = document.getElementById(GBID);
+        if (old && old.parentNode) old.parentNode.removeChild(old);
+        return;
+      }
+      ensureBg();
+      for (var c = 0; c < cards.length; c++) addBacking(cards[c]);
+      // Enhance-Pass: erfasst auch Backings, die vor dem Asset-Load angelegt
+      // wurden (enhance ist idempotent via el.__glass).
+      if (window.LiquidGlass) {
+        var gs = document.querySelectorAll('.pm-xm-glass');
+        for (var k = 0; k < gs.length; k++) window.LiquidGlass.enhance(gs[k]);
+      }
+    }
+    // Das Dashboard rendert asynchron und feuert 'pm-page-rendered' nicht immer
+    // zuverlässig vor dem Asset-Load → zusätzlich einen MutationObserver auf
+    // #mainContent (wie react-theme-layer.js) laufen lassen, der die Dekoration
+    // nachzieht, sobald die Karten im DOM sind. Debounced + idempotent → keine
+    // Endlosschleife (ein zweiter decorate()-Lauf ändert nichts mehr am DOM).
+    var mo = null;
+    function startObserver() {
+      if (mo) return;
+      var mc = document.getElementById('mainContent');
+      if (!mc || typeof MutationObserver === 'undefined') return;
+      var t = null;
+      mo = new MutationObserver(function () {
+        clearTimeout(t); t = setTimeout(function () { if (active) decorate(); }, 90);
+      });
+      mo.observe(mc, { childList: true, subtree: true });
+    }
+    function stopObserver() { if (mo) { mo.disconnect(); mo = null; } }
+
+    function start() {
+      if (active) return;
+      active = true;
+      startObserver();
+      loadAssets(function () { decorate(); });
+      decorate();   // sofort (legt zumindest #pm-xm-glassbg an, falls #mainContent da ist)
+    }
+    function stop() {
+      active = false;
+      stopObserver();
+      var bg = document.getElementById(GBID);
+      if (bg && bg.parentNode) bg.parentNode.removeChild(bg);
+      var cards = document.querySelectorAll('.pm-xm-glass-card');
+      for (var i = 0; i < cards.length; i++) {
+        cards[i].classList.remove('pm-xm-glass-card');
+        cards[i].__xmGlass = false;
+        var g = cards[i].querySelector('.pm-xm-glass');
+        if (g && g.parentNode) g.parentNode.removeChild(g);
+        var b = cards[i].querySelector('.pm-xm-glass-blur');
+        if (b && b.parentNode) b.parentNode.removeChild(b);
+      }
+    }
+    // SPA-Nav ersetzt #mainContent-Inhalt (Backings + Bg weg) → neu dekorieren.
+    window.addEventListener('pm-page-rendered', function () { if (active) decorate(); });
+    return { start: start, stop: stop, rescan: decorate };
+  })();
+
   /* ── Candy: Vordergrund-Charakterwechsel beim Rand-Austritt ───────
      „Wenn ein Einhorn den Bildschirmrand verlassen hat, wechselt, welcher
      Charakter im Vordergrund läuft." Umgesetzt rein über das CSS-
@@ -1314,6 +1455,7 @@
     PMChristmasSnow.stop();
     PMHalloweenMusic.stop();
     PMChristmasMusic.stop();
+    PMChristmasGlass.stop();
 
     /* Login-Seite: kein FX – AUSNAHMEN: cmd (Terminal-Matrix als Hintergrund
        statt der Brand-Fläche) und halloween (reduzierte Szene: Login-
@@ -1351,6 +1493,7 @@
       var snowCanvas = el.querySelector('.pm-xm-snow');
       if (snowCanvas) PMChristmasSnow.start(snowCanvas);
       if (!isLogin) PMChristmasMusic.start();   // Musik nur in der App, nicht auf Login
+      if (!isLogin) PMChristmasGlass.start();   // echtes GlassSurface aufs Dashboard
     }
   }
 
