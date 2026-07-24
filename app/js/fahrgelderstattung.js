@@ -391,7 +391,6 @@ document.addEventListener('DOMContentLoaded', async () => {
       ${buildModal()}
       <input type="file" id="fg-doc-input" style="display:none"
              accept=".xlsx,.xls,.xlsm,.pdf,application/pdf,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet">
-      <input type="file" id="fg-sig-input" style="display:none" accept="image/png,image/jpeg,.png,.jpg,.jpeg">
     `;
     bind();
     Modal.init?.();
@@ -521,20 +520,6 @@ document.addEventListener('DOMContentLoaded', async () => {
       console.error('Dokument-Upload fehlgeschlagen:', err);
       Toast.error('Fehler', err.message || String(err));
     }
-  }
-
-  async function uploadSignatureImage(file) {
-    if (!/\.(png|jpe?g)$/i.test(file.name) && !['image/png', 'image/jpeg'].includes(file.type)) {
-      Toast.warning('Format', 'Bitte ein PNG oder JPG hochladen.'); return;
-    }
-    if (file.size > 2 * 1024 * 1024) { Toast.warning('Zu groß', 'Maximal 2 MB.'); return; }
-    try {
-      const ab = await file.arrayBuffer();
-      const ext = (/\.png$/i.test(file.name) || file.type === 'image/png') ? 'png' : 'jpeg';
-      setSignature({ dataUrl: arrayBufferToDataUrl(ab, ext), extension: ext });
-      Toast.success('Gespeichert', 'Unterschrift hinterlegt.');
-      render();
-    } catch (err) { Toast.error('Fehler', err.message || String(err)); }
   }
 
   /* Zeilen aus der (ggf. editierten) Vorschau-Tabelle einsammeln. */

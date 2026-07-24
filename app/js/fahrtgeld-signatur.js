@@ -191,6 +191,8 @@
         const dataUrl = trimToDataUrl(canvas);
         if (dataUrl) sig = { dataUrl, extension: 'png' };
       }
+    } else if (state.activeTab === 'upload') {
+      sig = state.pendingUpload;
     }
     if (!sig || !sig.dataUrl) {
       window.Toast?.warning?.('Leer', 'Bitte zuerst eine Unterschrift erstellen.');
@@ -222,6 +224,25 @@
         updateTypePreview();
       }));
     updateTypePreview();
+
+    document.getElementById('fg-sig-file')?.addEventListener('change', (e) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+      if (!['image/png', 'image/jpeg'].includes(file.type)) {
+        window.Toast?.warning?.('Format', 'Bitte ein PNG oder JPG hochladen.');
+        e.target.value = ''; return;
+      }
+      const reader = new FileReader();
+      reader.onload = () => {
+        state.pendingUpload = {
+          dataUrl: reader.result,
+          extension: file.type === 'image/png' ? 'png' : 'jpeg',
+        };
+        const prev = document.getElementById('fg-sig-upload-preview');
+        if (prev) prev.innerHTML = `<img src="${state.pendingUpload.dataUrl}" alt="Vorschau">`;
+      };
+      reader.readAsDataURL(file);
+    });
 
     window.Modal?.init?.();
     window.Modal?.open?.('fgSigModal');
