@@ -76,9 +76,91 @@
     if (tab === 'draw') requestAnimationFrame(setupDrawCanvas);
   }
 
-  // Stubs — in Task 3/4/5 gefüllt.
-  function setupDrawCanvas() {}
-  function onApply() { window.Toast?.info?.('Bald', 'Übernehmen folgt.'); }
+  function setupDrawCanvas() {
+    const canvas = document.getElementById('fg-sig-canvas');
+    if (!canvas) return;
+    const dpr = window.devicePixelRatio || 1;
+    const rect = canvas.getBoundingClientRect();
+    if (!rect.width) return;  // Panel noch nicht sichtbar
+    canvas.width = Math.round(rect.width * dpr);
+    canvas.height = Math.round(rect.height * dpr);
+    const ctx = canvas.getContext('2d');
+    ctx.scale(dpr, dpr);
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(0, 0, rect.width, rect.height);
+    ctx.strokeStyle = INK;
+    ctx.lineWidth = 2.5;
+    ctx.lineJoin = 'round';
+    ctx.lineCap = 'round';
+    state.drawCtx = ctx;
+    state.drawInk = false;
+
+    let drawing = false;
+    canvas.onpointerdown = (e) => {
+      drawing = true; state.drawInk = true;
+      ctx.beginPath(); ctx.moveTo(e.offsetX, e.offsetY);
+      canvas.setPointerCapture(e.pointerId);
+    };
+    canvas.onpointermove = (e) => {
+      if (!drawing) return;
+      ctx.lineTo(e.offsetX, e.offsetY); ctx.stroke();
+    };
+    canvas.onpointerup = canvas.onpointercancel = () => { drawing = false; };
+
+    document.getElementById('fg-sig-clear').onclick = () => {
+      ctx.fillStyle = '#fff';
+      ctx.fillRect(0, 0, rect.width, rect.height);
+      state.drawInk = false;
+    };
+  }
+
+  // Schneidet einen (weiß hinterlegten, dunkel bezeichneten) Canvas auf die
+  // Bounding-Box der "Tinte" zu und liefert eine PNG-DataURL. null wenn leer.
+  function trimToDataUrl(canvas) {
+    const ctx = canvas.getContext('2d');
+    const w = canvas.width, h = canvas.height;   // Geräte-Pixel
+    const data = ctx.getImageData(0, 0, w, h).data;
+    let minX = w, minY = h, maxX = 0, maxY = 0, found = false;
+    for (let y = 0; y < h; y++) {
+      for (let x = 0; x < w; x++) {
+        const i = (y * w + x) * 4;
+        if (data[i] < 250 || data[i + 1] < 250 || data[i + 2] < 250) {
+          found = true;
+          if (x < minX) minX = x; if (x > maxX) maxX = x;
+          if (y < minY) minY = y; if (y > maxY) maxY = y;
+        }
+      }
+    }
+    if (!found) return null;
+    const pad = Math.round(8 * (window.devicePixelRatio || 1));
+    minX = Math.max(0, minX - pad); minY = Math.max(0, minY - pad);
+    maxX = Math.min(w - 1, maxX + pad); maxY = Math.min(h - 1, maxY + pad);
+    const cw = maxX - minX + 1, ch = maxY - minY + 1;
+    const out = document.createElement('canvas');
+    out.width = cw; out.height = ch;
+    const octx = out.getContext('2d');
+    octx.fillStyle = '#fff';
+    octx.fillRect(0, 0, cw, ch);
+    octx.drawImage(canvas, minX, minY, cw, ch, 0, 0, cw, ch);
+    return out.toDataURL('image/png');
+  }
+
+  async function onApply() {
+    let sig = null;
+    if (state.activeTab === 'draw') {
+      const canvas = document.getElementById('fg-sig-canvas');
+      if (state.drawInk && canvas) {
+        const dataUrl = trimToDataUrl(canvas);
+        if (dataUrl) sig = { dataUrl, extension: 'png' };
+      }
+    }
+    if (!sig || !sig.dataUrl) {
+      window.Toast?.warning?.('Leer', 'Bitte zuerst eine Unterschrift erstellen.');
+      return;
+    }
+    state.onSave?.(sig);
+    window.Modal?.closeAll?.();
+  }
 
   function open({ name, onSave }) {
     document.getElementById('fgSigModal')?.remove();
