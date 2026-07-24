@@ -199,7 +199,7 @@
     if (unterschriftBytes && unterschriftExtension) {
       const imageId = wb.addImage({ buffer: unterschriftBytes, extension: unterschriftExtension });
       // Zelle A21:B21 ≈ 197×80 px. Bild zentriert, Aspect-Ratio erhalten, Platz fürs Datum drunter.
-      const CELL_W_PX = 197, COL_A_W_PX = 80, ZIEL_H_PX = 55, MAX_W_PX = 185;
+      const CELL_W_PX = 197, COL_A_W_PX = 80, ZIEL_H_PX = 62, MAX_W_PX = 190;
       const dim = liesBilddimensionen(unterschriftBytes);
       let w = MAX_W_PX, h = ZIEL_H_PX;
       if (dim && dim.width > 0 && dim.height > 0) {
@@ -363,11 +363,11 @@
         const [fx1, , fx2, fy2] = layout.auszubildenderRect;
         const targetX1 = fx1, targetX2 = fx2;
         const targetY1 = fy2 + 1;
-        const targetY2 = Math.min(fy2 + 30, 366);
+        const targetY2 = Math.min(fy2 + 40, 366);
         const targetW = targetX2 - targetX1;
         const targetH = Math.max(0, targetY2 - targetY1);
         if (targetH > 4 && img.width > 0 && img.height > 0) {
-          const ratio = Math.min((targetW * 0.92) / img.width, (targetH * 0.92) / img.height);
+          const ratio = Math.min((targetW * 0.96) / img.width, (targetH * 0.96) / img.height);
           const w = img.width * ratio, h = img.height * ratio;
           pdfDoc.getPage(0).drawImage(img, {
             x: targetX1 + (targetW - w) / 2,

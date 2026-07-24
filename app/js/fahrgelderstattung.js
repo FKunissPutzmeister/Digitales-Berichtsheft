@@ -26,8 +26,6 @@ document.addEventListener('DOMContentLoaded', async () => {
   };
   // Pflichtfelder fürs sinnvolle Ausfüllen (KST ist konstant/vorausgefüllt).
   const PFLICHT = ['name', 'persNr', 'vonHaltestelle', 'nachHaltestelle', 'betragProTag'];
-  // Kostenstelle ist bei Putzmeister-Azubis gleich → als Default vorbelegen (editierbar).
-  const DEFAULT_KST = '10000956';
 
   let konfig = null;     // {name, persNr, kst, vonHaltestelle, nachHaltestelle, betragProTag}
   let monateInfo = [];   // [{ monatKey, tage:[{datum}], summe, ueberzaehlig }]
@@ -329,7 +327,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     return {
       name: konfig?.name || toNachnameVorname(user.name || ''),
       persNr: konfig?.persNr || '',
-      kst: konfig?.kst || DEFAULT_KST,
+      kst: konfig?.kst || '',
       vonHaltestelle: konfig?.vonHaltestelle || '',
       nachHaltestelle: konfig?.nachHaltestelle || '',
       betragProTag: (konfig?.betragProTag && Number(konfig.betragProTag) > 0) ? Number(konfig.betragProTag) : '',
@@ -357,7 +355,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             ${grp('fgm-name', 'Name', v.name, 'placeholder="Nachname, Vorname"')}
             <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:var(--sp-3)">
               ${grp('fgm-persNr', 'Personalnummer', v.persNr, 'placeholder="z.B. 123456" inputmode="numeric"')}
-              ${grp('fgm-kst', 'Kostenstelle', v.kst, 'inputmode="numeric"', 'Für alle Azubis gleich')}
+              ${grp('fgm-kst', 'Kostenstelle', v.kst, 'inputmode="numeric" placeholder="z.B. 10000956"')}
             </div>
             <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:var(--sp-3)">
               ${grp('fgm-vonHaltestelle', 'Strecke von', v.vonHaltestelle, 'placeholder="Start-Haltestelle"')}
@@ -495,7 +493,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       const res = await FahrtgeldCore.extrahiereKonstantenAusTemplate(ab);
       if (!res.ok) { Toast.error('Nicht erkannt', res.fehler || 'Dokument konnte nicht gelesen werden.'); return; }
       const neu = { ...(konfig || {}), ...res.konstanten };
-      if (!neu.kst) neu.kst = konfig?.kst || DEFAULT_KST; // PDF liefert keine KST
+      if (!neu.kst) neu.kst = konfig?.kst || ''; // KST nicht automatisch befüllen (PDF/Erstanlage)
       konfig = neu;
       monateInfo = gruppiereNachMonat(monateInfo.flatMap(m => m.tage));
       let sigHinweis = '';
