@@ -180,7 +180,7 @@ document.addEventListener('DOMContentLoaded', async () => {
               : 'Optional — ohne Unterschrift wird nur das Datum gesetzt.'}</p>
           </div>
           <div style="display:flex;gap:var(--sp-2);flex-shrink:0">
-            <button class="btn btn-outline btn-sm" id="fg-sig-upload" type="button">${has ? 'Ersetzen' : 'Bild hochladen'}</button>
+            <button class="btn btn-primary btn-sm" id="fg-sig-create" type="button">${has ? 'Ändern' : 'Unterschrift erstellen'}</button>
             ${has ? `<button class="btn btn-outline btn-sm" id="fg-sig-remove" type="button">Entfernen</button>` : ''}
           </div>
         </div>
@@ -417,8 +417,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     document.getElementById('fg-upload-pdf')?.addEventListener('click', () => openDoc(ACCEPT_PDF));
     document.getElementById('fg-upload-doc')?.addEventListener('click', () => openDoc(`${ACCEPT_EXCEL},${ACCEPT_PDF}`));
     document.getElementById('fg-doc-input')?.addEventListener('change', (e) => { const f = e.target.files?.[0]; if (f) uploadDokument(f); e.target.value = ''; });
-    document.getElementById('fg-sig-upload')?.addEventListener('click', () => document.getElementById('fg-sig-input')?.click());
-    document.getElementById('fg-sig-input')?.addEventListener('change', (e) => { const f = e.target.files?.[0]; if (f) uploadSignatureImage(f); e.target.value = ''; });
+    document.getElementById('fg-sig-create')?.addEventListener('click', () => {
+      SignaturDialog.open({
+        name: konfig?.name || '',
+        onSave: (sig) => { setSignature(sig); Toast.success('Gespeichert', 'Unterschrift hinterlegt.'); render(); },
+      });
+    });
     document.getElementById('fg-sig-remove')?.addEventListener('click', () => { setSignature(null); Toast.info('Entfernt', 'Unterschrift entfernt.'); render(); });
     document.getElementById('fg-gen-xlsx')?.addEventListener('click', () => generate('excel'));
     document.getElementById('fg-gen-pdf')?.addEventListener('click', () => generate('pdf'));
