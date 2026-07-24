@@ -195,11 +195,11 @@
       sig = state.pendingUpload;
     }
     if (!sig || !sig.dataUrl) {
-      window.Toast?.warning?.('Leer', 'Bitte zuerst eine Unterschrift erstellen.');
+      Toast?.warning?.('Leer', 'Bitte zuerst eine Unterschrift erstellen.');
       return;
     }
     state.onSave?.(sig);
-    window.Modal?.closeAll?.();
+    Modal?.closeAll?.();
   }
 
   function open({ name, onSave }) {
@@ -229,13 +229,13 @@
       const file = e.target.files?.[0];
       if (!file) return;
       if (!['image/png', 'image/jpeg'].includes(file.type)) {
-        window.Toast?.warning?.('Format', 'Bitte ein PNG oder JPG hochladen.');
+        Toast?.warning?.('Format', 'Bitte ein PNG oder JPG hochladen.');
         e.target.value = ''; return;
       }
       // Signatur landet im localStorage (~5 MB Quota, setSignature schluckt
       // Fehler still) → große Bilder vorher abweisen.
       if (file.size > 2 * 1024 * 1024) {
-        window.Toast?.warning?.('Zu groß', 'Das Bild darf höchstens 2 MB groß sein.');
+        Toast?.warning?.('Zu groß', 'Das Bild darf höchstens 2 MB groß sein.');
         e.target.value = ''; return;
       }
       const reader = new FileReader();
@@ -250,8 +250,8 @@
       reader.readAsDataURL(file);
     });
 
-    window.Modal?.init?.();
-    window.Modal?.open?.('fgSigModal');
+    Modal?.init?.();
+    Modal?.open?.('fgSigModal');
     requestAnimationFrame(setupDrawCanvas);
   }
 
