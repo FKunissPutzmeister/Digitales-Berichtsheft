@@ -18,7 +18,7 @@
   ];
   const INK = '#1a1a2e';   // dunkle "Tinte" auf weißem Grund
 
-  let state = null;  // { onSave, activeTab, currentFont, pendingUpload, drawCtx, drawInk }
+  let state = null;  // { onSave, activeTab, currentFont, pendingUpload, drawCtx, drawInk, drawReady }
 
   function buildMarkup() {
     return `
@@ -79,6 +79,11 @@
   function setupDrawCanvas() {
     const canvas = document.getElementById('fg-sig-canvas');
     if (!canvas) return;
+    // Nur einmal je geöffnetem Dialog initialisieren — sonst würde ein Wechsel
+    // „Zeichnen → Tippen → Zeichnen" das Canvas leeren und die Zeichnung
+    // verwerfen. Der Canvas-Knoten überlebt Tab-Wechsel (Markup wird nicht neu
+    // gebaut), also bleiben auch die Pointer-Handler gebunden.
+    if (state.drawReady && canvas.width > 0) return;
     const dpr = window.devicePixelRatio || 1;
     const rect = canvas.getBoundingClientRect();
     if (!rect.width) return;  // Panel noch nicht sichtbar
@@ -94,6 +99,7 @@
     ctx.lineCap = 'round';
     state.drawCtx = ctx;
     state.drawInk = false;
+    state.drawReady = true;
 
     let drawing = false;
     canvas.onpointerdown = (e) => {
@@ -205,7 +211,7 @@
   function open({ name, onSave }) {
     document.getElementById('fgSigModal')?.remove();
     document.body.insertAdjacentHTML('beforeend', buildMarkup());
-    state = { onSave, activeTab: 'draw', currentFont: FONTS[0], pendingUpload: null, drawCtx: null, drawInk: false };
+    state = { onSave, activeTab: 'draw', currentFont: FONTS[0], pendingUpload: null, drawCtx: null, drawInk: false, drawReady: false };
 
     document.querySelectorAll('#fgSigModal .sig-tab').forEach(btn =>
       btn.addEventListener('click', () => switchTab(btn.dataset.sigTab)));
