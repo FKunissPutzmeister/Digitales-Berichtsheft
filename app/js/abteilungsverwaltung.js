@@ -23,7 +23,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const pmm = a.istPmm ? `<span class="badge badge--freigegeben">PMM</span>` : '';
     const status = a.aktiv ? `<span class="badge badge--genehmigt">aktiv</span>` : `<span class="badge badge--grey">inaktiv</span>`;
     const verantw = (a.verantwortliche || []).length
-      ? `<ul class="av-verantw-list">${a.verantwortliche.map(v => `<li title="${esc(v.email)}">${esc(v.name)}</li>`).join('')}</ul>`
+      ? `<ul class="av-verantw-list">${a.verantwortliche.map(v => `<li title="${esc(v.email)}">${esc(displayName(v.name))}</li>`).join('')}</ul>`
       : `<span style="color:var(--pm-grey-500)">— keine —</span>`;
     return `<tr data-id="${a.id}">
       <td><div>${esc(a.name)}</div> ${pmm}</td>
@@ -100,7 +100,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     group.style.display = '';
     const list = editing.verantwortliche || [];
     ul.innerHTML = list.length
-      ? list.map(v => `<li title="${esc(v.email)}">${esc(v.name)} <button class="av-vremove" type="button" data-vid="${v.id}">✕</button></li>`).join('')
+      ? list.map(v => `<li title="${esc(v.email)}">${esc(displayName(v.name))} <button class="av-vremove" type="button" data-vid="${v.id}">✕</button></li>`).join('')
       : `<li style="color:var(--pm-grey-500)">— keine —</li>`;
     ul.querySelectorAll('.av-vremove').forEach(b => b.addEventListener('click', () => handleRemoveVerantw(Number(b.dataset.vid))));
   }

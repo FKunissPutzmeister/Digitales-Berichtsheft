@@ -1623,6 +1623,8 @@
           '-webkit-backdrop-filter:none;backdrop-filter:none;' +
           'background:rgba(24,24,27,.92);' +
         '}' +
+        /* Mobil oben kein Platz (Seitentitel + Menü-Button) → nach unten. */
+        '@media (max-width:768px){#pmTestphaseBadge{top:auto;bottom:12px}}' +
         '@media print{#pmTestphaseBadge{display:none}}';
       (document.head || document.documentElement).appendChild(style);
     }

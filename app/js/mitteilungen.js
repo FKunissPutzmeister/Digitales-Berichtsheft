@@ -53,6 +53,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const azubis = await getMeineAzubis();
     const items = [];
     for (const a of azubis) {
+      const azName = displayName(a.name || '');
       let wochen = [];
       try { wochen = await DB.getWochenFuerAzubi(a.id); } catch (_) { /* ignore */ }
       wochen
@@ -66,9 +67,9 @@ document.addEventListener('DOMContentLoaded', async () => {
           else                               { tone = 'neutral'; typeKey = 'erstgenehmigt';  typeLabel = 'Erstgenehmigt'; }
           items.push({
             ts: sunday.getTime(), tone, typeKey, typeLabel,
-            title: `<strong>${esc(a.name)}</strong>: KW ${w.kw}`,
+            title: `<strong>${esc(azName)}</strong>: KW ${w.kw}`,
             meta: `KW ${w.kw}/${w.year}`,
-            azubiName: a.name,
+            azubiName: azName,
             href: 'wochenansicht.html',
             nav: { gotoAzubiId: a.id, gotoKW: String(w.kw), gotoYear: String(w.year) },
           });
@@ -80,9 +81,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         const note = b.note != null ? ` · Note ${b.note.toLocaleString('de-DE')}` : '';
         items.push({
           ts: isNaN(d) ? 0 : d.getTime(), tone: 'neutral', typeKey: 'beurteilung', typeLabel: 'Beurteilung',
-          title: `<strong>${esc(a.name)}</strong>: Beurteilung abgeschlossen${note}`,
+          title: `<strong>${esc(azName)}</strong>: Beurteilung abgeschlossen${note}`,
           meta: isNaN(d) ? '' : d.toLocaleDateString('de-DE'),
-          azubiName: a.name,
+          azubiName: azName,
           href: `beurteilung.html?zuw=${encodeURIComponent(b.zuweisungId)}`,
         });
       });

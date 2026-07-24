@@ -172,7 +172,7 @@ const BerichtsheftExport = (() => {
       wochen,
     };
     download(JSON.stringify(payload, null, 2),
-      `Berichtsheft-Backup_${slug(_user.name)}_${heute()}.json`, 'application/json');
+      `Berichtsheft-Backup_${slug(displayName(_user.name))}_${heute()}.json`, 'application/json');
     Toast.success('Backup erstellt', `${wochen.length} Wochen als JSON exportiert.`);
   }
 
@@ -215,7 +215,7 @@ const BerichtsheftExport = (() => {
     const teile = [];
     const dat = String(data.exportiertAm || '').split('T')[0];
     teile.push(`Backup vom <strong>${esc(DateUtil.formatDate(dat) || 'unbekannt')}</strong>`
-      + (data.azubi && data.azubi.name ? ` (${esc(data.azubi.name)})` : ''));
+      + (data.azubi && data.azubi.name ? ` (${esc(displayName(data.azubi.name))})` : ''));
     if (data.azubi && data.azubi.oid && data.azubi.oid !== _user.oid)
       teile.push('<strong style="color:var(--color-warning,#d97706)">Achtung: Das Backup stammt von einem anderen Konto und wird in dein Berichtsheft übernommen.</strong>');
     teile.push(`<strong>${neu.length}</strong> neue Wochen werden angelegt, <strong>${ueberschreiben.length}</strong> bestehende überschrieben.`);
@@ -270,7 +270,7 @@ const BerichtsheftExport = (() => {
     else                               ausbilderText = 'Prüfung ausstehend';
     return {
       azubiText: azubiFreigegeben ? 'Berichtsheft geführt und zur Prüfung eingereicht' : 'Entwurf – noch nicht eingereicht',
-      ausbilderName: (w.status === 'genehmigt' || w.status === 'abgelehnt') ? (ausbilderName || 'Ausbilder/in') : '—',
+      ausbilderName: (w.status === 'genehmigt' || w.status === 'abgelehnt') ? (displayName(ausbilderName || '') || 'Ausbilder/in') : '—',
       ausbilderText,
     };
   }
@@ -356,7 +356,7 @@ const BerichtsheftExport = (() => {
         </div>
         <table class="stamm">
           <tr>
-            <td class="z"><span class="zlabel">Name der/des Auszubildenden</span><br><strong>${esc(_user.name)}</strong></td>
+            <td class="z"><span class="zlabel">Name der/des Auszubildenden</span><br><strong>${esc(displayName(_user.name))}</strong></td>
             <td class="z" style="width:18%"><span class="zlabel">Ausbildungsjahr</span><br><strong>${aj ?? '–'}</strong></td>
             <td class="z" style="width:40%"><span class="zlabel">Berichtszeitraum</span><br><strong>${esc(zeitraum)}</strong></td>
           </tr>
@@ -366,7 +366,7 @@ const BerichtsheftExport = (() => {
           <thead><tr><th colspan="2">Bestätigung (elektronisch)</th></tr></thead>
           <tbody><tr>
             <td class="z" style="width:50%">
-              <span class="zlabel">Auszubildende/r</span><br><strong>${esc(_user.name)}</strong><br>
+              <span class="zlabel">Auszubildende/r</span><br><strong>${esc(displayName(_user.name))}</strong><br>
               <span class="muted">${esc(b.azubiText)}</span>
             </td>
             <td class="z">
@@ -391,7 +391,7 @@ const BerichtsheftExport = (() => {
         <img class="cover-logo" src="${ctx.logo}" alt="Putzmeister">
         <h1 class="cover-title">Ausbildungsnachweis</h1>
         <table class="cover-stamm">
-          <tr><td class="zlabel">Name</td><td><strong>${esc(_user.name)}</strong></td></tr>
+          <tr><td class="zlabel">Name</td><td><strong>${esc(displayName(_user.name))}</strong></td></tr>
           ${_user.beruf ? `<tr><td class="zlabel">Ausbildungsberuf</td><td>${esc(_user.beruf)}</td></tr>` : ''}
           ${ausb ? `<tr><td class="zlabel">Ausbildungszeitraum</td><td>${esc(ausb)}</td></tr>` : ''}
           <tr><td class="zlabel">Unternehmen</td><td>Putzmeister Concrete Pumps GmbH</td></tr>
@@ -453,7 +453,7 @@ const BerichtsheftExport = (() => {
       `@font-face{font-family:'${fam}';src:url('${url}') format('${fmt}');font-weight:${weight};font-style:normal;font-display:swap;}`;
 
     return `<!DOCTYPE html><html lang="de"><head><meta charset="UTF-8">
-<title>Ausbildungsnachweis – ${esc(_user.name)}</title>
+<title>Ausbildungsnachweis – ${esc(displayName(_user.name))}</title>
 <style>
   ${ff('Libre Franklin', ctx.fonts.franklinBold, 700, 'truetype')}
   ${ff('Libre Franklin', ctx.fonts.franklinLight, 300, 'truetype')}
@@ -531,7 +531,7 @@ const BerichtsheftExport = (() => {
 </style></head><body>
   <div class="toolbar">
     <button type="button" onclick="window.print()">Als PDF speichern / Drucken</button>
-    <span>${esc(_user.name)} · Ausbildungsnachweis · ${ctx.wochen.length} Wochen</span>
+    <span>${esc(displayName(_user.name))} · Ausbildungsnachweis · ${ctx.wochen.length} Wochen</span>
   </div>
   <table class="pm-doc">
     <tfoot class="pm-footer" aria-hidden="true"><tr><td class="pm-foot-cell"><div class="pm-footer__yellow"></div><div class="pm-footer__grey"></div></td></tr></tfoot>
@@ -577,7 +577,7 @@ const BerichtsheftExport = (() => {
 
       const korrektorOids = [...new Set(wochen.map(w => w.korrigiertVon).filter(Boolean))];
       const korrektoren = await Promise.all(korrektorOids.map(oid => DB.getUser(oid)));
-      const nameByOid = Object.fromEntries(korrektoren.filter(Boolean).map(u => [u.oid, u.name]));
+      const nameByOid = Object.fromEntries(korrektoren.filter(Boolean).map(u => [u.oid, displayName(u.name)]));
 
       const ctx = {
         wochen,

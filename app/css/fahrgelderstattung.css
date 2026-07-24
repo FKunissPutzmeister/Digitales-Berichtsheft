@@ -113,6 +113,13 @@ body[data-page="fahrgelderstattung"] .profil-data-grid {
 #fgVorschauModal .modal__body { background: var(--pm-grey-100); }
 [data-theme="dark"] #fgVorschauModal .modal__body { background: rgba(0, 0, 0, 0.25); }
 
+/* Mobil: die Formular-Replik behält ihre Dokument-Struktur (schrumpft nicht
+   sinnvoll unter ~460px) → horizontal scrollbar machen statt abschneiden. */
+@media (max-width: 768px) {
+  #fgVorschauModal .modal__body { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  #fgVorschauModal .fg-sheet { min-width: 460px; }
+}
+
 /* ── Formular-Replik F6344-1 ─────────────────────────────────────
    Bewusst immer hell (weißes Blatt) — es ist eine Dokument-Vorschau,
    kein UI-Element; Themes greifen hier nicht. */

@@ -537,6 +537,29 @@ html.sidebar-init-collapsed .main-wrapper         { margin-left: var(--sidebar-i
   pointer-events: auto;
 }
 
+/* ── Mobile-Menü-Button ──
+   Nur unterhalb des Sidebar-Breakpoints sichtbar (siehe Media-Query weiter
+   unten); auf dem Desktop ausgeblendet, dort dient der Collapse-Toggle. */
+.mobile-menu-btn {
+  display: none;
+  position: fixed;
+  top: 12px;
+  left: 12px;
+  z-index: calc(var(--z-sidebar) + 1);
+  width: 42px;
+  height: 42px;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 1px solid var(--outline, rgba(0,0,0,0.12));
+  border-radius: var(--r-md, 10px);
+  background: var(--surface, #fff);
+  color: var(--pm-grey-900, #1a1a1a);
+  box-shadow: var(--shadow-2, 0 2px 8px rgba(0,0,0,0.15));
+  cursor: pointer;
+}
+.mobile-menu-btn svg { width: 22px; height: 22px; }
+
 /* ── Main Wrapper ── */
 .main-wrapper {
   view-transition-name: main-wrapper;
@@ -688,9 +711,14 @@ body[data-page="dashboard"] .welcome-hero {
   .sidebar.mobile-open {
     transform: translateX(0);
   }
+  /* Trigger einblenden; bei offenem Drawer ausblenden (Schließen via Overlay/Link). */
+  .mobile-menu-btn { display: flex; }
+  .sidebar.mobile-open ~ .mobile-menu-btn { display: none; }
   .sidebar.mobile-open .sidebar__logo-text { opacity: 1; max-width: 160px; }
   .sidebar.mobile-open .sidebar__section-label { opacity: 1; }
-  .sidebar.mobile-open .sidebar__link-label { opacity: 1; }
+  /* max-width/flex zurücksetzen, sonst bleiben die Labels 0px breit (unsichtbar). */
+  .sidebar.mobile-open .sidebar__link-label { opacity: 1; max-width: none; flex: 1; }
+  .sidebar.mobile-open .sidebar__link-badge { opacity: 1; max-width: none; }
   .sidebar.mobile-open .sidebar__link { justify-content: flex-start; padding: 0 var(--sp-4); }
   .sidebar.mobile-open .sidebar__user-name { opacity: 1; max-width: none; }
   .sidebar.mobile-open .sidebar__user-link { flex: 1; justify-content: flex-start; padding: 4px; gap: var(--sp-3); }

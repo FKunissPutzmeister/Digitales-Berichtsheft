@@ -41,10 +41,10 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   const kopf = {
-    name: azubi ? azubi.name : '',
+    name: azubi ? displayName(azubi.name) : '',
     abteilung: zuweisung.abteilung || '',
     zeitraum: `${DateUtil.formatDate(zuweisung.von)} – ${DateUtil.formatDate(zuweisung.bis)}`,
-    beurteilende: zuweisung.verantwName || '',
+    beurteilende: displayName(zuweisung.verantwName || ''),
     beruf: azubi ? (azubi.beruf || azubi.studiengang || '') : '',
   };
   const punkteByKey = {};
@@ -181,7 +181,7 @@ function exportBeurteilungPdf(ctx) {
   const blockSum = block => f1(r.bloecke[block]);
 
   const html = `<!DOCTYPE html><html lang="de"><head><meta charset="UTF-8">
-<title>Beurteilung – ${esc(azubi?.name || '')}</title><style>
+<title>Beurteilung – ${esc(displayName(azubi?.name || ''))}</title><style>
   * { -webkit-print-color-adjust: exact; print-color-adjust: exact; box-sizing: border-box; }
   body { font-family:'Open Sans','Segoe UI',Arial,sans-serif; color:#1A1A1A; font-size:10.5pt; background:#5b5b5b; margin:0; }
   .toolbar { position:sticky; top:0; background:#1A1A1A; color:#fff; padding:10px 16px; }
@@ -205,9 +205,9 @@ function exportBeurteilungPdf(ctx) {
   <div class="toolbar"><button type="button" onclick="window.print()">Als PDF speichern / Drucken</button></div>
   <section class="sheet">
     <h1>Beurteilungsbogen für Auszubildende und DH-Studenten</h1>
-    <table class="stamm"><tr><td><b>Name, Vorname:</b> ${esc(azubi?.name || '')}</td><td><b>Abteilung:</b> ${esc(zuweisung.abteilung || '')}</td></tr>
+    <table class="stamm"><tr><td><b>Name:</b> ${esc(displayName(azubi?.name || ''))}</td><td><b>Abteilung:</b> ${esc(zuweisung.abteilung || '')}</td></tr>
       <tr><td><b>Zeitraum:</b> ${esc(DateUtil.formatDate(zuweisung.von))} – ${esc(DateUtil.formatDate(zuweisung.bis))}</td>
-          <td><b>Beurteilende/-r:</b> ${esc(zuweisung.verantwName || '')}</td></tr>
+          <td><b>Beurteilende/-r:</b> ${esc(displayName(zuweisung.verantwName || ''))}</td></tr>
       <tr><td colspan="2"><b>Ausbildungs-/Studienberuf:</b> ${esc(azubi?.beruf || azubi?.studiengang || '')}</td></tr></table>
     <table class="grid" style="margin-top:4mm">
       <thead><tr><th>Beurteilungskriterien</th>${B.STUFEN.map(s => `<th>${s.stufe}<br><small>${s.max}–${s.min}</small></th>`).join('')}<th>Punkte</th></tr></thead>

@@ -705,6 +705,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     .map(a => ({ ...a, name: displayName(a.name), initials: getInitials(a.name) }));
   const azubiById = new Map(azubis.map(a => [a.id, a]));
 
+  // Verantwortlichen-Namen kommen per JOIN im Entra-Format "Nachname, Vorname"
+  // – einmalig auf die Anzeige "Vorname Nachname" drehen (idempotent), damit
+  // alle Render-Stellen unten das Anzeigeformat sehen.
+  alleZuweisungen.forEach(z => { if (z.verantwName) z.verantwName = displayName(z.verantwName); });
+
   // Zuweisungen je Azubi (In-Memory-Index).
   let zuwByAzubi = new Map();
   function indexZuweisungen(list) {
@@ -736,7 +741,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (!email) return '';
     for (const abt of abteilungenKatalog) {
       const v = (abt.verantwortliche || []).find(x => (x.email || '').toLowerCase() === email.toLowerCase());
-      if (v) return v.name || email;
+      if (v) return displayName(v.name || '') || email;
     }
     return (typeof deriveName === 'function') ? deriveName(email) : email;
   }
@@ -1312,7 +1317,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const abt = abteilungenKatalog.find(a => a.name === abteilungName);
     const list = abt ? (abt.verantwortliche || []) : [];
     sel.innerHTML = list.length
-      ? list.map(v => `<option value="${escHtml(v.email)}" ${v.email === selectedEmail ? 'selected' : ''}>${escHtml(v.name || v.email)}</option>`).join('')
+      ? list.map(v => `<option value="${escHtml(v.email)}" ${v.email === selectedEmail ? 'selected' : ''}>${escHtml(displayName(v.name || '') || v.email)}</option>`).join('')
       : `<option value="">— keine hinterlegt —</option>`;
   }
   function openZuwModal(z, presetAzubiId) {
@@ -1520,9 +1525,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     const rows = stns.map(z => {
       const a = azubiById.get(z.azubiId);
       return `<tr>
-        <td>${escHtml(a ? a.name : (z.azubiName || '–'))}${a && a.beruf ? ` <span class="b">${escHtml(a.beruf)}</span>` : ''}</td>
+        <td>${escHtml(a ? a.name : (displayName(z.azubiName || '') || '–'))}${a && a.beruf ? ` <span class="b">${escHtml(a.beruf)}</span>` : ''}</td>
         <td>${DateUtil.formatDate(z.von)} – ${z.bis ? DateUtil.formatDate(z.bis) : 'offen'}</td>
-        <td>${escHtml(z.verantwName || verantwNameFor(z.verantwEmail) || '–')}</td>
+        <td>${escHtml(displayName(z.verantwName || '') || verantwNameFor(z.verantwEmail) || '–')}</td>
       </tr>`;
     }).join('') || `<tr><td colspan="3">Keine Personen in diesem Zeitraum.</td></tr>`;
     const w = window.open('', '_blank', 'width=900,height=700');
@@ -1561,7 +1566,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       } else {
         stns.forEach(z => rows.push([nach, vor, a.beruf || '', gruppe, z.abteilung || '',
           DateUtil.formatDate(z.von), z.bis ? DateUtil.formatDate(z.bis) : 'offen',
-          z.verantwName || verantwNameFor(z.verantwEmail) || '', statusOf(z).label]));
+          displayName(z.verantwName || '') || verantwNameFor(z.verantwEmail) || '', statusOf(z).label]));
       }
     });
     const esc = v => { const s = String(v ?? ''); return /[";\r\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s; };

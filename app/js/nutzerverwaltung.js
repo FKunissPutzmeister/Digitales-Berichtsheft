@@ -166,7 +166,7 @@ document.addEventListener('DOMContentLoaded', async () => {
               return `
               <label class="nv-form__check-label">
                 <input type="checkbox" class="nv-ausbilder-cb" value="${esc(k.oid)}" ${quelleByOid.has(k.oid) ? 'checked' : ''}>
-                ${esc(k.name)} <span class="nv-table__email">${esc(k.email)}</span>${badge}
+                ${esc(displayName(k.name))} <span class="nv-table__email">${esc(k.email)}</span>${badge}
               </label>`;
             }).join('')
           : '<p class="form-hint">Keine ausbilderfähigen Nutzer vorhanden.</p>';
@@ -253,7 +253,7 @@ document.addEventListener('DOMContentLoaded', async () => {
           <input type="checkbox" class="nv-row-cb" data-oid="${esc(u.oid)}" aria-label="Auswählen"${sel ? ' checked' : ''}>
         </td>
         <td>
-          <div class="nv-table__name">${esc(u.name)}</div>
+          <div class="nv-table__name">${esc(displayName(u.name))}</div>
           <div class="nv-table__email">${esc(u.email)}</div>
         </td>
         <td>${esc(u.email)}</td>
@@ -313,6 +313,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   function matchesQuery(u, q) {
     if (!q) return true;
     return (u.name  || '').toLowerCase().includes(q) ||
+           displayName(u.name || '').toLowerCase().includes(q) ||
            (u.email || '').toLowerCase().includes(q) ||
            (u.role  || '').toLowerCase().includes(q) ||
            ((ROLE_LABELS[u.role] || '').toLowerCase().includes(q));
@@ -502,7 +503,7 @@ document.addEventListener('DOMContentLoaded', async () => {
           <label class="form-label">Ausbilder</label>
           <div class="nv-ausbilder-list">
             ${kandidaten.length
-              ? kandidaten.map(k => `<label class="nv-form__check-label"><input type="checkbox" class="bulk-ausb-cb" value="${esc(k.oid)}"> ${esc(k.name)} <span class="nv-table__email">${esc(k.email)}</span></label>`).join('')
+              ? kandidaten.map(k => `<label class="nv-form__check-label"><input type="checkbox" class="bulk-ausb-cb" value="${esc(k.oid)}"> ${esc(displayName(k.name))} <span class="nv-table__email">${esc(k.email)}</span></label>`).join('')
               : '<p class="form-hint">Keine ausbilderfähigen Nutzer vorhanden.</p>'}
           </div>
         </div>`;
@@ -650,7 +651,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     let ov = document.getElementById('akAddModal'); if (ov) ov.remove();
     ov = document.createElement('div'); ov.className = 'modal-overlay'; ov.id = 'akAddModal';
     const opts = users.filter(u => u.aktiv !== false)
-      .map(u => `<option value="${esc(u.oid)}">${esc(u.name)} — ${esc(u.email)}</option>`).join('');
+      .map(u => `<option value="${esc(u.oid)}">${esc(displayName(u.name))} — ${esc(u.email)}</option>`).join('');
     ov.innerHTML = `
       <div class="modal" role="dialog" aria-modal="true">
         <div class="modal__header"><h2 class="modal__title">Nutzer für API-Zugriff aufnehmen</h2>

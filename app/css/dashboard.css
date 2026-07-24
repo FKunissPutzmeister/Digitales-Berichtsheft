@@ -1814,6 +1814,15 @@ html[data-theme="dark"] .b-hero__kw {
   position: relative; z-index: 1;
 }
 
+/* Mobil: fixe 7×50px-Spalten (≈398px) sprengen die Hero-Karte → Button und
+   Datums-Strip stapeln, Strip füllt die Breite (1fr) statt abgeschnitten zu werden. */
+@media (max-width: 768px) {
+  .b-hero__bottom { flex-direction: column; align-items: stretch; gap: 16px; }
+  .b-weekmini { grid-template-columns: repeat(7, 1fr); gap: 4px; }
+  .b-day { padding: 8px 0; }
+  .b-day .dnum { font-size: 17px; }
+}
+
 .b-btn-primary {
   appearance: none; border: 0; cursor: pointer;
   font-weight: 600; font-size: 14px; line-height: 1;

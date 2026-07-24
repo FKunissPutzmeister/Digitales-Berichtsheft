@@ -152,7 +152,20 @@ async function initLayout(activeNavId) {
   const sidebar = document.getElementById('sidebar');
   const toggleBtn = document.getElementById('sidebarToggle');
   const overlay = document.getElementById('sidebarOverlay');
-  const menuBtn = document.getElementById('mobileMenuBtn');
+
+  // Mobile-Menü-Trigger: In den Seiten-Shells fehlt das Element, ohne das die
+  // Sidebar unter 768px (dort per translateX(-100%) ausgeblendet) gar nicht
+  // mehr erreichbar wäre. Deshalb hier einmalig erzeugen, falls nicht vorhanden.
+  let menuBtn = document.getElementById('mobileMenuBtn');
+  if (!menuBtn && sidebar) {
+    menuBtn = document.createElement('button');
+    menuBtn.id = 'mobileMenuBtn';
+    menuBtn.className = 'mobile-menu-btn';
+    menuBtn.type = 'button';
+    menuBtn.setAttribute('aria-label', 'Navigation öffnen');
+    menuBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></svg>';
+    document.body.appendChild(menuBtn);
+  }
 
   const isCollapsed = localStorage.getItem('sidebarCollapsed') === 'true';
   if (isCollapsed && window.innerWidth > 768) {
@@ -181,6 +194,14 @@ async function initLayout(activeNavId) {
   overlay?.addEventListener('click', () => {
     sidebar?.classList.remove('mobile-open');
     overlay?.classList.remove('visible');
+  });
+
+  // Nach Navigation den mobilen Drawer schließen, sonst verdeckt er den Inhalt.
+  sidebar?.querySelectorAll('.sidebar__link').forEach((link) => {
+    link.addEventListener('click', () => {
+      sidebar.classList.remove('mobile-open');
+      overlay?.classList.remove('visible');
+    });
   });
 
   // Aktiver Nav-Link
@@ -361,7 +382,7 @@ async function initNotifications(user) {
     const isErst = b.type === 'erstgenehmigt';
     const isApproved = b.type === 'genehmigt' || isErst;
     const from = b.fromUserId ? await DB.getUser(b.fromUserId) : null;
-    const fromName = from ? from.name : (isErst ? 'Prüfer/in' : 'Ausbilder/in');
+    const fromName = from ? displayName(from.name) : (isErst ? 'Prüfer/in' : 'Ausbilder/in');
     const title = isErst
       ? `KW ${b.kw}/${b.year} wurde erstgenehmigt – Endabnahme nötig`
       : isApproved

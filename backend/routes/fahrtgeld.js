@@ -5,6 +5,26 @@ const { logError } = require('../services/fehlerberichte');
 /* Fahrtgeld-Stammdaten je Azubi. Der eingeloggte User (req.user.oid) ist
    die Quelle – Azubis verwalten nur ihre eigene Konfiguration. */
 
+/* Feld-Längen exakt wie die NVarChar-Spalten unten. Ohne diese Prüfung
+   quittiert der mssql-Treiber überlange Werte mit einem rohen TDS-Fehler
+   (500), der bis zum Nutzer durchschlägt – stattdessen ein klares 400. */
+function validateKonfig(body) {
+  const limits = {
+    name: 120, persNr: 20, kst: 20, vonHaltestelle: 120, nachHaltestelle: 120,
+  };
+  for (const [feld, max] of Object.entries(limits)) {
+    const v = body[feld];
+    if (v != null && String(v).length > max) return { ok: false, error: `Feld „${feld}“ max. ${max} Zeichen` };
+  }
+  const raw = body.betragProTag;
+  if (raw != null && raw !== '') {
+    // Frontend sendet eine Zahl; komma-tolerant bleiben, falls ein String kommt.
+    const betrag = typeof raw === 'number' ? raw : Number(String(raw).replace(',', '.'));
+    if (!Number.isFinite(betrag) || betrag < 0) return { ok: false, error: 'Tagessatz muss eine Zahl ≥ 0 sein' };
+  }
+  return { ok: true };
+}
+
 // GET /api/fahrtgeld/konfig
 router.get('/konfig', async (req, res) => {
   try {
@@ -32,6 +52,8 @@ router.get('/konfig', async (req, res) => {
 // PUT /api/fahrtgeld/konfig  (upsert für den eingeloggten Azubi)
 router.put('/konfig', async (req, res) => {
   try {
+    const check = validateKonfig(req.body || {});
+    if (!check.ok) return res.status(400).json({ error: check.error });
     const { name, persNr, kst, vonHaltestelle, nachHaltestelle, betragProTag } = req.body;
     const pool = await getPool();
     await pool.request()

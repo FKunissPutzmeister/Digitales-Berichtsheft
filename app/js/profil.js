@@ -317,7 +317,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                   <div class="profil-data-label">${a.beruf || 'Auszubildende/r'}</div>
                   <div class="profil-data-value" style="display:flex;align-items:center;gap:var(--sp-2)">
                     ${renderAvatar(a, 'avatar--sm')}
-                    ${a.name}
+                    ${escapeHtml(displayName(a.name))}
                   </div>
                 </div>
               `).join('')}
@@ -339,7 +339,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         <div class="ausbilder-tl-item">
           <div class="ausbilder-tl-dot ${dotClass}">${azubi?.initials || '?'}</div>
           <div class="ausbilder-tl-info">
-            <div class="ausbilder-tl-name">${azubi?.name || '–'}</div>
+            <div class="ausbilder-tl-name">${displayName(azubi?.name || '') || '–'}</div>
             <div class="ausbilder-tl-abt">${azubi?.beruf || ''}</div>
             <div class="ausbilder-tl-dates">${DateUtil.formatDate(z.von)} – ${DateUtil.formatDate(z.bis)}</div>
             ${isCurrent ? '<span class="badge badge--genehmigt">Aktuell</span>' : ''}
@@ -397,7 +397,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const vergebenHtml = vergeben.length ? vergeben.map(v => `
       <div class="settings-row">
         <div class="settings-row__text">
-          <div class="settings-row__label">${v.vertreterName || '–'}</div>
+          <div class="settings-row__label">${displayName(v.vertreterName || '') || '–'}</div>
           <div class="settings-row__desc">${vertretungZeitraum(v)}${badge(v)}</div>
         </div>
         <button class="btn btn-ghost" data-vertretung-beenden="${v.id}" type="button">Beenden</button>
@@ -409,7 +409,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         <label class="form-label">Vertreter/in hinzufügen</label>
         <select class="form-control" id="vertreterSelect" data-pm-search="Person suchen…">
           <option value="">Person wählen…</option>
-          ${kandidaten.map(u => `<option value="${u.oid}">${u.name}</option>`).join('')}
+          ${kandidaten.map(u => `<option value="${u.oid}">${displayName(u.name)}</option>`).join('')}
         </select>
       </div>
       <div class="form-group">
@@ -434,7 +434,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         ${erhalten.map(v => `
           <div class="settings-row">
             <div class="settings-row__text">
-              <div class="settings-row__label">${v.vertretenerName || '–'}</div>
+              <div class="settings-row__label">${displayName(v.vertretenerName || '') || '–'}</div>
               <div class="settings-row__desc">${vertretungZeitraum(v)}${badge(v)}</div>
             </div>
           </div>

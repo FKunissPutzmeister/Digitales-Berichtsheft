@@ -523,7 +523,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     );
 
     // Stammdaten des aktuell sichtbaren Azubis (azubiUser/azubiZuw: oben parallel geladen)
-    const azubiAusbilderName = azubiZuw ? (azubiZuw.verantwName || '') : '';
+    const azubiAusbilderName = azubiZuw ? displayName(azubiZuw.verantwName || '') : '';
     const ausbildungsjahr = calcAusbildungsjahr(azubiUser?.ausbildungsBeginn);
 
     const lastSavedStr = (() => {
@@ -890,11 +890,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Im Wochenansicht-Kontext nur die für die Erfassung relevanten Stammdaten.
     // Detail-Felder (IHK, Berufsbildnummer, Azubi-Nr.) finden sich im Profil.
     const fields = [
-      { label: 'Auszubildende/r',         value: azubi.name },
+      { label: 'Auszubildende/r',         value: displayName(azubi.name) },
       { label: 'Beruf',                   value: azubi.beruf || '–' },
       { label: 'Ausbildungsjahr',         value: ausbildungsjahr ? `${ausbildungsjahr}. Jahr` : '–' },
       { label: 'Aktuelle Abteilung',      value: zuw?.abteilung || azubi.abteilung || '–' },
-      { label: 'Aktuelle/r Ausbilder/in', value: ausbilderName || '–' },
+      { label: 'Aktuelle/r Ausbilder/in', value: displayName(ausbilderName || '') || '–' },
       { label: 'Ausbildungsbetrieb',      value: azubi.unternehmen || '–' },
     ];
 
@@ -1082,7 +1082,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Tatsächlich handelnde Person (KorrigiertVon) statt des statisch
     // zugeordneten Ausbilders — ein Azubi kann mehrere Ausbilder haben.
     const korrektor = woche.korrigiertVon ? await DB.getUser(woche.korrigiertVon) : null;
-    const korrektorName = korrektor ? korrektor.name : '';
+    const korrektorName = korrektor ? displayName(korrektor.name) : '';
 
     if (woche.status === 'genehmigt') {
       const name = korrektorName || azubiAusbilderName;
@@ -1151,7 +1151,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             ${rejectionComment ? `
               <div class="week-status-banner__quote">
                 <div class="week-status-banner__quote-text">${escapeHtml(rejectionComment.text)}</div>
-                <div class="week-status-banner__quote-meta">— ${author ? author.name : 'Ausbilder/in'}${rejectionComment.datum ? ' · ' + rejectionComment.datum : ''}</div>
+                <div class="week-status-banner__quote-meta">— ${author ? displayName(author.name) : 'Ausbilder/in'}${rejectionComment.datum ? ' · ' + rejectionComment.datum : ''}</div>
               </div>
             ` : `<p class="week-status-banner__text">Bitte überarbeite die Einträge und gib die Woche erneut frei.</p>`}
           </div>
@@ -2228,7 +2228,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         <div class="comment__body">
           <div class="comment__header">
             ${renderAvatar(author, 'avatar--sm')}
-            <span class="comment__name">${author ? author.name : 'Unbekannt'}</span>
+            <span class="comment__name">${author ? displayName(author.name) : 'Unbekannt'}</span>
             <span class="comment__date">${k.datum || ''}</span>
             ${canDelete ? `<button class="btn btn-sm btn-ghost comment__delete" data-delete-kommentar="${k.id}" title="Kommentar löschen" style="margin-left:auto;color:var(--color-error)">
               <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" style="width:14px;height:14px"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/></svg>

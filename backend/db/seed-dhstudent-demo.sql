@@ -6,25 +6,27 @@
    Inhalt erscheint. Idempotent: löscht zuerst evtl. vorhandene Demo-
    Zuweisungen desselben Azubis.
 
-   Azubi-OID  (Jana Hofer)      = 00000000-0000-0000-0000-000000000007
-   Verantwortliche (vorhandene DEV_USERS):
-     Matthias Lengerer (Ausbilder) = 00000000-0000-0000-0000-000000000002
-     Admin Verwaltung              = 00000000-0000-0000-0000-000000000004
+   Azubi-OID (Jana Hofer) = 00000000-0000-0000-0000-000000000007
+   Verantwortliche werden über die E-Mail referenziert (Spalte
+   VerantwEmail, siehe backend/routes/zuweisungen.js) – die alte Spalte
+   AusbilderOid existiert im aktuellen Schema nicht mehr:
+     Matthias Lengerer (Prüfer)  = matthias.lengerer.demo@putzmeister.com
+     Admin Verwaltung            = admin.demo@putzmeister.com
 
    Ausführen gegen die Berichtsheft-Datenbank, z. B.:
-     sqlcmd -S <DB_SERVER> -d <DB_NAME> -i backend/db/seed-dhstudent-demo.sql
+     node backend/db/run-sql.js backend/db/seed-dhstudent-demo.sql
    ==================================================================== */
 
 SET NOCOUNT ON;
 
-DECLARE @azubi        NVARCHAR(36) = '00000000-0000-0000-0000-000000000007';  -- Jana Hofer
-DECLARE @verantwAusb  NVARCHAR(36) = '00000000-0000-0000-0000-000000000002';  -- Matthias Lengerer
-DECLARE @verantwAdmin NVARCHAR(36) = '00000000-0000-0000-0000-000000000004';  -- Admin Verwaltung
+DECLARE @azubi        NVARCHAR(36)  = '00000000-0000-0000-0000-000000000007';       -- Jana Hofer
+DECLARE @verantwAusb  NVARCHAR(255) = 'matthias.lengerer.demo@putzmeister.com';     -- Matthias Lengerer
+DECLARE @verantwAdmin NVARCHAR(255) = 'admin.demo@putzmeister.com';                 -- Admin Verwaltung
 
 -- Idempotenz: bestehende Zuweisungen dieses Demo-Azubis entfernen.
 DELETE FROM dbo.Zuweisungen WHERE AzubiOid = @azubi;
 
-INSERT INTO dbo.Zuweisungen (AzubiOid, AusbilderOid, Abteilung, Von, Bis) VALUES
+INSERT INTO dbo.Zuweisungen (AzubiOid, VerantwEmail, Abteilung, Von, Bis) VALUES
   (@azubi, @verantwAusb,  N'Konstruktion',                 '2025-10-01', '2025-12-31'),
   (@azubi, @verantwAdmin, N'Fertigung & Montage',          '2026-01-05', '2026-03-27'),
   (@azubi, @verantwAusb,  N'Qualitätssicherung',           '2026-03-30', '2026-06-30'),

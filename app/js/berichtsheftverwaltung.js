@@ -36,7 +36,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       <div style="margin-bottom:var(--sp-5);display:flex;align-items:center;gap:var(--sp-3);flex-wrap:wrap">
         <label class="form-label" style="margin:0">Azubi:</label>
         <select class="form-control" id="azubiSelect" style="max-width:280px">
-          ${azubis.map(a => `<option value="${a.id}" ${a.id === selectedAzubiId ? 'selected' : ''}>${a.name}</option>`).join('')}
+          ${azubis.map(a => `<option value="${a.id}" ${a.id === selectedAzubiId ? 'selected' : ''}>${escapeHtml(displayName(a.name))}</option>`).join('')}
         </select>
       </div>
       ` : ''}

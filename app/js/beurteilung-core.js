@@ -210,7 +210,7 @@
     container.innerHTML = `
       <div class="beurt">
         <div class="beurt__kopf">
-          <div><span class="beurt__label">Name, Vorname</span><div class="beurt__val">${esc(kopf.name)}</div></div>
+          <div><span class="beurt__label">Name</span><div class="beurt__val">${esc(kopf.name)}</div></div>
           <div><span class="beurt__label">Abteilung</span><div class="beurt__val">${esc(kopf.abteilung)}</div></div>
           <div><span class="beurt__label">Zeitraum</span><div class="beurt__val">${esc(kopf.zeitraum)}</div></div>
           <div><span class="beurt__label">Beurteilende/-r</span><div class="beurt__val">${esc(kopf.beurteilende)}</div></div>

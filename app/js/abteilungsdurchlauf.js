@@ -60,7 +60,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Abteilungen vorab einfärben (sortiert → stabile Farbe je Abteilung).
     [...new Set(zuw.map(z => z.abteilung).filter(Boolean))].sort().forEach(colorFor);
 
-    const rows = zuw.map(z => ({ z, verantw: z.verantwName || '–', status: statusFor(z) }));
+    const rows = zuw.map(z => ({ z, verantw: displayName(z.verantwName || '') || '–', status: statusFor(z) }));
 
     const aktuell  = rows.find(r => r.status.key === 'aktuell') || null;
     const naechste = rows.find(r => r.status.key === 'zukuenftig') || null;

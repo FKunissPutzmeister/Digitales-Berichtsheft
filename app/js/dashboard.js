@@ -642,7 +642,18 @@ async function renderAusbilderDashboard(user) {
   let durchlaufAzubis = meineAzubis;
   let durchlaufRows;
   if (meineAzubis.length === 0 && user.kannPlanen) {
-    const [alleAzubis, alleZuweisungen] = await Promise.all([DB.getAzubis(), DB.getAllZuweisungen()]);
+    // Gleiche Grundgesamtheit wie der Abteilungs-Planer verwenden (Azubis UND
+    // DH-Studenten, nach OID dedupliziert) – sonst weichen die Zähler zwischen
+    // Dashboard und Planer voneinander ab (DH-Studenten fehlten hier bisher).
+    const [alleAzubisRaw, alleDh, alleZuweisungen] = await Promise.all([
+      DB.getAzubis(), DB.getDhStudenten(), DB.getAllZuweisungen(),
+    ]);
+    // Inaktive ausblenden (wie der Planer, passtFilter) und nach OID dedupen –
+    // sonst zeigt die Übersicht ausgeschiedene Azubis und weicht vom Planer ab.
+    const seenOid = new Set();
+    const alleAzubis = [...alleAzubisRaw, ...alleDh]
+      .filter(a => a.aktiv !== false)
+      .filter(a => (seenOid.has(a.id) ? false : (seenOid.add(a.id), true)));
     const zuwByAzubi = new Map();
     alleZuweisungen.forEach(z => {
       if (!zuwByAzubi.has(z.azubiId)) zuwByAzubi.set(z.azubiId, []);
@@ -796,12 +807,12 @@ function durchlaufRowHtml(azubi, m, dShort) {
 
   return `
     <a class="rot-row ${m.rowMod}" href="abteilungs-planer.html"
-       data-azubi-id="${azubi.id}" data-name="${escapeHtml((azubi.name || '').toLowerCase())}">
+       data-azubi-id="${azubi.id}" data-name="${escapeHtml(displayName(azubi.name || '').toLowerCase())}">
       <div class="rot-head">
         <span class="rot-dot rot-dot--${m.dot}"></span>
         ${renderAvatar(azubi, 'rot-av')}
         <span class="rot-id">
-          <span class="rot-name">${escapeHtml(azubi.name)}</span>
+          <span class="rot-name">${escapeHtml(displayName(azubi.name))}</span>
           <span class="rot-beruf">${escapeHtml(azubi.beruf || '–')}</span>
         </span>
         <span class="rot-chev">${DLB_CHEV}</span>
@@ -894,10 +905,10 @@ function renderAzubiCard(c, idx) {
   return `
     <div class="azubi-card azubi-card--${dringlich}" data-azubi-id="${a.id}" style="animation-delay:${idx * 50}ms">
       <div class="azubi-card__header" role="button" tabindex="0" aria-expanded="false"
-           aria-label="${a.name}: ${n} ${n === 1 ? 'Bericht' : 'Berichte'} zu prüfen – aufklappen">
+           aria-label="${displayName(a.name)}: ${n} ${n === 1 ? 'Bericht' : 'Berichte'} zu prüfen – aufklappen">
         <div class="avatar avatar--lg azubi-card__avatar">${a.initials}</div>
         <div class="azubi-card__info">
-          <div class="azubi-card__name">${a.name}</div>
+          <div class="azubi-card__name">${displayName(a.name)}</div>
           <div class="azubi-card__role">${a.beruf || '–'}</div>
           <div class="azubi-card__status">
             <span class="azubi-card__count">${n} ${n === 1 ? 'Bericht' : 'Berichte'} offen</span>
@@ -942,7 +953,7 @@ function renderAzubiDoneGroup(erledigt) {
           <div class="azubi-done__item" data-azubi-id="${c.azubi.id}" role="button" tabindex="0">
             <div class="avatar azubi-done__avatar">${c.azubi.initials}</div>
             <div class="azubi-done__info">
-              <div class="azubi-done__name">${c.azubi.name}</div>
+              <div class="azubi-done__name">${displayName(c.azubi.name)}</div>
               <div class="azubi-done__role">${c.azubi.beruf || '–'}</div>
             </div>
             ${c.abgelehnt > 0
@@ -1065,7 +1076,7 @@ async function getPlanerSignale() {
   const heute   = heuteD.toISOString().split('T')[0];
   const grenze  = grenzeD.toISOString().split('T')[0];
   const [azubis, zuw] = await Promise.all([DB.getAzubis(), DB.getAllZuweisungen()]);
-  const nameVon = id => (azubis.find(a => a.id === id)?.name) || 'Unbekannt';
+  const nameVon = id => displayName(azubis.find(a => a.id === id)?.name || '') || 'Unbekannt';
   const aktiveAzubiIds = new Set(
     zuw.filter(z => z.von <= heute && z.bis >= heute).map(z => z.azubiId)
   );
@@ -1079,7 +1090,7 @@ async function getPlanerSignale() {
   // die Kennzahl der Kachel.
   return {
     ohneZuweisung: azubis.filter(a => !aktiveAzubiIds.has(a.id))
-                         .map(a => ({ name: a.name })),
+                         .map(a => ({ name: displayName(a.name) })),
     baldAblaufend: ablaufend.map(z => ({ name: nameVon(z.azubiId), abteilung: z.abteilung, von: z.von, bis: z.bis })),
     baldBeginnend: beginnend.map(z => ({ name: nameVon(z.azubiId), abteilung: z.abteilung, von: z.von, bis: z.bis })),
   };
@@ -1180,7 +1191,7 @@ function renderReviewItem(w, idx) {
          data-woche-id="${w.id}" data-azubi-id="${a.id}" data-kw="${w.kw}" data-year="${w.year}"
          style="animation-delay:${idx * 50}ms"
          tabindex="0" role="button"
-         aria-label="Berichtsheft KW ${w.kw} von ${a.name} prüfen">
+         aria-label="Berichtsheft KW ${w.kw} von ${displayName(a.name)} prüfen">
       <label class="review-item__check" aria-label="Auswählen" onclick="event.stopPropagation()">
         <input type="checkbox" class="review-item__checkbox" data-woche-id="${w.id}">
         <span class="review-item__check-box" aria-hidden="true">
@@ -1189,7 +1200,7 @@ function renderReviewItem(w, idx) {
       </label>
       ${renderAvatar(a, 'review-item__avatar')}
       <div class="review-item__main">
-        <div class="review-item__name">${a.name}</div>
+        <div class="review-item__name">${displayName(a.name)}</div>
         <div class="review-item__meta">
           <span class="review-item__kw">KW ${w.kw}/${w.year}</span>
           <span class="review-item__sep">·</span>
@@ -1378,7 +1389,7 @@ function buildAusbilderMitteilungen(allWochen, beurteilungen = []) {
       items.push({
         ts:   sunday.getTime(),
         type,
-        text: `<strong>${escapeHtml(w.azubi.name)}</strong>: KW ${w.kw} ${verb}`.trim(),
+        text: `<strong>${escapeHtml(displayName(w.azubi.name))}</strong>: KW ${w.kw} ${verb}`.trim(),
         time: `KW ${w.kw}/${w.year}`,
       });
     });
@@ -1390,7 +1401,7 @@ function buildAusbilderMitteilungen(allWochen, beurteilungen = []) {
     items.push({
       ts:   isNaN(d) ? 0 : d.getTime(),
       type: 'yellow',
-      text: `<strong>${escapeHtml(b.azubi.name)}</strong>: Beurteilung abgeschlossen${note}`,
+      text: `<strong>${escapeHtml(displayName(b.azubi.name))}</strong>: Beurteilung abgeschlossen${note}`,
       time: isNaN(d) ? '' : d.toLocaleDateString('de-DE'),
       href: `beurteilung.html?zuw=${encodeURIComponent(b.zuweisungId)}`,
     });
