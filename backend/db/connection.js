@@ -1,9 +1,15 @@
 const sql = require('mssql');
 
-let pool = null;
+// Wir cachen bewusst das *Verbindungs-Promise* (nicht erst den fertigen Pool).
+// Sonst sehen mehrere gleichzeitige Requests (z. B. das Frontend feuert beim
+// Laden parallel /api/auth/me + weitere Endpunkte) alle `pool === null` und
+// rufen jeweils sql.connect() auf — mssql erlaubt aber nur EINE globale
+// Verbindung und quittiert die Folgeaufrufe mit "Global connection already
+// exists". Ein einziges geteiltes Promise verhindert diesen Connection-Storm.
+let poolPromise = null;
 
-async function getPool() {
-  if (!pool) {
+function getPool() {
+  if (!poolPromise) {
     const config = {
       server:   process.env.DB_SERVER,
       database: process.env.DB_NAME,
@@ -18,10 +24,23 @@ async function getPool() {
       },
     };
     console.log('[DB] Verbinde mit:', config.server, '/', config.database, '| User:', config.user);
-    pool = await sql.connect(config);
-    console.log('[DB] Verbindung erfolgreich');
+    poolPromise = sql.connect(config)
+      .then((pool) => {
+        console.log('[DB] Verbindung erfolgreich');
+        return pool;
+      })
+      .catch(async (err) => {
+        // Fehlgeschlagene Verbindung (z. B. Timeout, DB kurz weg): Cache leeren
+        // UND den halb-initialisierten globalen mssql-Pool schließen. Sonst
+        // bleibt eine kaputte Verbindung hängen und JEDER Folge-Request
+        // scheitert dauerhaft mit "Global connection already exists" — aus
+        // einem einmaligen Aussetzer würde ein Dauerausfall der Auth.
+        poolPromise = null;
+        try { await sql.close(); } catch (_) { /* nichts zu schließen */ }
+        throw err;
+      });
   }
-  return pool;
+  return poolPromise;
 }
 
 module.exports = { getPool, sql };
