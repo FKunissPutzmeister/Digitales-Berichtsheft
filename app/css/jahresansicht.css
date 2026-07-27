@@ -89,17 +89,28 @@
 .week-row--pulse {
   animation: weekRowPulse 2200ms var(--ease-out-expo);
 }
-/* Aktuelle Woche dauerhaft hervorheben: sichtbarer Rahmen um die ganze
-   Wochenzeile statt Füllung der KW-Zelle. outline liegt außerhalb des
-   Box-Flusses → kein Layout-Versatz im dichten 2px-Grid. --pm-yellow zieht
-   pro Theme mit (Silk: Lavendel etc.), passt so zur „heute"-Kachel. */
+/* Aktuelle Woche dauerhaft hervorheben: Rahmen NUR um Mo–Fr. Das Zeilen-Grid
+   ist `24px repeat(7, 1fr)` → Spaltenlinien 2…7 umfassen Mo–Fr, KW-Zelle und
+   Sa/So bleiben außerhalb. Ein absolut positioniertes ::before mit
+   Grid-Placement belegt keine Grid-Zelle (kein Layout-Versatz im dichten
+   2px-Grid). --pm-yellow zieht pro Theme mit (Silk: Lavendel etc.), passt so
+   zur „heute"-Kachel. */
 .week-row--current {
-  outline: 2px solid var(--pm-yellow);
-  outline-offset: 2px;
+  position: relative;
   border-radius: var(--r-sm);
   /* Etwas Luft ober-/unterhalb, damit die Umrandung nicht in die satten
      Status-Chips der Nachbarwochen ragt (Zeilenabstand ist nur 2px). */
   margin: 2px 0;
+}
+.week-row--current::before {
+  content: '';
+  position: absolute;
+  grid-row: 1;
+  grid-column: 2 / 7;
+  inset: -3px;              /* entspricht dem früheren outline-offset */
+  border: 2px solid var(--pm-yellow);
+  border-radius: var(--r-sm);
+  pointer-events: none;
 }
 
 /* ── Legende (Frost-Glass-Pille) ──

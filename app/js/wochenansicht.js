@@ -29,14 +29,15 @@ function renderCharCount(el, q) {
     + `<span class="char-count__max"> / ${MAX_EINTRAG_ZEICHEN.toLocaleString('de-DE')} Zeichen</span>`;
 }
 // Sammelt alle aktuell überlangen Editoren der Ansicht (Wochen-Kacheln + die
-// fünf Tage). Basis für die Sperre von „Speichern" und „Zur Abnahme freigeben".
+// Tage der Woche; Sa/So haben nur Editoren, wenn dort gearbeitet wurde).
+// Basis für die Sperre von „Speichern" und „Zur Abnahme freigeben".
 function ueberLimitEditoren(monday, berichtTyp) {
   const offenders = [];
   const check = q => { if (quillUeberLimit(q)) offenders.push(q); };
   if (berichtTyp === 'wöchentlich') {
     ['betrieb', 'schule', 'unterweisung'].forEach(id => check(quillInstances['woche_' + id]));
   }
-  for (let i = 0; i < 5; i++) {
+  for (let i = 0; i < 7; i++) {
     const d = new Date(monday); d.setDate(monday.getDate() + i);
     const ds = DateUtil.toISODate(d);
     ['betrieb', 'schule', 'unterweisung'].forEach(kind => check(quillInstances[`day_${kind}_${ds}`]));
@@ -555,14 +556,14 @@ document.addEventListener('DOMContentLoaded', async () => {
     const canRelease = user.istAzubi
       && (!woche || woche.status === 'offen' || woche.status === 'abgelehnt');
     const canWithdraw = user.istAzubi && woche?.status === 'freigegeben';
-    // Anwesenheitstage Mo–Fr (Default = anwesend; Wochenende zählt nie mit).
+    // Anwesenheitstage (Default = anwesend). Mo–Fr zählen immer, Sa/So nur,
+    // wenn dort ausdrücklich gearbeitet wurde (Anwesenheit ≠ „Wochenende").
     // Untouched-Werktage sind ggf. nicht in woche.tage → undefined gilt als anwesend.
-    const anwesenheitstageDisplay = zaehleAnwesenheitstage(
-      Array.from({ length: 5 }, (_, i) => {
-        const d = new Date(monday); d.setDate(monday.getDate() + i);
-        return (woche?.tage || []).find(t => t.datum === DateUtil.toISODate(d))?.anwesenheit;
-      })
-    );
+    const zaehlendeTage = Array.from({ length: 7 }, (_, i) => {
+      const d = new Date(monday); d.setDate(monday.getDate() + i);
+      return (woche?.tage || []).find(t => t.datum === DateUtil.toISODate(d))?.anwesenheit;
+    }).filter((a, i) => i < 5 || (a && a !== 'Wochenende'));
+    const anwesenheitstageDisplay = zaehleAnwesenheitstage(zaehlendeTage);
 
     // Stammdaten des aktuell sichtbaren Azubis (azubiUser/azubiZuw: oben parallel geladen)
     const azubiAusbilderName = azubiZuw ? displayName(azubiZuw.verantwName || '') : '';
@@ -690,7 +691,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       <div class="week-bottom-bar">
         <div class="week-bottom-bar__sum">
           <span class="week-bottom-bar__sum-label">Anwesenheitstage:</span>
-          <span class="week-bottom-bar__sum-value" id="totalHours">${anwesenheitstageDisplay} / 5</span>
+          <span class="week-bottom-bar__sum-value" id="totalHours">${anwesenheitstageDisplay} / ${zaehlendeTage.length}</span>
         </div>
         <div class="week-bottom-bar__actions">
           ${!isReadonly ? `
@@ -957,6 +958,24 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // ── Tägliches Berichtsheft ────────────────────────────────────────
 
+  // Am Wochenende ist „Wochenende" der Ruhezustand und muss wählbar bleiben,
+  // damit ein aus Versehen aktivierter Sa/So wieder frei geschaltet werden kann.
+  function anwesenheitOpts(isWE) {
+    return isWE ? ['Wochenende', ...ANWESENHEIT_OPTS] : ANWESENHEIT_OPTS;
+  }
+
+  // Sa/So gelten nur so lange als „frei" (ausgegraut, kein Editor), wie dort
+  // keine Anwesenheit gewählt ist. Sobald z. B. „anwesend" gesetzt wird,
+  // verhält sich der Tag wie ein normaler Werktag.
+  function istWochenendeFrei(isWE, tag) {
+    return isWE && (!tag.anwesenheit || tag.anwesenheit === 'Wochenende');
+  }
+
+  function istWochenendTag(dateStr) {
+    const dow = new Date(dateStr + 'T00:00:00').getDay();
+    return dow === 0 || dow === 6;
+  }
+
   function renderDayCards(woche, monday, readonly, isAusbilder) {
     const days = [
       { short: 'Mo', long: 'Montag' },
@@ -980,6 +999,11 @@ document.addEventListener('DOMContentLoaded', async () => {
         datum: dateStr, anwesenheit: isWE ? 'Wochenende' : '', ort: isWE ? '' : 'Betrieb', tagdauer: 'ganztag',
       };
 
+      const weFrei = istWochenendeFrei(isWE, tag);
+      // Aktivierter Wochenendtag startet – wie ein Werktag – mit Standard-Ort,
+      // sonst blieben Editor-Kacheln und ArbZ leer/gesperrt.
+      if (isWE && !weFrei && !tag.ort) tag.ort = 'Betrieb';
+
       // Datenmigration: alte tag.eintrag → tag.betriebEintrag
       const betriebContent      = tag.betriebEintrag || tag.eintrag || '';
       const schuleContent       = tag.schuleEintrag || '';
@@ -996,7 +1020,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       const schuleExpanded  = hasSchule || showSchule;
       const unterweisungExpanded = hasUnterweisung;
 
-      const completion = getDayCompletion(tag, isWE);
+      const completion = getDayCompletion(tag, weFrei);
       const completionTitle = {
         complete: 'Vollständig erfasst',
         partial:  'Teilweise erfasst – Stunden oder Eintrag fehlen',
@@ -1006,10 +1030,10 @@ document.addEventListener('DOMContentLoaded', async () => {
       }[completion];
 
       return `
-        <div class="tag-row${isWE ? ' tag-row--weekend' : ''}${isToday ? ' tag-row--today' : ''}${hasEntry ? ' tag-row--has-entry' : ''}${woche ? ' status-' + woche.status : ''}"
+        <div class="tag-row${weFrei ? ' tag-row--weekend' : ''}${isToday ? ' tag-row--today' : ''}${hasEntry ? ' tag-row--has-entry' : ''}${woche ? ' status-' + woche.status : ''}"
              id="dayCard_${dateStr}" data-date="${dateStr}" data-completion="${completion}">
-          <div class="tag-row__summary" ${!isWE ? `onclick="handleTagRowToggle(event)"` : ''}>
-            <div class="tag-row__datebox${isWE ? ' tag-row__datebox--we' : ''}${isToday ? ' tag-row__datebox--today' : ''}">
+          <div class="tag-row__summary" ${!weFrei ? `onclick="handleTagRowToggle(event)"` : ''}>
+            <div class="tag-row__datebox${weFrei ? ' tag-row__datebox--we' : ''}${isToday ? ' tag-row__datebox--today' : ''}">
               <span class="tag-row__day-num">${date.getDate()}</span>
               <span class="tag-row__month">${monthsShort[date.getMonth()]}</span>
               <span class="tag-row__weekday">${d.long}</span>
@@ -1018,28 +1042,28 @@ document.addEventListener('DOMContentLoaded', async () => {
             <div class="tag-row__field">
               <label class="tag-row__field-label">Anwesenheit</label>
               <select class="tag-row__select day-card__select" data-field="anwesenheit" data-date="${dateStr}"
-                      ${isWE || readonly ? 'disabled' : ''}>
-                ${ANWESENHEIT_OPTS.map(o =>
-                  `<option value="${o}" ${tag.anwesenheit === o ? 'selected' : ''}>${o || '– bitte wählen –'}</option>`
+                      ${readonly ? 'disabled' : ''}>
+                ${anwesenheitOpts(isWE).map(o =>
+                  `<option value="${o}" ${tag.anwesenheit === o ? 'selected' : ''}>${o}</option>`
                 ).join('')}
               </select>
             </div>
 
             <div class="tag-row__field">
-              ${!isWE ? `
+              ${!weFrei ? `
                 <label class="tag-row__field-label">Ort</label>
                 <select class="tag-row__select day-card__select${(!readonly && !isAbwesend && !tag.ort) ? ' tag-row__select--needs-input' : ''}" data-field="ort" data-date="${dateStr}"
                         ${readonly || isAbwesend ? 'disabled' : ''}>
                   ${ORT_OPTS.map(o =>
-                    `<option value="${o}" ${tag.ort === o ? 'selected' : ''}>${o || '– bitte wählen –'}</option>`
+                    `<option value="${o}" ${tag.ort === o ? 'selected' : ''}>${o}</option>`
                   ).join('')}
                 </select>
               ` : ''}
             </div>
 
             <div class="tag-row__field tag-row__field--time">
-              ${!isWE ? `<label class="tag-row__field-label tag-row__field-label--centered">ArbZ</label>` : ''}
-              ${!isWE
+              ${!weFrei ? `<label class="tag-row__field-label tag-row__field-label--centered">ArbZ</label>` : ''}
+              ${!weFrei
                 ? renderDauerPill(
                     dateStr,
                     tag.tagdauer,
@@ -1050,12 +1074,12 @@ document.addEventListener('DOMContentLoaded', async () => {
             </div>
 
 
-            ${!isWE
+            ${!weFrei
               ? `<button type="button" class="tag-row__chevron" aria-label="Tag aufklappen"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg></button>`
               : ''}
           </div>
 
-          ${!isWE ? `
+          ${!weFrei ? `
           <div class="tag-row__body" id="dayBody_${dateStr}">
             <div class="tag-row__body-inner">
             <div class="tag-row__validation" id="validationMsg_${dateStr}" role="alert" hidden></div>
@@ -1251,12 +1275,15 @@ document.addEventListener('DOMContentLoaded', async () => {
    */
   function validateWocheTaeglich(woche, monday) {
     const errors = [];
-    for (let i = 0; i < 5; i++) {
+    for (let i = 0; i < 7; i++) {
       const date = new Date(monday);
       date.setDate(monday.getDate() + i);
       const dateStr = DateUtil.toISODate(date);
       const tag = woche?.tage?.find(t => t.datum === dateStr);
-      const dayName = ['Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag'][i];
+      // Sa/So nur prüfen, wenn dort ausdrücklich gearbeitet wurde – dann gelten
+      // dieselben Eintrags-Pflichten wie an einem Werktag.
+      if (i >= 5 && istWochenendeFrei(true, tag || {})) continue;
+      const dayName = ['Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag', 'Samstag', 'Sonntag'][i];
       const dayLabel = `${dayName} (${DateUtil.formatDateShort(dateStr)})`;
 
       // Anwesenheit & Ort haben sichtbare UI-Defaults (anwesend / Betrieb), die
@@ -1691,12 +1718,14 @@ document.addEventListener('DOMContentLoaded', async () => {
         datum: dateStr, anwesenheit: isWE ? 'Wochenende' : '', ort: isWE ? '' : 'Betrieb', tagdauer: 'ganztag',
       };
       const isAbwesend = tag.anwesenheit && tag.anwesenheit !== 'anwesend' && tag.anwesenheit !== '';
+      const weFrei = istWochenendeFrei(isWE, tag);
+      if (isWE && !weFrei && !tag.ort) tag.ort = 'Betrieb';
 
       return `
-        <div class="tag-row tag-row--compact${isWE ? ' tag-row--weekend' : ''}${isToday ? ' tag-row--today' : ''}"
+        <div class="tag-row tag-row--compact${weFrei ? ' tag-row--weekend' : ''}${isToday ? ' tag-row--today' : ''}"
              data-date="${dateStr}">
           <div class="tag-row__summary tag-row__summary--no-toggle">
-            <div class="tag-row__datebox${isWE ? ' tag-row__datebox--we' : ''}${isToday ? ' tag-row__datebox--today' : ''}">
+            <div class="tag-row__datebox${weFrei ? ' tag-row__datebox--we' : ''}${isToday ? ' tag-row__datebox--today' : ''}">
               <span class="tag-row__day-num">${date.getDate()}</span>
               <span class="tag-row__month">${monthsShort[date.getMonth()]}</span>
               <span class="tag-row__weekday">${d.long}</span>
@@ -1705,28 +1734,28 @@ document.addEventListener('DOMContentLoaded', async () => {
             <div class="tag-row__field">
               <label class="tag-row__field-label">Anwesenheit</label>
               <select class="tag-row__select day-card__select" data-field="anwesenheit" data-date="${dateStr}"
-                      ${isWE || readonly ? 'disabled' : ''}>
-                ${ANWESENHEIT_OPTS.map(o =>
-                  `<option value="${o}" ${tag.anwesenheit === o ? 'selected' : ''}>${o || '– bitte wählen –'}</option>`
+                      ${readonly ? 'disabled' : ''}>
+                ${anwesenheitOpts(isWE).map(o =>
+                  `<option value="${o}" ${tag.anwesenheit === o ? 'selected' : ''}>${o}</option>`
                 ).join('')}
               </select>
             </div>
 
             <div class="tag-row__field">
-              ${!isWE ? `
+              ${!weFrei ? `
                 <label class="tag-row__field-label">Ort</label>
                 <select class="tag-row__select day-card__select${(!readonly && !isAbwesend && !tag.ort) ? ' tag-row__select--needs-input' : ''}" data-field="ort" data-date="${dateStr}"
                         ${isAbwesend || readonly ? 'disabled' : ''}>
                   ${ORT_OPTS.map(o =>
-                    `<option value="${o}" ${tag.ort === o ? 'selected' : ''}>${o || '– bitte wählen –'}</option>`
+                    `<option value="${o}" ${tag.ort === o ? 'selected' : ''}>${o}</option>`
                   ).join('')}
                 </select>
               ` : ''}
             </div>
 
             <div class="tag-row__field tag-row__field--time">
-              ${!isWE ? `<label class="tag-row__field-label tag-row__field-label--centered">ArbZ</label>` : ''}
-              ${!isWE
+              ${!weFrei ? `<label class="tag-row__field-label tag-row__field-label--centered">ArbZ</label>` : ''}
+              ${!weFrei
                 ? renderDauerPill(
                     dateStr,
                     tag.tagdauer,
@@ -2036,7 +2065,10 @@ document.addEventListener('DOMContentLoaded', async () => {
       .filter(k => k.startsWith('day_'))
       .forEach(k => { delete quillInstances[k]; });
 
-    for (let i = 0; i < 5; i++) {
+    // 7 Tage: ein am Sa/So aktivierter Tag hat einen Editor-Body wie ein
+    // Werktag. Freie Wochenendtage haben kein editorWrap – initSingleDayEditor
+    // findet nichts und tut dort nichts.
+    for (let i = 0; i < 7; i++) {
       const date = new Date(monday);
       date.setDate(monday.getDate() + i);
       const dateStr = DateUtil.toISODate(date);
@@ -2273,7 +2305,7 @@ document.addEventListener('DOMContentLoaded', async () => {
      Änderung kennen und die Bump-Animation passend feuern können. */
   let _lastWochenTotal = null;
 
-  // Zählt die Anwesenheitstage (Mo–Fr) aus einer Liste von Anwesenheits-Werten.
+  // Zählt die Anwesenheitstage aus einer Liste von Anwesenheits-Werten.
   // Default = anwesend: ein Werktag zählt, solange keine ausdrückliche Abwesenheit
   // (Urlaub/krank/…) gewählt wurde. Leerwert/undefined gilt als anwesend.
   // Wochenenden müssen vom Aufrufer bereits ausgeschlossen sein.
@@ -2282,13 +2314,14 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   function updateStundenDisplay() {
-    // „Wochensumme" = Zahl der Anwesenheitstage (Mo–Fr). Wochenend-Zeilen
-    // (.tag-row--weekend) zählen nie mit – ihr Select ist nur deaktiviert sichtbar
-    // und fiele sonst auf die erste Option („anwesend") zurück.
+    // „Wochensumme" = Zahl der Anwesenheitstage. Freie Wochenend-Zeilen
+    // (.tag-row--weekend) zählen nie mit – ihr Select stünde auf „Wochenende".
+    // Ein am Sa/So aktivierter Tag verliert die Klasse und zählt regulär mit,
+    // deshalb kommt der Nenner aus der Zahl der zählenden Zeilen (normal 5).
     const selects = document.querySelectorAll('select[data-field="anwesenheit"][data-date]');
     const werktage = Array.from(selects).filter(s => !s.closest('.tag-row--weekend'));
     const total = zaehleAnwesenheitstage(werktage.map(s => s.value));
-    const val = `${total} / 5`;
+    const val = `${total} / ${werktage.length || 5}`;
 
     let direction = null;
     if (_lastWochenTotal !== null && total !== _lastWochenTotal) {
@@ -2392,10 +2425,13 @@ document.addEventListener('DOMContentLoaded', async () => {
         Toast.error('Eintrag zu lang', `Ein Feld überschreitet ${MAX_EINTRAG_ZEICHEN.toLocaleString('de-DE')} Zeichen (rot umrandet). Bitte kürzen – dann kannst du speichern.`);
         return;
       }
-      for (let i = 0; i < 5; i++) {
+      for (let i = 0; i < 7; i++) {
         const d = new Date(monday);
         d.setDate(monday.getDate() + i);
         const ds = DateUtil.toISODate(d);
+        // Freie Wochenendtage (.tag-row--weekend) nicht anlegen – nur ein
+        // aktivierter Sa/So wird wie ein Werktag mitgespeichert.
+        if (document.querySelector(`.tag-row--weekend[data-date="${ds}"]`)) continue;
         if (saveTimers[ds]) {
           clearTimeout(saveTimers[ds]);
           delete saveTimers[ds];
@@ -2430,7 +2466,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       // Pending Auto-Saves flushen, damit Validierung den aktuellsten Stand sieht.
       // Im täglich-Format pro Tag ein Auto-Save; im wöchentlich-Format
       // zusätzlich der Wochen-Auto-Save (für Quills + Lernort/Unterweisung).
-      for (let i = 0; i < 5; i++) {
+      for (let i = 0; i < 7; i++) {
         const d = new Date(monday);
         d.setDate(monday.getDate() + i);
         const ds = DateUtil.toISODate(d);
@@ -2587,6 +2623,13 @@ document.addEventListener('DOMContentLoaded', async () => {
       sel.addEventListener('change', async () => {
         const dateStr = sel.dataset.date;
         const isAbwesend = sel.value !== 'anwesend' && sel.value !== '';
+        // Sa/So: der Zeilenaufbau ändert sich strukturell (Ort, ArbZ und Editor
+        // kommen dazu bzw. fallen weg) → speichern und die Woche neu rendern.
+        if (istWochenendTag(dateStr)) {
+          await autoSave(dateStr);
+          await render();
+          return;
+        }
         const row = document.getElementById('dayCard_' + dateStr);
         if (row) {
           const ortSel = row.querySelector('select[data-field="ort"]');
@@ -2716,6 +2759,12 @@ document.addEventListener('DOMContentLoaded', async () => {
       if (anwesenheitSel) {
         anwesenheitSel.addEventListener('change', async () => {
           const isAbwesend = anwesenheitSel.value !== 'anwesend' && anwesenheitSel.value !== '';
+          // Sa/So: Ort und ArbZ kommen dazu bzw. fallen weg → neu rendern.
+          if (istWochenendTag(dateStr)) {
+            await autoSave(dateStr);
+            await render();
+            return;
+          }
           if (ortSel) {
             ortSel.disabled = isAbwesend;
             if (!isAbwesend && !ortSel.value) ortSel.value = 'Betrieb';
