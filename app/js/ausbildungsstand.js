@@ -16,7 +16,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const wochen = await DB.getWochenFuerAzubi(viewAzubiId);
     const fehltage = wochen.reduce((sum, w) => {
       return sum + (w.tage || []).filter(t =>
-        t.anwesenheit === 'krank' || t.anwesenheit === 'sonstige Abwesenheit'
+        t.anwesenheit === 'Arbeitsunfähigkeit' || t.anwesenheit === 'sonstige Abwesenheit'
       ).length;
     }, 0);
     const FEHLTAGE_SCHWELLE = 30;
@@ -57,7 +57,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             </div>
           </div>
           <span class="circle-stat__label">Fehltage</span>
-          <span class="circle-stat__sub">krank + sonstige Abwesenheit</span>
+          <span class="circle-stat__sub">Arbeitsunfähigkeit + sonstige Abwesenheit</span>
         </div>
       </div>
     `;

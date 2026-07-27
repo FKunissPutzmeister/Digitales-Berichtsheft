@@ -152,11 +152,11 @@
     } else if (hatSchule) {
       tag.anwesenheit = 'anwesend'; tag.ort = 'Schule'; tag.stunden = istWert;
     } else if (hatDienstreise) {
-      tag.anwesenheit = 'anwesend'; tag.ort = 'Dienstreise'; tag.stunden = istWert;
+      tag.anwesenheit = 'anwesend'; tag.ort = 'Betrieb'; tag.stunden = istWert;
     } else if (hatUrlaub) {
       tag.anwesenheit = 'Urlaub';
     } else if (hatKrank) {
-      tag.anwesenheit = 'krank';
+      tag.anwesenheit = 'Arbeitsunfähigkeit';
     } else if (istWochenende) {
       // Wochenende (auch ein evtl. Feiertag am Wochenende bleibt "Wochenende",
       // da ohnehin nicht gearbeitet wird).

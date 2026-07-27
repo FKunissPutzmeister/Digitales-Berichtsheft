@@ -68,7 +68,7 @@
     if (/feiertag/.test(t))              return { anwesenheit: 'Feiertag',             ort: ''        };
     if (/zeitausgleich/.test(t))         return { anwesenheit: 'sonstige Abwesenheit', ort: ''        };
     if (/sonstige abwesenheit/.test(t))  return { anwesenheit: 'sonstige Abwesenheit', ort: ''        };
-    if (/krank|arbeitsunf/i.test(t))     return { anwesenheit: 'krank',                ort: ''        };
+    if (/krank|arbeitsunf/i.test(t))     return { anwesenheit: 'Arbeitsunfähigkeit',   ort: ''        };
     return null;
   }
 

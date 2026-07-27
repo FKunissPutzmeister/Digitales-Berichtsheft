@@ -121,8 +121,9 @@ function normalizeTag(t) {
     id: t.Id,
     wocheId: t.WocheId,
     datum: toDateStr(t.Datum),
-    anwesenheit: t.Anwesenheit ?? '',
-    ort: t.Ort ?? '',
+    // ponytail: Altbestand auf die aktuellen Dropdown-Werte mappen statt DB-Migration
+    anwesenheit: t.Anwesenheit === 'krank' ? 'Arbeitsunfähigkeit' : (t.Anwesenheit ?? ''),
+    ort: (t.Ort === 'Zuhause' || t.Ort === 'Dienstreise') ? 'Betrieb' : (t.Ort ?? ''),
     eintrag: t.Eintrag ?? '',
     tagdauer: (t.Tagdauer === 'halbtag' ? 'halbtag' : 'ganztag'),
     betriebEintrag:      t.BetriebEintrag      ?? '',

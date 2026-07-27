@@ -410,11 +410,11 @@ function landingPageFor(user) {
 }
 
 const ANWESENHEIT_OPTS = [
-  'anwesend', 'Urlaub', 'krank', 'Feiertag',
+  'anwesend', 'Urlaub', 'Arbeitsunfähigkeit', 'Feiertag',
   'sonstige Abwesenheit',
 ];
 
-const ORT_OPTS = ['', 'Betrieb', 'Schule', 'Betrieb/Schule', 'Zuhause', 'Dienstreise'];
+const ORT_OPTS = ['', 'Betrieb', 'Schule', 'Betrieb/Schule'];
 
 function getStatusLabel(status) {
   const map = {

@@ -38,6 +38,12 @@ test('linesToHtml löst Flags zu verschachtelten Tags auf und escaped', () => {
   assert.equal(P.linesToHtml([]), '');
 });
 
+test('_mapDayType liefert Dropdown-Werte (krank/AU → Arbeitsunfähigkeit)', () => {
+  assert.deepEqual(P._mapDayType('krank'),            { anwesenheit: 'Arbeitsunfähigkeit', ort: '' });
+  assert.deepEqual(P._mapDayType('Arbeitsunfähig'),   { anwesenheit: 'Arbeitsunfähigkeit', ort: '' });
+  assert.deepEqual(P._mapDayType('Betrieb'),          { anwesenheit: 'anwesend',           ort: 'Betrieb' });
+});
+
 // ── Unterstreichungs-Geometrie ─────────────────────────────────
 const OPS = { save:10, restore:11, transform:12, constructPath:91,
   moveTo:13, lineTo:14, curveTo:15, rectangle:19,

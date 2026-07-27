@@ -200,7 +200,7 @@
 }
 .ztn-anw[data-anw="anwesend"] { background: var(--color-success-light); color: var(--color-success); }
 .ztn-anw[data-anw="Urlaub"]   { background: var(--color-info-light);    color: var(--color-info); }
-.ztn-anw[data-anw="krank"]    { background: var(--color-error-light);   color: var(--color-error); }
+.ztn-anw[data-anw="Arbeitsunfähigkeit"] { background: var(--color-error-light); color: var(--color-error); }
 .ztn-hint { font-size: var(--text-xs); color: var(--pm-grey-400); white-space: nowrap; }
 .ztn-hint--belegt { color: var(--color-warning); }
 .ztn-hint--neu { color: var(--color-success-mid); }

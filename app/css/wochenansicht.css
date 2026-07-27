@@ -2165,14 +2165,17 @@ body[data-page="wochenansicht"] .tag-row__body {
   border-top: none;
   background: transparent;
 }
-/* Padding NUR im offenen Zustand – auf dem grid-Item (0fr) würde ein
-   Bottom-Padding sonst als Mindesthöhe stehenbleiben und einen Streifen
-   (z.B. den Zeichenzähler) im eingeklappten Tag durchscheinen lassen. */
+/* NUR das Bottom-Padding hängt am offenen Zustand – auf dem grid-Item (0fr)
+   würde es sonst als Mindesthöhe stehenbleiben und einen Streifen (z.B. den
+   Zeichenzähler) im eingeklappten Tag durchscheinen lassen. Das seitliche
+   Padding bleibt IMMER stehen: sonst springt beim Zuklappen der komplette
+   Inhalt (v.a. die Formatierleiste) für die Dauer der Animation nach links.
+   Seitliches Padding erzeugt keine Höhe, stört den 0fr-Zustand also nicht. */
 body[data-page="wochenansicht"] .tag-row__body-inner {
-  padding: 0;
+  padding: 0 var(--sp-5);
 }
 body[data-page="wochenansicht"] .tag-row.expanded .tag-row__body-inner {
-  padding: 0 var(--sp-5) var(--sp-4);
+  padding-bottom: var(--sp-4);
 }
 body[data-page="wochenansicht"] .tag-row .tag-row__summary {
   border-bottom: none;
@@ -2251,6 +2254,28 @@ body[data-page="wochenansicht"] .day-section .ql-container.ql-snow {
   min-height: 100px;
 }
 
+/* Eine Toolbar pro Tag: alle Abschnitts-Toolbars liegen jetzt gebündelt oben
+   (siehe consolidateDayToolbars in wochenansicht.js). Sichtbar ist nur die des
+   gerade fokussierten Feldes – die übrigen sind ausgeblendet, damit keine
+   zweite/dritte identische Leiste mehr erscheint. */
+body[data-page="wochenansicht"] .day-section .ql-toolbar.day-toolbar:not(.day-toolbar--active) {
+  display: none;
+}
+
+/* Ausrichtungs-Buttons (links / zentriert / rechts / Blocksatz): aktiver
+   Zustand ohne farbige Kachel – nur ein fetteres Icon zeigt die gewählte
+   Ausrichtung. Linksbündig ist ohnehin die Vorgabe, eine Dauer-Markierung
+   dafür wäre überflüssig. Dark-Mode-Kachel wird zusätzlich weiter unten
+   (höhere Spezifität) entfernt. */
+body[data-page="wochenansicht"] .day-section .ql-toolbar button.ql-align.ql-active,
+body[data-page="wochenansicht"] .wochen-kachel .ql-toolbar button.ql-align.ql-active {
+  background: transparent !important;
+}
+body[data-page="wochenansicht"] .day-section .ql-toolbar button.ql-align.ql-active .ql-stroke,
+body[data-page="wochenansicht"] .wochen-kachel .ql-toolbar button.ql-align.ql-active .ql-stroke {
+  stroke-width: 3;
+}
+
 /* ── Diskreter Umschalter für Schule/Unterweisung (ersetzt die Kopf-Kachel) ──
    Eingeklappt: „＋ Titel hinzufügen" (gedämpft). Ausgeklappt: kleines
    Großbuchstaben-Label; das ＋ dreht zu ✕ als Einklapp-Hinweis. */
@@ -2282,24 +2307,30 @@ body[data-page="wochenansicht"] .day-section__toggle--static { cursor: default; 
 .day-section__toggle-suffix { color: var(--pm-grey-400); }
 /* Ausgeklappt → diskretes Label + ✕ (gedrehtes ＋) */
 .day-section--expanded .day-section__toggle { color: var(--pm-grey-400); }
-.day-section--expanded .day-section__toggle-title {
-  text-transform: uppercase;
-  font-size: var(--text-xs);
-  letter-spacing: 0.06em;
+/* Ausgeklappt bzw. fix (Berufsschule): echte Abschnitts-Überschrift statt
+   Kapitälchen-Flüsterlabel – normal geschrieben, in Body-Textfarbe. */
+.day-section--expanded .day-section__toggle-title,
+.day-section__toggle--static .day-section__toggle-title {
+  text-transform: none;
+  font-size: var(--text-base);
+  letter-spacing: normal;
   font-weight: var(--fw-bold);
+  color: var(--pm-grey-700);
 }
 .day-section--expanded .day-section__toggle-suffix { display: none; }
 .day-section--expanded .day-section__toggle-plus { transform: rotate(45deg); }
+/* Ausgeklappt wird aus dem Text-Link eine volle Überschriftszeile mit feiner
+   Trennlinie – so ist auf einen Blick klar, wo ein Abschnitt beginnt. */
+body[data-page="wochenansicht"] .day-section--expanded .day-section__toggle {
+  display: flex;
+  width: 100%;
+  padding-bottom: var(--sp-2);
+  border-bottom: 1px solid var(--pm-grey-200);
+}
 /* Statisch (readonly): nur das Label, kein ＋/„hinzufügen" */
 .day-section__toggle--static .day-section__toggle-plus,
 .day-section__toggle--static .day-section__toggle-suffix { display: none; }
-.day-section__toggle--static .day-section__toggle-title {
-  text-transform: uppercase;
-  font-size: var(--text-xs);
-  letter-spacing: 0.06em;
-  font-weight: var(--fw-bold);
-  color: var(--pm-grey-500);
-}
+/* Titel-Typografie kommt aus der gemeinsamen Regel weiter oben. */
 
 /* Größen-Feld (Schriftgröße) behält bewusst seinen Box-Rahmen aus quill-editor.css
    (Word-artiges Zahlenfeld) – hier NICHT auf randlos überschreiben. */
@@ -3006,6 +3037,12 @@ body[data-page="wochenansicht"] .btn-lg {
 [data-theme="dark"] body[data-page="wochenansicht"] .day-section .ql-toolbar button.ql-active,
 [data-theme="dark"] body[data-page="wochenansicht"] .wochen-kachel .ql-toolbar button.ql-active {
   background: rgba(255, 195, 0, 0.22) !important;
+}
+/* Ausrichtungs-Buttons: keine Kachel, nur fettes Icon (vgl. quill-editor.css).
+   Höhere Spezifität als die Kachel-Regel darüber, damit sie hier greift. */
+[data-theme="dark"] body[data-page="wochenansicht"] .day-section .ql-toolbar button.ql-align.ql-active,
+[data-theme="dark"] body[data-page="wochenansicht"] .wochen-kachel .ql-toolbar button.ql-align.ql-active {
+  background: transparent !important;
 }
 
 /* „Normal"-Picker: kein Rahmen, weißer Text */

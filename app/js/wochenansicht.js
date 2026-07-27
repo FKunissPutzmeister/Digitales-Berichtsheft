@@ -1243,9 +1243,9 @@ document.addEventListener('DOMContentLoaded', async () => {
   /**
    * Tägliche Validierung – pro Tag wird Anwesenheit + Stunden + Ort verlangt,
    * sowie der Eintrag in der/den durch den Ort sichtbaren Kachel(n):
-   *  – Ort = Betrieb / Zuhause / Dienstreise → Betriebs-Eintrag Pflicht
-   *  – Ort = Schule                          → Schul-Eintrag Pflicht
-   *  – Ort = Betrieb/Schule                  → BEIDE Pflicht
+   *  – Ort = Betrieb        → Betriebs-Eintrag Pflicht
+   *  – Ort = Schule         → Schul-Eintrag Pflicht
+   *  – Ort = Betrieb/Schule → BEIDE Pflicht
    * Errors tragen `dateStr`, damit showValidationErrors die zugehörige
    * Tageskarte aufklappen und markieren kann.
    */
@@ -1463,7 +1463,7 @@ document.addEventListener('DOMContentLoaded', async () => {
    *  – ohne Ort: keine
    *  – Schule:           nur Schule
    *  – Betrieb/Schule:   Betrieb + Schule
-   *  – Betrieb (oder Zuhause / Dienstreise = Betriebs-Kontexte): nur Betrieb
+   *  – Betrieb:          nur Betrieb
    * Unterweisung wird separat behandelt: erscheint ab dem Moment, in dem
    * ein Ort gewählt wurde (oder wenn bereits Inhalt vorhanden ist).
    */
@@ -1490,7 +1490,10 @@ document.addEventListener('DOMContentLoaded', async () => {
         <svg class="day-section__toggle-plus" viewBox="0 0 24 24" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
         <span class="day-section__toggle-title">${meta.title}</span>
         <span class="day-section__toggle-suffix">&nbsp;hinzufügen</span>`;
-      header = readonly
+      // Berufsschule ist keine freiwillige Kachel: sie erscheint nur, wenn der
+      // Ort sie verlangt – dann ist der Eintrag Pflicht und darf nicht
+      // weggeklickt werden. Nur Unterweisung bleibt auf-/zuklappbar.
+      header = (readonly || kind === 'schule')
         ? `<div class="day-section__toggle day-section__toggle--static">${inner}</div>`
         : `<button type="button" class="day-section__toggle"
                 aria-expanded="${expanded}" aria-controls="editorWrap_${id}"
@@ -1552,7 +1555,49 @@ document.addEventListener('DOMContentLoaded', async () => {
       }
     });
 
+    consolidateDayToolbars(dateStr, readonly);
     updateDayCharCount(dateStr);
+  }
+
+  // Alle Abschnitts-Toolbars eines Tages (Betrieb/Schule/Unterweisung) an EINER
+  // Stelle bündeln – oben über dem Betrieb-Feld – und immer nur die des gerade
+  // fokussierten Feldes zeigen. So gibt es statt zwei/drei identischen Leisten
+  // nur noch die obere, die für das jeweils aktive Feld gilt. Jede Toolbar
+  // bleibt nativ an ihren eigenen Editor gebunden (Formatierung, Aktiv-Zustände,
+  // Tabellen, Links etc. funktionieren unverändert – wir schieben nur DOM und
+  // schalten Sichtbarkeit).
+  const DAY_TOOLBAR_KINDS = ['betrieb', 'schule', 'unterweisung'];
+  function consolidateDayToolbars(dateStr, readonly) {
+    if (readonly) return; // Readonly-Wochen haben leere/ausgeblendete Toolbars
+    const toolbarOf = (kind) =>
+      quillInstances[`day_${kind}_${dateStr}`]?.getModule('toolbar')?.container || null;
+
+    const betriebTb = toolbarOf('betrieb');
+    if (!betriebTb) return;
+    const slot = betriebTb.parentElement; // body-inner der Betrieb-Sektion
+    betriebTb.classList.add('day-toolbar', 'day-toolbar--active');
+    betriebTb.dataset.tbKind = 'betrieb';
+
+    let after = betriebTb;
+    DAY_TOOLBAR_KINDS.slice(1).forEach((kind) => {
+      const tb = toolbarOf(kind);
+      if (!tb) return;
+      tb.classList.add('day-toolbar');
+      tb.classList.remove('day-toolbar--active');
+      tb.dataset.tbKind = kind;
+      slot.insertBefore(tb, after.nextSibling); // direkt hinter der Betrieb-Leiste
+      after = tb;
+    });
+
+    const activate = (kind) => {
+      slot.querySelectorAll('.day-toolbar').forEach((tb) =>
+        tb.classList.toggle('day-toolbar--active', tb.dataset.tbKind === kind));
+    };
+    DAY_TOOLBAR_KINDS.forEach((kind) => {
+      const q = quillInstances[`day_${kind}_${dateStr}`];
+      if (!q) return;
+      q.on('selection-change', (range) => { if (range) activate(kind); });
+    });
   }
 
   // Aktualisiert die drei Feld-Zähler des Tages (Betrieb/Schule/Unterweisung).
