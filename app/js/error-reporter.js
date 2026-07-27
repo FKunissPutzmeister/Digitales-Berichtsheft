@@ -79,8 +79,14 @@
     window.apiFetch = async function (path, options) {
       try { return await orig(path, options); }
       catch (e) {
-        melde('frontend', `apiFetch ${path}: ${e.message}`, e.stack,
-          { apiPfad: path, methode: ((options && options.method) || 'GET').toUpperCase() });
+        // 409 Conflict ist ein erwartetes Fachergebnis (z. B. „Abteilung
+        // existiert bereits"), das der Aufrufer dem Nutzer bereits als Toast
+        // zeigt – kein Bug. Nicht in den Fehler-Posteingang melden (gleiche
+        // Rationale wie istTransienterVerbindungsfehler).
+        if (e && e.status !== 409) {
+          melde('frontend', `apiFetch ${path}: ${e.message}`, e.stack,
+            { apiPfad: path, methode: ((options && options.method) || 'GET').toUpperCase() });
+        }
         throw e;
       }
     };
