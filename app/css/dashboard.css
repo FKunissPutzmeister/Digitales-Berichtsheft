@@ -1976,7 +1976,6 @@ html[data-theme="dark"] .b-mitteilungen__more:hover { color: rgba(255,255,255,0.
 .b-mitteilung__icon svg { width: 18px; height: 18px; }
 .b-mitteilung__icon--ok  { background: rgba(34,197,94,0.18); color: #16a34a; }
 .b-mitteilung__icon--er  { background: rgba(239,68,68,0.18); color: #dc2626; }
-.b-mitteilung__icon--rem { background: color-mix(in srgb, var(--pm-yellow) 18%, transparent); color: var(--pm-yellow-darker, #C58E00); }
 .b-mitteilung__body { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1; }
 .b-mitteilung__title { font-weight: 600; font-size: var(--text-sm); }
 .b-mitteilung__meta { font-size: 12px; color: rgba(14,17,22,0.5); }
@@ -2211,12 +2210,13 @@ html[data-theme="dark"] .b-recent::before {
 .b-wkcard--er    { --sig: var(--color-error, #E03B3B); }     /* zurückgewiesen */
 .b-wkcard--draft,
 .b-wkcard--entwurf { --sig: var(--info, #2C82F0); }          /* Entwurf (angefangen) → Blau */
-/* Offen (Woche noch komplett leer) = leicht abgewandeltes, weicheres/helleres
-   Blau vom Entwurf – abgesetzt v.a. im Kopfbalken + in der Tönung. Der Status-
-   Text bleibt im satten Basis-Blau, weil ein helleres Blau auf weißer Kachel zu
-   kontrastarm zum Lesen wäre. */
-.b-wkcard--offen { --sig: color-mix(in srgb, var(--info, #2C82F0) 58%, #fff); }
-.b-wkcard--offen .b-wkcard__status { color: var(--info, #2C82F0); }
+/* Offen (Woche noch komplett leer) = neutral grau, wie „offen" schon in der
+   Jahresansicht (.day-cell.status-offen) und beim Wochen-Status-Punkt. Vorher
+   ein nur aufgehelltes Entwurfs-Blau – zu wenig Unterschied zum Entwurf, um
+   „noch nichts" von „angefangen" auf einen Blick zu trennen. --pm-grey-400 ist
+   in Light UND Dark ein sichtbares Mittelgrau (und AA als Text auf Weiß), den
+   Status-Text erbt die Karte dann über die --sig-Regel weiter unten. */
+.b-wkcard--offen { --sig: var(--pm-grey-400); }
 .b-wkcard::before {
   content: ""; position: absolute;
   top: 0; left: 0; right: 0; height: 4px;

@@ -414,7 +414,10 @@ const ANWESENHEIT_OPTS = [
   'sonstige Abwesenheit',
 ];
 
-const ORT_OPTS = ['', 'Betrieb', 'Schule', 'Betrieb/Schule'];
+// ponytail: ohne Leer-Option – ein Arbeitstag findet immer irgendwo statt, neue
+// Tage starten ohnehin auf "Betrieb". Altbestand mit leerem Ort zeigt dann die
+// erste Option, bleibt aber per --needs-input markiert.
+const ORT_OPTS = ['Betrieb', 'Schule', 'Betrieb/Schule'];
 
 function getStatusLabel(status) {
   const map = {
