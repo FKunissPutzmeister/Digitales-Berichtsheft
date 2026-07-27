@@ -280,11 +280,9 @@ async function renderAzubiDashboard(user) {
 
   // ── Mitteilungszentrale (ersetzt das frühere Ausbildung-Donut) ───────
   // Quelle = bestehender Benachrichtigungs-Feed (genehmigt/zurückgegeben
-  // durch Ausbilder/in) + zeitbasierter Fahrgeld-Reminder nach dem letzten
-  // Berufsschultag (Tag mit Ort „Schule") des aktuellen Monats.
+  // durch Ausbilder/in).
   const MT_ICON_OK = '<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>';
   const MT_ICON_ER = '<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>';
-  const MT_ICON_REM = '<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="9"/><path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l2.5 1.5"/></svg>';
   const mtEsc = window.escapeHtml;
   const mtRelTime = ts => {
     if (!ts) return '';
@@ -296,24 +294,6 @@ async function renderAzubiDashboard(user) {
     if (s < 86400 * 7) return `vor ${Math.floor(s / 86400)} Tagen`;
     return new Date(ts).toLocaleDateString('de-DE');
   };
-  function computeFahrgeldReminder() {
-    const y = today.getFullYear(), mo = today.getMonth();
-    let last = null;
-    for (const w of alleWochen) {
-      const wSchule = (w.wochenOrt || '').includes('Schule');
-      for (const t of (w.tage || [])) {
-        const ort = t.ort || (wSchule ? 'Schule' : '');
-        if (!ort.includes('Schule')) continue;
-        const d = new Date((t.datum || '') + 'T00:00:00');
-        if (isNaN(d.getTime()) || d.getFullYear() !== y || d.getMonth() !== mo) continue;
-        if (!last || d > last) last = d;
-      }
-    }
-    if (!last) return null;
-    const todayMid = new Date(y, mo, today.getDate());
-    if (todayMid < last) return null;   // letzter Berufsschultag noch nicht vorbei
-    return { month: DateUtil.MONTHS[mo], date: DateUtil.toISODate(last) };
-  }
   // Versetzungs-Mitteilungen erscheinen nur in der Glocke, nicht in dieser
   // KW-zentrischen Berichtsheft-Mitteilungsliste (hätten kein KW/Jahr).
   // „genehmigt" erzeugt bewusst keine Mitteilung; Versetzungen laufen über die
@@ -321,15 +301,6 @@ async function renderAzubiDashboard(user) {
   const mtItems = (await DB.getBenachrichtigungenFuerUser(user.id))
     .filter(b => !String(b.type || '').startsWith('versetzung_') && b.type !== 'genehmigt');
   const mtUnread = mtItems.filter(b => !b.gelesen).length;
-  const mtFahrgeld = computeFahrgeldReminder();
-  const mtFahrgeldHtml = mtFahrgeld ? `
-          <a class="b-mitteilung b-mitteilung--reminder" href="fahrgelderstattung.html">
-            <span class="b-mitteilung__icon b-mitteilung__icon--rem">${MT_ICON_REM}</span>
-            <span class="b-mitteilung__body">
-              <span class="b-mitteilung__title">Fahrgelderstattung ${mtFahrgeld.month} nicht vergessen</span>
-              <span class="b-mitteilung__meta">Letzter Berufsschultag war am ${DateUtil.formatDateShort(mtFahrgeld.date)}</span>
-            </span>
-          </a>` : '';
   const mtNotifHtml = mtItems.slice(0, 6).map(b => {
     // Beurteilungs-Mitteilungen (kein KW/Jahr) korrekt beschriften + auf den
     // Beurteilungsbogen verlinken statt in den zurückgegeben-Zweig zu fallen.
@@ -365,7 +336,7 @@ async function renderAzubiDashboard(user) {
             ${b.gelesen ? '' : '<span class="b-mitteilung__dot" aria-hidden="true"></span>'}
           </a>`;
   }).join('');
-  const mtEmptyHtml = (!mtNotifHtml && !mtFahrgeldHtml)
+  const mtEmptyHtml = !mtNotifHtml
     ? '<div class="b-mitteilungen__empty">Keine neuen Mitteilungen</div>' : '';
   const mtMehrHtml = mtItems.length > 6
     ? `<a class="b-mitteilungen__more" href="mitteilungen.html">Alle ${mtItems.length} anzeigen
@@ -378,7 +349,6 @@ async function renderAzubiDashboard(user) {
           ${mtUnread > 0 ? `<span class="b-mitteilungen__badge">${mtUnread > 9 ? '9+' : mtUnread}</span>` : ''}
         </div>
         <div class="b-mitteilungen__list">
-          ${mtFahrgeldHtml}
           ${mtNotifHtml}
           ${mtEmptyHtml}
         </div>
@@ -417,7 +387,7 @@ async function renderAzubiDashboard(user) {
         </div>
       </section>
 
-      <!-- MITTEILUNGEN: Benachrichtigungen + Fahrgeld-Reminder -->
+      <!-- MITTEILUNGEN: Benachrichtigungen -->
       ${mitteilungenSectionHtml}
 
       <!-- RECENT: Wochen-Cards -->
