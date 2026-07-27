@@ -2957,6 +2957,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const dd = gotoDateOnce; gotoDateOnce = null;
     requestAnimationFrame(() => requestAnimationFrame(() => openDayCard(dd)));
   }
+  OnboardingIhkImport.checkWochenansicht(user);
 });
 
 // ── Globale Hilfsfunktionen ───────────────────────────────────────

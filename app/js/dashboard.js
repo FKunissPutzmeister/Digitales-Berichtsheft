@@ -722,7 +722,7 @@ async function renderAusbilderDashboard(user) {
   const durchlaufHtml = durchlaufAzubis.length > 0 ? renderDurchlaufListe(durchlaufRows, today, !!user.kannPlanen) : '';
 
   const mitteilungenCardHtml = `
-    <div class="card animate-fade-in">
+    <div class="card card--mitteilungen animate-fade-in">
       <div class="card__header">
         <span class="card__title">Mitteilungen</span>
       </div>

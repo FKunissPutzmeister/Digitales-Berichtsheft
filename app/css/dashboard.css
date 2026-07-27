@@ -2697,7 +2697,7 @@ html[data-theme="dark"] .welcome-hero {
 .rot-stop__dept { font: 700 13px 'Open Sans', sans-serif;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .rot-stop__date { font: 500 11px 'Open Sans', sans-serif; opacity: .8; white-space: nowrap; }
-.rot-stop--cur { background: var(--pm-grey-900, #1c1e22); color: #fff; }
+.rot-stop--cur { background: rgba(0, 0, 0, .16); color: var(--pm-grey-900, #1c1e22); }
 .rot-stop--next { background: var(--pm-grey-50, #f7f8f9); border: 1px solid var(--pm-grey-200, #e6e8eb);
   color: var(--pm-grey-800, #2c2f34); }
 .rot-stop--empty { background: transparent; border: 1.5px dashed var(--pm-grey-300, #c7cbd1);
@@ -2709,8 +2709,141 @@ html[data-theme="dark"] .welcome-hero {
 
 /* Dark */
 [data-theme="dark"] .rot-row:hover { background: rgba(255, 255, 255, .04); }
-[data-theme="dark"] .rot-stop--cur { background: var(--pm-yellow, #FFC300); color: #1c1e22; }
+[data-theme="dark"] .rot-stop--cur { background: rgba(255, 255, 255, .16); color: #fff; }
 [data-theme="dark"] .rot-stop--next { background: rgba(255, 255, 255, .07);
   border-color: rgba(255, 255, 255, .18); color: rgba(255, 255, 255, .82); }
 [data-theme="dark"] .rot-stop--empty { border-color: rgba(255, 255, 255, .22); color: rgba(255, 255, 255, .6); }
 [data-theme="dark"] .rot__search { background: rgba(255, 255, 255, .05); border-color: var(--pm-grey-700, #45494f); }
+
+/* ───────── Kachel-Hintergrundbilder (Ausbilder-/Prüfer-Dashboard) ─────────
+   Analog zum Azubi-Dashboard (.b-hero) bekommen die drei Übersichtskacheln
+   je ein motiv-passendes Bild aus der tile-series-Familie:
+     · „Zu prüfen"           → week    (Wochenberichte)
+     · „Abteilungsdurchlauf" → training(Ausbildungsweg)
+     · „Mitteilungen"        → recent  (Aktivität/zuletzt)
+   Das Bild liegt hinter einem Scrim in Kachel-Grundfarbe, damit die (dichten)
+   Listeninhalte lesbar bleiben. Bewusst NUR auf die Standard-Themes light/dark
+   gescoped – Custom-Themes (candy/silk/hyperspace/…) behalten ihr Aussehen. */
+.review-inbox,
+.card.rot,
+.card--mitteilungen {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+  border-radius: 20px;   /* etwas weniger rund als die Azubi-Kacheln (32px) */
+  background-repeat: no-repeat;
+  background-size: cover;
+  background-position: center;
+}
+
+/* Light Mode – heller Scrim über hellem Bild */
+html[data-theme="light"] .review-inbox {
+  background-image:
+    linear-gradient(120deg, rgba(255,255,255,0.66) 0%, rgba(255,255,255,0.52) 46%, rgba(255,255,255,0.44) 100%),
+    url("../assets/backgrounds/tile-series-week-light.png?v=20260602-series");
+}
+html[data-theme="light"] .card.rot {
+  background-image:
+    linear-gradient(120deg, rgba(255,255,255,0.66) 0%, rgba(255,255,255,0.52) 46%, rgba(255,255,255,0.44) 100%),
+    url("../assets/backgrounds/tile-series-training-light.png?v=20260602-series");
+}
+html[data-theme="light"] .card--mitteilungen {
+  background-image:
+    linear-gradient(120deg, rgba(255,255,255,0.66) 0%, rgba(255,255,255,0.52) 46%, rgba(255,255,255,0.44) 100%),
+    url("../assets/backgrounds/tile-series-recent-light.png?v=20260602-series");
+}
+
+/* Dark Mode – dunkler Scrim über dunklem Bild */
+html[data-theme="dark"] .review-inbox {
+  background-image:
+    linear-gradient(120deg, rgba(12,14,19,0.66) 0%, rgba(12,14,19,0.52) 46%, rgba(12,14,19,0.44) 100%),
+    url("../assets/backgrounds/tile-series-week-dark.png?v=20260602-series");
+}
+html[data-theme="dark"] .card.rot {
+  background-image:
+    linear-gradient(120deg, rgba(12,14,19,0.66) 0%, rgba(12,14,19,0.52) 46%, rgba(12,14,19,0.44) 100%),
+    url("../assets/backgrounds/tile-series-training-dark.png?v=20260602-series");
+}
+html[data-theme="dark"] .card--mitteilungen {
+  background-image:
+    linear-gradient(120deg, rgba(12,14,19,0.66) 0%, rgba(12,14,19,0.52) 46%, rgba(12,14,19,0.44) 100%),
+    url("../assets/backgrounds/tile-series-recent-dark.png?v=20260602-series");
+}
+
+/* ── Azubi-Look: Inhalte als Glas-Pills über der Textur ──────────────────
+   Wie beim Azubi-Dashboard (.b-hero/.b-mitteilungen): (1) glasiger Karten-
+   rahmen statt harter Grau-Border, (2) Titel „schwebt" (keine Header-Trenn-
+   linie), (3) jede Listenzeile bekommt dieselbe getönte Glasfläche + Rand +
+   Radius wie .b-mitteilung. Alles auf die drei Kacheln gescoped. */
+
+/* (1) Glasiger Rahmen + weiche Tiefe */
+.review-inbox,
+.card.rot,
+.card--mitteilungen {
+  border-color: rgba(255,255,255,0.60);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,0.55),
+    0 12px 32px -14px rgba(14,17,22,0.22);
+}
+html[data-theme="dark"] .review-inbox,
+html[data-theme="dark"] .card.rot,
+html[data-theme="dark"] .card--mitteilungen {
+  border-color: rgba(255,255,255,0.10);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,0.06),
+    0 18px 44px -18px rgba(0,0,0,0.55);
+}
+
+/* (2) Titel schwebt – keine Header-Trennlinie */
+.review-inbox > .card__header,
+.review-inbox > .review-inbox__header,
+.card--mitteilungen > .card__header {
+  border-bottom: none;
+}
+
+/* (3a) „Zu prüfen": jede Azubi-Zeile als Glas-Pill */
+.review-inbox .review-list {
+  gap: var(--sp-2);
+  padding: 0 var(--sp-5) var(--sp-5);
+}
+.review-inbox .azubi-card {
+  border-bottom: none;
+  border: 1px solid rgba(14,17,22,0.10);
+  border-radius: var(--r-md);
+  background: rgba(255,255,255,0.55);
+  overflow: hidden;
+}
+html[data-theme="dark"] .review-inbox .azubi-card {
+  border-color: rgba(255,255,255,0.08);
+  background: rgba(255,255,255,0.06);
+}
+
+/* (3b) „Mitteilungen": jede Zeile als Glas-Pill (wie .b-mitteilung) */
+.card--mitteilungen .activity-feed {
+  gap: var(--sp-2);
+  padding-bottom: var(--sp-4);
+}
+.card--mitteilungen .activity-item {
+  border-bottom: none;
+  padding: var(--sp-3) var(--sp-4);
+  border: 1px solid rgba(14,17,22,0.10);
+  border-radius: var(--r-md);
+  background: rgba(255,255,255,0.55);
+  transition: background var(--t-fast), border-color var(--t-fast), transform var(--t-fast);
+}
+html[data-theme="dark"] .card--mitteilungen .activity-item {
+  border-color: rgba(255,255,255,0.08);
+  background: rgba(255,255,255,0.06);
+}
+/* Hover für klickbare Pills (z.B. „Beurteilung abgeschlossen") beibehalten –
+   wie .b-mitteilung:hover im Azubi-Dashboard: kräftiger tönen + leicht anheben.
+   Muss die gleich-spezifische Basis-Pill-Regel per höherer Spezifität schlagen. */
+.card--mitteilungen .activity-item--link:hover {
+  background: rgba(14,17,22,0.09);
+  border-color: rgba(14,17,22,0.16);
+  transform: translateY(-1px);
+}
+html[data-theme="dark"] .card--mitteilungen .activity-item--link:hover {
+  background: rgba(255,255,255,0.12);
+  border-color: rgba(255,255,255,0.16);
+}

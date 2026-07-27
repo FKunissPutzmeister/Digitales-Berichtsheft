@@ -543,9 +543,8 @@ const IhkImport = (() => {
     const body   = document.getElementById('ihkImportBody');
     const footer = document.getElementById('ihkImportFooter');
 
-    const sorted    = summary.betroffeneWochen.slice().sort((a, b) => a.year - b.year || a.kw - b.kw);
-    const wochenTxt = sorted.length ? sorted.map(w => 'KW ' + w.kw).join(', ') : '–';
-    const first     = sorted[0];
+    const sorted = summary.betroffeneWochen.slice().sort((a, b) => a.year - b.year || a.kw - b.kw);
+    const first  = sorted[0];
 
     if (body) {
       body.innerHTML = `
@@ -555,11 +554,10 @@ const IhkImport = (() => {
           </div>
           <div class="ztn-success__title">${summary.uebernommen} ${summary.uebernommen === 1 ? 'Woche' : 'Wochen'} übernommen</div>
           <p class="ztn-success__text">
-            Aktualisierte Wochen: <strong>${wochenTxt}</strong>.
             ${summary.uebersprungen
-              ? `<br>${summary.uebersprungen} ${summary.uebersprungen === 1 ? 'Woche' : 'Wochen'} übersprungen (bereits eingereicht/genehmigt).`
+              ? `${summary.uebersprungen} ${summary.uebersprungen === 1 ? 'Woche' : 'Wochen'} übersprungen (bereits eingereicht/genehmigt).<br>`
               : ''}
-            <br>Die Einträge findest du in der Wochenansicht.
+            Die Einträge findest du in der Wochenansicht.
           </p>
         </div>
       `;

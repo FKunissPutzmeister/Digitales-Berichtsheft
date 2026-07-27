@@ -217,63 +217,154 @@
     // (ihk-import.js meldet Erfolg per Event), statt den Azubi vorher
     // durchklicken zu lassen, ohne wirklich hochgeladen zu haben.
     entferneIhkErfolgListener();
-    ihkErfolgHandler = () => zeigeImportErfolg(user);
+    ihkErfolgHandler = (ev) => zeigeImportErfolgWeiter(user, ev.detail);
     document.addEventListener('ihkImportErfolgreich', ihkErfolgHandler, { once: true });
   }
 
-  function zeigeImportErfolg(user) {
+  // ihk-import.js öffnet dabei bereits seinen EIGENEN Erfolgsdialog (mit
+  // "Zur Wochenansicht"/"Schließen"). Der hat aber einen höheren z-index als
+  // unsere Karte/Blur-Panels — läuft unser Hinweis währenddessen parallel,
+  // sitzt er sichtbar "hinter" diesem Dialog fest und wirkt kaputt. Deshalb:
+  // Dialog kurz schließen, EIGENE Bestätigung zeigen, und erst nach "Weiter"
+  // den echten Dialog wieder freigeben (siehe zeigeImportErgebnis).
+  function zeigeImportErfolgWeiter(user, summary) {
     ihkErfolgHandler = null;
-    setState(user.oid, 'done');
-    baueKarte({
+    // Noch NICHT 'done' — erst wenn der Fehler-melden-Hinweis am Ende
+    // tatsächlich durchlaufen wurde. So bleibt er "ausstehend" gespeichert,
+    // falls der Azubi zwischendurch wegklickt, und wird beim nächsten
+    // Profil-Besuch nachgeholt (siehe checkProfil), statt verloren zu gehen.
+    setState(user.oid, 'fehlerHinweis');
+    if (typeof Modal !== 'undefined') Modal.close('ihkImportModal');
+    spotlightAuf(null);
+    const anzahl = (summary && summary.uebernommen) || 0;
+    const card = baueKarte({
       label: 'Schritt 2 von 2 · Import',
       dotsHtml: DOTS_FERTIG,
-      title: 'Alles eingerichtet!',
-      text: 'Dein bisheriges Berichtsheft wurde erfolgreich importiert. Du bist startklar.',
-      footerHtml: '',
+      title: 'Import abgeschlossen',
+      text: `${anzahl} ${anzahl === 1 ? 'Woche wurde' : 'Wochen wurden'} importiert.`,
+      footerHtml: `<button type="button" class="btn btn-primary btn-sm" id="onbWeiterZumErgebnis">Weiter</button>`,
     });
-    setTimeout(() => {
+    card.querySelector('#onbWeiterZumErgebnis').addEventListener('click', () => {
       entferneKarte();
-      zeigeFehlerMeldenCoachmark();
-    }, 1800);
+      zeigeImportErgebnis(user, summary);
+    });
+  }
+
+  // Frühestes betroffenes Woche-Objekt (gleiche Sortierung wie in
+  // ihk-import.js' renderSuccess) — wird für den "Zur Wochenansicht"-Sprung
+  // gebraucht, den wir jetzt selbst nachbauen (siehe zeigeImportErgebnis).
+  function ersteWoche(summary) {
+    const wochen = (summary && summary.betroffeneWochen) || [];
+    return wochen.slice().sort((a, b) => a.year - b.year || a.kw - b.kw)[0] || null;
+  }
+
+  // Ersetzt ein Element durch eine listener-freie Kopie (cloneNode kopiert
+  // keine JS-Listener) — so lässt sich der Klick-Handler von ihk-import.js
+  // sauber durch unseren eigenen ersetzen, ohne an dessen Timing/Reihenfolge
+  // gebunden zu sein.
+  function ersetzeOhneListener(el) {
+    if (!el) return null;
+    const ersatz = el.cloneNode(true);
+    el.replaceWith(ersatz);
+    return ersatz;
+  }
+
+  function zeigeImportErgebnis(user, summary) {
+    if (typeof Modal !== 'undefined') Modal.open('ihkImportModal');
+    // Blur bleibt aktiv (voller Seiten-Blur läuft schon) — der Dialog selbst
+    // sitzt qua z-index ohnehin scharf darüber, ohne dass wir ihn gesondert
+    // ausschneiden müssten.
+
+    let ausgeloest = false;
+
+    // "Zur Wochenansicht": springt jetzt direkt dorthin (macht, was der Button
+    // verspricht, statt vorher noch woanders hin umzuleiten) — mit derselben
+    // Ziel-KW, die ihk-import.js sonst selbst gesetzt hätte. Die Wochenansicht
+    // zeigt dort einen kurzen Erklär-Hinweis (checkWochenansicht) und leitet
+    // danach erst zum Fehler-melden-Hinweis ins Profil weiter, statt "in den
+    // Rücken" zu springen.
+    const gotoBtn = ersetzeOhneListener(document.getElementById('ihkGotoBtn'));
+    gotoBtn?.addEventListener('click', () => {
+      if (ausgeloest) return;
+      ausgeloest = true;
+      observer.disconnect();
+      const woche = ersteWoche(summary);
+      if (woche) {
+        sessionStorage.setItem('gotoKW', String(woche.kw));
+        sessionStorage.setItem('gotoYear', String(woche.year));
+      }
+      if (typeof Modal !== 'undefined') Modal.closeAll();
+      setState(user.oid, 'wochenansichtHinweis');
+      location.href = 'wochenansicht.html';
+    });
+
+    // Jeder andere Weg, den Dialog zu schließen (X, "Schließen", Klick aufs
+    // Overlay, ESC) läuft letztlich über Modal.closeAll() → .open verschwindet.
+    // Damit muss nur EIN Button (oben) eigens abgefangen werden, der Rest
+    // wird hier generisch erkannt.
+    const modalEl = document.getElementById('ihkImportModal');
+    const observer = new MutationObserver(() => {
+      if (ausgeloest) return;
+      if (modalEl && !modalEl.classList.contains('open')) {
+        ausgeloest = true;
+        observer.disconnect();
+        zeigeFehlerMeldenCoachmark(user); // kein bekanntes Ziel -> Standard (Wochenansicht)
+      }
+    });
+    if (modalEl) observer.observe(modalEl, { attributes: true, attributeFilter: ['class'] });
+  }
+
+  // Kurzer Erklär-Hinweis auf der Wochenansicht, bevor es zum Fehler-melden-
+  // Hinweis weitergeht — direkt nach dem Import zurück ins Profil zu springen
+  // wirkte verwirrend, obwohl der Azubi gerade "Zur Wochenansicht" gewählt hat.
+  function zeigeWochenansichtHinweis(user) {
+    spotlightAuf(null);
+    const card = baueKarte({
+      label: 'Fast fertig',
+      dotsHtml: '',
+      title: 'Das ist die Wochenansicht',
+      text: 'Hier trägst du künftig deine Tätigkeiten ein und reichst deine Berichtsheft-Wochen ein.',
+      footerHtml: `<button type="button" class="btn btn-primary btn-sm" id="onbWochenansichtWeiter">Weiter</button>`,
+    });
+    card.querySelector('#onbWochenansichtWeiter').addEventListener('click', () => {
+      entferneKarte();
+      entferneSpotlight();
+      setState(user.oid, 'fehlerHinweis');
+      location.href = 'profil.html';
+    });
   }
 
   // Kein eigener dritter Schritt, kein Overlay: wechselt aufs Profil-Tab und
   // markiert den echten "Fehler melden"-Button mit einem Puls-Ring, begleitet
-  // von einem Toast. Der Ring bleibt an, solange der Toast sichtbar ist, und
-  // verschwindet erst mit ihm zusammen (statt nach einer fest codierten Zeit,
-  // die sonst leicht aus dem Takt mit Toast.show()s eigener Dauer geraten kann).
-  function zeigeFehlerMeldenCoachmark() {
+  // von einer eigenen Karte mit "Alles klar"-Button — bewusst kein Toast mehr,
+  // der von selbst abläuft: der Azubi bestätigt aktiv, dass er den Hinweis
+  // gesehen hat, statt dass er ihm einfach unter der Zeit wegläuft.
+  // Kann mehrfach laufen: direkt im Anschluss an den Import, und — falls der
+  // Azubi vorher wegnavigiert ist — erneut beim nächsten Profil-Besuch
+  // (checkProfil, dann ohne bekanntes zielSeite → Fallback auf Wochenansicht).
+  function zeigeFehlerMeldenCoachmark(user, zielSeite) {
+    const ziel = zielSeite || 'wochenansicht.html';
     document.getElementById('tab-profil')?.click();
     const target = document.getElementById('btnFehlerMelden');
-    if (!target) return;
+    if (!target) { setState(user.oid, 'done'); location.href = ziel; return; } // Ziel fehlt: nicht haengen lassen
     target.scrollIntoView({ behavior: 'smooth', block: 'center' });
     target.classList.add('onboarding-ring-pulse', 'onboarding-ring-pulse--infinite');
     spotlightAuf(target.closest('.profil-section') || target);
 
-    // Danach zurück ins Dashboard: das Onboarding ist damit vollständig
-    // durchlaufen, es gibt nichts mehr, was der Azubi als Nächstes tun soll.
-    const abschliessen = () => {
+    const card = baueKarte({
+      label: 'Übrigens',
+      dotsHtml: '',
+      title: 'Fehler melden',
+      text: 'Läuft mal etwas nicht wie erwartet? Über diesen Button kannst du uns jederzeit Fehler melden.',
+      footerHtml: `<button type="button" class="btn btn-primary btn-sm" id="onbAllesKlar">Alles klar</button>`,
+    });
+    card.querySelector('#onbAllesKlar').addEventListener('click', () => {
       target.classList.remove('onboarding-ring-pulse', 'onboarding-ring-pulse--infinite');
       entferneSpotlight();
-      location.href = 'dashboard.html';
-    };
-
-    if (typeof Toast === 'undefined' || typeof Toast.info !== 'function') {
-      setTimeout(abschliessen, 4300); // Fallback, falls Toast ausnahmsweise fehlt
-      return;
-    }
-    Toast.info('Übrigens', 'Läuft mal etwas nicht wie erwartet? Über diesen Button kannst du uns jederzeit Fehler melden.');
-
-    const container = document.querySelector('.toast-container');
-    const toastEl = container?.lastElementChild;
-    if (!container || !toastEl) { setTimeout(abschliessen, 4300); return; }
-    const observer = new MutationObserver(() => {
-      if (!container.contains(toastEl)) {
-        abschliessen();
-        observer.disconnect();
-      }
+      entferneKarte();
+      setState(user.oid, 'done');
+      location.href = ziel;
     });
-    observer.observe(container, { childList: true });
   }
 
   window.OnboardingIhkImport = {
@@ -284,7 +375,16 @@
     },
     checkProfil(user) {
       if (!istBerechtigt(user)) return;
-      if (getState(user.oid) === 'step2') zeigeSchritt2(user);
+      const state = getState(user.oid);
+      if (state === 'step2') zeigeSchritt2(user);
+      // 'wochenansichtHinweis' hier auch: falls der Azubi den Wochenansicht-
+      // Hinweis übersprungen/verpasst hat (z.B. Tab geschlossen), trotzdem
+      // nicht für immer verloren gehen lassen — direkt zum Fehler-melden-Hinweis.
+      else if (state === 'fehlerHinweis' || state === 'wochenansichtHinweis') zeigeFehlerMeldenCoachmark(user);
+    },
+    checkWochenansicht(user) {
+      if (!istBerechtigt(user)) return;
+      if (getState(user.oid) === 'wochenansichtHinweis') zeigeWochenansichtHinweis(user);
     },
   };
 })();
