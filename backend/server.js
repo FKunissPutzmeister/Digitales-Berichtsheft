@@ -34,10 +34,14 @@ app.use(cors({
   ],
   credentials: true,
 }));
-app.use(express.json());
+// Standard-Limit von body-parser ist 100 kb. Berichtsheft-Wochen enthalten
+// Rich-Text-Einträge (NVarChar MAX) inkl. eingebetteter Bilder/Anhänge, die
+// dieses Limit auf POST /api/wochen sprengen → PayloadTooLargeError. Deshalb
+// den JSON-Body auf 10 MB anheben.
+app.use(express.json({ limit: '10mb' }));
 // Azure POSTet die SAMLResponse als application/x-www-form-urlencoded.
 // Ohne diesen Parser bliebe req.body leer → ACS-Validierung schlägt still fehl.
-app.use(express.urlencoded({ extended: false }));
+app.use(express.urlencoded({ extended: false, limit: '10mb' }));
 
 // Sessions auf der Platte ablegen statt im RAM. So überleben Logins einen
 // Backend-Restart – wichtig für `node --watch` im Dev-Modus, damit nicht
