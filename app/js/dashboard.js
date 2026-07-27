@@ -20,6 +20,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   try {
     if (user.istAzubi) {
       await renderAzubiDashboard(user);
+      OnboardingIhkImport.checkDashboard(user);
     } else if (user.istReinerPruefer) {
       await renderReinerPrueferDashboard(user);
     } else {

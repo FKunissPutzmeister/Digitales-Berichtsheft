@@ -579,6 +579,11 @@ const IhkImport = (() => {
     }
 
     Toast.success('Übernommen', `${summary.uebernommen} ${summary.uebernommen === 1 ? 'Woche' : 'Wochen'} ins Berichtsheft geschrieben.`);
+
+    // Entkoppeltes Signal für Beobachter (z.B. das IHK-Import-Onboarding),
+    // die auf einen erfolgreichen Import reagieren wollen, ohne dass diese
+    // Datei irgendetwas von ihnen wissen muss.
+    if (summary.uebernommen) document.dispatchEvent(new CustomEvent('ihkImportErfolgreich', { detail: summary }));
   }
 
   return { renderSection, bind };

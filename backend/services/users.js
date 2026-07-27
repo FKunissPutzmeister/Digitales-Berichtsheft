@@ -63,6 +63,9 @@ function buildReqUser(row) {
     ausbildungsEnde:   toDay(row.AusbildungEnde),
     berichtTyp:        row.BerichtTyp || 'wöchentlich',
     aktiv:             row.Aktiv !== false,
+    // Zeitpunkt des allerersten Logins (nie überschrieben) — Gating fürs
+    // IHK-Import-Onboarding, siehe onboarding-ihk-import.js.
+    ersteAnmeldung: row.ErsteAnmeldung ? new Date(row.ErsteAnmeldung).toISOString() : null,
   };
 }
 
@@ -149,12 +152,17 @@ async function upsertUser(data) {
       AusbildungEnde   = COALESCE(@ende, t.AusbildungEnde),
       BerichtTyp       = COALESCE(@berichtTyp, t.BerichtTyp),
       LetzterLogin     = CASE WHEN @setLogin = 1 THEN SYSUTCDATETIME() ELSE t.LetzterLogin END,
+      -- Einmaliger Zeitstempel des allerersten Logins (nie wieder überschrieben,
+      -- im Unterschied zu LetzterLogin) — Grundlage für das IHK-Import-Onboarding.
+      ErsteAnmeldung   = CASE WHEN t.ErsteAnmeldung IS NOT NULL THEN t.ErsteAnmeldung
+                              WHEN @setLogin = 1 THEN SYSUTCDATETIME() ELSE NULL END,
       AktualisiertAm   = SYSUTCDATETIME()
     WHEN NOT MATCHED THEN INSERT
-      (Oid, Name, Email, Role, KannPlanen, IstAusbilder, Beruf, AusbildungBeginn, AusbildungEnde, BerichtTyp, LetzterLogin)
+      (Oid, Name, Email, Role, KannPlanen, IstAusbilder, Beruf, AusbildungBeginn, AusbildungEnde, BerichtTyp, LetzterLogin, ErsteAnmeldung)
     VALUES
       (@oid, @name, @email, COALESCE(@role,'azubi'), COALESCE(@kannPlanen,0), COALESCE(@istAusbilder,0),
        @beruf, @beginn, @ende, COALESCE(@berichtTyp, N'wöchentlich'),
+       CASE WHEN @setLogin = 1 THEN SYSUTCDATETIME() ELSE NULL END,
        CASE WHEN @setLogin = 1 THEN SYSUTCDATETIME() ELSE NULL END);
   `);
   // Katalog-Verantwortliche mit echtem Azure-Namen/OID nachziehen (per E-Mail).

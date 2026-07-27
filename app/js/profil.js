@@ -622,6 +622,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Tabs: Profil- vs. Import-Panel clientseitig umschalten.
     if (hasImport) initProfilTabs();
 
+    // Deep-Link ?tab=import (z.B. vom IHK-Import-Onboarding): Import-Tab
+    // direkt aktivieren, statt dass der Azubi selbst dorthin klicken muss.
+    if (hasImport && new URLSearchParams(location.search).get('tab') === 'import') {
+      document.getElementById('tab-import')?.click();
+    }
+
     // Fehler melden (Modal aus error-reporter.js, Task 7)
     document.getElementById('btnFehlerMelden')?.addEventListener('click', () => window.oeffneFehlerMeldung && window.oeffneFehlerMeldung());
 
@@ -643,6 +649,8 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     Modal.init();
     Toast.init();
+
+    OnboardingIhkImport.checkProfil(user);
   }
 
   await render();
