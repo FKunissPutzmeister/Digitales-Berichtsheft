@@ -64,7 +64,7 @@ document.addEventListener('DOMContentLoaded', async () => {
           <button class="modal__close" type="button" aria-label="Schließen">&times;</button></div>
         <div class="modal__body">
           <div class="form-group"><label class="form-label" for="avName">Name</label>
-            <input class="form-control" type="text" id="avName" placeholder="z. B. Einkauf PMM"></div>
+            <input class="form-control" type="text" id="avName" placeholder="z. B. Einkauf PMM" maxlength="120"></div>
           <div class="av-form__checks">
             <label class="av-form__check-label"><input type="checkbox" id="avIstPmm"> PMM-Abteilung</label>
             <label class="av-form__check-label"><input type="checkbox" id="avAktiv" checked> Aktiv</label>
@@ -136,6 +136,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       aktiv: document.getElementById('avAktiv').checked,
     };
     if (!fields.name) { Toast.error('Pflichtfeld', 'Name ist Pflicht.'); btn.disabled = false; return; }
+    if (fields.name.length > 120) { Toast.error('Zu lang', 'Name max. 120 Zeichen.'); btn.disabled = false; return; }
     try {
       const saved = editing ? await DB.updateAbteilung(editing.id, fields) : await DB.createAbteilung(fields);
       upsertLocal(saved);
