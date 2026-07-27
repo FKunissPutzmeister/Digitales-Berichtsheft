@@ -30,7 +30,12 @@ async function apiFetch(path, options = {}) {
     });
     if (!res.ok) {
       const err = await res.json().catch(() => ({ error: res.statusText }));
-      throw new Error(err.error || res.statusText);
+      // HTTP-Status am Fehler mitführen, damit Aufrufer/Fehler-Reporter
+      // erwartete Fachergebnisse (z. B. 409 „existiert bereits") von echten
+      // Bugs unterscheiden können. Die .message bleibt unverändert.
+      const httpErr = new Error(err.error || res.statusText);
+      httpErr.status = res.status;
+      throw httpErr;
     }
     return res.json();
   } catch (e) {
