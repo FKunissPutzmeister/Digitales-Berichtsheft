@@ -2115,6 +2115,12 @@ document.addEventListener('DOMContentLoaded', async () => {
   function autoSave(dateStr) { return enqueueSave(() => autoSaveImpl(dateStr)); }
 
   async function autoSaveWocheImpl() {
+    // Fremdes Heft (Ausbilder-/Prüfer-/Dev-Korrektur-Ansicht) ist readonly und
+    // darf serverseitig nicht geschrieben werden (POST /wochen → 403). Ein noch
+    // anstehender debounce-Timer könnte nach einem Azubi-Wechsel aber mit dem
+    // inzwischen fremden viewAzubiId feuern. Dieser Guard bricht genau diesen
+    // Fall ab (deckt sich mit isReadonly und darfWocheKorrigieren im Backend).
+    if (isAusbilder && !viewingSelf()) return;
     const azubiId = viewAzubiId || user.id;
     let woche = await DB.getWoche(azubiId, currentKW, currentYear);
     if (!woche) {
@@ -2153,6 +2159,10 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   async function autoSaveImpl(dateStr) {
+    // Siehe autoSaveWocheImpl: kein Autosave auf ein fremdes (readonly) Heft –
+    // verhindert 403 „Keine Berechtigung für dieses Berichtsheft.", wenn ein
+    // debounce-Timer nach einem Azubi-Wechsel mit fremdem viewAzubiId feuert.
+    if (isAusbilder && !viewingSelf()) return;
     const azubiId = viewAzubiId || user.id;
     let woche = await DB.getWoche(azubiId, currentKW, currentYear);
     if (!woche) {
