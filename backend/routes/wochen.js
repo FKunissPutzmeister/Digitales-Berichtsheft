@@ -116,7 +116,14 @@ router.post('/', async (req, res) => {
         .input('schuleEintrag',       sql.NVarChar(sql.MAX),  schuleEintrag || null)
         .input('unterweisungEintrag', sql.NVarChar(sql.MAX),  unterweisungEintrag || null)
         .query(`
-          MERGE dbo.Wochen AS target
+          -- WITH (HOLDLOCK): serialisiert den Upsert per Key-Range-Sperre.
+          -- Ohne HOLDLOCK werten zwei gleichzeitige POSTs derselben Woche
+          -- (z. B. Ausbilder-Korrektur parallel zur Azubi-Bearbeitung, oder
+          -- zwei Tabs) unter READ COMMITTED beide WHEN NOT MATCHED aus und
+          -- INSERTen beide -> Unique-Verletzung auf (AzubiOid, KW, Jahr)
+          -- -> 500. Mit HOLDLOCK wartet der zweite Request bis zum Commit
+          -- des ersten und trifft dann sauber den MATCHED-Zweig (UPDATE).
+          MERGE dbo.Wochen WITH (HOLDLOCK) AS target
           USING (SELECT @azubiOid AS AzubiOid, @kw AS KW, @jahr AS Jahr) AS source
             ON target.AzubiOid = source.AzubiOid AND target.KW = source.KW AND target.Jahr = source.Jahr
           WHEN MATCHED THEN
