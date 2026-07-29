@@ -101,10 +101,11 @@ async function logError({ quelle, nachricht, stack, kontext, benutzerOid, benutz
             LetzterZeitpunkt = SYSUTCDATETIME(),
             Stack = @stack,
             Kontext = @kontext
+        OUTPUT inserted.Id
         WHERE Fingerprint = @fp AND Erledigt = 0
       `);
-    if (upd.rowsAffected[0] > 0) return;
-    await pool.request()
+    if (upd.recordset && upd.recordset.length > 0) return upd.recordset[0].Id;
+    const ins = await pool.request()
       .input('quelle', sql.NVarChar(20), quelle)
       .input('nachricht', sql.NVarChar(sql.MAX), msg)
       .input('stack', sql.NVarChar(sql.MAX), stack || null)
@@ -116,11 +117,58 @@ async function logError({ quelle, nachricht, stack, kontext, benutzerOid, benutz
       .query(`
         INSERT INTO dbo.Fehlerberichte
           (Quelle, Nachricht, Stack, Kontext, BenutzerOid, BenutzerName, Fingerprint, Schweregrad)
+        OUTPUT inserted.Id
         VALUES (@quelle, @nachricht, @stack, @kontext, @benutzerOid, @benutzerName, @fp, @schweregrad)
       `);
+    return ins.recordset[0].Id;
   } catch (e) {
     console.error('[fehlerberichte] logError konnte nicht persistieren:', e.message);
   }
+}
+
+// Speichert validierte Bilder zu einem Fehlerbericht. Rein additiv – prüft
+// per parseUndValidiereBilder erneut (Defense-in-Depth). Gibt die Anzahl
+// tatsächlich gespeicherter Bilder zurück.
+async function speichereFehlerAnhaenge(fehlerId, bilder) {
+  const { gueltig } = parseUndValidiereBilder(bilder);
+  if (!gueltig.length) return 0;
+  const pool = await getPool();
+  for (const bild of gueltig) {
+    await pool.request()
+      .input('fehlerId', sql.Int, Number(fehlerId))
+      .input('dateiname', sql.NVarChar(255), bild.name)
+      .input('mimeTyp', sql.NVarChar(100), bild.mimeTyp)
+      .input('groesse', sql.Int, bild.groesse)
+      .input('inhalt', sql.VarBinary(sql.MAX), bild.buffer)
+      .query(`
+        INSERT INTO dbo.FehlerAnhaenge (FehlerId, Dateiname, MimeTyp, GroesseBytes, Inhalt)
+        VALUES (@fehlerId, @dateiname, @mimeTyp, @groesse, @inhalt)
+      `);
+  }
+  return gueltig.length;
+}
+
+// Metadaten aller Anhänge eines Fehlers (ohne Binärdaten).
+async function listeFehlerAnhaenge(fehlerId) {
+  const pool = await getPool();
+  const result = await pool.request()
+    .input('fehlerId', sql.Int, Number(fehlerId))
+    .query(`
+      SELECT Id, Dateiname, MimeTyp, GroesseBytes, HochgeladenAm
+      FROM dbo.FehlerAnhaenge
+      WHERE FehlerId = @fehlerId
+      ORDER BY HochgeladenAm ASC, Id ASC
+    `);
+  return result.recordset;
+}
+
+// Ein einzelner Anhang inkl. Binärdaten (für den Binär-Endpunkt).
+async function ladeFehlerAnhang(anhangId) {
+  const pool = await getPool();
+  const result = await pool.request()
+    .input('id', sql.Int, Number(anhangId))
+    .query('SELECT MimeTyp, Dateiname, Inhalt FROM dbo.FehlerAnhaenge WHERE Id = @id');
+  return result.recordset[0];
 }
 
 async function listErrors({ quelle, erledigt, benutzerOid, seit, limit, schweregrad } = {}) {
@@ -135,10 +183,11 @@ async function listErrors({ quelle, erledigt, benutzerOid, seit, limit, schwereg
   const where = bedingungen.length ? `WHERE ${bedingungen.join(' AND ')}` : '';
   const top = Math.max(1, Math.min(Math.floor(Number(limit)) || 500, 2000));
   const result = await req.query(`
-    SELECT TOP (${top}) *
-    FROM dbo.Fehlerberichte
+    SELECT TOP (${top}) fb.*,
+      (SELECT COUNT(*) FROM dbo.FehlerAnhaenge fa WHERE fa.FehlerId = fb.Id) AS AnzahlAnhaenge
+    FROM dbo.Fehlerberichte fb
     ${where}
-    ORDER BY LetzterZeitpunkt DESC
+    ORDER BY fb.LetzterZeitpunkt DESC
   `);
   return result.recordset;
 }
@@ -175,4 +224,4 @@ async function cleanupAlt(tage = 90) {
   return result.rowsAffected[0];
 }
 
-module.exports = { berechneFingerprint, logError, listErrors, markResolved, cleanupAlt, bewerteSchwere, setSchweregrad, istTransienterVerbindungsfehler, SCHWEREGRADE, parseUndValidiereBilder };
+module.exports = { berechneFingerprint, logError, listErrors, markResolved, cleanupAlt, bewerteSchwere, setSchweregrad, istTransienterVerbindungsfehler, SCHWEREGRADE, parseUndValidiereBilder, speichereFehlerAnhaenge, listeFehlerAnhaenge, ladeFehlerAnhang };
