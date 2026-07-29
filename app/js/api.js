@@ -134,6 +134,7 @@ function normalizeTag(t) {
     betriebEintrag:      t.BetriebEintrag      ?? '',
     schuleEintrag:       t.SchuleEintrag       ?? '',
     unterweisungEintrag: t.UnterweisungEintrag ?? '',
+    abwesenheitsnotiz:   t.Abwesenheitsnotiz   ?? '',
   };
 }
 
@@ -172,6 +173,9 @@ function normalizeWoche(w) {
     // Kommt über SELECT w.* bereits aus dem Backend, hier nur durchgereicht.
     korrigiertVon: w.KorrigiertVon ?? null,
     korrigiertAm:  toDateStr(w.KorrigiertAm),
+    // Abgabe-Stempel des Azubis (Migration 028) – Gegenstück zu korrigiertAm.
+    eingereichtVon: w.EingereichtVon ?? null,
+    eingereichtAm:  toDateStr(w.EingereichtAm),
     tage: (w.tage || []).map(normalizeTag),
     kommentare: (w.kommentare || []).map(normalizeKommentar),
   };
@@ -325,7 +329,7 @@ const DateUtil = {
 /* localStorage-Schlüssel der Nutzer-Einstellung „Automatisches Ausfüllen
    vorschlagen" (Aktivitäts-Autocomplete in der Wochenansicht). Gemeinsam
    genutzt von profil.js (Schalter) und wochenansicht.js (Auswertung), damit
-   der Key nicht auseinanderdriftet. Fehlt der Wert → Feature AN (Default). */
+   der Key nicht auseinanderdriftet. Nur '1' schaltet ein → Default AUS. */
 const ACTIVITY_SUGGESTIONS_KEY = 'pmActivitySuggestions';
 
 /* localStorage-Schlüssel der Nutzer-Einstellung „Unterweisung standardmäßig
@@ -590,14 +594,20 @@ const DB = {
     return wochen.find(w => w.kw === kw && w.year === year) || null;
   },
 
-  async saveWoche(woche) {
-    await apiFetch('/wochen', { method: 'POST', body: {
+  /* Speichert Wochentexte + Tage. Der Status wird dabei NICHT gesetzt – dafür
+     gibt es setWocheStatus (PATCH), wo der Rollen-Automat läuft.
+     opts.migration = true nur für die Datenübernahme aus einem fremden System
+     (IHK-PDF-Import, JSON-Restore): dann darf der mitgelieferte Status
+     übernommen werden, auch 'genehmigt'. Der Server lässt das ausschließlich
+     im eigenen Heft und nie über eine hier erteilte Abnahme zu. */
+  async saveWoche(woche, opts = {}) {
+    await apiFetch(`/wochen${opts.migration ? '?migration=1' : ''}`, { method: 'POST', body: {
       azubiOid:            woche.azubiId,
       kw:                  woche.kw,
       jahr:                woche.year,
       startDatum:          woche.startDate,
       endDatum:            woche.endDate,
-      status:              woche.status,
+      ...(opts.migration ? { status: woche.status } : {}),
       gesamtstunden:       woche.gesamtstunden,
       tage:                woche.tage,
       typ:                 woche.typ           || null,

@@ -1,6 +1,6 @@
 const router = require('express').Router();
 const { getPool, sql } = require('../db/connection');
-const { darfWocheSehen, darfWocheKorrigieren, rolleFuerWoche, wochenAktionen } = require('../services/zugriff');
+const { darfWocheSehen, darfWocheKorrigieren, rolleFuerWoche, wochenAktionen, schreibGate } = require('../services/zugriff');
 const { ladeKorrekturKontext, ladeWocheFuerZugriff } = require('../services/zugriffContext');
 const { logError } = require('../services/fehlerberichte');
 
@@ -69,6 +69,18 @@ router.get('/:id', async (req, res) => {
 });
 
 // POST /api/wochen  (upsert)
+//
+// SCHREIBSCHUTZ: Diese Route setzt den Status NICHT. Wer einreicht, erstgenehmigt
+// oder genehmigt, geht über PATCH /:id/status — nur dort läuft der geprüfte
+// Rollen-Automat (wochenAktionen). Ohne diese Trennung konnte ein Azubi seine
+// eigene Woche per Body-Feld auf 'genehmigt' setzen und den Inhalt einer bereits
+// abgenommenen Woche überschreiben.
+//
+// Ausnahme ?migration=1: Datenübernahme aus einem FREMDEN System (IHK-PDF-Import,
+// JSON-Restore eines eigenen Backups). Die darf den mitgelieferten Status
+// übernehmen – auch 'genehmigt', weil die Woche in der IHK-Plattform bereits
+// genehmigt war –, aber nur im eigenen Heft und nie über eine in DIESER App
+// erteilte Abnahme hinweg (siehe schreibGate in services/zugriff.js).
 router.post('/', async (req, res) => {
   try {
     const {
@@ -90,6 +102,11 @@ router.post('/', async (req, res) => {
       }
     }
 
+    const migration = req.query.migration === '1';
+    if (migration && !eigenes) {
+      return res.status(403).json({ error: 'Datenübernahme ist nur im eigenen Berichtsheft möglich.' });
+    }
+
     // Woche + Tage in EINER Transaktion speichern. Ohne Transaktion können
     // zwei parallele Autosave-POSTs derselben Woche (Autosave feuert pro Tag
     // getrennt) den DELETE/INSERT-Ablauf verschränken:
@@ -101,13 +118,32 @@ router.post('/', async (req, res) => {
     await tx.begin();
     let wocheId;
     try {
+      // Aktuellen Zustand IM Transaktionsfenster lesen. UPDLOCK+HOLDLOCK, damit
+      // zwischen Prüfung und MERGE kein paralleler PATCH den Status kippt
+      // (Ausbilder genehmigt, während der Azubi-Autosave noch läuft).
+      const vorhanden = (await new sql.Request(tx)
+        .input('azubiOid', sql.NVarChar(36), azubiOid)
+        .input('kw',       sql.TinyInt,      kw)
+        .input('jahr',     sql.SmallInt,     jahr)
+        .query(`SELECT Id, Status, KorrigiertVon FROM dbo.Wochen WITH (UPDLOCK, HOLDLOCK)
+                 WHERE AzubiOid = @azubiOid AND KW = @kw AND Jahr = @jahr`)).recordset[0] || null;
+
+      const gate = schreibGate(
+        vorhanden ? { status: vorhanden.Status, korrigiertVon: vorhanden.KorrigiertVon } : null,
+        { migration, wunschStatus: status },
+      );
+      if (!gate.ok) {
+        await tx.rollback();
+        return res.status(403).json({ error: gate.grund });
+      }
+
       const upsert = await new sql.Request(tx)
         .input('azubiOid',            sql.NVarChar(36),      azubiOid)
         .input('kw',                  sql.TinyInt,            kw)
         .input('jahr',                sql.SmallInt,           jahr)
         .input('startDatum',          sql.Date,               startDatum)
         .input('endDatum',            sql.Date,               endDatum)
-        .input('status',              sql.NVarChar(20),       status || 'offen')
+        .input('status',              sql.NVarChar(20),       gate.status)
         .input('gesamtstunden',       sql.Decimal(5, 2),      gesamtstunden || 0)
         .input('typ',                 sql.NVarChar(20),       typ || null)
         .input('wochenOrt',           sql.NVarChar(20),       wochenOrt || null)
@@ -144,12 +180,16 @@ router.post('/', async (req, res) => {
 
       wocheId = upsert.recordset[0].Id;
 
-      // Tage speichern (delete + re-insert)
+      // Tage speichern: MERGE je (WocheId, Datum) statt DELETE + Re-Insert.
+      // Der alte DELETE brach an FK_Kommentare_Tage (Migration 002, ohne
+      // ON DELETE): sobald ein Ausbilder EINEN Tag kommentiert hatte, schlug
+      // jedes weitere Speichern der Woche mit Fehler 547 fehl und die Woche
+      // war dauerhaft unspeicherbar. Der MERGE hält Tage.Id stabil, damit
+      // Tages-Kommentare weiter auf ihren Tag zeigen.
+      // Semantik unverändert: der Client schickt immer die vollständige,
+      // gemergte Tagesliste, also wird jedes Feld überschrieben (kein COALESCE
+      // wie im MCP-Pfad, sonst ließe sich ein Text nicht mehr leeren).
       if (Array.isArray(tage) && tage.length > 0) {
-        await new sql.Request(tx)
-          .input('wocheId', sql.Int, wocheId)
-          .query('DELETE FROM dbo.Tage WHERE WocheId = @wocheId');
-
         for (const tag of tage) {
           await new sql.Request(tx)
             .input('wocheId',             sql.Int,               wocheId)
@@ -161,15 +201,38 @@ router.post('/', async (req, res) => {
             .input('betriebEintrag',      sql.NVarChar(sql.MAX), tag.betriebEintrag || null)
             .input('schuleEintrag',       sql.NVarChar(sql.MAX), tag.schuleEintrag || null)
             .input('unterweisungEintrag', sql.NVarChar(sql.MAX), tag.unterweisungEintrag || null)
+            .input('abwesenheitsnotiz',   sql.NVarChar(1000),    tag.abwesenheitsnotiz || null)
             .query(`
-              INSERT INTO dbo.Tage
-                (WocheId, Datum, Anwesenheit, Ort, Eintrag, Tagdauer,
-                 BetriebEintrag, SchuleEintrag, UnterweisungEintrag)
-              VALUES
-                (@wocheId, @datum, @anwesenheit, @ort, @eintrag, @tagdauer,
-                 @betriebEintrag, @schuleEintrag, @unterweisungEintrag)
+              MERGE dbo.Tage WITH (HOLDLOCK) AS target
+              USING (SELECT @wocheId AS WocheId, @datum AS Datum) AS source
+                ON target.WocheId = source.WocheId AND target.Datum = source.Datum
+              WHEN MATCHED THEN
+                UPDATE SET Anwesenheit = @anwesenheit, Ort = @ort, Eintrag = @eintrag,
+                           Tagdauer = @tagdauer, BetriebEintrag = @betriebEintrag,
+                           SchuleEintrag = @schuleEintrag, UnterweisungEintrag = @unterweisungEintrag,
+                           Abwesenheitsnotiz = @abwesenheitsnotiz
+              WHEN NOT MATCHED THEN
+                INSERT (WocheId, Datum, Anwesenheit, Ort, Eintrag, Tagdauer,
+                        BetriebEintrag, SchuleEintrag, UnterweisungEintrag, Abwesenheitsnotiz)
+                VALUES (@wocheId, @datum, @anwesenheit, @ort, @eintrag, @tagdauer,
+                        @betriebEintrag, @schuleEintrag, @unterweisungEintrag, @abwesenheitsnotiz);
             `);
         }
+
+        // Tage, die der Client nicht mehr mitschickt, entfernen. Kommentare
+        // daran vorher auf Wochenebene lösen (TagId = NULL), sonst greift
+        // derselbe FK wieder – der Kommentar bleibt so erhalten.
+        const daten = tage.map(t => t.datum).filter(Boolean);
+        const platzhalter = daten.map((_, i) => `@d${i}`).join(', ');
+        const aufraeumen = new sql.Request(tx).input('wocheId', sql.Int, wocheId);
+        daten.forEach((d, i) => aufraeumen.input(`d${i}`, sql.Date, d));
+        await aufraeumen.query(`
+          UPDATE dbo.Kommentare SET TagId = NULL
+           WHERE TagId IN (SELECT Id FROM dbo.Tage
+                            WHERE WocheId = @wocheId AND Datum NOT IN (${platzhalter}));
+          DELETE FROM dbo.Tage
+           WHERE WocheId = @wocheId AND Datum NOT IN (${platzhalter});
+        `);
       }
 
       await tx.commit();
@@ -215,6 +278,13 @@ router.patch('/:id/status', async (req, res) => {
     if (treffer.korrektur) {
       request.input('korrigiertVon', sql.NVarChar(36), user.oid);
       setClause += ', KorrigiertVon = @korrigiertVon, KorrigiertAm = SYSUTCDATETIME()';
+    }
+    // Abgabe des Azubis datieren (Migration 028). Ohne diesen Stempel trug der
+    // Ausbildungsnachweis nur ein Genehmigungsdatum, aber kein Abgabedatum.
+    // Beim Zurückziehen NICHT geleert – ein erneutes Einreichen überschreibt.
+    if (treffer.aktion === 'einreichen') {
+      request.input('eingereichtVon', sql.NVarChar(36), user.oid);
+      setClause += ', EingereichtAm = SYSUTCDATETIME(), EingereichtVon = @eingereichtVon';
     }
     await request.query(`UPDATE dbo.Wochen SET ${setClause} WHERE Id = @id`);
 

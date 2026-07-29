@@ -491,9 +491,12 @@ const IhkImport = (() => {
 
     for (const pw of selected) {
       const existing = await DB.getWoche(_user.id, pw.kw, pw.year);
-      // Kein Schreibschutz mehr: ein erneuter Import überschreibt bewusst auch
-      // bereits eingereichte/genehmigte Wochen (korrigierter IHK-Status). Der
-      // Server erlaubt dem Azubi das Überschreiben des EIGENEN Hefts.
+      // Import läuft als Datenübernahme (?migration=1, siehe DB.saveWoche unten):
+      // der echte IHK-Status wird übernommen – auch 'genehmigt', weil die Woche
+      // in der IHK-Plattform bereits genehmigt war – und ein erneuter Import
+      // derselben PDF darf eine importierte Woche wieder überschreiben.
+      // Nicht überschreibbar ist nur, was in DIESER App geprüft wurde (der
+      // Server blockt das über den KorrigiertVon-Stempel).
       const woche = existing || {
         azubiId:       _user.id,
         kw:            pw.kw,
@@ -517,7 +520,15 @@ const IhkImport = (() => {
 
       // Wochensumme = Anzahl der Anwesenheitstage (Tagdauer-Modell), keine Stundensumme.
       woche.gesamtstunden = woche.tage.filter(t => t.anwesenheit === 'anwesend').length;
-      await DB.saveWoche(woche);
+      // Eine in dieser App geprüfte Woche weist der Server mit 403 ab. Das darf
+      // den Import der übrigen Wochen nicht kippen – zählen und weitermachen
+      // (renderSuccess zeigt „N Wochen übersprungen").
+      try {
+        await DB.saveWoche(woche, { migration: true });
+      } catch {
+        summary.uebersprungen++;
+        continue;
+      }
       summary.uebernommen++;
       summary.betroffeneWochen.push({ kw: pw.kw, year: pw.year });
     }

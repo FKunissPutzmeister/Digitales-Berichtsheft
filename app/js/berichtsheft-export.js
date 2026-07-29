@@ -195,7 +195,7 @@ const BerichtsheftExport = (() => {
     const bestehend = await DB.getWochenFuerAzubi(_user.oid);
     const key = w => `${w.year}-${w.kw}`;
     const geschuetztKeys = new Set(
-      bestehend.filter(w => w.status === 'freigegeben' || w.status === 'genehmigt').map(key));
+      bestehend.filter(w => w.status === 'freigegeben' || w.status === 'erstgenehmigt' || w.status === 'genehmigt').map(key));
     const bestehendKeys = new Set(bestehend.map(key));
 
     const neu            = gueltig.filter(w => !bestehendKeys.has(key(w)));
@@ -229,13 +229,19 @@ const BerichtsheftExport = (() => {
   async function doRestore() {
     if (!_backup) return;
     const wochen = [..._backup.neu, ..._backup.ueberschreiben];
-    let ok = 0;
+    let ok = 0, abgewiesen = 0;
     for (const w of wochen) {
       // azubiId immer aufs eigene Konto zwingen – nie in ein fremdes Heft schreiben.
-      await DB.saveWoche({ ...w, azubiId: _user.oid, tage: Array.isArray(w.tage) ? w.tage : [] });
-      ok++;
+      // migration:true, damit der Status aus dem Backup erhalten bleibt; der
+      // Server weist eine hier bereits geprüfte Woche mit 403 ab (dann zählen
+      // und weitermachen, statt die Wiederherstellung abzubrechen).
+      try {
+        await DB.saveWoche({ ...w, azubiId: _user.oid, tage: Array.isArray(w.tage) ? w.tage : [] },
+                           { migration: true });
+        ok++;
+      } catch { abgewiesen++; }
     }
-    const uebersprungen = _backup.geschuetzt.length;
+    const uebersprungen = _backup.geschuetzt.length + abgewiesen;
     resetImport();
     Toast.success('Backup wiederhergestellt',
       `${ok} Wochen übernommen${uebersprungen ? `, ${uebersprungen} geschützte Wochen übersprungen` : ''}.`);
@@ -261,33 +267,78 @@ const BerichtsheftExport = (() => {
   }
 
   // Bestätigungstexte je Status (elektronisch statt Unterschrift).
+  // 'erstgenehmigt' MUSS hier vorkommen: sonst druckt eine eingereichte und
+  // vorgeprüfte Woche „Entwurf – noch nicht eingereicht", also eine
+  // Falschaussage im Nachweisdokument.
   function bestaetigung(w, ausbilderName) {
-    const genehmigtAm = w.korrigiertAm ? DateUtil.formatDate(w.korrigiertAm) : '';
-    const azubiFreigegeben = (w.status === 'freigegeben' || w.status === 'genehmigt' || w.status === 'abgelehnt');
+    const stempelAm     = w.korrigiertAm  ? DateUtil.formatDate(w.korrigiertAm)  : '';
+    const eingereichtAm = w.eingereichtAm ? DateUtil.formatDate(w.eingereichtAm) : '';
+    const eingereicht = (w.status === 'freigegeben' || w.status === 'erstgenehmigt'
+                      || w.status === 'genehmigt'   || w.status === 'abgelehnt');
     let ausbilderText;
-    if (w.status === 'genehmigt')      ausbilderText = `Geprüft und genehmigt${genehmigtAm ? ` am ${genehmigtAm}` : ''}`;
-    else if (w.status === 'abgelehnt') ausbilderText = `Zur Überarbeitung zurückgegeben${genehmigtAm ? ` am ${genehmigtAm}` : ''}`;
-    else                               ausbilderText = 'Prüfung ausstehend';
+    if (w.status === 'genehmigt')           ausbilderText = `Geprüft und genehmigt${stempelAm ? ` am ${stempelAm}` : ''}`;
+    else if (w.status === 'abgelehnt')      ausbilderText = `Zur Überarbeitung zurückgegeben${stempelAm ? ` am ${stempelAm}` : ''}`;
+    else if (w.status === 'erstgenehmigt')  ausbilderText = `Vorgeprüft${stempelAm ? ` am ${stempelAm}` : ''} – Endabnahme ausstehend`;
+    else                                    ausbilderText = 'Prüfung ausstehend';
+    const mitName = (w.status === 'genehmigt' || w.status === 'abgelehnt' || w.status === 'erstgenehmigt');
     return {
-      azubiText: azubiFreigegeben ? 'Berichtsheft geführt und zur Prüfung eingereicht' : 'Entwurf – noch nicht eingereicht',
-      ausbilderName: (w.status === 'genehmigt' || w.status === 'abgelehnt') ? (displayName(ausbilderName || '') || 'Ausbilder/in') : '—',
+      azubiText: eingereicht
+        ? `Berichtsheft geführt und zur Prüfung eingereicht${eingereichtAm ? ` am ${eingereichtAm}` : ''}`
+        : 'Entwurf – noch nicht eingereicht',
+      ausbilderName: mitName ? (displayName(ausbilderName || '') || 'Ausbilder/in') : '—',
       ausbilderText,
     };
   }
 
-  // Ein Wochenblatt (wöchentlich): drei Blöcke.
+  // Fehlzeiten der Woche (Urlaub, Arbeitsunfähigkeit, Feiertag, sonstige) als
+  // kompakte Zeilen, inkl. der Notiz des Azubis.
+  // ponytail: nur Abwesenheitstage, keine vollständige Anwesenheitstabelle.
+  // Sobald je Tag eine Dauer verlangt wird (Audit-Befund G-01), wird hier die
+  // volle Tagestabelle daraus.
+  function fehlzeiten(w) {
+    return (w.tage || [])
+      .filter(t => {
+        const a = (t.anwesenheit || '').trim().toLowerCase();
+        return a && a !== 'anwesend' && a !== 'wochenende';
+      })
+      .sort((a, b) => String(a.datum).localeCompare(String(b.datum)))
+      .map(t => {
+        const d = new Date(t.datum + 'T00:00:00');
+        const kopf = isNaN(d)
+          ? String(t.datum || '')
+          : `${TAGNAMEN[d.getDay()]}, ${DateUtil.formatDate(t.datum)}`;
+        const notiz = (t.abwesenheitsnotiz || '').trim();
+        return `<div class="fehlzeit"><span class="fz-tag">${esc(kopf)}</span>`
+             + `<span class="fz-typ">${esc(t.anwesenheit)}</span>`
+             + `${notiz ? ` <span class="fz-notiz">${esc(notiz)}</span>` : ''}</div>`;
+      });
+  }
+
+  // Ein Wochenblatt (wöchentlich): drei Textblöcke + Fehlzeiten.
+  // Die Tage wurden hier früher gar nicht gelesen – eine Urlaubs- oder
+  // Krankheitswoche druckte deshalb „Keine Einträge für diese Woche" statt der
+  // erfassten Fehlzeit, und das ist der Standard-Exportpfad (berichtTyp ist
+  // per Default 'wöchentlich').
   function renderWocheWoechentlich(w) {
-    const bloecke = [
+    const zeilen = [
       ['Betriebliche Tätigkeiten', w.betriebEintrag],
       ['Berufsschule (Unterrichtsthemen)', w.schuleEintrag],
       ['Unterweisungen', w.unterweisungEintrag],
-    ].filter(([, v]) => !richIstLeer(v));
-    if (!bloecke.length) return `<tr><td class="z">${'<span class="leer">Keine Einträge für diese Woche.</span>'}</td></tr>`;
-    return bloecke.map(([label, v]) => `
+    ].filter(([, v]) => !richIstLeer(v)).map(([label, v]) => `
       <tr><td class="z">
         <div class="blocktitel">${esc(label)}</div>
         <div class="richtext">${sanitizeRich(v)}</div>
-      </td></tr>`).join('');
+      </td></tr>`);
+
+    const fz = fehlzeiten(w);
+    if (fz.length) zeilen.push(`
+      <tr><td class="z">
+        <div class="blocktitel">Fehlzeiten</div>
+        ${fz.join('')}
+      </td></tr>`);
+
+    if (!zeilen.length) return `<tr><td class="z">${'<span class="leer">Keine Einträge für diese Woche.</span>'}</td></tr>`;
+    return zeilen.join('');
   }
 
   // Ein Wochenblatt (täglich): Zeile je Tag.
@@ -406,9 +457,10 @@ const BerichtsheftExport = (() => {
   function wocheAnchor(w) { return `w-${w.year}-${w.kw}`; }
 
   function statusLabel(w) {
-    if (w.status === 'genehmigt')   return 'Genehmigt';
-    if (w.status === 'freigegeben') return 'Eingereicht';
-    if (w.status === 'abgelehnt')   return 'Zurückgewiesen';
+    if (w.status === 'genehmigt')     return 'Genehmigt';
+    if (w.status === 'erstgenehmigt') return 'Vorgeprüft';
+    if (w.status === 'freigegeben')   return 'Eingereicht';
+    if (w.status === 'abgelehnt')     return 'Zurückgewiesen';
     return 'In Bearbeitung';
   }
   // Distinkte Orte der Woche (nur täglich sinnvoll), z. B. „Schule / Betrieb".
@@ -489,6 +541,10 @@ const BerichtsheftExport = (() => {
   .tagname { font-weight:700; font-size:9pt; }
   .tagmeta { font-size:7.5pt; color:#6b6b6b; }
   tr.abwesend .z { background:#fafafa; }
+  .fehlzeit { font-size:8.5pt; line-height:1.5; }
+  .fz-tag { display:inline-block; min-width:38mm; font-weight:700; }
+  .fz-notiz { color:#6b6b6b; }
+  .fz-notiz::before { content:'– '; }
   .leer { color:#8a8a8a; font-style:italic; }
   .muted { color:#6b6b6b; }
   .fuss { margin-top:4mm; font-size:7.5pt; color:#6b6b6b; }

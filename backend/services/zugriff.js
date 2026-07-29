@@ -122,6 +122,45 @@ function wochenAktionen(rolle, status, endabnahmeDirekt) {
   return out;
 }
 
+// Alle gültigen Wochen-Status (deckungsgleich mit CK_Wochen_Status, Migration 019).
+// Serverseitige Wahrheit: ein Status aus einem Request muss hier drinstehen.
+const WOCHEN_STATUS = ['offen', 'freigegeben', 'erstgenehmigt', 'genehmigt', 'abgelehnt'];
+
+// Status, in denen die Woche in der Abnahme ist und ihr Inhalt nicht mehr
+// verändert werden darf (IHK-Kriterium „nach Freigabe unveränderbar").
+const GESPERRTE_STATUS = ['freigegeben', 'erstgenehmigt', 'genehmigt'];
+
+// Darf INHALT (Wochentexte + Tage) geschrieben werden, und welchen Status trägt
+// die Woche danach? Die eine Wahrheit für POST /api/wochen.
+//
+//   vorhanden = null | { status, korrigiertVon }   – aktueller DB-Zustand
+//   migration = true  – Datenübernahme (IHK-PDF-Import, JSON-Restore). Nur die
+//                       bringt einen FREMDEN Status mit; normales Speichern darf
+//                       den Status NIE setzen (sonst genehmigt sich der Azubi selbst).
+//   wunschStatus – Status aus dem Body; ausschließlich im Migrationsfall relevant.
+//
+// → { ok: true, status } | { ok: false, grund }
+function schreibGate(vorhanden, { migration = false, wunschStatus } = {}) {
+  const alt = vorhanden ? vorhanden.status : null;
+  const gesperrt = GESPERRTE_STATUS.includes(alt);
+
+  if (gesperrt && !migration) {
+    return { ok: false, grund: `Woche ist ${alt} und damit schreibgeschützt. Sie muss zuerst zurückgegeben werden.` };
+  }
+  // Eine Migration darf über einen importierten Status hinwegschreiben (erneuter
+  // Import derselben PDF), aber NIEMALS über eine in DIESER App erteilte Abnahme.
+  // Die trägt immer einen KorrigiertVon-Stempel (PATCH /:id/status, korrektur:true);
+  // importierte Wochen tragen ihn nie.
+  if (gesperrt && vorhanden.korrigiertVon) {
+    return { ok: false, grund: `Woche wurde in dieser App bereits geprüft (${alt}) und kann nicht per Import überschrieben werden.` };
+  }
+  if (!migration) return { ok: true, status: alt || 'offen' };
+  if (wunschStatus && !WOCHEN_STATUS.includes(wunschStatus)) {
+    return { ok: false, grund: `Unbekannter Status '${wunschStatus}'.` };
+  }
+  return { ok: true, status: wunschStatus || alt || 'offen' };
+}
+
 // Darf der Nutzer die Woche SEHEN (eigenes Heft, aktiv verantwortlich, korrigiert)?
 function darfWocheSehen(user, woche, kontext) {
   // admin/developer: globale Lesesicht (Gesamtüberblick über alle Azubis).
@@ -151,4 +190,5 @@ module.exports = {
   darfWocheKorrigieren, darfWocheSehen,
   verantwortlichFuerZuweisung,
   istPeriodenPruefer, rolleFuerWoche, wochenAktionen,
+  WOCHEN_STATUS, GESPERRTE_STATUS, schreibGate,
 };

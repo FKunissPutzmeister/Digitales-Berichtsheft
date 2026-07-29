@@ -177,10 +177,10 @@ document.addEventListener('DOMContentLoaded', async () => {
      Azubi-Einstellung „Automatisches Ausfüllen vorschlagen": schaltet
      das Tätigkeits-Autocomplete in der Wochenansicht ein/aus. Rein
      clientseitig pro Gerät (localStorage, ACTIVITY_SUGGESTIONS_KEY),
-     Default AN. Nur Azubis tippen Tätigkeiten → nur für sie sichtbar. */
+     Opt-in, Default AUS. Nur Azubis tippen Tätigkeiten → nur für sie sichtbar. */
   function suggestionsEnabled() {
-    try { return localStorage.getItem(ACTIVITY_SUGGESTIONS_KEY) !== '0'; }
-    catch (e) { return true; }
+    try { return localStorage.getItem(ACTIVITY_SUGGESTIONS_KEY) === '1'; }
+    catch (e) { return false; }
   }
 
   /* „Unterweisung standardmäßig aktiv": Opt-in, Default AUS. Neue Wochen
