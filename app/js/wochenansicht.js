@@ -1511,19 +1511,21 @@ document.addEventListener('DOMContentLoaded', async () => {
     const collapsibleClass = meta.collapsible ? ' day-section--collapsible' : '';
     const hiddenClass = visible ? '' : ' day-section--hidden';
 
-    // Betrieb (nicht-collapsible): kein Kopf – nur der Editor, direkt sichtbar.
-    // Schule/Unterweisung (collapsible): diskreter Text-Link statt Kopf-Kachel
-    //   – eingeklappt „＋ Titel hinzufügen", ausgeklappt ein kleines Label.
+    // Betrieb/Schule: statisches Label über der Kachel (kein Auf-/Zuklappen –
+    // beides ist Pflicht, sobald sichtbar). Unterweisung (collapsible):
+    // diskreter Text-Link – eingeklappt „＋ Titel hinzufügen", ausgeklappt
+    // ein kleines Label.
     let header = '';
-    if (meta.collapsible) {
+    if (meta.collapsible || kind === 'betrieb') {
       const inner = `
         <svg class="day-section__toggle-plus" viewBox="0 0 24 24" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
         <span class="day-section__toggle-title">${meta.title}</span>
         <span class="day-section__toggle-suffix">&nbsp;hinzufügen</span>`;
       // Berufsschule ist keine freiwillige Kachel: sie erscheint nur, wenn der
       // Ort sie verlangt – dann ist der Eintrag Pflicht und darf nicht
-      // weggeklickt werden. Nur Unterweisung bleibt auf-/zuklappbar.
-      header = (readonly || kind === 'schule')
+      // weggeklickt werden. Betrieb ist immer Pflicht. Nur Unterweisung
+      // bleibt auf-/zuklappbar.
+      header = (readonly || kind === 'schule' || kind === 'betrieb')
         ? `<div class="day-section__toggle day-section__toggle--static">${inner}</div>`
         : `<button type="button" class="day-section__toggle"
                 aria-expanded="${expanded}" aria-controls="editorWrap_${id}"
