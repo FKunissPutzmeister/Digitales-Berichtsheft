@@ -135,6 +135,7 @@ function normalizeTag(t) {
     schuleEintrag:       t.SchuleEintrag       ?? '',
     unterweisungEintrag: t.UnterweisungEintrag ?? '',
     abwesenheitsnotiz:   t.Abwesenheitsnotiz   ?? '',
+    unterweisungAktiv:   !!t.UnterweisungAktiv,
   };
 }
 

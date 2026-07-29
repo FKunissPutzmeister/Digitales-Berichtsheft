@@ -55,6 +55,11 @@
   --color-success-mid:  #43A856;
   --color-success-light:#E8F5EB;
 
+  /* Status-Streifen "Tag fertig" in der Wochenansicht – eigener Token statt
+     direkt --color-success-mid, damit einzelne Themes den Ton anpassen
+     können, ohne die generische Erfolgs-Farbe woanders mitzuverändern. */
+  --color-status-done:  var(--color-success-mid);
+
   --color-warning:      #D84315;
   --color-warning-mid:  #F4511E;
   --color-warning-light:#FBE9E7;
@@ -220,6 +225,7 @@
   --pm-yellow-darker:   #FFC300;  /* Brand-Yellow konsistent (statt #FFE066) */
 
   /* Status-Hintergründe als getintete Overlays (statt Pastell-Pal) */
+  --color-status-done:   #4CC26B;  /* heller als Light-Grün, sonst untergeht's auf dunklem Grund */
   --color-success-light: rgba(67, 168, 86, 0.16);
   --color-error-light:   rgba(229, 57, 53, 0.18);
   --color-info-light:    rgba(25, 118, 210, 0.20);

@@ -1022,21 +1022,17 @@ document.addEventListener('DOMContentLoaded', async () => {
       const showBetrieb = visibleSections.has('betrieb');
       const showSchule  = visibleSections.has('schule');
       const schuleExpanded  = hasSchule || showSchule;
-      const unterweisungExpanded = hasUnterweisung;
+      // Bleibt nach Reload aufgeklappt, wenn der Nutzer die Kachel aktiviert
+      // hat – auch ohne Inhalt (siehe getDayCompletion: dann Pflichtfeld).
+      const unterweisungExpanded = !!tag.unterweisungAktiv || hasUnterweisung;
 
       const completion = getDayCompletion(tag, weFrei);
-      const completionTitle = {
-        complete: 'Vollständig erfasst',
-        partial:  'Teilweise erfasst – Stunden oder Eintrag fehlen',
-        empty:    'Noch nicht ausgefüllt',
-        absent:   'Abwesenheit erfasst',
-        we:       'Wochenende',
-      }[completion];
 
       return `
         <div class="tag-row${weFrei ? ' tag-row--weekend' : ''}${isToday ? ' tag-row--today' : ''}${hasEntry ? ' tag-row--has-entry' : ''}${woche ? ' status-' + woche.status : ''}"
              id="dayCard_${dateStr}" data-date="${dateStr}" data-completion="${completion}">
           <div class="tag-row__summary" ${!weFrei ? `onclick="handleTagRowToggle(event)"` : ''}>
+            <div class="tag-row__status-stripe" aria-hidden="true"></div>
             <div class="tag-row__datebox${weFrei ? ' tag-row__datebox--we' : ''}${isToday ? ' tag-row__datebox--today' : ''}">
               <span class="tag-row__day-num">${date.getDate()}</span>
               <span class="tag-row__month">${monthsShort[date.getMonth()]}</span>
@@ -1134,6 +1130,12 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     return `
       <div class="tag-cards">
+        <div class="tag-cards__toolbar">
+          <button type="button" class="tag-cards__expand-all" onclick="toggleAllDayCards(this)" aria-expanded="false">
+            <span>Alle öffnen</span>
+            <svg class="tag-cards__expand-all-chevron" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+          </button>
+        </div>
         <div class="tag-cards__header" aria-hidden="true">
           <span class="tag-cards__header-spacer"></span>
           <span class="tag-cards__header-label">Anwesenheit</span>
@@ -1256,6 +1258,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (visible.has('schule')) {
       hasRequiredEintrag = hasRequiredEintrag
         && !htmlIsEmpty(tag.schuleEintrag || '');
+    }
+    // Unterweisung ist freiwillig – aber sobald der Nutzer die Kachel
+    // aufgeklappt (aktiviert) hat, zählt der Tag erst mit Inhalt als fertig.
+    if (tag.unterweisungAktiv) {
+      hasRequiredEintrag = hasRequiredEintrag
+        && !htmlIsEmpty(tag.unterweisungEintrag || '');
     }
     // Irgendein Eintrag (auch nur Unterweisung) zählt als „angefangen"
     const hasAnyEintrag = !htmlIsEmpty(tag.betriebEintrag || tag.eintrag || '')
@@ -2213,10 +2221,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     const ortEl         = document.querySelector(`select[data-field="ort"][data-date="${dateStr}"]`);
     const notizEl       = document.querySelector(`textarea[data-field="abwesenheitsnotiz"][data-date="${dateStr}"]`);
 
+    const uSectionEl    = document.querySelector(`.day-section--unterweisung[data-date="${dateStr}"]`);
+
     if (anwesenheitEl) tagData.anwesenheit = anwesenheitEl.value;
     if (ortEl)         tagData.ort = ortEl.value;
     tagData.tagdauer = getDauerValue(dateStr);
     if (notizEl)       tagData.abwesenheitsnotiz = notizEl.value;
+    if (uSectionEl)    tagData.unterweisungAktiv = uSectionEl.classList.contains('day-section--expanded');
 
     const qBetrieb      = quillInstances['day_betrieb_' + dateStr];
     const qSchule       = quillInstances['day_schule_' + dateStr];
@@ -2265,19 +2276,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     const isWE = date.getDay() === 0 || date.getDay() === 6;
     const completion = getDayCompletion(tag, isWE);
     row.dataset.completion = completion;
-    const dot = row.querySelector('.tag-row__completion-dot');
-    if (dot) dot.className = 'tag-row__completion-dot tag-row__completion-dot--' + completion;
-    if (dot) {
-      const titles = {
-        complete: 'Vollständig erfasst',
-        partial:  'Teilweise erfasst – Stunden oder Eintrag fehlen',
-        empty:    'Noch nicht ausgefüllt',
-        absent:   'Abwesenheit erfasst',
-        we:       'Wochenende',
-      };
-      dot.title = titles[completion] || '';
-      dot.setAttribute('aria-label', titles[completion] || '');
-    }
   }
 
   function clearDayError(dateStr) {
@@ -2718,6 +2716,10 @@ document.addEventListener('DOMContentLoaded', async () => {
       await autoSave(dateStr);
       updateStundenDisplay();
     });
+
+    // Unterweisung-Kachel auf-/zugeklappt → sofort speichern, damit
+    // unterweisungAktiv (Pflichtfeld-Status) auch ohne Text-Eingabe stimmt.
+    window._unterweisungToggleCallback = async dateStr => { await autoSave(dateStr); };
   }
 
   function bindWochenEvents(woche, monday) {
@@ -3026,11 +3028,32 @@ function handleTagRowToggle(e) {
   }
 }
 
+/* "Alle öffnen"-Pfeil über den Tageskarten: klappt alle aufklappbaren
+   Tage (kein Wochenende/frei) auf einmal auf bzw. zu. */
+function toggleAllDayCards(btnEl) {
+  const expand = btnEl.getAttribute('aria-expanded') !== 'true';
+  btnEl.setAttribute('aria-expanded', String(expand));
+  document.querySelectorAll('.tag-row').forEach(row => {
+    if (row.classList.contains('tag-row--weekend')) return;
+    if (row.classList.contains('tag-row--compact')) return;
+    if (!row.querySelector('.tag-row__body')) return;
+    row.classList.toggle('expanded', expand);
+    const chev = row.querySelector('.tag-row__chevron');
+    if (chev) {
+      chev.setAttribute('aria-expanded', String(expand));
+      chev.setAttribute('aria-label', expand ? 'Tag zuklappen' : 'Tag aufklappen');
+    }
+  });
+}
+
 function toggleDaySection(headerEl) {
   const section = headerEl.closest('.day-section');
   if (!section) return;
   const isExpanded = section.classList.toggle('day-section--expanded');
   headerEl.setAttribute('aria-expanded', String(isExpanded));
+  // Aktiviert/deaktiviert das Pflichtfeld sofort (siehe unterweisungAktiv in
+  // getDayCompletion) – auch wenn noch kein Zeichen getippt wurde.
+  window._unterweisungToggleCallback?.(section.dataset.date);
 }
 
 /* escapeHtml kommt zentral aus api.js (window.escapeHtml). */

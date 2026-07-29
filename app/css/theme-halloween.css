@@ -47,6 +47,10 @@ html[data-theme="halloween"] { color-scheme: dark; }
   --pm-yellow-bg:       rgba(255, 117, 24, 0.14);
   --on-yellow-text:     #1A0E03;   /* dunkel auf Orange (≥ 7:1) */
 
+  /* Status-Streifen "Tag fertig": giftig-grünes Slime/Hexen-Grün statt
+     neutralem Grasgrün, passt besser zur düsteren Stimmung. */
+  --color-status-done:  #8BC34A;
+
   /* Grau-Skala → warmes Nacht-Anthrazit mit Hauch Lila (Karten heller
      als Body). Die drei Surface-Stufen sind TRANSLUZENT (rgba), damit
      die Szene (#pmThemeFX) hinter Karten/Toolbars dezent durchscheint;

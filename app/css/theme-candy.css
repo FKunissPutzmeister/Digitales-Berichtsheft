@@ -45,6 +45,9 @@ html[data-theme="candy"] { color-scheme: light; }
   --pm-yellow-bg:       #FFE9F4;
   --on-yellow-text:     #3D1030;
 
+  /* Status-Streifen "Tag fertig": Gummibärchen-Grün statt neutralem UI-Grün */
+  --color-status-done:  #2FD673;
+
   /* Grau-Skala → warmes Pastell-Plum */
   --pm-white:           #FFFFFF;
   --pm-grey-50:         #FFF1F7;

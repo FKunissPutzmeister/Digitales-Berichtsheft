@@ -48,6 +48,10 @@ html[data-theme="hyperspace"] { color-scheme: dark; }
   --pm-grey-900:        #F6F6FF;
 
   /* Status-Tints als Overlays (wie Dark-Mode) */
+  /* Status-Streifen "Tag fertig": Neon-Grün als dritter Akzent neben
+     Cyan/Magenta – im All sonst ungenutzte Farbe, wirkt wie ein Sci-Fi
+     "Status OK". */
+  --color-status-done:  #39FF88;
   --color-success-light: rgba(67, 168, 86, 0.18);
   --color-error-light:   rgba(229, 57, 53, 0.20);
   --color-info-light:    rgba(25, 118, 210, 0.22);

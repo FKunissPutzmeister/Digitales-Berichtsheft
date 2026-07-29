@@ -1101,20 +1101,46 @@ html[data-skin="silk"] body[data-page="wochenansicht"] .day-section .ql-editor {
   font-size: 9px;
 }
 
-/* Punkt im Tag-Header */
-.tag-row__completion-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  flex-shrink: 0;
-  align-self: center;
-  margin-left: auto;
+/* Status-Streifen im Tag-Header: nur bei vollständig/abwesend farbig
+   (siehe [data-completion]-Regel weiter unten) – alle anderen Zustände
+   bleiben bewusst unmarkiert statt einer Ampel mit mehreren Farben.
+   Ein 4px breiter Strich kann von sich aus keinen 12px-Radius zeigen
+   (border-radius wird auf die halbe Elementbreite gekappt) – er sähe
+   trotz border-radius wie eine separate kleine Pille neben der Karte
+   aus, nicht wie ein in die Ecke eingelassener Streifen. Deshalb ist
+   das äußere Element (.tag-row__status-stripe) --r-lg BREIT und dient
+   nur als Maske (overflow:hidden + dieselbe Rundung wie .tag-row);
+   der eigentliche 4px-Strich ist ein ::before darin und wird von der
+   Maske exakt auf die Kartenrundung zugeschnitten. Bewusst KEIN Glow/
+   box-shadow – reine Farbfläche, kein zusätzlicher Schatten-/Grauton.
+   transition statt animation: dadurch läuft der Effekt beim Verschwinden
+   automatisch rückwärts, statt einfach zu verschwinden. */
+.tag-row__status-stripe {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: -3px;
+  width: var(--r-lg);
+  border-radius: var(--r-lg) 0 0 var(--r-lg);
+  overflow: hidden;
+  pointer-events: none;
 }
-.tag-row__completion-dot--complete { background: var(--color-success-mid); }
-.tag-row__completion-dot--partial  { background: var(--pm-yellow); }
-.tag-row__completion-dot--empty    { background: var(--pm-grey-300); border: 1px solid var(--pm-grey-400); }
-.tag-row__completion-dot--absent   { background: var(--color-info-mid); }
-.tag-row__completion-dot--we       { display: none; }
+.tag-row__status-stripe::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 4px;
+  background: var(--color-status-done);
+  transform: scaleY(0);
+  transform-origin: center;
+  transition: transform 0.4s ease-out;
+}
+.tag-row[data-completion="complete"] .tag-row__status-stripe::before,
+.tag-row[data-completion="absent"] .tag-row__status-stripe::before {
+  transform: scaleY(1);
+}
 
 /* ===================================================================
    PFLICHTFELD-VALIDIERUNG
@@ -1624,6 +1650,7 @@ html[data-skin="silk"] body[data-page="wochenansicht"] .day-section .ql-editor {
     animation: none;
   }
   .week-kw-block__nav:active { transform: none; }
+  .tag-row__status-stripe::before { transition: none; }
 }
 
 /* ── Pflichtfeld-Hinweis (eigene Zeile unter Toolbar) ──
@@ -1756,6 +1783,51 @@ html[data-skin="silk"] body[data-page="wochenansicht"] .day-section .ql-editor {
   flex-direction: column;
   gap: var(--sp-3);
   margin-bottom: var(--sp-5);
+}
+
+/* "Alle öffnen"-Zeile: anders als .tag-cards__header (nur > 1100px sichtbar)
+   bleibt dieser Button auf jeder Breite nutzbar (auch Tablet). */
+.tag-cards__toolbar {
+  display: flex;
+  justify-content: flex-end;
+  padding: 0 var(--sp-2);
+}
+/* Pfeil-Button, optisch am .tag-row__chevron der einzelnen Tage orientiert
+   (gleiches Rotationsverhalten), nur mit sichtbarem Text davor. */
+.tag-cards__expand-all {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  border: 0;
+  background: transparent;
+  padding: 6px 10px;
+  border-radius: var(--r-full);
+  font-size: var(--text-sm);
+  font-weight: var(--fw-bold);
+  color: var(--pm-grey-700);
+  cursor: pointer;
+  transition: background var(--t-fast), color var(--t-fast);
+}
+.tag-cards__expand-all:hover {
+  background: var(--pm-grey-100);
+  color: var(--pm-grey-900);
+}
+.tag-cards__expand-all:focus-visible {
+  outline: none;
+  box-shadow: var(--ring-yellow-sm);
+}
+.tag-cards__expand-all-chevron {
+  width: 18px;
+  height: 18px;
+  transition: transform var(--t-normal);
+}
+.tag-cards__expand-all[aria-expanded="true"] .tag-cards__expand-all-chevron {
+  transform: rotate(180deg);
+}
+[data-theme="dark"] .tag-cards__expand-all { color: var(--pm-grey-500); }
+[data-theme="dark"] .tag-cards__expand-all:hover {
+  background: rgba(255, 255, 255, 0.10);
+  color: var(--pm-yellow);
 }
 
 /* ── Einmalige Spaltenüberschrift über den Tageskarten ──────────────
@@ -1955,15 +2027,6 @@ body[data-page="wochenansicht"] .tag-row__summary:hover {
 }
 .tag-row__datebox--we .tag-row__weekday {
   color: var(--pm-grey-500);
-}
-/* Completion-Dot kleiner, neben Wochentag, statt ganz rechts */
-.tag-row__datebox .tag-row__completion-dot {
-  position: absolute;
-  top: 0;
-  right: -2px;
-  margin-left: 0;
-  width: 8px;
-  height: 8px;
 }
 
 /* Field-Wrapper: Label oben, Control darunter */
@@ -3097,7 +3160,8 @@ body[data-page="wochenansicht"] .btn-lg {
   .day-card__footer button,
   .day-section__action,
   .tag-tabelle__legend,
-  .tag-row__completion-dot,
+  .tag-row__status-stripe,
+  .tag-cards__toolbar,
   .ql-toolbar { display: none !important; }
 
   /* Status-Banner als Text mit Rahmen, ohne Farbflächen */
@@ -3375,23 +3439,6 @@ body[data-page="wochenansicht"] .time-spinner__input.spinner-bump-down {
   box-shadow: 0 0 0 3px rgba(255, 195, 0, 0.18);
 }
 
-/* Completion-Dots: kräftigere Farben für die fünf States */
-[data-theme="dark"] .tag-row__completion-dot--complete {
-  background: var(--color-success-mid, #43A856);
-  box-shadow: 0 0 0 2px rgba(67, 168, 86, 0.25);
-}
-[data-theme="dark"] .tag-row__completion-dot--partial {
-  background: var(--pm-yellow);
-  box-shadow: 0 0 0 2px rgba(255, 195, 0, 0.30);
-}
-[data-theme="dark"] .tag-row__completion-dot--empty {
-  background: rgba(255, 255, 255, 0.06);
-  border: 1px solid rgba(255, 255, 255, 0.25);
-}
-[data-theme="dark"] .tag-row__completion-dot--absent {
-  background: var(--color-info-mid, #1976D2);
-  box-shadow: 0 0 0 2px rgba(25, 118, 210, 0.30);
-}
 
 /* Status-Banner: stärkere Border-Akzentuierung im Dark Mode.
    Der Hintergrund war mit 3 % Deckkraft praktisch durchsichtig, sodass der

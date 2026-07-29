@@ -41,6 +41,9 @@ html[data-theme="cmd"] { color-scheme: dark; }
   --pm-grey-800:        #B9FFB7;
   --pm-grey-900:        #D9FFD8;
 
+  /* Status-Streifen "Tag fertig": heller als der ohnehin grüne Akzent,
+     sonst geht die Markierung im komplett grünen Theme unter. */
+  --color-status-done:  #7CFFA0;
   --color-success-light: rgba(0, 230, 77, 0.16);
   --color-error-light:   rgba(255, 90, 80, 0.18);
   --color-info-light:    rgba(70, 160, 255, 0.18);

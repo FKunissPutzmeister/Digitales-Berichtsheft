@@ -19,6 +19,10 @@ html[data-theme="christmas"] { color-scheme: dark; }
   --pm-yellow-bg:     rgba(200, 16, 46, 0.14);
   --on-yellow-text:   #FFFFFF;   /* weiß auf Rot */
 
+  /* Status-Streifen "Tag fertig": Tannengrün statt neutralem UI-Grün –
+     Rot+Grün ist ohnehin das Weihnachts-Farbpaar. */
+  --color-status-done: #3CA65E;
+
   /* Grau-Skala → kühles Blau-Nacht (Karten heller als Body), Surfaces
      translucent, damit die Szene durchscheint; Alpha hoch genug für Text. */
   --pm-white:    rgba(24, 34, 52, 0.88);

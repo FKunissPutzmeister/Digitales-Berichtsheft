@@ -50,6 +50,10 @@ html[data-skin="silk"] { color-scheme: dark; }
   --topbar-bg-glass:      hsl(var(--silk-hue,252) 45% 17% / 0.40);
   --surface-overlay:      hsl(var(--silk-hue,252) 67% 9% / 0.55);
 
+  /* Status-Streifen "Tag fertig": Smaragd statt neutralem Grün, im
+     gleichen Glow-Stil wie die Indigo-BorderGlow-Akzente. */
+  --color-status-done:    #34D399;
+
   --glass-bg:           hsl(var(--silk-hue,252) 41% 20% / 0.42);
   --glass-bg-strong:    hsl(var(--silk-hue,252) 41% 20% / 0.62);
   --glass-bg-tint:      hsl(var(--silk-hue,252) 46% 32% / 0.40);

@@ -202,6 +202,7 @@ router.post('/', async (req, res) => {
             .input('schuleEintrag',       sql.NVarChar(sql.MAX), tag.schuleEintrag || null)
             .input('unterweisungEintrag', sql.NVarChar(sql.MAX), tag.unterweisungEintrag || null)
             .input('abwesenheitsnotiz',   sql.NVarChar(1000),    tag.abwesenheitsnotiz || null)
+            .input('unterweisungAktiv',   sql.Bit,               !!tag.unterweisungAktiv)
             .query(`
               MERGE dbo.Tage WITH (HOLDLOCK) AS target
               USING (SELECT @wocheId AS WocheId, @datum AS Datum) AS source
@@ -210,12 +211,12 @@ router.post('/', async (req, res) => {
                 UPDATE SET Anwesenheit = @anwesenheit, Ort = @ort, Eintrag = @eintrag,
                            Tagdauer = @tagdauer, BetriebEintrag = @betriebEintrag,
                            SchuleEintrag = @schuleEintrag, UnterweisungEintrag = @unterweisungEintrag,
-                           Abwesenheitsnotiz = @abwesenheitsnotiz
+                           Abwesenheitsnotiz = @abwesenheitsnotiz, UnterweisungAktiv = @unterweisungAktiv
               WHEN NOT MATCHED THEN
                 INSERT (WocheId, Datum, Anwesenheit, Ort, Eintrag, Tagdauer,
-                        BetriebEintrag, SchuleEintrag, UnterweisungEintrag, Abwesenheitsnotiz)
+                        BetriebEintrag, SchuleEintrag, UnterweisungEintrag, Abwesenheitsnotiz, UnterweisungAktiv)
                 VALUES (@wocheId, @datum, @anwesenheit, @ort, @eintrag, @tagdauer,
-                        @betriebEintrag, @schuleEintrag, @unterweisungEintrag, @abwesenheitsnotiz);
+                        @betriebEintrag, @schuleEintrag, @unterweisungEintrag, @abwesenheitsnotiz, @unterweisungAktiv);
             `);
         }
 
