@@ -50,6 +50,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         <div class="fb-row__msg">${esc(r.Nachricht)}</div>
         ${r.Stack ? `<details class="fb-row__stack"><summary>Stacktrace</summary><pre>${esc(r.Stack)}</pre></details>` : ''}
         ${kontext ? `<details class="fb-row__ctx"><summary>Kontext</summary><pre>${kontext}</pre></details>` : ''}
+        ${r.AnzahlAnhaenge > 0 ? `<details class="fb-row__anh"><summary>Anhänge (${r.AnzahlAnhaenge})</summary><div class="fb-anh" data-anh-id="${r.Id}"></div></details>` : ''}
       </div>`;
   }
 
@@ -82,6 +83,25 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (typeof Toast !== 'undefined') Toast.error('Fehler', 'Konnte Schweregrad nicht ändern.');
       }
     }));
+    // Anhang-Thumbnails erst beim Aufklappen laden (spart N leere Requests).
+    // Binär-URL absolut mit /api-Präfix (steht in <img src>/href, Single-Origin :3000).
+    main.querySelectorAll('.fb-row__anh').forEach(det => {
+      det.addEventListener('toggle', async () => {
+        if (!det.open) return;
+        const box = det.querySelector('.fb-anh');
+        if (box.dataset.geladen) return;
+        box.dataset.geladen = '1';
+        try {
+          const list = await apiFetch(`/dev/errors/${box.dataset.anhId}/anhaenge`);
+          box.innerHTML = list.length
+            ? list.map(a => `<a href="/api/dev/errors/anhaenge/${a.Id}" target="_blank" rel="noopener" class="fb-anh__item" title="${esc(a.Dateiname)}"><img src="/api/dev/errors/anhaenge/${a.Id}" alt="${esc(a.Dateiname)}" loading="lazy"></a>`).join('')
+            : '<span class="fb-anh__leer">—</span>';
+        } catch (e) {
+          box.dataset.geladen = '';
+          box.innerHTML = '<span class="fb-anh__leer">Laden fehlgeschlagen.</span>';
+        }
+      });
+    });
   }
 
   laden();
