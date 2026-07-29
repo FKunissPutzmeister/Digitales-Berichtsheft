@@ -216,6 +216,28 @@
   border-radius: var(--r-sm);
 }
 
+/* Menü-Panel: braucht dieselbe Toolbar-Verankerung wie der Picker selbst. Über
+   „.ql-editor-wrap …" (weiter unten) erreichbar ist es nicht, also blieb Quills
+   Vendor-Default stehen — ein fest weißes #fff-Panel. Im CMD-Theme stand damit
+   hellgrüner Text (--pm-grey-700) auf Weiß. --pm-white/--pm-grey-* ziehen pro
+   Theme mit, Hover/Selected wie im Header-Menü (sonst Quills Blau #06c). */
+.ql-toolbar.ql-snow .ql-picker.ql-size .ql-picker-options {
+  background: var(--pm-white);
+  border: 1px solid var(--pm-grey-200);
+  border-radius: var(--r-md);
+  box-shadow: var(--shadow-md);
+  padding: var(--sp-1);
+}
+.ql-toolbar.ql-snow .ql-picker.ql-size .ql-picker-item:hover {
+  background: var(--pm-grey-100);
+  color: var(--pm-grey-900);
+}
+.ql-toolbar.ql-snow .ql-picker.ql-size .ql-picker-item.ql-selected {
+  background: var(--pm-yellow-pale);
+  color: var(--pm-grey-900);
+  font-weight: var(--fw-bold);
+}
+
 /* − / + Stepper: kompakt an den Größen-Picker angelegt (wie A−/A+ in Word). */
 .ql-toolbar.ql-snow button.ql-sizeDown,
 .ql-toolbar.ql-snow button.ql-sizeUp {
