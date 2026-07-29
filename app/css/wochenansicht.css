@@ -1119,11 +1119,25 @@ html[data-skin="silk"] body[data-page="wochenansicht"] .day-section .ql-editor {
   position: absolute;
   left: 0;
   top: 0;
-  bottom: -3px;
+  /* -3px reicht bis zur echten unteren Kartenecke, wenn zugeklappt (siehe
+     Regel unten) – das ist dann auch der einzige sichtbare Rand. Aufgeklappt
+     gilt stattdessen die Basis hier (0): der Strich endet exakt am unteren
+     Rand der Kopfzeile (Anwesenheit/Ort/ArbZ) und ragt nicht in den
+     aufgeklappten Bereich hinein. */
+  bottom: 0;
   width: var(--r-lg);
-  border-radius: var(--r-lg) 0 0 var(--r-lg);
+  /* Unten per Default gerade (0 statt --r-lg): diese Maske schneidet den
+     Strich zu, eine Rundung hier tapert ihn optisch spitz zu, obwohl die
+     Karte selbst (aufgeklappt) an dieser Stelle gar keine echte Ecke mehr
+     hat. Nur im zugeklappten Zustand (Regel unten) unten ebenfalls rund –
+     dort liegt tatsächlich die echte Kartenecke. */
+  border-radius: var(--r-lg) 0 0 0;
   overflow: hidden;
   pointer-events: none;
+}
+.tag-row:not(.expanded) .tag-row__status-stripe {
+  bottom: -3px;
+  border-radius: var(--r-lg) 0 0 var(--r-lg);
 }
 .tag-row__status-stripe::before {
   content: '';
@@ -1132,10 +1146,20 @@ html[data-skin="silk"] body[data-page="wochenansicht"] .day-section .ql-editor {
   top: 0;
   bottom: 0;
   width: 4px;
+  /* Oben immer rund (liegt an der echten oberen Kartenecke, auch aufgeklappt).
+     Unten per Default gerade – aufgeklappt liegt dort keine echte Kartenecke
+     mehr (die echte untere Rundung ist dann weit darunter), eine Rundung dort
+     wirkte wie ein Bruch statt wie ein Abschluss. Nur im zugeklappten Zustand
+     (siehe Regel unten) entspricht das untere Streifenende wieder der echten
+     Kartenecke und wird dort auch gerundet. */
+  border-radius: 3px 3px 0 0;
   background: var(--color-status-done);
   transform: scaleY(0);
   transform-origin: center;
   transition: transform 0.4s ease-out;
+}
+.tag-row:not(.expanded) .tag-row__status-stripe::before {
+  border-radius: 3px;
 }
 .tag-row[data-completion="complete"] .tag-row__status-stripe::before,
 .tag-row[data-completion="absent"] .tag-row__status-stripe::before {

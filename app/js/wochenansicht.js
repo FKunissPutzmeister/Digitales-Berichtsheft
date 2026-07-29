@@ -1025,6 +1025,15 @@ document.addEventListener('DOMContentLoaded', async () => {
       // Bleibt nach Reload aufgeklappt, wenn der Nutzer die Kachel aktiviert
       // hat – auch ohne Inhalt (siehe getDayCompletion: dann Pflichtfeld).
       const unterweisungExpanded = !!tag.unterweisungAktiv || hasUnterweisung;
+      // Sichtbarkeit der Kachel: im eigenen (schreibbaren) Heft reicht ein
+      // gewählter Ort, damit der Azubi sie bei Bedarf aufklappen kann. Im
+      // Prüfer-/Ausbilder-Lesemodus (readonly) wäre das Kästchen nur ein
+      // permanent sichtbares "Unterweisung & besondere Ereignisse" ohne
+      // Inhalt und ohne Möglichkeit, es wegzuklicken – deshalb dort nur
+      // zeigen, wenn der Azubi es tatsächlich aktiviert/befüllt hat.
+      const unterweisungVisible = readonly
+        ? (!!tag.unterweisungAktiv || hasUnterweisung)
+        : (!!tag.ort || hasUnterweisung);
 
       const completion = getDayCompletion(tag, weFrei);
 
@@ -1085,7 +1094,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             <div id="editorSection_${dateStr}" class="day-sections" style="${isAbwesend ? 'display:none' : ''}">
               ${renderDaySection('betrieb',     dateStr, true, true, readonly, showBetrieb)}
               ${renderDaySection('schule',      dateStr, true, schuleExpanded, readonly, showSchule)}
-              ${renderDaySection('unterweisung', dateStr, true, unterweisungExpanded, readonly, !!tag.ort || hasUnterweisung)}
+              ${renderDaySection('unterweisung', dateStr, true, unterweisungExpanded, readonly, unterweisungVisible)}
             </div>
             <div class="tag-row__absence-section" id="absenceSection_${dateStr}" style="${isAbwesend ? '' : 'display:none'}">
               <div class="form-group">
@@ -1132,7 +1141,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       <div class="tag-cards">
         <div class="tag-cards__toolbar">
           <button type="button" class="tag-cards__expand-all" onclick="toggleAllDayCards(this)" aria-expanded="false">
-            <span>Alle öffnen</span>
+            <span>Alle aufklappen</span>
             <svg class="tag-cards__expand-all-chevron" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
           </button>
         </div>
@@ -3035,6 +3044,8 @@ function handleTagRowToggle(e) {
 function toggleAllDayCards(btnEl) {
   const expand = btnEl.getAttribute('aria-expanded') !== 'true';
   btnEl.setAttribute('aria-expanded', String(expand));
+  const label = btnEl.querySelector('span');
+  if (label) label.textContent = expand ? 'Alle zuklappen' : 'Alle aufklappen';
   document.querySelectorAll('.tag-row').forEach(row => {
     if (row.classList.contains('tag-row--weekend')) return;
     if (row.classList.contains('tag-row--compact')) return;
