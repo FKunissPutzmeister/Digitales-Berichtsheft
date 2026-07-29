@@ -1,5 +1,6 @@
 const router = require('express').Router();
-const { logError, listErrors, markResolved, setSchweregrad, SCHWEREGRADE } = require('../services/fehlerberichte');
+const { logError, listErrors, markResolved, setSchweregrad, SCHWEREGRADE,
+  speichereFehlerAnhaenge, listeFehlerAnhaenge, ladeFehlerAnhang } = require('../services/fehlerberichte');
 
 // Nur Server setzt 'backend'. Der Client darf ausschließlich diese Quellen melden.
 const CLIENT_QUELLEN = new Set(['frontend', 'manual']);
@@ -15,10 +16,10 @@ function nurDeveloper(req, res, next) {
 // Identität kommt aus der Session (req.user), NICHT aus dem Body → nicht fälschbar.
 router.post('/errors', async (req, res) => {
   try {
-    const { quelle, nachricht, stack, kontext } = req.body || {};
+    const { quelle, nachricht, stack, kontext, bilder } = req.body || {};
     if (!CLIENT_QUELLEN.has(quelle)) return res.status(400).json({ error: 'Ungültige Quelle.' });
     if (!nachricht || typeof nachricht !== 'string') return res.status(400).json({ error: 'Nachricht fehlt.' });
-    await logError({
+    const fehlerId = await logError({
       quelle,
       nachricht,
       stack: typeof stack === 'string' ? stack : null,
@@ -26,6 +27,12 @@ router.post('/errors', async (req, res) => {
       benutzerOid: req.user && req.user.oid,
       benutzerName: req.user && req.user.name,
     });
+    // Bilder nur bei manuellen Meldungen und nur, wenn ein Zielsatz existiert.
+    // Fehler beim Speichern dürfen die Meldung nicht kippen (204 bleibt).
+    if (quelle === 'manual' && fehlerId && Array.isArray(bilder) && bilder.length) {
+      try { await speichereFehlerAnhaenge(fehlerId, bilder); }
+      catch (e) { console.error('[errors] Anhänge speichern fehlgeschlagen:', e.message); }
+    }
     res.status(204).end();
   } catch (e) {
     // Kein logError hier — sonst Endlosschleife, wenn genau das scheitert.
@@ -68,6 +75,30 @@ router.patch('/dev/errors/:id', nurDeveloper, async (req, res) => {
   } catch (e) {
     console.error('[dev/errors] patch:', e.message);
     res.status(500).json({ error: 'Fehler beim Aktualisieren.' });
+  }
+});
+
+// GET /api/dev/errors/:id/anhaenge — Metadaten der Anhänge (developer-only).
+router.get('/dev/errors/:id/anhaenge', nurDeveloper, async (req, res) => {
+  try {
+    res.json(await listeFehlerAnhaenge(req.params.id));
+  } catch (e) {
+    console.error('[dev/errors] anhaenge list:', e.message);
+    res.status(500).json({ error: 'Fehler beim Laden.' });
+  }
+});
+
+// GET /api/dev/errors/anhaenge/:anhangId — Binärdaten eines Anhangs (developer-only).
+router.get('/dev/errors/anhaenge/:anhangId', nurDeveloper, async (req, res) => {
+  try {
+    const a = await ladeFehlerAnhang(req.params.anhangId);
+    if (!a) return res.status(404).json({ error: 'Anhang nicht gefunden.' });
+    res.setHeader('Content-Type', a.MimeTyp || 'application/octet-stream');
+    res.setHeader('Content-Disposition', 'inline');
+    res.send(a.Inhalt); // VARBINARY → Buffer
+  } catch (e) {
+    console.error('[dev/errors] anhang:', e.message);
+    res.status(500).json({ error: 'Fehler beim Laden.' });
   }
 });
 
