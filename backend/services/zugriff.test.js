@@ -254,3 +254,69 @@ test('ausbilder freigegeben Flag1 → endgenehmigen möglich', () => {
 test('null-Rolle → nichts', () => {
   assert.deepStrictEqual(aktionenSet(null, 'freigegeben', 0), []);
 });
+
+// ── schreibGate (Schreibschutz von POST /api/wochen) ───────────
+// Kernregeln: normales Speichern setzt NIE den Status und fasst keine Woche in
+// Abnahme an; ?migration=1 (IHK-Import, JSON-Restore) darf einen fremden Status
+// mitbringen, aber nicht über eine in DIESER App erteilte Abnahme schreiben.
+const { schreibGate } = Z;
+
+test('schreibGate: neue Woche startet auf offen', () => {
+  assert.deepStrictEqual(schreibGate(null, {}), { ok: true, status: 'offen' });
+});
+
+test('schreibGate: normales Speichern übernimmt NIE einen Status aus dem Body', () => {
+  assert.deepStrictEqual(schreibGate(null, { wunschStatus: 'genehmigt' }), { ok: true, status: 'offen' });
+  assert.deepStrictEqual(schreibGate({ status: 'offen' }, { wunschStatus: 'genehmigt' }), { ok: true, status: 'offen' });
+  assert.deepStrictEqual(schreibGate({ status: 'abgelehnt' }, { wunschStatus: 'erstgenehmigt' }), { ok: true, status: 'abgelehnt' });
+});
+
+test('schreibGate: Woche in Abnahme ist beim normalen Speichern schreibgeschützt', () => {
+  for (const status of ['freigegeben', 'erstgenehmigt', 'genehmigt']) {
+    const g = schreibGate({ status }, {});
+    assert.equal(g.ok, false, `${status} muss blocken`);
+    assert.match(g.grund, /schreibgeschützt/);
+  }
+});
+
+test('schreibGate: offen und abgelehnt bleiben bearbeitbar', () => {
+  assert.equal(schreibGate({ status: 'offen' }, {}).ok, true);
+  assert.equal(schreibGate({ status: 'abgelehnt' }, {}).ok, true);
+});
+
+test('schreibGate: Migration legt eine neue Woche als genehmigt an (IHK-Import)', () => {
+  assert.deepStrictEqual(schreibGate(null, { migration: true, wunschStatus: 'genehmigt' }),
+    { ok: true, status: 'genehmigt' });
+});
+
+test('schreibGate: Migration überschreibt eine importierte genehmigte Woche erneut', () => {
+  // Kein KorrigiertVon ⇒ die Abnahme stammt nicht aus dieser App.
+  assert.deepStrictEqual(
+    schreibGate({ status: 'genehmigt', korrigiertVon: null }, { migration: true, wunschStatus: 'genehmigt' }),
+    { ok: true, status: 'genehmigt' });
+});
+
+test('schreibGate: Migration schreibt NICHT über eine hier erteilte Abnahme', () => {
+  for (const status of ['freigegeben', 'erstgenehmigt', 'genehmigt']) {
+    const g = schreibGate({ status, korrigiertVon: 'U1' }, { migration: true, wunschStatus: 'offen' });
+    assert.equal(g.ok, false, `${status} + KorrigiertVon muss blocken`);
+    assert.match(g.grund, /bereits geprüft/);
+  }
+});
+
+test('schreibGate: Migration weist einen unbekannten Status ab', () => {
+  const g = schreibGate(null, { migration: true, wunschStatus: 'irgendwas' });
+  assert.equal(g.ok, false);
+  assert.match(g.grund, /Unbekannter Status/);
+});
+
+test('schreibGate: Migration ohne Status behält den bestehenden bzw. offen', () => {
+  assert.equal(schreibGate(null, { migration: true }).status, 'offen');
+  assert.equal(schreibGate({ status: 'abgelehnt' }, { migration: true }).status, 'abgelehnt');
+});
+
+test('Azubi kommt über den Status-Automaten nie an eine Genehmigung', () => {
+  const ziele = ['offen', 'freigegeben', 'erstgenehmigt', 'genehmigt', 'abgelehnt']
+    .flatMap(s => wochenAktionen('azubi', s, 0).map(a => a.zielStatus));
+  assert.deepStrictEqual([...new Set(ziele)].sort(), ['freigegeben', 'offen']);
+});
