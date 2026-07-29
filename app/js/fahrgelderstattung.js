@@ -350,14 +350,14 @@ document.addEventListener('DOMContentLoaded', async () => {
               <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
             </button>
           </div>
-          <div class="modal__body">
-            <p class="hint" style="margin:0 0 var(--sp-4)">Name kommt aus deinem Profil, die Kostenstelle ist vorausgefüllt. Strecke und Tagessatz bitte eintragen.</p>
+          <div class="modal__body fg-form">
+            <p class="hint" style="margin:0">Name kommt aus deinem Profil, die Kostenstelle ist vorausgefüllt. Strecke und Tagessatz bitte eintragen.</p>
             ${grp('fgm-name', 'Name', v.name, 'maxlength="120" placeholder="Nachname, Vorname"')}
-            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:var(--sp-3)">
+            <div class="fg-form__row">
               ${grp('fgm-persNr', 'Personalnummer', v.persNr, 'maxlength="20" placeholder="z.B. 123456" inputmode="numeric"')}
               ${grp('fgm-kst', 'Kostenstelle', v.kst, 'maxlength="20" inputmode="numeric" placeholder="z.B. 10000956"')}
             </div>
-            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:var(--sp-3)">
+            <div class="fg-form__row">
               ${grp('fgm-vonHaltestelle', 'Strecke von', v.vonHaltestelle, 'maxlength="120" placeholder="Start-Haltestelle"')}
               ${grp('fgm-nachHaltestelle', 'Strecke nach', v.nachHaltestelle, 'maxlength="120" placeholder="Ziel-Haltestelle"')}
             </div>
