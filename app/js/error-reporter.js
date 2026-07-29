@@ -41,7 +41,7 @@
   const API_BASE = (window.location.port === '5500')
     ? `http://${window.location.hostname}:3000/api` : '/api';
 
-  function melde(quelle, nachricht, stack, extra) {
+  function melde(quelle, nachricht, stack, extra, bilder) {
     if (sendet) return;
     // Manuelle Meldungen nie unterdrücken; transiente Verbindungsfehler schon.
     if (quelle !== 'manual' && istTransienterVerbindungsfehler(nachricht)) return;
@@ -53,13 +53,13 @@
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
+        body: JSON.stringify(Object.assign({
           quelle,
           nachricht: String(nachricht || '').slice(0, 4000),
           stack: stack ? String(stack).slice(0, 8000) : null,
           kontext: Object.assign({ url: location.href, seite: document.body?.dataset?.page || null,
             userAgent: navigator.userAgent }, extra || {}),
-        }),
+        }, (Array.isArray(bilder) && bilder.length) ? { bilder } : {})),
       }).catch(() => {}).finally(() => { sendet = false; });
     } catch (e) { sendet = false; }
   }
@@ -114,6 +114,53 @@
     }
   }
 
+  // ── Bild-Anhänge im Melde-Modal ─────────────────────────────────
+  const FM_MAX_BILDER = 5;
+  const FM_MAX_BILD_BYTES = 4 * 1024 * 1024;   // je Bild, dekodiert
+  const FM_MAX_GESAMT_BYTES = 6 * 1024 * 1024; // Summe, dekodiert
+  const FM_MAX_KANTE = 1600;                   // längste Kante nach Skalierung
+
+  function fmHinweis(msg) {
+    if (typeof Toast !== 'undefined' && typeof Toast.error === 'function') Toast.error('Hinweis', msg);
+    else alert(msg);
+  }
+  function fmEsc(s) {
+    return String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  }
+  function fmDataUrlBytes(dataUrl) {
+    const komma = dataUrl.indexOf(',');
+    const b64 = komma >= 0 ? dataUrl.slice(komma + 1) : dataUrl;
+    return Math.floor(b64.length * 3 / 4);
+  }
+  function fmDateiZuDataUrl(file) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onerror = () => reject(new Error('Datei konnte nicht gelesen werden.'));
+      reader.onload = () => resolve(reader.result);
+      reader.readAsDataURL(file);
+    });
+  }
+  // Skaliert nur, wenn die längste Kante FM_MAX_KANTE übersteigt. PNG behält
+  // seinen Typ (Transparenz), alles andere wird als JPEG (kleiner) ausgegeben.
+  function fmSkaliere(dataUrl, mimeTyp) {
+    return new Promise((resolve) => {
+      const img = new Image();
+      img.onload = () => {
+        const max = Math.max(img.width, img.height);
+        if (max <= FM_MAX_KANTE) { resolve(dataUrl); return; }
+        const faktor = FM_MAX_KANTE / max;
+        const canvas = document.createElement('canvas');
+        canvas.width = Math.round(img.width * faktor);
+        canvas.height = Math.round(img.height * faktor);
+        canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+        const ziel = mimeTyp === 'image/png' ? 'image/png' : 'image/jpeg';
+        resolve(canvas.toDataURL(ziel, 0.85));
+      };
+      img.onerror = () => resolve(dataUrl); // Fallback: Original behalten
+      img.src = dataUrl;
+    });
+  }
+
   function baueFehlerMeldenModal() {
     let overlay = document.getElementById(FM_MODAL_ID);
     if (overlay) return overlay;
@@ -134,6 +181,12 @@
           <div class="form-group">
             <textarea class="form-control" id="fmText" rows="5" maxlength="4000" placeholder="Was ist passiert?"></textarea>
           </div>
+          <div class="form-group">
+            <p class="form-hint" style="margin:0 0 var(--sp-2)">Bilder / Screenshots (optional) — Screenshot mit Strg+V einfügen oder Datei wählen, max. 5.</p>
+            <input type="file" id="fmFile" accept="image/*" multiple hidden>
+            <button class="btn btn-outline btn-sm" type="button" id="fmFileBtn">Bild auswählen</button>
+            <div id="fmThumbs" class="fm-thumbs"></div>
+          </div>
         </div>
         <div class="modal__footer">
           <button class="btn btn-outline" type="button" data-modal-close>Abbrechen</button>
@@ -145,12 +198,61 @@
     overlay.querySelectorAll('[data-modal-close]').forEach(btn => btn.addEventListener('click', fmModalOffen));
     overlay.addEventListener('click', (e) => { if (e.target === overlay) fmModalOffen(); });
 
+    let bilder = [];
+
+    function zeichneThumbnails() {
+      const box = overlay.querySelector('#fmThumbs');
+      box.innerHTML = bilder.map((b, i) =>
+        `<div class="fm-thumb"><img src="${b.dataUrl}" alt="${fmEsc(b.name)}">`
+        + `<button type="button" class="fm-thumb__del" data-del="${i}" aria-label="Entfernen">✕</button></div>`).join('');
+      box.querySelectorAll('[data-del]').forEach(btn => btn.addEventListener('click', () => {
+        bilder.splice(Number(btn.dataset.del), 1);
+        zeichneThumbnails();
+      }));
+    }
+
+    async function fuegeDateiHinzu(file) {
+      if (!file || !file.type || !file.type.startsWith('image/')) { fmHinweis('Nur Bilder können angehängt werden.'); return; }
+      if (bilder.length >= FM_MAX_BILDER) { fmHinweis(`Maximal ${FM_MAX_BILDER} Bilder.`); return; }
+      let dataUrl;
+      try {
+        const roh = await fmDateiZuDataUrl(file);
+        dataUrl = await fmSkaliere(roh, file.type);
+      } catch (e) { fmHinweis('Bild konnte nicht verarbeitet werden.'); return; }
+      const groesse = fmDataUrlBytes(dataUrl);
+      if (groesse > FM_MAX_BILD_BYTES) { fmHinweis('Bild ist auch nach Verkleinern zu groß (max. 4 MB).'); return; }
+      const gesamt = bilder.reduce((s, b) => s + fmDataUrlBytes(b.dataUrl), 0);
+      if (gesamt + groesse > FM_MAX_GESAMT_BYTES) { fmHinweis('Gesamtgröße der Bilder zu groß (max. 6 MB).'); return; }
+      const mimeTyp = dataUrl.slice(5, dataUrl.indexOf(';'));
+      bilder.push({ name: file.name || 'screenshot.png', mimeTyp, dataUrl });
+      zeichneThumbnails();
+    }
+
+    overlay.querySelector('#fmFileBtn').addEventListener('click', () => overlay.querySelector('#fmFile').click());
+    overlay.querySelector('#fmFile').addEventListener('change', (e) => {
+      Array.from(e.target.files || []).forEach(fuegeDateiHinzu);
+      e.target.value = ''; // gleiche Datei erneut wählbar
+    });
+    overlay.addEventListener('paste', (e) => {
+      const items = e.clipboardData && e.clipboardData.items;
+      if (!items) return;
+      for (const it of items) {
+        if (it.type && it.type.startsWith('image/')) {
+          const file = it.getAsFile();
+          if (file) fuegeDateiHinzu(file);
+        }
+      }
+    });
+
     overlay.querySelector('#fmSendBtn').addEventListener('click', () => {
       const feld = overlay.querySelector('#fmText');
       const text = feld.value.trim();
       if (!text) return;
-      melde('manual', text, null, { gemeldetVon: 'profil' });
+      melde('manual', text, null, { gemeldetVon: 'profil' },
+        bilder.map(b => ({ name: b.name, mimeTyp: b.mimeTyp, dataUrl: b.dataUrl })));
       feld.value = '';
+      bilder = [];
+      zeichneThumbnails();
       fmModalOffen();
       if (typeof Toast !== 'undefined' && typeof Toast.success === 'function') {
         Toast.success('Danke!', 'Deine Meldung wurde übermittelt.');
