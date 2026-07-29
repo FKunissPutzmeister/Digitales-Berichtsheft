@@ -1126,31 +1126,9 @@ html[data-skin="silk"] body[data-page="wochenansicht"] .day-section .ql-editor {
 .tag-row--has-error .tag-row__summary {
   background: var(--color-error-light);
 }
-.tag-row__validation {
-  display: flex;
-  gap: var(--sp-3);
-  align-items: flex-start;
-  padding: var(--sp-3) var(--sp-4);
-  margin-bottom: var(--sp-3);
-  background: var(--color-error-light);
-  border: 1px solid var(--color-error-mid);
-  border-radius: var(--r-md);
-  color: var(--color-error);
-  font-size: var(--text-sm);
-}
-.tag-row__validation[hidden] { display: none; }
-.tag-row__validation-icon {
-  width: 22px;
-  height: 22px;
-  flex-shrink: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-.tag-row__validation-icon svg { width: 20px; height: 20px; }
-.tag-row__validation strong { color: var(--color-error); display: block; margin-bottom: 2px; }
-.tag-row__validation ul { margin: 0; padding-left: var(--sp-4); }
-.tag-row__validation li { margin: 2px 0; line-height: var(--lh-normal); }
+/* Der frühere Hinweiskasten pro Tag (.tag-row__validation) ist entfallen:
+   Signal ist jetzt allein die rote Umrandung am fehlenden Feld plus ein
+   Toast. Siehe showValidationErrors() in wochenansicht.js. */
 
 /* ===================================================================
    STAMMDATEN (nur Druck)
@@ -3120,7 +3098,6 @@ body[data-page="wochenansicht"] .btn-lg {
   .day-section__action,
   .tag-tabelle__legend,
   .tag-row__completion-dot,
-  .tag-row__validation,
   .ql-toolbar { display: none !important; }
 
   /* Status-Banner als Text mit Rahmen, ohne Farbflächen */
@@ -3785,24 +3762,22 @@ body[data-page="wochenansicht"] select.tag-row__select:not([data-pm-enhanced]):h
 }
 
 /* ── Per-Komponente-Fehler (statt ganzer Tag rot) ──
-   Volle border-Kurzform + erhöhte Spezifität, damit die rote Umrandung
-   auch die graue Quill-Container-Border sicher überschreibt (border-color
-   allein verlor dagegen). Kräftiger Ring zur klaren Sichtbarkeit. */
+   Erhöhte Spezifität + !important, damit die rote Umrandung die graue
+   Quill-Container-Border und Theme-Regeln sicher überschreibt.
+   INNEN liegender Ring (inset box-shadow) statt outline: die Editor-Kacheln
+   sitzen in einem overflow:hidden-Container (Aufklapp-Animation über
+   grid-template-rows), ein außen liegendes outline/box-shadow wird links und
+   rechts abgeschnitten – sichtbar blieben nur zwei rote Striche oben und
+   unten statt einer Umrandung. */
 .field-error,
 select.field-error,
 .tag-row__select.field-error,
 .field-error.ql-container,
 .field-error.ql-editor-wrap,
 .field-error .ql-container {
-  /* outline statt border: wird NICHT von Theme-/Quill-border-Regeln
-     überschrieben und rendert sichtbar außerhalb des Elements. */
-  outline: 2px solid var(--color-error) !important;
-  outline-offset: 1px !important;
-  box-shadow: 0 0 0 4px rgba(183, 28, 28, 0.22) !important;
+  border-color: var(--color-error) !important;
+  box-shadow: inset 0 0 0 2px var(--color-error) !important;
   border-radius: var(--r-md);
-}
-.tag-row--has-issues { /* dezenter Hinweis, KEINE Vollflächen-Rotfärbung */
-  border-color: color-mix(in srgb, var(--color-error) 35%, var(--pm-grey-200));
 }
 
 /* ===================================================================

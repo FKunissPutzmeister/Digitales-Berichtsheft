@@ -380,11 +380,11 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   // Nutzer-Einstellung „Automatisches Ausfüllen vorschlagen" (Profil-Seite,
-  // pro Gerät in localStorage – Default AN). Wird bei jedem Editor-Aufbau
-  // gelesen, sodass eine Änderung ab dem nächsten Render greift.
+  // pro Gerät in localStorage – Opt-in, Default AUS). Wird bei jedem Editor-
+  // Aufbau gelesen, sodass eine Änderung ab dem nächsten Render greift.
   function suggestionsEnabled() {
-    try { return localStorage.getItem(ACTIVITY_SUGGESTIONS_KEY) !== '0'; }
-    catch (e) { return true; }
+    try { return localStorage.getItem(ACTIVITY_SUGGESTIONS_KEY) === '1'; }
+    catch (e) { return false; }
   }
 
   // Nutzer-Einstellung „Unterweisung standardmäßig aktiv" (Profil → Eingabe-
@@ -552,10 +552,14 @@ document.addEventListener('DOMContentLoaded', async () => {
     const canReject  = aktionen.includes('zurueckgeben');
     const isReadonly = (isAusbilder && !viewingSelf())
       || (woche && (woche.status === 'freigegeben' || woche.status === 'erstgenehmigt' || woche.status === 'genehmigt'));
+    // Freigabe und Rücknahme gehören dem Azubi selbst: viewingSelf() statt
+    // user.istAzubi. Ein Dev-Hybrid oder Ausbilder mit IstAzubi-Flag ist
+    // ebenfalls „istAzubi" und hätte sonst im FREMDEN Heft die Abgabe-Buttons
+    // (nur Abnehmen/Zurückgeben/Kommentieren ist dort erlaubt).
     // Freigabe-Button: Woche bearbeitbar (nicht angelegt / offen / nach Rückgabe).
-    const canRelease = user.istAzubi
+    const canRelease = viewingSelf()
       && (!woche || woche.status === 'offen' || woche.status === 'abgelehnt');
-    const canWithdraw = user.istAzubi && woche?.status === 'freigegeben';
+    const canWithdraw = viewingSelf() && woche?.status === 'freigegeben';
     // Anwesenheitstage (Default = anwesend). Mo–Fr zählen immer, Sa/So nur,
     // wenn dort ausdrücklich gearbeitet wurde (Anwesenheit ≠ „Wochenende").
     // Untouched-Werktage sind ggf. nicht in woche.tage → undefined gilt als anwesend.
@@ -1082,7 +1086,6 @@ document.addEventListener('DOMContentLoaded', async () => {
           ${!weFrei ? `
           <div class="tag-row__body" id="dayBody_${dateStr}">
             <div class="tag-row__body-inner">
-            <div class="tag-row__validation" id="validationMsg_${dateStr}" role="alert" hidden></div>
             <div id="editorSection_${dateStr}" class="day-sections" style="${isAbwesend ? 'display:none' : ''}">
               ${renderDaySection('betrieb',     dateStr, true, true, readonly, showBetrieb)}
               ${renderDaySection('schule',      dateStr, true, schuleExpanded, readonly, showSchule)}
@@ -1355,13 +1358,29 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   function clearValidationErrors() {
-    document.querySelectorAll('.tag-row--has-error, .tag-row--has-issues')
-      .forEach(r => r.classList.remove('tag-row--has-error', 'tag-row--has-issues'));
     document.querySelectorAll('.field-error').forEach(el => el.classList.remove('field-error'));
-    document.querySelectorAll('.tag-row__validation').forEach(e => {
-      e.hidden = true;
-      e.innerHTML = '';
-    });
+  }
+
+  // Umrandet ein Pflichtfeld rot und nimmt die Markierung zurück, sobald dort
+  // etwas steht – ohne auf den Auto-Save zu warten. `input` deckt Quills
+  // contenteditable ab (bubbelt bis zum Wrapper), `change` die Selects.
+  // Leerzeichen/leere <p> zählen nicht als Inhalt, darum die Nachfrage.
+  function markFieldEl(el) {
+    if (!el) return;
+    // Native <select> werden durch PMSelect (app.js) durch ein eigenes
+    // Widget ersetzt und selbst versteckt → das sichtbare .pm-select-Wrapper-
+    // Element markieren, sonst bliebe die rote Markierung unsichtbar.
+    const target = el.closest('.pm-select') || el;
+    target.classList.add('field-error');
+    const clear = () => {
+      const ed = target.querySelector('.ql-editor');
+      if (ed && htmlIsEmpty(ed.innerHTML)) return;   // weiter beobachten
+      target.classList.remove('field-error');
+      target.removeEventListener('input', clear);
+      target.removeEventListener('change', clear);
+    };
+    target.addEventListener('input', clear);
+    target.addEventListener('change', clear);
   }
 
   // Markiert eine einzelne fehlende Komponente eines Tages rot (statt der
@@ -1372,11 +1391,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     else if (field === 'ort')    el = document.querySelector(`select[data-field="ort"][data-date="${dateStr}"]`);
     else if (field === 'betrieb') el = document.getElementById(`editorWrap_betrieb_${dateStr}`);
     else if (field === 'schule')  el = document.getElementById(`editorWrap_schule_${dateStr}`);
-    if (!el) return;
-    // Native <select> werden durch PMSelect (app.js) durch ein eigenes
-    // Widget ersetzt und selbst versteckt → das sichtbare .pm-select-Wrapper-
-    // Element markieren, sonst bliebe die rote Markierung unsichtbar.
-    (el.closest('.pm-select') || el).classList.add('field-error');
+    markFieldEl(el);
   }
 
   async function showValidationErrors(errors) {
@@ -1399,22 +1414,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     for (const dateStr of Object.keys(byDate)) {
       const row = document.getElementById('dayCard_' + dateStr);
       if (row) {
-        // Karte aufklappen + Hinweisbox zeigen, aber NICHT die ganze Karte
-        // rot färben – nur die einzelnen fehlenden Felder (siehe unten).
-        row.classList.add('expanded', 'tag-row--has-issues');
-        const errBox = document.getElementById('validationMsg_' + dateStr);
-        if (errBox) {
-          errBox.hidden = false;
-          errBox.innerHTML = `
-            <div class="tag-row__validation-icon" aria-hidden="true">
-              <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
-            </div>
-            <div>
-              <strong>Bitte ergänzen:</strong>
-              <ul>${byDate[dateStr].map(e => `<li>${escapeHtml(e.msg)}</li>`).join('')}</ul>
-            </div>
-          `;
-        }
+        // Karte aufklappen, damit das fehlende Feld sichtbar ist. Kein
+        // Hinweiskasten und keine Kartenfärbung – die rote Umrandung am Feld
+        // selbst plus ein Toast sind das ganze Signal.
+        row.classList.add('expanded');
         // Editoren initialisieren falls Tag erst jetzt ausklappt
         const w = await DB.getWoche(viewAzubiId || user.id, currentKW, currentYear);
         const ro = w && (w.status === 'freigegeben' || w.status === 'erstgenehmigt' || w.status === 'genehmigt');
@@ -1424,10 +1427,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         // Einzelne fehlende Komponenten rot markieren
         byDate[dateStr].forEach(e => markFieldError(dateStr, e.field));
       } else {
-        // Wöchentlich-Format: keine Tageskarte vorhanden – kompakte Zeile
-        // markieren und dort, wo möglich, das einzelne Feld.
-        const wochenRow = document.querySelector(`.tag-row--compact[data-date="${dateStr}"]`);
-        wochenRow?.classList.add('tag-row--has-issues');
+        // Wöchentlich-Format: keine Tageskarte vorhanden – nur das einzelne
+        // Feld in der kompakten Zeile markieren.
         byDate[dateStr].forEach(e => markFieldError(dateStr, e.field));
       }
     }
@@ -1436,19 +1437,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     //    Pflichtfeld – also den Editor selbst – rot umranden (.field-error
     //    rendert ein rotes Outline, identisch zu den Tages-Editoren). ──
     kachelErrors.forEach(e => {
-      document.getElementById('wochenEditorWrap_' + e.kachelId)?.classList.add('field-error');
+      markFieldEl(document.getElementById('wochenEditorWrap_' + e.kachelId));
     });
 
-    // Zum ersten Fehler scrollen – Tag bevorzugt, sonst erste Kachel
-    const firstErrorDate = Object.keys(byDate)[0];
-    if (firstErrorDate) {
-      (document.getElementById('dayCard_' + firstErrorDate)
-        || document.querySelector(`.tag-row--compact[data-date="${firstErrorDate}"]`))
-        ?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    } else if (kachelErrors[0]) {
-      const wrap = document.getElementById('wochenEditorWrap_' + kachelErrors[0].kachelId);
-      wrap?.closest('.wochen-kachel')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    }
+    // Direkt an die erste rote Markierung scrollen (Dokumentreihenfolge =
+    // erster Fehler), nicht nur an die Karte/Kachel drumherum.
+    document.querySelector('.field-error')
+      ?.scrollIntoView({ behavior: 'smooth', block: 'center' });
 
     const totalCount = errors.length;
     const detailMsg = kachelErrors.length > 0 && Object.keys(byDate).length === 0
@@ -1465,21 +1460,21 @@ document.addEventListener('DOMContentLoaded', async () => {
     betrieb: {
       title: 'Betrieb',
       hint: 'Was hast du heute im Betrieb gemacht?',
-      placeholder: 'z.B. Implementierung Login-Komponente, Code-Review, Bugfix Modul XY …',
+      placeholder: 'Tätigkeiten und Lerninhalte im Betrieb für diesen Tag beschreiben…',
       icon: '<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>',
       collapsible: false,
     },
     schule: {
       title: 'Berufsschule',
       hint: 'Welche Themen wurden behandelt?',
-      placeholder: 'z.B. Lernfeld 7 – Datenbank-Normalisierung, Übungen zu SQL-Joins …',
+      placeholder: 'Unterrichtsinhalte der Berufsschule für diesen Tag beschreiben…',
       icon: '<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/></svg>',
       collapsible: true,
     },
     unterweisung: {
       title: 'Unterweisung & besondere Ereignisse',
       hint: 'Sicherheitsunterweisungen, Schulungen, Werksführungen …',
-      placeholder: 'z.B. Sicherheitsunterweisung Brandschutz (45 Min) – Inhalte …',
+      placeholder: 'Thema und Inhalt der Unterweisung beschreiben…',
       icon: '<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>',
       collapsible: true,
     },
@@ -2287,9 +2282,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   function clearDayError(dateStr) {
     const row = document.getElementById('dayCard_' + dateStr);
-    const errBox = document.getElementById('validationMsg_' + dateStr);
     if (row) {
-      row.classList.remove('tag-row--has-error', 'tag-row--has-issues');
       row.querySelectorAll('.field-error').forEach(el => el.classList.remove('field-error'));
     }
     // Anwesenheit/Ort-Selects liegen ggf. außerhalb der Karte (Summary-Zeile)
@@ -2298,7 +2291,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     document.querySelectorAll(`select[data-date="${dateStr}"]`).forEach(s => {
       (s.closest('.pm-select') || s).classList.remove('field-error');
     });
-    if (errBox) { errBox.hidden = true; errBox.innerHTML = ''; }
   }
 
   /* Letzter Wochen-Total in Modul-Scope, damit wir die Richtung der
