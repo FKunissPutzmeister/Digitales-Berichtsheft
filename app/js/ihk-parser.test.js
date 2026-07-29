@@ -44,6 +44,18 @@ test('_mapDayType liefert Dropdown-Werte (krank/AU → Arbeitsunfähigkeit)', ()
   assert.deepEqual(P._mapDayType('Betrieb'),          { anwesenheit: 'anwesend',           ort: 'Betrieb' });
 });
 
+// Der echte IHK-Export schreibt für einen halb/halb-Tag den Typ „Schule/Betrieb"
+// in die Typspalte. Der muss auf den Ort-Dropdownwert 'Betrieb/Schule' abbilden
+// (= halb Betrieb + halb Schule), nicht auf 'Betrieb'.
+test('_mapDayType: kombinierter Tagestyp → Ort Betrieb/Schule', () => {
+  assert.deepEqual(P._mapDayType('Schule/Betrieb'), { anwesenheit: 'anwesend', ort: 'Betrieb/Schule' });
+  assert.deepEqual(P._mapDayType('Betrieb/Schule'), { anwesenheit: 'anwesend', ort: 'Betrieb/Schule' });
+  assert.deepEqual(P._mapDayType('Betrieb und Schule'), { anwesenheit: 'anwesend', ort: 'Betrieb/Schule' });
+  // Gegenprobe: Einzeltypen bleiben unverändert
+  assert.deepEqual(P._mapDayType('Schule'),  { anwesenheit: 'anwesend', ort: 'Schule'  });
+  assert.deepEqual(P._mapDayType('Betrieb'), { anwesenheit: 'anwesend', ort: 'Betrieb' });
+});
+
 // ── Unterstreichungs-Geometrie ─────────────────────────────────
 const OPS = { save:10, restore:11, transform:12, constructPath:91,
   moveTo:13, lineTo:14, curveTo:15, rectangle:19,
@@ -306,6 +318,68 @@ test('Betrieb + Schule am selben Tag → Ort Betrieb/Schule, Stunden summiert', 
   const mo = P.parse([page]).wochen[0].tage.find(t => t.wochentag === 'Mo');
   assert.equal(mo.ort, 'Betrieb/Schule');
   assert.equal(mo.stunden, 8);
+});
+
+test('Wochenbasis: Tagestyp „Schule/Betrieb" in EINER Zeile → Ort Betrieb/Schule', () => {
+  const page = [
+    'Ausbildungswoche 13.01.2025 bis 19.01.2025',
+    'Mo | 13.01.2025 | Schule/Betrieb | anwesend 08:00',
+    'Di | 14.01.2025 | Betrieb | anwesend 08:00',
+  ].join('\n');
+  const tage = P.parse([page]).wochen[0].tage;
+  assert.equal(tage.find(t => t.wochentag === 'Mo').ort, 'Betrieb/Schule');
+  assert.equal(tage.find(t => t.wochentag === 'Di').ort, 'Betrieb');
+});
+
+test('Tagesbasis: Tagestyp „Schule/Betrieb" → Ort Betrieb/Schule', () => {
+  const page = [
+    'Ausbildungsnachweis auf Tagesbasis',
+    'Ausbildungswoche 13.01.2025 bis 19.01.2025',
+    'Mo | 13.01.2025 | Schule/Betrieb | anwesend 08:00',
+    'Vormittags Poststelle, nachmittags BWL',
+    'Qualifikationen:',
+    '- Irgendwas',
+  ].join('\n');
+  const mo = P.parse([page]).wochen[0].tage[0];
+  assert.equal(mo.ort, 'Betrieb/Schule');
+  assert.equal(mo.eintragText, '<p>Vormittags Poststelle, nachmittags BWL</p>');
+});
+
+test('Tagesbasis: Betrieb- und Schul-Karte am selben Tag → Ort Betrieb/Schule, Texte je Feld', () => {
+  const page = [
+    'Ausbildungsnachweis auf Tagesbasis',
+    'Ausbildungswoche 13.01.2025 bis 19.01.2025',
+    'Mo | 13.01.2025 | Betrieb | anwesend 04:00',
+    'Poststelle sortiert',
+    'Qualifikationen:',
+    '- Q1',
+    'Mo | 13.01.2025 | Schule | anwesend 04:00',
+    'BWL Prokura',
+    'Qualifikationen:',
+    '- Q2',
+  ].join('\n');
+  const tage = P.parse([page]).wochen[0].tage;
+  assert.equal(tage.length, 1);
+  assert.equal(tage[0].ort, 'Betrieb/Schule');
+  assert.equal(tage[0].stunden, 8);
+  assert.equal(tage[0].eintragText,       '<p>Poststelle sortiert</p>');
+  assert.equal(tage[0].eintragTextSchule, '<p>BWL Prokura</p>');
+});
+
+test('Tagesbasis: derselbe Tag auf Folgeseite (gleicher Ort) hängt Text an, kein Betrieb/Schule', () => {
+  const page = [
+    'Ausbildungsnachweis auf Tagesbasis',
+    'Ausbildungswoche 13.01.2025 bis 19.01.2025',
+    'Mo | 13.01.2025 | Betrieb | anwesend 08:00',
+    'Erster Teil',
+    'Mo | 13.01.2025 | Betrieb | anwesend 08:00',
+    'Zweiter Teil',
+  ].join('\n');
+  const tage = P.parse([page]).wochen[0].tage;
+  assert.equal(tage.length, 1);
+  assert.equal(tage[0].ort, 'Betrieb');
+  assert.equal(tage[0].stunden, 8);      // Seitenumbruch-Dublette zählt NICHT doppelt
+  assert.equal(tage[0].eintragText, '<p>Erster Teil</p><p>Zweiter Teil</p>');
 });
 
 test('Status leakt nicht aus dem Freitext der Vorwoche in die Folgewoche', () => {

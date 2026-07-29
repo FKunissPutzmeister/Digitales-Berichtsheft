@@ -473,6 +473,9 @@ const IhkImport = (() => {
         if (pt.ort === 'Schule') tag.schuleEintrag  = pt.eintragText;
         else                     tag.betriebEintrag = pt.eintragText;
       }
+      // Halb/halb-Tag aus zwei Kartenblöcken (Betrieb + Schule): der Schul-Teil
+      // kommt getrennt und gehört ins Schul-Feld, der Rest steht in eintragText.
+      if ((pt.eintragTextSchule || '').trim()) tag.schuleEintrag = pt.eintragTextSchule;
     });
   }
 

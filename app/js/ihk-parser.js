@@ -62,6 +62,12 @@
 
   function mapDayType(typ) {
     const t = String(typ || '').trim().toLowerCase();
+    // Kombinierter Tag ZUERST: der IHK-Export schreibt für einen halb/halb-Tag
+    // „Schule/Betrieb" in die Typspalte. /betrieb/ würde darauf als Teilstring
+    // matchen und den Tag zu einem reinen Betriebstag machen (Ganztag Betrieb
+    // statt Halbtag Betrieb + Halbtag Schule).
+    if (/betrieb/.test(t) && /schule/.test(t))
+      return { anwesenheit: 'anwesend', ort: 'Betrieb/Schule' };
     if (/betrieb/.test(t))               return { anwesenheit: 'anwesend',             ort: 'Betrieb' };
     if (/schule/.test(t))                return { anwesenheit: 'anwesend',             ort: 'Schule'  };
     if (/urlaub/.test(t))                return { anwesenheit: 'Urlaub',               ort: ''        };
@@ -486,6 +492,9 @@
   // „Ausbildungswoche …"-Marker und fällt damit ans Ende des Bodys der
   // VORWoche → markiert dort das Ende der letzten Tagesbeschreibung.
   const AZUBI_HEADER_RE       = /^Auszubildende\/r$/i;
+  // Einzel-Anwesenheitsort. Nur ein Betrieb-Tag + ein Schule-Tag am selben Datum
+  // ergeben zusammen einen halb/halb-Tag ('Betrieb/Schule').
+  const ORT_EINZEL_RE         = /^(Betrieb|Schule)$/;
 
   function isSectionHeader(s) {
     return SCHULE_BETRIEB_RE.test(s) || SCHULE_BLOCK_RE.test(s)
@@ -641,7 +650,11 @@
   // wie beim Wochenimport – verworfen (kein Datenmodell-Feld dafür).
   function parseWeekBodyDaily(startDate, endDate, lines, status, warnungen) {
     const tageByDatum = {};
-    let current   = null;  // aktueller Tag: { …, _lines: [], _first: bool }
+    // current = aktueller Tag: { …, _byOrt: { <Ort>: [Zeilen] }, _ort, _first }.
+    // _byOrt puffert die Beschreibungszeilen NACH ORT der jeweiligen Karte, damit
+    // ein aus zwei Karten (Betrieb + Schule) bestehender halb/halb-Tag seine
+    // Texte getrennt behält. _ort = Ort der Karte, die gerade gelesen wird.
+    let current   = null;
     let skipQuali = false;
 
     for (const line of lines) {
@@ -669,16 +682,30 @@
           current = null;
           continue;
         }
-        // Pro Tag gibt es im Export genau einen Kartenblock. Taucht dasselbe
-        // Datum dennoch erneut auf (z. B. Folgeseite), an bestehenden Eintrag
-        // weiterhängen statt ihn (und seinen Text) zu überschreiben.
+        const stunden = anwAbw.toLowerCase() === 'anwesend' ? hmToDecimal(zeit) : 0;
+        // Pro Tag gibt es im Export normalerweise genau einen Kartenblock.
+        // Taucht dasselbe Datum erneut auf, gibt es zwei Fälle:
+        //  a) GLEICHER Ort → Seitenumbruch-Dublette: Text weiter anhängen,
+        //     Stunden NICHT doppelt zählen (Kartenkopf wiederholt sich nur).
+        //  b) Betrieb UND Schule → halb/halb-Tag (wie parseWeekBody): Ort zu
+        //     'Betrieb/Schule' zusammenführen, Stunden summieren, Text in den
+        //     ort-eigenen Puffer schreiben.
         if (tageByDatum[datum]) {
           current = tageByDatum[datum];
-          current._first = false;
+          const zweiteKarte = mapped.ort && mapped.ort !== current._ort
+            && ORT_EINZEL_RE.test(mapped.ort) && ORT_EINZEL_RE.test(current._ort || '');
+          current._ort   = mapped.ort;
+          current._first = zweiteKarte;   // eigener Kartenkopf → eigene Zeit am Textanfang
+          if (zweiteKarte) {
+            current.ort      = 'Betrieb/Schule';
+            current.stunden += stunden;
+          }
           continue;
         }
-        const stunden = anwAbw.toLowerCase() === 'anwesend' ? hmToDecimal(zeit) : 0;
-        current = { datum, wochentag: cap(wt), ...mapped, stunden, _lines: [], _first: true };
+        current = {
+          datum, wochentag: cap(wt), ...mapped, stunden,
+          _byOrt: {}, _ort: mapped.ort, _first: true,
+        };
         tageByDatum[datum] = current;
         continue;
       }
@@ -692,18 +719,34 @@
           raw = raw.replace(/\s*\d{1,2}:\d{2}\s*$/, '');
           current._first = false;
         }
-        if (raw.trim()) current._lines.push(raw);
+        if (raw.trim()) {
+          const puffer = current._byOrt[current._ort] || (current._byOrt[current._ort] = []);
+          puffer.push(raw);
+        }
       }
     }
 
-    const tage = Object.values(tageByDatum).map(d => ({
-      datum:       d.datum,
-      wochentag:   d.wochentag,
-      anwesenheit: d.anwesenheit,
-      ort:         d.ort,
-      stunden:     d.stunden,
-      eintragText: linesToHtml(d._lines),
-    }));
+    const tage = Object.values(tageByDatum).map(d => {
+      // Schul-Puffer nur dann separat ausweisen, wenn der Tag wirklich aus zwei
+      // Karten (Betrieb + Schule) zusammengeführt wurde. Bei einem reinen
+      // Schultag bleibt der Text – wie bisher – in eintragText und wird vom
+      // Import anhand von `ort` ins Schul-Feld geschrieben.
+      const schuleLines = d._byOrt['Schule'] || [];
+      const restLines   = Object.keys(d._byOrt)
+        .filter(k => k !== 'Schule')
+        .reduce((acc, k) => acc.concat(d._byOrt[k]), []);
+      const geteilt = restLines.length > 0 && schuleLines.length > 0;
+      const tag = {
+        datum:       d.datum,
+        wochentag:   d.wochentag,
+        anwesenheit: d.anwesenheit,
+        ort:         d.ort,
+        stunden:     d.stunden,
+        eintragText: linesToHtml(geteilt ? restLines : restLines.concat(schuleLines)),
+      };
+      if (geteilt) tag.eintragTextSchule = linesToHtml(schuleLines);
+      return tag;
+    });
 
     if (!tage.length) return null;
     tage.sort((a, b) => (a.datum < b.datum ? -1 : 1));
