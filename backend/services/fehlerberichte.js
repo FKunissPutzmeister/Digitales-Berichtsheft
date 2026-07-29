@@ -13,6 +13,41 @@ function berechneFingerprint({ quelle, nachricht, stack }) {
 
 const SCHWEREGRADE = ['hoch', 'mittel', 'gering'];
 
+// ── Bild-Anhänge (nur manuelle Meldungen) ──────────────────────
+// Limits identisch zum Client (error-reporter.js). Der kumulative
+// Deckel hält die base64-Payload unter dem 10-MB-express.json-Limit.
+const MAX_BILDER = 5;
+const MAX_BILD_BYTES = 4 * 1024 * 1024;   // je Bild, dekodiert
+const MAX_GESAMT_BYTES = 6 * 1024 * 1024; // Summe, dekodiert
+
+// Reine Prüfung/Dekodierung eingehender { name, mimeTyp, dataUrl }-Objekte.
+// Kein DB-Zugriff → testbar. Ungültige/zu große Einträge werden gezählt
+// (verworfen), aber nie geworfen: die Textmeldung soll immer durchgehen.
+function parseUndValidiereBilder(bilder) {
+  if (!Array.isArray(bilder)) return { gueltig: [], verworfen: 0 };
+  const gueltig = [];
+  let verworfen = 0;
+  let gesamt = 0;
+  for (const b of bilder) {
+    if (gueltig.length >= MAX_BILDER) { verworfen++; continue; }
+    const m = b && typeof b.dataUrl === 'string'
+      ? /^data:(image\/[a-z0-9.+-]+);base64,([A-Za-z0-9+/=\s]+)$/i.exec(b.dataUrl)
+      : null;
+    if (!m) { verworfen++; continue; }
+    const buffer = Buffer.from(m[2].replace(/\s+/g, ''), 'base64');
+    if (buffer.length === 0 || buffer.length > MAX_BILD_BYTES) { verworfen++; continue; }
+    if (gesamt + buffer.length > MAX_GESAMT_BYTES) { verworfen++; continue; }
+    gesamt += buffer.length;
+    gueltig.push({
+      name: b.name ? String(b.name).slice(0, 255) : 'bild',
+      mimeTyp: m[1].toLowerCase(),
+      buffer,
+      groesse: buffer.length,
+    });
+  }
+  return { gueltig, verworfen };
+}
+
 // Transiente Verbindungsfehler: der Client konnte den Server schlicht nicht
 // erreichen (Server-Neustart, DB kurz weg, Netzwerk-Blip, abgebrochener Autosave
 // beim Tab-Schließen). Diese haben KEINEN diagnostischen Wert und würden sonst den
@@ -140,4 +175,4 @@ async function cleanupAlt(tage = 90) {
   return result.rowsAffected[0];
 }
 
-module.exports = { berechneFingerprint, logError, listErrors, markResolved, cleanupAlt, bewerteSchwere, setSchweregrad, istTransienterVerbindungsfehler, SCHWEREGRADE };
+module.exports = { berechneFingerprint, logError, listErrors, markResolved, cleanupAlt, bewerteSchwere, setSchweregrad, istTransienterVerbindungsfehler, SCHWEREGRADE, parseUndValidiereBilder };

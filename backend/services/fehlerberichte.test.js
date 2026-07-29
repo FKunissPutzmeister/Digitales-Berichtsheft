@@ -61,3 +61,39 @@ test('istTransienterVerbindungsfehler: echte App-Fehler bleiben unberührt', () 
   assert.equal(F.istTransienterVerbindungsfehler(''), false);
   assert.equal(F.istTransienterVerbindungsfehler(null), false);
 });
+
+// ── parseUndValidiereBilder ────────────────────────────────────
+const PNG_1PX = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==';
+
+test('parseUndValidiereBilder: gültiges PNG wird dekodiert', () => {
+  const { gueltig, verworfen } = F.parseUndValidiereBilder([{ name: 'a.png', dataUrl: PNG_1PX }]);
+  assert.equal(gueltig.length, 1);
+  assert.equal(verworfen, 0);
+  assert.equal(gueltig[0].mimeTyp, 'image/png');
+  assert.ok(Buffer.isBuffer(gueltig[0].buffer));
+  assert.ok(gueltig[0].groesse > 0);
+});
+
+test('parseUndValidiereBilder: Nicht-Array → leer', () => {
+  assert.deepEqual(F.parseUndValidiereBilder(null), { gueltig: [], verworfen: 0 });
+  assert.deepEqual(F.parseUndValidiereBilder(undefined), { gueltig: [], verworfen: 0 });
+});
+
+test('parseUndValidiereBilder: Nicht-Bild-DataURL wird verworfen', () => {
+  const r = F.parseUndValidiereBilder([{ name: 'x.txt', dataUrl: 'data:text/plain;base64,aGk=' }]);
+  assert.equal(r.gueltig.length, 0);
+  assert.equal(r.verworfen, 1);
+});
+
+test('parseUndValidiereBilder: kaputte DataURL wird verworfen', () => {
+  const r = F.parseUndValidiereBilder([{ name: 'x', dataUrl: 'kein-data-url' }, { }]);
+  assert.equal(r.gueltig.length, 0);
+  assert.equal(r.verworfen, 2);
+});
+
+test('parseUndValidiereBilder: max. 5 Bilder, Rest verworfen', () => {
+  const viele = Array.from({ length: 7 }, () => ({ name: 'a.png', dataUrl: PNG_1PX }));
+  const r = F.parseUndValidiereBilder(viele);
+  assert.equal(r.gueltig.length, 5);
+  assert.equal(r.verworfen, 2);
+});
