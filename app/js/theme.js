@@ -192,10 +192,23 @@
       '<div class="pm-cd-unicorn pm-cd-unicorn--mid"><div class="pm-cd-unicorn__hop"><img class="pm-cd-uni-img" src="assets/candy-unicorn-1.png" alt="" aria-hidden="true"></div></div>' +
       '<div class="pm-cd-lolli pm-cd-lolli--pink"></div>' +
       '<div class="pm-cd-lolli pm-cd-lolli--mint"></div>' +
+      '<div class="pm-cd-lolli pm-cd-lolli--blue"></div>' +
+      '<div class="pm-cd-lolli pm-cd-lolli--purple"></div>' +
+      '<div class="pm-cd-lolli pm-cd-lolli--orange"></div>' +
+      '<div class="pm-cd-lolli pm-cd-lolli--red"></div>' +
+      '<div class="pm-cd-lolli pm-cd-lolli--yellow"></div>' +
       '<div class="pm-cd-hill pm-cd-hill--front"></div>' +
       '<div class="pm-cd-unicorn pm-cd-unicorn--front"><div class="pm-cd-unicorn__hop"><img class="pm-cd-uni-img" src="assets/candy-unicorn-2.png" alt="" aria-hidden="true"></div></div>' +
       '<div class="pm-cd-gumdrop pm-cd-gumdrop--1"></div>' +
       '<div class="pm-cd-gumdrop pm-cd-gumdrop--2"></div>' +
+      '<div class="pm-cd-candy pm-cd-candy--1"></div>' +
+      '<div class="pm-cd-candy pm-cd-candy--2"></div>' +
+      '<div class="pm-cd-candy pm-cd-candy--3"></div>' +
+      '<div class="pm-cd-candy pm-cd-candy--4"></div>' +
+      '<div class="pm-cd-candy pm-cd-candy--5"></div>' +
+      '<div class="pm-cd-candy pm-cd-candy--6"></div>' +
+      '<div class="pm-cd-candy pm-cd-candy--7"></div>' +
+      '<div class="pm-cd-candy pm-cd-candy--8"></div>' +
       '<canvas class="pm-cd-bubbles" aria-hidden="true"></canvas>',
 
     /* ── FX-Template: halloween (wird vom Theme-Designer befüllt) ──
