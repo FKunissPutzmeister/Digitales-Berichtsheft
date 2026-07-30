@@ -227,19 +227,34 @@
   border-radius: var(--r-md);
   box-shadow: var(--shadow-md);
   padding: var(--sp-1);
-  /* Zehn Größen in EINER Spalte ergaben ein 58×305px-Band: auf kleinen
-     Bildschirmen reicht das unter den Fensterrand, man musste scrollen, um die
-     großen Größen zu sehen. Zwei Spalten spaltenweise gefüllt (klein links,
-     groß rechts) machen daraus einen ~120×165px-Block, der überall hinpasst.
-     Die Höhenkappe ist die Rückversicherung für sehr flache Fenster. */
-  display: grid;
-  grid-auto-flow: column;
-  grid-template-rows: repeat(5, auto);
-  gap: 1px 2px;
+  /* WICHTIG: geschlossen bleibt das Panel unsichtbar. Quill regelt das selbst
+     über `.ql-snow .ql-picker-options { display: none }` + `.ql-expanded …
+     { display: block }` – aber dieser Selektor hier ist spezifischer (4
+     Klassen vs. 2), d. h. JEDE display-Angabe an dieser Stelle schlägt Quills
+     `none` und das Menü stünde dauerhaft offen (genau der Bug: leeres Kästchen
+     unter der Größen-Pille, das im schmalen Fenster hinter dem Textfeld lag).
+     Deshalb hier explizit `none` und das Grid-Layout ausschließlich unten am
+     `.ql-expanded`-Zustand. */
+  display: none;
+}
+/* Aufgeklappt: EINE Spalte (normale Dropdown-Liste). Dass das Band unten aus
+   dem Fenster ragen kann, löst bereits das Hochklappen (.ql-size--up, gesetzt
+   von wochenansicht.js) plus die Höhenkappe als Rückversicherung für sehr
+   flache Fenster. z-index hebt das Panel über den Editor darunter (Quills
+   Default 1 reichte im schmalen Layout nicht). */
+.ql-toolbar.ql-snow .ql-picker.ql-size.ql-expanded .ql-picker-options {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
   width: max-content;
-  max-height: min(320px, calc(100vh - 120px));
+  min-width: 100%;
+  /* --ql-size-max-h setzt wochenansicht.js beim Öffnen auf den real
+     verfügbaren Platz der gewählten Seite; der 100vh-Term ist nur der
+     Fallback, falls das Skript (noch) nicht gelaufen ist. */
+  max-height: min(320px, var(--ql-size-max-h, calc(100vh - 120px)));
   overflow-y: auto;
   overscroll-behavior: contain;
+  z-index: 30;
 }
 /* Nach OBEN geklappt, wenn unter der Leiste kein Platz ist. Die Entscheidung
    trifft wochenansicht.js beim Öffnen – gleiche Regel wie PMSelect. */
@@ -775,5 +790,14 @@ body[data-page="wochenansicht"] .wochen-kachel .ql-editor-wrap {
   }
   .ql-toolbar.ql-snow .ql-formats {
     flex-shrink: 0;
+  }
+  /* Solange ein Dropdown offen ist, NICHT clippen. `overflow-x: auto` oben
+     zwingt die andere Achse implizit ebenfalls auf `auto` (CSS erlaubt kein
+     visible/auto-Paar) – die absolut positionierten Picker-Panels wurden
+     dadurch an der Toolbar-Unterkante abgeschnitten und wirkten „hinter dem
+     Textfeld". Beim Öffnen also kurz auf visible; das Menü ist ohnehin so
+     schmal, dass in dem Moment niemand die Leiste scrollen muss. */
+  .ql-toolbar.ql-snow:has(.ql-picker.ql-expanded) {
+    overflow: visible;
   }
 }

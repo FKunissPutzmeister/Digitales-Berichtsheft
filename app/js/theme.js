@@ -167,29 +167,24 @@
     cmd: '<canvas class="pm-cmd-bg" aria-hidden="true"></canvas>',
 
     /* ── FX-Template: candy (wird vom Theme-Designer befüllt) ──
-       Candy-Land-Szene: leuchtend schimmernder Regenbogen, eine
-       Wolken-Prozession (7 Wolken ziehen ENDLOS von links nach rechts
-       und schweben/pulsieren dabei), drei gewellte Zuckerguss-Wiesen-
-       Lagen, zwei über die Wiese hüpfende Einhörner plus Deko (Donut,
-       Lollipops, Gumdrops) und – als oberste Ebene – ein <canvas> mit
-       sanft steigenden Seifenblasen, die beim Treffer auf ein Einhorn
-       zerplatzen (Engine = PMCandyBubbles-Controller unten; Charakter-
-       wechsel der Einhörner = wireCandyUnicornSwap). Styling/Keyframes
-       liegen in css/theme-candy.css (Klassen pm-cd-* zur Kollisions-
-       vermeidung).
+       Candy-Land-Szene: leuchtend schimmernder Regenbogen, drei gewellte
+       Zuckerguss-Wiesen-Lagen, zwei über die Wiese hüpfende Einhörner plus
+       Deko (Donut, Lollipops, Gumdrops). Charakterwechsel der Einhörner =
+       wireCandyUnicornSwap. Styling/Keyframes liegen in
+       css/theme-candy.css (Klassen pm-cd-* zur Kollisionsvermeidung).
 
        KEIN Bonbon-Regen mehr: die acht fallenden Bonbons zogen den Blick von
        der Seite weg. Das CSS (.pm-cd-candy, pm-cd-candy-fall) bleibt unbenutzt
-       liegen – zum Zurückholen genügt es, die Zeilen hier wieder einzusetzen. */
+       liegen – zum Zurückholen genügt es, die Zeilen hier wieder einzusetzen.
+
+       KEINE Wolken-Prozession und KEINE Seifenblasen mehr: seit die
+       Dashboard-Kacheln selbst gezeichnete Wolken sind, wirkten die sieben
+       ziehenden Mini-Wolken und die Blasen als beziehungslose Kreise um die
+       Hauptwolken herum. Das CSS (.pm-cd-cloud, .pm-cd-bubbles) und die
+       Engine PMCandyBubbles bleiben unbenutzt liegen – zum Zurückholen
+       genügt es, die Zeilen hier wieder einzusetzen. */
     candy:
       '<div class="pm-cd-rainbow"></div>' +
-      '<div class="pm-cd-cloud pm-cd-cloud--1"></div>' +
-      '<div class="pm-cd-cloud pm-cd-cloud--2"></div>' +
-      '<div class="pm-cd-cloud pm-cd-cloud--3"></div>' +
-      '<div class="pm-cd-cloud pm-cd-cloud--4"></div>' +
-      '<div class="pm-cd-cloud pm-cd-cloud--5"></div>' +
-      '<div class="pm-cd-cloud pm-cd-cloud--6"></div>' +
-      '<div class="pm-cd-cloud pm-cd-cloud--7"></div>' +
       '<div class="pm-cd-hill pm-cd-hill--back"></div>' +
       '<div class="pm-cd-donut"></div>' +
       '<div class="pm-cd-hill pm-cd-hill--mid"></div>' +
@@ -204,8 +199,7 @@
       '<div class="pm-cd-hill pm-cd-hill--front"></div>' +
       '<div class="pm-cd-unicorn pm-cd-unicorn--front"><div class="pm-cd-unicorn__hop"><img class="pm-cd-uni-img" src="assets/candy-unicorn-2.png" alt="" aria-hidden="true"></div></div>' +
       '<div class="pm-cd-gumdrop pm-cd-gumdrop--1"></div>' +
-      '<div class="pm-cd-gumdrop pm-cd-gumdrop--2"></div>' +
-      '<canvas class="pm-cd-bubbles" aria-hidden="true"></canvas>',
+      '<div class="pm-cd-gumdrop pm-cd-gumdrop--2"></div>',
 
     /* ── FX-Template: halloween (wird vom Theme-Designer befüllt) ──
        Basis ist ein fertiges Hintergrundbild (.pm-hw-bg →
@@ -1352,6 +1346,64 @@
     return { start: start, stop: stop, rescan: decorate };
   })();
 
+  /* ── Candy: Bento-Raster auf die Entwurfsbreite rechnen ───────────
+     Im Candy-Theme sind die Dashboard-Kacheln gezeichnete Wolken mit festen
+     px-Maßen (css/theme-candy.css). Drei davon brauchen nebeneinander
+     PM_CD_DESIGNW Rasterbreite. Ist weniger da, wird NICHT enger gepackt,
+     sondern das ganze Raster per zoom verkleinert – gleiche Komposition, alles
+     gleichmäßig kleiner.
+     Warum hier und nicht in CSS: die Rasterbreite hängt von der ein-/aus-
+     klappbaren Sidebar ab. Eine reine vw-Formel müsste den schmalsten Fall
+     annehmen und würde bei eingeklappter Sidebar unnötig stark verkleinern –
+     also unnötig kleine Schrift. getBoundingClientRect().width des Rasters
+     ist dagegen exakt und vom eigenen zoom unabhängig (zoom ändert nur die
+     INNEREN Maße, der Block füllt seinen Elternteil weiter physisch aus).
+     Der CSS-Wert bleibt als Rückfall stehen (zoom: var(--pm-cd-zoom, …)). ── */
+  var PM_CD_DESIGNW = 1272, PM_CD_ZOOMMIN = 0.64;
+  var PMCandyZoom = (function () {
+    var ro = null, mo = null, bound = false;
+    function apply() {
+      var bento = document.querySelector('.bento');
+      if (!bento) return;
+      var w = bento.getBoundingClientRect().width;
+      if (!w) return;
+      var z = Math.max(PM_CD_ZOOMMIN, Math.min(1, w / PM_CD_DESIGNW));
+      bento.style.setProperty('--pm-cd-zoom', String(Math.round(z * 1000) / 1000));
+      /* Beobachtet wird der ELTERNTEIL: der ist nicht gezoomt, seine Größe
+         ändert sich also nicht als Folge dessen, was wir hier setzen – kein
+         Rückkopplungs-Kreis. */
+      if (ro && bento.parentElement) { ro.disconnect(); ro.observe(bento.parentElement); }
+    }
+    function start() {
+      apply();
+      if (window.ResizeObserver && !ro) { ro = new ResizeObserver(apply); apply(); }
+      /* Das Dashboard rendert asynchron: beim Theme-Aufbau existiert das Raster
+         noch nicht, und 'pm-page-rendered' kommt nicht auf jedem Weg. Deshalb
+         zusätzlich ein MutationObserver auf #mainContent – bewusst NUR
+         childList (Attribute würden unsere eigene Style-Änderung melden und
+         sich im Kreis drehen). */
+      if (!mo && window.MutationObserver) {
+        var mc = document.getElementById('mainContent');
+        if (mc) {
+          var t = null;
+          mo = new MutationObserver(function () { clearTimeout(t); t = setTimeout(apply, 60); });
+          mo.observe(mc, { childList: true, subtree: true });
+        }
+      }
+      if (bound) return;
+      bound = true;
+      window.addEventListener('resize', apply);
+      window.addEventListener('pm-page-rendered', apply);
+    }
+    function stop() {
+      if (ro) { ro.disconnect(); ro = null; }
+      if (mo) { mo.disconnect(); mo = null; }
+      var bento = document.querySelector('.bento');
+      if (bento) bento.style.removeProperty('--pm-cd-zoom');
+    }
+    return { start: start, stop: stop, apply: apply };
+  })();
+
   /* ── Candy: Einhörner tauschen die Ebene beim Rand-Austritt ───────
      „Wenn ein Einhorn den Bildschirmrand verlassen hat, wechselt, welcher
      Charakter im Vordergrund läuft." Ausgelöst vom animationiteration-Event
@@ -1484,6 +1536,7 @@
        sie nach dem Theme-Wechsel weiter. Alle stop() sind idempotent. */
     PMCmdFX.stop();
     PMCandyBubbles.stop();
+    PMCandyZoom.stop();
     PMHalloweenFog.stop();
     PMChristmasSnow.stop();
     PMHalloweenMusic.stop();
@@ -1518,6 +1571,7 @@
       var bubbleCanvas = el.querySelector('.pm-cd-bubbles');
       if (bubbleCanvas) PMCandyBubbles.start(bubbleCanvas);
       wireCandyUnicornSwap(el);
+      PMCandyZoom.start();
     } else if (theme === 'halloween') {
       var fogCanvas = el.querySelector('.pm-hw-fog');   // im Login-Template nicht vorhanden → null
       if (fogCanvas) PMHalloweenFog.start(fogCanvas);
