@@ -885,6 +885,31 @@ html[data-theme="halloween"] .bento .b-recent {
   backdrop-filter: blur(16px) saturate(1.35);
 }
 
+/* ── Ausbilder-/Prüfer-Dashboard: Listen-Pills („Zu prüfen"-Azubi-Zeilen +
+   Mitteilungen-Zeilen) ── dashboard.css stylt sie als HELLE Glas-Pills
+   (rgba(255,255,255,0.55)) und spiegelt nur [data-theme="dark"] auf dunkel.
+   Unter Halloween liefen sie darum mit den Light-Werten und lagen als
+   hellgraue Kacheln auf der Nacht-Kachel – der Meta-Text (--pm-grey-400,
+   hell) verschwand darauf fast völlig. Hier dieselbe Nacht-Glas-Fläche wie
+   bei den Bento-Pills (.b-mitteilung), plus warme Kürbis-Hairline und einen
+   Hauch Sheen, damit sie zur Kachel-Optik der Karte passen. */
+html[data-theme="halloween"] .review-inbox .azubi-card,
+html[data-theme="halloween"] .card--mitteilungen .activity-item {
+  background:
+    linear-gradient(180deg, rgba(255, 184, 120, 0.06) 0%, rgba(255, 255, 255, 0) 55%),
+    rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 165, 90, 0.20);
+}
+/* Hover der klickbaren Mitteilungs-Pills (z.B. „Beurteilung abgeschlossen"):
+   kräftiger tönen + wärmere Kante; das translateY(-1px) der Basisregel
+   (dashboard.css) bleibt erhalten, da hier nur Fläche/Rand gesetzt wird. */
+html[data-theme="halloween"] .card--mitteilungen .activity-item--link:hover {
+  background:
+    linear-gradient(180deg, rgba(255, 184, 120, 0.09) 0%, rgba(255, 255, 255, 0) 55%),
+    rgba(255, 255, 255, 0.11);
+  border-color: rgba(255, 165, 90, 0.34);
+}
+
 /* Welcome-Hero (dashboard.css ~2164): eigene, fast deckende Nacht-Fläche */
 [data-theme="halloween"] .welcome-hero {
   background-image:
@@ -924,15 +949,17 @@ html[data-theme="halloween"] .bento .b-recent {
 [data-theme="halloween"] body[data-page="wochenansicht"] .tag-row__summary:hover {
   background: rgba(255, 255, 255, 0.04);
 }
+/* Heutiger Tag: dezent wie im Standard-Dark (wochenansicht.css §DARK-MODE-
+   KONTRAST-BOOST) – nur eine zarte Orange-Hairline, KEIN Flächen-Tint und
+   kein Glow (vormals 0.45er Rahmen + Orange-Verlauf + dreifacher Orange-
+   Schatten). Die eigentliche Markierung trägt die orange Unterstreichung
+   der Tageszahl (.tag-row__datebox--today .tag-row__day-num::after). */
 [data-theme="halloween"] body[data-page="wochenansicht"] .tag-row--today {
-  background:
-    linear-gradient(180deg, rgba(255, 117, 24, 0.12) 0%, rgba(255, 117, 24, 0.04) 100%),
-    linear-gradient(180deg, #2A1C36 0%, #21162C 100%);
-  border-color: rgba(255, 117, 24, 0.45);
+  background: linear-gradient(180deg, #2A1C36 0%, #21162C 100%);
+  border-color: rgba(255, 117, 24, 0.26);
   box-shadow:
-    inset 0 1px 0 rgba(255, 117, 24, 0.15),
-    0 0 0 1px rgba(255, 117, 24, 0.10),
-    0 4px 14px -6px rgba(255, 117, 24, 0.25);
+    inset 0 1px 0 rgba(255, 255, 255, 0.05),
+    0 1px 2px rgba(0, 0, 0, 0.35);
 }
 [data-theme="halloween"] body[data-page="wochenansicht"] .tag-row--weekend {
   background: rgba(255, 255, 255, 0.015);
