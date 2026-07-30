@@ -320,6 +320,17 @@
   line-height: var(--lh-relaxed);
   color: var(--pm-grey-800);
   background: transparent;
+  /* Quill setzt selbst nur word-wrap:break-word – als "letzte Rettung"-Wert
+     bricht Chrome eine lange, leerzeichenlose Zeichenkette in contenteditable
+     beim LIVE-TIPPEN aber nicht zuverlässig um (bekannter Chromium-Effekt:
+     die Zeile wächst erst über die Boxbreite hinaus, der Umbruch greift erst
+     bei einem externen Reflow, z.B. Fokuswechsel). Weil die Tages-Kachel
+     wegen des schwebenden Tabellenmenüs bewusst overflow:visible trägt (s.
+     unten bei .day-section .ql-editor-wrap), wird so ein hängender Rest NICHT
+     abgeschnitten, sondern reißt Kachel + Nachbarzeilen sichtbar auf.
+     overflow-wrap:anywhere erzwingt Umbruchpunkte auch während des Tippens. */
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .ql-editor-wrap .ql-editor.ql-blank::before {
@@ -407,6 +418,14 @@
   border: 1px solid var(--pm-grey-200, #c9ced6);
   padding: 4px 8px;
   vertical-align: top;
+  /* Ohne das hier bleibt eine umbruchlose Zeichenkette (z.B. eine sehr lange
+     Aktivitäts-ID ohne Leerzeichen) EIN "Wort" für den Zeilenumbruch – bei
+     table-layout:auto (Standard) zieht der Browser die Tabellenspalte dann
+     einfach so breit wie nötig, statt zu brechen. Weil die Tages-Kachel
+     wegen des schwebenden Tabellenmenüs bewusst overflow:visible trägt
+     (s. weiter unten), wird dieses Auseinanderziehen NICHT abgeschnitten,
+     sondern reißt die ganze Kachel + Nachbarzeilen sichtbar auf. */
+  overflow-wrap: anywhere;
 }
 /* Nicht-gewhitelistete Toolbar-Buttons (table-better deaktiviert bei aktiver
    Tabellenzelle alles außer bold/italic/underline/strike/size/color/
