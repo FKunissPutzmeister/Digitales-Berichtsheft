@@ -642,26 +642,32 @@ html[data-theme="candy"] { color-scheme: light; }
 }
 /* Wiesen-Lauf – ZWEI UNABHÄNGIGE Zyklen mit nicht-harmonischen Laufzeiten
    (22 s vs. 27 s, teilerfremd → gemeinsame Periode erst nach ~10 min). Jeder
-   Reiter quert ~88 % seines Zyklus durchs Bild und ist nur kurz (~12 % + der
-   knappe Off-Screen-Rand) draußen → der jeweils andere kommt fast direkt wieder
-   ins Bild. Weil die Phasen gegeneinander driften, sind mal BEIDE gleichzeitig
-   im Bild, mal löst der eine den anderen knapp ab, selten ist kurz keiner da –
-   bewusst wenig vorhersehbar. Enge Off-Screen-Ränder (±16vw, > Sprite-Breite)
-   halten die Lücken kurz; die Loop-Sprünge bleiben unsichtbar.
+   Reiter quert 88 % seines Zyklus durchs Bild und pausiert 12 % außerhalb.
+   Weil die Phasen gegeneinander driften, sind mal BEIDE gleichzeitig im Bild,
+   mal löst der eine den anderen knapp ab, selten ist kurz keiner da –
+   bewusst wenig vorhersehbar.
+
+   Geparkt wird KNAPP hinter der Kante, in em (= Sprite-Maß, das Sprite ist
+   9em breit) statt in vw: mit ±16vw lag der Parkplatz ~2 Sprite-Breiten zu
+   weit draußen, und die Zeit für diesen unsichtbaren Rest-Weg kam zur Pause
+   dazu – gemessen war ein Reiter dadurch 6–8 s weg statt der beabsichtigten
+   ~3 s, die Wiese im Schnitt 3,6 s ganz leer. In em bleibt der Rand auch bei
+   schmalem Fenster größer als das Sprite (in vw kippte das unter ~1050 px und
+   der Loop-Sprung wäre sichtbar geworden).
    pm-cd-uni-run bleibt als unbenutzter Default-Fallback erhalten. */
 @keyframes pm-cd-uni-run {
   from { --uni-x: -22vw; }
   to   { --uni-x: 122vw; }
 }
 @keyframes pm-cd-uni-cross-mid {
-  0%   { --uni-x: -16vw; }
-  88%  { --uni-x: 116vw; }
-  100% { --uni-x: 116vw; }
+  0%   { --uni-x: -10em; }
+  88%  { --uni-x: calc(100vw + 1em); }
+  100% { --uni-x: calc(100vw + 1em); }
 }
 @keyframes pm-cd-uni-cross-front {
-  0%   { --uni-x: 116vw; }
-  88%  { --uni-x: -16vw; }
-  100% { --uni-x: -16vw; }
+  0%   { --uni-x: calc(100vw + 1em); }
+  88%  { --uni-x: -10em; }
+  100% { --uni-x: -10em; }
 }
 /* Spring-Hüpfbogen mit Squash & Stretch: Anlauf-Stauchung (breit/flach),
    Absprung-Streckung, schwereloser Scheitel, harte Lande-Stauchung und ein

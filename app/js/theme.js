@@ -169,13 +169,15 @@
     /* ── FX-Template: candy (wird vom Theme-Designer befüllt) ──
        Candy-Land-Szene: leuchtend schimmernder Regenbogen, drei gewellte
        Zuckerguss-Wiesen-Lagen, zwei über die Wiese hüpfende Einhörner plus
-       Deko (Donut, Lollipops, Gumdrops). Charakterwechsel der Einhörner =
+       Deko (Lollipops, Gumdrops). Charakterwechsel der Einhörner =
        wireCandyUnicornSwap. Styling/Keyframes liegen in
        css/theme-candy.css (Klassen pm-cd-* zur Kollisionsvermeidung).
 
-       KEIN Bonbon-Regen mehr: die acht fallenden Bonbons zogen den Blick von
-       der Seite weg. Das CSS (.pm-cd-candy, pm-cd-candy-fall) bleibt unbenutzt
-       liegen – zum Zurückholen genügt es, die Zeilen hier wieder einzusetzen.
+       KEIN Bonbon-Regen und KEIN rollender Donut mehr: die acht fallenden
+       Bonbons und der querrollende Donut zogen den Blick von der Seite weg.
+       Das CSS (.pm-cd-candy, pm-cd-candy-fall, .pm-cd-donut, pm-cd-donut-roll)
+       bleibt unbenutzt liegen – zum Zurückholen genügt es, die Zeilen hier
+       wieder einzusetzen.
 
        KEINE Wolken-Prozession und KEINE Seifenblasen mehr: seit die
        Dashboard-Kacheln selbst gezeichnete Wolken sind, wirkten die sieben
@@ -186,7 +188,6 @@
     candy:
       '<div class="pm-cd-rainbow"></div>' +
       '<div class="pm-cd-hill pm-cd-hill--back"></div>' +
-      '<div class="pm-cd-donut"></div>' +
       '<div class="pm-cd-hill pm-cd-hill--mid"></div>' +
       '<div class="pm-cd-unicorn pm-cd-unicorn--mid"><div class="pm-cd-unicorn__hop"><img class="pm-cd-uni-img" src="assets/candy-unicorn-1.png" alt="" aria-hidden="true"></div></div>' +
       '<div class="pm-cd-lolli pm-cd-lolli--pink"></div>' +
