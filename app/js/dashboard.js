@@ -338,10 +338,14 @@ async function renderAzubiDashboard(user) {
   }).join('');
   const mtEmptyHtml = !mtNotifHtml
     ? '<div class="b-mitteilungen__empty">Keine neuen Mitteilungen</div>' : '';
-  const mtMehrHtml = mtItems.length > 6
-    ? `<a class="b-mitteilungen__more" href="mitteilungen.html">Alle ${mtItems.length} anzeigen
-         <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg></a>`
-    : '';
+  // Der Weg zur Vollseite hängt NICHT an der Anzahl: dort gibt es Filter, Suche
+  // und die bereits gelesenen Mitteilungen, das ist auch mit zwei Einträgen
+  // nützlich. Nur die Zahl nennt der Link, wenn die Kachel wirklich kappt
+  // (vorher erschien er erst ab 7 Mitteilungen – wer wenige hatte, kam gar
+  // nicht auf die Seite, weil es sonst keinen Einstieg gibt).
+  const mtMehrHtml = `<a class="b-mitteilungen__more" href="mitteilungen.html">${
+    mtItems.length > 6 ? `Alle ${mtItems.length} anzeigen` : 'Alle Mitteilungen anzeigen'}
+         <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg></a>`;
   const mitteilungenSectionHtml = `
       <section class="b-tile b-mitteilungen animate-fade-in">
         <div class="b-azubi__head">
@@ -681,10 +685,10 @@ async function renderAusbilderDashboard(user) {
   const mittListHtml = mittItems.length
     ? renderActivityRows(mittItems.slice(0, MITT_CAP))
     : '<div class="empty-state" style="padding:var(--sp-8)"><p class="empty-state__text">Noch keine Mitteilungen.</p></div>';
-  const mittMehrHtml = mittItems.length > MITT_CAP
-    ? `<a class="activity-more" href="mitteilungen.html">Alle ${mittItems.length} Mitteilungen anzeigen
-         <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg></a>`
-    : '';
+  // Wie im Azubi-Dashboard: Einstieg unabhängig von der Anzahl (s. mtMehrHtml).
+  const mittMehrHtml = `<a class="activity-more" href="mitteilungen.html">${
+    mittItems.length > MITT_CAP ? `Alle ${mittItems.length} Mitteilungen anzeigen` : 'Alle Mitteilungen anzeigen'}
+         <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg></a>`;
 
   // Gate auf durchlaufAzubis (nicht meineAzubis), damit die Übersicht auch für
   // reine Planer/Admins ohne eigene Azubis erscheint (durchlaufAzubis = alleAzubis);
