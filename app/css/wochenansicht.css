@@ -686,8 +686,11 @@ html[data-skin="silk"] body[data-page="wochenansicht"] .day-section .ql-editor {
    oder der Eigenschaften-Dialog offen ist; .ql-table-properties-form ist nur
    im DOM vorhanden, während der Dialog offen ist. :focus-within bleibt als
    zusätzliche Absicherung (z.B. während der Nutzer in einem Dialogfeld
-   tippt). Gleiche Begründung unten bei .tag-row (Tagesansicht). */
+   tippt). Das Größen-Menü ist derselbe Fall: es bleibt offen, wenn der Fokus
+   die Seite verlässt (Alt+Tab/Tab), und fiel dann hinter die nächste Kachel.
+   Gleiche Begründung unten bei .tag-row (Tagesansicht). */
 .wochen-kachel:focus-within,
+.wochen-kachel:has(.ql-picker.ql-expanded),
 .wochen-kachel:has(.ql-table-menus-container:not(.ql-hidden)),
 .wochen-kachel:has(.ql-table-properties-form) {
   position: relative;
@@ -893,13 +896,13 @@ html[data-skin="silk"] body[data-page="wochenansicht"] .day-section .ql-editor {
   user-select: none;
 }
 .tag-row__summary:hover { background: var(--pm-grey-50); }
+/* Kein opacity mehr: das Anwesenheits-Menü steht am Wochenende zur Verfügung
+   und darf nicht wie deaktiviert aussehen. Die gedämpfte Fläche plus die
+   grauen Datums-Farben (--we) reichen als Unterscheidung. */
 .tag-row--weekend .tag-row__summary {
   background: var(--pm-grey-50);
-  opacity: 0.6;
   cursor: default;
 }
-.tag-row--today .tag-row__summary { background: rgba(255,195,0,0.07); }
-.tag-row--today .tag-row__summary:hover { background: rgba(255,195,0,0.12); }
 
 .tag-row__chevron {
   display: flex;
@@ -1944,6 +1947,7 @@ body[data-page="wochenansicht"] .tag-row {
    table-better blurt den Editor beim Öffnen von Menüleiste/Dropdown/
    Eigenschaften-Dialog – ausführliche Begründung dort). */
 body[data-page="wochenansicht"] .tag-row:focus-within,
+body[data-page="wochenansicht"] .tag-row:has(.ql-picker.ql-expanded),
 body[data-page="wochenansicht"] .tag-row:has(.ql-table-menus-container:not(.ql-hidden)),
 body[data-page="wochenansicht"] .tag-row:has(.ql-table-properties-form) {
   z-index: var(--z-sticky, 10);
@@ -1952,9 +1956,9 @@ body[data-page="wochenansicht"] .tag-row:hover {
   /* Sanfterer Hover: nur halb so starker Rahmen-Wechsel wie grey-300. */
   border-color: color-mix(in srgb, var(--pm-grey-300) 50%, var(--pm-grey-200));
 }
-body[data-page="wochenansicht"] .tag-row--today {
-  border-color: var(--pm-grey-300);
-}
+/* Heutiger Tag: KEINE eigene Rahmen-/Flächen-Hervorhebung – die Zeile sieht aus
+   wie jede andere. Als Markierung bleibt allein der gelbe Unterstrich unter der
+   Tageszahl (.tag-row__datebox--today .tag-row__day-num::after). */
 body[data-page="wochenansicht"] .tag-row--weekend {
   background: var(--pm-grey-50);
   border-color: var(--pm-grey-200);
@@ -1988,15 +1992,18 @@ body[data-page="wochenansicht"] .tag-row__summary {
 body[data-page="wochenansicht"] .tag-row--weekend .tag-row__summary {
   cursor: default;
 }
-/* Leere Spalten an Wochenenden visuell zusammenfallen lassen, damit der
-   Date-Block + WE-Marker das Layout bestimmen. Wir blenden die nicht
-   relevanten Grid-Items für WE per nth-child aus (Ort + Qualifikationen). */
-body[data-page="wochenansicht"] .tag-row--weekend .tag-row__summary > .tag-row__field:nth-child(3),
-body[data-page="wochenansicht"] .tag-row--weekend .tag-row__summary > .tag-row__field:nth-child(4) {
+/* Am freien Wochenende bleiben nur Datum + Anwesenheit stehen – Ort und
+   Arbeitszeit ergeben erst Sinn, sobald der Tag auf „anwesend" steht (dann ist
+   die Zeile ohnehin keine --weekend-Zeile mehr).
+   ACHTUNG nth-child: erstes Kind der Kopfzeile ist der Status-Streifen, DANN
+   kommt die Datums-Box – die Felder sind also 3 = Anwesenheit, 4 = Ort,
+   5 = Arbeitszeit. Vorher waren 3+4 ausgeblendet, damit fehlte am Wochenende
+   genau das Anwesenheits-Menü (Wochenendarbeit war nicht eintragbar).
+   Das Spalten-Raster bleibt das der Werktage, damit das Menü exakt unter den
+   übrigen sitzt. */
+body[data-page="wochenansicht"] .tag-row--weekend .tag-row__summary > .tag-row__field:nth-child(4),
+body[data-page="wochenansicht"] .tag-row--weekend .tag-row__summary > .tag-row__field:nth-child(5) {
   display: none;
-}
-body[data-page="wochenansicht"] .tag-row--weekend .tag-row__summary {
-  grid-template-columns: 116px 1fr auto;
 }
 body[data-page="wochenansicht"] .tag-row__summary--no-toggle {
   cursor: default;
@@ -2039,24 +2046,26 @@ body[data-page="wochenansicht"] .tag-row__summary:hover {
   background: var(--pm-yellow);
   border-radius: var(--r-full);
 }
+/* Reihenfolge in der Box: große Tageszahl, direkt darunter der Wochentag als
+   klar lesbare zweite Zeile, erst darunter der Monat als leise Ergänzung. */
+.tag-row__weekday {
+  font-size: var(--text-sm);
+  font-weight: var(--fw-bold);
+  color: var(--pm-grey-800);
+  margin-top: 4px;
+  line-height: 1.2;
+}
+.tag-row__datebox--we .tag-row__weekday {
+  color: var(--pm-grey-500);
+}
 .tag-row__month {
   font-size: var(--text-xs);
-  font-weight: var(--fw-bold);
-  color: var(--pm-grey-700);
-  margin-top: 4px;
+  font-weight: var(--fw-medium);
+  color: var(--pm-grey-500);
   letter-spacing: 0.02em;
 }
 .tag-row__datebox--we .tag-row__month {
   color: var(--pm-grey-400);
-}
-.tag-row__weekday {
-  font-size: var(--text-xs);
-  font-weight: var(--fw-bold);
-  color: var(--pm-grey-700);
-  letter-spacing: 0.02em;
-}
-.tag-row__datebox--we .tag-row__weekday {
-  color: var(--pm-grey-500);
 }
 
 /* Field-Wrapper: Label oben, Control darunter */
@@ -2185,14 +2194,6 @@ body[data-page="wochenansicht"] .tag-row__summary:hover {
 .tag-row__field--time .time-spinner {
   margin-top: 0;
 }
-.tag-row__we-marker {
-  font-family: var(--font-heading);
-  font-size: var(--text-lg);
-  font-weight: var(--fw-bold);
-  color: var(--pm-grey-400);
-  letter-spacing: 0.05em;
-}
-
 /* Pille rechts oben in der Karte: zeigt Ort/Abwesenheits-Grund */
 .tag-row__pill {
   position: absolute;
@@ -2246,6 +2247,10 @@ body[data-page="wochenansicht"] .tag-row__body-inner {
   padding: 0 var(--sp-5);
 }
 body[data-page="wochenansicht"] .tag-row.expanded .tag-row__body-inner {
+  /* Luft über dem ersten Abschnitts-Titel („Betrieb", „Abwesenheitsnotiz"),
+     damit er nicht an der Kopfzeile des Tages klebt. Wie das Bottom-Padding
+     nur im offenen Zustand – sonst bliebe es als Mindesthöhe stehen. */
+  padding-top: var(--sp-4);
   padding-bottom: var(--sp-4);
 }
 body[data-page="wochenansicht"] .tag-row .tag-row__summary {
@@ -2354,7 +2359,11 @@ body[data-page="wochenansicht"] .day-section__toggle {
   display: inline-flex;
   align-items: center;
   gap: var(--sp-2);
-  padding: var(--sp-2) 0;
+  /* Links auf die Editor-Kante einrücken: --sp-4 ist genau das padding-left des
+     .ql-editor, und die Formatierleiste landet mit ihrem eigenen Innenabstand
+     (8px Leiste + 5px Button + 3px SVG-Rand) auf demselben Wert. Damit stehen
+     Abschnitts-Titel, Symbol-Kante und Textanfang auf einer Linie. */
+  padding: var(--sp-2) 0 var(--sp-2) var(--sp-4);
   border: 0;
   background: none;
   cursor: pointer;
@@ -2406,12 +2415,12 @@ body[data-page="wochenansicht"] .day-section--expanded .day-section__toggle {
 /* Größen-Feld (Schriftgröße) behält bewusst seinen Box-Rahmen aus quill-editor.css
    (Word-artiges Zahlenfeld) – hier NICHT auf randlos überschreiben. */
 
-/* Grundschrift der Berichts-Editoren = 11 pt = „Standard" (11) des Größen-Felds,
-   sodass Text ohne Größen-Format genau als 11 dargestellt wird (wie Word).
+/* Grundschrift der Berichts-Editoren = 12 pt = „Standard" (12) des Größen-Felds,
+   sodass Text ohne Größen-Format genau als 12 dargestellt wird (wie Word).
    Nur hier – die übrigen Editoren (Beurteilung, Mitteilungen …) bleiben unberührt. */
 body[data-page="wochenansicht"] .ql-editor,
 body[data-page="wochenansicht"] .ql-editor.ql-blank::before {
-  font-size: 11pt;
+  font-size: 12pt;
 }
 
 /* Footer: Char-Count + Eintrag-leeren-Button, sehr dezent */
@@ -2951,9 +2960,6 @@ body[data-page="wochenansicht"] .btn-lg {
   background: var(--pm-white);
   border-color: rgba(255, 255, 255, 0.06);
 }
-[data-theme="dark"] body[data-page="wochenansicht"] .tag-row--today {
-  border-color: rgba(255, 195, 0, 0.22);
-}
 [data-theme="dark"] body[data-page="wochenansicht"] .tag-row--weekend {
   background: rgba(255, 255, 255, 0.02);
   border-color: rgba(255, 255, 255, 0.05);
@@ -2962,18 +2968,22 @@ body[data-page="wochenansicht"] .btn-lg {
   background: transparent;
 }
 
-/* Datum + Monat im Dark Mode gelb */
+/* Tageszahl im Dark Mode gelb; darunter der Wochentag hell (zweite Lese-Ebene),
+   der Monat bleibt zurückhaltend grau. */
 [data-theme="dark"] .tag-row__datebox .tag-row__day-num {
   color: var(--pm-yellow);
 }
 [data-theme="dark"] .tag-row__datebox--we .tag-row__day-num {
   color: var(--pm-grey-500);
 }
-[data-theme="dark"] .tag-row__month {
-  color: var(--pm-yellow);
-}
 [data-theme="dark"] .tag-row__weekday {
-  color: var(--pm-grey-600);
+  color: rgba(255, 255, 255, 0.82);
+}
+[data-theme="dark"] .tag-row__datebox--we .tag-row__weekday {
+  color: var(--pm-grey-500);
+}
+[data-theme="dark"] .tag-row__month {
+  color: var(--pm-grey-500);
 }
 [data-theme="dark"] .tag-row__pill--ort {
   color: var(--pm-grey-500);
@@ -3394,15 +3404,8 @@ body[data-page="wochenansicht"] .time-spinner__input.spinner-bump-down {
 [data-theme="dark"] body[data-page="wochenansicht"] .tag-row__summary:hover {
   background: rgba(255, 255, 255, 0.04);
 }
-[data-theme="dark"] body[data-page="wochenansicht"] .tag-row--today {
-  /* Dezenter heutiger Tag: nur ein zarter gelber Rahmen – kein Flächen-
-     Tint, kein Glow (vormals kräftiger 0.45-Rahmen + gelber Verlauf +
-     dreifacher gelber Schatten). Hintergrund = neutrale Karten-Farbe wie
-     bei normalen Zeilen, damit ausschließlich die Umrandung markiert. */
-  background: var(--pm-white);
-  border-color: rgba(255, 195, 0, 0.22);
-  box-shadow: none;
-}
+/* Heutiger Tag ohne Sonderbehandlung – siehe Begründung oben bei der
+   .tag-row--today-Regel. Der gelbe Unterstrich unter der Tageszahl genügt. */
 [data-theme="dark"] body[data-page="wochenansicht"] .tag-row--weekend {
   background: rgba(255, 255, 255, 0.015);
   border-color: rgba(255, 255, 255, 0.06);

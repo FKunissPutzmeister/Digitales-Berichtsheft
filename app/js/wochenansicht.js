@@ -83,13 +83,14 @@ if (window.QuillBlotFormatter2) {
 // die Formatierung ohnehin – er filtert Inline-Styles genauso wie Überschriften
 // weg; die Schriftgröße ist also ein Bildschirm-/Bearbeitungs-Feature.)
 //
-// Einheit: pt (wie Word). 11 pt = Standard = kein explizites Format (false) →
-// deckt sich mit der Grundschrift des Editors (.ql-editor { font-size: 11pt }).
-// „11" wird also angezeigt, ohne dass Text ein Größen-Attribut trägt.
-const QUILL_SIZE_WHITELIST = ['7pt', '9pt', '13pt', '15pt', '17pt', '19pt', '21pt', '23pt', '25pt'];
-// Reihenfolge im Auswahlmenü inkl. Standard (false = 11) an der richtigen Stelle.
-const QUILL_SIZE_OPTIONS = ['7pt', '9pt', false, '13pt', '15pt', '17pt', '19pt', '21pt', '23pt', '25pt'];
-// Geordnete Leiter fürs − / + (Standard 11 in der Mitte).
+// Einheit: pt (wie Word). 12 pt = Standard = kein explizites Format (false) →
+// deckt sich mit der Grundschrift des Editors (.ql-editor { font-size: 12pt }).
+// „12" wird also angezeigt, ohne dass Text ein Größen-Attribut trägt.
+// Leiter in Zweierschritten, also durchgehend gerade Zahlen.
+const QUILL_SIZE_WHITELIST = ['8pt', '10pt', '14pt', '16pt', '18pt', '20pt', '22pt', '24pt', '26pt'];
+// Reihenfolge im Auswahlmenü inkl. Standard (false = 12) an der richtigen Stelle.
+const QUILL_SIZE_OPTIONS = ['8pt', '10pt', false, '14pt', '16pt', '18pt', '20pt', '22pt', '24pt', '26pt'];
+// Geordnete Leiter fürs − / + (Standard 12 an dritter Stelle).
 const QUILL_SIZE_STEPS = QUILL_SIZE_OPTIONS;
 {
   const SizeStyle = Quill.import('attributors/style/size');
@@ -106,6 +107,28 @@ function stepQuillSize(quill, dir) {
   if (i === -1) i = QUILL_SIZE_STEPS.indexOf(false);
   i = Math.max(0, Math.min(QUILL_SIZE_STEPS.length - 1, i + dir));
   quill.format('size', QUILL_SIZE_STEPS[i], Quill.sources.USER);
+  // Ohne Textauswahl kehrt quill.format() vorzeitig zurück (nur das aktive
+  // Format wird gemerkt, kein text-/selection-change). Quills Leiste hängt aber
+  // genau an diesen Events – die Zahl im Feld sprang darum erst, sobald man
+  // etwas tippte. Also selbst nachziehen: Leiste setzt den <select>, der Picker
+  // die Beschriftung samt Markierung im Menü.
+  quill.getModule('toolbar').update(quill.getSelection());
+  (quill.theme.pickers || []).forEach(p => p.update());
+  bumpQuillSizeLabel(quill);
+}
+
+// Kurzes Auf-und-Ab der Zahl im Größen-Feld als Quittung für − / +.
+// Klasse vorher entfernen + Reflow erzwingen, sonst startet die Animation bei
+// schnellen Klicks nicht neu (der Browser sieht keinen Klassenwechsel).
+function bumpQuillSizeLabel(quill) {
+  const label = quill.getModule('toolbar').container
+    ?.querySelector('.ql-picker.ql-size .ql-picker-label');
+  if (!label) return;
+  label.classList.remove('ql-size-bump');
+  void label.offsetWidth;
+  label.classList.add('ql-size-bump');
+  label.addEventListener('animationend',
+    () => label.classList.remove('ql-size-bump'), { once: true });
 }
 
 const QUILL_TOOLBAR = [
@@ -192,6 +215,13 @@ document.addEventListener('mousedown', function (e) {
   if (!t || typeof t.closest !== 'function') return;
   const label = t.closest('.ql-toolbar .ql-picker.ql-size .ql-picker-label');
   if (!label) return;
+  // Fokus im Editor lassen. Quills Label ist ein tabindex=0-Element, der Klick
+  // hätte ihn also übernommen – der Editor blurt, Quill meldet selection-change
+  // mit range=null und LEERT dabei den Zustand der Leiste: die aktive Größe im
+  // Menü blitzte gelb auf und war 3 ms später wieder unmarkiert. Ohne
+  // Fokuswechsel bleibt die Markierung stehen (Menü öffnen und Eintrag wählen
+  // laufen unverändert weiter, s. Escape-Behandlung unten).
+  e.preventDefault();
   const pick = label.closest('.ql-picker.ql-size');
   const r = label.getBoundingClientRect();
   const platzUnten = window.innerHeight - r.bottom;
@@ -205,6 +235,17 @@ document.addEventListener('mousedown', function (e) {
   pick.style.setProperty('--ql-size-max-h',
     Math.max(120, (nachOben ? r.top : platzUnten) - 12) + 'px');
 }, true);
+
+// Escape schließt das Größen-Menü. Quill hängt sein eigenes Escape an das
+// FOKUSSIERTE Label – da der Fokus jetzt im Editor bleibt (s. oben), muss das
+// hier passieren. Nebeneffekt: funktioniert nun auch beim Tippen im Editor.
+document.addEventListener('keydown', function (e) {
+  if (e.key !== 'Escape') return;
+  document.querySelectorAll('.ql-toolbar .ql-picker.ql-size.ql-expanded').forEach(pick => {
+    pick.classList.remove('ql-expanded');
+    pick.querySelector('.ql-picker-label')?.setAttribute('aria-expanded', 'false');
+  });
+});
 
 // Initialinhalt laden. dangerouslyPasteHTML (= convert + setContents) baut
 // table-better-Tabellen beim Wiederherstellen nicht auf (Zeilen gehen
@@ -1082,8 +1123,8 @@ document.addEventListener('DOMContentLoaded', async () => {
             <div class="tag-row__status-stripe" aria-hidden="true"></div>
             <div class="tag-row__datebox${weFrei ? ' tag-row__datebox--we' : ''}${isToday ? ' tag-row__datebox--today' : ''}">
               <span class="tag-row__day-num">${date.getDate()}</span>
-              <span class="tag-row__month">${monthsShort[date.getMonth()]}</span>
               <span class="tag-row__weekday">${d.long}</span>
+              <span class="tag-row__month">${monthsShort[date.getMonth()]}</span>
             </div>
 
             <div class="tag-row__field">
@@ -1117,7 +1158,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                     isAbwesend || readonly,
                     tag.ort
                   )
-                : `<span class="tag-row__we-marker">WE</span>`}
+                : ''}
             </div>
 
 
@@ -1827,8 +1868,8 @@ document.addEventListener('DOMContentLoaded', async () => {
           <div class="tag-row__summary tag-row__summary--no-toggle">
             <div class="tag-row__datebox${weFrei ? ' tag-row__datebox--we' : ''}${isToday ? ' tag-row__datebox--today' : ''}">
               <span class="tag-row__day-num">${date.getDate()}</span>
-              <span class="tag-row__month">${monthsShort[date.getMonth()]}</span>
               <span class="tag-row__weekday">${d.long}</span>
+              <span class="tag-row__month">${monthsShort[date.getMonth()]}</span>
             </div>
 
             <div class="tag-row__field">
@@ -1862,7 +1903,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                     isAbwesend || readonly,
                     tag.ort
                   )
-                : `<span class="tag-row__we-marker">WE</span>`}
+                : ''}
             </div>
 
           </div>

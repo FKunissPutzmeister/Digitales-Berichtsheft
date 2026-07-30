@@ -185,25 +185,25 @@
    quill.snow.css setzt für den Size-Picker `content:'Normal'` bzw. attr(data-label);
    nur diese höher gewichteten Einzelregeln gewinnen sicher dagegen. */
 .ql-toolbar.ql-snow .ql-picker.ql-size .ql-picker-label::before,
-.ql-toolbar.ql-snow .ql-picker.ql-size .ql-picker-item::before { content: '11'; }
-.ql-toolbar.ql-snow .ql-picker.ql-size .ql-picker-label[data-value="7pt"]::before,
-.ql-toolbar.ql-snow .ql-picker.ql-size .ql-picker-item[data-value="7pt"]::before { content: '7'; }
-.ql-toolbar.ql-snow .ql-picker.ql-size .ql-picker-label[data-value="9pt"]::before,
-.ql-toolbar.ql-snow .ql-picker.ql-size .ql-picker-item[data-value="9pt"]::before { content: '9'; }
-.ql-toolbar.ql-snow .ql-picker.ql-size .ql-picker-label[data-value="13pt"]::before,
-.ql-toolbar.ql-snow .ql-picker.ql-size .ql-picker-item[data-value="13pt"]::before { content: '13'; }
-.ql-toolbar.ql-snow .ql-picker.ql-size .ql-picker-label[data-value="15pt"]::before,
-.ql-toolbar.ql-snow .ql-picker.ql-size .ql-picker-item[data-value="15pt"]::before { content: '15'; }
-.ql-toolbar.ql-snow .ql-picker.ql-size .ql-picker-label[data-value="17pt"]::before,
-.ql-toolbar.ql-snow .ql-picker.ql-size .ql-picker-item[data-value="17pt"]::before { content: '17'; }
-.ql-toolbar.ql-snow .ql-picker.ql-size .ql-picker-label[data-value="19pt"]::before,
-.ql-toolbar.ql-snow .ql-picker.ql-size .ql-picker-item[data-value="19pt"]::before { content: '19'; }
-.ql-toolbar.ql-snow .ql-picker.ql-size .ql-picker-label[data-value="21pt"]::before,
-.ql-toolbar.ql-snow .ql-picker.ql-size .ql-picker-item[data-value="21pt"]::before { content: '21'; }
-.ql-toolbar.ql-snow .ql-picker.ql-size .ql-picker-label[data-value="23pt"]::before,
-.ql-toolbar.ql-snow .ql-picker.ql-size .ql-picker-item[data-value="23pt"]::before { content: '23'; }
-.ql-toolbar.ql-snow .ql-picker.ql-size .ql-picker-label[data-value="25pt"]::before,
-.ql-toolbar.ql-snow .ql-picker.ql-size .ql-picker-item[data-value="25pt"]::before { content: '25'; }
+.ql-toolbar.ql-snow .ql-picker.ql-size .ql-picker-item::before { content: '12'; }
+.ql-toolbar.ql-snow .ql-picker.ql-size .ql-picker-label[data-value="8pt"]::before,
+.ql-toolbar.ql-snow .ql-picker.ql-size .ql-picker-item[data-value="8pt"]::before { content: '8'; }
+.ql-toolbar.ql-snow .ql-picker.ql-size .ql-picker-label[data-value="10pt"]::before,
+.ql-toolbar.ql-snow .ql-picker.ql-size .ql-picker-item[data-value="10pt"]::before { content: '10'; }
+.ql-toolbar.ql-snow .ql-picker.ql-size .ql-picker-label[data-value="14pt"]::before,
+.ql-toolbar.ql-snow .ql-picker.ql-size .ql-picker-item[data-value="14pt"]::before { content: '14'; }
+.ql-toolbar.ql-snow .ql-picker.ql-size .ql-picker-label[data-value="16pt"]::before,
+.ql-toolbar.ql-snow .ql-picker.ql-size .ql-picker-item[data-value="16pt"]::before { content: '16'; }
+.ql-toolbar.ql-snow .ql-picker.ql-size .ql-picker-label[data-value="18pt"]::before,
+.ql-toolbar.ql-snow .ql-picker.ql-size .ql-picker-item[data-value="18pt"]::before { content: '18'; }
+.ql-toolbar.ql-snow .ql-picker.ql-size .ql-picker-label[data-value="20pt"]::before,
+.ql-toolbar.ql-snow .ql-picker.ql-size .ql-picker-item[data-value="20pt"]::before { content: '20'; }
+.ql-toolbar.ql-snow .ql-picker.ql-size .ql-picker-label[data-value="22pt"]::before,
+.ql-toolbar.ql-snow .ql-picker.ql-size .ql-picker-item[data-value="22pt"]::before { content: '22'; }
+.ql-toolbar.ql-snow .ql-picker.ql-size .ql-picker-label[data-value="24pt"]::before,
+.ql-toolbar.ql-snow .ql-picker.ql-size .ql-picker-item[data-value="24pt"]::before { content: '24'; }
+.ql-toolbar.ql-snow .ql-picker.ql-size .ql-picker-label[data-value="26pt"]::before,
+.ql-toolbar.ql-snow .ql-picker.ql-size .ql-picker-item[data-value="26pt"]::before { content: '26'; }
 
 /* Zahl im Feld und im Menü zentriert (Quill-Default ist linksbündig). */
 .ql-toolbar.ql-snow .ql-picker.ql-size .ql-picker-label::before {
@@ -272,6 +272,24 @@
   background: var(--pm-yellow-pale);
   color: var(--pm-grey-900);
   font-weight: var(--fw-bold);
+}
+
+/* Rückmeldung für − / +: die Zahl im Feld schnellt kurz auf und wieder zurück,
+   damit man den Schritt auch ohne Blick auf den Text mitbekommt. Läuft nur auf
+   dem ::before (der Zahl selbst) – die Pille mit Rahmen und Pfeil bleibt ruhig.
+   Klasse setzt/entfernt wochenansicht.js (bumpQuillSizeLabel). */
+@keyframes qlSizeBump {
+  0%   { transform: scale(1); }
+  30%  { transform: scale(1.32); }
+  100% { transform: scale(1); }
+}
+.ql-toolbar.ql-snow .ql-picker.ql-size .ql-picker-label.ql-size-bump::before {
+  animation: qlSizeBump 240ms cubic-bezier(.22, 1, .36, 1);
+}
+@media (prefers-reduced-motion: reduce) {
+  .ql-toolbar.ql-snow .ql-picker.ql-size .ql-picker-label.ql-size-bump::before {
+    animation: none;
+  }
 }
 
 /* − / + Stepper: kompakt an den Größen-Picker angelegt (wie A−/A+ in Word). */
