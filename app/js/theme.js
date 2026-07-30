@@ -176,7 +176,11 @@
        zerplatzen (Engine = PMCandyBubbles-Controller unten; Charakter-
        wechsel der Einhörner = wireCandyUnicornSwap). Styling/Keyframes
        liegen in css/theme-candy.css (Klassen pm-cd-* zur Kollisions-
-       vermeidung). */
+       vermeidung).
+
+       KEIN Bonbon-Regen mehr: die acht fallenden Bonbons zogen den Blick von
+       der Seite weg. Das CSS (.pm-cd-candy, pm-cd-candy-fall) bleibt unbenutzt
+       liegen – zum Zurückholen genügt es, die Zeilen hier wieder einzusetzen. */
     candy:
       '<div class="pm-cd-rainbow"></div>' +
       '<div class="pm-cd-cloud pm-cd-cloud--1"></div>' +
@@ -201,14 +205,6 @@
       '<div class="pm-cd-unicorn pm-cd-unicorn--front"><div class="pm-cd-unicorn__hop"><img class="pm-cd-uni-img" src="assets/candy-unicorn-2.png" alt="" aria-hidden="true"></div></div>' +
       '<div class="pm-cd-gumdrop pm-cd-gumdrop--1"></div>' +
       '<div class="pm-cd-gumdrop pm-cd-gumdrop--2"></div>' +
-      '<div class="pm-cd-candy pm-cd-candy--1"></div>' +
-      '<div class="pm-cd-candy pm-cd-candy--2"></div>' +
-      '<div class="pm-cd-candy pm-cd-candy--3"></div>' +
-      '<div class="pm-cd-candy pm-cd-candy--4"></div>' +
-      '<div class="pm-cd-candy pm-cd-candy--5"></div>' +
-      '<div class="pm-cd-candy pm-cd-candy--6"></div>' +
-      '<div class="pm-cd-candy pm-cd-candy--7"></div>' +
-      '<div class="pm-cd-candy pm-cd-candy--8"></div>' +
       '<canvas class="pm-cd-bubbles" aria-hidden="true"></canvas>',
 
     /* ── FX-Template: halloween (wird vom Theme-Designer befüllt) ──
