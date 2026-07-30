@@ -894,7 +894,8 @@ html[data-theme="halloween"] .bento .b-recent {
    bei den Bento-Pills (.b-mitteilung), plus warme Kürbis-Hairline und einen
    Hauch Sheen, damit sie zur Kachel-Optik der Karte passen. */
 html[data-theme="halloween"] .review-inbox .azubi-card,
-html[data-theme="halloween"] .card--mitteilungen .activity-item {
+html[data-theme="halloween"] .card--mitteilungen .activity-item,
+html[data-theme="halloween"] .card.rot .rot-row {
   background:
     linear-gradient(180deg, rgba(255, 184, 120, 0.06) 0%, rgba(255, 255, 255, 0) 55%),
     rgba(255, 255, 255, 0.06);
