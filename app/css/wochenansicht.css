@@ -1329,7 +1329,13 @@ html[data-skin="silk"] body[data-page="wochenansicht"] .day-section .ql-editor {
   transition: grid-template-rows .38s cubic-bezier(.22, 1, .36, 1);
 }
 .day-section--collapsible.day-section--expanded .day-section__body { grid-template-rows: 1fr; }
-.day-section__body-inner { overflow: hidden; min-height: 0; }
+/* overflow:hidden gehört nur den COLLAPSIBLE Sektionen (Schule/Unterweisung) -
+   die schützt es während der grid-rows-Animation und wird oben per allow-discrete
+   nach dem Aufklappen wieder aufgehoben. Betrieb ist nie collapsible (kein
+   Grid, keine Animation) und hatte die Klammer trotzdem unconditional mit -
+   dadurch blieb ihr Editor DAUERHAFT geclippt und alles, was floating darüber
+   hinausragt (Quill-Tabellen-Picker, Format-Dropdowns), wurde abgeschnitten. */
+.day-section--collapsible .day-section__body-inner { overflow: hidden; min-height: 0; }
 .day-section--collapsible.day-section--expanded .day-section__body-inner {
   overflow: visible;
   transition: overflow 0s .38s allow-discrete;
@@ -3547,10 +3553,14 @@ body[data-page="wochenansicht"] .pm-select.wochen-options__select .pm-select__tr
   height: 42px;
   min-height: 42px;
   margin-bottom: 6px;
-  /* Raised-Look: dezenter Außenschatten + zarte obere Lichtkante. */
+  /* Raised-Look: dreistufiger Schatten (Kontakt/Nah/Ambient) statt eines
+     einzelnen schwachen Schleiers – auf weißen Karten (Standard hell,
+     Candy) ist var(--pm-white) sonst mit der Kartenfläche identisch und
+     die Pille verschwimmt. */
   box-shadow:
-    0 1px 2px rgba(15, 23, 42, 0.06),
-    0 4px 10px rgba(15, 23, 42, 0.10);
+    0 1px 2px rgba(15, 23, 42, 0.09),
+    0 3px 6px rgba(15, 23, 42, 0.10),
+    0 8px 20px rgba(15, 23, 42, 0.12);
   color: var(--pm-grey-800);
   transition: box-shadow var(--t-fast), background-color var(--t-fast),
               transform var(--t-fast), border-color var(--t-fast);
@@ -3567,8 +3577,9 @@ body[data-page="wochenansicht"] .pm-select.wochen-options__select .pm-select__tr
   background: var(--pm-white);
   /* Nur Schatten verstärken – kein Anheben (translateY entfällt). */
   box-shadow:
-    0 2px 4px rgba(15, 23, 42, 0.08),
-    0 8px 18px rgba(15, 23, 42, 0.14);
+    0 2px 4px rgba(15, 23, 42, 0.11),
+    0 4px 8px rgba(15, 23, 42, 0.12),
+    0 10px 24px rgba(15, 23, 42, 0.16);
 }
 body[data-page="wochenansicht"] .pm-select.tag-row__select .pm-select__trigger:active:not(:disabled),
 body[data-page="wochenansicht"] .pm-select.wochen-options__select .pm-select__trigger:active:not(:disabled) {
@@ -3719,6 +3730,17 @@ body[data-page="wochenansicht"] select.tag-row__select:not([data-pm-enhanced]):h
   border: 1.5px solid var(--pm-grey-200);
   user-select: none;
 }
+/* Standard hell + Candy: var(--pm-white) ist dort reines Weiß wie die
+   Karte selbst – ohne Schatten verschwimmt die Pille, der Rand allein
+   reicht nicht als Tiefenhinweis. Andere Themes (dark, cmd, silk, …)
+   haben eigenes --pm-white und/oder eigene Overrides, bleiben unberührt. */
+[data-theme="light"] .dauer-pill,
+[data-theme="candy"] .dauer-pill {
+  box-shadow:
+    0 1px 2px rgba(15, 23, 42, 0.09),
+    0 3px 6px rgba(15, 23, 42, 0.10),
+    0 8px 20px rgba(15, 23, 42, 0.12);
+}
 .dauer-pill__opt {
   border: none;
   background: transparent;
@@ -3847,7 +3869,17 @@ select.field-error,
 .field-error.ql-editor-wrap,
 .field-error .ql-container {
   border-color: var(--color-error) !important;
-  box-shadow: inset 0 0 0 2px var(--color-error) !important;
+  /* Zusätzlich zum inset-Ring eine identische AUSSEN liegende Kopie: in
+     manchen Render-Kontexten (beobachtet auf den Wochen-Kacheln, u. a. im
+     CMD-Theme) bleibt ein reiner inset-box-shadow auf diesem Element
+     unsichtbar (Farbe/Breite ändern half nicht, nur "inset" entfernen half) -
+     offenbar ein Compositing-Rendering-Fall, kein CSS-Kaskaden-Problem
+     (getComputedStyle zeigte den korrekten Wert, nur der Pixel blieb dunkel).
+     Die äußere Kopie trägt die Sichtbarkeit dort, wo inset ausfällt; wo inset
+     normal funktioniert, verdoppelt sie einfach denselben Ring. */
+  box-shadow:
+    inset 0 0 0 2px var(--color-error),
+    0 0 0 2px var(--color-error) !important;
   border-radius: var(--r-md);
 }
 

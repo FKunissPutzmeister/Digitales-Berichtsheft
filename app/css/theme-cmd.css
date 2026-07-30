@@ -220,6 +220,13 @@ html[data-theme="cmd"] { color-scheme: dark; }
   color: var(--pm-yellow-dark);
   box-shadow: 0 1px 0 rgba(255,255,255,0.08) inset, 0 2px 8px rgba(0,0,0,0.40);
 }
+/* Eingeklappte Sidebar: layout.css hardcodet für .active dort eine reine
+   Gelb-rgba (kein Custom-Theme kannte das bislang) → im CMD blieb die
+   aktive Kachel gelb statt Terminal-Grün. Icon-Farbe braucht keinen
+   eigenen Override, die kommt schon theme-richtig über var(--pm-yellow). */
+[data-theme="cmd"] .sidebar.collapsed .sidebar__link.active {
+  background: rgba(0, 230, 77, 0.14);
+}
 [data-theme="cmd"] .sidebar__divider { background: rgba(255, 255, 255, 0.08); }
 [data-theme="cmd"] .sidebar__footer { border-top-color: rgba(255, 255, 255, 0.06); }
 [data-theme="cmd"] .sidebar__user-link { background: rgba(255, 255, 255, 0.06); }
@@ -793,6 +800,15 @@ html[data-theme="cmd"] .bento .b-recent {
    sitzt auf dunklem Tint → neutral weiß. */
 [data-theme="cmd"] .week-status-banner__title { color: rgba(255, 255, 255, 0.95); }
 
+/* Rückgabe-Zitat-Kasten: derselbe „hell auf hell"-Fall wie im Standard-
+   Dark-Mode (siehe wochenansicht.css, [data-theme="dark"] .week-status-
+   banner__quote) – der helle rgba(255,255,255,0.6)-Kasten blieb hier aber
+   unfixt, weil CMD kein [data-theme="dark"] ist. Auf dem rot getönten
+   Banner ergab das einen muddy rosa Kasten mit hellgrünem Text. */
+[data-theme="cmd"] .week-status-banner__quote {
+  background: rgba(255, 255, 255, 0.06);
+}
+
 /* Dashboard-Hero-Status „Genehmigt": dunkelgrüner Text auf HELLER
    Mint-Pille (wie im Dark-Mode hell belassen) → schwarz statt grün. */
 [data-theme="cmd"] .b-status--genehmigt { color: #0A140C; }
@@ -801,10 +817,12 @@ html[data-theme="cmd"] .bento .b-recent {
    Karte → weiß; der farbige Status-Punkt (.d) bleibt grün. */
 [data-theme="cmd"] .b-wkcard--ok  .b-wkcard__status { color: rgba(255, 255, 255, 0.92); }
 
-/* Jahresansicht-Legende: Standardtext war --pm-grey-600 (= grün). Die
-   Legenden-Pille ist im CMD hell (fehlender Dark-Override) → schwarzer
-   Text. Die farbigen Status-Punkte bleiben erhalten. */
-[data-theme="cmd"] .legend-item { color: #0A140C; }
+/* Jahresansicht-Legende: die Glas-Pille ist im CMD transparent (siehe
+   .year-legend weiter unten) – Text liegt direkt auf dem dunklen Matrix-
+   Hintergrund. Der frühere Override auf #0A140C (fast Schwarz, für eine
+   inzwischen nicht mehr existierende HELLE Pille gedacht) war dort
+   unlesbar. Kein Override mehr nötig: --pm-grey-600 ist im CMD bereits
+   das helle Terminal-Grün. */
 
 /* ===================================================================
    0/1-MATRIX-HINTERGRUND (.pm-cmd-bg – js/theme.js · PMCmdFX)

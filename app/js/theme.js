@@ -1356,16 +1356,25 @@
     return { start: start, stop: stop, rescan: decorate };
   })();
 
-  /* ── Candy: Vordergrund-Charakterwechsel beim Rand-Austritt ───────
+  /* ── Candy: Einhörner tauschen die Ebene beim Rand-Austritt ───────
      „Wenn ein Einhorn den Bildschirmrand verlassen hat, wechselt, welcher
-     Charakter im Vordergrund läuft." Umgesetzt rein über das CSS-
-     animationiteration-Event der LAUF-Animation (pm-cd-uni-run): eine
-     Iteration = ein voller Lauf von Rand zu Rand, d. h. das Einhorn ist
-     beim Iterations-Ende OFF-SCREEN → der Sprite-Tausch ist unsichtbar.
-     Es gibt 2 Charaktere; der Vordergrund wechselt bei jedem Lauf des
-     vorderen Einhorns, der Hintergrund nimmt am eigenen (off-screen)
-     Rundenende stets den Komplement-Charakter → die beiden bleiben i. d. R.
-     verschieden, und jede Änderung passiert unsichtbar am Rand.
+     Charakter im Vordergrund läuft." Ausgelöst vom animationiteration-Event
+     der LAUF-Animation: eine Iteration = ein Queren von Rand zu Rand, und
+     die Keyframes parken das Sprite ab 88 % außerhalb des Bildes – am
+     Iterations-Ende ist es also OFF-SCREEN, der Sprite-Tausch unsichtbar.
+     WICHTIG: die Namen müssen zu den TATSÄCHLICH laufenden Keyframes passen.
+     mid/front haben eigene (pm-cd-uni-cross-mid/-front), pm-cd-uni-run ist
+     nur noch der Fallback – solange hier allein auf pm-cd-uni-run gehorcht
+     wurde, hat der Tausch nie stattgefunden.
+
+     Welcher Charakter beim Seitenaufruf vorn läuft, wird gewürfelt.
+
+     Getauscht werden kann nur, was gerade draußen ist: die beiden Läufer
+     sind unterschiedlich lang unterwegs (22 s / 27 s), stehen also selten
+     gleichzeitig außerhalb. Deshalb zieht der zweite in der Regel erst bei
+     seinem eigenen Rundenende nach – solange laufen kurzzeitig zwei gleiche
+     Reiter (verschieden groß, in Gegenrichtung). Ist der andere im Moment
+     des Tauschs ebenfalls draußen, wird er sofort mitgezogen.
      Listener werden beim FX-Teardown automatisch mit den Elementen
      entsorgt (kein manuelles Aufräumen nötig). */
   var UNI_CHARS = [
@@ -1383,21 +1392,36 @@
     img.setAttribute('src', UNI_CHARS[idx].src);
     unicornEl.style.aspectRatio = UNI_CHARS[idx].ar;
   }
+  /* Laufzyklen, die einen Ebenentausch auslösen dürfen. Hüpfen
+     (pm-cd-uni-hop) und Bodenschatten (pm-cd-uni-shadow) blubbern mit dem
+     gleichen Event hoch und müssen draußen bleiben. */
+  var UNI_RUNS = ['pm-cd-uni-cross-mid', 'pm-cd-uni-cross-front', 'pm-cd-uni-run'];
+  function uniOffscreen(el) {
+    var r = el.getBoundingClientRect();
+    return r.right <= 0 || r.left >= (window.innerWidth || document.documentElement.clientWidth);
+  }
   function wireCandyUnicornSwap(fxRoot) {
     var front = fxRoot.querySelector('.pm-cd-unicorn--front');
     var mid   = fxRoot.querySelector('.pm-cd-unicorn--mid');
-    if (!front && !mid) return;
-    /* aktueller Vordergrund-Charakter aus dem DOM ableiten */
-    var frontIdx = front ? uniCharIndex(front.querySelector('.pm-cd-uni-img')) : 1;
-    if (front) front.addEventListener('animationiteration', function (e) {
-      if (e.animationName !== 'pm-cd-uni-run') return;   // Hüpf-/Schatten-Iteration ignorieren
-      frontIdx = 1 - frontIdx;            // Vordergrund wechselt (front ist hier off-screen)
-      setUniChar(front, frontIdx);
-    });
-    if (mid) mid.addEventListener('animationiteration', function (e) {
-      if (e.animationName !== 'pm-cd-uni-run') return;
-      setUniChar(mid, 1 - frontIdx);      // Hintergrund = Komplement (mid hier off-screen)
-    });
+    if (!front || !mid) return;
+    /* Startbesetzung würfeln – nicht aus dem Template ableiten. */
+    var frontIdx = Math.random() < 0.5 ? 1 : 0;
+    setUniChar(front, frontIdx);
+    setUniChar(mid, 1 - frontIdx);
+    var soll = function (el) { return el === front ? frontIdx : 1 - frontIdx; };
+    var zeigt = function (el) { return uniCharIndex(el.querySelector('.pm-cd-uni-img')); };
+    function amRand(el, andere) {
+      return function (e) {
+        if (UNI_RUNS.indexOf(e.animationName) === -1) return;
+        /* Hängt dieses Einhorn dem letzten Tausch noch nach, holt es das
+           jetzt nur auf. Ist es dagegen aktuell, tauschen die Ebenen. */
+        if (zeigt(el) === soll(el)) frontIdx = 1 - frontIdx;
+        setUniChar(el, soll(el));
+        if (uniOffscreen(andere)) setUniChar(andere, soll(andere));
+      };
+    }
+    front.addEventListener('animationiteration', amRand(front, mid));
+    mid.addEventListener('animationiteration', amRand(mid, front));
   }
 
   /* Reduzierte FX-Templates NUR für die Login-Seite (greifen in
