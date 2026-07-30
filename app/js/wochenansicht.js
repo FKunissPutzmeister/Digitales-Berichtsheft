@@ -1631,43 +1631,91 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   // Alle Abschnitts-Toolbars eines Tages (Betrieb/Schule/Unterweisung) an EINER
-  // Stelle bündeln – oben über dem Betrieb-Feld – und immer nur die des gerade
-  // fokussierten Feldes zeigen. So gibt es statt zwei/drei identischen Leisten
+  // Stelle bündeln – oben über dem ersten sichtbaren Feld des Tages – und immer
+  // nur die des gerade fokussierten Feldes zeigen. So gibt es statt zwei/drei identischen Leisten
   // nur noch die obere, die für das jeweils aktive Feld gilt. Jede Toolbar
   // bleibt nativ an ihren eigenen Editor gebunden (Formatierung, Aktiv-Zustände,
   // Tabellen, Links etc. funktionieren unverändert – wir schieben nur DOM und
   // schalten Sichtbarkeit).
   const DAY_TOOLBAR_KINDS = ['betrieb', 'schule', 'unterweisung'];
-  function consolidateDayToolbars(dateStr, readonly) {
-    if (readonly) return; // Readonly-Wochen haben leere/ausgeblendete Toolbars
+
+  // Schaltet innerhalb eines Tages auf die Leiste des angegebenen Abschnitts um.
+  // Sucht im Tages-Container statt in einer gemerkten Slot-Referenz, weil der
+  // Slot zur Laufzeit wechseln kann (siehe layoutDayToolbars).
+  function activateDayToolbar(dateStr, kind) {
+    document.getElementById('editorSection_' + dateStr)
+      ?.querySelectorAll('.day-toolbar')
+      .forEach((tb) => tb.classList.toggle('day-toolbar--active', tb.dataset.tbKind === kind));
+  }
+
+  // Bündelt die Leisten eines Tages im Body der ANKER-Sektion und gibt den
+  // Slot zurück (null, wenn es keine brauchbare Sektion gibt).
+  //
+  // Anker war früher fest die Betrieb-Sektion. Die ist aber ortabhängig
+  // ausgeblendet (.day-section--hidden = display:none, z. B. bei Ort „Schule")
+  // bzw. eine zugeklappte Klapp-Sektion fährt ihren Body auf 0fr zusammen –
+  // in beiden Fällen verschwand der GANZE Leisten-Stapel, während der
+  // sichtbare Editor (z. B. Berufsschule) weiter editierbar blieb: man konnte
+  // schreiben, hatte aber keine Formatierleiste mehr. Deshalb wird der Anker
+  // jetzt dynamisch gewählt: erste tatsächlich sichtbare Sektion des Tages.
+  function layoutDayToolbars(dateStr) {
+    const sectionOf = (kind) =>
+      document.querySelector(`.day-section--${kind}[data-date="${dateStr}"]`);
     const toolbarOf = (kind) =>
       quillInstances[`day_${kind}_${dateStr}`]?.getModule('toolbar')?.container || null;
+    const sichtbar = (kind) => {
+      const sec = sectionOf(kind);
+      return !!sec && !sec.classList.contains('day-section--hidden');
+    };
+    // Zugeklappte Klapp-Sektion: Body ist auf 0fr zusammengefahren und
+    // overflow:hidden – als Leisten-Anker unbrauchbar.
+    const offen = (kind) => {
+      const sec = sectionOf(kind);
+      return !!sec && (!sec.classList.contains('day-section--collapsible')
+                       || sec.classList.contains('day-section--expanded'));
+    };
 
-    const betriebTb = toolbarOf('betrieb');
-    if (!betriebTb) return;
-    const slot = betriebTb.parentElement; // body-inner der Betrieb-Sektion
-    betriebTb.classList.add('day-toolbar', 'day-toolbar--active');
-    betriebTb.dataset.tbKind = 'betrieb';
+    const anchorKind = DAY_TOOLBAR_KINDS.find(k => toolbarOf(k) && sichtbar(k) && offen(k))
+                    || DAY_TOOLBAR_KINDS.find(k => toolbarOf(k) && sichtbar(k));
+    if (!anchorKind) return null;
 
-    let after = betriebTb;
-    DAY_TOOLBAR_KINDS.slice(1).forEach((kind) => {
+    const slot = sectionOf(anchorKind)?.querySelector('.day-section__body-inner');
+    if (!slot) return null;
+
+    // Anker-Leiste zuoberst in ihren eigenen Body, die übrigen dahinter.
+    const anchorTb = toolbarOf(anchorKind);
+    if (anchorTb.parentElement !== slot || anchorTb !== slot.firstElementChild) {
+      slot.insertBefore(anchorTb, slot.firstChild);
+    }
+    let after = anchorTb;
+    DAY_TOOLBAR_KINDS.forEach((kind) => {
       const tb = toolbarOf(kind);
       if (!tb) return;
       tb.classList.add('day-toolbar');
-      tb.classList.remove('day-toolbar--active');
       tb.dataset.tbKind = kind;
-      slot.insertBefore(tb, after.nextSibling); // direkt hinter der Betrieb-Leiste
+      if (tb === anchorTb) return;
+      slot.insertBefore(tb, after.nextSibling);
       after = tb;
     });
 
-    const activate = (kind) => {
-      slot.querySelectorAll('.day-toolbar').forEach((tb) =>
-        tb.classList.toggle('day-toolbar--active', tb.dataset.tbKind === kind));
-    };
+    // Die aktive Leiste muss zu einer sichtbaren Sektion gehören – sonst zeigt
+    // der Tag nach einem Ort-Wechsel gar keine Leiste mehr.
+    const aktiv = DAY_TOOLBAR_KINDS.find(k =>
+      toolbarOf(k)?.classList.contains('day-toolbar--active') && sichtbar(k) && offen(k));
+    activateDayToolbar(dateStr, aktiv || anchorKind);
+    return slot;
+  }
+
+  function consolidateDayToolbars(dateStr, readonly) {
+    if (readonly) return; // Readonly-Wochen haben leere/ausgeblendete Toolbars
+    if (!layoutDayToolbars(dateStr)) return;
+
+    // Handler nur EINMAL pro Quill-Instanz binden – das Umhängen der Leisten
+    // (layoutDayToolbars) kann später beliebig oft laufen.
     DAY_TOOLBAR_KINDS.forEach((kind) => {
       const q = quillInstances[`day_${kind}_${dateStr}`];
       if (!q) return;
-      q.on('selection-change', (range) => { if (range) activate(kind); });
+      q.on('selection-change', (range) => { if (range) activateDayToolbar(dateStr, kind); });
     });
   }
 
@@ -2735,6 +2783,11 @@ document.addEventListener('DOMContentLoaded', async () => {
             uSection.classList.toggle('day-section--hidden', !uVisible);
           }
 
+          // Der Ort hat gerade Sektionen ein-/ausgeblendet – die gebündelte
+          // Formatierleiste muss dem folgen, sonst hängt sie in einer
+          // display:none-Sektion und ist weg (Editor bleibt editierbar).
+          layoutDayToolbars(dateStr);
+
           // Nach Wahl eines Orts die Tageskachel automatisch aufklappen und
           // dorthin scrollen, damit der Eintrag sofort erfasst werden kann.
           // (Nur im Tages-Modus relevant – nur dort gibt es dayCard_<datum>.)
@@ -2763,7 +2816,12 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // Unterweisung-Kachel auf-/zugeklappt → sofort speichern, damit
     // unterweisungAktiv (Pflichtfeld-Status) auch ohne Text-Eingabe stimmt.
-    window._unterweisungToggleCallback = async dateStr => { await autoSave(dateStr); };
+    window._unterweisungToggleCallback = async dateStr => {
+      // Zu-/Aufklappen ändert, welche Sektion die Leisten tragen kann
+      // (zugeklappt = Body auf 0fr, Leiste wäre unsichtbar).
+      layoutDayToolbars(dateStr);
+      await autoSave(dateStr);
+    };
   }
 
   function bindWochenEvents(woche, monday) {
