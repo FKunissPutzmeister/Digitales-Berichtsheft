@@ -176,6 +176,28 @@ function hideReadonlyToolbar(quill, readonly) {
   if (bar) bar.style.display = 'none';
 }
 
+// ── Größen-Menü der Editor-Leiste: nach OBEN klappen, wenn unten kein Platz ist
+// Quill hängt das Panel absolut unter die Beschriftung. Steht die Leiste weit
+// unten im Fenster (in der Tagesansicht gibt es eine pro Abschnitt und Tag,
+// also über die ganze Seite verteilt), reichte das Menü unter den Fensterrand –
+// man musste scrollen, um die großen Größen zu sehen. Die Entscheidung folgt
+// derselben Regel wie PMSelect.position() in app.js: nach oben, wenn unten
+// weniger Platz ist als das Menü braucht UND oben mehr.
+// Am document delegiert, weil Editoren dynamisch entstehen – so muss sich kein
+// einzelner anmelden. mousedown feuert VOR dem Aufklappen, die Klasse sitzt
+// also bevor das Panel gezeichnet wird (kein Springen).
+const QL_SIZE_MENU_H = 180;   // 2 Spalten × 5 Größen + Polster (quill-editor.css)
+document.addEventListener('mousedown', function (e) {
+  const t = e.target;
+  if (!t || typeof t.closest !== 'function') return;
+  const label = t.closest('.ql-toolbar .ql-picker.ql-size .ql-picker-label');
+  if (!label) return;
+  const pick = label.closest('.ql-picker.ql-size');
+  const r = label.getBoundingClientRect();
+  const platzUnten = window.innerHeight - r.bottom;
+  pick.classList.toggle('ql-size--up', platzUnten < QL_SIZE_MENU_H + 12 && r.top > platzUnten);
+}, true);
+
 // Initialinhalt laden. dangerouslyPasteHTML (= convert + setContents) baut
 // table-better-Tabellen beim Wiederherstellen nicht auf (Zeilen gehen
 // verloren) – offizieller Workaround des Moduls (Issue #78): Delta per
@@ -490,7 +512,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     window._spinnerCallback = cb;
   }
 
-  async function render() {
+  async function render(preloadedWoche) {
     detachAllAutocompletes();
     // Wenn dieser Render durch einen KW-Wechsel ausgelöst wurde, hängen
     // wir die --entering-Klasse + data-dir direkt ans Markup. So ist die
@@ -511,9 +533,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Kette (die alte Kette holte via getBerichtTyp() denselben User sogar
     // doppelt). Gemessen: ~600–700ms sequenziell → ~1 Roundtrip; beschleunigt
     // jede Navigation zur Wochenansicht UND jeden KW-Wechsel, alle Themes.
+    // Ein Aufrufer, der die Woche gerade selbst gespeichert hat, kann den frischen
+    // Stand direkt mitgeben – erspart den sonst redundanten dritten GET /wochen
+    // (u. a. beim Wochenend-Umschalten spürbar).
     const [azubiUser, woche, azubiZuw] = await Promise.all([
       DB.getUser(azubiId),
-      DB.getWoche(azubiId, currentKW, currentYear),
+      preloadedWoche || DB.getWoche(azubiId, currentKW, currentYear),
       DB.getAktuellerAusbilder(azubiId)
     ]);
     const berichtTyp = azubiUser?.berichtTyp || 'täglich';   // = getBerichtTyp(), ohne Extra-Fetch
@@ -1024,7 +1049,12 @@ document.addEventListener('DOMContentLoaded', async () => {
       const schuleExpanded  = hasSchule || showSchule;
       // Bleibt nach Reload aufgeklappt, wenn der Nutzer die Kachel aktiviert
       // hat – auch ohne Inhalt (siehe getDayCompletion: dann Pflichtfeld).
-      const unterweisungExpanded = !!tag.unterweisungAktiv || hasUnterweisung;
+      // Für einen noch nie gespeicherten Tag (Flag undefined) zieht zusätzlich
+      // die Profil-Einstellung „Unterweisung standardmäßig aktiv" – dieselbe
+      // Regel wie im Wochen-Modus (renderWochenKacheln, s. u.). Ein Tag mit
+      // explizit false bleibt zu, und im Lesemodus wird nichts erzwungen.
+      const unterweisungExpanded = !!tag.unterweisungAktiv || hasUnterweisung
+        || (!readonly && tag.unterweisungAktiv === undefined && unterweisungDefaultOn());
       // Sichtbarkeit der Kachel: im eigenen (schreibbaren) Heft reicht ein
       // gewählter Ort, damit der Azubi sie bei Bedarf aufklappen kann. Im
       // Prüfer-/Ausbilder-Lesemodus (readonly) wäre das Kästchen nur ein
@@ -2262,8 +2292,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     await DB.saveWoche(woche);
     updateAutosaveTimestamp();
     updateStundenDisplay();
-    await updateDayCompletion(dateStr);
+    // woche ist bereits der frisch gespeicherte Stand – kein erneutes
+    // DB.getWoche() nötig (spart einen Roundtrip, u. a. beim Wochenend-
+    // Umschalten spürbar).
+    updateDayCompletion(dateStr, woche);
     clearDayError(dateStr);
+    return woche;
   }
 
   function updateAutosaveTimestamp() {
@@ -2278,11 +2312,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     el.innerHTML = `Automatische Speicherung aktiv · letzte Speicherung: <strong>${ts} Uhr</strong>`;
   }
 
-  async function updateDayCompletion(dateStr) {
+  function updateDayCompletion(dateStr, woche) {
     const row = document.getElementById('dayCard_' + dateStr);
     if (!row) return;
-    const w = await DB.getWoche(viewAzubiId || user.id, currentKW, currentYear);
-    const tag = w?.tage?.find(t => t.datum === dateStr);
+    const tag = woche?.tage?.find(t => t.datum === dateStr);
     const date = new Date(dateStr + 'T00:00:00');
     const isWE = date.getDay() === 0 || date.getDay() === 6;
     const completion = getDayCompletion(tag, isWE);
@@ -2627,8 +2660,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         // Sa/So: der Zeilenaufbau ändert sich strukturell (Ort, ArbZ und Editor
         // kommen dazu bzw. fallen weg) → speichern und die Woche neu rendern.
         if (istWochenendTag(dateStr)) {
-          await autoSave(dateStr);
-          await render();
+          const savedWoche = await autoSave(dateStr);
+          await render(savedWoche);
           return;
         }
         const row = document.getElementById('dayCard_' + dateStr);
@@ -2766,8 +2799,8 @@ document.addEventListener('DOMContentLoaded', async () => {
           const isAbwesend = anwesenheitSel.value !== 'anwesend' && anwesenheitSel.value !== '';
           // Sa/So: Ort und ArbZ kommen dazu bzw. fallen weg → neu rendern.
           if (istWochenendTag(dateStr)) {
-            await autoSave(dateStr);
-            await render();
+            const savedWoche = await autoSave(dateStr);
+            await render(savedWoche);
             return;
           }
           if (ortSel) {

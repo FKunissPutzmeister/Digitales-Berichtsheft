@@ -227,6 +227,27 @@
   border-radius: var(--r-md);
   box-shadow: var(--shadow-md);
   padding: var(--sp-1);
+  /* Zehn Größen in EINER Spalte ergaben ein 58×305px-Band: auf kleinen
+     Bildschirmen reicht das unter den Fensterrand, man musste scrollen, um die
+     großen Größen zu sehen. Zwei Spalten spaltenweise gefüllt (klein links,
+     groß rechts) machen daraus einen ~120×165px-Block, der überall hinpasst.
+     Die Höhenkappe ist die Rückversicherung für sehr flache Fenster. */
+  display: grid;
+  grid-auto-flow: column;
+  grid-template-rows: repeat(5, auto);
+  gap: 1px 2px;
+  width: max-content;
+  max-height: min(320px, calc(100vh - 120px));
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+/* Nach OBEN geklappt, wenn unter der Leiste kein Platz ist. Die Entscheidung
+   trifft wochenansicht.js beim Öffnen – gleiche Regel wie PMSelect. */
+.ql-toolbar.ql-snow .ql-picker.ql-size.ql-size--up .ql-picker-options {
+  top: auto;
+  bottom: 100%;
+  margin-top: 0;
+  margin-bottom: 4px;
 }
 .ql-toolbar.ql-snow .ql-picker.ql-size .ql-picker-item:hover {
   background: var(--pm-grey-100);
