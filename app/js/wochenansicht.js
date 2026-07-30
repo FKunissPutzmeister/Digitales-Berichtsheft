@@ -186,7 +186,7 @@ function hideReadonlyToolbar(quill, readonly) {
 // Am document delegiert, weil Editoren dynamisch entstehen – so muss sich kein
 // einzelner anmelden. mousedown feuert VOR dem Aufklappen, die Klasse sitzt
 // also bevor das Panel gezeichnet wird (kein Springen).
-const QL_SIZE_MENU_H = 180;   // 2 Spalten × 5 Größen + Polster (quill-editor.css)
+const QL_SIZE_MENU_H = 305;   // 10 Größen in einer Spalte + Polster (quill-editor.css)
 document.addEventListener('mousedown', function (e) {
   const t = e.target;
   if (!t || typeof t.closest !== 'function') return;
@@ -195,7 +195,15 @@ document.addEventListener('mousedown', function (e) {
   const pick = label.closest('.ql-picker.ql-size');
   const r = label.getBoundingClientRect();
   const platzUnten = window.innerHeight - r.bottom;
-  pick.classList.toggle('ql-size--up', platzUnten < QL_SIZE_MENU_H + 12 && r.top > platzUnten);
+  const nachOben = platzUnten < QL_SIZE_MENU_H + 12 && r.top > platzUnten;
+  pick.classList.toggle('ql-size--up', nachOben);
+  // Höhe zusätzlich auf den Platz kappen, der auf der GEWÄHLTEN Seite wirklich
+  // da ist. Eine reine 100vh-Rechnung im CSS kennt die Position der Leiste
+  // nicht: in flachen Fenstern (~600px) passt das 314px-Band weder unter noch
+  // über die Leiste und ragte beim Hochklappen oben aus dem Bild. Mit dem
+  // gemessenen Wert scrollt das Menü stattdessen innen.
+  pick.style.setProperty('--ql-size-max-h',
+    Math.max(120, (nachOben ? r.top : platzUnten) - 12) + 'px');
 }, true);
 
 // Initialinhalt laden. dangerouslyPasteHTML (= convert + setContents) baut
