@@ -54,38 +54,6 @@ document.addEventListener('DOMContentLoaded', async () => {
       </div>`;
   }
 
-  /* IHK-Import-Archiv: die serverseitig abgelegten Original-PDFs (backend/data/
-     ihk-imports/) auflisten und direkt öffnen können — sonst käme man nur per
-     RDP auf den Server an die Dateien. Erst beim Aufklappen laden. */
-  function archivBinden() {
-    const det = document.getElementById('fbArchiv');
-    det.addEventListener('toggle', async () => {
-      if (!det.open) return;
-      const box = document.getElementById('fbArchivListe');
-      if (box.dataset.geladen) return;
-      box.dataset.geladen = '1';
-      box.innerHTML = '<p class="fb-empty">Lädt…</p>';
-      try {
-        const list = await DB.listIhkImports();
-        box.innerHTML = list.length ? list.map(a => `
-          <div class="fb-row">
-            <div class="fb-row__head">
-              <span class="fb-user">${esc(a.azubiName || a.oid)}</span>
-              <span class="fb-time">${esc(new Date(a.hochgeladenAm).toLocaleString('de-DE'))}</span>
-              ${a.wochen != null ? `<span class="fb-count">${a.wochen} Wochen</span>` : ''}
-              ${a.modus ? `<span class="fb-badge fb-badge--manual">${esc(a.modus)}</span>` : ''}
-              ${a.warnungen.length ? `<span class="fb-sev fb-sev--gering">${a.warnungen.length} Warnungen</span>` : ''}
-              <a class="btn btn-sm btn-outline" href="${DB.ihkImportUrl(a.oid, a.datei)}" target="_blank" rel="noopener">PDF öffnen</a>
-            </div>
-            <div class="fb-row__msg">${esc(a.origName)} · ${Math.round(a.groesseBytes / 1024)} KB</div>
-          </div>`).join('') : '<p class="fb-empty">Keine archivierten Importe.</p>';
-      } catch (e) {
-        box.dataset.geladen = '';
-        box.innerHTML = `<p class="fb-empty">Laden fehlgeschlagen: ${esc(e.message)}</p>`;
-      }
-    });
-  }
-
   function render(rows) {
     main.innerHTML = `
       <div class="page-header"><div class="page-header__left"><h1 class="page-title">Fehlerberichte</h1></div>
@@ -99,11 +67,7 @@ document.addEventListener('DOMContentLoaded', async () => {
           <label class="fb-filter"><input type="checkbox" id="fbErledigt" ${filterErledigt ? 'checked' : ''}> Erledigte anzeigen</label>
         </div>
       </div>
-      <div class="fb-list">${rows.length ? rows.map(zeile).join('') : '<p class="fb-empty">Keine Fehler.</p>'}</div>
-      <details class="fb-row" id="fbArchiv">
-        <summary>IHK-Import-Archiv (Original-PDFs)</summary>
-        <div class="fb-list" id="fbArchivListe"></div>
-      </details>`;
+      <div class="fb-list">${rows.length ? rows.map(zeile).join('') : '<p class="fb-empty">Keine Fehler.</p>'}</div>`;
     document.getElementById('fbErledigt').addEventListener('change', e => { filterErledigt = e.target.checked; laden(); });
     document.getElementById('fbSevFilter').addEventListener('change', e => { filterSchweregrad = e.target.value; laden(); });
     main.querySelectorAll('[data-resolve]').forEach(btn => btn.addEventListener('click', async () => {
@@ -119,7 +83,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (typeof Toast !== 'undefined') Toast.error('Fehler', 'Konnte Schweregrad nicht ändern.');
       }
     }));
-    archivBinden();
     // Anhang-Thumbnails erst beim Aufklappen laden (spart N leere Requests).
     // Binär-URL absolut mit /api-Präfix (steht in <img src>/href, Single-Origin :3000).
     main.querySelectorAll('.fb-row__anh').forEach(det => {

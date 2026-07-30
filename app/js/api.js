@@ -755,14 +755,6 @@ const DB = {
     return apiUpload('/ihk-imports', fd);
   },
 
-  /* Archiv der importierten IHK-PDFs (developer-only, siehe Fehlerberichte-Seite). */
-  async listIhkImports() {
-    return apiFetch('/ihk-imports');
-  },
-  ihkImportUrl(oid, datei) {
-    return `${API_BASE}/ihk-imports/${oid}/${encodeURIComponent(datei)}`;
-  },
-
   /* Fahrtgelderstattung – Stammdaten des eingeloggten Azubis */
   async getFahrtgeldKonfig() {
     return apiFetch('/fahrtgeld/konfig');
