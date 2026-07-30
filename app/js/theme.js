@@ -1417,12 +1417,15 @@
 
      Welcher Charakter beim Seitenaufruf vorn läuft, wird gewürfelt.
 
-     Getauscht werden kann nur, was gerade draußen ist: die beiden Läufer
-     sind unterschiedlich lang unterwegs (22 s / 27 s), stehen also selten
-     gleichzeitig außerhalb. Deshalb zieht der zweite in der Regel erst bei
-     seinem eigenen Rundenende nach – solange laufen kurzzeitig zwei gleiche
-     Reiter (verschieden groß, in Gegenrichtung). Ist der andere im Moment
-     des Tauschs ebenfalls draußen, wird er sofort mitgezogen.
+     Getauscht wird nur, wenn BEIDE Läufer gerade draußen sind. Mit zwei
+     Sprites hängen die zwei Ebenen zwangsläufig zusammen: die Besetzung zu
+     drehen heißt, beide Bilder gleichzeitig zu wechseln – und sichtbar
+     wechseln darf keiner. Tauschte man trotzdem beim Austritt nur den einen,
+     zeigte das Bild bis zur Runde des Partners ZWEIMAL DENSELBEN Reiter.
+     Deshalb wartet der Tausch auf ein gemeinsames Zeitfenster: beide sind
+     ~12 % ihres Zyklus draußen (22 s / 27 s, teilerfremd), die Phasen driften
+     gegeneinander – im Schnitt trifft es sich alle ein bis zwei Minuten.
+     Seltener als „bei jedem Austritt", dafür ohne Zwillingsphase.
      Listener werden beim FX-Teardown automatisch mit den Elementen
      entsorgt (kein manuelles Aufräumen nötig). */
   var UNI_CHARS = [
@@ -1456,20 +1459,19 @@
     var frontIdx = Math.random() < 0.5 ? 1 : 0;
     setUniChar(front, frontIdx);
     setUniChar(mid, 1 - frontIdx);
-    var soll = function (el) { return el === front ? frontIdx : 1 - frontIdx; };
-    var zeigt = function (el) { return uniCharIndex(el.querySelector('.pm-cd-uni-img')); };
-    function amRand(el, andere) {
+    /* Der Melder ist am Rundenende selbst off-screen (Keyframes parken ihn
+       ab 88 %); geprüft wird deshalb nur der Partner. */
+    function amRand(andere) {
       return function (e) {
         if (UNI_RUNS.indexOf(e.animationName) === -1) return;
-        /* Hängt dieses Einhorn dem letzten Tausch noch nach, holt es das
-           jetzt nur auf. Ist es dagegen aktuell, tauschen die Ebenen. */
-        if (zeigt(el) === soll(el)) frontIdx = 1 - frontIdx;
-        setUniChar(el, soll(el));
-        if (uniOffscreen(andere)) setUniChar(andere, soll(andere));
+        if (!uniOffscreen(andere)) return;
+        frontIdx = 1 - frontIdx;
+        setUniChar(front, frontIdx);
+        setUniChar(mid, 1 - frontIdx);
       };
     }
-    front.addEventListener('animationiteration', amRand(front, mid));
-    mid.addEventListener('animationiteration', amRand(mid, front));
+    front.addEventListener('animationiteration', amRand(mid));
+    mid.addEventListener('animationiteration', amRand(front));
   }
 
   /* Reduzierte FX-Templates NUR für die Login-Seite (greifen in
