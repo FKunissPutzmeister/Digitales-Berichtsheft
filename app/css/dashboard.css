@@ -1914,7 +1914,12 @@ html[data-theme="dark"] .b-azubi::before {
   padding: 26px 26px 22px;
   gap: var(--sp-3);
   /* Gleiches Glas-Material + Textur wie .b-recent/.b-hero – keine eigene Solid-Dark-Kachel.
-     So passt sich die Mitteilungszentrale in jedem Theme genauso an wie die anderen Kacheln. */
+     So passt sich die Mitteilungszentrale in jedem Theme genauso an wie die anderen Kacheln.
+     box-shadow explizit aus: der weiter oben geteilte .b-azubi-Selektor (Alt-Regel aus der
+     Zeit vor dem Donut-Ersatz) setzt einen hellen Glanz-Highlight (inset 0 1px 0 rgba(255,255,
+     255,.72)), der hier – anders als bei .b-recent/.b-hero – nie zurückgesetzt wurde und in
+     dunklen Themes (CMD u. a.) als deplatzierter weißer Rand oben auffiel. */
+  box-shadow: none;
   background-image:
     linear-gradient(105deg, rgba(255,255,255,0.34) 0%, rgba(255,255,255,0.16) 42%, rgba(255,255,255,0.00) 100%),
     url("../assets/backgrounds/tile-series-recent-light.png?v=20260602-series");
