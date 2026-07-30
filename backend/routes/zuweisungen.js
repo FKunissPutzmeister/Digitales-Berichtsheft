@@ -79,9 +79,10 @@ router.get('/', async (req, res) => {
     }
 
     const result = await request.query(`
-      SELECT z.*, u.Name AS AzubiName, u.Beruf AS AzubiBeruf
+      SELECT z.*, u.Name AS AzubiName, u.Beruf AS AzubiBeruf, v.Oid AS VerantwOid
       FROM dbo.Zuweisungen z
       LEFT JOIN dbo.Users u ON u.Oid = z.AzubiOid
+      LEFT JOIN dbo.Users v ON LOWER(v.Email) = LOWER(z.VerantwEmail)
       WHERE ${where}
       ORDER BY z.AzubiOid, z.Von DESC
     `);
@@ -349,7 +350,12 @@ router.get('/:id', async (req, res) => {
     const pool = await getPool();
     const result = await pool.request()
       .input('id', sql.Int, Number(req.params.id) || 0)
-      .query('SELECT * FROM dbo.Zuweisungen WHERE Id = @id');
+      .query(`
+        SELECT z.*, v.Oid AS VerantwOid
+        FROM dbo.Zuweisungen z
+        LEFT JOIN dbo.Users v ON LOWER(v.Email) = LOWER(z.VerantwEmail)
+        WHERE z.Id = @id
+      `);
     const row = result.recordset[0];
     if (!row) return res.status(404).json({ error: 'Zuweisung nicht gefunden.' });
     // Sichtbarkeit wie GET '/': Planer alles; Azubi/DH nur eigene; Ausbilder

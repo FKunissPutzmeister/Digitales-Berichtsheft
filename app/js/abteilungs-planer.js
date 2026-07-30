@@ -190,6 +190,14 @@ function dlbInitials(name) {
   if (typeof getInitials === 'function') return getInitials(name);
   return String(name || '').trim().split(/\s+/).map(w => w[0] || '').join('').slice(0, 2).toUpperCase();
 }
+// Ansprechpartner-Avatar: Initialen + Echtfoto, sobald die OID bekannt ist
+// (siehe verantwOid in api.js/normalizeZuweisung). Gleiches Lade-/Fallback-
+// Muster wie avatarInnerHTML in api.js, nur auf die dlb-avatar-Klasse gemünzt.
+function dlbAvatarHTML(name, oid) {
+  const initials = dlbInitials(name);
+  if (!oid) return initials;
+  return `${initials}<img src="/api/users/${oid}/photo" alt="" loading="lazy" onerror="this.remove()">`;
+}
 function dlbStatusKey(z, heute) {
   if (!z.von) return 'offen';
   if (z.bis && z.bis < heute) return 'beendet';
@@ -289,7 +297,7 @@ function durchlaufBoardHtml(user, zuw, heute, beurtByZuw = {}) {
         ${prog}
       </div>
       <div class="dlb-hero__side">
-        <span class="dlb-ap"><span class="dlb-avatar dlb-avatar--now" style="background:${colorFor(z.abteilung)}">${dlbInitials(z.verantwName)}</span>
+        <span class="dlb-ap"><span class="dlb-avatar dlb-avatar--now" style="background:${colorFor(z.abteilung)}">${dlbAvatarHTML(z.verantwName, z.verantwOid)}</span>
           <span class="dlb-ap__col"><span class="dlb-ap__name--now">${escHtml(z.verantwName || '–')}</span><span class="dlb-ap__role">Ansprechpartner</span></span></span>
         <span class="dlb-hero__cta">Details ${DLB_ICO.chev}</span>
       </div>
@@ -359,7 +367,7 @@ function durchlaufBoardHtml(user, zuw, heute, beurtByZuw = {}) {
         ${grade ? `<div class="dlb-grade"><span class="dlb-grade__val">${grade}</span><span class="dlb-grade__cap">Note</span></div>` : ''}
       </div>
       <div class="dlb-mini-card__foot">
-        <span class="dlb-ap"><span class="dlb-avatar" style="background:${colorFor(z.abteilung)};color:#fff">${dlbInitials(z.verantwName)}</span><span class="dlb-ap__name">${escHtml(z.verantwName || '–')}</span></span>
+        <span class="dlb-ap"><span class="dlb-avatar" style="background:${colorFor(z.abteilung)};color:#fff">${dlbAvatarHTML(z.verantwName, z.verantwOid)}</span><span class="dlb-ap__name">${escHtml(z.verantwName || '–')}</span></span>
         ${grade ? '' : `<span class="dlb-beurt dlb-beurt--open">${DLB_ICO.circle}offen</span>`}
       </div>
     </a>`;
@@ -501,7 +509,7 @@ function durchlaufDetailHtml(z, beurt, wochen, heute) {
         <h1 class="dlb-dhero__t">${escHtml(z.abteilung || '–')}</h1>
         <div class="dlb-dhero__when">${DLB_ICO.cal}<b>${DateUtil.formatDate(z.von)}</b><span>bis</span><b>${z.bis ? DateUtil.formatDate(z.bis) : 'offen'}</b></div>
       </div>
-      ${z.verantwName ? `<div class="dlb-dhero__ap"><span class="dlb-avatar dlb-avatar--now">${dlbInitials(z.verantwName)}</span><span class="dlb-ap__col"><span class="dlb-ap__name--now">${escHtml(z.verantwName)}</span><span class="dlb-ap__role">Ansprechpartner</span></span></div>` : ''}
+      ${z.verantwName ? `<div class="dlb-dhero__ap"><span class="dlb-avatar dlb-avatar--now">${dlbAvatarHTML(z.verantwName, z.verantwOid)}</span><span class="dlb-ap__col"><span class="dlb-ap__name--now">${escHtml(z.verantwName)}</span><span class="dlb-ap__role">Ansprechpartner</span></span></div>` : ''}
     </header>
     <div class="dlb-detailgrid">
       <section class="dlb-panel">

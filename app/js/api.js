@@ -191,6 +191,10 @@ function normalizeZuweisung(z) {
     azubiId: z.AzubiOid,
     verantwEmail: email,
     verantwName: email ? dn(email) : '',
+    // OID des Verantwortlichen (per E-Mail-JOIN in GET /api/zuweisungen), sobald
+    // die Person sich per SSO angemeldet hat / per Entra-Sync bekannt ist —
+    // Voraussetzung für das Echtfoto im Ansprechpartner-Avatar (dlb-avatar).
+    verantwOid: z.VerantwOid ?? null,
     abteilung: z.Abteilung ?? '',
     von: toDateStr(z.Von),
     bis: toDateStr(z.Bis),
