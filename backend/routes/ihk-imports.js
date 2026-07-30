@@ -22,6 +22,24 @@ function safeName(n) {
   return s.slice(-120) || 'nachweis.pdf';
 }
 
+const GUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const PDF_RE  = /^[\w.\-]+\.pdf$/i;
+
+/* Pfadsegmente aus der URL prüfen, bevor daraus ein Dateipfad wird: Ordner muss
+   eine GUID sein, Datei genau das Muster von safeName() (kein „/", kein „\",
+   also auch kein „.."). Rückgabe: absoluter Pfad oder null. */
+function pfadOk(oid, datei) {
+  if (!GUID_RE.test(String(oid)) || !PDF_RE.test(String(datei))) return null;
+  return path.join(DATA_DIR, oid, datei);
+}
+
+function nurDeveloper(req, res, next) {
+  if (!req.user || req.user.role !== 'developer') {
+    return res.status(403).json({ error: 'Nur für Developer.' });
+  }
+  next();
+}
+
 // POST /api/ihk-imports  (multipart: datei + optional meta-JSON)
 router.post('/', (req, res) => {
   upload.single('datei')(req, res, (err) => {
@@ -67,4 +85,52 @@ router.post('/', (req, res) => {
   });
 });
 
+// GET /api/ihk-imports — Archiv-Liste über alle Azubis (developer-only).
+router.get('/', nurDeveloper, (req, res) => {
+  try {
+    if (!fs.existsSync(DATA_DIR)) return res.json([]);
+    const out = [];
+    for (const oid of fs.readdirSync(DATA_DIR)) {
+      if (!GUID_RE.test(oid)) continue;
+      for (const datei of fs.readdirSync(path.join(DATA_DIR, oid))) {
+        if (!PDF_RE.test(datei)) continue;
+        const p = path.join(DATA_DIR, oid, datei);
+        // Meta-JSON ist Beigabe: fehlt/kaputt → Eintrag trotzdem listen (Datei zählt).
+        let meta = {};
+        try { meta = JSON.parse(fs.readFileSync(p + '.json', 'utf8')); } catch (_) {}
+        const st = fs.statSync(p);
+        out.push({
+          oid, datei,
+          azubiName:     meta.azubiName || null,
+          origName:      meta.origName || datei,
+          groesseBytes:  st.size,
+          hochgeladenAm: meta.hochgeladenAm || st.mtime.toISOString(),
+          wochen:        meta.parse && Array.isArray(meta.parse.wochen) ? meta.parse.wochen.length : null,
+          modus:         (meta.parse && meta.parse.modus) || null,
+          warnungen:     (meta.parse && meta.parse.warnungen) || [],
+        });
+      }
+    }
+    out.sort((a, b) => String(b.hochgeladenAm).localeCompare(String(a.hochgeladenAm)));
+    res.setHeader('Cache-Control', 'no-store');   // personenbezogen → nicht im Browser-Cache halten
+    res.json(out);
+  } catch (e) {
+    logError({ quelle: 'backend', nachricht: `[ihk-imports] Liste: ${e.message}`, stack: e.stack,
+      kontext: { route: req.path, methode: req.method }, benutzerOid: req.user && req.user.oid, benutzerName: req.user && req.user.name });
+    res.status(500).json({ error: 'Laden fehlgeschlagen.' });
+  }
+});
+
+// GET /api/ihk-imports/:oid/:datei — archivierte PDF ausliefern (developer-only).
+router.get('/:oid/:datei', nurDeveloper, (req, res) => {
+  const p = pfadOk(req.params.oid, req.params.datei);
+  if (!p) return res.status(400).json({ error: 'Ungültiger Pfad.' });
+  if (!fs.existsSync(p)) return res.status(404).json({ error: 'Datei nicht gefunden.' });
+  res.setHeader('Content-Type', 'application/pdf');
+  res.setHeader('Cache-Control', 'no-store');   // personenbezogen → nicht im Browser-Cache halten
+  res.setHeader('Content-Disposition', `inline; filename="${req.params.datei}"`);
+  fs.createReadStream(p).pipe(res);
+});
+
 module.exports = router;
+module.exports.pfadOk = pfadOk;   // für den Unit-Test
