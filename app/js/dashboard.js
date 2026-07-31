@@ -595,7 +595,13 @@ async function renderAusbilderDashboard(user) {
   const heroNum = String(today.getDate()).padStart(2, '0');
 
   const meineAzubis = await getMeineAzubis(user);
-  const istKorrektor   = user.istAusbilder || meineAzubis.length > 0;
+  // Gate 1 (unverändert): gibt es überhaupt eine Azubi-Sicht? Steuert das
+  // zweispaltige Grid inkl. Mitteilungen und Abteilungsdurchlauf.
+  const istKorrektor = user.istAusbilder || meineAzubis.length > 0;
+  // Reiner Verwaltungszugang: Rolle 'admin' oder nur das Recht „Kann planen",
+  // jeweils OHNE das Häkchen „Ist Ausbilder" (das die Rolle 'pruefer' implizit
+  // mitsetzt, s. services/users.js). Steuert Gate 2 weiter unten.
+  const nurVerwaltung = !user.istAusbilder && (user.role === 'admin' || user.kannPlanen);
 
   // Alle Wochen aller zugewiesenen Azubis
   const allWochen = [];
@@ -612,6 +618,16 @@ async function renderAusbilderDashboard(user) {
   const queue = allWochen
     .filter(w => (w.erlaubteAktionen || []).some(a => a === 'erstgenehmigen' || a === 'endgenehmigen'))
     .sort((a, b) => (a.year - b.year) || (a.kw - b.kw));
+
+  // Gate 2: „Zu prüfen" ist die ABNAHME-Karte, keine Verwaltungsansicht. Reine
+  // Verwaltungszugänge (nurVerwaltung) bekommen sie nur, wenn tatsächlich etwas
+  // abzunehmen ist — und das ist genau dann der Fall, wenn sie in einem Zeitraum
+  // Prüfer sind: erlaubteAktionen kommt vom Server aus rolleFuerWoche, ein Admin
+  // ohne laufende Zuweisung hat deshalb immer eine leere queue und nie die Karte.
+  // Damit hängt der Einstieg am echten Recht statt an der Rollenbezeichnung; die
+  // Hefte EINSEHEN dürfen sie unabhängig davon (zugriff.js darfWocheSehen).
+  // Mitteilungen und Durchlauf bleiben ihnen in jedem Fall erhalten.
+  const zeigeInbox = istKorrektor && (!nurVerwaltung || queue.length > 0);
 
   // Posteingang nach Azubi gruppieren → eine Karte pro Azubi statt einer
   // flachen Wochen-Liste. queue ist bereits älteste-zuerst, also ist
@@ -723,8 +739,9 @@ async function renderAusbilderDashboard(user) {
 
     ${istKorrektor ? `
     <div class="dashboard-grid">
-      <!-- LINKS (Hero): Zu prüfen + darunter der Abteilungsdurchlauf -->
+      <!-- LINKS (Hero): Zu prüfen (nur Abnahmeberechtigte) + darunter der Abteilungsdurchlauf -->
       <div class="dashboard-grid__col dashboard-grid__col--hero">
+        ${zeigeInbox ? `
         <div class="card review-inbox animate-fade-in" id="reviewInboxCard">
           <div class="card__header review-inbox__header">
             <div>
@@ -747,7 +764,7 @@ async function renderAusbilderDashboard(user) {
               : renderInboxEmpty(meineAzubis.length)}
           </div>
           ${erledigt.length > 0 ? renderAzubiDoneGroup(erledigt) : ''}
-        </div>
+        </div>` : ''}
         ${durchlaufHtml}
       </div>
 
