@@ -70,6 +70,10 @@ function buildSidebar(activeNavId) {
         <span class="sidebar__link-icon">${Icon('document')}</span>
         <span class="sidebar__link-label">Fehlerberichte</span>
       </a>
+      <a href="ihk-archiv.html" class="sidebar__link nav-developer-only" id="nav-ihk-archiv" style="display:none">
+        <span class="sidebar__link-icon">${Icon('inbox')}</span>
+        <span class="sidebar__link-label">IHK-Import-Archiv</span>
+      </a>
 
     </nav>
 

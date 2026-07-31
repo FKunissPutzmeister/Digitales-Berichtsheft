@@ -33,6 +33,17 @@ function pfadOk(oid, datei) {
   return path.join(DATA_DIR, oid, datei);
 }
 
+/* Anzeigename fürs Ausliefern: „Lena Müller 2026-07-30.pdf" statt
+   „2026-07-30T…Z_export.pdf" — der Browser nimmt ihn als Tab-Titel und
+   Download-Namen. Umlaute gehen nur über filename* (RFC 5987), daher setzt der
+   Aufrufer zusätzlich einen ASCII-Fallback. Meta fehlt/kaputt → Datum + Datei. */
+function anzeigeName(pdfPfad, datei) {
+  let name = '';
+  try { name = JSON.parse(fs.readFileSync(pdfPfad + '.json', 'utf8')).azubiName || ''; } catch (_) {}
+  const datum = (datei.match(/^\d{4}-\d{2}-\d{2}/) || [''])[0];
+  return ([String(name).trim(), datum].filter(Boolean).join(' ') || datei.replace(/\.pdf$/i, '')) + '.pdf';
+}
+
 function nurDeveloper(req, res, next) {
   if (!req.user || req.user.role !== 'developer') {
     return res.status(403).json({ error: 'Nur für Developer.' });
@@ -126,11 +137,14 @@ router.get('/:oid/:datei', nurDeveloper, (req, res) => {
   const p = pfadOk(req.params.oid, req.params.datei);
   if (!p) return res.status(400).json({ error: 'Ungültiger Pfad.' });
   if (!fs.existsSync(p)) return res.status(404).json({ error: 'Datei nicht gefunden.' });
+  const name = anzeigeName(p, req.params.datei);
   res.setHeader('Content-Type', 'application/pdf');
   res.setHeader('Cache-Control', 'no-store');   // personenbezogen → nicht im Browser-Cache halten
-  res.setHeader('Content-Disposition', `inline; filename="${req.params.datei}"`);
+  res.setHeader('Content-Disposition',
+    `inline; filename="${name.replace(/["\\]|[^\x20-\x7E]/g, '_')}"; filename*=UTF-8''${encodeURIComponent(name)}`);
   fs.createReadStream(p).pipe(res);
 });
 
 module.exports = router;
-module.exports.pfadOk = pfadOk;   // für den Unit-Test
+module.exports.pfadOk = pfadOk;             // für den Unit-Test
+module.exports.anzeigeName = anzeigeName;   // dito

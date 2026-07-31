@@ -3,7 +3,7 @@ process.env.NODE_ENV = 'test';
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const path = require('node:path');
-const { pfadOk } = require('./ihk-imports');
+const { pfadOk, anzeigeName } = require('./ihk-imports');
 
 const OID = '11111111-2222-3333-4444-555555555555';
 
@@ -20,4 +20,9 @@ test('pfadOk: Traversal und Fremdtypen werden abgelehnt', () => {
   assert.equal(pfadOk(OID, 'nachweis.pdf.json'), null);     // Meta-JSON nicht ausliefern
   assert.equal(pfadOk(OID, 'server.js'), null);
   assert.equal(pfadOk('nicht-ganz-guid', 'nachweis.pdf'), null);
+});
+
+test('anzeigeName: ohne Meta-JSON bleibt das Datum als Titel übrig', () => {
+  assert.equal(anzeigeName(path.join(__dirname, 'gibt-es-nicht.pdf'),
+    '2026-07-30T10-00-00-000Z_export.pdf'), '2026-07-30.pdf');
 });

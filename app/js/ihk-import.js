@@ -533,20 +533,26 @@ const IhkImport = (() => {
       summary.betroffeneWochen.push({ kw: pw.kw, year: pw.year });
     }
 
+    // Erst sichern, dann Erfolg zeigen: der Erfolgsdialog kann zur Wochenansicht
+    // navigieren, und ein laufender Upload stirbt bei Full-Page-Navigation.
+    await backupDatei(summary);
     renderSuccess(summary);
-    backupDatei(summary);   // Original-PDF serverseitig sichern (Best-effort)
   }
 
   // Die importierte PDF serverseitig ablegen, damit der Original-Nachweis
   // später erneut geprüft werden kann ("guck dir die Datei nochmal an").
+  // Jeder Import landet im Archiv — auch einer, bei dem am Ende keine Woche
+  // übernommen wurde (gerade da will man die Original-PDF nachsehen).
   // Best-effort: ein Fehler hier darf den erfolgreichen Import NICHT kippen.
   async function backupDatei(summary) {
-    if (!_file || !summary.uebernommen) return;
+    if (!_file) return;
     try {
       await DB.saveIhkImportDatei(_file, {
-        wochen:    _parsed.wochen.map(w => ({ kw: w.kw, year: w.year, status: w.status })),
-        warnungen: _parsed.warnungen,
-        modus:     _parsed.modus,
+        wochen:        _parsed.wochen.map(w => ({ kw: w.kw, year: w.year, status: w.status })),
+        warnungen:     _parsed.warnungen,
+        modus:         _parsed.modus,
+        uebernommen:   summary.uebernommen,
+        uebersprungen: summary.uebersprungen,
       });
     } catch (e) {
       console.warn('[IhkImport] Serverseitige Sicherung fehlgeschlagen:', e);

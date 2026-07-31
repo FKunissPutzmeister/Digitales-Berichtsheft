@@ -755,7 +755,7 @@ const DB = {
     return apiUpload('/ihk-imports', fd);
   },
 
-  /* Archiv der importierten IHK-PDFs (developer-only, siehe Fehlerberichte-Seite). */
+  /* Archiv der importierten IHK-PDFs (developer-only, Seite ihk-archiv.html). */
   async listIhkImports() {
     return apiFetch('/ihk-imports');
   },

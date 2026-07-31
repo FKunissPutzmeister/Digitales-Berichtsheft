@@ -1,0 +1,124 @@
+/* IHK-Import-Archiv – Trefferliste links, PDF-Vorschau rechts (Browser-Viewer). */
+.ia-split {
+  display: grid;
+  grid-template-columns: minmax(260px, 340px) 1fr;
+  gap: var(--sp-4);
+  align-items: start;
+}
+
+.ia-search { margin-bottom: var(--sp-3); }
+
+.ia-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  max-height: calc(100vh - 260px);
+  overflow-y: auto;
+}
+
+.ia-item {
+  display: flex;
+  align-items: stretch;
+  gap: var(--sp-1);
+  background: var(--pm-white);
+  border: 1px solid var(--pm-grey-200);
+  border-radius: var(--r-lg);
+  overflow: hidden;
+}
+
+.ia-item--aktiv {
+  border-color: var(--pm-yellow);
+  box-shadow: inset 3px 0 0 var(--pm-yellow);
+}
+
+.ia-item__pick {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: var(--sp-3);
+  border: 0;
+  background: none;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.ia-item__pick:hover { background: var(--pm-grey-50); }
+
+.ia-item__name { font-weight: 600; font-size: var(--text-sm); }
+
+.ia-item__meta {
+  font-size: var(--text-xs);
+  color: var(--pm-grey-500);
+}
+
+.ia-item__warn {
+  align-self: flex-start;
+  margin-top: 2px;
+  padding: 1px var(--sp-2);
+  border-radius: var(--r-sm);
+  font-size: var(--text-xs);
+  background: var(--pm-yellow-bg);
+  color: var(--pm-yellow-darker);
+}
+
+.ia-item__dl {
+  display: flex;
+  align-items: center;
+  padding: 0 var(--sp-3);
+  color: var(--pm-grey-500);
+}
+
+.ia-item__dl:hover { background: var(--pm-grey-50); color: var(--pm-grey-800); }
+
+.ia-viewer {
+  position: sticky;
+  top: var(--sp-4);
+  display: flex;
+  flex-direction: column;
+  height: calc(100vh - 200px);
+  background: var(--pm-white);
+  border: 1px solid var(--pm-grey-200);
+  border-radius: var(--r-lg);
+  overflow: hidden;
+}
+
+.ia-viewer__head {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  padding: var(--sp-3);
+  border-bottom: 1px solid var(--pm-grey-200);
+}
+
+.ia-viewer__title {
+  flex: 1;
+  min-width: 0;
+  font-weight: 600;
+  font-size: var(--text-sm);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ia-frame {
+  flex: 1;
+  width: 100%;
+  border: 0;
+  background: var(--pm-grey-100);
+}
+
+.ia-empty {
+  margin: auto;
+  padding: var(--sp-6);
+  text-align: center;
+  color: var(--pm-grey-500);
+}
+
+@media (max-width: 900px) {
+  .ia-split { grid-template-columns: 1fr; }
+  .ia-list { max-height: 40vh; }
+  .ia-viewer { position: static; height: 70vh; }
+}
