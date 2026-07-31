@@ -151,6 +151,12 @@ function normalizeKommentar(k) {
   };
 }
 
+/* ⚠ Formatkopplung: Diese drei Normalizer definieren das JSON-Backup-Format
+   ('berichtsheft-backup' v1, siehe berichtsheft-export.js). Das serverseitige
+   Nacht-Backup in backend/services/berichtsheftBackup.js baut dieselbe
+   Struktur nach, damit seine Dateien über den Wiederherstellen-Dialog
+   einspielbar sind. Änderungen hier dort mitziehen —
+   backend/services/berichtsheftBackup.test.js schlägt sonst fehl. */
 function normalizeWoche(w) {
   return {
     id: w.Id,
