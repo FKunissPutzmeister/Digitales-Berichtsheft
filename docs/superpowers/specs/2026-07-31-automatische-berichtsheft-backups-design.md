@@ -174,7 +174,10 @@ zu zählen.
   Sommerzeitwechsel weg von der gewünschten Nachtzeit.
 - **Zusätzlich ein Lauf beim Serverstart**, damit nach einem Deployment sofort
   ein Stand existiert (und ein Server, der nie über Nacht läuft, überhaupt
-  Backups erzeugt). Durch die Idempotenz ist das gefahrlos.
+  Backups erzeugt). Dieser Start-Lauf wird **übersprungen, wenn für den
+  heutigen Tag bereits ein `_manifest.json` existiert** — sonst würde der
+  Dev-Server, der mit `node --watch` bei jeder Code-Änderung neu startet, die
+  Datenbank dutzende Male am Tag durchziehen. Der 02:00-Lauf läuft immer.
 - Der Timer wird nur im normalen Serverbetrieb gestartet (in `server.js`, wie
   `entra-sync`), nicht in Tests.
 
