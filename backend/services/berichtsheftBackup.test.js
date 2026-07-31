@@ -289,3 +289,112 @@ test('ladeWochen-Ergebnis passt direkt in buildBackupPayload', async () => {
   assert.equal(p.wochen[0].startDate, '2026-07-27');
   assert.equal(p.wochen[0].tage[0].anwesenheit, 'Arbeitsunfähigkeit');
 });
+
+const fs = require('node:fs');
+const os = require('node:os');
+const pathMod = require('node:path');
+
+function tempDir() {
+  return fs.mkdtempSync(pathMod.join(os.tmpdir(), 'bh-backup-'));
+}
+function leseJson(p) {
+  return JSON.parse(fs.readFileSync(p, 'utf8'));
+}
+// Zwei Azubis, einer davon ohne Wochen.
+function fakeDeps(dir, over = {}) {
+  return {
+    dir,
+    jetzt: new Date(2026, 6, 31, 2, 0, 0),
+    listAzubis: async () => [
+      { ...AZUBI },
+      { oid: 'OID-LEER', name: 'Leer, Lisa', email: 'l@x.demo' },
+    ],
+    ladeWochen: async (oid) => (oid === AZUBI.oid ? [wocheRow({ tage: [tagRow()] })] : []),
+    ...over,
+  };
+}
+
+test('runBackup: schreibt pro Azubi mit Wochen eine Datei in den Tagesordner', async () => {
+  const dir = tempDir();
+  const bericht = await B.runBackup(fakeDeps(dir));
+  const tagDir = pathMod.join(dir, '2026-07-31');
+  const dateien = fs.readdirSync(tagDir).sort();
+
+  assert.deepEqual(dateien, ['_manifest.json', 'kuniss-florian_' + AZUBI.oid + '.json']);
+  assert.equal(bericht.azubis, 2);
+  assert.equal(bericht.dateien, 1);
+  assert.equal(bericht.uebersprungen, 1);      // Azubi ohne Wochen
+  assert.deepEqual(bericht.fehler, []);
+
+  const inhalt = leseJson(pathMod.join(tagDir, 'kuniss-florian_' + AZUBI.oid + '.json'));
+  assert.equal(inhalt.format, 'berichtsheft-backup');
+  assert.equal(inhalt.wochen.length, 1);
+  assert.equal(inhalt.wochen[0].tage.length, 1);
+});
+
+test('runBackup: schreibt ein Manifest mit den Zaehlern', async () => {
+  const dir = tempDir();
+  await B.runBackup(fakeDeps(dir));
+  const m = leseJson(pathMod.join(dir, '2026-07-31', '_manifest.json'));
+  assert.equal(m.azubis, 2);
+  assert.equal(m.dateien, 1);
+  assert.equal(m.uebersprungen, 1);
+  assert.deepEqual(m.fehler, []);
+  assert.deepEqual(m.geloeschteTage, []);
+  assert.equal(typeof m.dauerMs, 'number');
+  assert.equal(m.erzeugtAm, new Date(2026, 6, 31, 2, 0, 0).toISOString());
+});
+
+test('runBackup: zweiter Lauf am selben Tag ueberschreibt statt zu duplizieren', async () => {
+  const dir = tempDir();
+  await B.runBackup(fakeDeps(dir));
+  await B.runBackup(fakeDeps(dir, {
+    ladeWochen: async (oid) => (oid === AZUBI.oid
+      ? [wocheRow({ SchuleEintrag: 'ZWEITER LAUF' })] : []),
+  }));
+  const tagDir = pathMod.join(dir, '2026-07-31');
+  assert.equal(fs.readdirSync(tagDir).length, 2);   // Datei + Manifest
+  const inhalt = leseJson(pathMod.join(tagDir, 'kuniss-florian_' + AZUBI.oid + '.json'));
+  assert.equal(inhalt.wochen[0].schuleEintrag, 'ZWEITER LAUF');
+});
+
+test('runBackup: ein kaputter Azubi kippt den Lauf nicht', async () => {
+  const dir = tempDir();
+  const bericht = await B.runBackup(fakeDeps(dir, {
+    listAzubis: async () => [
+      { ...AZUBI },
+      { oid: 'OID-BOOM', name: 'Boom, Bert' },
+      { oid: 'OID-OK', name: 'Ok, Olga' },
+    ],
+    ladeWochen: async (oid) => {
+      if (oid === 'OID-BOOM') throw new Error('Timeout bei Wochen-Abfrage');
+      return [wocheRow()];
+    },
+  }));
+  assert.equal(bericht.dateien, 2);
+  assert.equal(bericht.fehler.length, 1);
+  assert.equal(bericht.fehler[0].oid, 'OID-BOOM');
+  assert.match(bericht.fehler[0].fehler, /Timeout/);
+  // Manifest hält den Fehler ebenfalls fest
+  const m = leseJson(pathMod.join(dir, '2026-07-31', '_manifest.json'));
+  assert.equal(m.fehler.length, 1);
+});
+
+test('runBackup: meldet Azubi-Fehler an logFehler', async () => {
+  const dir = tempDir();
+  const gemeldet = [];
+  await B.runBackup(fakeDeps(dir, {
+    listAzubis: async () => [{ oid: 'OID-BOOM', name: 'Boom, Bert' }],
+    ladeWochen: async () => { throw new Error('DB weg'); },
+    logFehler: (e) => gemeldet.push(e),
+  }));
+  assert.equal(gemeldet.length, 1);
+  assert.equal(gemeldet[0].quelle, 'backend');
+  assert.match(gemeldet[0].nachricht, /\[backup\].*OID-BOOM/);
+});
+
+test('runBackup: legt fehlende Verzeichnisse selbst an', async () => {
+  const dir = pathMod.join(tempDir(), 'tief', 'verschachtelt');
+  await B.runBackup(fakeDeps(dir));
+  assert.ok(fs.existsSync(pathMod.join(dir, '2026-07-31', '_manifest.json')));
+});

@@ -217,9 +217,67 @@ async function ladeWochen(azubiOid, pool) {
   });
 }
 
+/* Schreibt für jeden Azubi mit mindestens einer Woche einen JSON-Snapshot in
+   data/backups/<tag>/ und daneben ein _manifest.json mit den Zählern.
+   Alle Datenzugriffe sind injizierbar — dadurch ist der komplette Job ohne
+   SQL-Server testbar (siehe berichtsheftBackup.test.js).
+   Fehler eines einzelnen Azubis brechen den Lauf NICHT ab: sie landen im
+   Manifest und im Fehler-Posteingang, der Rest wird gesichert. */
+async function runBackup(deps = {}) {
+  const {
+    listAzubis: ladeAzubisFn = listAzubis,
+    ladeWochen: ladeWochenFn = ladeWochen,
+    jetzt = new Date(),
+    dir = BACKUP_DIR,
+    aufbewahrungTage = AUFBEWAHRUNG_TAGE,
+    logFehler = () => {},
+  } = deps;
+
+  const startMs = Date.now();
+  const tagDir = path.join(dir, tagesOrdnerName(jetzt));
+  fs.mkdirSync(tagDir, { recursive: true });
+
+  const bericht = {
+    erzeugtAm: jetzt.toISOString(),
+    dauerMs: 0,
+    azubis: 0,
+    dateien: 0,
+    uebersprungen: 0,
+    geloeschteTage: [],
+    fehler: [],
+  };
+
+  const azubis = (await ladeAzubisFn()) || [];
+  bericht.azubis = azubis.length;
+
+  for (const azubi of azubis) {
+    try {
+      const wochen = (await ladeWochenFn(azubi.oid)) || [];
+      if (!wochen.length) { bericht.uebersprungen++; continue; }
+      const payload = buildBackupPayload(azubi, wochen, jetzt);
+      fs.writeFileSync(path.join(tagDir, dateiName(azubi)),
+        JSON.stringify(payload, null, 2), 'utf8');
+      bericht.dateien++;
+    } catch (err) {
+      bericht.fehler.push({ oid: azubi.oid, name: azubi.name || '', fehler: err.message });
+      logFehler({
+        quelle: 'backend',
+        nachricht: `[backup] ${azubi.oid}: ${err.message}`,
+        stack: err.stack,
+      });
+    }
+  }
+
+  bericht.dauerMs = Date.now() - startMs;
+  fs.writeFileSync(path.join(tagDir, '_manifest.json'),
+    JSON.stringify(bericht, null, 2), 'utf8');
+  return bericht;
+}
+
 module.exports = {
   AUFBEWAHRUNG_TAGE, BACKUP_DIR,
   buildBackupPayload,
   slugName, dateiName, tagesOrdnerName, istTagesOrdnerName, msBisNaechsteUhrzeit,
   listAzubis, ladeWochen,
+  runBackup,
 };
