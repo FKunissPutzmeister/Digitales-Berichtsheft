@@ -10,6 +10,13 @@
 
 **Spec:** [docs/superpowers/specs/2026-07-31-automatische-berichtsheft-backups-design.md](../specs/2026-07-31-automatische-berichtsheft-backups-design.md)
 
+**Ausführungsreihenfolge: 1 → 2 → 5 → 3 → 4 → 6.** Die Task-Nummern bleiben
+wie unten, umgesetzt wird aber Task 5 (SQL-Adapter) vor Task 3 (`runBackup`).
+Grund: `runBackup` nutzt die Adapter als Default-Deps — liegen sie schon vor,
+braucht es keine Platzhalter-Funktionen, die eine spätere Task wieder entfernt.
+Die kumulativen Testzahlen in den Schritten folgen dieser Reihenfolge
+(8 → 12 → 15 → 21 → 27 → 29).
+
 ## Global Constraints
 
 - **Format-Treue ist die oberste Anforderung.** Das erzeugte JSON hat exakt das Format `berichtsheft-backup` **Version 1** aus [app/js/berichtsheft-export.js](../../../app/js/berichtsheft-export.js) (~Zeile 164) und muss über den bestehenden „Wiederherstellen"-Dialog einspielbar sein. Feldnamen und Werte spiegeln `normalizeWoche` / `normalizeTag` / `normalizeKommentar` aus [app/js/api.js](../../../app/js/api.js) (~Zeile 124-183).
@@ -540,7 +547,7 @@ git commit -m "feat(backup): Helfer fuer Dateinamen, Tagesordner und Weckzeit"
 - Modify: `backend/services/berichtsheftBackup.test.js`
 
 **Interfaces:**
-- Consumes: `buildBackupPayload`, `dateiName`, `tagesOrdnerName` (Task 1+2)
+- Consumes: `buildBackupPayload`, `dateiName`, `tagesOrdnerName` (Task 1+2) sowie `listAzubis`/`ladeWochen` als Default-Deps (Task 5, wird vorher umgesetzt)
 - Produces:
   - `runBackup(deps) → Promise<bericht>` mit `deps = { listAzubis, ladeWochen, jetzt, dir, aufbewahrungTage, logFehler }` (alle optional; Defaults sind die SQL-Adapter aus Task 5, `new Date()`, `BACKUP_DIR`, `AUFBEWAHRUNG_TAGE`, no-op).
     `bericht = { erzeugtAm, dauerMs, azubis, dateien, uebersprungen, geloeschteTage, fehler:[{oid,name,fehler}] }`
@@ -728,18 +735,12 @@ async function runBackup(deps = {}) {
 }
 ```
 
-`module.exports` um `runBackup` erweitern. Da `listAzubis`/`ladeWochen` erst in Task 5 entstehen, für jetzt zwei Platzhalter-Funktionen **oberhalb** von `runBackup` anlegen (werden in Task 5 durch die echten SQL-Adapter ersetzt):
-
-```js
-// Werden in Task 5 durch die echten SQL-Adapter ersetzt.
-async function listAzubis() { throw new Error('listAzubis: SQL-Adapter fehlt noch'); }
-async function ladeWochen() { throw new Error('ladeWochen: SQL-Adapter fehlt noch'); }
-```
+`module.exports` um `runBackup` erweitern. `listAzubis` und `ladeWochen` als Default-Deps existieren bereits (Task 5 wurde vorher umgesetzt) — keine Platzhalter nötig.
 
 - [ ] **Step 4: Tests laufen lassen — alle grün**
 
 Run (aus `backend/`): `node --test services/berichtsheftBackup.test.js`
-Expected: PASS (18 Tests)
+Expected: PASS (21 Tests)
 
 - [ ] **Step 5: Commit**
 
@@ -895,7 +896,7 @@ In `runBackup` direkt **vor** `bericht.dauerMs = …` einfügen:
 - [ ] **Step 4: Tests laufen lassen — alle grün**
 
 Run (aus `backend/`): `node --test services/berichtsheftBackup.test.js`
-Expected: PASS (24 Tests)
+Expected: PASS (27 Tests)
 
 - [ ] **Step 5: Commit**
 
@@ -1005,11 +1006,11 @@ test('ladeWochen-Ergebnis passt direkt in buildBackupPayload', async () => {
 - [ ] **Step 2: Tests laufen lassen — müssen fehlschlagen**
 
 Run (aus `backend/`): `node --test services/berichtsheftBackup.test.js`
-Expected: FAIL — `listAzubis: SQL-Adapter fehlt noch` (die Platzhalter aus Task 3)
+Expected: FAIL — `B.listAzubis is not a function`
 
-- [ ] **Step 3: Platzhalter durch echte Adapter ersetzen**
+- [ ] **Step 3: SQL-Adapter implementieren**
 
-In `backend/services/berichtsheftBackup.js` die beiden Platzhalter aus Task 3 löschen und stattdessen einfügen (Requires oben bei `fs`/`path` ergänzen):
+In `backend/services/berichtsheftBackup.js` einfügen (Requires oben bei `fs`/`path` ergänzen):
 
 ```js
 const { getPool, sql } = require('../db/connection');
@@ -1077,7 +1078,7 @@ async function ladeWochen(azubiOid, pool) {
 - [ ] **Step 4: Tests laufen lassen — alle grün**
 
 Run (aus `backend/`): `node --test services/berichtsheftBackup.test.js`
-Expected: PASS (27 Tests)
+Expected: PASS (15 Tests)
 
 - [ ] **Step 5: Gesamte Backend-Testsuite laufen lassen (keine Regressionen)**
 
