@@ -4,6 +4,20 @@ const { darfWocheSehen, darfWocheKorrigieren, rolleFuerWoche, wochenAktionen, sc
 const { ladeKorrekturKontext, ladeWocheFuerZugriff } = require('../services/zugriffContext');
 const { logError } = require('../services/fehlerberichte');
 
+// Wochen-Ids sind INTEGER (im Gegensatz zu den GUID-Ids der Nutzer). Eine
+// nicht-numerische :id (z. B. „undefined" aus einem Frontend-Zustand ohne
+// gespeicherte Woche) lief bisher bis in mssql und kam als 500 „Validation
+// failed for parameter 'id'" zurück – inklusive Eintrag im Fehler-Posteingang,
+// obwohl es eine schlichte Fehlbenutzung der Route ist. Guard → 400.
+function wocheIdParam(req, res) {
+  const id = Number(req.params.id);
+  if (!Number.isInteger(id) || id <= 0) {
+    res.status(400).json({ error: 'Ungültige Woche-Id.' });
+    return null;
+  }
+  return id;
+}
+
 // GET /api/wochen?azubiOid=...  – liefert nur Wochen, die der Nutzer sehen darf
 router.get('/', async (req, res) => {
   try {
@@ -43,9 +57,11 @@ router.get('/', async (req, res) => {
 // GET /api/wochen/:id  – nur wenn der Nutzer die Woche sehen darf
 router.get('/:id', async (req, res) => {
   try {
+    const id = wocheIdParam(req, res);
+    if (id === null) return;
     const pool = await getPool();
     const result = await pool.request()
-      .input('id', sql.Int, req.params.id)
+      .input('id', sql.Int, id)
       .query(`
         SELECT w.*,
           (SELECT * FROM dbo.Tage t WHERE t.WocheId = w.Id FOR JSON PATH) AS tageJson,
@@ -257,9 +273,11 @@ router.post('/', async (req, res) => {
 // Azubi: offen↔freigegeben. Korrektur-Aktionen stempeln KorrigiertVon/Am.
 router.patch('/:id/status', async (req, res) => {
   try {
+    const id = wocheIdParam(req, res);
+    if (id === null) return;
     const { status } = req.body;
     const pool = await getPool();
-    const woche = await ladeWocheFuerZugriff(pool, req.params.id);
+    const woche = await ladeWocheFuerZugriff(pool, id);
     if (!woche) return res.status(404).json({ error: 'Woche nicht gefunden' });
 
     const user = req.user;
@@ -272,7 +290,7 @@ router.patch('/:id/status', async (req, res) => {
     }
 
     const request = pool.request()
-      .input('id',     sql.Int,          req.params.id)
+      .input('id',     sql.Int,          id)
       .input('status', sql.NVarChar(20), status)
       .input('flag',   sql.Bit,          treffer.endabnahmeDirekt);
     let setClause = 'Status = @status, EndabnahmeDirekt = @flag';
@@ -298,7 +316,7 @@ router.patch('/:id/status', async (req, res) => {
         await pool.request()
           .input('userOid',     sql.NVarChar(36), r.AusbilderOid)
           .input('typ',         sql.NVarChar(20), 'erstgenehmigt')
-          .input('wocheId',     sql.Int,          req.params.id)
+          .input('wocheId',     sql.Int,          id)
           .input('fromUserOid', sql.NVarChar(36), user.oid)
           .query(`INSERT INTO dbo.Benachrichtigungen (UserOid, Typ, WocheId, FromUserOid)
                   VALUES (@userOid, @typ, @wocheId, @fromUserOid)`);

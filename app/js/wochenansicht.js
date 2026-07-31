@@ -2271,6 +2271,26 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // ── Auto-Save ─────────────────────────────────────────────────────
 
+  // Wochen-Status, in denen der Server JEDES Schreiben ablehnt (403, siehe
+  // services/zugriff.js GESPERRTE_STATUS + schreibGate). Der Autosave muss das
+  // kennen: sonst schickt ein noch anstehender debounce-Timer einen POST auf
+  // eine inzwischen eingereichte/abgenommene Woche, der Server antwortet 403
+  // „Woche ist freigegeben und damit schreibgeschützt" und der Fehler landet
+  // als Bug im Posteingang – obwohl nur ein Timer zu spät kam.
+  const GESPERRTE_STATUS = ['freigegeben', 'erstgenehmigt', 'genehmigt'];
+  const istGesperrt = w => !!w && GESPERRTE_STATUS.includes(w.status);
+
+  // Ziel eines GEPLANTEN Auto-Saves (Azubi + KW), festgehalten beim Planen.
+  // Ein debounce-Timer überlebt den Wechsel der Kalenderwoche bzw. des Azubis;
+  // ohne diesen Vergleich würde er nach dem Wechsel gegen die INZWISCHEN
+  // sichtbare Woche speichern – mit den Editor-Inhalten der alten (falsche
+  // Woche beschrieben) oder gegen eine gesperrte Woche (403). Das DOM der
+  // alten Woche ist dann längst ersetzt, es gibt also nichts mehr zu retten:
+  // der veraltete Timer wird verworfen.
+  const saveZiel = () => ({ azubiId: String(viewAzubiId || user.id), kw: currentKW, jahr: currentYear });
+  const zielIstAktuell = z => !z || (z.azubiId === String(viewAzubiId || user.id)
+    && z.kw === currentKW && z.jahr === currentYear);
+
   // Autosave feuert pro Tag getrennt (saveTimers[dateStr]) und zusätzlich für
   // die Wochenfelder. Ohne Serialisierung liefen zwei Read-Modify-Write-Zyklen
   // (getWoche → mutieren → saveWoche) parallel: Beide lesen denselben Stand,
@@ -2284,18 +2304,23 @@ document.addEventListener('DOMContentLoaded', async () => {
     return run;
   }
 
-  function autoSaveWoche() { return enqueueSave(autoSaveWocheImpl); }
-  function autoSave(dateStr) { return enqueueSave(() => autoSaveImpl(dateStr)); }
+  function autoSaveWoche(ziel) { return enqueueSave(() => autoSaveWocheImpl(ziel)); }
+  function autoSave(dateStr, ziel) { return enqueueSave(() => autoSaveImpl(dateStr, ziel)); }
 
-  async function autoSaveWocheImpl() {
+  async function autoSaveWocheImpl(ziel) {
     // Fremdes Heft (Ausbilder-/Prüfer-/Dev-Korrektur-Ansicht) ist readonly und
     // darf serverseitig nicht geschrieben werden (POST /wochen → 403). Ein noch
     // anstehender debounce-Timer könnte nach einem Azubi-Wechsel aber mit dem
     // inzwischen fremden viewAzubiId feuern. Dieser Guard bricht genau diesen
     // Fall ab (deckt sich mit isReadonly und darfWocheKorrigieren im Backend).
     if (isAusbilder && !viewingSelf()) return;
+    // Veralteter Timer (KW-/Azubi-Wechsel dazwischen) → verwerfen, s. saveZiel.
+    if (!zielIstAktuell(ziel)) return;
     const azubiId = viewAzubiId || user.id;
     let woche = await DB.getWoche(azubiId, currentKW, currentYear);
+    // Eingereicht/abgenommen = serverseitig schreibgeschützt (403). Nicht
+    // versuchen – die Editoren sind in diesem Zustand ohnehin readonly.
+    if (istGesperrt(woche)) return;
     if (!woche) {
       const monday = DateUtil.getMondayOfKW(currentKW, currentYear);
       const sunday = new Date(monday); sunday.setDate(monday.getDate() + 6);
@@ -2327,17 +2352,22 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     woche.gesamtstunden = (woche.tage || []).filter(t => t.anwesenheit === 'anwesend').length;
     woche.lastSavedAt = new Date().toISOString();
-    await DB.saveWoche(woche);
+    // Server-Id übernehmen: eine gerade erst angelegte Woche hat vorher keine.
+    const neueId = await DB.saveWoche(woche);
+    if (neueId != null) woche.id = neueId;
     updateAutosaveTimestamp();
   }
 
-  async function autoSaveImpl(dateStr) {
+  async function autoSaveImpl(dateStr, ziel) {
     // Siehe autoSaveWocheImpl: kein Autosave auf ein fremdes (readonly) Heft –
     // verhindert 403 „Keine Berechtigung für dieses Berichtsheft.", wenn ein
     // debounce-Timer nach einem Azubi-Wechsel mit fremdem viewAzubiId feuert.
     if (isAusbilder && !viewingSelf()) return;
+    // Siehe autoSaveWocheImpl: veralteter Timer bzw. gesperrte Woche.
+    if (!zielIstAktuell(ziel)) return;
     const azubiId = viewAzubiId || user.id;
     let woche = await DB.getWoche(azubiId, currentKW, currentYear);
+    if (istGesperrt(woche)) return woche;
     if (!woche) {
       const monday = DateUtil.getMondayOfKW(currentKW, currentYear);
       const sunday = new Date(monday); sunday.setDate(monday.getDate() + 6);
@@ -2386,7 +2416,12 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     woche.gesamtstunden = woche.tage.filter(t => t.anwesenheit === 'anwesend').length;
     woche.lastSavedAt = new Date().toISOString();
-    await DB.saveWoche(woche);
+    // Server-Id übernehmen. Wichtig für Aufrufer, die das Ergebnis als
+    // preloadedWoche in render() geben (Wochenend-Umschalten): ohne id landet
+    // sie als currentWoche im Shell-State und jede Status-Aktion (Einreichen,
+    // Zurückziehen, Genehmigen) würde /wochen/undefined/status aufrufen.
+    const neueId = await DB.saveWoche(woche);
+    if (neueId != null) woche.id = neueId;
     updateAutosaveTimestamp();
     updateStundenDisplay();
     // woche ist bereits der frisch gespeicherte Stand – kein erneutes
@@ -2953,13 +2988,17 @@ document.addEventListener('DOMContentLoaded', async () => {
   const saveTimers = {};
   function debounceSave(dateStr, ms = 800) {
     clearTimeout(saveTimers[dateStr]);
-    saveTimers[dateStr] = setTimeout(() => autoSave(dateStr), ms);
+    // Ziel beim PLANEN festhalten – der Timer darf nach einem KW-/Azubi-
+    // Wechsel nicht gegen die dann sichtbare Woche schreiben (s. saveZiel).
+    const ziel = saveZiel();
+    saveTimers[dateStr] = setTimeout(() => autoSave(dateStr, ziel), ms);
   }
 
   let wochenSaveTimer = null;
   function debounceSaveWoche(ms = 800) {
     clearTimeout(wochenSaveTimer);
-    wochenSaveTimer = setTimeout(() => autoSaveWoche(), ms);
+    const ziel = saveZiel();
+    wochenSaveTimer = setTimeout(() => autoSaveWoche(ziel), ms);
   }
   /** Pending Wochen-Auto-Save sofort ausführen (für Freigabe-Validierung). */
   async function flushWochenAutoSave() {

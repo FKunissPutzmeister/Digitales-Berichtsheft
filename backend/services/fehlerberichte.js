@@ -63,6 +63,16 @@ function istTransienterVerbindungsfehler(nachricht) {
       || /nicht rechtzeitig geantwortet/i.test(s);
 }
 
+// Benignes Browser-Rauschen (kein App-Fehlverhalten): der ResizeObserver-Hinweis
+// entsteht, wenn ein Observer-Callback im selben Frame erneut Layout ändert; der
+// Browser liefert im nächsten Frame nach, es geht nichts verloren. Muss zur
+// Client-Regex in error-reporter.js passen (dort schon gefiltert) – hier als
+// Defense-in-Depth, weil gecachte Frontend-Versionen weiter melden.
+function istBenignesBrowserrauschen(nachricht) {
+  return /ResizeObserver loop (completed with undelivered notifications|limit exceeded)/i
+    .test(String(nachricht || ''));
+}
+
 // Serverseitige Schwere-Einstufung (Client-Angaben wären fälschbar).
 // Reihenfolge: erste zutreffende Regel gewinnt. Siehe Spec-Tabelle.
 function bewerteSchwere({ quelle, nachricht, kontext }) {
@@ -83,7 +93,7 @@ async function logError({ quelle, nachricht, stack, kontext, benutzerOid, benutz
   const msg = String(nachricht == null ? '' : nachricht).slice(0, 8000);
   // Transientes Verbindungs-Rauschen (z. B. „apiFetch /wochen: Failed to fetch")
   // gar nicht erst persistieren – manuelle Meldungen bleiben ausgenommen.
-  if (quelle !== 'manual' && istTransienterVerbindungsfehler(msg)) return;
+  if (quelle !== 'manual' && (istTransienterVerbindungsfehler(msg) || istBenignesBrowserrauschen(msg))) return;
   const kontextStr = kontext == null ? null
     : (typeof kontext === 'string' ? kontext : JSON.stringify(kontext));
   console.error(`[fehler:${quelle}]`, msg, stack ? `\n${stack}` : '');
@@ -224,4 +234,4 @@ async function cleanupAlt(tage = 90) {
   return result.rowsAffected[0];
 }
 
-module.exports = { berechneFingerprint, logError, listErrors, markResolved, cleanupAlt, bewerteSchwere, setSchweregrad, istTransienterVerbindungsfehler, SCHWEREGRADE, parseUndValidiereBilder, speichereFehlerAnhaenge, listeFehlerAnhaenge, ladeFehlerAnhang };
+module.exports = { berechneFingerprint, logError, listErrors, markResolved, cleanupAlt, bewerteSchwere, setSchweregrad, istTransienterVerbindungsfehler, istBenignesBrowserrauschen, SCHWEREGRADE, parseUndValidiereBilder, speichereFehlerAnhaenge, listeFehlerAnhaenge, ladeFehlerAnhang };

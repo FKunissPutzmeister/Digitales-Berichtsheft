@@ -606,7 +606,7 @@ const DB = {
      übernommen werden, auch 'genehmigt'. Der Server lässt das ausschließlich
      im eigenen Heft und nie über eine hier erteilte Abnahme zu. */
   async saveWoche(woche, opts = {}) {
-    await apiFetch(`/wochen${opts.migration ? '?migration=1' : ''}`, { method: 'POST', body: {
+    const res = await apiFetch(`/wochen${opts.migration ? '?migration=1' : ''}`, { method: 'POST', body: {
       azubiOid:            woche.azubiId,
       kw:                  woche.kw,
       jahr:                woche.year,
@@ -622,9 +622,21 @@ const DB = {
       schuleEintrag:       woche.schuleEintrag       || null,
       unterweisungEintrag: woche.unterweisungEintrag || null,
     }});
+    // Die Id der (ggf. neu) angelegten Woche zurückgeben. Ein Aufrufer, der
+    // eine noch nicht persistierte Woche gespeichert hat, hält sonst ein
+    // Objekt OHNE id in der Hand – und schickt sie später als
+    // /wochen/undefined/status an den Server (500 „Validation failed for
+    // parameter 'id'"). Siehe wochenansicht.js autoSaveImpl/autoSaveWocheImpl.
+    return res && res.id != null ? res.id : null;
   },
 
   async setWocheStatus(wocheId, status) {
+    // Defense-in-Depth: eine fehlende/ungültige Id nie an den Server geben –
+    // dort würde daraus ein 500 (mssql-Validierung) plus ein Eintrag im
+    // Fehler-Posteingang. Hier bricht es mit klarer Meldung beim Aufrufer.
+    if (!Number.isInteger(Number(wocheId)) || Number(wocheId) <= 0) {
+      throw new Error('Die Woche wurde noch nicht gespeichert – Status kann nicht gesetzt werden.');
+    }
     await apiFetch(`/wochen/${wocheId}/status`, { method: 'PATCH', body: { status } });
   },
 
@@ -807,13 +819,21 @@ const DB = {
     await apiFetch('/benachrichtigungen/alle-gelesen', { method: 'PATCH' });
   },
 
-  /* Beurteilungen */
+  /* Beurteilungen
+     erwartet: [403, 404] – Beurteilungen sind Zusatzinfo (Noten-Badges am
+     Durchlauf, Detailseite). „Kein Zugriff" (403, fremder Azubi) und
+     „Zuweisung nicht gefunden" (404, inzwischen gelöschter Durchlauf) sind
+     legitime Server-Antworten, die jeder Aufrufer wegfängt und ohne Badge
+     weiterläuft – sie sind kein Bug und gehören nicht in den Fehler-
+     Posteingang (s. error-reporter.js sollStatusMelden). */
   async getBeurteilung(zuweisungId) {
-    const data = await apiFetch(`/beurteilungen?zuweisungId=${encodeURIComponent(zuweisungId)}`);
+    const data = await apiFetch(`/beurteilungen?zuweisungId=${encodeURIComponent(zuweisungId)}`,
+      { erwartet: [403, 404] });
     return normalizeBeurteilung(data);
   },
   async getBeurteilungenFuerAzubi(azubiOid) {
-    const data = await apiFetch(`/beurteilungen?azubiOid=${encodeURIComponent(azubiOid)}`);
+    const data = await apiFetch(`/beurteilungen?azubiOid=${encodeURIComponent(azubiOid)}`,
+      { erwartet: [403, 404] });
     return data.map(b => ({
       zuweisungId: b.ZuweisungId, status: b.Status,
       note: b.Note != null ? Number(b.Note) : null,

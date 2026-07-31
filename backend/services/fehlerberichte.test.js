@@ -27,6 +27,17 @@ test('berechneFingerprint: fehlender Stack ist erlaubt', () => {
   assert.match(a, /^[0-9a-f]{64}$/);
 });
 
+// ── istBenignesBrowserrauschen ─────────────────────────────────
+// Muss zur Client-Regex in app/js/error-reporter.js passen.
+test('istBenignesBrowserrauschen: ResizeObserver-Hinweise sind kein Bug', () => {
+  assert.equal(F.istBenignesBrowserrauschen('ResizeObserver loop completed with undelivered notifications.'), true);
+  assert.equal(F.istBenignesBrowserrauschen('ResizeObserver loop limit exceeded'), true);
+});
+test('istBenignesBrowserrauschen: echte Fehler bleiben meldepflichtig', () => {
+  assert.equal(F.istBenignesBrowserrauschen('[wochen] status: Validation failed for parameter \'id\'.'), false);
+  assert.equal(F.istBenignesBrowserrauschen(null), false);
+});
+
 // ── bewerteSchwere ─────────────────────────────────────────────
 test('bewerteSchwere: manual → mittel', () => {
   assert.equal(F.bewerteSchwere({ quelle: 'manual', nachricht: 'kaputt', kontext: null }), 'mittel');

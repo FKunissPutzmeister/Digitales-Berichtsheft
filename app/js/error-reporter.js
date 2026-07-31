@@ -28,9 +28,35 @@
         || /nicht rechtzeitig geantwortet/i.test(s);
   }
 
+  // Benignes Browser-Rauschen: Meldungen, die die Engine selbst erzeugt und
+  // die KEIN Fehlverhalten der App sind. „ResizeObserver loop completed with
+  // undelivered notifications" entsteht, wenn ein ResizeObserver-Callback im
+  // selben Frame erneut Layout ändert (bei uns u. a. Editor-/Toolbar-Layout)
+  // – der Browser liefert die Notifikationen im nächsten Frame nach, es geht
+  // nichts verloren. Solche Meldungen fluten sonst den Posteingang
+  // (×373 in vier Tagen) und verdecken echte Bugs.
+  function istBenignesBrowserrauschen(nachricht) {
+    return /ResizeObserver loop (completed with undelivered notifications|limit exceeded)/i
+      .test(String(nachricht || ''));
+  }
+
+  // Erwartete HTTP-Fachergebnisse, die NIE als Bug gelten:
+  //   401 – Session abgelaufen / noch nicht angemeldet. Der Aufrufer leitet
+  //         zum Login (login.js prüft mit /auth/me genau das ab).
+  //   409 – Konflikt („existiert bereits"), wird als Toast gezeigt.
+  // Alles andere ist nur dann kein Bug, wenn der Aufrufer es ausdrücklich als
+  // erwartet markiert (apiFetch(..., { erwartet: [403, 404] })).
+  const IMMER_ERWARTET = [401, 409];
+  function sollStatusMelden(status, erwartet) {
+    if (status === undefined || status === null) return true;
+    if (IMMER_ERWARTET.includes(status)) return false;
+    return !(Array.isArray(erwartet) && erwartet.includes(status));
+  }
+
   // Node/Test-Kontext: nur die reinen Funktionen exportieren, nichts anhängen.
   if (typeof window === 'undefined') {
-    module.exports = { sollMelden, istTransienterVerbindungsfehler };
+    module.exports = { sollMelden, istTransienterVerbindungsfehler,
+      istBenignesBrowserrauschen, sollStatusMelden };
     return;
   }
 
@@ -43,8 +69,10 @@
 
   function melde(quelle, nachricht, stack, extra, bilder) {
     if (sendet) return;
-    // Manuelle Meldungen nie unterdrücken; transiente Verbindungsfehler schon.
-    if (quelle !== 'manual' && istTransienterVerbindungsfehler(nachricht)) return;
+    // Manuelle Meldungen nie unterdrücken; transientes Verbindungs- und
+    // benignes Browser-Rauschen schon.
+    if (quelle !== 'manual'
+        && (istTransienterVerbindungsfehler(nachricht) || istBenignesBrowserrauschen(nachricht))) return;
     const key = `${quelle}|${nachricht}|${String(stack || '').split('\n').slice(0, 2).join('|')}`;
     if (!sollMelden(key, Date.now(), gesehen, FENSTER_MS)) return;
     sendet = true;
@@ -79,11 +107,13 @@
     window.apiFetch = async function (path, options) {
       try { return await orig(path, options); }
       catch (e) {
-        // 409 Conflict ist ein erwartetes Fachergebnis (z. B. „Abteilung
-        // existiert bereits"), das der Aufrufer dem Nutzer bereits als Toast
-        // zeigt – kein Bug. Nicht in den Fehler-Posteingang melden (gleiche
-        // Rationale wie istTransienterVerbindungsfehler).
-        if (e && e.status !== 409) {
+        // Erwartete Fachergebnisse sind keine Bugs und gehören nicht in den
+        // Posteingang (gleiche Rationale wie istTransienterVerbindungsfehler):
+        // 401/409 immer (Session abgelaufen bzw. Konflikt-Toast), zusätzlich
+        // die vom Aufrufer via { erwartet: [...] } deklarierten Status – etwa
+        // 403 „Kein Zugriff" bei Beurteilungs-Badges, die der Aufrufer
+        // ausdrücklich wegfängt und ohne Badge weiterläuft.
+        if (e && sollStatusMelden(e.status, options && options.erwartet)) {
           melde('frontend', `apiFetch ${path}: ${e.message}`, e.stack,
             { apiPfad: path, methode: ((options && options.method) || 'GET').toUpperCase() });
         }
