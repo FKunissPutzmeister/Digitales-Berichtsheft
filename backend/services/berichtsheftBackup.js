@@ -14,6 +14,53 @@
    berichtsheftBackup.test.js nagelt die Struktur fest.
    =================================================================== */
 
+const fs = require('fs');
+const path = require('path');
+
+const AUFBEWAHRUNG_TAGE = 30;
+const BACKUP_DIR = path.join(__dirname, '..', 'data', 'backups');
+const TAGESORDNER_RE = /^\d{4}-\d{2}-\d{2}$/;
+
+const UMLAUTE = { 'ä': 'ae', 'ö': 'oe', 'ü': 'ue', 'ß': 'ss', 'Ä': 'ae', 'Ö': 'oe', 'Ü': 'ue' };
+
+/* Dateisicherer Namensteil: Umlaute ausschreiben, Akzente entfernen, alles
+   Übrige zu '-'. Ergebnis kann leer sein (Konto ohne Namen). */
+function slugName(name) {
+  return String(name || '')
+    .replace(/[äöüßÄÖÜ]/g, (c) => UMLAUTE[c])
+    .normalize('NFKD').replace(/[\u0300-\u036f]/g, '')   // é → e (Akzente abtrennen)
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+}
+
+function dateiName(azubi) {
+  const slug = slugName(azubi && azubi.name);
+  const oid = String((azubi && azubi.oid) || 'unbekannt');
+  return (slug ? `${slug}_${oid}` : oid) + '.json';
+}
+
+/* Ortszeit, nicht UTC: der 02:00-Lauf soll im Ordner des lokalen
+   Kalendertages landen. */
+function tagesOrdnerName(d) {
+  const p = (n) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+}
+
+function istTagesOrdnerName(name) {
+  return TAGESORDNER_RE.test(name);
+}
+
+/* Millisekunden bis zur nächsten <stunde>:00 Ortszeit. Ist die Uhrzeit
+   erreicht oder vorbei, wird der Folgetag genommen — so liefert die
+   Funktion nie 0 und der nachplanende Timer kann nicht heißlaufen. */
+function msBisNaechsteUhrzeit(stunde, jetzt = new Date()) {
+  const ziel = new Date(jetzt);
+  ziel.setHours(stunde, 0, 0, 0);
+  if (ziel.getTime() <= jetzt.getTime()) ziel.setDate(ziel.getDate() + 1);
+  return ziel.getTime() - jetzt.getTime();
+}
+
 /* Datumswerte kommen auf zwei Wegen herein: Wochen-Spalten als Date-Objekte
    vom mssql-Treiber, Tage/Kommentare als ISO-Strings aus FOR JSON PATH.
    Beide müssen auf YYYY-MM-DD enden — String(new Date()) ergäbe sonst
@@ -105,4 +152,8 @@ function buildBackupPayload(azubi, wochenRows, jetzt = new Date()) {
   };
 }
 
-module.exports = { buildBackupPayload };
+module.exports = {
+  AUFBEWAHRUNG_TAGE, BACKUP_DIR,
+  buildBackupPayload,
+  slugName, dateiName, tagesOrdnerName, istTagesOrdnerName, msBisNaechsteUhrzeit,
+};

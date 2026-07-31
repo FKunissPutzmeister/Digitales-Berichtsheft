@@ -169,3 +169,40 @@ test('buildBackupPayload: fehlende/kaputte Datumswerte werden zu leeren Strings'
   assert.equal(w.startDate, '');
   assert.equal(w.endDate, '');
 });
+
+test('slugName: Umlaute, Akzente und Sonderzeichen werden dateisicher', () => {
+  assert.equal(B.slugName('Kuniß, Florian'), 'kuniss-florian');
+  assert.equal(B.slugName('Müller, Lena-Sophie'), 'mueller-lena-sophie');
+  assert.equal(B.slugName('Hofer, Jana Ödön'), 'hofer-jana-oedoen');
+  assert.equal(B.slugName('José Ávila'), 'jose-avila');
+  assert.equal(B.slugName('  ...  '), '');
+  assert.equal(B.slugName(null), '');
+});
+
+test('dateiName: Slug plus OID, bei fehlendem Namen nur die OID', () => {
+  assert.equal(B.dateiName({ oid: 'ABC-1', name: 'Kuniß, Florian' }),
+    'kuniss-florian_ABC-1.json');
+  assert.equal(B.dateiName({ oid: 'ABC-2', name: '' }), 'ABC-2.json');
+  assert.equal(B.dateiName({ oid: 'ABC-3' }), 'ABC-3.json');
+  // Ein Slug beginnt nie mit '_' — daher keine Kollision mit _manifest.json
+  assert.ok(!B.dateiName({ oid: 'X', name: '_manifest' }).startsWith('_'));
+});
+
+test('tagesOrdnerName: YYYY-MM-DD in Ortszeit, istTagesOrdnerName erkennt es', () => {
+  assert.equal(B.tagesOrdnerName(new Date(2026, 6, 31, 2, 0, 0)), '2026-07-31');
+  assert.equal(B.tagesOrdnerName(new Date(2026, 0, 5, 23, 59, 0)), '2026-01-05');
+  assert.ok(B.istTagesOrdnerName('2026-07-31'));
+  assert.ok(!B.istTagesOrdnerName('_manifest.json'));
+  assert.ok(!B.istTagesOrdnerName('notizen'));
+  assert.ok(!B.istTagesOrdnerName('2026-7-1'));
+});
+
+test('msBisNaechsteUhrzeit: heute wenn noch nicht erreicht, sonst morgen', () => {
+  const std = 3600 * 1000;
+  // 00:30 → 02:00 heute = 1,5 h
+  assert.equal(B.msBisNaechsteUhrzeit(2, new Date(2026, 6, 31, 0, 30, 0)), 1.5 * std);
+  // 02:00 genau → nächster Lauf morgen (nie 0, sonst Endlos-Timer)
+  assert.equal(B.msBisNaechsteUhrzeit(2, new Date(2026, 6, 31, 2, 0, 0)), 24 * std);
+  // 09:00 → 02:00 am Folgetag = 17 h
+  assert.equal(B.msBisNaechsteUhrzeit(2, new Date(2026, 6, 31, 9, 0, 0)), 17 * std);
+});
