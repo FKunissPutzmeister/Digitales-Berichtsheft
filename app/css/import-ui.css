@@ -1,10 +1,12 @@
 /* ===================================================================
-   ZEITNACHWEIS.CSS
-   Gemeinsame Styles für den Zeitnachweis-Import (Tutorial, Dropzone,
-   Vorschau-Dialog, Erfolgsansicht). Wird von Profil UND ESS-Seite
-   geladen, weil beide dieselbe Import-Engine (zeitnachweis-upload.js)
-   und denselben Vorschau-Modal nutzen. Rein auf Design-Tokens aufgebaut,
-   daher in allen Themes konsistent.
+   IMPORT-UI.CSS
+   Styles für die PDF-Import-Oberfläche im Profil (Tutorial, Dropzone,
+   Vorschau-Dialog, Erfolgsansicht) – genutzt vom IHK-Berichtsheft-Import
+   (ihk-import.js). Das `ztn-`-Präfix der Klassen stammt aus dem früheren
+   SAP-ESS-Zeitnachweis-Import, der diese Engine ursprünglich mitbrachte;
+   die Klassennamen blieben beim Entfernen unverändert, damit der
+   IHK-Import nicht angefasst werden musste.
+   Rein auf Design-Tokens aufgebaut, daher in allen Themes konsistent.
    =================================================================== */
 .ztn-intro {
   font-size: var(--text-sm);
@@ -121,33 +123,6 @@
 }
 .ztn-meta__note svg { flex-shrink: 0; }
 
-.ztn-modebar {
-  display: flex;
-  align-items: center;
-  gap: var(--sp-3);
-  flex-wrap: wrap;
-  margin-bottom: var(--sp-3);
-}
-.ztn-modebar__label { font-size: var(--text-sm); color: var(--pm-grey-600); font-weight: var(--fw-bold); }
-.ztn-toggle {
-  display: inline-flex;
-  border: 1px solid var(--pm-grey-200);
-  border-radius: var(--r-md);
-  overflow: hidden;
-}
-.ztn-toggle__btn {
-  border: none;
-  background: var(--pm-white);
-  cursor: pointer;
-  padding: var(--sp-2) var(--sp-3);
-  font-size: var(--text-sm);
-  color: var(--pm-grey-600);
-  transition: background var(--t-fast), color var(--t-fast);
-}
-.ztn-toggle__btn + .ztn-toggle__btn { border-left: 1px solid var(--pm-grey-200); }
-.ztn-toggle__btn:hover { background: var(--pm-grey-100); }
-.ztn-toggle__btn.active { background: var(--pm-yellow); color: var(--pm-grey-900); font-weight: var(--fw-bold); }
-
 .ztn-table-wrap {
   max-height: 46vh;
   overflow: auto;
@@ -173,17 +148,7 @@
   border-bottom: 1px solid var(--pm-grey-100);
   color: var(--pm-grey-700);
 }
-.ztn-group td {
-  background: var(--pm-grey-50);
-  font-weight: var(--fw-bold);
-  color: var(--pm-grey-600);
-  font-size: var(--text-xs);
-  text-transform: uppercase;
-  letter-spacing: .04em;
-}
-.ztn-group--ro td { color: var(--pm-grey-400); }
 .ztn-row--disabled { opacity: .55; }
-.ztn-row--unsicher { background: var(--color-warning-light); }
 .ztn-row__check { width: 36px; text-align: center; }
 .ztn-check { width: 16px; height: 16px; accent-color: var(--pm-yellow-darker); cursor: pointer; }
 .ztn-row__date { white-space: nowrap; }

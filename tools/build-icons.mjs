@@ -44,7 +44,7 @@ const MAP = {
   calendar:     'calendar',
   logout:       'logout-3',
   lock:         'lock-password',
-  // Zeitnachweis-Import
+  // PDF-Import
   upload:       'cloud-upload',
   question:     'question-circle',
   // Feedback / Status / allgemein

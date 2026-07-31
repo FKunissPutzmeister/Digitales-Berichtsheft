@@ -274,7 +274,7 @@
       /* Erstes Laden: als <script src> Tag einfügen.
          Läuft in Global-Scope → const/let/var werden global zugänglich.
          Notwendig, damit Inter-Script-Abhängigkeiten funktionieren
-         (z. B. zeitnachweis-upload.js → profil.js). */
+         (z. B. ihk-import.js → profil.js). */
       _loadedLocalScripts.add(absUrl);
       await new Promise((resolve) => {
         const s    = document.createElement('script');

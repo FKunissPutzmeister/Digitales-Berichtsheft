@@ -3,7 +3,7 @@
 Digitales Ausbildungs-Berichtsheft für Putzmeister-Auszubildende und DH-Studenten.
 Ersetzt das klassische Papier-Berichtsheft durch eine Web-Anwendung mit Wochen-
 und Jahresansicht, Abteilungs-Durchlaufplanung, Beurteilungsbögen, Fahrgeld-
-erstattung, PDF-Importen (SAP ESS / IHK) und einem zweistufigen Genehmigungs-
+erstattung, IHK-PDF-Import und einem zweistufigen Genehmigungs-
 Workflow. Produktiv-Login über Azure AD / Microsoft Entra ID (SAML 2.0).
 
 Ausgeliefert wird `app/` (Frontend, Vanilla JS) + `backend/` (Node.js/Express +
@@ -24,7 +24,7 @@ Ausgeliefert wird `app/` (Frontend, Vanilla JS) + `backend/` (Node.js/Express +
 | Fahrgelderstattung (Formular F6344-1, Signatur, Excel-/PDF-Vorschau) | ✅ erledigt |
 | Abteilungsverwaltung + Abteilungs-Planer (Durchlaufplanung, Beurteilungssignale) | ✅ erledigt |
 | Nutzerverwaltung + Vertretungen | ✅ erledigt |
-| SAP-ESS- und IHK-PDF-Import (client-side) | ✅ erledigt |
+| IHK-PDF-Import (client-side) | ✅ erledigt |
 | Benachrichtigungen + Mitteilungen-Feed | ✅ erledigt |
 | Berichtsheft-Export (JSON-Backup + PDF-Ausbildungsnachweis) | ✅ erledigt |
 | Fehlerberichte (Frontend + Backend, Dev-Ansicht) | ✅ erledigt |
@@ -115,16 +115,13 @@ Kommentar (`typ: 'abgelehnt'`) gespeichert und im Status-Banner angezeigt.
 - Abteilungskatalog mit hinterlegten Verantwortlichen
 - Signale auf dem Dashboard: Azubis ohne Zuweisung, bald ablaufende/beginnende Durchläufe
 
-### PDF-Importe (client-side, via pdf.js)
-
-**SAP-ESS-Zeitnachweis** — PDF-Export aus SAP ESS → tagesweise Anwesenheits-,
-Ort- und Dauerdaten; Vorschau mit Konflikterkennung; kein Upload an den Server.
+### PDF-Import (client-side, via pdf.js)
 
 **IHK-Berichtsheft** — PDF aus dem IHK-Portal → wöchentliche Daten; erkennt
 Betrieb/Schule/Urlaub/Feiertag/Zeitausgleich/Krank; übernimmt IHK-Status;
 schützt bereits freigegebene/genehmigte Wochen und vorhandene Texteinträge.
 Wichtig: nur PDFs **mit Textebene** sind parsebar (kein „Print to PDF"-Bild).
-Parser (`ihk-parser.js`, `zeitnachweis-parser.js`) sind ohne DOM Node-testbar.
+Der Parser (`ihk-parser.js`) ist ohne DOM Node-testbar.
 
 ### Export & Backup
 

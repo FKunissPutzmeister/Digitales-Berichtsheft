@@ -51,7 +51,7 @@
 /* Profil-Sektion — iOS/macOS-Settings-Optik: ruhige Gruppen-Fläche mit
    kleinem Gruppen-Label, Inhalte immer sichtbar (kein Accordion, kein
    Header-Balken). Die Profil-Sektionen sind <section>; die Import-Tab-
-   Module (Zeitnachweis/IHK/Export) bleiben <details> — deren Collapse-
+   Module (IHK-Import/Export) bleiben <details> — deren Collapse-
    Zusatzregeln stehen weiter unten und greifen nur dort. */
 .profil-section {
   background: var(--pm-white);
@@ -569,9 +569,8 @@ details.profil-section .profil-section__body-wrap > .profil-section__body {
 }
 
 /* ===================================================================
-   ZEITNACHWEIS-IMPORT
-   Die gemeinsamen Styles (Tutorial, Dropzone, Vorschau-Dialog,
-   Erfolgsansicht) liegen jetzt in css/zeitnachweis.css, da sie von
-   Profil UND ESS-Seite genutzt werden. Hier verbleiben nur ggf.
+   PDF-IMPORT (IHK)
+   Die Styles der Import-Oberfläche (Tutorial, Dropzone, Vorschau-Dialog,
+   Erfolgsansicht) liegen in css/import-ui.css. Hier verbleiben nur ggf.
    profil-spezifische Ergänzungen.
    =================================================================== */

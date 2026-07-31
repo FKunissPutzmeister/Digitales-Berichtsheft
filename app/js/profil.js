@@ -552,7 +552,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   /* Profil/Import-Tabs: rein clientseitiges Anzeigen/Verbergen der Panels.
      Beide Panels bleiben im DOM (Import-Panel nur via [hidden] versteckt),
-     damit ZeitnachweisUpload.bind()/IhkImport.bind() ihre Elemente finden. */
+     damit IhkImport.bind()/BerichtsheftExport.bind() ihre Elemente finden. */
   function initProfilTabs() {
     const tabs = Array.from(document.querySelectorAll('.profil-tab'));
     const panels = {
@@ -580,10 +580,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     /* Import-Sektionen separat erfassen → eigener "Import"-Tab.
        renderSection() liefert '' für Nicht-Azubis; dann gibt es weder
        Import-Inhalt noch Tab-Leiste (Ausbilder/Admin sehen nur Profil). */
-    const zeitnachweisHtml = ZeitnachweisUpload.renderSection(user);
     const ihkHtml = IhkImport.renderSection(user);
     const exportHtml = BerichtsheftExport.renderSection(user);
-    const hasImport = (zeitnachweisHtml.trim() + ihkHtml.trim() + exportHtml.trim()).length > 0;
+    const hasImport = (ihkHtml.trim() + exportHtml.trim()).length > 0;
 
     main.innerHTML = `
       <div class="page-header">
@@ -614,7 +613,6 @@ document.addEventListener('DOMContentLoaded', async () => {
       <div class="profil-panels profil-panels--import" id="panel-import"
            role="tabpanel" aria-labelledby="tab-import" hidden>
         ${exportHtml}
-        ${zeitnachweisHtml}
         ${ihkHtml}
       </div>` : ''}
     `;
@@ -640,8 +638,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Vertretung verdrahten (nur für betreuende Personen gerendert)
     bindVertretung();
 
-    // Zeitnachweis-Import-Sektion verdrahten (nur für Azubis vorhanden)
-    ZeitnachweisUpload.bind(user);
+    // IHK-Import-Sektion verdrahten (nur für Azubis vorhanden)
     IhkImport.bind(user);
 
     // Export & Backup verdrahten (Sektion nur für Azubis gerendert)
