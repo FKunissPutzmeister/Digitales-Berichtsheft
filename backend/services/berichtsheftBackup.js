@@ -217,6 +217,31 @@ async function ladeWochen(azubiOid, pool) {
   });
 }
 
+/* Löscht Tagesordner, deren Datum älter als keepDays ist. Bei Namen im
+   Format YYYY-MM-DD ist der lexikografische Vergleich identisch mit dem
+   chronologischen — deshalb reicht ein String-Vergleich, ohne Parsing.
+   Alles, was nicht wie ein Tagesordner heißt (oder keiner ist), bleibt
+   unangetastet: Schutz gegen versehentliches Löschen fremder Daten. */
+function pruneOldBackups(keepDays = AUFBEWAHRUNG_TAGE, { dir = BACKUP_DIR, jetzt = new Date() } = {}) {
+  if (!Number.isFinite(keepDays)) throw new Error(`pruneOldBackups: ungültige Aufbewahrung "${keepDays}"`);
+  if (!fs.existsSync(dir)) return [];
+
+  const grenze = new Date(jetzt);
+  grenze.setDate(grenze.getDate() - keepDays);
+  const grenzName = tagesOrdnerName(grenze);
+
+  const geloescht = [];
+  for (const name of fs.readdirSync(dir)) {
+    if (!istTagesOrdnerName(name)) continue;
+    if (name >= grenzName) continue;                       // jung genug
+    const p = path.join(dir, name);
+    if (!fs.statSync(p).isDirectory()) continue;           // Datei mit Datumsnamen
+    fs.rmSync(p, { recursive: true, force: true });
+    geloescht.push(name);
+  }
+  return geloescht;
+}
+
 /* Schreibt für jeden Azubi mit mindestens einer Woche einen JSON-Snapshot in
    data/backups/<tag>/ und daneben ein _manifest.json mit den Zählern.
    Alle Datenzugriffe sind injizierbar — dadurch ist der komplette Job ohne
@@ -268,6 +293,18 @@ async function runBackup(deps = {}) {
     }
   }
 
+  // Rotation ist nachrangig: scheitert sie, sind die Snapshots trotzdem gültig.
+  try {
+    bericht.geloeschteTage = pruneOldBackups(aufbewahrungTage, { dir, jetzt });
+  } catch (err) {
+    bericht.fehler.push({ oid: null, name: '(rotation)', fehler: err.message });
+    logFehler({
+      quelle: 'backend',
+      nachricht: `[backup] Rotation: ${err.message}`,
+      stack: err.stack,
+    });
+  }
+
   bericht.dauerMs = Date.now() - startMs;
   fs.writeFileSync(path.join(tagDir, '_manifest.json'),
     JSON.stringify(bericht, null, 2), 'utf8');
@@ -279,5 +316,6 @@ module.exports = {
   buildBackupPayload,
   slugName, dateiName, tagesOrdnerName, istTagesOrdnerName, msBisNaechsteUhrzeit,
   listAzubis, ladeWochen,
+  pruneOldBackups,
   runBackup,
 };

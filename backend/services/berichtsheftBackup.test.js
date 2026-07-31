@@ -398,3 +398,73 @@ test('runBackup: legt fehlende Verzeichnisse selbst an', async () => {
   await B.runBackup(fakeDeps(dir));
   assert.ok(fs.existsSync(pathMod.join(dir, '2026-07-31', '_manifest.json')));
 });
+
+function legeTagesordnerAn(dir, namen) {
+  namen.forEach((n) => {
+    fs.mkdirSync(pathMod.join(dir, n), { recursive: true });
+    fs.writeFileSync(pathMod.join(dir, n, '_manifest.json'), '{}', 'utf8');
+  });
+}
+
+test('pruneOldBackups: loescht genau die Ordner jenseits der Aufbewahrung', () => {
+  const dir = tempDir();
+  // Stichtag 2026-07-31, Aufbewahrung 30 Tage → Grenze 2026-07-01
+  legeTagesordnerAn(dir, ['2026-07-31', '2026-07-02', '2026-07-01', '2026-06-30', '2026-05-15']);
+  const geloescht = B.pruneOldBackups(30, { dir, jetzt: new Date(2026, 6, 31) });
+
+  assert.deepEqual(geloescht.sort(), ['2026-05-15', '2026-06-30']);
+  assert.deepEqual(fs.readdirSync(dir).sort(), ['2026-07-01', '2026-07-02', '2026-07-31']);
+});
+
+test('pruneOldBackups: heute-30 bleibt, heute-31 faellt weg', () => {
+  const dir = tempDir();
+  legeTagesordnerAn(dir, ['2026-07-01', '2026-06-30']);
+  B.pruneOldBackups(30, { dir, jetzt: new Date(2026, 6, 31) });
+  assert.deepEqual(fs.readdirSync(dir), ['2026-07-01']);
+});
+
+test('pruneOldBackups: fremde Namen bleiben unangetastet', () => {
+  const dir = tempDir();
+  legeTagesordnerAn(dir, ['2026-05-15']);
+  fs.mkdirSync(pathMod.join(dir, 'notizen'), { recursive: true });
+  fs.writeFileSync(pathMod.join(dir, 'LIESMICH.txt'), 'wichtig', 'utf8');
+  fs.writeFileSync(pathMod.join(dir, '2026-05-14'), 'kein Ordner', 'utf8');
+
+  const geloescht = B.pruneOldBackups(30, { dir, jetzt: new Date(2026, 6, 31) });
+
+  assert.deepEqual(geloescht, ['2026-05-15']);
+  assert.deepEqual(fs.readdirSync(dir).sort(), ['2026-05-14', 'LIESMICH.txt', 'notizen']);
+});
+
+test('pruneOldBackups: fehlendes Verzeichnis ist kein Fehler', () => {
+  const geloescht = B.pruneOldBackups(30, {
+    dir: pathMod.join(tempDir(), 'gibtsnicht'), jetzt: new Date(2026, 6, 31),
+  });
+  assert.deepEqual(geloescht, []);
+});
+
+test('runBackup: raeumt alte Tagesordner mit auf und protokolliert das', async () => {
+  const dir = tempDir();
+  legeTagesordnerAn(dir, ['2026-05-15']);
+  const bericht = await B.runBackup(fakeDeps(dir));
+  assert.deepEqual(bericht.geloeschteTage, ['2026-05-15']);
+  assert.ok(!fs.existsSync(pathMod.join(dir, '2026-05-15')));
+  const m = leseJson(pathMod.join(dir, '2026-07-31', '_manifest.json'));
+  assert.deepEqual(m.geloeschteTage, ['2026-05-15']);
+});
+
+test('runBackup: eine gescheiterte Rotation macht den Lauf nicht ungueltig', async () => {
+  const dir = tempDir();
+  // NaN als Aufbewahrung laesst pruneOldBackups werfen — der Fehlerpfad, ohne
+  // dass wir Dateirechte manipulieren muessen.
+  const bericht = await B.runBackup({ ...fakeDeps(dir), aufbewahrungTage: Number.NaN });
+
+  // Snapshot wurde trotzdem geschrieben ...
+  assert.equal(bericht.dateien, 1);
+  assert.ok(fs.existsSync(pathMod.join(dir, '2026-07-31',
+    'kuniss-florian_' + AZUBI.oid + '.json')));
+  // ... und der Rotationsfehler ist protokolliert, nicht verschluckt.
+  assert.equal(bericht.fehler.length, 1);
+  assert.equal(bericht.fehler[0].name, '(rotation)');
+  assert.deepEqual(bericht.geloeschteTage, []);
+});
