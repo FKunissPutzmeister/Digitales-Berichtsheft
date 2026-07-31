@@ -206,3 +206,79 @@ test('msBisNaechsteUhrzeit: heute wenn noch nicht erreicht, sonst morgen', () =>
   // 09:00 → 02:00 am Folgetag = 17 h
   assert.equal(B.msBisNaechsteUhrzeit(2, new Date(2026, 6, 31, 9, 0, 0)), 17 * std);
 });
+
+/* Fake-Pool im Muster von vertretungen.test.js: liefert je nach SQL-Text ein
+   Recordset. Keine echte DB. */
+function fakePool(handler) {
+  return {
+    request() {
+      const inputs = {};
+      const api = {
+        input(name, _type, val) { inputs[name] = val; return api; },
+        query: async (sqlText) => ({ recordset: handler(sqlText, inputs) || [] }),
+      };
+      return api;
+    },
+  };
+}
+
+test('listAzubis: OIDs kommen aus Wochen, Stammdaten aus Users', async () => {
+  const pool = fakePool((sqlText) => {
+    assert.match(sqlText, /FROM dbo\.Wochen/i);
+    return [
+      { WocheAzubiOid: 'OID-1', Oid: 'OID-1', Name: 'Kuniß, Florian',
+        Email: 'f@x.demo', Role: 'azubi', Beruf: 'Mechatroniker',
+        BerichtTyp: 'wöchentlich', AusbildungBeginn: new Date('2024-09-01T00:00:00Z'),
+        AusbildungEnde: new Date('2027-08-31T00:00:00Z'), Aktiv: true },
+      // Datenrest ohne Nutzerkonto: alle u.*-Spalten sind NULL
+      { WocheAzubiOid: 'OID-WAISE', Oid: null, Name: null, Email: null, Role: null },
+    ];
+  });
+
+  const azubis = await B.listAzubis(pool);
+  assert.equal(azubis.length, 2);
+  assert.equal(azubis[0].oid, 'OID-1');
+  assert.equal(azubis[0].name, 'Kuniß, Florian');
+  assert.equal(azubis[0].beruf, 'Mechatroniker');
+  assert.equal(azubis[0].ausbildungsBeginn, '2024-09-01');
+  // Waise: OID aus der Wochen-Tabelle, Stammdaten leer statt Absturz
+  assert.equal(azubis[1].oid, 'OID-WAISE');
+  assert.equal(azubis[1].name, '');
+});
+
+test('ladeWochen: filtert auf den Azubi und parst tage/kommentare aus JSON', async () => {
+  let genutzteInputs = null;
+  const pool = fakePool((sqlText, inputs) => {
+    genutzteInputs = inputs;
+    assert.match(sqlText, /WHERE w\.AzubiOid = @azubiOid/i);
+    assert.match(sqlText, /FOR JSON PATH/i);
+    return [{
+      Id: 12, AzubiOid: 'OID-1', KW: 31, Jahr: 2026, Status: 'offen',
+      tageJson: '[{"Id":100,"WocheId":12,"Datum":"2026-07-27T00:00:00","Anwesenheit":"anwesend"}]',
+      kommentareJson: null,
+    }];
+  });
+
+  const wochen = await B.ladeWochen('OID-1', pool);
+  assert.equal(genutzteInputs.azubiOid, 'OID-1');
+  assert.equal(wochen.length, 1);
+  assert.equal(wochen[0].tage.length, 1);
+  assert.equal(wochen[0].tage[0].Id, 100);
+  assert.deepEqual(wochen[0].kommentare, []);       // NULL → leeres Array
+  // Die Roh-JSON-Felder gehören nicht in den Payload
+  assert.equal(wochen[0].tageJson, undefined);
+  assert.equal(wochen[0].kommentareJson, undefined);
+});
+
+test('ladeWochen-Ergebnis passt direkt in buildBackupPayload', async () => {
+  const pool = fakePool(() => [{
+    Id: 12, AzubiOid: 'OID-1', KW: 31, Jahr: 2026,
+    StartDatum: new Date('2026-07-27T00:00:00Z'), Status: 'offen',
+    tageJson: '[{"Id":100,"WocheId":12,"Datum":"2026-07-27T00:00:00","Anwesenheit":"krank"}]',
+    kommentareJson: null,
+  }]);
+  const wochen = await B.ladeWochen('OID-1', pool);
+  const p = B.buildBackupPayload({ oid: 'OID-1', name: 'A B' }, wochen, JETZT);
+  assert.equal(p.wochen[0].startDate, '2026-07-27');
+  assert.equal(p.wochen[0].tage[0].anwesenheit, 'Arbeitsunfähigkeit');
+});

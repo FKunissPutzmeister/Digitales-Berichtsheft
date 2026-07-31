@@ -16,6 +16,8 @@
 
 const fs = require('fs');
 const path = require('path');
+const { getPool, sql } = require('../db/connection');
+const { buildReqUser } = require('./users');
 
 const AUFBEWAHRUNG_TAGE = 30;
 const BACKUP_DIR = path.join(__dirname, '..', 'data', 'backups');
@@ -152,8 +154,61 @@ function buildBackupPayload(azubi, wochenRows, jetzt = new Date()) {
   };
 }
 
+/* Gesichert wird über dbo.Wochen, NICHT über die Nutzerliste: so sind
+   DH-Studenten und inaktive/ehemalige Konten automatisch dabei — genau die,
+   deren abgeschlossene Hefte im Ernstfall gebraucht werden. Ein Datenrest
+   ohne Nutzerkonto (LEFT JOIN ohne Treffer) wird trotzdem gesichert, dann
+   mit leeren Stammdaten. */
+async function listAzubis(pool) {
+  const p = pool || await getPool();
+  const res = await p.request().query(`
+    SELECT u.*, w.AzubiOid AS WocheAzubiOid
+    FROM (SELECT DISTINCT AzubiOid FROM dbo.Wochen) w
+    LEFT JOIN dbo.Users u ON u.Oid = w.AzubiOid
+  `);
+  return res.recordset.map((row) => {
+    const u = buildReqUser(row) || {};
+    return {
+      oid: row.Oid || row.WocheAzubiOid,
+      name: u.name || '',
+      email: u.email || '',
+      beruf: u.beruf || '',
+      berichtTyp: u.berichtTyp || '',
+      ausbildungsBeginn: u.ausbildungsBeginn || '',
+      ausbildungsEnde: u.ausbildungsEnde || '',
+    };
+  });
+}
+
+/* Dieselbe Abfrage wie routes/wochen.js GET / — aber ohne Zugriffsfilter und
+   ohne annotiereWoche: der Job läuft als System, nicht als Nutzer. */
+async function ladeWochen(azubiOid, pool) {
+  const p = pool || await getPool();
+  const res = await p.request()
+    .input('azubiOid', sql.NVarChar(36), azubiOid)
+    .query(`
+      SELECT w.*,
+        (SELECT * FROM dbo.Tage t WHERE t.WocheId = w.Id FOR JSON PATH) AS tageJson,
+        (SELECT * FROM dbo.Kommentare k WHERE k.WocheId = w.Id FOR JSON PATH) AS kommentareJson
+      FROM dbo.Wochen w
+      WHERE w.AzubiOid = @azubiOid
+      ORDER BY w.Jahr DESC, w.KW DESC
+    `);
+  return res.recordset.map((row) => {
+    const woche = {
+      ...row,
+      tage: row.tageJson ? JSON.parse(row.tageJson) : [],
+      kommentare: row.kommentareJson ? JSON.parse(row.kommentareJson) : [],
+    };
+    delete woche.tageJson;
+    delete woche.kommentareJson;
+    return woche;
+  });
+}
+
 module.exports = {
   AUFBEWAHRUNG_TAGE, BACKUP_DIR,
   buildBackupPayload,
   slugName, dateiName, tagesOrdnerName, istTagesOrdnerName, msBisNaechsteUhrzeit,
+  listAzubis, ladeWochen,
 };
