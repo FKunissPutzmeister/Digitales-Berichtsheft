@@ -241,9 +241,16 @@ test('listAzubis: OIDs kommen aus Wochen, Stammdaten aus Users', async () => {
   assert.equal(azubis[0].name, 'Kuniß, Florian');
   assert.equal(azubis[0].beruf, 'Mechatroniker');
   assert.equal(azubis[0].ausbildungsBeginn, '2024-09-01');
-  // Waise: OID aus der Wochen-Tabelle, Stammdaten leer statt Absturz
+  // Waise: OID aus der Wochen-Tabelle, Stammdaten durchgängig leer statt Absturz
+  // (auch berichtTyp — buildReqUser liefert dafür NIE einen falsy Wert, siehe
+  // users.js:64 'wöchentlich'-Default; listAzubis muss das für Waisen abfangen)
   assert.equal(azubis[1].oid, 'OID-WAISE');
   assert.equal(azubis[1].name, '');
+  assert.equal(azubis[1].email, '');
+  assert.equal(azubis[1].beruf, '');
+  assert.equal(azubis[1].berichtTyp, '');
+  assert.equal(azubis[1].ausbildungsBeginn, '');
+  assert.equal(azubis[1].ausbildungsEnde, '');
 });
 
 test('ladeWochen: filtert auf den Azubi und parst tage/kommentare aus JSON', async () => {

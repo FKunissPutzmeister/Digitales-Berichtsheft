@@ -167,9 +167,20 @@ async function listAzubis(pool) {
     LEFT JOIN dbo.Users u ON u.Oid = w.AzubiOid
   `);
   return res.recordset.map((row) => {
-    const u = buildReqUser(row) || {};
+    // Waise: kein Users-Treffer (LEFT JOIN leer) → durchgängig leere Stammdaten.
+    // Früher Return statt Bedingung pro Feld, weil buildReqUser().berichtTyp
+    // NIE falsy ist (users.js setzt 'wöchentlich' als Default) — ein '||' auf
+    // dem Rückgabewert würde den Default fälschlich durchreichen.
+    if (!row.Oid) {
+      return {
+        oid: row.WocheAzubiOid,
+        name: '', email: '', beruf: '', berichtTyp: '',
+        ausbildungsBeginn: '', ausbildungsEnde: '',
+      };
+    }
+    const u = buildReqUser(row);
     return {
-      oid: row.Oid || row.WocheAzubiOid,
+      oid: u.oid,
       name: u.name || '',
       email: u.email || '',
       beruf: u.beruf || '',
