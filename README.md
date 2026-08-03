@@ -130,12 +130,23 @@ Der Parser (`ihk-parser.js`) ist ohne DOM Node-testbar.
 - PDF-„Ausbildungsnachweis" (Deckblatt + Wochenseiten) via `berichtsheft-export.js`
 - **Automatische Nacht-Backups (server-seitig):** Ein Job schreibt täglich um
   02:00 pro Azubi einen JSON-Snapshot nach `backend/data/backups/<YYYY-MM-DD>/`
-  (Format `berichtsheft-backup` v1, daher über den „Wiederherstellen"-Dialog
-  im Profil einspielbar) und löscht Tagesordner älter als 30 Tage. Ein
-  `_manifest.json` je Tag protokolliert Anzahl und Fehler. Ohne UI — der
+  (Format `berichtsheft-backup` v1) und löscht Tagesordner älter als 30 Tage.
+  Ein `_manifest.json` je Tag protokolliert Anzahl und Fehler. Ohne UI — der
   Zugriff läuft über das Verzeichnis auf dem Server. Datei-Anhänge sind nicht
   enthalten (liegen als `VARBINARY` in der DB). Siehe
   `backend/services/berichtsheftBackup.js`.
+  - **Wiederherstellungsweg:** Der Admin holt die Datei vom Server und gibt
+    sie **der betroffenen Person**; diese spielt sie im **eigenen** Profil
+    über den „Wiederherstellen"-Dialog ein. Ein Admin kann das **nicht**
+    stellvertretend tun: der Dialog wird nur für Azubis gerendert, schreibt
+    immer auf das eigene Konto, und der Server weist Migrations-Schreibzugriffe
+    auf fremde Hefte mit 403 ab.
+  - **Was der Dialog nicht zurückspielt:** (a) Kommentare — `saveWoche`
+    überträgt sie nicht, sie stehen zwar im Snapshot, kommen aber nicht
+    zurück; (b) Wochen im Status *freigegeben*, *erstgenehmigt* oder
+    *genehmigt* werden übersprungen (Schutz eingereichter Stände). Der
+    Snapshot enthält also mehr, als der Dialog wiederherstellen kann — für
+    diese Reste bleibt nur manuelles Übertragen aus der JSON-Datei.
 
 ### Benachrichtigungen & Mitteilungen
 

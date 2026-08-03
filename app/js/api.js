@@ -155,8 +155,13 @@ function normalizeKommentar(k) {
    ('berichtsheft-backup' v1, siehe berichtsheft-export.js). Das serverseitige
    Nacht-Backup in backend/services/berichtsheftBackup.js baut dieselbe
    Struktur nach, damit seine Dateien über den Wiederherstellen-Dialog
-   einspielbar sind. Änderungen hier dort mitziehen —
-   backend/services/berichtsheftBackup.test.js schlägt sonst fehl. */
+   einspielbar sind.
+   Kein Automatismus schützt das: backend/services/berichtsheftBackup.test.js
+   prüft nur die Backend-Seite gegen eine dort hartcodierte Key-Liste und lädt
+   diese Datei nie — ein neues Feld hier bleibt also unbemerkt grün. Die
+   Kopplung hält allein über diesen und den gegenüberliegenden Kommentar:
+   Änderungen bitte bewusst auf beiden Seiten (plus Key-Liste im Test)
+   nachziehen. */
 function normalizeWoche(w) {
   return {
     id: w.Id,

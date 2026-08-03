@@ -18,18 +18,36 @@ Wer das nie tut — also praktisch alle — hat im Ernstfall nichts.
 
 Jede Nacht liegt automatisch ein wiederherstellbarer Stand **aller**
 Berichtshefte auf dem Server. Im Ernstfall holt ein Admin/Developer die
-betroffene Datei und spielt sie über den **bereits existierenden**
-„Wiederherstellen"-Dialog im Profil ein — ohne neuen Restore-Code und ohne
+betroffene Datei vom Server und gibt sie **der betroffenen Person**; diese
+spielt sie im **eigenen** Profil über den **bereits existierenden**
+„Wiederherstellen"-Dialog ein — ohne neuen Restore-Code und ohne
 Konvertierungsskript unter Zeitdruck.
+
+**Kein Restore für fremde Hefte (Stand heute):** Der Admin kann das nicht
+stellvertretend erledigen. Die Profil-Sektion rendert nur für `user.istAzubi`
+([berichtsheft-export.js](../../../app/js/berichtsheft-export.js) ~Zeile 98),
+`doRestore()` erzwingt `azubiId: _user.oid` (~Zeile 239), und
+[routes/wochen.js](../../../backend/routes/wochen.js) (~Zeile 122-124) weist
+`?migration=1` auf ein fremdes Heft mit 403 ab.
+
+**Grenzen des Rückwegs** — der Snapshot enthält mehr, als der Dialog
+zurückspielen kann:
+
+- **Kommentare werden nicht zurückgeschrieben.** Sie stehen im Snapshot, aber
+  `saveWoche` überträgt sie nicht.
+- **Wochen im Status *freigegeben*, *erstgenehmigt* oder *genehmigt* werden
+  übersprungen** (Schutz bereits eingereichter/geprüfter Stände).
+
+Für diese Reste bleibt nur manuelles Übertragen aus der JSON-Datei.
 
 ## Im Brainstorming festgelegte Entscheidungen
 
 | Frage | Entscheidung |
 | --- | --- |
-| Zweck | Notfall-Wiederherstellung durch Admin/Developer, server-seitig für alle Azubis |
+| Zweck | Notfall-Wiederherstellung: Admin/Developer beschafft die Datei, eingespielt wird sie von der betroffenen Person selbst; server-seitig für alle Azubis |
 | Ablageort | fest `backend/data/backups/` (kein Konfigurationsschalter) |
 | Aufbewahrung | 30 Tage, danach automatisch löschen |
-| Zugriff | nur Ordner auf dem Server; keine Seite, keine Download-Route |
+| Zugriff | nur Ordner auf dem Server; keine Seite, keine Download-Route. Über HTTP ist `backend/` gesperrt (siehe `backend/middleware/static-guard.js`). Das Einspielen läuft ausschließlich über den Profil-Dialog der betroffenen Person — ein Admin kann nicht in ein fremdes Heft schreiben |
 | Umfang | Format `berichtsheft-backup` v1 wie das manuelle Backup; **ohne** Datei-Anhänge |
 | Format-Logik | eigener Normalizer im Backend, per Unit-Test festgenagelt (bewusste, dokumentierte Duplizierung) |
 
