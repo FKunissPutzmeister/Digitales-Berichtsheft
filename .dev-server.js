@@ -5,6 +5,7 @@
 const http = require('http');
 const fs   = require('fs');
 const path = require('path');
+const { istGesperrterPfad } = require('./backend/middleware/static-guard');
 
 const ROOT = __dirname;
 const PORT = 5500;
@@ -25,7 +26,20 @@ const MIME = {
 };
 
 http.createServer((req, res) => {
-  let urlPath = decodeURIComponent(req.url.split('?')[0]);
+  const rohPfad = req.url.split('?')[0];
+
+  // Sensible Pfade sperren (backend/ mit .env und data/backups, .git,
+  // node_modules) — auf dem aufgelösten Pfad, damit "//backend/..." und
+  // "/app/%2e%2e/backend/..." nicht durchrutschen. Läuft VOR dem Dekodieren,
+  // sonst würde die Prüfung ein zweites Mal dekodieren.
+  if (istGesperrterPfad(rohPfad, ROOT)) {
+    res.writeHead(404, { 'Content-Type': 'text/plain' });
+    res.end('Not found'); return;
+  }
+
+  let urlPath;
+  try { urlPath = decodeURIComponent(rohPfad); }
+  catch { res.writeHead(400); res.end('Bad request'); return; }
   if (urlPath.endsWith('/')) urlPath += 'index.html';
   const filePath = path.join(ROOT, urlPath);
 

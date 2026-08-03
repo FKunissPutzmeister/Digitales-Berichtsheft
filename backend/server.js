@@ -7,6 +7,7 @@ const session = require('express-session');
 const FileStore = require('session-file-store')(session);
 const { hardenWrites } = require('./services/session-store');
 const { devAuth, DEV_AUTH_ENABLED } = require('./middleware/auth');
+const { staticGuard } = require('./middleware/static-guard');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -163,17 +164,12 @@ if (process.env.NODE_ENV !== 'production') {
 // direkt die App zeigt (in Produktion übernimmt das IIS). Es wird das
 // Repo-Root statisch ausgeliefert (wie der .dev-server.js auf Port 5500),
 // damit die App ihre Assets unter "../Corporate Design/..." findet.
-// Sensible Pfade (backend/ mit .env, .git, node_modules) werden geblockt.
+// Sensible Pfade (backend/ mit .env und data/backups, .git, node_modules)
+// werden geblockt — auf dem AUFGELÖSTEN Pfad, nicht auf dem URL-String:
+// sonst rutschen "//backend/..." und "/app/%2e%2e/backend/..." durch
+// (siehe middleware/static-guard.js).
 const ROOT = path.join(__dirname, '..');
-app.use((req, res, next) => {
-  const p = decodeURIComponent(req.path).replace(/\\/g, '/').toLowerCase();
-  if (p === '/backend' || p.startsWith('/backend/') ||
-      p === '/.git'    || p.startsWith('/.git/') ||
-      p.startsWith('/node_modules')) {
-    return res.status(404).send('Not found');
-  }
-  next();
-});
+app.use(staticGuard(ROOT));
 // 'no-cache': der Browser darf Assets zwischenspeichern, MUSS aber bei jedem
 // Laden per ETag revalidieren (304 wenn unverändert, 200 wenn geändert). So sind
 // gepullte JS/CSS-Änderungen sofort für alle sichtbar – ohne Versions-Strings
@@ -236,8 +232,11 @@ if (entraCfg.configured) {
 // ── Nächtliche Berichtsheft-Backups ──────────────────────────────
 // Schreibt pro Azubi einen JSON-Snapshot nach data/backups/<tag>/ und räumt
 // Ordner älter als AUFBEWAHRUNG_TAGE weg. Selbst-nachplanender setTimeout
-// statt setInterval(24h): trifft dauerhaft 02:00 Ortszeit, auch über
-// Neustarts und Sommerzeitwechsel hinweg.
+// statt setInterval(24h): trifft dauerhaft 02:00 Ortszeit, ohne über
+// Neustarts oder Sommerzeitwechsel wegzudriften. Ausnahme ist die
+// Umstellungsnacht im Frühjahr — dann existiert 02:00 lokal nicht und der
+// Lauf landet auf 03:00. Das korrigiert sich am Folgetag von selbst und
+// kostet keine Daten.
 const {
   runBackup: runBerichtsheftBackup,
   runBackupWennNoetig: runBerichtsheftBackupWennNoetig,
