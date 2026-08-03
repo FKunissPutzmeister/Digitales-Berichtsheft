@@ -223,7 +223,7 @@ async function ladeWochen(azubiOid, pool) {
    Alles, was nicht wie ein Tagesordner heißt (oder keiner ist), bleibt
    unangetastet: Schutz gegen versehentliches Löschen fremder Daten. */
 function pruneOldBackups(keepDays = AUFBEWAHRUNG_TAGE, { dir = BACKUP_DIR, jetzt = new Date() } = {}) {
-  if (!Number.isFinite(keepDays)) throw new Error(`pruneOldBackups: ungültige Aufbewahrung "${keepDays}"`);
+  if (!Number.isFinite(keepDays) || keepDays < 0) throw new Error(`pruneOldBackups: ungültige Aufbewahrung "${keepDays}"`);
   if (!fs.existsSync(dir)) return [];
 
   const grenze = new Date(jetzt);

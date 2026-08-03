@@ -443,6 +443,22 @@ test('pruneOldBackups: fehlendes Verzeichnis ist kein Fehler', () => {
   assert.deepEqual(geloescht, []);
 });
 
+test('pruneOldBackups: negative Aufbewahrung wirft, statt den heutigen Ordner zu loeschen', () => {
+  const dir = tempDir();
+  legeTagesordnerAn(dir, ['2026-07-31']);
+  assert.throws(() => B.pruneOldBackups(-1, { dir, jetzt: new Date(2026, 6, 31) }));
+  // Der heute erzeugte Ordner darf den Guard nicht passieren und ueberlebt unangetastet.
+  assert.deepEqual(fs.readdirSync(dir), ['2026-07-31']);
+});
+
+test('pruneOldBackups: keepDays = 0 ist gueltig — heute bleibt, gestern faellt weg', () => {
+  const dir = tempDir();
+  legeTagesordnerAn(dir, ['2026-07-31', '2026-07-30']);
+  const geloescht = B.pruneOldBackups(0, { dir, jetzt: new Date(2026, 6, 31) });
+  assert.deepEqual(geloescht, ['2026-07-30']);
+  assert.deepEqual(fs.readdirSync(dir), ['2026-07-31']);
+});
+
 test('runBackup: raeumt alte Tagesordner mit auf und protokolliert das', async () => {
   const dir = tempDir();
   legeTagesordnerAn(dir, ['2026-05-15']);
