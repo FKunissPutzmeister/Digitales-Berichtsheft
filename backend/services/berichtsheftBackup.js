@@ -311,6 +311,17 @@ async function runBackup(deps = {}) {
   return bericht;
 }
 
+/* Start-Lauf-Variante: überspringt den Lauf, wenn für den Tag bereits ein
+   Manifest existiert. Nötig, weil der Dev-Server mit `node --watch` bei
+   jeder Code-Änderung neu startet — ein bedingungsloser Start-Lauf würde
+   die DB dutzende Male am Tag durchziehen. */
+async function runBackupWennNoetig(deps = {}) {
+  const { jetzt = new Date(), dir = BACKUP_DIR } = deps;
+  const manifest = path.join(dir, tagesOrdnerName(jetzt), '_manifest.json');
+  if (fs.existsSync(manifest)) return null;
+  return runBackup(deps);
+}
+
 module.exports = {
   AUFBEWAHRUNG_TAGE, BACKUP_DIR,
   buildBackupPayload,
@@ -318,4 +329,5 @@ module.exports = {
   listAzubis, ladeWochen,
   pruneOldBackups,
   runBackup,
+  runBackupWennNoetig,
 };

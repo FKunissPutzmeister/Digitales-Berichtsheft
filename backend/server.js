@@ -232,3 +232,38 @@ if (entraCfg.configured) {
 } else {
   console.warn('[entra-sync] NICHT konfiguriert — Gruppen-Sync deaktiviert.');
 }
+
+// ── Nächtliche Berichtsheft-Backups ──────────────────────────────
+// Schreibt pro Azubi einen JSON-Snapshot nach data/backups/<tag>/ und räumt
+// Ordner älter als AUFBEWAHRUNG_TAGE weg. Selbst-nachplanender setTimeout
+// statt setInterval(24h): trifft dauerhaft 02:00 Ortszeit, auch über
+// Neustarts und Sommerzeitwechsel hinweg.
+const {
+  runBackup: runBerichtsheftBackup,
+  runBackupWennNoetig: runBerichtsheftBackupWennNoetig,
+  msBisNaechsteUhrzeit,
+  AUFBEWAHRUNG_TAGE: BACKUP_AUFBEWAHRUNG,
+} = require('./services/berichtsheftBackup');
+const BACKUP_STUNDE = 2;
+
+function protokolliereBackup(bericht) {
+  if (!bericht) return;   // Start-Lauf übersprungen (heute schon gesichert)
+  console.log(`[backup] ${bericht.dateien} Dateien, ${bericht.uebersprungen} übersprungen, `
+    + `${bericht.fehler.length} Fehler, ${bericht.geloeschteTage.length} alte Tage entfernt.`);
+}
+function meldeBackupFehler(err) {
+  console.error('[backup] Lauf fehlgeschlagen:', err.message);
+  logFehler({ quelle: 'backend', nachricht: `[backup] Lauf: ${err.message}`, stack: err.stack });
+}
+function planeBackup() {
+  setTimeout(() => {
+    runBerichtsheftBackup({ logFehler })
+      .then(protokolliereBackup)
+      .catch(meldeBackupFehler)
+      .finally(planeBackup);   // Kette hält auch nach einem Fehlschlag
+  }, msBisNaechsteUhrzeit(BACKUP_STUNDE));
+}
+
+runBerichtsheftBackupWennNoetig({ logFehler }).then(protokolliereBackup).catch(meldeBackupFehler);
+planeBackup();
+console.log(`[backup] aktiv — täglich ${BACKUP_STUNDE}:00 Uhr, Aufbewahrung ${BACKUP_AUFBEWAHRUNG} Tage.`);

@@ -27,6 +27,7 @@ Ausgeliefert wird `app/` (Frontend, Vanilla JS) + `backend/` (Node.js/Express +
 | IHK-PDF-Import (client-side) | ✅ erledigt |
 | Benachrichtigungen + Mitteilungen-Feed | ✅ erledigt |
 | Berichtsheft-Export (JSON-Backup + PDF-Ausbildungsnachweis) | ✅ erledigt |
+| Automatische tägliche Berichtsheft-Backups (server-seitig, JSON) | ✅ erledigt |
 | Fehlerberichte (Frontend + Backend, Dev-Ansicht) | ✅ erledigt |
 | MCP-Server (Bearer-API-Key-Auth) für externen Tages-Import | ✅ erledigt |
 | Entra-Gruppen-Sync (Microsoft Graph, App-only) für Rollenvergabe | ✅ erledigt |
@@ -127,6 +128,14 @@ Der Parser (`ihk-parser.js`) ist ohne DOM Node-testbar.
 
 - JSON-Backup aller Wochen (Import mit Konflikt-/Fremdkonto-Warnung)
 - PDF-„Ausbildungsnachweis" (Deckblatt + Wochenseiten) via `berichtsheft-export.js`
+- **Automatische Nacht-Backups (server-seitig):** Ein Job schreibt täglich um
+  02:00 pro Azubi einen JSON-Snapshot nach `backend/data/backups/<YYYY-MM-DD>/`
+  (Format `berichtsheft-backup` v1, daher über den „Wiederherstellen"-Dialog
+  im Profil einspielbar) und löscht Tagesordner älter als 30 Tage. Ein
+  `_manifest.json` je Tag protokolliert Anzahl und Fehler. Ohne UI — der
+  Zugriff läuft über das Verzeichnis auf dem Server. Datei-Anhänge sind nicht
+  enthalten (liegen als `VARBINARY` in der DB). Siehe
+  `backend/services/berichtsheftBackup.js`.
 
 ### Benachrichtigungen & Mitteilungen
 

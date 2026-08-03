@@ -484,3 +484,23 @@ test('runBackup: eine gescheiterte Rotation macht den Lauf nicht ungueltig', asy
   assert.equal(bericht.fehler[0].name, '(rotation)');
   assert.deepEqual(bericht.geloeschteTage, []);
 });
+
+test('runBackupWennNoetig: erster Aufruf sichert, zweiter am selben Tag nicht', async () => {
+  const dir = tempDir();
+  const ersteR = await B.runBackupWennNoetig(fakeDeps(dir));
+  assert.ok(ersteR, 'erster Lauf muss einen Bericht liefern');
+  assert.equal(ersteR.dateien, 1);
+
+  const zweiteR = await B.runBackupWennNoetig(fakeDeps(dir));
+  assert.equal(zweiteR, null, 'zweiter Lauf am selben Tag wird uebersprungen');
+});
+
+test('runBackupWennNoetig: neuer Tag sichert wieder', async () => {
+  const dir = tempDir();
+  await B.runBackupWennNoetig(fakeDeps(dir));
+  const morgen = await B.runBackupWennNoetig(fakeDeps(dir, {
+    jetzt: new Date(2026, 7, 1, 2, 0, 0),
+  }));
+  assert.ok(morgen);
+  assert.ok(fs.existsSync(pathMod.join(dir, '2026-08-01', '_manifest.json')));
+});
