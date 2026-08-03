@@ -1,8 +1,12 @@
 'use strict';
-/* Nagelt das Backup-Format fest. Der Job schreibt Dateien, die über den
-   "Wiederherstellen"-Dialog im Profil einspielbar sein müssen — ändert sich
-   das Client-Format (app/js/api.js normalizeWoche/-Tag/-Kommentar), MUSS
-   dieser Test rot werden. Keine echte DB, keine echten Verzeichnisse. */
+/* Nagelt die BACKEND-Seite des Backup-Formats fest. Der Job schreibt Dateien,
+   die über den "Wiederherstellen"-Dialog im Profil einspielbar sein müssen.
+   Achtung zur Reichweite: die Key-Listen unten sind hier hartcodiert, api.js
+   wird nie geladen — eine Änderung am Client-Format (app/js/api.js
+   normalizeWoche/-Tag/-Kommentar) lässt diesen Test also GRÜN. Wer dort ein
+   Feld ergänzt, muss es hier UND in berichtsheftBackup.js bewusst nachziehen
+   (gegenseitige Verweis-Kommentare). Keine echte DB, keine echten
+   Verzeichnisse. */
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const B = require('./berichtsheftBackup.js');
@@ -483,6 +487,80 @@ test('runBackup: eine gescheiterte Rotation macht den Lauf nicht ungueltig', asy
   assert.equal(bericht.fehler.length, 1);
   assert.equal(bericht.fehler[0].name, '(rotation)');
   assert.deepEqual(bericht.geloeschteTage, []);
+});
+
+test('pruneOldBackups: ein nicht loeschbarer Ordner stoppt das Aufraeumen nicht', (t) => {
+  const dir = tempDir();
+  legeTagesordnerAn(dir, ['2026-05-15', '2026-05-16', '2026-05-17', '2026-07-31']);
+  // Windows-Realität (offenes Handle/Virenscanner) ohne Dateirechte-Basteln:
+  // rmSync scheitert gezielt fuer EINEN Ordner.
+  const originalRmSync = fs.rmSync;
+  t.mock.method(fs, 'rmSync', (ziel, opts) => {
+    if (String(ziel).endsWith('2026-05-16')) throw new Error('EBUSY: resource busy or locked');
+    return originalRmSync.call(fs, ziel, opts);
+  });
+
+  let gefangen = null;
+  try { B.pruneOldBackups(30, { dir, jetzt: new Date(2026, 6, 31) }); }
+  catch (err) { gefangen = err; }
+
+  assert.ok(gefangen, 'der Sammelfehler muss am Ende geworfen werden');
+  assert.match(gefangen.message, /2026-05-16/);
+  // Die uebrigen alten Ordner verschwinden trotzdem ...
+  assert.deepEqual(gefangen.geloescht.sort(), ['2026-05-15', '2026-05-17']);
+  // ... und nur der gesperrte bleibt (neben dem heutigen) liegen.
+  assert.deepEqual(fs.readdirSync(dir).sort(), ['2026-05-16', '2026-07-31']);
+});
+
+test('runBackup: Teilerfolg der Rotation landet trotz Fehler im Manifest', async (t) => {
+  const dir = tempDir();
+  legeTagesordnerAn(dir, ['2026-05-15', '2026-05-16']);
+  const originalRmSync = fs.rmSync;
+  t.mock.method(fs, 'rmSync', (ziel, opts) => {
+    if (String(ziel).endsWith('2026-05-16')) throw new Error('EBUSY: resource busy or locked');
+    return originalRmSync.call(fs, ziel, opts);
+  });
+
+  const bericht = await B.runBackup(fakeDeps(dir));
+
+  assert.deepEqual(bericht.geloeschteTage, ['2026-05-15']);
+  assert.equal(bericht.fehler.length, 1);
+  assert.equal(bericht.fehler[0].name, '(rotation)');
+  assert.equal(bericht.dateien, 1);                 // Snapshot bleibt gueltig
+  const m = leseJson(pathMod.join(dir, '2026-07-31', '_manifest.json'));
+  assert.deepEqual(m.geloeschteTage, ['2026-05-15']);
+});
+
+test('runBackup: zwei gleichzeitige Laeufe erzeugen nur einen Durchlauf', async () => {
+  const dir = tempDir();
+  let aufrufe = 0;
+  const deps = fakeDeps(dir, {
+    listAzubis: async () => {
+      aufrufe++;
+      await new Promise((r) => setTimeout(r, 20));   // Lauf ueberlappen lassen
+      return [{ ...AZUBI }];
+    },
+  });
+
+  const [a, b] = await Promise.all([B.runBackup(deps), B.runBackup(deps)]);
+
+  assert.equal(aufrufe, 1, 'der zweite Aufruf darf keinen zweiten Lauf starten');
+  assert.equal(a, b, 'beide Aufrufe bekommen denselben Bericht');
+  // Nach dem Lauf ist die Sperre wieder frei.
+  const c = await B.runBackup(deps);
+  assert.equal(aufrufe, 2);
+  assert.notEqual(c, a);
+});
+
+test('runBackup: Totalausfall laesst keinen leeren Tagesordner zurueck', async () => {
+  const dir = tempDir();
+  await assert.rejects(
+    () => B.runBackup(fakeDeps(dir, {
+      listAzubis: async () => { throw new Error('DB nicht erreichbar'); },
+    })),
+    /DB nicht erreichbar/);
+  assert.ok(!fs.existsSync(pathMod.join(dir, '2026-07-31')),
+    'ohne Daten darf kein leerer Tagesordner zurueckbleiben');
 });
 
 test('runBackupWennNoetig: erster Aufruf sichert, zweiter am selben Tag nicht', async () => {

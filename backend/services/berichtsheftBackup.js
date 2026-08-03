@@ -10,8 +10,15 @@
    Datei unverändert über den "Wiederherstellen"-Dialog im Profil
    eingespielt werden kann. Die Normalisierung DB-Zeile → Client-Form
    spiegelt normalizeWoche/normalizeTag/normalizeKommentar aus
-   app/js/api.js. Ändert sich das Format dort, muss es hier mitgehen —
-   berichtsheftBackup.test.js nagelt die Struktur fest.
+   app/js/api.js.
+
+   Wichtig zur Reichweite der Absicherung: berichtsheftBackup.test.js
+   nagelt NUR diese Backend-Seite fest (Key-Listen sind im Test
+   hartcodiert, api.js wird dort nie geladen). Ein neues Feld in
+   app/js/api.js lässt den Test also GRÜN — die Kopplung hält allein
+   über diesen und den gegenüberliegenden Kommentar in api.js. Eine
+   Formatänderung muss deshalb bewusst auf beiden Seiten (und in der
+   Key-Liste des Tests) nachgezogen werden.
    =================================================================== */
 
 const fs = require('fs');
@@ -221,7 +228,14 @@ async function ladeWochen(azubiOid, pool) {
    Format YYYY-MM-DD ist der lexikografische Vergleich identisch mit dem
    chronologischen — deshalb reicht ein String-Vergleich, ohne Parsing.
    Alles, was nicht wie ein Tagesordner heißt (oder keiner ist), bleibt
-   unangetastet: Schutz gegen versehentliches Löschen fremder Daten. */
+   unangetastet: Schutz gegen versehentliches Löschen fremder Daten.
+
+   Einzelfehler stoppen die Rotation NICHT: unter Windows kann ein offenes
+   Handle oder der Virenscanner ein einzelnes rmSync mit EPERM/EBUSY kippen.
+   Früher brach die Schleife dann ab und ab diesem Ordner wurde nie wieder
+   aufgeräumt. Jetzt werden Fehler gesammelt und am Ende gebündelt geworfen;
+   die bis dahin gelöschten Tage hängen als err.geloescht am Fehler, damit
+   der Aufrufer sie trotzdem ins Manifest schreiben kann. */
 function pruneOldBackups(keepDays = AUFBEWAHRUNG_TAGE, { dir = BACKUP_DIR, jetzt = new Date() } = {}) {
   if (!Number.isFinite(keepDays) || keepDays < 0) throw new Error(`pruneOldBackups: ungültige Aufbewahrung "${keepDays}"`);
   if (!fs.existsSync(dir)) return [];
@@ -231,13 +245,25 @@ function pruneOldBackups(keepDays = AUFBEWAHRUNG_TAGE, { dir = BACKUP_DIR, jetzt
   const grenzName = tagesOrdnerName(grenze);
 
   const geloescht = [];
+  const probleme = [];
   for (const name of fs.readdirSync(dir)) {
     if (!istTagesOrdnerName(name)) continue;
     if (name >= grenzName) continue;                       // jung genug
     const p = path.join(dir, name);
-    if (!fs.statSync(p).isDirectory()) continue;           // Datei mit Datumsnamen
-    fs.rmSync(p, { recursive: true, force: true });
-    geloescht.push(name);
+    try {
+      if (!fs.statSync(p).isDirectory()) continue;         // Datei mit Datumsnamen
+      fs.rmSync(p, { recursive: true, force: true });
+      geloescht.push(name);
+    } catch (err) {
+      probleme.push(`${name}: ${err.message}`);            // weiter mit dem nächsten Tag
+    }
+  }
+
+  if (probleme.length) {
+    const err = new Error(`pruneOldBackups: ${probleme.length} Tagesordner nicht löschbar `
+      + `(${probleme.join('; ')})`);
+    err.geloescht = geloescht;   // Teilerfolg nicht verlieren
+    throw err;
   }
   return geloescht;
 }
@@ -247,8 +273,11 @@ function pruneOldBackups(keepDays = AUFBEWAHRUNG_TAGE, { dir = BACKUP_DIR, jetzt
    Alle Datenzugriffe sind injizierbar — dadurch ist der komplette Job ohne
    SQL-Server testbar (siehe berichtsheftBackup.test.js).
    Fehler eines einzelnen Azubis brechen den Lauf NICHT ab: sie landen im
-   Manifest und im Fehler-Posteingang, der Rest wird gesichert. */
-async function runBackup(deps = {}) {
+   Manifest und im Fehler-Posteingang, der Rest wird gesichert.
+
+   Öffentlicher Einstieg ist runBackup() — es serialisiert die Läufe (siehe
+   dort). fuehreBackupAus enthält die eigentliche Arbeit. */
+async function fuehreBackupAus(deps = {}) {
   const {
     listAzubis: ladeAzubisFn = listAzubis,
     ladeWochen: ladeWochenFn = ladeWochen,
@@ -260,7 +289,17 @@ async function runBackup(deps = {}) {
 
   const startMs = Date.now();
   const tagDir = path.join(dir, tagesOrdnerName(jetzt));
-  fs.mkdirSync(tagDir, { recursive: true });
+  // Der Tagesordner wird erst angelegt, wenn wirklich etwas hineingeschrieben
+  // wird. Sonst bliebe bei einem Totalausfall (listAzubis wirft, DB weg) ein
+  // leerer Ordner ohne Manifest zurück — der für einen Admin wie ein
+  // erfolgreicher Lauf aussieht.
+  let tagDirAngelegt = false;
+  const tagDirSicherstellen = () => {
+    if (tagDirAngelegt) return tagDir;
+    fs.mkdirSync(tagDir, { recursive: true });
+    tagDirAngelegt = true;
+    return tagDir;
+  };
 
   const bericht = {
     erzeugtAm: jetzt.toISOString(),
@@ -280,7 +319,7 @@ async function runBackup(deps = {}) {
       const wochen = (await ladeWochenFn(azubi.oid)) || [];
       if (!wochen.length) { bericht.uebersprungen++; continue; }
       const payload = buildBackupPayload(azubi, wochen, jetzt);
-      fs.writeFileSync(path.join(tagDir, dateiName(azubi)),
+      fs.writeFileSync(path.join(tagDirSicherstellen(), dateiName(azubi)),
         JSON.stringify(payload, null, 2), 'utf8');
       bericht.dateien++;
     } catch (err) {
@@ -297,6 +336,9 @@ async function runBackup(deps = {}) {
   try {
     bericht.geloeschteTage = pruneOldBackups(aufbewahrungTage, { dir, jetzt });
   } catch (err) {
+    // Teilerfolg mitnehmen: einzelne gesperrte Ordner dürfen die übrigen
+    // Löschungen nicht aus dem Manifest tilgen (siehe pruneOldBackups).
+    bericht.geloeschteTage = Array.isArray(err.geloescht) ? err.geloescht : [];
     bericht.fehler.push({ oid: null, name: '(rotation)', fehler: err.message });
     logFehler({
       quelle: 'backend',
@@ -306,9 +348,24 @@ async function runBackup(deps = {}) {
   }
 
   bericht.dauerMs = Date.now() - startMs;
-  fs.writeFileSync(path.join(tagDir, '_manifest.json'),
+  fs.writeFileSync(path.join(tagDirSicherstellen(), '_manifest.json'),
     JSON.stringify(bericht, null, 2), 'utf8');
   return bericht;
+}
+
+/* Lauf-Sperre: Start-Lauf und 02:00-Timer sind unabhängig voneinander. Startet
+   der Dienst kurz vor 02:00 (oder zieht sich der Start-Lauf darüber hinaus),
+   liefen sonst zwei Backups gleichzeitig in denselben Tagesordner und das
+   Manifest des langsameren überschrieb das des schnelleren. Ein zweiter Aufruf
+   bekommt deshalb die bereits laufende Promise zurück, statt parallel zu
+   starten — der Bericht ist dann der des laufenden Durchgangs. */
+let laufenderBackup = null;
+
+function runBackup(deps = {}) {
+  if (laufenderBackup) return laufenderBackup;
+  laufenderBackup = fuehreBackupAus(deps)
+    .finally(() => { laufenderBackup = null; });
+  return laufenderBackup;
 }
 
 /* Start-Lauf-Variante: überspringt den Lauf, wenn für den Tag bereits ein
