@@ -12,8 +12,12 @@ const AZURE_ROLES = ['azubi', 'pruefer'];
 
 // Nutzer, die ihre Ansicht per Session-Switch auf "developer" heben dürfen
 // (Entwickler-Escape-Hatch). Bewusst als Code-Allowlist statt DB-Flag: betrifft
-// aktuell genau einen Nutzer. E-Mail-Vergleich case-insensitiv.
-const DEV_VIEW_EMAILS = new Set(['florian.kern@putzmeister.com']);
+// nur eine Handvoll Entwickler. E-Mail-Vergleich case-insensitiv.
+const DEV_VIEW_EMAILS = new Set([
+  'florian.kern@putzmeister.com',
+  // TEMPORÄR (Testzwecke, 2026-08-05): wieder entfernen, wenn der Test durch ist.
+  'florian.kuniss@putzmeister.com',
+]);
 
 function canUseDevView(email) {
   return DEV_VIEW_EMAILS.has((email || '').trim().toLowerCase());
