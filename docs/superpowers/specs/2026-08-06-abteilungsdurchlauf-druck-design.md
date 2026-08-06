@@ -296,3 +296,80 @@ Die 1032-px-Gegenprobe ist der Regressionstest für genau diesen Bug — bei
 - Serienbrief/Sammel-PDF über mehrere Ausbildungsjahre
 - Beurteilungs-Noten im Druck (steckt in `printPerson` heute auch nicht drin)
 - Server-seitige PDF-Erzeugung
+
+---
+
+## Nachtrag nach der Umsetzung (2026-08-06)
+
+Umgesetzt in den Commits `94271ec`..`fab8b7c` (16 Commits). `app/js/planer-print.js`
+ist neu, `app/js/planer-print.test.js` deckt es mit 107 Tests ab. Vier Punkte
+korrigieren oder ergänzen den Entwurf oben — sie sind hier festgehalten, damit
+niemand einen offenen Defekt für erledigt hält.
+
+### 1. Strg+P schneidet die Tafel weiterhin seitlich ab — NICHT behoben
+
+Die Problembeschreibung oben (Zeile 16) nennt zwei Symptome: den weißen Kasten
+und die seitlich abgeschnittene Tafel. **Nur das erste ist behoben.**
+
+Der weiße Kasten ist weg, verifiziert in allen 16 Kombinationen (8 Themes ×
+Sidebar aus-/eingeklappt) bei echter A4-Landscape-Inhaltsbreite. Der 252-px-Gutter
+ist ebenfalls weg. Aber `.pt-wrap` (`planer-board.css:37`) behält
+`overflow-x: hidden`, und der `@media print`-Block öffnet nur `.pt-scroll`.
+Gemessen: `.pt-wrap` 984 px breit, Tafelinhalt 1481 px → **497 px werden
+abgeschnitten**.
+
+Das ist nicht merge-blockierend, weil das Feature bewusst über ein eigenes
+Druckfenster geht und der Dialog der vorgesehene Weg ist. Aber wer Strg+P direkt
+auf der Seite drückt, bekommt weiterhin eine beschnittene Tafel.
+
+### 2. `printAbteilung` wurde gelöscht, nicht umgestellt
+
+Zeile 124 kündigt an, `printPerson` **und** `printAbteilung` auf `openPrintWindow`
+umzustellen. Tatsächlich wurde `printAbteilung` entfernt: nach der Umstellung des
+Toolbar-Handlers hatte sie keinen Aufrufer mehr.
+
+Das ist eine **fachliche Funktionsrücknahme**, nicht nur eine technische
+Aufräumarbeit: Der abteilungszentrierte Bericht („eine Abteilung, alle Personen,
+chronologisch nach `von`") ist in keiner Form mehr erreichbar. Der Dialog druckt
+bei gesetztem Abteilungsfilter die betroffenen Personen mit *allen* ihren
+Stationen — dieselben Daten, aber nach Person gruppiert statt nach Abteilung.
+Wer die Gruppierung nach Abteilung braucht, bekommt sie als dritte
+Darstellungsvariante im Dialog.
+
+### 3. Ergänzungen gegenüber dem Entwurf
+
+Aus den Reviews kamen vier Entscheidungen, die der Entwurf nicht vorsah:
+
+- **Datum hat im Balken Vorrang vor dem Abteilungsnamen.** Der Entwurf verlangte
+  das echte Datum im Balken (Zeile 170), das Label war aber nur der
+  Abteilungsname — auf Papier stand damit kein einziges Datum. Der Balkeninhalt
+  ist jetzt nach Breite gestaffelt; reicht der Platz nicht für beides, gewinnt
+  das Datum (die Abteilung ist über Farbe und Legende bestimmbar, das Datum
+  nirgends sonst). Unterhalb einer Schwelle bleibt der Balken leer — ein
+  Wortfragment wie „Ei" für „Einkauf PMM" liest sich auf Papier wie ein Name.
+- **Gruppen-Trennzeilen in der Tafel** („Ohne Zuordnung / Zugewiesen /
+  DH-Studenten", mit Anzahl), damit Papier und Bildschirm dieselbe Struktur
+  zeigen. Ohne sie startete das Alphabet dreimal neu und die Sortierung sah
+  falsch aus.
+- **Fallback-Farbe für Balken und Legendenkästchen.** Ein fehlender Farbwert
+  ergab einen transparenten und damit auf Papier unsichtbaren Balken — stiller
+  Datenverlust.
+- **Der Panel-Druck zeigt den ganzen Durchlauf**, nicht nur das aktuelle
+  Ausbildungsjahr. Die Zeitraumbildung liegt als `PlanerPrint.druckZeitraum`
+  neben der Filterbedingung `barGeom`, aus der sie sich ableitet — beides in
+  getrennten Dateien war die Konstellation, die den Fehler ermöglichte.
+
+### 4. Bekannte, bewusst offene Punkte
+
+Keiner davon verliert Daten; alle sind als Nachlauf geeignet:
+
+| Punkt | Wirkung |
+|---|---|
+| Kein Seitenfuß, keine Seitenzahl | Ein herausgefallenes Blatt ist nicht zuzuordnen (Tafel ≈ 3 Seiten, Tabelle ≈ 5 bei 45 Personen) |
+| Legende nur auf der letzten Seite | Auf Seite 1–2 fehlt der Farbschlüssel |
+| Legende ohne `break-inside`-Schutz | Bricht bei sehr vielen Abteilungen über die Seite |
+| Kopftext-Überlauf in schmaler Randspalte | Bei mitten in einer Einheit beginnendem Zeitraum überlappen die ersten zwei Spaltenköpfe (gemessen 5,9 px) |
+| Kein Schalter „nur Personen mit Zuweisung" | Standarddruck zeigt alle gefilterten Personen; bei 45 sind 40 Zeilen „keine Zuweisung im Zeitraum" — bewusst vollständig, aber papierintensiv |
+| Fast leere erste Seite bei überlangem Abschnitt | `break-inside:avoid` hat Vorrang; kein Datenverlust |
+| `planer-print.js` trägt zwei Aufgaben | Zeilen 17–327 reine Dokumentbauer, danach ein Dialog-Controller mit harten DOM-IDs. Ein Schnitt in eine zweite Datei würde die Zusicherung „reine Funktionen" wieder für die ganze Datei wahr machen |
+| Label-Staffelung auf Papierbreite kalibriert | `TRACK_PX = 800` gilt für A4 quer mit 12 mm Rand; in der Bildschirmansicht des Druckfensters greift bei schmalem Fenster weiter `overflow:hidden` |
