@@ -72,6 +72,55 @@ test('buildRaster: umgedrehter Zeitraum liefert leeres Raster', () => {
   assert.deepEqual(r.spalten, []);
 });
 
+// Grenzfaelle der Rastereinheit: 3/4/18/19 beruehrte Kalendermonate sind die
+// Umschaltpunkte woche<->monat<->quartal. Genau hier hatte der Plan schon
+// einmal eine falsche Spaltenzahl (13 statt 12).
+test('buildRaster: genau 3 beruehrte Monate -> woche', () => {
+  const r = PP.buildRaster('2026-01-01', '2026-03-31');
+  assert.equal(r.einheit, 'woche');
+});
+
+test('buildRaster: genau 4 beruehrte Monate -> monat', () => {
+  const r = PP.buildRaster('2026-01-01', '2026-04-30');
+  assert.equal(r.einheit, 'monat');
+});
+
+test('buildRaster: genau 18 beruehrte Monate -> monat', () => {
+  const r = PP.buildRaster('2025-01-01', '2026-06-30');
+  assert.equal(r.einheit, 'monat');
+});
+
+test('buildRaster: genau 19 beruehrte Monate -> quartal', () => {
+  const r = PP.buildRaster('2025-01-01', '2026-07-31');
+  assert.equal(r.einheit, 'quartal');
+});
+
+test('buildRaster: Zeitraum beginnt und endet mittig in einer Einheit', () => {
+  const r = PP.buildRaster('2026-01-15', '2026-02-15');
+  assert.equal(r.tage, 32);
+  assert.equal(r.spalten[0].leftPct, 0);
+  const summe = r.spalten.reduce((s, c) => s + c.widthPct, 0);
+  assert.ok(Math.abs(summe - 100) < 0.001);
+  for (let i = 1; i < r.spalten.length; i++) {
+    const prev = r.spalten[i - 1];
+    assert.ok(Math.abs(prev.leftPct + prev.widthPct - r.spalten[i].leftPct) < 0.001, `Luecke bei ${i}`);
+  }
+});
+
+test('buildRaster: Schaltjahr-Februar wird komplett erfasst', () => {
+  const r = PP.buildRaster('2024-02-01', '2024-02-29');
+  assert.equal(r.tage, 29);
+  const summe = r.spalten.reduce((s, c) => s + c.widthPct, 0);
+  assert.ok(Math.abs(summe - 100) < 0.001);
+});
+
+test('buildRaster: Zeitraum ueberspannt einen Schaltjahr-Februar', () => {
+  const r = PP.buildRaster('2024-01-15', '2024-03-15');
+  assert.equal(r.tage, 61);
+  const summe = r.spalten.reduce((s, c) => s + c.widthPct, 0);
+  assert.ok(Math.abs(summe - 100) < 0.001);
+});
+
 const R = { von: '2026-01-01', bis: '2026-12-31' };   // 365 Tage
 
 test('barGeom: Station komplett innerhalb', () => {
