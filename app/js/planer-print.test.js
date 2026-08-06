@@ -321,3 +321,50 @@ test('renderTafelHtml: fehlendes personen-Array stuerzt nicht ab, liefert leeres
   assert.match(h, /<\/html>\s*$/);
   assert.match(h, /0 Personen/);
 });
+
+test('renderTabelleHtml: Dokument im Hochformat', () => {
+  const h = PP.renderTabelleHtml(SEL);
+  assert.match(h, /^<!DOCTYPE html>/);
+  assert.match(h, /size:A4 portrait/);
+  assert.match(h, /<\/html>\s*$/);
+});
+
+test('renderTabelleHtml: je Person ein umbruchsicherer Abschnitt', () => {
+  const h = PP.renderTabelleHtml(SEL);
+  assert.equal((h.match(/class="pp-sec"/g) || []).length, 2);
+  assert.match(h, /break-inside:avoid/);
+  assert.match(h, /Lena Müller/);
+  assert.match(h, /Industriekauffrau/);
+});
+
+test('renderTabelleHtml: Spalten Abteilung / Zeitraum / Verantwortlich', () => {
+  const h = PP.renderTabelleHtml(SEL);
+  assert.match(h, /<th>Abteilung<\/th>/);
+  assert.match(h, /<th>Zeitraum<\/th>/);
+  assert.match(h, /<th>Verantwortlich<\/th>/);
+  assert.match(h, /Marco Rossi/);
+});
+
+test('renderTabelleHtml: Randstation mit echtem, ungekuerztem Enddatum', () => {
+  const h = PP.renderTabelleHtml(SEL);
+  assert.match(h, /01\.06\.2026 – 30\.11\.2026/);
+});
+
+test('renderTabelleHtml: Person ohne Station bekommt Hinweiszeile', () => {
+  const h = PP.renderTabelleHtml(SEL);
+  assert.match(h, /keine Zuweisung im Zeitraum/);
+});
+
+test('renderTabelleHtml: offenes Bis wird als "offen" gedruckt', () => {
+  const sel = { ...SEL, personen: [{ name: 'A', beruf: 'B', gruppe: 'Zugewiesen',
+    stationen: [{ abteilung: 'IT', von: '2026-01-01', bis: null, verantw: 'X', farbe: '#333' }] }] };
+  assert.match(PP.renderTabelleHtml(sel), /01\.01\.2026 – offen/);
+});
+
+test('renderTabelleHtml: Stationen ausserhalb des Zeitraums fehlen', () => {
+  const sel = { ...SEL, personen: [{ name: 'A', beruf: 'B', gruppe: 'Zugewiesen',
+    stationen: [{ abteilung: 'Altstation', von: '2020-01-01', bis: '2020-06-30', verantw: 'X', farbe: '#333' }] }] };
+  const h = PP.renderTabelleHtml(sel);
+  assert.doesNotMatch(h, /Altstation/);
+  assert.match(h, /keine Zuweisung im Zeitraum/);
+});

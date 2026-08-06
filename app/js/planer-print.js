@@ -249,7 +249,34 @@ const PlanerPrint = (() => {
     return dokument('Abteilungsdurchlauf', PRINT_CSS, body, 'size:A4 landscape;margin:12mm');
   }
 
-  const api = { esc, fmtDe, tageZwischen, buildRaster, barGeom, PRINT_CSS, renderTafelHtml };
+  /* Tabelle = je Person ein Abschnitt. break-inside:avoid haelt Name und
+     Stationen zusammen, damit kein Azubi mitten im Block umbricht.
+     Gefiltert wird mit barGeom (gleiche Zeitraumlogik wie die Tafel), das
+     angezeigte Datum bleibt das echte. */
+  function renderTabelleHtml(sel) {
+    const range = { von: sel.von, bis: sel.bis };
+    const abschnitte = sel.personen.map(p => {
+      const drin = (p.stationen || []).filter(s => barGeom(s, range));
+      const zeilen = drin.length
+        ? drin.map(s => `<tr>
+            <td>${esc(s.abteilung || '–')}</td>
+            <td>${fmtDe(s.von)} – ${s.bis ? fmtDe(s.bis) : 'offen'}</td>
+            <td>${esc(s.verantw || '–')}</td>
+          </tr>`).join('')
+        : `<tr><td colspan="3" class="pp-none">keine Zuweisung im Zeitraum</td></tr>`;
+      return `<div class="pp-sec">
+        <h2>${esc(p.name)}</h2>
+        <p class="sub">${esc(p.beruf || '')}${p.gruppe ? ` · ${esc(p.gruppe)}` : ''}</p>
+        <table><thead><tr><th>Abteilung</th><th>Zeitraum</th><th>Verantwortlich</th></tr></thead>
+        <tbody>${zeilen}</tbody></table>
+      </div>`;
+    }).join('');
+
+    return dokument('Abteilungsdurchlauf', PRINT_CSS,
+      kopfHtml(sel, '') + abschnitte, 'size:A4 portrait;margin:16mm');
+  }
+
+  const api = { esc, fmtDe, tageZwischen, buildRaster, barGeom, PRINT_CSS, renderTafelHtml, renderTabelleHtml };
   if (typeof window !== 'undefined') window.PlanerPrint = api;
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   return api;
