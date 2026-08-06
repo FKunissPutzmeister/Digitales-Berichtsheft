@@ -137,8 +137,9 @@ const PlanerPrint = (() => {
     .pp-br{color:#888;font-size:9px}
     .pp-track{position:relative;height:20px;padding:0}
     .pp-bar{position:absolute;top:2px;height:16px;border-radius:3px;color:#fff;font-size:9px;
-      line-height:16px;padding:0 5px;overflow:hidden;white-space:nowrap;
+      line-height:16px;padding:0;overflow:hidden;white-space:nowrap;
       print-color-adjust:exact;-webkit-print-color-adjust:exact}
+    .pp-bar__lbl{padding:0 5px;white-space:nowrap}
     .pp-bar--cut-l{border-top-left-radius:0;border-bottom-left-radius:0}
     .pp-bar--cut-r{border-top-right-radius:0;border-bottom-right-radius:0}
     .pp-none{color:#aaa;font-style:italic;font-size:9px}
@@ -150,7 +151,9 @@ const PlanerPrint = (() => {
   `;
 
   function kopfHtml(sel, titelZusatz) {
-    const n = sel.personen.length;
+    // Defensiv: sel.personen darf fehlen (z.B. degenerierter Aufruf) —
+    // dann zaehlt der Kopf 0 Personen statt abzustuerzen.
+    const n = (sel.personen || []).length;
     return `<h1>Abteilungsdurchlauf${titelZusatz ? ` – ${esc(titelZusatz)}` : ''}</h1>
       <p class="sub">${fmtDe(sel.von)} – ${fmtDe(sel.bis)} · ${n} ${n === 1 ? 'Person' : 'Personen'} · Stand ${fmtDe(sel.stand)}</p>`;
   }
@@ -169,6 +172,24 @@ const PlanerPrint = (() => {
   function renderTafelHtml(sel) {
     const range = { von: sel.von, bis: sel.bis };
     const raster = buildRaster(sel.von, sel.bis);
+
+    // Degenerierter Zeitraum (von > bis) liefert ein leeres Raster: keine
+    // Tafel ohne Zeitachse drucken, sondern Kopf + klarer Hinweis. Sonst
+    // waere die einzige Alternative colspan="0" (ungueltig, Browser klemmt
+    // auf 1) und left/width:NaN% — ein Blatt, das etwas behauptet, was
+    // nicht da ist.
+    if (!raster.spalten.length) {
+      const body = kopfHtml(sel, '')
+        + `<div class="pp-none">Zeitraum ungueltig (Ende vor Beginn) — keine Tafel darstellbar</div>`;
+      return dokument('Abteilungsdurchlauf', PRINT_CSS, body, 'size:A4 landscape;margin:12mm');
+    }
+
+    // Defensiv: sel.personen darf fehlen — dann bleibt die Tafel leer statt
+    // beim Drucken abzustuerzen. Ein fehlendes personen-Array ist trotzdem
+    // ein Aufrufer-Fehler, den wir nicht stillschweigend "reparieren" wollen;
+    // wir liefern nur ein gueltiges Dokument statt eines TypeError.
+    const personen = sel.personen || [];
+
     const NAME_PCT = 22;
     const restPct = 100 - NAME_PCT;
 
@@ -181,12 +202,14 @@ const PlanerPrint = (() => {
       + `</tr></thead>`;
 
     // Senkrechte Rasterlinien in der Balkenzelle nachziehen (die colspan-Zelle
-    // hat keine eigenen Spaltengrenzen mehr).
+    // hat keine eigenen Spaltengrenzen mehr). slice(1): die erste Grenze faellt
+    // mit dem linken Rand der Zelle zusammen, den bereits die CSS-Regel
+    // td+td{border-left} der Namensspalte zeichnet — sonst doppelte Linie.
     const linien = raster.spalten.slice(1)
       .map(c => `<div style="position:absolute;top:0;bottom:0;left:${c.leftPct.toFixed(4)}%;width:1px;background:#eee"></div>`)
       .join('');
 
-    const zeilen = sel.personen.map(p => {
+    const zeilen = personen.map(p => {
       const balken = (p.stationen || []).map(s => {
         const g = barGeom(s, range);
         if (!g) return '';
@@ -195,8 +218,13 @@ const PlanerPrint = (() => {
           + (g.cutRight ? ' pp-bar--cut-r' : '');
         const bisTxt = s.bis ? fmtDe(s.bis) : 'offen';
         const marker = (g.cutLeft ? '‹ ' : '') + esc(s.abteilung || '') + (g.cutRight ? ' ›' : '');
+        // Padding liegt am inneren Label, nicht am Balken: mit
+        // box-sizing:border-box würde Padding am Balken selbst eine
+        // Mindestbreite erzwingen, die kurze Stationen (1-2 Tage) zu breit
+        // zeichnet — das Papier zeigte dann einen laengeren Zeitraum als
+        // tatsaechlich vorhanden.
         return `<div class="${cls}" style="left:${g.leftPct.toFixed(4)}%;width:${g.widthPct.toFixed(4)}%;background:${esc(s.farbe)}"`
-          + ` title="${esc(s.abteilung || '')} (${fmtDe(s.von)} – ${bisTxt})">${marker}</div>`;
+          + ` title="${esc(s.abteilung || '')} (${fmtDe(s.von)} – ${bisTxt})"><span class="pp-bar__lbl">${marker}</span></div>`;
       }).join('');
 
       const leer = balken ? '' : `<div class="pp-none">keine Zuweisung im Zeitraum</div>`;
@@ -208,7 +236,7 @@ const PlanerPrint = (() => {
 
     // Legende nur mit den Abteilungen, die tatsaechlich aufs Papier kommen.
     const gedruckt = new Map();
-    sel.personen.forEach(p => (p.stationen || []).forEach(s => {
+    personen.forEach(p => (p.stationen || []).forEach(s => {
       if (barGeom(s, range) && !gedruckt.has(s.abteilung)) gedruckt.set(s.abteilung, s.farbe);
     }));
     const legende = `<div class="pp-legend">`

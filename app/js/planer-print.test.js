@@ -211,7 +211,7 @@ test('renderTafelHtml: thead traegt die Rasterspalten (fuer Kopfwiederholung)', 
   assert.match(h, /table-layout:fixed/);
 });
 
-test('renderTafelHtml: Balken tragen Farbe, Breite und exaktes Datum', () => {
+test('renderTafelHtml: Balken tragen Farbe, Cut-Marker und exaktes Datum', () => {
   const h = PP.renderTafelHtml(SEL);
   assert.match(h, /background:#4CAF50/);
   assert.match(h, /Montage/);
@@ -219,6 +219,57 @@ test('renderTafelHtml: Balken tragen Farbe, Breite und exaktes Datum', () => {
   // Marker gesetzt, Datum ungekuerzt.
   assert.match(h, /30\.11\.2026/);
   assert.match(h, /pp-bar--cut-r/);
+});
+
+// Zeitraum SEL: 2025-09-01 .. 2026-08-31 = 365 Tage (siehe
+// "buildRaster: bis 18 Monate in Monaten"). Werte von Hand nachgerechnet,
+// nicht aus barGeom/renderTafelHtml abgeleitet — sonst waere die Pruefung
+// nur eine Wiederholung der Implementierung.
+test('renderTafelHtml: Balkengeometrie (left/width) exakt gegen von Hand berechnete Prozentwerte', () => {
+  const h = PP.renderTafelHtml(SEL);
+
+  // Montage 01.09.2025..31.10.2025: komplett im Zeitraum, direkt am Anfang.
+  // Laenge = Sep(30 Tage ab dem 1.) + Okt(31) = 61 Tage. 61/365*100 = 16.7123...
+  assert.match(h, /left:0\.0000%;width:16\.7123%;background:#4CAF50/);
+
+  // IT 01.06.2026..30.11.2026: rechts abgeschnitten auf den 31.08.2026.
+  // Tage vor dem 01.06. (ab 01.09.2025): Sep+Okt+Nov+Dez+Jan+Feb+Mär+Apr+Mai
+  // = 30+31+30+31+31+28+31+30+31 = 273 -> left = 273/365*100 = 74.7945...
+  // Laenge (01.06.-31.08.) = Jun(30)+Jul(31)+Aug(31) = 92 -> width = 92/365*100 = 25.2055...
+  assert.match(h, /left:74\.7945%;width:25\.2055%;background:#2196F3/);
+});
+
+test('renderTafelHtml: Track-Zelle, colgroup und Rasterlinien passen zur Spaltenzahl des Rasters', () => {
+  const h = PP.renderTafelHtml(SEL);
+  const raster = PP.buildRaster(SEL.von, SEL.bis);
+  const n = raster.spalten.length;   // 12 (Monatsraster fuer ein Ausbildungsjahr)
+
+  // colspan der Balkenzelle muss exakt die Spaltenzahl treffen, nicht 0/1.
+  const colspanMatches = [...h.matchAll(/colspan="(\d+)"/g)].map(m => Number(m[1]));
+  assert.ok(colspanMatches.length > 0, 'keine colspan-Zelle gefunden');
+  assert.ok(colspanMatches.every(c => c === n), `colspan-Werte ${colspanMatches} != ${n}`);
+
+  // <colgroup>: Namensspalte + eine <col> pro Rasterspalte.
+  const colCount = (h.match(/<col style=/g) || []).length;
+  assert.equal(colCount, n + 1);
+
+  // Rasterlinien in der Balkenzelle: eine je innerer Spaltengrenze
+  // (Spaltenzahl - 1, die erste Grenze faellt mit dem Zellrand zusammen),
+  // multipliziert mit der Personenzahl, da jede Zeile ihre eigene
+  // Balkenzelle mit denselben Linien bekommt. Spezifisches Muster, nicht
+  // nur "#eee" — das steht auch in PRINT_CSS (td+td{border-left:1px solid
+  // #eee}) und wuerde die Zaehlung verfaelschen.
+  const linienCount = (h.match(/width:1px;background:#eee/g) || []).length;
+  assert.equal(linienCount, (n - 1) * SEL.personen.length);
+});
+
+test('renderTafelHtml: Farbwert mit Sonderzeichen wird im style-Attribut escaped', () => {
+  const sel = { ...SEL, personen: [{ name: 'A', beruf: 'B', gruppe: 'Zugewiesen', stationen: [
+    { abteilung: 'Test', von: '2025-09-01', bis: '2025-10-31', verantw: 'X', farbe: '"><script>x</script' },
+  ] }] };
+  const h = PP.renderTafelHtml(sel);
+  assert.doesNotMatch(h, /background:"><script>/);
+  assert.match(h, /background:&quot;&gt;&lt;script&gt;x&lt;\/script/);
 });
 
 test('renderTafelHtml: Person ohne Station bekommt Hinweis statt zu fehlen', () => {
@@ -251,4 +302,22 @@ test('renderTafelHtml: Fremdeingaben werden escaped', () => {
 
 test('renderTafelHtml: print-color-adjust gesetzt, sonst schluckt der Browser die Farben', () => {
   assert.match(PP.renderTafelHtml(SEL), /print-color-adjust:exact/);
+});
+
+test('renderTafelHtml: umgedrehter Zeitraum (Ende vor Beginn) liefert gueltiges Dokument mit Hinweis statt colspan="0"/NaN%', () => {
+  const sel = { ...SEL, von: '2026-08-31', bis: '2026-01-01' };
+  const h = PP.renderTafelHtml(sel);
+  assert.match(h, /^<!DOCTYPE html>/);
+  assert.match(h, /<\/html>\s*$/);
+  assert.match(h, /pp-none/);
+  assert.doesNotMatch(h, /colspan="0"/);
+  assert.doesNotMatch(h, /NaN/);
+});
+
+test('renderTafelHtml: fehlendes personen-Array stuerzt nicht ab, liefert leeres gueltiges Dokument', () => {
+  const sel = { von: SEL.von, bis: SEL.bis, stand: SEL.stand };
+  const h = PP.renderTafelHtml(sel);
+  assert.match(h, /^<!DOCTYPE html>/);
+  assert.match(h, /<\/html>\s*$/);
+  assert.match(h, /0 Personen/);
 });
