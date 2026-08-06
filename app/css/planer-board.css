@@ -184,7 +184,28 @@
   html.sidebar-init-collapsed .app-shell .main-wrapper {
     margin-left:0 !important; margin-right:0 !important;
   }
-  body { background:none !important; }
+  /* Body-Hintergrund weiss. `body { background:none !important }` hatte
+     Spezifitaet (0,0,1) und verlor gegen die Theme-Regeln, die alle SPAETER
+     laden als diese Datei (abteilungs-planer.html: planer-board.css Zeile 19,
+     Theme-Sheets ab Zeile 21) — im Skin "silk" (= data-theme="dark" PLUS
+     data-skin="silk", so setzt es theme.js) druckte der body dadurch ein
+     fast schwarzes Indigo. Ein lauteres !important hilft nicht: bei
+     !important-Gleichstand entscheidet die Spezifitaet, bei Gleichstand die
+     Ladereihenfolge. Also je Konkurrenzregel eine Stufe hoeher:
+       theme-silk.css:398 html[data-skin=…] body[data-page=…]  (0,2,2)!
+       theme-silk.css:93  [data-skin=…] body:not(.login-page)  (0,2,1)!
+       theme-hyperspace.css:263 / theme-halloween.css:543      (0,1,1)!
+       glass.css:119 body:not(.login-page) (background-image)  (0,1,1)
+     Der erste Selektor liegt mit (0,3,2) ueber allen silk-Regeln (silk setzt
+     immer data-theme UND data-skin), der zweite mit (0,1,2) ueber den
+     uebrigen. dark/light/cmd/candy/christmas malen den body ueber
+     --app-bg-image in glass.css:119 (ohne !important) — den erledigt schon
+     background-image:none. */
+  html[data-skin][data-theme] body[data-page],
+  html[data-theme] body {
+    background: #fff !important;
+    background-image: none !important;
+  }
 
   .pt-scroll { max-height:none !important; overflow:visible !important; }
   .pt-wrap { box-shadow:none !important; border-color:#ccc !important; }
