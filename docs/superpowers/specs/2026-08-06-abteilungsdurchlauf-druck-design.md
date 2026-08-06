@@ -1,7 +1,8 @@
 # Abteilungsdurchlauf drucken — Auswahl-Dialog + isoliertes Druckdokument
 
 **Datum:** 2026-08-06
-**Status:** Entwurf freigegeben, Implementierung offen
+**Status:** umgesetzt (`94271ec`..`fab8b7c`) — siehe Nachtrag am Ende für
+Abweichungen und bewusst offene Punkte
 **Betrifft:** `app/js/abteilungs-planer.js`, `app/abteilungs-planer.html`,
 `app/css/planer-board.css`, neu: `app/js/planer-print.js`
 
