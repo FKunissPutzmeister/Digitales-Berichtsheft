@@ -108,6 +108,11 @@
 
 /* ── Detail-Panel (rechts) ── */
 .pt-panel { border:1px solid var(--pm-grey-200); border-radius:var(--r-lg); background:var(--pm-white); box-shadow:var(--shadow-sm); display:flex; flex-direction:column; overflow:hidden; max-height:calc(100vh - 172px); }
+/* [hidden] muss am Panel wirken: die Klassenregel oben setzt display:flex und
+   schlaegt [hidden]{display:none} in der Spezifitaet. Am Bildschirm faellt das
+   nicht auf (das Panel ist im Flow nur ein 2px-Splitter), im Druck-Layout wird
+   daraus ein dokumenthoher weisser Block ueber der Tafel. */
+.pt-panel[hidden] { display:none; }
 .pt-panel__head { display:flex; align-items:center; gap:11px; padding:var(--sp-4); border-bottom:1px solid var(--pm-grey-200); }
 .pt-panel__nm { font-size:var(--text-lg); font-weight:700; color:var(--pm-grey-900); }
 .pt-panel__meta { font-size:var(--text-xs); color:var(--pm-grey-400); }
@@ -156,9 +161,22 @@
 @media print {
   .sidebar, .sidebar-overlay, .topbar, .pt-toolbar, .pt-panel__close,
   .pt-panel__foot, .pt-legend, .pt-grip { display:none !important; }
-  .main-wrapper { margin-left:0 !important; }
+
+  /* Das Detail-Panel gehoert nie aufs Papier. Ohne position:static wuerde es
+     unter @media (max-width:1100px) als fixed ueber der Tafel liegen — die
+     Druck-Inhaltsbreite von A4-Landscape (~1032px) loest diesen Breakpoint aus. */
+  .pt-panel { display:none !important; position:static !important; }
+
+  /* Linker Rand auf 0. Achtung: .main-wrapper{margin-left:0!important} allein
+     verliert gegen glass.css:1339 — gleiche Spezifitaet (0,1,0), beide
+     !important, und glass.css laedt spaeter (abteilungs-planer.html:20 vs 19).
+     Bei !important-Gleichstand entscheidet die Ladereihenfolge, deshalb hier
+     hoehere Spezifitaet (0,2,0) statt eines lauteren !important. */
+  .app-shell .main-wrapper { margin-left:0 !important; margin-right:0 !important; }
+  body { background:none !important; }
+
   .pt-scroll { max-height:none !important; overflow:visible !important; }
-  .pt-wrap, .pt-panel { box-shadow:none !important; border-color:#ccc !important; }
+  .pt-wrap { box-shadow:none !important; border-color:#ccc !important; }
   .pt-layout.pt-has-panel { grid-template-columns:1fr; }
   .pt-bar { box-shadow:none !important; print-color-adjust:exact; -webkit-print-color-adjust:exact; }
   @page { size:landscape; margin:12mm; }
