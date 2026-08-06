@@ -754,6 +754,23 @@ document.addEventListener('DOMContentLoaded', async () => {
     return (typeof deriveName === 'function') ? deriveName(email) : email;
   }
 
+  // ── Druck-Helfer ──
+  // Stationen einer Person im Format des Druckmoduls. EINE Stelle: die
+  // Auflösung des Verantwortlichen (verantwName vs. verantwEmail) und die
+  // Abteilungsfarbe brauchten sonst bei jeder Änderung zwei Nachträge
+  // (Toolbar-Druck und Panel-Druck).
+  // Namen sind bereits Anzeigenamen ("Vorname Nachname", displayName() beim
+  // Laden bzw. in verantwNameFor) — hier NICHT erneut anwenden.
+  function stationenFuerDruck(azubiId) {
+    return zuwList(azubiId).map(z => ({
+      abteilung: z.abteilung || '',
+      von: z.von,
+      bis: z.bis || null,
+      verantw: z.verantwName || verantwNameFor(z.verantwEmail) || '',
+      farbe: colorFor(z.abteilung),
+    }));
+  }
+
   // ── Zeit-/Gruppen-Helfer ──
   function ajWindow() {
     const start = new Date(ajStartYear, 8, 1);         // 1. Sep
@@ -961,13 +978,7 @@ document.addEventListener('DOMContentLoaded', async () => {
           gruppe: gruppeVon(a),
           ausbildungsBeginn: a.ausbildungsBeginn || null,
           ausbildungsEnde: a.ausbildungsEnde || null,
-          stationen: zuwList(a.id).map(z => ({
-            abteilung: z.abteilung || '',
-            von: z.von,
-            bis: z.bis || null,
-            verantw: z.verantwName || verantwNameFor(z.verantwEmail) || '',
-            farbe: colorFor(z.abteilung),
-          })),
+          stationen: stationenFuerDruck(a.id),
         })),
         von: DateUtil.toISODate(win.start),
         bis: DateUtil.toISODate(win.end),
@@ -1528,20 +1539,53 @@ document.addEventListener('DOMContentLoaded', async () => {
   // ═══════════════════ DRUCK (eine Person) ═══════════════════
   // Nutzt das Tabellen-Dokument aus planer-print.js — dadurch nur noch EIN
   // Druck-Stylesheet im Projekt statt dreier kopierter <style>-Bloecke.
+  //
+  // Zeitraum = der GANZE Durchlauf der Person, nicht das gerade gewählte
+  // Ausbildungsjahr: renderTabelleHtml filtert intern mit barGeom, ein
+  // AJ-Fenster hätte also Stationen aus anderen Lehrjahren lautlos
+  // verschluckt (Ausbilder klickt im Panel „Drucken" und erwartet „seinen
+  // Durchlauf", nicht „sein aktuelles Jahr").
+  function druckZeitraumFuer(a, stationen) {
+    const win = ajWindow();
+    const ajVon = DateUtil.toISODate(win.start);
+    const ajBis = DateUtil.toISODate(win.end);
+
+    // Keine Station: Profildaten, sonst das aktuelle AJ. Reihenfolge über den
+    // Guard für degenerierte Zeiträume abgesichert (siehe unten).
+    if (!stationen.length) {
+      return { von: a.ausbildungsBeginn || ajVon, bis: a.ausbildungsEnde || ajBis };
+    }
+
+    const vonWerte = stationen.map(s => s.von).filter(Boolean).sort();
+    const bisWerte = stationen.map(s => s.bis).filter(Boolean).sort();
+    const von = vonWerte[0] || ajVon;
+    let bis = bisWerte[bisWerte.length - 1] || von;
+
+    // Offene Station (bis === null) hat kein Ende — barGeom behandelt sie als
+    // "bis 9999-12-31" und würde sie zwar zeigen, der Balken/die Zeile endete
+    // aber am Zeitraumende. Damit sie sichtbar Raum bekommt, den Zeitraum bis
+    // Ausbildungsende bzw. mindestens AJ-Ende/heute ziehen.
+    if (stationen.some(s => !s.bis)) {
+      [a.ausbildungsEnde, ajBis, todayISO].filter(Boolean).forEach(k => { if (k > bis) bis = k; });
+    }
+    // Guard gegen degenerierte Zeiträume: der Builder druckt bei bis < von nur
+    // einen Hinweis. Ein Ein-Tages-Zeitraum (von === bis) ist gültig.
+    if (bis < von) bis = von;
+    return { von, bis };
+  }
+
   function printPerson(azubiId) {
     const a = azubiById.get(azubiId); if (!a) return;
-    const win = ajWindow();
+    const stationen = stationenFuerDruck(azubiId);
+    const zeitraum = druckZeitraumFuer(a, stationen);
     const html = PlanerPrint.renderTabelleHtml({
-      von: DateUtil.toISODate(win.start),
-      bis: DateUtil.toISODate(win.end),
+      von: zeitraum.von,
+      bis: zeitraum.bis,
       stand: todayISO,
+      titelZusatz: a.name,          // zurück im Fenster- und Dokumenttitel
       personen: [{
         name: a.name, beruf: a.beruf || '', gruppe: gruppeVon(a),
-        stationen: zuwList(azubiId).map(z => ({
-          abteilung: z.abteilung || '', von: z.von, bis: z.bis || null,
-          verantw: z.verantwName || verantwNameFor(z.verantwEmail) || '',
-          farbe: colorFor(z.abteilung),
-        })),
+        stationen,
       }],
     });
     if (!PlanerPrint.openPrintWindow(html)) Toast.error('Popup blockiert', 'Bitte Pop-ups für diese Seite erlauben.');
