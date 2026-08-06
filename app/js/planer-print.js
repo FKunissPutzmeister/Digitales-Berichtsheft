@@ -164,6 +164,27 @@ const PlanerPrint = (() => {
       + `<body>${body}</body></html>`;
   }
 
+  // Defensiv: sel.personen darf fehlen — beide Builder liefern dann ein
+  // gueltiges, leeres Dokument statt eines TypeError. Ein fehlendes
+  // personen-Array ist trotzdem ein Aufrufer-Fehler, den wir nicht
+  // stillschweigend "reparieren" wollen; wir liefern nur ein gueltiges
+  // Dokument statt eines Absturzes.
+  function personenListe(sel) {
+    return sel.personen || [];
+  }
+
+  // Beide Druckvarianten muessen fuer denselben sel dasselbe Urteil faellen,
+  // ob der Zeitraum degeneriert ist (von > bis) — sonst zeigt die eine Sorte
+  // Papier eine Tafel/Tabelle, waehrend die andere einen Hinweis druckt.
+  // Direkter Stringvergleich statt "buildRaster(...).spalten.length === 0":
+  // ISO-Datumsstrings (YYYY-MM-DD) vergleichen sich lexikalisch korrekt
+  // chronologisch, die Pruefung braucht damit weder Date-Parsing noch die
+  // Rundungslogik von tageZwischen — robuster und ohne Seiteneffekt auf den
+  // spaeter (nur im Erfolgsfall) berechneten Raster.
+  function zeitraumUngueltig(sel) {
+    return sel.von > sel.bis;
+  }
+
   /* Tafel = echte <table> mit <thead>: Browser wiederholen einen Tabellenkopf
      auf jeder Folgeseite von selbst, ein nachgebauter Grid-Kopf tut das nicht.
      Die Balken liegen absolut in EINER Zelle, die per colspan genau die
@@ -171,24 +192,19 @@ const PlanerPrint = (() => {
      Pixelrechnung. table-layout:fixed ist dafuer Pflicht. */
   function renderTafelHtml(sel) {
     const range = { von: sel.von, bis: sel.bis };
-    const raster = buildRaster(sel.von, sel.bis);
 
-    // Degenerierter Zeitraum (von > bis) liefert ein leeres Raster: keine
-    // Tafel ohne Zeitachse drucken, sondern Kopf + klarer Hinweis. Sonst
-    // waere die einzige Alternative colspan="0" (ungueltig, Browser klemmt
-    // auf 1) und left/width:NaN% — ein Blatt, das etwas behauptet, was
-    // nicht da ist.
-    if (!raster.spalten.length) {
+    // Degenerierter Zeitraum: keine Tafel ohne Zeitachse drucken, sondern
+    // Kopf + klarer Hinweis. Sonst waere die einzige Alternative
+    // colspan="0" (ungueltig, Browser klemmt auf 1) und left/width:NaN% —
+    // ein Blatt, das etwas behauptet, was nicht da ist.
+    if (zeitraumUngueltig(sel)) {
       const body = kopfHtml(sel, '')
         + `<div class="pp-none">Zeitraum ungueltig (Ende vor Beginn) — keine Tafel darstellbar</div>`;
       return dokument('Abteilungsdurchlauf', PRINT_CSS, body, 'size:A4 landscape;margin:12mm');
     }
 
-    // Defensiv: sel.personen darf fehlen — dann bleibt die Tafel leer statt
-    // beim Drucken abzustuerzen. Ein fehlendes personen-Array ist trotzdem
-    // ein Aufrufer-Fehler, den wir nicht stillschweigend "reparieren" wollen;
-    // wir liefern nur ein gueltiges Dokument statt eines TypeError.
-    const personen = sel.personen || [];
+    const raster = buildRaster(sel.von, sel.bis);
+    const personen = personenListe(sel);
 
     const NAME_PCT = 22;
     const restPct = 100 - NAME_PCT;
@@ -256,20 +272,18 @@ const PlanerPrint = (() => {
   function renderTabelleHtml(sel) {
     const range = { von: sel.von, bis: sel.bis };
 
-    // Degenerierter Zeitraum (von > bis): barGeom/tageZwischen liefern dafuer
-    // 0/negative Werte, die Filterung waere sinnlos und wuerde faelschlich
-    // "keine Zuweisung im Zeitraum" fuer alle Personen behaupten. Analog zum
-    // Fruehausstieg der Tafel: Kopf + klarer Hinweis statt eines Blatts, das
-    // etwas Falsches vorgibt.
-    if (sel.von > sel.bis) {
+    // Degenerierter Zeitraum: gleiche Pruefung wie bei der Tafel
+    // (zeitraumUngueltig) — dadurch faellen beide Druckvarianten fuer
+    // denselben sel garantiert dasselbe Urteil. Kopf + klarer Hinweis statt
+    // eines Blatts, das faelschlich "keine Zuweisung im Zeitraum" fuer alle
+    // Personen behaupten wuerde.
+    if (zeitraumUngueltig(sel)) {
       const body = kopfHtml(sel, '')
         + `<div class="pp-none">Zeitraum ungueltig (Ende vor Beginn) — keine Tabelle darstellbar</div>`;
       return dokument('Abteilungsdurchlauf', PRINT_CSS, body, 'size:A4 portrait;margin:16mm');
     }
 
-    // Defensiv: sel.personen darf fehlen — dann bleibt die Tabelle leer statt
-    // beim Drucken abzustuerzen (gleiches Muster wie renderTafelHtml).
-    const personen = sel.personen || [];
+    const personen = personenListe(sel);
 
     const abschnitte = personen.map(p => {
       const drin = (p.stationen || []).filter(s => barGeom(s, range));

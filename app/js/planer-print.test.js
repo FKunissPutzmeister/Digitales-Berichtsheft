@@ -372,19 +372,38 @@ test('renderTabelleHtml: Stationen ausserhalb des Zeitraums fehlen', () => {
 // Zusatztests (nicht im Brief): Mutationsschutz und degenerierte Eingaben,
 // analog zu den Tafel-Tests weiter oben.
 
-test('renderTabelleHtml: Fremdeingaben in Name und Abteilung werden escaped', () => {
+test('renderTabelleHtml: Fremdeingaben werden ueberall escaped (Name, Beruf, Gruppe, Abteilung, Verantwortlich)', () => {
   const h = PP.renderTabelleHtml(SEL);
   // "Kevin <Test>" ist der zweite SEL-Personenname — dient hier wie bei der
   // Tafel als Nachweis, dass esc() tatsaechlich am Namen haengt.
   assert.match(h, /Kevin &lt;Test&gt;/);
   assert.doesNotMatch(h, /Kevin <Test>/);
 
-  const sel = { ...SEL, personen: [{ name: 'B', beruf: 'X', gruppe: 'Zugewiesen', stationen: [
-    { abteilung: '<script>x</script>', von: '2026-01-01', bis: '2026-01-31', verantw: 'Y', farbe: '#333' },
-  ] }] };
+  // Jedes der fuenf ueber esc() laufenden Felder bekommt einen eigenen Wert
+  // mit ", < und & — sonst kann eine einzelne fehlende esc()-Anwendung
+  // (z.B. an s.verantw) unbemerkt bleiben, weil kein Testdatensatz dort
+  // Sonderzeichen enthaelt.
+  const sel = { ...SEL, personen: [{
+    name: 'B',
+    beruf: 'Beruf "X" & <Y>',
+    gruppe: 'Gruppe "X" & <Y>',
+    stationen: [
+      { abteilung: '<script>x</script>', von: '2026-01-01', bis: '2026-01-31', verantw: 'Verantw "A" & <B>', farbe: '#333' },
+    ],
+  }] };
   const h2 = PP.renderTabelleHtml(sel);
+
   assert.match(h2, /&lt;script&gt;x&lt;\/script&gt;/);
   assert.doesNotMatch(h2, /<script>x<\/script>/);
+
+  assert.match(h2, /Beruf &quot;X&quot; &amp; &lt;Y&gt;/);
+  assert.doesNotMatch(h2, /Beruf "X" & <Y>/);
+
+  assert.match(h2, /Gruppe &quot;X&quot; &amp; &lt;Y&gt;/);
+  assert.doesNotMatch(h2, /Gruppe "X" & <Y>/);
+
+  assert.match(h2, /Verantw &quot;A&quot; &amp; &lt;B&gt;/);
+  assert.doesNotMatch(h2, /Verantw "A" & <B>/);
 });
 
 test('renderTabelleHtml: umgedrehter Zeitraum (Ende vor Beginn) liefert gueltiges Dokument mit Hinweis', () => {
