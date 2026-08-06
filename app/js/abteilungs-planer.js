@@ -898,7 +898,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         </div>
         <button type="button" class="btn btn-outline btn-sm" id="ptHeute">Heute</button>
         <button type="button" class="btn btn-outline btn-sm" id="ptExport" title="Aktuell gefilterte Personen + Zuweisungen als CSV (öffnet in Excel)">Export</button>
-        <button type="button" class="btn btn-outline btn-sm" id="ptPrint" title="Mit gesetztem Abteilungsfilter: diese Abteilung drucken. Sonst: gesamte Tafel.">Drucken</button>
+        <button type="button" class="btn btn-outline btn-sm" id="ptPrint" title="Azubis, Zeitraum und Darstellung wählen, dann drucken">Drucken</button>
         <button type="button" class="btn btn-secondary btn-sm" id="ptAdd">+ Zuweisung</button>
       </div>`;
   }
@@ -946,7 +946,35 @@ document.addEventListener('DOMContentLoaded', async () => {
       scrollToToday(true);
     });
     on('ptExport', 'click', exportCsv);
-    on('ptPrint', 'click', () => filterAbteilung ? printAbteilung(filterAbteilung) : window.print());
+    on('ptPrint', 'click', () => {
+      // Vorauswahl = genau die Personen, die die Toolbar gerade zeigt.
+      // Namen sind hier bereits Anzeigenamen ("Vorname Nachname", siehe
+      // displayName() beim Laden), Verantwortliche werden hier aufgeloest,
+      // damit das Druckmodul ohne App-Globals arbeitet.
+      const win = ajWindow();
+      const sichtbar = gruppierteAzubis().flatMap(g => g.azubis);
+      PlanerPrint.open({
+        personen: sichtbar.map(a => ({
+          id: a.id,
+          name: a.name,
+          beruf: a.beruf || '',
+          gruppe: gruppeVon(a),
+          ausbildungsBeginn: a.ausbildungsBeginn || null,
+          ausbildungsEnde: a.ausbildungsEnde || null,
+          stationen: zuwList(a.id).map(z => ({
+            abteilung: z.abteilung || '',
+            von: z.von,
+            bis: z.bis || null,
+            verantw: z.verantwName || verantwNameFor(z.verantwEmail) || '',
+            farbe: colorFor(z.abteilung),
+          })),
+        })),
+        von: DateUtil.toISODate(win.start),
+        bis: DateUtil.toISODate(win.end),
+        ajLabel: ajLabel(),
+        stand: todayISO,
+      });
+    });
     on('ptAdd', 'click', () => openZuwModal(null, selectedAzubiId));
     document.getElementById('ptZoom')?.addEventListener('click', e => {
       const b = e.target.closest('button'); if (!b) return;
@@ -1498,60 +1526,25 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   // ═══════════════════ DRUCK (eine Person) ═══════════════════
+  // Nutzt das Tabellen-Dokument aus planer-print.js — dadurch nur noch EIN
+  // Druck-Stylesheet im Projekt statt dreier kopierter <style>-Bloecke.
   function printPerson(azubiId) {
     const a = azubiById.get(azubiId); if (!a) return;
-    const stns = zuwList(azubiId);
-    const rows = stns.map(z => `<tr>
-      <td>${escHtml(z.abteilung || '–')}</td>
-      <td>${DateUtil.formatDate(z.von)} – ${z.bis ? DateUtil.formatDate(z.bis) : 'offen'}</td>
-      <td>${escHtml(z.verantwName || verantwNameFor(z.verantwEmail) || '–')}</td>
-    </tr>`).join('') || `<tr><td colspan="3">Keine Zuweisungen.</td></tr>`;
-    const w = window.open('', '_blank', 'width=900,height=700');
-    if (!w) { Toast.error('Popup blockiert', 'Bitte Pop-ups für diese Seite erlauben.'); return; }
-    w.document.write(`<!DOCTYPE html><html lang="de"><head><meta charset="utf-8"><title>Durchlauf ${escHtml(a.name)}</title>
-      <style>body{font-family:'Segoe UI',Arial,sans-serif;color:#1a1a1a;margin:32px}h1{font-size:20px;margin:0 0 4px}
-      .sub{color:#666;margin:0 0 20px;font-size:13px}table{width:100%;border-collapse:collapse;font-size:13px}
-      th,td{text-align:left;padding:8px 10px;border-bottom:1px solid #ddd}th{font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:#888}
-      @media print{@page{margin:16mm}}</style></head><body>
-      <h1>Abteilungsdurchlauf – ${escHtml(a.name)}</h1>
-      <p class="sub">${escHtml(a.beruf || '')} · ${escHtml(gruppeVon(a))} · Stand ${DateUtil.formatDate(todayISO)}</p>
-      <table><thead><tr><th>Abteilung</th><th>Zeitraum</th><th>Verantwortlich</th></tr></thead><tbody>${rows}</tbody></table>
-      </body></html>`);
-    w.document.close();
-    w.focus();
-    setTimeout(() => { try { w.print(); } catch (_) {} }, 250);
-  }
-
-  // ═══════════════════ DRUCK (eine Abteilung) ═══════════════════
-  // Alle Personen, die im aktuellen AJ-Fenster in dieser Abteilung sind.
-  function printAbteilung(abteilungName) {
     const win = ajWindow();
-    const vonISO = DateUtil.toISODate(win.start), bisISO = DateUtil.toISODate(win.end);
-    const stns = alleZuweisungen
-      .filter(z => z.abteilung === abteilungName && zeitraeumeUeberschneiden(z.von, z.bis, vonISO, bisISO))
-      .sort((a, b) => (a.von || '').localeCompare(b.von || ''));
-    const rows = stns.map(z => {
-      const a = azubiById.get(z.azubiId);
-      return `<tr>
-        <td>${escHtml(a ? a.name : (displayName(z.azubiName || '') || '–'))}${a && a.beruf ? ` <span class="b">${escHtml(a.beruf)}</span>` : ''}</td>
-        <td>${DateUtil.formatDate(z.von)} – ${z.bis ? DateUtil.formatDate(z.bis) : 'offen'}</td>
-        <td>${escHtml(displayName(z.verantwName || '') || verantwNameFor(z.verantwEmail) || '–')}</td>
-      </tr>`;
-    }).join('') || `<tr><td colspan="3">Keine Personen in diesem Zeitraum.</td></tr>`;
-    const w = window.open('', '_blank', 'width=900,height=700');
-    if (!w) { Toast.error('Popup blockiert', 'Bitte Pop-ups für diese Seite erlauben.'); return; }
-    w.document.write(`<!DOCTYPE html><html lang="de"><head><meta charset="utf-8"><title>Abteilung ${escHtml(abteilungName)}</title>
-      <style>body{font-family:'Segoe UI',Arial,sans-serif;color:#1a1a1a;margin:32px}h1{font-size:20px;margin:0 0 4px}
-      .sub{color:#666;margin:0 0 20px;font-size:13px}table{width:100%;border-collapse:collapse;font-size:13px}
-      th,td{text-align:left;padding:8px 10px;border-bottom:1px solid #ddd}th{font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:#888}
-      .b{color:#888}@media print{@page{margin:16mm}}</style></head><body>
-      <h1>Abteilung – ${escHtml(abteilungName)}</h1>
-      <p class="sub">${ajLabel()} · Stand ${DateUtil.formatDate(todayISO)}</p>
-      <table><thead><tr><th>Person</th><th>Zeitraum</th><th>Verantwortlich</th></tr></thead><tbody>${rows}</tbody></table>
-      </body></html>`);
-    w.document.close();
-    w.focus();
-    setTimeout(() => { try { w.print(); } catch (_) {} }, 250);
+    const html = PlanerPrint.renderTabelleHtml({
+      von: DateUtil.toISODate(win.start),
+      bis: DateUtil.toISODate(win.end),
+      stand: todayISO,
+      personen: [{
+        name: a.name, beruf: a.beruf || '', gruppe: gruppeVon(a),
+        stationen: zuwList(azubiId).map(z => ({
+          abteilung: z.abteilung || '', von: z.von, bis: z.bis || null,
+          verantw: z.verantwName || verantwNameFor(z.verantwEmail) || '',
+          farbe: colorFor(z.abteilung),
+        })),
+      }],
+    });
+    if (!PlanerPrint.openPrintWindow(html)) Toast.error('Popup blockiert', 'Bitte Pop-ups für diese Seite erlauben.');
   }
 
   // ═══════════════════ EXPORT (CSV für Excel) ═══════════════════
