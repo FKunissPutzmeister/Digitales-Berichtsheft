@@ -33,6 +33,15 @@ const PlanerPrint = (() => {
     return `${day}.${m}.${y}`;
   }
 
+  /* Kurzform mit zweistelligem Jahr — nur fuer die schmalste Balkenstufe,
+     wo das volle Datum nicht mehr passt. Bleibt ein echtes Datum, kein
+     aus der Geometrie zurueckgerechneter Wert. */
+  function fmtDeKurz(iso) {
+    if (!iso) return '';
+    const [y, m, day] = String(iso).slice(0, 10).split('-');
+    return `${day}.${m}.${String(y).slice(2)}`;
+  }
+
   function tageZwischen(vonISO, bisISO) {
     const n = Math.round((d(bisISO) - d(vonISO)) / MS_TAG) + 1;
     return n > 0 ? n : 0;
@@ -122,6 +131,82 @@ const PlanerPrint = (() => {
     };
   }
 
+  /* ── Balkenlabel: Textbreite schaetzen und Inhalt staffeln ──────────────
+     Warum geschaetzt statt gemessen: die Builder laufen in Node (Tests) und
+     bauen einen HTML-String, es gibt zu diesem Zeitpunkt kein Layout, an dem
+     man messen koennte. Die Tabelle unten ist deshalb KEINE Schaetzung nach
+     Gefuehl, sondern im Druckfenster (Edge) gemessen: je Zeichen 100x
+     wiederholt in 9px 'Segoe UI', Breite/100, dann auf 1/20 px AUFGERUNDET.
+     Aufrunden ist Absicht — die Schaetzung darf nie kleiner ausfallen als die
+     echte Breite, sonst laeuft ein Label doch ueber den Balken hinaus. */
+  const ZEICHEN_PX_9 = (() => {
+    const t = {};
+    const setze = (zeichen, px) => { for (const c of zeichen) t[c] = px; };
+    setze('0123456789', 4.90);
+    setze('.', 2.00); setze(',', 2.00); setze(':', 2.00);
+    setze(' ', 2.50); setze('–', 4.50); setze('-', 3.60);
+    setze('‹', 2.85); setze('›', 2.85); setze('/', 3.55); setze('&', 7.25);
+    setze('(', 2.75); setze(')', 2.75);
+    setze('I', 2.40); setze('J', 2.90); setze('L', 4.25); setze('F', 4.40);
+    setze('E', 4.60); setze('S', 4.80); setze('T', 4.90); setze('Y', 5.00);
+    setze('Z', 5.15); setze('P', 5.05); setze('B', 5.20); setze('K', 5.25);
+    setze('C', 5.35); setze('X', 5.35); setze('R', 5.40); setze('V', 5.60);
+    setze('AÄ', 5.85); setze('GUÜ', 6.20); setze('D', 6.35); setze('H', 6.40);
+    setze('N', 6.75); setze('OÖQ', 6.80); setze('M', 8.10); setze('W', 8.45);
+    setze('ijl', 2.20); setze('t', 3.05); setze('f', 2.85); setze('r', 3.15);
+    setze('s', 3.85); setze('z', 4.10); setze('x', 4.15); setze('c', 4.20);
+    setze('v', 4.35); setze('y', 4.40); setze('k', 4.50); setze('aä', 4.60);
+    setze('e', 4.75); setze('ß', 4.90); setze('hnuü', 5.10); setze('bdgopqö', 5.30);
+    setze('w', 6.55); setze('m', 7.80);
+    return t;
+  })();
+  // Unbekannte Zeichen (z.B. Emoji, kyrillisch) bewusst grosszuegig: breiter
+  // als jedes gemessene Zeichen, damit die Stufe im Zweifel schmaler ausfaellt.
+  const ZEICHEN_PX_FALLBACK = 8.50;
+
+  function textBreitePx(s) {
+    let b = 0;
+    for (const c of String(s ?? '')) b += ZEICHEN_PX_9[c] ?? ZEICHEN_PX_FALLBACK;
+    return b;
+  }
+
+  /* Breite der Balkenzelle auf dem Papier: A4 Querformat (297mm) minus 2x12mm
+     Rand = 273mm; bei 96dpi 273/25.4*96 = 1031.8px. Davon traegt die
+     Namensspalte NAME_PCT (22%), der Rest ist die Balkenzelle:
+     1031.8 * 0.78 = 804.8px. Bewusst leicht darunter angesetzt (Zellrand,
+     Rundung des Browsers), damit die Schaetzung nicht zu grosszuegig wird.
+     Im Druckfenster nachgemessen: 802.7px. */
+  const TRACK_PX = 800;
+  // .pp-bar__lbl{padding:0 5px} — das Padding steht dem Text nicht zur Verfuegung.
+  const LBL_PADDING_PX = 10;
+
+  /* Balkeninhalt nach verfuegbarer Breite staffeln:
+       1. Abteilung + Von–Bis   2. nur Von–Bis   3. nur Startdatum (kurz)
+       4. nur die ‹/›-Randmarker            5. leer
+     Das Datum hat Vorrang vor dem Abteilungsnamen: die Abteilung ist ueber
+     Balkenfarbe und Legende bestimmbar, das Datum steht sonst nirgends auf dem
+     Blatt (title-Attribute drucken nicht). Abgeschnitten wird NIE — ein leerer
+     Balken ist ehrlicher als ein Wortfragment ("Ei" liest sich wie ein
+     Abteilungsname, nicht wie eine Kuerzung).
+     Das Datum ist in jeder Stufe das echte aus station.von/station.bis, nie
+     aus der Geometrie zurueckgerechnet. Rueckgabe ist ROHTEXT — der Aufrufer
+     muss esc() anwenden. */
+  function barLabel(station, geom, trackPx) {
+    const innen = geom.widthPct / 100 * (trackPx || TRACK_PX) - LBL_PADDING_PX;
+    const pre  = geom.cutLeft  ? '‹ ' : '';
+    const post = geom.cutRight ? ' ›' : '';
+    const ab = String(station.abteilung ?? '').trim();
+    const spanne = `${fmtDe(station.von)}–${station.bis ? fmtDe(station.bis) : 'offen'}`;
+    const stufen = [ab ? `${ab} ${spanne}` : spanne, spanne, fmtDeKurz(station.von)];
+    for (const txt of stufen) {
+      const s = pre + txt + post;
+      if (textBreitePx(s) <= innen) return s;
+    }
+    // Nur noch die Randmarker (ohne Abstandszeichen), sonst gar nichts.
+    const nurMarker = (geom.cutLeft ? '‹' : '') + (geom.cutRight ? '›' : '');
+    return textBreitePx(nurMarker) <= innen ? nurMarker : '';
+  }
+
   /* Gemeinsames Stylesheet aller Druckdokumente. Bewusst eigenstaendig und
      ohne CSS-Variablen der App — das Druckfenster laedt kein App-CSS. */
   const PRINT_CSS = `
@@ -136,26 +221,49 @@ const PlanerPrint = (() => {
     .pp-nm{font-weight:700}
     .pp-br{color:#888;font-size:9px}
     .pp-track{position:relative;height:20px;padding:0}
+    /* background hier als BASIS, nicht nur als Deko: ein fehlender oder
+       unbrauchbarer Farbwert erzeugt inline eine ungueltige Deklaration
+       (background:) — die verwirft der CSS-Parser, und dann traegt diese Regel.
+       Ohne sie waere der Balken vollstaendig transparent und die Station auf
+       dem Papier unsichtbar. Dunkel genug fuer den weissen Balkentext. */
     .pp-bar{position:absolute;top:2px;height:16px;border-radius:3px;color:#fff;font-size:9px;
-      line-height:16px;padding:0;overflow:hidden;white-space:nowrap;
+      line-height:16px;padding:0;overflow:hidden;white-space:nowrap;background:#37474F;
       print-color-adjust:exact;-webkit-print-color-adjust:exact}
     .pp-bar__lbl{padding:0 5px;white-space:nowrap}
     .pp-bar--cut-l{border-top-left-radius:0;border-bottom-left-radius:0}
     .pp-bar--cut-r{border-top-right-radius:0;border-bottom-right-radius:0}
     .pp-none{color:#aaa;font-style:italic;font-size:9px}
     .pp-legend{margin-top:12px;font-size:9px;color:#555;display:flex;flex-wrap:wrap;gap:10px}
+    /* Gleiche Basisfarbe wie .pp-bar — ein unbrauchbarer Farbwert darf auch in
+       der Legende kein unsichtbares Kaestchen ergeben. */
     .pp-legend span.sw{display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:4px;
-      print-color-adjust:exact;-webkit-print-color-adjust:exact}
+      background:#37474F;print-color-adjust:exact;-webkit-print-color-adjust:exact}
     .pp-sec{margin:0 0 18px;break-inside:avoid;page-break-inside:avoid}
     .pp-sec h2{font-size:13px;margin:0 0 2px}
+    /* Gruppen-Trennzeile der Tafel (wie am Bildschirm). break-after:avoid
+       verhindert, dass eine Gruppenueberschrift allein am Seitenende steht. */
+    .pp-grp th{background:#f2f2f2;color:#444;font-size:9px;text-transform:uppercase;
+      letter-spacing:.04em;border-bottom:1px solid #bbb;padding:4px 7px;
+      break-after:avoid;page-break-after:avoid;
+      print-color-adjust:exact;-webkit-print-color-adjust:exact}
+    .pp-grp{break-after:avoid;page-break-after:avoid;break-inside:avoid;page-break-inside:avoid}
+    .pp-grp__n{font-weight:400;color:#888;text-transform:none;letter-spacing:0}
   `;
 
-  function kopfHtml(sel, titelZusatz) {
-    // Defensiv: sel.personen darf fehlen (z.B. degenerierter Aufruf) —
-    // dann zaehlt der Kopf 0 Personen statt abzustuerzen.
-    const n = (sel.personen || []).length;
-    return `<h1>Abteilungsdurchlauf${titelZusatz ? ` – ${esc(titelZusatz)}` : ''}</h1>
+  /* sel.titelZusatz (optional) = Personenname beim Panel-Druck. Steht in der
+     Ueberschrift UND im Fenster-/Dokumenttitel, damit der Panel-Druck wie
+     vorher "Durchlauf <Name>" heisst und nicht mehrere gleichnamige
+     Druckfenster ununterscheidbar werden. */
+  function kopfHtml(sel) {
+    const n = personenListe(sel).length;
+    const zusatz = String(sel.titelZusatz ?? '').trim();
+    return `<h1>Abteilungsdurchlauf${zusatz ? ` – ${esc(zusatz)}` : ''}</h1>
       <p class="sub">${fmtDe(sel.von)} – ${fmtDe(sel.bis)} · ${n} ${n === 1 ? 'Person' : 'Personen'} · Stand ${fmtDe(sel.stand)}</p>`;
+  }
+
+  function dokTitel(sel) {
+    const zusatz = String(sel.titelZusatz ?? '').trim();
+    return zusatz ? `Durchlauf ${zusatz}` : 'Abteilungsdurchlauf';
   }
 
   function dokument(titel, css, body, seite) {
@@ -190,6 +298,18 @@ const PlanerPrint = (() => {
     return !(raster || buildRaster(sel.von, sel.bis)).spalten.length;
   }
 
+  /* Der Hinweis auf dem Blatt muss den TATSAECHLICHEN Grund nennen. Vorher
+     stand dort immer "(Ende vor Beginn)" — bei einem leeren Von/Bis-Feld ist
+     das schlicht falsch und schickt den Nutzer auf die falsche Fehlersuche. */
+  function zeitraumGrund(sel) {
+    const von = sel.von, bis = sel.bis;
+    if (!von && !bis) return 'Zeitraum fehlt (Von und Bis sind leer)';
+    if (!von) return 'Zeitraum unvollständig (Von fehlt)';
+    if (!bis) return 'Zeitraum unvollständig (Bis fehlt)';
+    if (String(von) > String(bis)) return 'Zeitraum ungültig (Ende vor Beginn)';
+    return 'Zeitraum ungültig (Datum nicht lesbar)';
+  }
+
   /* Tafel = echte <table> mit <thead>: Browser wiederholen einen Tabellenkopf
      auf jeder Folgeseite von selbst, ein nachgebauter Grid-Kopf tut das nicht.
      Die Balken liegen absolut in EINER Zelle, die per colspan genau die
@@ -206,9 +326,9 @@ const PlanerPrint = (() => {
     // gebraucht (Spalten/Kopf unten) — hier durchgereicht, damit
     // zeitraumUngueltig buildRaster nicht zweimal aufruft.
     if (zeitraumUngueltig(sel, raster)) {
-      const body = kopfHtml(sel, '')
-        + `<div class="pp-none">Zeitraum ungueltig (Ende vor Beginn) — keine Tafel darstellbar</div>`;
-      return dokument('Abteilungsdurchlauf', PRINT_CSS, body, 'size:A4 landscape;margin:12mm');
+      const body = kopfHtml(sel)
+        + `<div class="pp-none">${esc(zeitraumGrund(sel))} — keine Tafel darstellbar</div>`;
+      return dokument(dokTitel(sel), PRINT_CSS, body, 'size:A4 landscape;margin:12mm');
     }
 
     const personen = personenListe(sel);
@@ -232,7 +352,7 @@ const PlanerPrint = (() => {
       .map(c => `<div style="position:absolute;top:0;bottom:0;left:${c.leftPct.toFixed(4)}%;width:1px;background:#eee"></div>`)
       .join('');
 
-    const zeilen = personen.map(p => {
+    const personZeile = (p) => {
       const balken = (p.stationen || []).map(s => {
         const g = barGeom(s, range);
         if (!g) return '';
@@ -240,14 +360,25 @@ const PlanerPrint = (() => {
           + (g.cutLeft ? ' pp-bar--cut-l' : '')
           + (g.cutRight ? ' pp-bar--cut-r' : '');
         const bisTxt = s.bis ? fmtDe(s.bis) : 'offen';
-        const marker = (g.cutLeft ? '‹ ' : '') + esc(s.abteilung || '') + (g.cutRight ? ' ›' : '');
+        // Balkeninhalt gestaffelt (barLabel): Datum vor Abteilungsname, nie
+        // abgeschnitten. Der title bleibt mit dem vollen Datum daran — er
+        // druckt nicht, hilft aber in der Bildschirmansicht des Druckfensters.
+        // background wird nur gesetzt, wenn ueberhaupt ein Wert da ist; sonst
+        // traegt die Basisfarbe aus .pp-bar (siehe PRINT_CSS).
+        const farbe = String(s.farbe ?? '').trim();
+        const lbl = barLabel(s, g);
         // Padding liegt am inneren Label, nicht am Balken: mit
         // box-sizing:border-box würde Padding am Balken selbst eine
         // Mindestbreite erzwingen, die kurze Stationen (1-2 Tage) zu breit
         // zeichnet — das Papier zeigte dann einen laengeren Zeitraum als
         // tatsaechlich vorhanden.
-        return `<div class="${cls}" style="left:${g.leftPct.toFixed(4)}%;width:${g.widthPct.toFixed(4)}%;background:${esc(s.farbe)}"`
-          + ` title="${esc(s.abteilung || '')} (${fmtDe(s.von)} – ${bisTxt})"><span class="pp-bar__lbl">${marker}</span></div>`;
+        return `<div class="${cls}" style="left:${g.leftPct.toFixed(4)}%;width:${g.widthPct.toFixed(4)}%`
+          + `${farbe ? `;background:${esc(farbe)}` : ''}"`
+          + ` title="${esc(s.abteilung || '')} (${fmtDe(s.von)} – ${bisTxt})">`
+          // Leeres Label: den <span> gar nicht bauen. Sein padding (0 5px)
+          // waere sonst 10px Inhaltsbreite in einem 2px schmalen Balken —
+          // messbarer Ueberlauf, obwohl gar kein Text da ist.
+          + `${lbl ? `<span class="pp-bar__lbl">${esc(lbl)}</span>` : ''}</div>`;
       }).join('');
 
       const leer = balken ? '' : `<div class="pp-none">keine Zuweisung im Zeitraum</div>`;
@@ -255,7 +386,31 @@ const PlanerPrint = (() => {
         <td><div class="pp-nm">${esc(p.name)}</div><div class="pp-br">${esc(p.beruf || '')}</div></td>
         <td class="pp-track" colspan="${raster.spalten.length}">${linien}${balken}${leer}</td>
       </tr>`;
-    }).join('');
+    };
+
+    /* Gruppen-Trennzeilen wie am Bildschirm ("Ohne Zuordnung / Zugewiesen /
+       DH-Studenten"), mit Anzahl. Ohne sie laeuft das Alphabet auf dem Blatt
+       mehrfach von vorn los und die Sortierung sieht falsch aus.
+       Reihenfolge: die des Aufrufers. gruppierteAzubis() in
+       abteilungs-planer.js liefert die Gruppen bereits in GROUP_ORDER und
+       flatMap haengt sie in dieser Ordnung aneinander — hier wird deshalb
+       NICHT sortiert, nur nach erstem Auftreten gebuendelt (Map bewahrt die
+       Einfuegereihenfolge). Personen ohne gruppe-Feld (z.B. Panel-Druck)
+       laufen ohne Trennzeile durch.
+       Die Trennzeile ist eine eigene <tr> mit einer colspan-Zelle: sie fasst
+       die colgroup-Breiten nicht an, die Balkengeometrie bleibt unberuehrt. */
+    const gruppen = new Map();
+    personen.forEach(p => {
+      const g = String(p.gruppe ?? '').trim();
+      if (!gruppen.has(g)) gruppen.set(g, []);
+      gruppen.get(g).push(p);
+    });
+    const spaltenGesamt = raster.spalten.length + 1;
+    const zeilen = [...gruppen].map(([g, ps]) =>
+      (g ? `<tr class="pp-grp"><th colspan="${spaltenGesamt}" scope="rowgroup">`
+           + `${esc(g)} <span class="pp-grp__n">(${ps.length})</span></th></tr>` : '')
+      + ps.map(personZeile).join('')
+    ).join('');
 
     // Legende nur mit den Abteilungen, die tatsaechlich aufs Papier kommen.
     const gedruckt = new Map();
@@ -263,13 +418,16 @@ const PlanerPrint = (() => {
       if (barGeom(s, range) && !gedruckt.has(s.abteilung)) gedruckt.set(s.abteilung, s.farbe);
     }));
     const legende = `<div class="pp-legend">`
-      + [...gedruckt].sort((a, b) => a[0].localeCompare(b[0], 'de'))
-          .map(([ab, farbe]) => `<b><span class="sw" style="background:${esc(farbe)}"></span>${esc(ab)}</b>`).join('')
+      + [...gedruckt].sort((a, b) => String(a[0]).localeCompare(String(b[0]), 'de'))
+          .map(([ab, farbe]) => {
+            const f = String(farbe ?? '').trim();
+            return `<b><span class="sw"${f ? ` style="background:${esc(f)}"` : ''}></span>${esc(ab)}</b>`;
+          }).join('')
       + `</div>`;
 
-    const body = kopfHtml(sel, '')
+    const body = kopfHtml(sel)
       + `<table>${cols}${kopf}<tbody>${zeilen}</tbody></table>${legende}`;
-    return dokument('Abteilungsdurchlauf', PRINT_CSS, body, 'size:A4 landscape;margin:12mm');
+    return dokument(dokTitel(sel), PRINT_CSS, body, 'size:A4 landscape;margin:12mm');
   }
 
   /* Tabelle = je Person ein Abschnitt. break-inside:avoid haelt Name und
@@ -285,9 +443,9 @@ const PlanerPrint = (() => {
     // eines Blatts, das faelschlich "keine Zuweisung im Zeitraum" fuer alle
     // Personen behaupten wuerde.
     if (zeitraumUngueltig(sel)) {
-      const body = kopfHtml(sel, '')
-        + `<div class="pp-none">Zeitraum ungueltig (Ende vor Beginn) — keine Tabelle darstellbar</div>`;
-      return dokument('Abteilungsdurchlauf', PRINT_CSS, body, 'size:A4 portrait;margin:16mm');
+      const body = kopfHtml(sel)
+        + `<div class="pp-none">${esc(zeitraumGrund(sel))} — keine Tabelle darstellbar</div>`;
+      return dokument(dokTitel(sel), PRINT_CSS, body, 'size:A4 portrait;margin:16mm');
     }
 
     const personen = personenListe(sel);
@@ -309,8 +467,8 @@ const PlanerPrint = (() => {
       </div>`;
     }).join('');
 
-    return dokument('Abteilungsdurchlauf', PRINT_CSS,
-      kopfHtml(sel, '') + abschnitte, 'size:A4 portrait;margin:16mm');
+    return dokument(dokTitel(sel), PRINT_CSS,
+      kopfHtml(sel) + abschnitte, 'size:A4 portrait;margin:16mm');
   }
 
   /* Eigenes Fenster statt @media print: das Druckdokument bringt sein CSS
@@ -346,14 +504,23 @@ const PlanerPrint = (() => {
      einzeln erkennen und mit passendem Grund anzeigen. */
   function dlgPruefen() {
     const von = byId('ppVon').value, bis = byId('ppBis').value;
-    let grund = '';
-    if (!von && !bis) grund = 'Bitte „Von" und „Bis" angeben.';
-    else if (!von) grund = 'Bitte „Von" angeben.';
-    else if (!bis) grund = 'Bitte „Bis" angeben.';
-    else if (von > bis) grund = '„Bis" liegt vor „Von".';
-    byId('ppErr').textContent = grund;
-    byId('ppErr').hidden = !grund;
-    byId('ppGo').disabled = !!grund || S.gewaehlt.size === 0;
+    const gruende = [];
+    if (!von && !bis) gruende.push('Bitte „Von" und „Bis" angeben.');
+    else if (!von) gruende.push('Bitte „Von" angeben.');
+    else if (!bis) gruende.push('Bitte „Bis" angeben.');
+    else if (von > bis) gruende.push('„Bis" liegt vor „Von".');
+    // Der Drucken-Button war auch bei 0 gewaehlten Personen grau, der Hinweis
+    // nannte aber nur Datumsgruende — ein Abteilungsfilter ohne Personen
+    // sperrte den Button also ohne jede Begruendung.
+    if (S.gewaehlt.size === 0) {
+      gruende.push(S.ctx.personen.length
+        ? 'Bitte mindestens eine Person wählen.'
+        : 'Keine Person im aktuellen Filter — Filter in der Toolbar lockern.');
+    }
+    const text = gruende.join(' ');
+    byId('ppErr').textContent = text;
+    byId('ppErr').hidden = !text;
+    byId('ppGo').disabled = !!text;
   }
 
   function dlgZeichnen() {
@@ -364,7 +531,10 @@ const PlanerPrint = (() => {
       <label class="pp-dlg__item">
         <input type="checkbox" data-id="${esc(p.id)}" ${S.gewaehlt.has(p.id) ? 'checked' : ''}>
         <b>${esc(p.name)}</b><span>${esc(p.beruf || '')}</span>
-      </label>`).join('') || `<div class="pp-dlg__item">Keine Treffer.</div>`;
+      </label>`).join('')
+      // Leertext nach Ursache trennen: "Keine Treffer." behauptet eine Suche,
+      // die es ohne Sucheingabe gar nicht gab.
+      || `<div class="pp-dlg__item">${S.suche ? 'Keine Treffer.' : 'Keine Personen vorhanden.'}</div>`;
     listEl.querySelectorAll('input[data-id]').forEach(cb => cb.addEventListener('change', () => {
       if (cb.checked) S.gewaehlt.add(cb.dataset.id); else S.gewaehlt.delete(cb.dataset.id);
       countEl.textContent = `(${S.gewaehlt.size} von ${S.ctx.personen.length})`;
@@ -444,7 +614,8 @@ const PlanerPrint = (() => {
     return v[v.length - 1] || null;
   }
 
-  const api = { esc, fmtDe, tageZwischen, buildRaster, barGeom, PRINT_CSS, renderTafelHtml, renderTabelleHtml, openPrintWindow, open };
+  const api = { esc, fmtDe, fmtDeKurz, tageZwischen, buildRaster, barGeom, textBreitePx, barLabel,
+    TRACK_PX, zeitraumGrund, PRINT_CSS, renderTafelHtml, renderTabelleHtml, openPrintWindow, open };
   if (typeof window !== 'undefined') window.PlanerPrint = api;
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   return api;

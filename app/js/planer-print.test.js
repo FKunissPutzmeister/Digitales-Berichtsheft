@@ -245,9 +245,14 @@ test('renderTafelHtml: Track-Zelle, colgroup und Rasterlinien passen zur Spalten
   const n = raster.spalten.length;   // 12 (Monatsraster fuer ein Ausbildungsjahr)
 
   // colspan der Balkenzelle muss exakt die Spaltenzahl treffen, nicht 0/1.
-  const colspanMatches = [...h.matchAll(/colspan="(\d+)"/g)].map(m => Number(m[1]));
+  // Gezielt die .pp-track-Zellen greifen: die Gruppen-Trennzeilen tragen
+  // ebenfalls ein colspan (Spaltenzahl + 1 fuer die Namensspalte), ein
+  // pauschales colspan="(\d+)" wuerde sie mitzaehlen.
+  const colspanMatches = [...h.matchAll(/class="pp-track" colspan="(\d+)"/g)].map(m => Number(m[1]));
   assert.ok(colspanMatches.length > 0, 'keine colspan-Zelle gefunden');
   assert.ok(colspanMatches.every(c => c === n), `colspan-Werte ${colspanMatches} != ${n}`);
+  // Trennzeile spannt die GESAMTE Breite: Namensspalte + alle Rasterspalten.
+  assert.match(h, new RegExp(`<tr class="pp-grp"><th colspan="${n + 1}"`));
 
   // <colgroup>: Namensspalte + eine <col> pro Rasterspalte.
   const colCount = (h.match(/<col style=/g) || []).length;
@@ -312,20 +317,23 @@ test('renderTafelHtml: Beruf wird escaped', () => {
 // Vorkommen im Dokument prueft, wuerde beide Mutationen scheinbar toeten,
 // waehrend die andere ueberlebt. Deshalb je ein Assert, das gezielt nur die
 // eine oder die andere Einbaustelle trifft (Span-Inhalt vs. title="...").
-// Station ohne cutLeft/cutRight (komplett im SEL-Zeitraum), damit der
-// Marker exakt esc(abteilung) ist, ohne die ‹/›-Marker davor/danach.
-test('renderTafelHtml: Abteilungsname im Balken-Marker UND im title-Attribut werden escaped', () => {
+// Station ohne cutLeft/cutRight (komplett im SEL-Zeitraum), damit das Label
+// exakt "abteilung von–bis" ist, ohne die ‹/›-Marker davor/danach. Der
+// Zeitraum ist absichtlich lang genug (01.10.2025-31.07.2026, 304 von 365
+// Tagen), damit die breiteste Staffelungsstufe greift und der
+// Abteilungsname ueberhaupt im Balken landet.
+test('renderTafelHtml: Abteilungsname im Balken-Label UND im title-Attribut werden escaped', () => {
   const sel = { ...SEL, personen: [{ name: 'A', beruf: 'B', gruppe: 'Zugewiesen', stationen: [
-    { abteilung: '<b>&"Q</b>', von: '2026-01-01', bis: '2026-01-31', verantw: 'X', farbe: '#333' },
+    { abteilung: '<b>&"Q</b>', von: '2025-10-01', bis: '2026-07-31', verantw: 'X', farbe: '#333' },
   ] }] };
   const h = PP.renderTafelHtml(sel);
 
-  // Marker (sichtbarer Text im Balken):
-  assert.match(h, /<span class="pp-bar__lbl">&lt;b&gt;&amp;&quot;Q&lt;\/b&gt;<\/span>/);
-  assert.doesNotMatch(h, /<span class="pp-bar__lbl"><b>&"Q<\/b><\/span>/);
+  // Label (sichtbarer Text im Balken):
+  assert.match(h, /<span class="pp-bar__lbl">&lt;b&gt;&amp;&quot;Q&lt;\/b&gt; 01\.10\.2025–31\.07\.2026<\/span>/);
+  assert.doesNotMatch(h, /<span class="pp-bar__lbl"><b>&"Q<\/b>/);
 
   // title-Attribut (Tooltip):
-  assert.match(h, /title="&lt;b&gt;&amp;&quot;Q&lt;\/b&gt; \(01\.01\.2026 – 31\.01\.2026\)"/);
+  assert.match(h, /title="&lt;b&gt;&amp;&quot;Q&lt;\/b&gt; \(01\.10\.2025 – 31\.07\.2026\)"/);
   assert.doesNotMatch(h, /title="<b>&"Q<\/b> \(/);
 });
 
@@ -373,24 +381,31 @@ test('renderTafelHtml: fehlendes personen-Array stuerzt nicht ab, liefert leeres
 // undefined > undefined ist true), obwohl buildRaster fuer alle diese
 // Faelle ein leeres Spaltenarray liefert — deshalb prueft zeitraumUngueltig
 // das tatsaechliche Rasterergebnis statt einer Vorbedingung.
+// Vierter Eintrag je Zeile = der Grund, den das Blatt nennen MUSS. Vorher
+// stand dort fuer alle fuenf Faelle "Zeitraum ungueltig (Ende vor Beginn)" —
+// bei leeren Feldern eine falsche Behauptung, die den Nutzer in die falsche
+// Fehlersuche schickt. Erwartungen von Hand geschrieben, nicht aus
+// zeitraumGrund() abgeleitet.
 const DEGENERIERTE_ZEITRAEUME = [
-  ['von > bis (echte Daten)', '2026-08-31', '2026-01-01'],
-  ["leere Strings ('')", '', ''],
-  ['null', null, null],
-  ['undefined', undefined, undefined],
-  ['syntaktisch kaputtes Datum', '2026-13-45', '2026-13-45'],
+  ['von > bis (echte Daten)', '2026-08-31', '2026-01-01', 'Zeitraum ungültig (Ende vor Beginn)'],
+  ["leere Strings ('')", '', '', 'Zeitraum fehlt (Von und Bis sind leer)'],
+  ['null', null, null, 'Zeitraum fehlt (Von und Bis sind leer)'],
+  ['undefined', undefined, undefined, 'Zeitraum fehlt (Von und Bis sind leer)'],
+  ['syntaktisch kaputtes Datum', '2026-13-45', '2026-13-45', 'Zeitraum ungültig (Datum nicht lesbar)'],
 ];
 
-for (const [label, von, bis] of DEGENERIERTE_ZEITRAEUME) {
+for (const [label, von, bis, grund] of DEGENERIERTE_ZEITRAEUME) {
   test(`renderTafelHtml: degenerierter Zeitraum (${label}) liefert Hinweis statt colspan="0"/NaN/Infinity`, () => {
     const sel = { ...SEL, von, bis };
     const h = PP.renderTafelHtml(sel);
     assert.match(h, /^<!DOCTYPE html>/);
     assert.match(h, /<\/html>\s*$/);
-    assert.match(h, /Zeitraum ungueltig \(Ende vor Beginn\) — keine Tafel darstellbar/);
+    assert.ok(h.includes(`${grund} — keine Tafel darstellbar`), `Grundtext fehlt: ${grund}`);
     assert.doesNotMatch(h, /colspan="\d+"/);   // keine Tabellenzelle mit Balken/Spalten gebaut
     assert.doesNotMatch(h, /NaN/);
     assert.doesNotMatch(h, /Infinity/);
+    // Umlaute im nutzersichtbaren Drucktext, kein "ungueltig".
+    assert.doesNotMatch(h, /Zeitraum ungueltig/);
   });
 
   test(`renderTabelleHtml: degenerierter Zeitraum (${label}) liefert Hinweis statt Abschnitten`, () => {
@@ -398,12 +413,27 @@ for (const [label, von, bis] of DEGENERIERTE_ZEITRAEUME) {
     const h = PP.renderTabelleHtml(sel);
     assert.match(h, /^<!DOCTYPE html>/);
     assert.match(h, /<\/html>\s*$/);
-    assert.match(h, /Zeitraum ungueltig \(Ende vor Beginn\) — keine Tabelle darstellbar/);
+    assert.ok(h.includes(`${grund} — keine Tabelle darstellbar`), `Grundtext fehlt: ${grund}`);
     assert.doesNotMatch(h, /class="pp-sec"/);
     assert.doesNotMatch(h, /NaN/);
     assert.doesNotMatch(h, /Infinity/);
+    assert.doesNotMatch(h, /Zeitraum ungueltig/);
   });
 }
+
+// Halbleere Felder: nur Von oder nur Bis gesetzt. Der Grund muss das
+// FEHLENDE Feld benennen, nicht "Ende vor Beginn".
+test('zeitraumGrund: nur Von bzw. nur Bis gesetzt nennt das fehlende Feld', () => {
+  assert.equal(PP.zeitraumGrund({ von: '2026-01-01', bis: '' }), 'Zeitraum unvollständig (Bis fehlt)');
+  assert.equal(PP.zeitraumGrund({ von: '', bis: '2026-01-01' }), 'Zeitraum unvollständig (Von fehlt)');
+  assert.equal(PP.zeitraumGrund({ von: null, bis: '2026-01-01' }), 'Zeitraum unvollständig (Von fehlt)');
+});
+
+test('renderTafelHtml: nur Bis gesetzt -> Hinweis nennt das fehlende Von, nicht "Ende vor Beginn"', () => {
+  const h = PP.renderTafelHtml({ ...SEL, von: '', bis: '2026-08-31' });
+  assert.ok(h.includes('Zeitraum unvollständig (Von fehlt) — keine Tafel darstellbar'));
+  assert.doesNotMatch(h, /Ende vor Beginn/);
+});
 
 test('renderTafelHtml/renderTabelleHtml: gueltiger Ein-Tages-Zeitraum (von === bis, echte Daten) wird normal gerendert', () => {
   const sel = {
@@ -531,4 +561,316 @@ test('renderTabelleHtml: fehlendes personen-Array stuerzt nicht ab', () => {
   assert.match(h, /^<!DOCTYPE html>/);
   assert.match(h, /<\/html>\s*$/);
   assert.match(h, /0 Personen/);
+});
+
+/* ═══════════════════════════════════════════════════════════════════════
+   BALKENLABEL — Staffelung nach Breite (Funde B und C)
+   Alle Erwartungswerte von Hand nachgerechnet, nicht aus barLabel/
+   textBreitePx abgeleitet. Rechenbasis:
+     TRACK_PX = 800 (Balkenzelle auf A4 quer), LBL_PADDING = 10
+     -> nutzbare Textbreite innen = widthPct/100 * 800 - 10
+   Zeichenbreiten (9px Segoe UI, gemessen und aufgerundet):
+     Ziffer 4.90 · '.' 2.00 · ' ' 2.50 · '–' 4.50 · '‹'/'›' 2.85
+   Damit:
+     "01.09.2025–31.10.2025" = 16*4.90 + 4*2.00 + 4.50 = 90.90 px
+     "01.01.26"              =  6*4.90 + 2*2.00        = 33.40 px
+     "Montage" (M8.10 o5.30 n5.10 t3.05 a4.60 g5.30 e4.75) = 36.20 px
+   ═══════════════════════════════════════════════════════════════════════ */
+
+test('textBreitePx: Datum, Kurzdatum und Abteilungsname gegen Handrechnung', () => {
+  assert.equal(PP.textBreitePx('01.09.2025–31.10.2025').toFixed(2), '90.90');
+  assert.equal(PP.textBreitePx('01.01.26').toFixed(2), '33.40');
+  assert.equal(PP.textBreitePx('Montage').toFixed(2), '36.20');
+  assert.equal(PP.textBreitePx('').toFixed(2), '0.00');
+  // Unbekanntes Zeichen wird grosszuegig mit 8.50 gerechnet (nie zu klein).
+  assert.equal(PP.textBreitePx('\u{1F600}').toFixed(2), '8.50');
+});
+
+test('TRACK_PX ist die Balkenzellenbreite auf A4 quer', () => {
+  assert.equal(PP.TRACK_PX, 800);
+});
+
+// Ein Ausbildungsjahr = 365 Tage (siehe "buildRaster: bis 18 Monate").
+const RJ = { von: '2025-09-01', bis: '2026-08-31' };
+
+test('barLabel Stufe 1: viel Platz -> Abteilung + volles Von-Bis', () => {
+  // 01.10.2025-31.07.2026 = 304 Tage -> 83.2877% -> 666.30px -> innen 656.30.
+  // Stufe 1 "Montage 01.10.2025–31.07.2026" = 36.20 + 2.50 + 90.90 = 129.60 <= 656.30
+  const s = { abteilung: 'Montage', von: '2025-10-01', bis: '2026-07-31' };
+  assert.equal(PP.barLabel(s, PP.barGeom(s, RJ)), 'Montage 01.10.2025–31.07.2026');
+});
+
+test('barLabel Stufe 2: mittlere Breite -> nur das Von-Bis, Abteilung entfaellt', () => {
+  // 01.09.2025-31.10.2025 = 61 Tage -> 16.7123% -> 133.70px -> innen 123.70.
+  // Stufe 1 = 129.60 > 123.70 (passt NICHT), Stufe 2 = 90.90 <= 123.70.
+  const s = { abteilung: 'Montage', von: '2025-09-01', bis: '2025-10-31' };
+  assert.equal(PP.barLabel(s, PP.barGeom(s, RJ)), '01.09.2025–31.10.2025');
+});
+
+test('barLabel Stufe 3: schmal -> nur das verkuerzte Startdatum', () => {
+  // 01.01.2026-28.01.2026 = 28 Tage -> 7.6712% -> 61.37px -> innen 51.37.
+  // Stufe 2 = 90.90 > 51.37, Stufe 3 "01.01.26" = 33.40 <= 51.37.
+  const s = { abteilung: 'IT', von: '2026-01-01', bis: '2026-01-28' };
+  assert.equal(PP.barLabel(s, PP.barGeom(s, RJ)), '01.01.26');
+});
+
+test('barLabel Stufe 4: sehr schmal und rechts angeschnitten -> nur der Marker', () => {
+  // 25.08.2026-31.12.2026, sichtbar 25.-31.08. = 7 Tage -> 1.9178% -> 15.34px
+  // -> innen 5.34. Stufe 3 = 33.40 > 5.34, Marker '›' = 2.85 <= 5.34.
+  const s = { abteilung: 'Vertrieb', von: '2026-08-25', bis: '2026-12-31' };
+  assert.equal(PP.barLabel(s, PP.barGeom(s, RJ)), '›');
+});
+
+test('barLabel Stufe 5: zu schmal fuer alles -> leer (Farbe und Legende tragen die Info)', () => {
+  // 02.03.2026-06.03.2026 = 5 Tage -> 1.3699% -> 10.96px -> innen 0.96.
+  // Kein Marker (Station liegt komplett drin), Stufe 3 = 33.40 > 0.96.
+  const s = { abteilung: 'Recht', von: '2026-03-02', bis: '2026-03-06' };
+  assert.equal(PP.barLabel(s, PP.barGeom(s, RJ)), '');
+});
+
+test('barLabel: Randmarker bleiben in Stufe 1 erhalten und das Datum ist das ECHTE, ungekuerzte', () => {
+  // IT 01.06.2026-30.11.2026, sichtbar bis 31.08.2026 = 92 Tage -> 25.2055%
+  // -> 201.64px -> innen 191.64. Stufe 1 mit ' ›' (2.50+2.85=5.35):
+  // "IT" (2.40+4.90=7.30) + 2.50 + 90.90 + 5.35 = 106.05 <= 191.64.
+  const s = { abteilung: 'IT', von: '2026-06-01', bis: '2026-11-30' };
+  assert.equal(PP.barLabel(s, PP.barGeom(s, RJ)), 'IT 01.06.2026–30.11.2026 ›');
+});
+
+test('barLabel: links angeschnittene Station traegt den Marker und das echte Startdatum aus der Vergangenheit', () => {
+  // 15.06.2025-31.05.2026, sichtbar 01.09.2025-31.05.2026 = 273 Tage
+  // -> 74.7945% -> 598.36px -> innen 588.36 — Stufe 1 passt sicher.
+  const s = { abteilung: 'Einkauf', von: '2025-06-15', bis: '2026-05-31' };
+  const l = PP.barLabel(s, PP.barGeom(s, RJ));
+  assert.equal(l, '‹ Einkauf 15.06.2025–31.05.2026');
+  // Nicht auf den Zeitraumbeginn zurueckgerechnet:
+  assert.doesNotMatch(l, /01\.09\.2025/);
+});
+
+test('barLabel: offenes Bis wird als "offen" gezeigt, nicht als Zeitraumende', () => {
+  // 01.10.2025-offen: sichtbar bis 31.08.2026 = 335 Tage -> 91.7808%
+  // -> 734.25px -> innen 724.25 — Stufe 1 passt.
+  const s = { abteilung: 'IT', von: '2025-10-01', bis: null };
+  assert.equal(PP.barLabel(s, PP.barGeom(s, RJ)), 'IT 01.10.2025–offen ›');
+});
+
+// Kleiner ISO-Datumsrechner nur fuer den Messtest (UTC, wie das Modul).
+function isoPlus(iso, tage) {
+  const t = new Date(iso + 'T00:00:00Z');
+  t.setUTCDate(t.getUTCDate() + tage);
+  return t.toISOString().slice(0, 10);
+}
+
+test('barLabel: kein Label laeuft je ueber den Balken hinaus (Fund C, ueber alle Rasterstufen)', () => {
+  const NAMEN = ['IT', 'Einkauf PMM', 'Qualitätssicherung', 'Montage', 'Öffentlichkeitsarbeit & Marketing', ''];
+  const RANGES = [
+    { von: '2025-09-01', bis: '2026-08-31' },   // Monatsraster, ein AJ
+    { von: '2025-09-01', bis: '2028-08-31' },   // Quartalsraster, ganze Ausbildung
+    { von: '2026-01-05', bis: '2026-02-01' },   // Wochenraster, 4 KW
+  ];
+  let geprueft = 0;
+  for (const range of RANGES) {
+    const tage = PP.tageZwischen(range.von, range.bis);
+    for (const abteilung of NAMEN) {
+      for (const laenge of [1, 2, 3, 5, 8, 14, 30, 61, 120, tage, tage + 90]) {
+        for (const startOffset of [0, -30, Math.floor(tage / 2)]) {
+          const von = isoPlus(range.von, startOffset);
+          const s = { abteilung, von, bis: isoPlus(von, laenge - 1) };
+          const g = PP.barGeom(s, range);
+          if (!g) continue;
+          const label = PP.barLabel(s, g);
+          // Bei sehr schmalen Balken ist "innen" negativ (Balken schmaler als
+          // das Label-Padding) — dort ist NUR das leere Label zulaessig, und
+          // fuer das baut renderTafelHtml den <span> gar nicht mehr.
+          const innen = Math.max(g.widthPct / 100 * PP.TRACK_PX - 10, 0);
+          assert.ok(PP.textBreitePx(label) <= innen,
+            `"${label}" (${PP.textBreitePx(label).toFixed(2)}px) passt nicht in ${innen.toFixed(2)}px ` +
+            `(${range.von}..${range.bis}, ${abteilung || '(leer)'}, ${laenge} Tage)`);
+          geprueft++;
+        }
+      }
+    }
+  }
+  assert.ok(geprueft > 300, `nur ${geprueft} Faelle geprueft`);
+});
+
+test('renderTafelHtml: die gedruckte Tafel enthaelt Datumsangaben IM Balken, nicht nur im title (Fund B)', () => {
+  const h = PP.renderTafelHtml(SEL);
+  // Montage-Balken (61 Tage) -> Stufe 2 = nur das Datum.
+  assert.match(h, /<span class="pp-bar__lbl">01\.09\.2025–31\.10\.2025<\/span>/);
+  // IT-Balken laeuft ueber den Rand: echtes Enddatum + Marker im Balken.
+  assert.match(h, /<span class="pp-bar__lbl">IT 01\.06\.2026–30\.11\.2026 ›<\/span>/);
+
+  // Gegenprobe: jedes Balken-Label muss ein Datum tragen — genau das war
+  // vorher nicht der Fall (dort stand nur der Abteilungsname).
+  const labels = [...h.matchAll(/<span class="pp-bar__lbl">([^<]*)<\/span>/g)].map(m => m[1]);
+  assert.ok(labels.length >= 2, `nur ${labels.length} Balken-Labels gefunden`);
+  assert.ok(labels.every(l => /\d{2}\.\d{2}\.\d{2}/.test(l)),
+    `Balken ohne Datum: ${JSON.stringify(labels)}`);
+});
+
+test('renderTafelHtml: Balkentext wird nie mitten im Wort abgeschnitten (Fund C)', () => {
+  // "Einkauf PMM" druckte frueher als "Ei", "Qualitätssicherung" als
+  // "Qualitäts" — ein Wortfragment liest sich wie ein Abteilungsname.
+  const sel = { ...SEL, personen: [{ name: 'A', beruf: 'B', gruppe: 'Zugewiesen', stationen: [
+    // 181 Tage -> 49.5890% -> 396.71px -> innen 386.71: Stufe 1 passt.
+    { abteilung: 'Einkauf PMM',        von: '2025-09-01', bis: '2026-02-28', verantw: 'X', farbe: '#111' },
+    // 92 Tage -> 25.2055% -> 201.64px -> innen 191.64: Stufe 1 = 74.20 + 2.50
+    // + 90.90 = 167.60 passt noch.
+    { abteilung: 'Qualitätssicherung', von: '2026-03-01', bis: '2026-05-31', verantw: 'X', farbe: '#222' },
+    // 28 Tage -> innen 51.37: nur noch das Kurzdatum (Stufe 3).
+    { abteilung: 'IT',                 von: '2026-06-01', bis: '2026-06-28', verantw: 'X', farbe: '#333' },
+  ] }] };
+  const h = PP.renderTafelHtml(sel);
+  const labels = [...h.matchAll(/<span class="pp-bar__lbl">([^<]*)<\/span>/g)].map(m => m[1]);
+  assert.deepEqual(labels, [
+    'Einkauf PMM 01.09.2025–28.02.2026',
+    'Qualitätssicherung 01.03.2026–31.05.2026',
+    '01.06.26',
+  ]);
+  // Die frueheren Fragmente duerfen nirgends als Label stehen.
+  for (const l of labels) {
+    assert.doesNotMatch(l, /^Ei$/);
+    assert.doesNotMatch(l, /^Qualitäts$/);
+    assert.doesNotMatch(l, /^I$/);
+  }
+});
+
+/* ═══ FARB-FALLBACK (Fund D) ══════════════════════════════════════════ */
+
+test('PRINT_CSS: .pp-bar und die Legendenkaestchen tragen eine dunkle Basisfarbe', () => {
+  // Ohne diese Basis erzeugt ein fehlender Farbwert einen vollstaendig
+  // transparenten Balken — die Station ist auf dem Papier unsichtbar.
+  assert.match(PP.PRINT_CSS, /\.pp-bar\{[^}]*background:#37474F/);
+  assert.match(PP.PRINT_CSS, /\.pp-legend span\.sw\{[^}]*background:#37474F/);
+});
+
+for (const [label, farbe] of [['undefined', undefined], ['null', null], ["leerer String", ''], ['nur Leerzeichen', '   ']]) {
+  test(`renderTafelHtml: Farbe ${label} erzeugt keinen leeren background (Balken bleibt sichtbar)`, () => {
+    const sel = { ...SEL, personen: [{ name: 'A', beruf: 'B', gruppe: 'Zugewiesen', stationen: [
+      { abteilung: 'Montage', von: '2025-09-01', bis: '2025-10-31', verantw: 'X', farbe },
+    ] }] };
+    const h = PP.renderTafelHtml(sel);
+    // Kein "background:" ohne Wert (weder am Balken noch am Legendenkaestchen).
+    assert.doesNotMatch(h, /background:(?=["; ])/);
+    assert.doesNotMatch(h, /background:undefined/);
+    assert.doesNotMatch(h, /background:null/);
+    // Der Balken existiert und traegt nur left/width inline.
+    assert.match(h, /<div class="pp-bar" style="left:0\.0000%;width:16\.7123%"/);
+    // Legendenkaestchen ohne style-Attribut -> Basisfarbe aus dem CSS.
+    assert.match(h, /<span class="sw"><\/span>Montage/);
+  });
+}
+
+test('renderTafelHtml: brauchbarer Farbwert wird weiterhin inline gesetzt', () => {
+  const h = PP.renderTafelHtml(SEL);
+  assert.match(h, /width:16\.7123%;background:#4CAF50/);
+});
+
+/* ═══ GRUPPEN-TRENNZEILEN (Entscheidung E) ════════════════════════════ */
+
+const SEL_G = {
+  von: '2025-09-01', bis: '2026-08-31', stand: '2026-08-06',
+  personen: [
+    { name: 'Albaque A', beruf: 'X', gruppe: 'Ohne Zuordnung', stationen: [] },
+    { name: 'Wunderlich W', beruf: 'X', gruppe: 'Ohne Zuordnung', stationen: [] },
+    { name: 'Berger B', beruf: 'X', gruppe: 'Zugewiesen', stationen: [
+      { abteilung: 'Montage', von: '2025-09-01', bis: '2025-10-31', verantw: 'V', farbe: '#4CAF50' }] },
+    { name: 'Ziegler Z', beruf: 'X', gruppe: 'Zugewiesen', stationen: [] },
+    { name: 'Cramer C', beruf: 'X', gruppe: 'Zugewiesen', stationen: [] },
+    { name: 'Dorn D', beruf: 'X', gruppe: 'DH-Studenten', stationen: [] },
+  ],
+};
+
+test('renderTafelHtml: je Gruppe genau eine Trennzeile mit Name und Anzahl', () => {
+  const h = PP.renderTafelHtml(SEL_G);
+  const zeilen = [...h.matchAll(/<tr class="pp-grp"><th colspan="\d+" scope="rowgroup">([^<]*)<span class="pp-grp__n">\((\d+)\)<\/span>/g)]
+    .map(m => [m[1].trim(), Number(m[2])]);
+  // Anzahlen von Hand: Ohne Zuordnung 2, Zugewiesen 3, DH-Studenten 1.
+  assert.deepEqual(zeilen, [['Ohne Zuordnung', 2], ['Zugewiesen', 3], ['DH-Studenten', 1]]);
+});
+
+test('renderTafelHtml: Trennzeilen behalten die Reihenfolge des Aufrufers (nicht alphabetisch)', () => {
+  // gruppierteAzubis() in abteilungs-planer.js liefert GROUP_ORDER
+  // ('Ohne Zuordnung','Zugewiesen','DH-Studenten') — alphabetisch waere
+  // 'DH-Studenten' zuerst. Hier kommt die Reihenfolge umgedreht an; die
+  // Ausgabe muss ihr folgen.
+  const sel = { ...SEL_G, personen: [...SEL_G.personen].reverse() };
+  const h = PP.renderTafelHtml(sel);
+  const namen = [...h.matchAll(/scope="rowgroup">([^<]*)<span/g)].map(m => m[1].trim());
+  assert.deepEqual(namen, ['DH-Studenten', 'Zugewiesen', 'Ohne Zuordnung']);
+});
+
+test('renderTafelHtml: Trennzeile spannt die gesamte Tabellenbreite und verschiebt die Balken nicht', () => {
+  const h = PP.renderTafelHtml(SEL_G);
+  const n = PP.buildRaster(SEL_G.von, SEL_G.bis).spalten.length;
+  assert.equal(n, 12);
+  // Namensspalte + 12 Rasterspalten = 13.
+  assert.match(h, /<tr class="pp-grp"><th colspan="13"/);
+  // Die Balkengeometrie ist unveraendert (gleicher Wert wie im Geometrietest).
+  assert.match(h, /left:0\.0000%;width:16\.7123%;background:#4CAF50/);
+  // Trennzeile steht VOR der ersten Person ihrer Gruppe.
+  const iGrp = h.indexOf('Ohne Zuordnung <span class="pp-grp__n">');
+  const iPerson = h.indexOf('Albaque A');
+  assert.ok(iGrp > 0, 'Trennzeile "Ohne Zuordnung" nicht gefunden');
+  assert.ok(iGrp < iPerson, 'Trennzeile steht nicht vor ihrer ersten Person');
+});
+
+test('renderTafelHtml: Trennzeile bleibt nicht allein am Seitenende (break-after:avoid)', () => {
+  const h = PP.renderTafelHtml(SEL_G);
+  assert.match(h, /\.pp-grp\{[^}]*break-after:avoid/);
+  assert.match(h, /\.pp-grp\{[^}]*page-break-after:avoid/);
+});
+
+test('renderTafelHtml: Personen ohne gruppe-Feld laufen ohne Trennzeile durch (Panel-Druck)', () => {
+  const sel = { ...SEL_G, personen: [{ name: 'Solo', beruf: 'X', stationen: [] }] };
+  const h = PP.renderTafelHtml(sel);
+  assert.doesNotMatch(h, /class="pp-grp"/);
+  assert.match(h, /Solo/);
+});
+
+test('renderTafelHtml: Gruppenname wird escaped', () => {
+  const sel = { ...SEL_G, personen: [{ name: 'A', beruf: 'X', gruppe: '<b>&"G</b>', stationen: [] }] };
+  const h = PP.renderTafelHtml(sel);
+  assert.match(h, /scope="rowgroup">&lt;b&gt;&amp;&quot;G&lt;\/b&gt; <span/);
+  assert.doesNotMatch(h, /scope="rowgroup"><b>/);
+});
+
+/* ═══ TITEL-ZUSATZ (Fund I) ═══════════════════════════════════════════ */
+
+test('kopfHtml/dokument: titelZusatz landet in Ueberschrift und Dokumenttitel', () => {
+  const sel = { ...SEL, titelZusatz: 'Lena Müller' };
+  for (const h of [PP.renderTafelHtml(sel), PP.renderTabelleHtml(sel)]) {
+    assert.match(h, /<title>Durchlauf Lena Müller<\/title>/);
+    assert.match(h, /<h1>Abteilungsdurchlauf – Lena Müller<\/h1>/);
+  }
+});
+
+test('dokument: ohne titelZusatz bleibt der Titel "Abteilungsdurchlauf"', () => {
+  assert.match(PP.renderTafelHtml(SEL), /<title>Abteilungsdurchlauf<\/title>/);
+  assert.match(PP.renderTafelHtml(SEL), /<h1>Abteilungsdurchlauf<\/h1>/);
+});
+
+test('dokument: titelZusatz wird escaped (auch im <title>)', () => {
+  const sel = { ...SEL, titelZusatz: '</title><script>x</script>' };
+  const h = PP.renderTafelHtml(sel);
+  assert.doesNotMatch(h, /<title>Durchlauf <\/title>/);
+  assert.match(h, /<title>Durchlauf &lt;\/title&gt;&lt;script&gt;x&lt;\/script&gt;<\/title>/);
+});
+
+test('kopfHtml: titelZusatz auch im degenerierten Zeitraum erhalten', () => {
+  const h = PP.renderTafelHtml({ ...SEL, von: '', bis: '', titelZusatz: 'Lena Müller' });
+  assert.match(h, /<title>Durchlauf Lena Müller<\/title>/);
+  assert.match(h, /Zeitraum fehlt/);
+});
+
+test('renderTafelHtml: leeres Label baut gar keinen <span> (sonst laeuft sein Padding ueber)', () => {
+  // 02.03.2026-06.03.2026 = 5 Tage -> 1.3699% -> 10.96px Balken. Selbst das
+  // leere Label-Padding (0 5px = 10px) waere darin schon fast der ganze
+  // Balken, bei 1-2 Tagen ein messbarer Ueberlauf. Also kein <span>.
+  const sel = { ...SEL, personen: [{ name: 'A', beruf: 'B', gruppe: 'Zugewiesen', stationen: [
+    { abteilung: 'Recht', von: '2026-03-02', bis: '2026-03-06', verantw: 'X', farbe: '#333' },
+  ] }] };
+  const h = PP.renderTafelHtml(sel);
+  assert.match(h, /<div class="pp-bar" style="left:[\d.]+%;width:1\.3699%;background:#333" title="Recht \(02\.03\.2026 – 06\.03\.2026\)"><\/div>/);
+  assert.doesNotMatch(h, /pp-bar__lbl"><\/span>/);
 });
