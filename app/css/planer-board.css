@@ -162,17 +162,28 @@
   .sidebar, .sidebar-overlay, .topbar, .pt-toolbar, .pt-panel__close,
   .pt-panel__foot, .pt-legend, .pt-grip { display:none !important; }
 
-  /* Das Detail-Panel gehoert nie aufs Papier. Ohne position:static wuerde es
-     unter @media (max-width:1100px) als fixed ueber der Tafel liegen — die
-     Druck-Inhaltsbreite von A4-Landscape (~1032px) loest diesen Breakpoint aus. */
-  .pt-panel { display:none !important; position:static !important; }
+  /* Das Detail-Panel gehoert nie aufs Papier. display:none genuegt: es nimmt
+     das Element vollstaendig aus dem Rendering, damit greift auch die
+     fixed-Positionierung aus @media (max-width:1100px) nicht mehr, die die
+     Druck-Inhaltsbreite von A4-Landscape (~1032px) sonst ausloest. */
+  .pt-panel { display:none !important; }
 
-  /* Linker Rand auf 0. Achtung: .main-wrapper{margin-left:0!important} allein
-     verliert gegen glass.css:1339 — gleiche Spezifitaet (0,1,0), beide
-     !important, und glass.css laedt spaeter (abteilungs-planer.html:20 vs 19).
-     Bei !important-Gleichstand entscheidet die Ladereihenfolge, deshalb hier
-     hoehere Spezifitaet (0,2,0) statt eines lauteren !important. */
-  .app-shell .main-wrapper { margin-left:0 !important; margin-right:0 !important; }
+  /* Linker Rand auf 0. Es gibt drei konkurrierende !important-Regeln fuer
+     margin-left auf .main-wrapper in glass.css (Zeile 1338, 1343, 1346), die
+     alle spaeter laden als diese Datei (abteilungs-planer.html Zeile 20 vs 19).
+     Bei !important-Gleichstand entscheidet die Ladereihenfolge, wir muessen
+     also je Regel eine Stufe hoeher liegen — daher drei Selektoren statt eines
+     lauteren !important:
+       glass.css:1338 .main-wrapper                      (0,1,0)
+       glass.css:1343 .sidebar.collapsed ~ .main-wrapper (0,3,0)
+       glass.css:1346 html.sidebar-init-collapsed …      (0,2,1)
+     Der ~-Selektor greift auch hier, obwohl .sidebar im Druck display:none
+     ist: Selektor-Matching ist strukturell, nicht render-abhaengig. */
+  .app-shell .main-wrapper,
+  .app-shell .sidebar.collapsed ~ .main-wrapper,
+  html.sidebar-init-collapsed .app-shell .main-wrapper {
+    margin-left:0 !important; margin-right:0 !important;
+  }
   body { background:none !important; }
 
   .pt-scroll { max-height:none !important; overflow:visible !important; }
