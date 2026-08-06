@@ -173,3 +173,82 @@ test('barGeom: Station beruehrt den Zeitraum mit genau einem Tag', () => {
   assert.ok(Math.abs(g.widthPct - 1 / 365 * 100) < 0.001);
   assert.equal(g.cutLeft, true);
 });
+
+const SEL = {
+  von: '2025-09-01', bis: '2026-08-31', stand: '2026-08-06',
+  personen: [
+    { name: 'Lena Müller', beruf: 'Industriekauffrau', gruppe: 'Zugewiesen', stationen: [
+      { abteilung: 'Montage', von: '2025-09-01', bis: '2025-10-31', verantw: 'Marco Rossi', farbe: '#4CAF50' },
+      { abteilung: 'IT', von: '2026-06-01', bis: '2026-11-30', verantw: 'M. Lengerer', farbe: '#2196F3' },
+    ] },
+    { name: 'Kevin <Test>', beruf: 'Mechatroniker', gruppe: 'Ohne Zuordnung', stationen: [] },
+  ],
+};
+
+test('renderTafelHtml: vollstaendiges Dokument im Querformat', () => {
+  const h = PP.renderTafelHtml(SEL);
+  assert.match(h, /^<!DOCTYPE html>/);
+  assert.match(h, /<html lang="de">/);
+  assert.match(h, /size:A4 landscape/);
+  assert.match(h, /<\/html>\s*$/);
+});
+
+test('renderTafelHtml: Kopf nennt Zeitraum, Anzahl und Stand', () => {
+  const h = PP.renderTafelHtml(SEL);
+  assert.match(h, /Abteilungsdurchlauf/);
+  assert.match(h, /01\.09\.2025/);
+  assert.match(h, /31\.08\.2026/);
+  assert.match(h, /2 Personen/);
+  assert.match(h, /Stand 06\.08\.2026/);
+});
+
+test('renderTafelHtml: thead traegt die Rasterspalten (fuer Kopfwiederholung)', () => {
+  const h = PP.renderTafelHtml(SEL);
+  assert.match(h, /<thead>/);
+  assert.match(h, /Sep 25/);
+  assert.match(h, /Aug 26/);
+  // table-layout:fixed ist Pflicht, sonst ignoriert der Browser die Spaltenbreiten
+  assert.match(h, /table-layout:fixed/);
+});
+
+test('renderTafelHtml: Balken tragen Farbe, Breite und exaktes Datum', () => {
+  const h = PP.renderTafelHtml(SEL);
+  assert.match(h, /background:#4CAF50/);
+  assert.match(h, /Montage/);
+  // IT laeuft bis 30.11.2026, also ueber das Zeitraumende hinaus:
+  // Marker gesetzt, Datum ungekuerzt.
+  assert.match(h, /30\.11\.2026/);
+  assert.match(h, /pp-bar--cut-r/);
+});
+
+test('renderTafelHtml: Person ohne Station bekommt Hinweis statt zu fehlen', () => {
+  const h = PP.renderTafelHtml(SEL);
+  assert.match(h, /keine Zuweisung im Zeitraum/);
+});
+
+test('renderTafelHtml: Legende listet nur die gedruckten Abteilungen', () => {
+  // Eine Station liegt komplett vor dem Zeitraum — sie darf weder als Balken
+  // noch in der Legende auftauchen.
+  const sel = { ...SEL, personen: [{ name: 'A', beruf: 'B', gruppe: 'Zugewiesen', stationen: [
+    { abteilung: 'Montage',   von: '2025-09-01', bis: '2025-10-31', verantw: 'X', farbe: '#4CAF50' },
+    { abteilung: 'Altlager',  von: '2020-01-01', bis: '2020-06-30', verantw: 'X', farbe: '#999999' },
+  ] }] };
+  const h = PP.renderTafelHtml(sel);
+  // lastIndexOf, nicht indexOf: "pp-legend" steht auch im PRINT_CSS, und ein
+  // Slice ab dem CSS-Vorkommen wuerde die ganze Tabelle einschliessen —
+  // die Negativpruefung koennte dann nie fehlschlagen.
+  const legende = h.slice(h.lastIndexOf('<div class="pp-legend">'));
+  assert.match(legende, /Montage/);
+  assert.doesNotMatch(legende, /Altlager/);
+  assert.doesNotMatch(h, /background:#999999/);
+});
+
+test('renderTafelHtml: Fremdeingaben werden escaped', () => {
+  const h = PP.renderTafelHtml(SEL);
+  assert.match(h, /Kevin &lt;Test&gt;/);
+  assert.doesNotMatch(h, /Kevin <Test>/);
+});
+
+test('renderTafelHtml: print-color-adjust gesetzt, sonst schluckt der Browser die Farben', () => {
+  assert.match(PP.renderTafelHtml(SEL), /print-color-adjust:exact/);
+});

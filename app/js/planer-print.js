@@ -122,7 +122,106 @@ const PlanerPrint = (() => {
     };
   }
 
-  const api = { esc, fmtDe, tageZwischen, buildRaster, barGeom };
+  /* Gemeinsames Stylesheet aller Druckdokumente. Bewusst eigenstaendig und
+     ohne CSS-Variablen der App — das Druckfenster laedt kein App-CSS. */
+  const PRINT_CSS = `
+    *{box-sizing:border-box}
+    body{font-family:'Segoe UI',Arial,sans-serif;color:#1a1a1a;margin:0;padding:0}
+    h1{font-size:17px;margin:0 0 3px}
+    .sub{color:#666;margin:0 0 14px;font-size:11px}
+    table{width:100%;border-collapse:collapse;table-layout:fixed;font-size:10px}
+    th,td{text-align:left;padding:5px 7px;border-bottom:1px solid #ddd;vertical-align:middle}
+    th{font-size:9px;text-transform:uppercase;letter-spacing:.04em;color:#888;border-bottom:1px solid #bbb}
+    th+th,td+td{border-left:1px solid #eee}
+    .pp-nm{font-weight:700}
+    .pp-br{color:#888;font-size:9px}
+    .pp-track{position:relative;height:20px;padding:0}
+    .pp-bar{position:absolute;top:2px;height:16px;border-radius:3px;color:#fff;font-size:9px;
+      line-height:16px;padding:0 5px;overflow:hidden;white-space:nowrap;
+      print-color-adjust:exact;-webkit-print-color-adjust:exact}
+    .pp-bar--cut-l{border-top-left-radius:0;border-bottom-left-radius:0}
+    .pp-bar--cut-r{border-top-right-radius:0;border-bottom-right-radius:0}
+    .pp-none{color:#aaa;font-style:italic;font-size:9px}
+    .pp-legend{margin-top:12px;font-size:9px;color:#555;display:flex;flex-wrap:wrap;gap:10px}
+    .pp-legend span.sw{display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:4px;
+      print-color-adjust:exact;-webkit-print-color-adjust:exact}
+    .pp-sec{margin:0 0 18px;break-inside:avoid;page-break-inside:avoid}
+    .pp-sec h2{font-size:13px;margin:0 0 2px}
+  `;
+
+  function kopfHtml(sel, titelZusatz) {
+    const n = sel.personen.length;
+    return `<h1>Abteilungsdurchlauf${titelZusatz ? ` – ${esc(titelZusatz)}` : ''}</h1>
+      <p class="sub">${fmtDe(sel.von)} – ${fmtDe(sel.bis)} · ${n} ${n === 1 ? 'Person' : 'Personen'} · Stand ${fmtDe(sel.stand)}</p>`;
+  }
+
+  function dokument(titel, css, body, seite) {
+    return `<!DOCTYPE html><html lang="de"><head><meta charset="utf-8">`
+      + `<title>${esc(titel)}</title><style>${css}\n@page{${seite}}</style></head>`
+      + `<body>${body}</body></html>`;
+  }
+
+  /* Tafel = echte <table> mit <thead>: Browser wiederholen einen Tabellenkopf
+     auf jeder Folgeseite von selbst, ein nachgebauter Grid-Kopf tut das nicht.
+     Die Balken liegen absolut in EINER Zelle, die per colspan genau die
+     Rasterspalten ueberdeckt — dadurch stimmt die Ausrichtung ohne
+     Pixelrechnung. table-layout:fixed ist dafuer Pflicht. */
+  function renderTafelHtml(sel) {
+    const range = { von: sel.von, bis: sel.bis };
+    const raster = buildRaster(sel.von, sel.bis);
+    const NAME_PCT = 22;
+    const restPct = 100 - NAME_PCT;
+
+    const cols = `<colgroup><col style="width:${NAME_PCT}%">`
+      + raster.spalten.map(c => `<col style="width:${(c.widthPct * restPct / 100).toFixed(4)}%">`).join('')
+      + `</colgroup>`;
+
+    const kopf = `<thead><tr><th>Person</th>`
+      + raster.spalten.map(c => `<th>${esc(c.label)}</th>`).join('')
+      + `</tr></thead>`;
+
+    // Senkrechte Rasterlinien in der Balkenzelle nachziehen (die colspan-Zelle
+    // hat keine eigenen Spaltengrenzen mehr).
+    const linien = raster.spalten.slice(1)
+      .map(c => `<div style="position:absolute;top:0;bottom:0;left:${c.leftPct.toFixed(4)}%;width:1px;background:#eee"></div>`)
+      .join('');
+
+    const zeilen = sel.personen.map(p => {
+      const balken = (p.stationen || []).map(s => {
+        const g = barGeom(s, range);
+        if (!g) return '';
+        const cls = 'pp-bar'
+          + (g.cutLeft ? ' pp-bar--cut-l' : '')
+          + (g.cutRight ? ' pp-bar--cut-r' : '');
+        const bisTxt = s.bis ? fmtDe(s.bis) : 'offen';
+        const marker = (g.cutLeft ? '‹ ' : '') + esc(s.abteilung || '') + (g.cutRight ? ' ›' : '');
+        return `<div class="${cls}" style="left:${g.leftPct.toFixed(4)}%;width:${g.widthPct.toFixed(4)}%;background:${esc(s.farbe)}"`
+          + ` title="${esc(s.abteilung || '')} (${fmtDe(s.von)} – ${bisTxt})">${marker}</div>`;
+      }).join('');
+
+      const leer = balken ? '' : `<div class="pp-none">keine Zuweisung im Zeitraum</div>`;
+      return `<tr>
+        <td><div class="pp-nm">${esc(p.name)}</div><div class="pp-br">${esc(p.beruf || '')}</div></td>
+        <td class="pp-track" colspan="${raster.spalten.length}">${linien}${balken}${leer}</td>
+      </tr>`;
+    }).join('');
+
+    // Legende nur mit den Abteilungen, die tatsaechlich aufs Papier kommen.
+    const gedruckt = new Map();
+    sel.personen.forEach(p => (p.stationen || []).forEach(s => {
+      if (barGeom(s, range) && !gedruckt.has(s.abteilung)) gedruckt.set(s.abteilung, s.farbe);
+    }));
+    const legende = `<div class="pp-legend">`
+      + [...gedruckt].sort((a, b) => a[0].localeCompare(b[0], 'de'))
+          .map(([ab, farbe]) => `<b><span class="sw" style="background:${esc(farbe)}"></span>${esc(ab)}</b>`).join('')
+      + `</div>`;
+
+    const body = kopfHtml(sel, '')
+      + `<table>${cols}${kopf}<tbody>${zeilen}</tbody></table>${legende}`;
+    return dokument('Abteilungsdurchlauf', PRINT_CSS, body, 'size:A4 landscape;margin:12mm');
+  }
+
+  const api = { esc, fmtDe, tageZwischen, buildRaster, barGeom, PRINT_CSS, renderTafelHtml };
   if (typeof window !== 'undefined') window.PlanerPrint = api;
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   return api;
