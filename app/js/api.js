@@ -71,6 +71,49 @@ async function apiUpload(path, formData) {
 window.escapeHtml = s => String(s ?? '').replace(/[&<>"']/g,
   c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
+/* Quill-Rich-Text (bereits HTML mit Entities) für die Anzeige aufbereiten:
+   mit DOMParser parsen statt blind escapen – sonst stünde die Auszeichnung als
+   „<p>…</p>" im Text und getipptes & würde doppelt escaped. Nur Whitelist-Tags
+   bleiben erhalten, ALLE Attribute (und damit style/onclick/href) werden
+   verworfen, Textknoten genau einmal escaped. DOMParser führt kein Skript aus,
+   Bilder/Skripte/iframes fallen auf ihren Inhalt zusammen.
+   Genutzt von der Durchlauf-Detailseite und dem Berichtsheft-Export. */
+window.RICH_ALLOWED_TAGS = new Set([
+  'p', 'br', 'strong', 'em', 'u', 'b', 'i', 'ul', 'ol', 'li', 'span',
+  'table', 'thead', 'tbody', 'tr', 'th', 'td',
+]);
+// Einzige erlaubte Ausnahme von "alle Attribute verwerfen": Quill 2 baut AUCH
+// Aufzählungen als <ol> und unterscheidet sie nur über li[data-list="bullet"].
+// Ohne dieses Attribut würden Punkte als Nummern erscheinen. data-* trägt kein
+// Verhalten, der Wert wird zusätzlich auf die bekannten Varianten begrenzt.
+const _RICH_LIST_KINDS = new Set(['bullet', 'ordered', 'checked', 'unchecked']);
+// Bei diesen Tags ist auch der INHALT wertlos: sonst stünde der Quelltext eines
+// <script>/<style> als sichtbarer (escapter) Text im Bericht.
+const _RICH_DROP_CONTENT = new Set(['script', 'style', 'noscript', 'template', 'iframe', 'object', 'embed']);
+function _serializeAllowedRich(node) {
+  let out = '';
+  node.childNodes.forEach(n => {
+    if (n.nodeType === 3) { out += escapeHtml(n.nodeValue); return; }   // Textknoten
+    if (n.nodeType !== 1) return;                                        // Kommentare etc. verwerfen
+    const tag = n.tagName.toLowerCase();
+    if (_RICH_DROP_CONTENT.has(tag)) return;                             // Tag UND Inhalt verwerfen
+    if (tag === 'br') { out += '<br>'; return; }
+    const inner = _serializeAllowedRich(n);
+    if (!RICH_ALLOWED_TAGS.has(tag)) { out += inner; return; }            // unerlaubtes Tag: nur Inhalt
+    const kind = tag === 'li' ? n.getAttribute('data-list') : null;
+    const attr = _RICH_LIST_KINDS.has(kind) ? ` data-list="${kind}"` : '';
+    out += `<${tag}${attr}>${inner}</${tag}>`;
+  });
+  return out;
+}
+window.sanitizeRichHtml = html =>
+  _serializeAllowedRich(new DOMParser().parseFromString(String(html == null ? '' : html), 'text/html').body);
+
+// Ist ein Rich-Text-Block inhaltlich leer? (Quill hinterlässt "<p><br></p>".)
+window.richTextIstLeer = html =>
+  (new DOMParser().parseFromString(String(html == null ? '' : html), 'text/html').body.textContent || '')
+    .replace(/ /g, ' ').trim() === '';
+
 // Anzeige-Name: Entra liefert "Nachname, Vorname" – hier zu "Vorname Nachname"
 // drehen. Idempotent für Namen ohne Komma (bereits "Vorname Nachname").
 window.displayName = raw => {

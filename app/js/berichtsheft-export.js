@@ -32,35 +32,10 @@ const BerichtsheftExport = (() => {
   /* ── HTML-Escaping + Rich-Text-Whitelist ───────────────────────── */
   const esc = window.escapeHtml;
 
-  // Quill-Rich-Text (bereits HTML mit Entities): mit DOMParser parsen statt
-  // blind escapen (sonst würde getipptes & als &amp;amp; doppelt escaped).
-  // Nur Whitelist-Tags behalten, alle Attribute verwerfen, Textknoten genau
-  // einmal escapen. DOMParser führt kein Skript aus.
-  const RICH_ALLOWED = new Set([
-    'p', 'br', 'strong', 'em', 'u', 'b', 'i', 'ul', 'ol', 'li', 'span',
-    'table', 'thead', 'tbody', 'tr', 'th', 'td',
-  ]);
-  function serializeAllowed(node) {
-    let out = '';
-    node.childNodes.forEach(n => {
-      if (n.nodeType === 3) { out += esc(n.nodeValue); return; }   // Textknoten
-      if (n.nodeType !== 1) return;                                 // Kommentare etc. verwerfen
-      const tag = n.tagName.toLowerCase();
-      if (tag === 'br') { out += '<br>'; return; }
-      const inner = serializeAllowed(n);
-      out += RICH_ALLOWED.has(tag) ? `<${tag}>${inner}</${tag}>` : inner;  // unerlaubtes Tag: nur Inhalt
-    });
-    return out;
-  }
-  function sanitizeRich(html) {
-    const doc = new DOMParser().parseFromString(String(html == null ? '' : html), 'text/html');
-    return serializeAllowed(doc.body);
-  }
-  // Reintext (Entities dekodiert), um zu entscheiden ob ein Block leer ist.
-  function richIstLeer(html) {
-    const doc = new DOMParser().parseFromString(String(html == null ? '' : html), 'text/html');
-    return (doc.body.textContent || '').replace(/ /g, ' ').trim() === '';
-  }
+  // Quill-Rich-Text: Whitelist-Sanitizer und Leer-Test liegen zentral in api.js,
+  // damit Export und Durchlauf-Detailseite dieselbe Whitelist verwenden.
+  const sanitizeRich = html => window.sanitizeRichHtml(html);
+  const richIstLeer  = html => window.richTextIstLeer(html);
 
   /* ── Datei-Download & kleine Helfer ─────────────────────────────── */
   function download(data, filename, mime) {

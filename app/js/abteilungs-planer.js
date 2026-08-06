@@ -38,141 +38,15 @@ const GANTT_PALETTE = [
 ];
 function ganttColor(idx) { return GANTT_PALETTE[((idx % GANTT_PALETTE.length) + GANTT_PALETTE.length) % GANTT_PALETTE.length]; }
 
-/* Eigenständige, einzeilige Timeline für die Azubi-Ansicht (gleiche .gantt-*-Styles
-   wie der Planer). Zeigt die Abteilungen des Azubis als farbige Balken mit Abteilungsname. */
-function azubiTimelineHtml(zuw, planYear) {
-  const jan1 = new Date(planYear, 0, 1);
-  const daysInYear = Math.round((new Date(planYear, 11, 31) - jan1) / 86400000) + 1;
-  const dayOf = d => Math.round((d - jan1) / 86400000);
-  const now = new Date();
-  now.setHours(0, 0, 0, 0);   // Mitternacht → dayOf() rundet nicht in den Folgetag; Heute-Linie sitzt exakt
-
-  const monate = Array.from({ length: 12 }, (_, m) => {
-    const dim = new Date(planYear, m + 1, 0).getDate();
-    return `<div class="gantt-month" style="width:calc(${dim} * var(--day-px))">${DateUtil.MONTHS[m]} ${planYear}</div>`;
-  }).join('');
-  const tage = [];
-  for (let m = 0; m < 12; m++) {
-    const dim = new Date(planYear, m + 1, 0).getDate();
-    for (let d = 1; d <= dim; d++) {
-      const date = new Date(planYear, m, d);
-      const dow = date.getDay();
-      const isWe = dow === 0 || dow === 6;
-      const isMonthStart = d === 1;
-      tage.push(`<div class="gantt-day${isWe ? ' gantt-day--weekend' : ''}${isMonthStart ? ' gantt-day--month' : ''}">${d}</div>`);
-    }
-  }
-  const bars = zuw.map((z, i) => {
-    if (!z.von || !z.bis) return '';
-    const fromDay = dayOf(new Date(z.von + 'T00:00:00'));
-    const toDay   = dayOf(new Date(z.bis + 'T00:00:00'));
-    const startDay = Math.max(0, fromDay);
-    const endDay   = Math.min(daysInYear - 1, toDay);
-    if (endDay < startDay) return '';
-    const left  = startDay / daysInYear * 100;
-    const width = (endDay - startDay + 1) / daysInYear * 100;
-    return `<div class="gantt-bar" style="left:${left}%;width:${width}%;background:${ganttColor(i)}"
-              title="${escHtml(z.abteilung || '–')} (${DateUtil.formatDate(z.von)} – ${DateUtil.formatDate(z.bis)})">
-              <span class="gantt-bar__label">${escHtml(z.abteilung || '')}</span>
-            </div>`;
-  }).join('');
-  const todayPct = now.getFullYear() === planYear ? (dayOf(now) + 0.5) / daysInYear * 100 : null;
-  const todayLine = todayPct != null
-    ? `<div class="gantt-today-line" style="left:${todayPct}%"></div>`
-    : '';
-
-  return `
-    <div class="gantt-scroll" id="azubiGanttScroll">
-      <div class="gantt-grid gantt--lg" style="--num-days:${daysInYear};--day-px:30px">
-        <div class="gantt-header">
-          <div class="gantt-header__name-col">${planYear}</div>
-          <div class="gantt-header__timeline">
-            <div class="gantt-months">${monate}</div>
-            <div class="gantt-days">${tage.join('')}</div>
-          </div>
-        </div>
-        <div class="gantt-body">
-          <div class="gantt-row">
-            <div class="gantt-row__info"><span class="gantt-row__name">Abteilungen</span></div>
-            <div class="gantt-row__timeline">${todayLine}${bars}</div>
-          </div>
-        </div>
-      </div>
-    </div>`;
-}
-
-/* Status-Badge einer Zuweisung (relativ zu heute). */
-function durchlaufStatus(z, heute) {
-  if (!z.von || !z.bis)   return { label: 'Offen',      badge: 'badge--grey' };
-  if (z.bis < heute)      return { label: 'Beendet',    badge: 'badge--grey' };
-  if (z.von > heute)      return { label: 'Zukünftig', badge: 'badge--freigegeben' };
-  return { label: 'Aktuell', badge: 'badge--genehmigt' };
-}
-
-/* Read-only Durchlauf-Inhalt (Timeline + Karten) EINES Azubis. Gemeinsame Basis
-   für die Azubi-Eigensicht und die Ausbilder-Sicht. */
-async function durchlaufBodyHtml(azubiId, ausbilderMode = false) {
-  const heute = DateUtil.toISODate(new Date());
-  const planYear = new Date().getFullYear();
-  const zuw = (await DB.getZuweisungenFuerAzubi(azubiId))
-    .slice().sort((a, b) => (a.von || '').localeCompare(b.von || ''));
-  let beurtByZuw = {};
-  try {
-    (await DB.getBeurteilungenFuerAzubi(azubiId)).forEach(b => { beurtByZuw[b.zuweisungId] = b; });
-  } catch (e) { /* Endpoint evtl. nicht verfügbar -> ohne Badges weiter */ }
-
-  const card = z => {
-    const s = durchlaufStatus(z, heute);
-    const b = beurtByZuw[z.id];
-    // Verantwortliche dürfen ab Beginn des Durchlaufs beurteilen (aktiv ODER beendet),
-    // aber nicht bei rein zukünftigen Durchläufen. Backend prüft datumsunabhängig.
-    const gestartet = z.von && z.von <= heute;
-    let beurtBadge = '', klickbar = false;
-    if (b && b.status === 'abgeschlossen') { beurtBadge = `<span class="badge badge--genehmigt durchlauf-card__beurt">Beurteilung ✓</span>`; klickbar = true; }
-    else if (ausbilderMode && (b && b.status === 'entwurf')) { beurtBadge = `<span class="badge badge--freigegeben durchlauf-card__beurt">Entwurf</span>`; klickbar = true; }
-    else if (ausbilderMode && gestartet) { beurtBadge = `<span class="badge badge--grey durchlauf-card__beurt">Beurteilung offen</span>`; klickbar = true; }
-    return `
-    <div class="durchlauf-card${s.label === 'Aktuell' ? ' durchlauf-card--current' : ''}${klickbar ? ' durchlauf-card--clickable' : ''}"
-         ${klickbar ? `data-zuw="${z.id}" role="button" tabindex="0"` : ''}>
-      <span class="badge ${s.badge} durchlauf-card__badge">${s.label}</span>
-      <div class="durchlauf-card__abt">${escHtml(z.abteilung) || '–'}</div>
-      <div class="durchlauf-card__zeit">${DateUtil.formatDate(z.von)} – ${DateUtil.formatDate(z.bis)}</div>
-      <div class="durchlauf-card__verantw">Ansprechpartner: <strong>${escHtml(z.verantwName || '–')}</strong></div>
-      ${beurtBadge}
-    </div>`;
-  };
-  return `
-    ${zuw.length ? azubiTimelineHtml(zuw, planYear) : ''}
-    ${zuw.length
-      ? `<div class="durchlauf-list">${zuw.map(card).join('')}</div>`
-      : `<div class="durchlauf-empty">Aktuell keine Abteilung zugewiesen.</div>`}`;
-}
-
-// Kachel-Klick -> Beurteilungsseite (Delegation; einmal pro Render aufrufen).
-function wireBeurteilungKacheln(root) {
-  (root || document).querySelectorAll('.durchlauf-card--clickable').forEach(el => {
-    const go = () => { window.location.href = `beurteilung.html?zuw=${el.dataset.zuw}`; };
-    el.addEventListener('click', go);
-    el.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); go(); } });
-  });
-}
-
-/* Timeline nach dem Rendern auf „heute" scrollen. */
-function scrollDurchlaufToToday() {
-  const azTs = document.getElementById('azubiGanttScroll');
-  if (!azTs) return;
-  const jan1 = new Date(new Date().getFullYear(), 0, 1);
-  const dayIdx = Math.round((new Date() - jan1) / 86400000);
-  requestAnimationFrame(() => { azTs.scrollLeft = Math.max(0, (dayIdx - 3) * 30); });
-}
-
 /* ═══════════════════════════════════════════════════════════════════
-   AZUBI-EIGENSICHT „Mein Abteilungsdurchlauf" – Status-Board (2026-07)
-   Zeitstrahl (voller Ausbildungsverlauf, wiederverwendetes .gantt--lg) +
-   drei Status-Spalten (Abgeschlossen / Aktuell / Geplant). Die Beurteilung
-   ist verborgen und wird erst beim Aufklappen einer Abteilung gezeigt.
-   Read-only. Nur die Eigensicht nutzt dies – die Ausbilder-Sicht bleibt bei
-   durchlaufBodyHtml(). CSS: .dlb-* in abteilungs-planer.css.
+   DURCHLAUF-STATUS-BOARD (2026-07) – Read-only
+   Hero (aktueller Einsatz) + Verlaufs-Rail + abgeschlossene Abteilungen;
+   Details/Beurteilung erst auf der Detailseite einer Abteilung (?abt=…).
+   Zwei Sichten auf denselben Code:
+     • Azubi  – eigener Durchlauf, ?mein=1 (renderAzubiDurchlauf)
+     • Ausbilder – betreuter Azubi, ?azubi=<oid> (renderAusbilderDurchlauf),
+       gesteuert über die opts von durchlaufBoardHtml/renderAbteilungDetail.
+   CSS: .dlb-* in abteilungs-planer.css.
    ═══════════════════════════════════════════════════════════════════ */
 const DLB_ICO = {
   cal:      '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>',
@@ -204,19 +78,22 @@ function dlbStatusKey(z, heute) {
   if (z.von > heute) return 'zukuenftig';
   return 'aktuell';
 }
-/* Ausbildungsjahr (1-basiert), in das ein Datum fällt – relativ zum Ausbildungsbeginn.
-   Ohne bekannten Beginn: null (dann keine Lehrjahr-Gruppierung). */
-function dlbLehrjahr(iso, beginn) {
-  if (!beginn || !iso) return null;
-  const b = new Date(beginn + 'T00:00:00'), d = new Date(iso + 'T00:00:00');
-  if (isNaN(b) || isNaN(d)) return null;
-  const m = (d.getFullYear() - b.getFullYear()) * 12 + (d.getMonth() - b.getMonth());
-  return Math.max(1, Math.floor(m / 12) + 1);
-}
 /* Beurteilungs-Block für die Abteilungs-Detailseite. Der Azubi sieht die
    abgeschlossene Beurteilung (mit Öffnen-Link); Entwürfe der Ausbilder bleiben
-   verborgen (nur der Status „noch nicht abgeschlossen"). */
-function dlbBeurtBlock(z, b, statusKey) {
+   verborgen (nur der Status „noch nicht abgeschlossen").
+   Im Ausbilder-Modus dagegen sind Entwürfe sichtbar und die Beurteilung ist ab
+   Beginn des Einsatzes zum Bearbeiten verlinkt (gleiche Regel wie zuvor auf den
+   Durchlauf-Kacheln: aktiv ODER beendet, aber nicht rein zukünftig). */
+function dlbBeurtBlock(z, b, statusKey, ausbilderMode = false) {
+  if (ausbilderMode && (!b || b.status !== 'abgeschlossen')) {
+    const gestartet = z.von && z.von <= DateUtil.toISODate(new Date());
+    const entwurf = b && b.status === 'entwurf';
+    const info = entwurf
+      ? `<div class="dlb-beurt dlb-beurt--open">${DLB_ICO.circle} Entwurf – noch nicht abgeschlossen</div>`
+      : `<div class="dlb-beurt dlb-beurt--open">${DLB_ICO.circle} Noch nicht abgeschlossen</div>`;
+    if (!gestartet) return `${info}<div class="dlb-detail__note">Die Beurteilung ist ab Beginn des Einsatzes möglich.</div>`;
+    return `${info}<a class="btn btn-outline btn-sm dlb-beurt-open" href="beurteilung.html?zuw=${z.id}">${entwurf ? 'Entwurf öffnen' : 'Beurteilung anlegen'}</a>`;
+  }
   if (b && b.status === 'abgeschlossen') {
     const note = b.note != null ? b.note.toLocaleString('de-DE', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) : '–';
     const pkt = b.gesamtPunkte != null ? Math.round(b.gesamtPunkte) : null;
@@ -237,8 +114,15 @@ function dlbBeurtBlock(z, b, statusKey) {
 
 /* Baut das komplette Board (Zeitstrahl + 3 Spalten) als HTML-String.
    Beurteilungen werden hier NICHT geladen – sie erscheinen erst auf der
-   Detailseite einer Abteilung (?abt=<id>). */
-function durchlaufBoardHtml(user, zuw, heute, beurtByZuw = {}) {
+   Detailseite einer Abteilung (?abt=<id>).
+
+   opts steuert die Fremdsicht (Ausbilder schaut auf einen betreuten Azubi):
+     title      – Überschrift (Default „Mein Abteilungsdurchlauf")
+     self       – false ⇒ neutrale Texte statt Du-Ansprache
+     detailHref – Link-Builder je Zuweisung (Default eigene Sicht ?mein=1&abt=…) */
+function durchlaufBoardHtml(user, zuw, heute, beurtByZuw = {}, opts = {}) {
+  const self = opts.self !== false;
+  const detailHref = opts.detailHref || (z => `?mein=1&abt=${z.id}`);
   // Stabile Farbe je Abteilung (alphabetisch vorbelegt → gleiche Abteilung, gleiche Farbe).
   const cIdx = {}; let cN = 0;
   const colorFor = ab => {
@@ -256,11 +140,8 @@ function durchlaufBoardHtml(user, zuw, heute, beurtByZuw = {}) {
   const plan = rows.filter(r => r.key === 'zukuenftig' || r.key === 'offen');
 
   // ── Kopf ──
-  const lj = dlbLehrjahr(heute, user.ausbildungsBeginn);
   const chips = [
     user.beruf ? `<span class="dlb-chip">${DLB_ICO.cap}${escHtml(user.beruf)}</span>` : '',
-    lj ? `<span class="dlb-chip">${lj}. Lehrjahr</span>` : '',
-    user.ausbildungsBeginn ? `<span class="dlb-chip">${DLB_ICO.cal}Start ${DateUtil.formatDate(user.ausbildungsBeginn)}</span>` : '',
   ].join('');
   const wd = today.toLocaleDateString('de-DE', { weekday: 'short' });
   const stand = `<span class="dlb-stand">${DLB_ICO.clock}Stand: ${wd}, ${DateUtil.formatDate(heute)}</span>`;
@@ -289,7 +170,7 @@ function durchlaufBoardHtml(user, zuw, heute, beurtByZuw = {}) {
         <div class="dlb-track"><div class="dlb-fill" style="width:${pct}%"></div></div>
       </div>`;
     }
-    return `<a class="dlb-hero dlb-hero--link" href="?mein=1&abt=${z.id}" style="--edge:${colorFor(z.abteilung)}">
+    return `<a class="dlb-hero dlb-hero--link" href="${detailHref(z)}" style="--edge:${colorFor(z.abteilung)}">
       <div class="dlb-hero__main">
         <span class="dlb-hero__eye">${DLB_ICO.pin}Aktueller Einsatz</span>
         <h2 class="dlb-hero__t">${escHtml(z.abteilung || '–')}</h2>
@@ -310,20 +191,19 @@ function durchlaufBoardHtml(user, zuw, heute, beurtByZuw = {}) {
       return `<div class="dlb-hero dlb-hero--quiet"><div class="dlb-hero__main">
         <span class="dlb-hero__eye dlb-hero__eye--muted">Kein aktueller Einsatz</span>
         <h2 class="dlb-hero__t">Zwischen zwei Einsätzen</h2>
-        <p class="dlb-hero__note">Deine nächste Abteilung <b>${escHtml(z.abteilung || '–')}</b> beginnt am <b>${z.von ? DateUtil.formatDate(z.von) : '—'}</b>.</p>
+        <p class="dlb-hero__note">${self ? 'Deine nächste' : 'Die nächste'} Abteilung <b>${escHtml(z.abteilung || '–')}</b> beginnt am <b>${z.von ? DateUtil.formatDate(z.von) : '—'}</b>.</p>
       </div></div>`;
     }
     if (done.length) {
       return `<div class="dlb-hero dlb-hero--quiet"><div class="dlb-hero__main">
         <span class="dlb-hero__eye dlb-hero__eye--muted">Kein aktueller Einsatz</span>
         <h2 class="dlb-hero__t">Zurzeit keine laufende Abteilung</h2>
-        <p class="dlb-hero__note">Deine abgeschlossenen Abteilungen findest du unten.</p>
       </div></div>`;
     }
     return `<div class="dlb-hero dlb-hero--quiet"><div class="dlb-hero__main">
       <span class="dlb-hero__eye dlb-hero__eye--muted">Abteilungsdurchlauf</span>
       <h2 class="dlb-hero__t">Noch keine Abteilung zugewiesen</h2>
-      <p class="dlb-hero__note">Sobald die Ausbildungsleitung deine erste Abteilung einträgt, erscheint sie hier.</p>
+      <p class="dlb-hero__note">Sobald die Ausbildungsleitung ${self ? 'deine erste' : 'die erste'} Abteilung einträgt, erscheint sie hier.</p>
     </div></div>`;
   }
   const heroHtml = now.length ? now.map(heroCurrent).join('') : heroFallback();
@@ -342,7 +222,7 @@ function durchlaufBoardHtml(user, zuw, heute, beurtByZuw = {}) {
       : st === 'now' ? `<span class="dlb-stop__now">● aktuell</span>`
       : `<span class="dlb-stop__soon">geplant</span>`;
     const tag = st === 'plan' ? 'div' : 'a';
-    const href = st === 'plan' ? '' : ` href="?mein=1&abt=${z.id}"`;
+    const href = st === 'plan' ? '' : ` href="${detailHref(z)}"`;
     return `<${tag} class="dlb-stop dlb-stop--${st}"${href}>
       <div class="dlb-stop__nw"><span class="dlb-stop__node" style="--edge:${colorFor(z.abteilung)}">${st === 'done' ? CHECK_SM : (i + 1)}</span></div>
       <div class="dlb-stop__name">${escHtml(z.abteilung || '–')}</div>
@@ -358,7 +238,7 @@ function durchlaufBoardHtml(user, zuw, heute, beurtByZuw = {}) {
     const b = beurtByZuw[z.id];
     const grade = (b && b.status === 'abgeschlossen' && b.note != null)
       ? b.note.toLocaleString('de-DE', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) : null;
-    return `<a class="dlb-mini-card" href="?mein=1&abt=${z.id}" style="--edge:${colorFor(z.abteilung)}">
+    return `<a class="dlb-mini-card" href="${detailHref(z)}" style="--edge:${colorFor(z.abteilung)}">
       <div class="dlb-mini-card__top">
         <div class="dlb-mini-card__body">
           <div class="dlb-mini-card__t">${escHtml(z.abteilung || '–')}</div>
@@ -376,7 +256,7 @@ function durchlaufBoardHtml(user, zuw, heute, beurtByZuw = {}) {
   return `
   <div class="dlb dlb-board">
     <div class="dlb-head">
-      <div><h1 class="dlb-h1">Mein Abteilungsdurchlauf</h1>${chips ? `<div class="dlb-h1meta">${chips}</div>` : ''}</div>
+      <div><h1 class="dlb-h1">${escHtml(opts.title || 'Mein Abteilungsdurchlauf')}</h1>${chips ? `<div class="dlb-h1meta">${chips}</div>` : ''}</div>
       ${stand}
     </div>
     ${heroHtml}
@@ -461,19 +341,23 @@ async function renderAzubiDurchlauf(user) {
 }
 
 /* Detailseite EINER Abteilung (?abt=<id>): Berichtsheft-Wochen dieses Zeitraums
-   + Beurteilung. Read-only, nur die eigene Abteilung des angemeldeten Azubis. */
-async function renderAbteilungDetail(user, zuwId) {
+   + Beurteilung. Read-only. Standard: die eigene Abteilung des angemeldeten
+   Azubis. Über ctx (Ausbilder-Sicht) auch die eines betreuten Azubis – die
+   Zugehörigkeit wird gegen ctx.azubiId geprüft, das der Aufrufer zuvor gegen
+   die Liste der betreuten Azubis validiert hat. */
+async function renderAbteilungDetail(user, zuwId, ctx = {}) {
   document.getElementById('nav-planer')?.classList.remove('active');
   document.getElementById('nav-abteilungsplan')?.classList.add('active');
   const main = document.getElementById('mainContent');
   document.body.dataset.page = 'abteilungs-planer';
+  const azubiId = ctx.azubiId || user.id;
 
   try {
     const heute = DateUtil.toISODate(new Date());
     const z = await DB.getZuweisung(zuwId);
-    if (!z || String(z.azubiId) !== String(user.id)) {   // Fremdzugriff/leer → nur Zurück
-      main.innerHTML = durchlaufDetailHtml(null, null, [], heute);
-      wireDurchlaufDetail(main);
+    if (!z || String(z.azubiId) !== String(azubiId)) {   // Fremdzugriff/leer → nur Zurück
+      main.innerHTML = durchlaufDetailHtml(null, null, [], heute, ctx);
+      wireDurchlaufDetail(main, ctx);
       return;
     }
     let beurt = null;
@@ -481,20 +365,22 @@ async function renderAbteilungDetail(user, zuwId) {
     let wochen = [];
     try {
       // Wochen, die den Zeitraum [von, bis] überschneiden (bis leer = offenes Ende).
-      wochen = (await DB.getWochenFuerAzubi(user.id))
+      wochen = (await DB.getWochenFuerAzubi(azubiId))
         .filter(w => w.startDate && w.endDate && z.von && w.endDate >= z.von && (!z.bis || w.startDate <= z.bis))
         .sort((a, b) => (a.startDate || '').localeCompare(b.startDate || ''));
     } catch (e) { /* ohne Wochen weiter */ }
-    main.innerHTML = durchlaufDetailHtml(z, beurt, wochen, heute);
-    wireDurchlaufDetail(main);
+    main.innerHTML = durchlaufDetailHtml(z, beurt, wochen, heute, ctx);
+    wireDurchlaufDetail(main, ctx);
   } catch (err) {
     main.innerHTML = `<div class="durchlauf-empty">Abteilung konnte nicht geladen werden.</div>`;
     if (window.Toast && typeof Toast.error === 'function') Toast.error('Fehler', 'Abteilung konnte nicht geladen werden.');
   }
 }
 
-function durchlaufDetailHtml(z, beurt, wochen, heute) {
-  const back = `<a class="dlb-back" href="?mein=1"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px"><path d="m15 6-6 6 6 6"/></svg>Mein Abteilungsdurchlauf</a>`;
+function durchlaufDetailHtml(z, beurt, wochen, heute, ctx = {}) {
+  const backHref = ctx.backHref || '?mein=1';
+  const backLabel = ctx.backLabel || 'Mein Abteilungsdurchlauf';
+  const back = `<a class="dlb-back" href="${backHref}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px"><path d="m15 6-6 6 6 6"/></svg>${escHtml(backLabel)}</a>`;
   if (!z) return `<div class="dlb dlb-detailpage">${back}<div class="durchlauf-empty">Abteilung nicht gefunden.</div></div>`;
   const statusKey = dlbStatusKey(z, heute);
   const statusLbl = { beendet: 'Beendet', aktuell: 'Aktuell', zukuenftig: 'Zukünftig', offen: 'Offen' }[statusKey] || '';
@@ -518,7 +404,7 @@ function durchlaufDetailHtml(z, beurt, wochen, heute) {
       </section>
       <section class="dlb-panel dlb-panel--side">
         <h2 class="dlb-panel__title">Beurteilung</h2>
-        <div class="dlb-panel__body">${dlbBeurtBlock(z, beurt, statusKey)}</div>
+        <div class="dlb-panel__body">${dlbBeurtBlock(z, beurt, statusKey, !!ctx.ausbilderMode)}</div>
       </section>
     </div>
   </div>`;
@@ -526,10 +412,13 @@ function durchlaufDetailHtml(z, beurt, wochen, heute) {
 
 /* Wochen-Zeile → Sprung in die Wochenansicht (gleiche Deep-Link-Mechanik wie
    Jahresansicht/Ausbilder-Cockpit: gotoKW/gotoYear via sessionStorage). */
-function wireDurchlaufDetail(root) {
+function wireDurchlaufDetail(root, ctx = {}) {
   root.querySelectorAll('.dlb-wk__open').forEach(btn => btn.addEventListener('click', () => {
     sessionStorage.setItem('gotoKW', btn.dataset.kw);
     sessionStorage.setItem('gotoYear', btn.dataset.year);
+    // Fremdsicht: die Wochenansicht wählt den Azubi über den gemerkten
+    // Azubi-Filter – sonst landet der Ausbilder auf einer anderen Person.
+    if (ctx.ausbilderMode && ctx.azubiId && typeof setPersistedAzubiId === 'function') setPersistedAzubiId(ctx.azubiId);
     window.location.href = 'wochenansicht.html';
   }));
 }
@@ -537,20 +426,27 @@ function wireDurchlaufDetail(root) {
 /* Lesbarer „Tätigkeitsbericht": alle Wochen untereinander, je Woche eine
    Kopfzeile (KW + Zeitraum + Öffnen-Button) und darunter der eingetragene Text.
    Passt sich dem Berichtstyp an: wöchentliches Berichtsheft → EIN Textblock je
-   Woche (Wochenebene); tägliches → je Tag ein Block. Immer mehrzeilig (der Text
-   wird 1:1 mit Zeilenumbrüchen dargestellt), ohne Ganztag/Halbtag/Anwesenheit. */
+   Woche (Wochenebene); tägliches → je Tag ein Block; ohne Ganztag/Halbtag/
+   Anwesenheit.
+
+   Die Einträge kommen aus dem Quill-Editor und SIND HTML (Absätze, Listen,
+   Tabellen). Sie werden deshalb über den Whitelist-Sanitizer aus api.js
+   gerendert statt escaped – sonst stünde das Markup als Text auf der Seite.
+   Aus demselben Grund entscheidet richTextIstLeer(), ob ein Block Inhalt hat:
+   Quill hinterlässt für „leer" ein wahrheitswertiges "<p><br></p>". */
 function wochenDigestHtml(wochen) {
   if (!wochen.length) return `<div class="dlb-col__empty">Für diesen Zeitraum sind noch keine Berichtsheft-Wochen erfasst.</div>`;
   const WD = ['So', 'Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa'];
+  const hatText = v => v && !richTextIstLeer(v);
   const lab = l => l ? `<span class="dlb-entry__lab">${l}</span>` : '';
-  const block = (l, t) => `<div class="dlb-entry">${lab(l)}<div class="dlb-entry__t">${escHtml(t)}</div></div>`;
+  const block = (l, t) => `<div class="dlb-entry">${lab(l)}<div class="dlb-entry__t dlb-rich">${sanitizeRichHtml(t)}</div></div>`;
 
   return wochen.map(w => {
     // Wochenebene zuerst (wöchentliches Berichtsheft); sonst Tagesebene.
     const wk = [];
-    if (w.betriebEintrag) wk.push(['', w.betriebEintrag]);
-    if (w.schuleEintrag) wk.push(['Berufsschule', w.schuleEintrag]);
-    if (w.unterweisungEintrag) wk.push(['Unterweisung', w.unterweisungEintrag]);
+    if (hatText(w.betriebEintrag)) wk.push(['', w.betriebEintrag]);
+    if (hatText(w.schuleEintrag)) wk.push(['Berufsschule', w.schuleEintrag]);
+    if (hatText(w.unterweisungEintrag)) wk.push(['Unterweisung', w.unterweisungEintrag]);
 
     let body;
     if (wk.length) {
@@ -559,16 +455,16 @@ function wochenDigestHtml(wochen) {
       const tage = (w.tage || []).slice().sort((a, b) => (a.datum || '').localeCompare(b.datum || ''));
       const dayRows = tage.map(t => {
         const segs = [];
-        if (t.betriebEintrag) segs.push(['', t.betriebEintrag]);
-        if (t.schuleEintrag) segs.push(['Berufsschule', t.schuleEintrag]);
-        if (t.unterweisungEintrag) segs.push(['Unterweisung', t.unterweisungEintrag]);
-        if (!segs.length && t.eintrag) segs.push(['', t.eintrag]);
+        if (hatText(t.betriebEintrag)) segs.push(['', t.betriebEintrag]);
+        if (hatText(t.schuleEintrag)) segs.push(['Berufsschule', t.schuleEintrag]);
+        if (hatText(t.unterweisungEintrag)) segs.push(['Unterweisung', t.unterweisungEintrag]);
+        if (!segs.length && hatText(t.eintrag)) segs.push(['', t.eintrag]);
         if (!segs.length) return '';
         const p = (t.datum || '').split('-');
         const d = t.datum ? new Date(t.datum + 'T00:00:00') : null;
         const dl = d ? `${WD[d.getDay()]} ${p[2]}.${p[1]}.` : '';
-        const txt = segs.map(([l, t2]) => (l ? `${lab(l)} ` : '') + escHtml(t2)).join('<br>');
-        return `<div class="dlb-day"><span class="dlb-day__d">${dl}</span><div class="dlb-day__t">${txt}</div></div>`;
+        const txt = segs.map(([l, t2]) => (l ? lab(l) : '') + sanitizeRichHtml(t2)).join('');
+        return `<div class="dlb-day"><span class="dlb-day__d">${dl}</span><div class="dlb-day__t dlb-rich">${txt}</div></div>`;
       }).filter(Boolean).join('');
       body = dayRows ? `<div class="dlb-wk__body">${dayRows}</div>` : `<div class="dlb-wk__empty">Keine Einträge erfasst.</div>`;
     }
@@ -584,9 +480,14 @@ function wochenDigestHtml(wochen) {
   }).join('');
 }
 
-/* Read-only Sicht für Ausbilder: der Abteilungsdurchlauf ihrer betreuten Azubis,
-   mit Azubi-Selektor (gleiche Chips wie Wochen-/Jahresansicht). Keine Planungs-
-   oder Verwaltungsrechte – reine Anzeige. */
+/* Read-only Sicht für Ausbilder: derselbe Status-Board wie beim Azubi
+   (durchlaufBoardHtml), nur für den im Selektor gewählten betreuten Azubi.
+   Keine Planungs- oder Verwaltungsrechte – reine Anzeige; die Beurteilung
+   ist über die Detailseite einer Abteilung erreichbar.
+
+   Der gewählte Azubi steht in der URL (?azubi=<oid>), damit Detailseite,
+   Zurück-Link und Reload dieselbe Person zeigen. Mit ?abt=<zuwId> wird
+   stattdessen die Detailseite dieser Abteilung gerendert. */
 async function renderAusbilderDurchlauf(user) {
   document.getElementById('nav-planer')?.classList.remove('active');
   document.getElementById('nav-abteilungsplan')?.classList.add('active');
@@ -594,20 +495,55 @@ async function renderAusbilderDurchlauf(user) {
   const main = document.getElementById('mainContent');
 
   try {
-    const azubis = await DB.getSelectableAzubis();
-    const header = `<div class="page-header"><div class="page-header__left">
-      <h1 class="page-title">Abteilungsdurchlauf</h1>
-    </div></div>`;
-
+    // Bewusst NICHT getSelectableAzubis(): der Durchlauf ist die Gesamtsicht auf
+    // eine Ausbildung und gehört den FEST zugeordneten Ausbildern (dbo.Ausbilder-
+    // Azubis, plus aktive Vertretungen). Ein Prüfer, der nur über eine befristete
+    // Zuweisung verantwortlich ist, sähe sonst einen „Durchlauf", der aus seiner
+    // eigenen Station besteht – das Backend gibt ihm die übrigen zu Recht nicht.
+    // Admin/Developer behalten den Gesamtüberblick.
+    const me = DB.getCurrentUser();
+    const azubis = (me && (me.role === 'admin' || me.role === 'developer'))
+      ? await DB.getAzubis()
+      : await DB.getDauerhafteAzubis();
     if (!azubis.length) {
-      main.innerHTML = `${header}
-        <div class="durchlauf-empty">Ihnen ist aktuell kein Azubi zugewiesen.</div>`;
+      main.innerHTML = `<div class="page-header"><div class="page-header__left">
+        <h1 class="page-title">Abteilungsdurchlauf</h1>
+      </div></div>
+      <div class="durchlauf-empty">Ihnen ist aktuell kein Azubi fest zugeordnet.</div>`;
       return;
     }
 
-    const selectorHtml = (currentId) => renderAzubiSelect(azubis, currentId);
+    // Vorauswahl: URL (?azubi=) > Dashboard-Sprung („Wer ist wo") > gemerkter
+    // Azubi-Filter der anderen Ansichten > erster betreuter Azubi.
+    const params = new URLSearchParams(location.search);
+    const goto = sessionStorage.getItem('gotoAzubiId');
+    if (goto) sessionStorage.removeItem('gotoAzubiId');
+    const findAzubi = id => azubis.find(a => String(a.id) === String(id));
+    const start = findAzubi(params.get('azubi')) || findAzubi(goto)
+      || findAzubi(typeof getPersistedAzubiId === 'function' ? getPersistedAzubiId() : null)
+      || azubis[0];
+
+    const boardHref = a => `?azubi=${encodeURIComponent(a.id)}`;
+
+    // Detailseite einer Abteilung dieses Azubis (?azubi=…&abt=…).
+    const abt = params.get('abt');
+    if (abt) {
+      await renderAbteilungDetail(user, abt, {
+        azubiId: start.id,
+        ausbilderMode: true,
+        backHref: boardHref(start),
+        backLabel: displayName(start.name || '') || 'Abteilungsdurchlauf',
+      });
+      return;
+    }
 
     async function renderFor(azubiId) {
+      const a = findAzubi(azubiId) || azubis[0];
+      // Azubi-Wahl merken (gleicher Filter wie Wochen-/Jahresansicht) und in die
+      // URL schreiben – ohne History-Eintrag, der Wechsel ist kein Seitenwechsel.
+      if (typeof setPersistedAzubiId === 'function') setPersistedAzubiId(a.id);
+      history.replaceState(null, '', boardHref(a));
+
       // Vorherige PMSelect-Instanz (Azubi-Dropdown) sauber trennen, bevor
       // innerHTML ersetzt wird – sonst lecken MutationObserver auf detachten Nodes.
       if (typeof PMSelect !== 'undefined') {
@@ -616,18 +552,25 @@ async function renderAusbilderDurchlauf(user) {
           try { s._pmInstance && s._pmInstance.destroy(); } catch (e) { /* defensiv */ }
         });
       }
-      main.innerHTML = `${header}${selectorHtml(azubiId)}${await durchlaufBodyHtml(azubiId, true)}`;
+
+      const heute = DateUtil.toISODate(new Date());
+      const zuw = (await DB.getZuweisungenFuerAzubi(a.id))
+        .slice().sort((x, y) => (x.von || '').localeCompare(y.von || ''));
+      const beurtByZuw = {};
+      try { (await DB.getBeurteilungenFuerAzubi(a.id)).forEach(b => { beurtByZuw[b.zuweisungId] = b; }); } catch (e) { /* ohne Noten weiter */ }
+
+      main.innerHTML = renderAzubiSelect(azubis, a.id)
+        + durchlaufBoardHtml(a, zuw, heute, beurtByZuw, {
+            title: displayName(a.name || '') || 'Abteilungsdurchlauf',
+            self: false,
+            detailHref: z => `${boardHref(a)}&abt=${z.id}`,
+          });
       const azubiSelectEl = main.querySelector('#azubiSelect');
       if (azubiSelectEl) azubiSelectEl.addEventListener('change', () => renderFor(azubiSelectEl.value));
-      scrollDurchlaufToToday();
-      wireBeurteilungKacheln(main);
+      wireDurchlaufBoard(main);
     }
 
-    // Vom Dashboard („Wer ist wo") kommt evtl. ein vorzuwählender Azubi.
-    const goto = sessionStorage.getItem('gotoAzubiId');
-    if (goto) sessionStorage.removeItem('gotoAzubiId');
-    const startId = (goto && azubis.some(a => a.id === goto)) ? goto : azubis[0].id;
-    await renderFor(startId);
+    await renderFor(start.id);
   } catch (err) {
     main.innerHTML = `<div class="durchlauf-empty">Abteilungsdurchlauf konnte nicht geladen werden.</div>`;
     if (window.Toast && typeof Toast.error === 'function') Toast.error('Fehler', 'Abteilungsdurchlauf konnte nicht geladen werden.');
