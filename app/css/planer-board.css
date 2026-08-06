@@ -192,3 +192,17 @@
   .pt-bar { box-shadow:none !important; print-color-adjust:exact; -webkit-print-color-adjust:exact; }
   @page { size:landscape; margin:12mm; }
 }
+
+/* ── Druck-Dialog ── */
+.pp-dlg__row { display:flex; align-items:center; gap:12px; margin-bottom:10px; }
+.pp-dlg__row--head { margin-top:16px; }
+.pp-dlg__lbl { flex:0 0 96px; font-size:var(--text-sm); color:var(--pm-grey-600); }
+.pp-dlg__presets, .pp-dlg__dates { display:flex; gap:8px; flex-wrap:wrap; }
+.pp-dlg__dates label { font-size:var(--text-xs); color:var(--pm-grey-500); display:flex; align-items:center; gap:6px; }
+.pp-dlg__dates input { width:150px; }
+.pp-dlg__err { color:var(--color-error); font-size:var(--text-xs); margin:0 0 10px 108px; }
+.pp-dlg__list { max-height:260px; overflow:auto; border:1px solid var(--pm-grey-200); border-radius:var(--r-md); margin-top:8px; }
+.pp-dlg__item { display:flex; align-items:center; gap:9px; padding:7px 11px; border-bottom:1px solid var(--pm-grey-100); font-size:var(--text-sm); }
+.pp-dlg__item:last-child { border-bottom:none; }
+.pp-dlg__item b { font-weight:600; color:var(--pm-grey-900); }
+.pp-dlg__item span { color:var(--pm-grey-500); font-size:var(--text-xs); margin-left:auto; }

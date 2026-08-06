@@ -313,7 +313,138 @@ const PlanerPrint = (() => {
       kopfHtml(sel, '') + abschnitte, 'size:A4 portrait;margin:16mm');
   }
 
-  const api = { esc, fmtDe, tageZwischen, buildRaster, barGeom, PRINT_CSS, renderTafelHtml, renderTabelleHtml };
+  /* Eigenes Fenster statt @media print: das Druckdokument bringt sein CSS
+     selbst mit und ist damit immun gegen Theme-, Sidebar- und
+     Responsive-Regeln der SPA. Rueckgabe false = Popup blockiert. */
+  function openPrintWindow(html) {
+    const w = window.open('', '_blank', 'width=1000,height=760');
+    if (!w) return false;
+    w.document.write(html);
+    w.document.close();
+    w.focus();
+    setTimeout(() => { try { w.print(); } catch (_) {} }, 250);
+    return true;
+  }
+
+  /* Dialog-Zustand auf MODULEBENE, nicht in der open()-Closure.
+     Grund: die Handler unten werden nur EINMAL gebunden (das Markup bleibt im
+     DOM). Lebte der Zustand in der Closure von open(), wuerden sie beim
+     zweiten Oeffnen weiter das ctx des ERSTEN Aufrufs sehen — nach einem
+     Filterwechsel wuerde also die alte Personenliste gedruckt. */
+  let S = null;   // { ctx, gewaehlt:Set, mode, suche }
+
+  const byId = id => document.getElementById(id);
+
+  /* Korrektur ggue. der Erstfassung: ein leeres <input type="date"> liefert
+     '' — bei von==='' ist "von && bis" falsy, die urspruengliche Pruefung
+     "von && bis && von > bis" haette den Drucken-Button also faelschlich
+     AKTIV gelassen. Genau dieser Weg (leeres Von/Bis) erzeugte in Task 5
+     colspan="0" und left:NaN% im Builder — ein Blatt, das etwas behauptet,
+     was nicht da ist. zeitraumUngueltig() im Builder faengt das inzwischen
+     ab, aber die UI soll den Nutzer erst gar nicht so weit laufen lassen.
+     Deshalb hier: leeres Von, leeres Bis, beide leer und Bis-vor-Von je
+     einzeln erkennen und mit passendem Grund anzeigen. */
+  function dlgPruefen() {
+    const von = byId('ppVon').value, bis = byId('ppBis').value;
+    let grund = '';
+    if (!von && !bis) grund = 'Bitte „Von" und „Bis" angeben.';
+    else if (!von) grund = 'Bitte „Von" angeben.';
+    else if (!bis) grund = 'Bitte „Bis" angeben.';
+    else if (von > bis) grund = '„Bis" liegt vor „Von".';
+    byId('ppErr').textContent = grund;
+    byId('ppErr').hidden = !grund;
+    byId('ppGo').disabled = !!grund || S.gewaehlt.size === 0;
+  }
+
+  function dlgZeichnen() {
+    const listEl = byId('ppList'), countEl = byId('ppCount');
+    const sichtbar = S.ctx.personen.filter(p => !S.suche
+      || `${p.name} ${p.beruf || ''}`.toLowerCase().includes(S.suche));
+    listEl.innerHTML = sichtbar.map(p => `
+      <label class="pp-dlg__item">
+        <input type="checkbox" data-id="${esc(p.id)}" ${S.gewaehlt.has(p.id) ? 'checked' : ''}>
+        <b>${esc(p.name)}</b><span>${esc(p.beruf || '')}</span>
+      </label>`).join('') || `<div class="pp-dlg__item">Keine Treffer.</div>`;
+    listEl.querySelectorAll('input[data-id]').forEach(cb => cb.addEventListener('change', () => {
+      if (cb.checked) S.gewaehlt.add(cb.dataset.id); else S.gewaehlt.delete(cb.dataset.id);
+      countEl.textContent = `(${S.gewaehlt.size} von ${S.ctx.personen.length})`;
+      dlgPruefen();
+    }));
+    countEl.textContent = `(${S.gewaehlt.size} von ${S.ctx.personen.length})`;
+    dlgPruefen();
+  }
+
+  function dlgBind() {
+    const modal = byId('ptPrintModal');
+    if (modal.dataset.ppBound) return;
+    modal.dataset.ppBound = '1';
+
+    byId('ppMode').addEventListener('click', e => {
+      const b = e.target.closest('button[data-mode]'); if (!b) return;
+      S.mode = b.dataset.mode;
+      byId('ppMode').querySelectorAll('button').forEach(x => x.classList.toggle('is-on', x === b));
+    });
+    byId('ppSearch').addEventListener('input', e => { S.suche = e.target.value.toLowerCase(); dlgZeichnen(); });
+    byId('ppAll').addEventListener('click', () => { S.ctx.personen.forEach(p => S.gewaehlt.add(p.id)); dlgZeichnen(); });
+    byId('ppNone').addEventListener('click', () => { S.gewaehlt.clear(); dlgZeichnen(); });
+    byId('ppVon').addEventListener('change', dlgPruefen);
+    byId('ppBis').addEventListener('change', dlgPruefen);
+
+    byId('ppPresets').addEventListener('click', e => {
+      const b = e.target.closest('button[data-preset]'); if (!b) return;
+      const ctx = S.ctx;
+      const aktive = ctx.personen.filter(p => S.gewaehlt.has(p.id));
+      if (b.dataset.preset === 'aj') { byId('ppVon').value = ctx.von; byId('ppBis').value = ctx.bis; }
+      else if (b.dataset.preset === 'heute') {
+        byId('ppVon').value = ctx.stand;
+        byId('ppBis').value = maxEnde(aktive) || ctx.bis;
+      } else {
+        // Ganze Ausbildung: Min/Max ueber die gewaehlten Personen. Fehlen die
+        // Profildaten, bleibt das aktuelle Ausbildungsjahr stehen.
+        byId('ppVon').value = minBeginn(aktive) || ctx.von;
+        byId('ppBis').value = maxEnde(aktive) || ctx.bis;
+      }
+      dlgPruefen();
+    });
+
+    byId('ppGo').addEventListener('click', () => {
+      const sel = {
+        von: byId('ppVon').value, bis: byId('ppBis').value, stand: S.ctx.stand,
+        personen: S.ctx.personen.filter(p => S.gewaehlt.has(p.id)),
+      };
+      const html = S.mode === 'tafel' ? renderTafelHtml(sel) : renderTabelleHtml(sel);
+      if (!openPrintWindow(html)) {
+        if (typeof Toast !== 'undefined') Toast.error('Popup blockiert', 'Bitte Pop-ups für diese Seite erlauben.');
+        return;
+      }
+      Modal.close('ptPrintModal');
+    });
+  }
+
+  function open(ctx) {
+    S = { ctx, gewaehlt: new Set(ctx.personen.map(p => p.id)), mode: 'tafel', suche: '' };
+    byId('ppVon').value = ctx.von;
+    byId('ppBis').value = ctx.bis;
+    byId('ppSearch').value = '';
+    byId('ppPresets').querySelector('[data-preset="aj"]').textContent = ctx.ajLabel;
+    // Darstellung bei jedem Oeffnen auf Tafel zuruecksetzen (passt zu S.mode).
+    byId('ppMode').querySelectorAll('button').forEach(x => x.classList.toggle('is-on', x.dataset.mode === 'tafel'));
+    dlgBind();
+    dlgZeichnen();
+    Modal.init();
+    Modal.open('ptPrintModal');
+  }
+
+  function minBeginn(ps) {
+    const v = ps.map(p => p.ausbildungsBeginn).filter(Boolean).sort();
+    return v[0] || null;
+  }
+  function maxEnde(ps) {
+    const v = ps.map(p => p.ausbildungsEnde).filter(Boolean).sort();
+    return v[v.length - 1] || null;
+  }
+
+  const api = { esc, fmtDe, tageZwischen, buildRaster, barGeom, PRINT_CSS, renderTafelHtml, renderTabelleHtml, openPrintWindow, open };
   if (typeof window !== 'undefined') window.PlanerPrint = api;
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   return api;

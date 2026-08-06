@@ -99,6 +99,58 @@
   </div>
 </div>
 
+<!-- Druck-Dialog: Azubis, Zeitraum und Darstellung vor dem Drucken waehlen.
+     Bewusst ohne <select class="form-control"> — PmSelect wrappt die zu
+     full-width .pm-select--block, Breitenangaben am Select wirken dann nicht. -->
+<div class="modal-overlay" id="ptPrintModal">
+  <div class="modal">
+    <div class="modal__header">
+      <h3 class="modal__title">Abteilungsdurchlauf drucken</h3>
+      <button class="modal__close" data-modal-close aria-label="Schließen">&times;</button>
+    </div>
+    <div class="modal__body">
+      <div class="pp-dlg__row">
+        <span class="pp-dlg__lbl">Darstellung</span>
+        <div class="pt-seg" id="ppMode">
+          <button type="button" data-mode="tafel" class="is-on">Tafel</button>
+          <button type="button" data-mode="tabelle">Tabelle</button>
+        </div>
+      </div>
+
+      <div class="pp-dlg__row">
+        <span class="pp-dlg__lbl">Zeitraum</span>
+        <div class="pp-dlg__presets" id="ppPresets">
+          <button type="button" class="btn btn-outline btn-sm" data-preset="aj">AJ</button>
+          <button type="button" class="btn btn-outline btn-sm" data-preset="alles">Ganze Ausbildung</button>
+          <button type="button" class="btn btn-outline btn-sm" data-preset="heute">Ab heute</button>
+        </div>
+      </div>
+      <div class="pp-dlg__row">
+        <span class="pp-dlg__lbl"></span>
+        <div class="pp-dlg__dates">
+          <label>Von <input type="date" id="ppVon" class="form-control"></label>
+          <label>Bis <input type="date" id="ppBis" class="form-control"></label>
+        </div>
+      </div>
+      <p class="pp-dlg__err" id="ppErr" hidden></p>
+
+      <div class="pp-dlg__row pp-dlg__row--head">
+        <span class="pp-dlg__lbl">Azubis <span id="ppCount"></span></span>
+        <div>
+          <button type="button" class="btn btn-outline btn-sm" id="ppAll">Alle</button>
+          <button type="button" class="btn btn-outline btn-sm" id="ppNone">Keine</button>
+        </div>
+      </div>
+      <input type="search" id="ppSearch" class="form-control" placeholder="Person suchen …" aria-label="Person suchen">
+      <div class="pp-dlg__list" id="ppList"></div>
+    </div>
+    <div class="modal__footer">
+      <button class="btn btn-outline" data-modal-close>Abbrechen</button>
+      <button class="btn btn-primary" id="ppGo">Drucken</button>
+    </div>
+  </div>
+</div>
+
 <script src="js/abteilungen-helpers.js"></script>
 <script src="js/api.js"></script>
 <script src="js/error-reporter.js"></script>
@@ -108,6 +160,7 @@
 <script src="js/sidebar.js"></script>
 <script src="js/router.js"></script>
 <script src="js/react-theme-layer.js"></script>
+<script src="js/planer-print.js"></script>
 <script src="js/abteilungs-planer.js"></script>
 </body>
 </html>
