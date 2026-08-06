@@ -71,3 +71,56 @@ test('buildRaster: umgedrehter Zeitraum liefert leeres Raster', () => {
   assert.equal(r.tage, 0);
   assert.deepEqual(r.spalten, []);
 });
+
+const R = { von: '2026-01-01', bis: '2026-12-31' };   // 365 Tage
+
+test('barGeom: Station komplett innerhalb', () => {
+  const g = PP.barGeom({ von: '2026-01-01', bis: '2026-01-31' }, R);
+  assert.equal(g.leftPct, 0);
+  assert.ok(Math.abs(g.widthPct - 31 / 365 * 100) < 0.001);
+  assert.equal(g.cutLeft, false);
+  assert.equal(g.cutRight, false);
+  assert.equal(g.open, false);
+});
+
+test('barGeom: Station ragt links heraus -> cutLeft, links auf 0', () => {
+  const g = PP.barGeom({ von: '2025-11-15', bis: '2026-01-31' }, R);
+  assert.equal(g.leftPct, 0);
+  assert.equal(g.cutLeft, true);
+  assert.equal(g.cutRight, false);
+  assert.ok(Math.abs(g.widthPct - 31 / 365 * 100) < 0.001);
+});
+
+test('barGeom: Station ragt rechts heraus -> cutRight, endet am Rand', () => {
+  const g = PP.barGeom({ von: '2026-12-01', bis: '2027-03-31' }, R);
+  assert.equal(g.cutRight, true);
+  assert.equal(g.cutLeft, false);
+  assert.ok(Math.abs(g.leftPct + g.widthPct - 100) < 0.001);
+});
+
+test('barGeom: Station umspannt den Zeitraum beidseitig', () => {
+  const g = PP.barGeom({ von: '2025-01-01', bis: '2027-12-31' }, R);
+  assert.equal(g.leftPct, 0);
+  assert.ok(Math.abs(g.widthPct - 100) < 0.001);
+  assert.equal(g.cutLeft, true);
+  assert.equal(g.cutRight, true);
+});
+
+test('barGeom: offenes Bis laeuft bis Zeitraumende und gilt als cutRight', () => {
+  const g = PP.barGeom({ von: '2026-06-01', bis: null }, R);
+  assert.equal(g.open, true);
+  assert.equal(g.cutRight, true);
+  assert.ok(Math.abs(g.leftPct + g.widthPct - 100) < 0.001);
+});
+
+test('barGeom: Station komplett ausserhalb -> null', () => {
+  assert.equal(PP.barGeom({ von: '2024-01-01', bis: '2024-06-30' }, R), null);
+  assert.equal(PP.barGeom({ von: '2028-01-01', bis: '2028-06-30' }, R), null);
+});
+
+test('barGeom: Station beruehrt den Zeitraum mit genau einem Tag', () => {
+  const g = PP.barGeom({ von: '2025-06-01', bis: '2026-01-01' }, R);
+  assert.ok(g);
+  assert.ok(Math.abs(g.widthPct - 1 / 365 * 100) < 0.001);
+  assert.equal(g.cutLeft, true);
+});

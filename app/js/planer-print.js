@@ -20,7 +20,6 @@ const PlanerPrint = (() => {
   /* Datumsrechnung strikt in UTC — lokale Zeitzonen kippen an der
      Sommerzeit-Umstellung um einen Tag. */
   function d(iso) { return new Date(iso + 'T00:00:00Z'); }
-  function isoOf(date) { return date.toISOString().slice(0, 10); }
 
   function esc(s) {
     return String(s ?? '')
@@ -98,7 +97,32 @@ const PlanerPrint = (() => {
     return { einheit, tage, spalten };
   }
 
-  const api = { esc, fmtDe, tageZwischen, buildRaster };
+  /* Station auf den Druckzeitraum abbilden. Randstationen werden GEZEIGT und
+     am Blattrand abgeschnitten (cutLeft/cutRight -> Marker im HTML); das
+     angezeigte Datum bleibt trotzdem das echte, ungekuerzte. Leeres Bis =
+     offen und laeuft bis zum Zeitraumende. */
+  function barGeom(station, range) {
+    const OFFEN = '9999-12-31';
+    const sVon = String(station.von).slice(0, 10);
+    const sBis = station.bis ? String(station.bis).slice(0, 10) : OFFEN;
+    if (sBis < range.von || sVon > range.bis) return null;
+
+    const start = sVon < range.von ? range.von : sVon;
+    const ende  = sBis > range.bis ? range.bis : sBis;
+    const tage  = tageZwischen(range.von, range.bis);
+    const offset = tageZwischen(range.von, start) - 1;
+    const laenge = tageZwischen(start, ende);
+
+    return {
+      leftPct: offset / tage * 100,
+      widthPct: laenge / tage * 100,
+      cutLeft: sVon < range.von,
+      cutRight: sBis > range.bis,
+      open: !station.bis,
+    };
+  }
+
+  const api = { esc, fmtDe, tageZwischen, buildRaster, barGeom };
   if (typeof window !== 'undefined') window.PlanerPrint = api;
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   return api;
