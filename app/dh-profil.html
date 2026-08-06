@@ -16,6 +16,7 @@
   <link rel="stylesheet" href="css/layout.css">
   <link rel="stylesheet" href="css/profil.css">
   <link rel="stylesheet" href="css/glass.css">
+  <link rel="stylesheet" href="css/mitteilungen.css">
   <link rel="stylesheet" href="css/abteilungsdurchlauf.css">
   <link rel="stylesheet" href="css/theme-hyperspace.css">
   <link rel="stylesheet" href="css/theme-cmd.css">
@@ -35,11 +36,35 @@
   </a>
   <nav class="dh-topbar__nav" aria-label="Hauptnavigation">
     <a class="dh-topbar__link" href="abteilungsdurchlauf.html">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M3 12h4l3 8 4-16 3 8h4"/></svg>
+      <!-- Gleiches Symbol wie der Sidebar-Eintrag „Abteilungsdurchlauf" der
+           Azubi-Ansicht: Icon('planer') aus js/icons.js. -->
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+        <circle cx="9" cy="6" r="4"/>
+        <path stroke-linecap="round" d="M15 9a3 3 0 1 0 0-6"/>
+        <ellipse cx="9" cy="17" rx="7" ry="4"/>
+        <path stroke-linecap="round" d="M18 14c1.754.385 3 1.359 3 2.5c0 1.03-1.014 1.923-2.5 2.37"/>
+      </svg>
       <span>Abteilungsdurchlauf</span>
     </a>
   </nav>
   <div class="dh-topbar__spacer"></div>
+  <div class="dh-notif">
+    <button class="dh-topbar__theme dh-notif__btn" id="dhNotifBtn" type="button"
+            aria-haspopup="true" aria-expanded="false" aria-controls="dhNotifPanel" aria-label="Mitteilungen" title="Mitteilungen">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/>
+        <path stroke-linecap="round" stroke-linejoin="round" d="M13.73 21a2 2 0 0 1-3.46 0"/>
+      </svg>
+      <span class="dh-notif__badge" id="dhNotifBadge" hidden></span>
+    </button>
+    <div class="dh-notif__panel" id="dhNotifPanel" hidden>
+      <div class="dh-notif__head">
+        <span class="dh-notif__title">Mitteilungen</span>
+        <button type="button" class="dh-notif__alle" id="dhNotifAlle" hidden>Alle gelesen</button>
+      </div>
+      <div class="mt-list dh-notif__list" id="dhNotifList"></div>
+    </div>
+  </div>
   <button class="dh-topbar__theme" id="dhThemeToggle" type="button" aria-label="Hell-/Dunkel-Modus umschalten" title="Hell / Dunkel">
     <svg class="dh-theme-sun" fill="none" viewBox="0 0 24 24" aria-hidden="true">
       <circle cx="12" cy="12" r="4" fill="currentColor"/>
@@ -62,6 +87,7 @@
 <script src="js/error-reporter.js"></script>
 <script src="js/icons.js"></script>
 <script src="js/app.js"></script>
+<script src="js/dh-mitteilungen.js"></script>
 <script src="js/dh-profil.js"></script>
 </body>
 </html>
