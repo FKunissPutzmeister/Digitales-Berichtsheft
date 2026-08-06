@@ -368,3 +368,47 @@ test('renderTabelleHtml: Stationen ausserhalb des Zeitraums fehlen', () => {
   assert.doesNotMatch(h, /Altstation/);
   assert.match(h, /keine Zuweisung im Zeitraum/);
 });
+
+// Zusatztests (nicht im Brief): Mutationsschutz und degenerierte Eingaben,
+// analog zu den Tafel-Tests weiter oben.
+
+test('renderTabelleHtml: Fremdeingaben in Name und Abteilung werden escaped', () => {
+  const h = PP.renderTabelleHtml(SEL);
+  // "Kevin <Test>" ist der zweite SEL-Personenname — dient hier wie bei der
+  // Tafel als Nachweis, dass esc() tatsaechlich am Namen haengt.
+  assert.match(h, /Kevin &lt;Test&gt;/);
+  assert.doesNotMatch(h, /Kevin <Test>/);
+
+  const sel = { ...SEL, personen: [{ name: 'B', beruf: 'X', gruppe: 'Zugewiesen', stationen: [
+    { abteilung: '<script>x</script>', von: '2026-01-01', bis: '2026-01-31', verantw: 'Y', farbe: '#333' },
+  ] }] };
+  const h2 = PP.renderTabelleHtml(sel);
+  assert.match(h2, /&lt;script&gt;x&lt;\/script&gt;/);
+  assert.doesNotMatch(h2, /<script>x<\/script>/);
+});
+
+test('renderTabelleHtml: umgedrehter Zeitraum (Ende vor Beginn) liefert gueltiges Dokument mit Hinweis', () => {
+  const sel = { ...SEL, von: '2026-08-31', bis: '2026-01-01' };
+  const h = PP.renderTabelleHtml(sel);
+  assert.match(h, /^<!DOCTYPE html>/);
+  assert.match(h, /<\/html>\s*$/);
+  assert.match(h, /pp-none/);
+  assert.doesNotMatch(h, /class="pp-sec"/);
+});
+
+test('renderTabelleHtml: leeres personen-Array liefert gueltiges Dokument ohne Abschnitte', () => {
+  const sel = { von: SEL.von, bis: SEL.bis, stand: SEL.stand, personen: [] };
+  const h = PP.renderTabelleHtml(sel);
+  assert.match(h, /^<!DOCTYPE html>/);
+  assert.match(h, /<\/html>\s*$/);
+  assert.doesNotMatch(h, /class="pp-sec"/);
+  assert.match(h, /0 Personen/);
+});
+
+test('renderTabelleHtml: fehlendes personen-Array stuerzt nicht ab', () => {
+  const sel = { von: SEL.von, bis: SEL.bis, stand: SEL.stand };
+  const h = PP.renderTabelleHtml(sel);
+  assert.match(h, /^<!DOCTYPE html>/);
+  assert.match(h, /<\/html>\s*$/);
+  assert.match(h, /0 Personen/);
+});

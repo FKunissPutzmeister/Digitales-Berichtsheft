@@ -255,7 +255,23 @@ const PlanerPrint = (() => {
      angezeigte Datum bleibt das echte. */
   function renderTabelleHtml(sel) {
     const range = { von: sel.von, bis: sel.bis };
-    const abschnitte = sel.personen.map(p => {
+
+    // Degenerierter Zeitraum (von > bis): barGeom/tageZwischen liefern dafuer
+    // 0/negative Werte, die Filterung waere sinnlos und wuerde faelschlich
+    // "keine Zuweisung im Zeitraum" fuer alle Personen behaupten. Analog zum
+    // Fruehausstieg der Tafel: Kopf + klarer Hinweis statt eines Blatts, das
+    // etwas Falsches vorgibt.
+    if (sel.von > sel.bis) {
+      const body = kopfHtml(sel, '')
+        + `<div class="pp-none">Zeitraum ungueltig (Ende vor Beginn) — keine Tabelle darstellbar</div>`;
+      return dokument('Abteilungsdurchlauf', PRINT_CSS, body, 'size:A4 portrait;margin:16mm');
+    }
+
+    // Defensiv: sel.personen darf fehlen — dann bleibt die Tabelle leer statt
+    // beim Drucken abzustuerzen (gleiches Muster wie renderTafelHtml).
+    const personen = sel.personen || [];
+
+    const abschnitte = personen.map(p => {
       const drin = (p.stationen || []).filter(s => barGeom(s, range));
       const zeilen = drin.length
         ? drin.map(s => `<tr>
