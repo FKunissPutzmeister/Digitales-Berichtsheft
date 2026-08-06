@@ -1545,39 +1545,20 @@ document.addEventListener('DOMContentLoaded', async () => {
   // AJ-Fenster hätte also Stationen aus anderen Lehrjahren lautlos
   // verschluckt (Ausbilder klickt im Panel „Drucken" und erwartet „seinen
   // Durchlauf", nicht „sein aktuelles Jahr").
-  function druckZeitraumFuer(a, stationen) {
-    const win = ajWindow();
-    const ajVon = DateUtil.toISODate(win.start);
-    const ajBis = DateUtil.toISODate(win.end);
-
-    // Keine Station: Profildaten, sonst das aktuelle AJ. Reihenfolge über den
-    // Guard für degenerierte Zeiträume abgesichert (siehe unten).
-    if (!stationen.length) {
-      return { von: a.ausbildungsBeginn || ajVon, bis: a.ausbildungsEnde || ajBis };
-    }
-
-    const vonWerte = stationen.map(s => s.von).filter(Boolean).sort();
-    const bisWerte = stationen.map(s => s.bis).filter(Boolean).sort();
-    const von = vonWerte[0] || ajVon;
-    let bis = bisWerte[bisWerte.length - 1] || von;
-
-    // Offene Station (bis === null) hat kein Ende — barGeom behandelt sie als
-    // "bis 9999-12-31" und würde sie zwar zeigen, der Balken/die Zeile endete
-    // aber am Zeitraumende. Damit sie sichtbar Raum bekommt, den Zeitraum bis
-    // Ausbildungsende bzw. mindestens AJ-Ende/heute ziehen.
-    if (stationen.some(s => !s.bis)) {
-      [a.ausbildungsEnde, ajBis, todayISO].filter(Boolean).forEach(k => { if (k > bis) bis = k; });
-    }
-    // Guard gegen degenerierte Zeiträume: der Builder druckt bei bis < von nur
-    // einen Hinweis. Ein Ein-Tages-Zeitraum (von === bis) ist gültig.
-    if (bis < von) bis = von;
-    return { von, bis };
-  }
-
+  //
+  // Die Regel selbst liegt als reine Funktion in planer-print.js
+  // (PlanerPrint.druckZeitraum) — dort ist sie in node:test prüfbar und steht
+  // direkt neben barGeom(), aus dessen Filterbedingung sie sich ableitet. Hier
+  // bleibt nur das Auflösen der App-Globals zu ISO-Strings.
   function printPerson(azubiId) {
     const a = azubiById.get(azubiId); if (!a) return;
     const stationen = stationenFuerDruck(azubiId);
-    const zeitraum = druckZeitraumFuer(a, stationen);
+    const win = ajWindow();
+    const zeitraum = PlanerPrint.druckZeitraum(a, stationen, {
+      von: DateUtil.toISODate(win.start),
+      bis: DateUtil.toISODate(win.end),
+      heute: todayISO,
+    });
     const html = PlanerPrint.renderTabelleHtml({
       von: zeitraum.von,
       bis: zeitraum.bis,

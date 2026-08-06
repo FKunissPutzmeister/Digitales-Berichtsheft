@@ -586,7 +586,13 @@ test('textBreitePx: Datum, Kurzdatum und Abteilungsname gegen Handrechnung', () 
   assert.equal(PP.textBreitePx('\u{1F600}').toFixed(2), '8.50');
 });
 
-test('TRACK_PX ist die Balkenzellenbreite auf A4 quer', () => {
+// EHRLICHE EINORDNUNG: dieser Test ist tautologisch. Er haelt die Konstante
+// gegen sich selbst und beweist NICHT, dass 800 die richtige Papierbreite ist.
+// Er existiert nur, damit eine Aenderung an TRACK_PX auffaellt und der Aenderer
+// die Kalibrierung bewusst neu belegen muss. Die tatsaechliche Kalibrierung
+// (804.95px gemessene Balkenzellenbreite bei A4 quer) ist ausschliesslich
+// durch die Browser-Messung gedeckt — siehe final-fix-report.md, Fund C.
+test('TRACK_PX ist unveraendert 800 (Konsistenz, kein Kalibrierungsnachweis)', () => {
   assert.equal(PP.TRACK_PX, 800);
 });
 
@@ -660,6 +666,15 @@ function isoPlus(iso, tage) {
   return t.toISOString().slice(0, 10);
 }
 
+// EHRLICHE EINORDNUNG: dieser Test rechnet mit demselben PP.TRACK_PX und
+// derselben Padding-Zahl wie barLabel selbst — er ist damit eine
+// KONSISTENZPRUEFUNG der Staffelungslogik gegen ihre eigene Rechenbasis, KEIN
+// Nachweis, dass die Rechenbasis zum Papier passt. Waeren TRACK_PX und die
+// echte Balkenzellenbreite gemeinsam falsch, bliebe der Test gruen.
+// Die Papierkalibrierung ist ausschliesslich durch die Browser-Messung
+// gedeckt (1715 Balken, 0 Ueberlaeufe; siehe final-fix-report.md, Fund C).
+// Was dieser Test dennoch verlaesslich toetet: eine Staffelung, die eine zu
+// breite Stufe waehlt, und jede Aenderung, die das Label wieder abschneidet.
 test('barLabel: kein Label laeuft je ueber den Balken hinaus (Fund C, ueber alle Rasterstufen)', () => {
   const NAMEN = ['IT', 'Einkauf PMM', 'Qualitätssicherung', 'Montage', 'Öffentlichkeitsarbeit & Marketing', ''];
   const RANGES = [
@@ -874,3 +889,152 @@ test('renderTafelHtml: leeres Label baut gar keinen <span> (sonst laeuft sein Pa
   assert.match(h, /<div class="pp-bar" style="left:[\d.]+%;width:1\.3699%;background:#333" title="Recht \(02\.03\.2026 – 06\.03\.2026\)"><\/div>/);
   assert.doesNotMatch(h, /pp-bar__lbl"><\/span>/);
 });
+
+/* ═══════════════════════════════════════════════════════════════════════
+   DRUCKZEITRAUM EINER PERSON (Fund A, N1, N2)
+   Die Regel, die den Panel-Druck ausloeste, war bis hierher von keinem Test
+   gedeckt — sie lag in abteilungs-planer.js, das DOM, Backend und Session
+   braucht. Jetzt reine Funktion in planer-print.js.
+   Alle Erwartungen von Hand geschrieben; das Fenster ist ueberall dasselbe
+   Ausbildungsjahr AJ 2025/26.
+   ═══════════════════════════════════════════════════════════════════════ */
+
+const AJ = { von: '2025-09-01', bis: '2026-08-31', heute: '2026-08-06' };
+const st = (von, bis) => ({ abteilung: 'X', von, bis, verantw: 'V', farbe: '#333' });
+
+test('druckZeitraum: Zeitraum umschliesst alle Stationen, auch ausser dem AJ (Fund A)', () => {
+  // Stationen 2024, 2025-10 und 2027 — genau das Szenario aus dem Review.
+  const s = [st('2024-03-01', '2024-08-31'), st('2025-10-01', '2025-12-31'), st('2027-01-15', '2027-06-30')];
+  assert.deepEqual(PlanerPrintZ(s), { von: '2024-03-01', bis: '2027-06-30' });
+});
+
+test('druckZeitraum: eine einzige Station ergibt genau deren Zeitraum', () => {
+  assert.deepEqual(PlanerPrintZ([st('2026-01-05', '2026-02-01')]), { von: '2026-01-05', bis: '2026-02-01' });
+});
+
+test('druckZeitraum: Ein-Tages-Station bleibt ein gueltiger Ein-Tages-Zeitraum', () => {
+  assert.deepEqual(PlanerPrintZ([st('2026-03-02', '2026-03-02')]), { von: '2026-03-02', bis: '2026-03-02' });
+});
+
+/* ── N2: offene Stationen ───────────────────────────────────────────────── */
+
+test('druckZeitraum N2: offene Zukunftsstation faellt nicht heraus', () => {
+  // Der gemeldete Fall: max(bis) = 2025-10-31 liegt VOR dem Beginn der
+  // offenen Station. Frueher ergab das 2025-09-01..2026-08-31 und die zweite
+  // Station fehlte. bis muss mindestens der spaeteste Stationsbeginn sein.
+  const s = [st('2025-09-01', '2025-10-31'), st('2027-03-01', null)];
+  assert.deepEqual(PlanerPrintZ(s), { von: '2025-09-01', bis: '2027-03-01' });
+});
+
+test('druckZeitraum N2: offene Station in der Vergangenheit laeuft bis Ausbildungsende', () => {
+  // ausbildungsEnde 2028-01-31 ist spaeter als AJ-Ende und heute -> gewinnt.
+  const s = [st('2025-09-01', null)];
+  assert.deepEqual(
+    PP.druckZeitraum({ ausbildungsEnde: '2028-01-31' }, s, AJ),
+    { von: '2025-09-01', bis: '2028-01-31' });
+});
+
+test('druckZeitraum N2: ohne Profilende zieht das AJ-Ende (spaeter als heute)', () => {
+  assert.deepEqual(PlanerPrintZ([st('2025-09-01', null)]), { von: '2025-09-01', bis: '2026-08-31' });
+});
+
+test('druckZeitraum N2: bereits laengerer Zeitraum wird von der Verlaengerung nicht verkuerzt', () => {
+  // max(bis) = 2029-12-31 liegt hinter allem, was die Verlaengerung anbietet.
+  const s = [st('2025-09-01', '2029-12-31'), st('2026-01-01', null)];
+  assert.deepEqual(PlanerPrintZ(s), { von: '2025-09-01', bis: '2029-12-31' });
+});
+
+test('druckZeitraum N2: nur offene Stationen ohne jedes Bis', () => {
+  const s = [st('2027-05-01', null), st('2026-02-01', null)];
+  // von = fruehester Beginn, bis = spaetester Beginn (2027-05-01), danach
+  // Verlaengerung auf max(2027-05-01, AJ-Ende 2026-08-31, heute 2026-08-06).
+  assert.deepEqual(PlanerPrintZ(s), { von: '2026-02-01', bis: '2027-05-01' });
+});
+
+/* ── N1: Guard deckt jeden Rueckgabepfad ────────────────────────────────── */
+
+test('druckZeitraum N1: keine Station und leeres Profil -> das uebergebene Fenster', () => {
+  assert.deepEqual(PlanerPrintZ([]), { von: '2025-09-01', bis: '2026-08-31' });
+});
+
+test('druckZeitraum N1: keine Station, vollstaendiges Profil -> Profilzeitraum', () => {
+  assert.deepEqual(
+    PP.druckZeitraum({ ausbildungsBeginn: '2024-09-01', ausbildungsEnde: '2027-08-31' }, [], AJ),
+    { von: '2024-09-01', bis: '2027-08-31' });
+});
+
+test('druckZeitraum N1: keine Station, nur ausbildungsEnde in der Vergangenheit', () => {
+  // Frueher: von = AJ-Beginn 2025-09-01, bis = Profil 2024-07-31 -> das Blatt
+  // druckte "Zeitraum ungültig (Ende vor Beginn)", obwohl vor der Fix-Welle
+  // ein normales leeres Blatt kam. Der Guard klemmt bis auf von.
+  assert.deepEqual(
+    PP.druckZeitraum({ ausbildungsEnde: '2024-07-31' }, [], AJ),
+    { von: '2025-09-01', bis: '2025-09-01' });
+});
+
+test('druckZeitraum N1: keine Station, nur ausbildungsBeginn in der Zukunft', () => {
+  // Frueher: 2027-09-01 .. AJ-Ende 2026-08-31 -> Fehlerblatt.
+  assert.deepEqual(
+    PP.druckZeitraum({ ausbildungsBeginn: '2027-09-01' }, [], AJ),
+    { von: '2027-09-01', bis: '2027-09-01' });
+});
+
+test('druckZeitraum N1: die halb gefuellten Profile ergeben ein DRUCKBARES Blatt, kein Fehlerblatt', () => {
+  // Gegenprobe durch den echten Builder: genau das war die Regression.
+  for (const person of [{ ausbildungsEnde: '2024-07-31' }, { ausbildungsBeginn: '2027-09-01' }]) {
+    const z = PP.druckZeitraum(person, [], AJ);
+    const h = PP.renderTabelleHtml({ ...z, stand: AJ.heute, titelZusatz: 'A',
+      personen: [{ name: 'A', beruf: 'B', stationen: [] }] });
+    assert.doesNotMatch(h, /Zeitraum ungültig/, `Fehlerblatt fuer ${JSON.stringify(person)}`);
+    assert.doesNotMatch(h, /Zeitraum fehlt/);
+    assert.doesNotMatch(h, /Zeitraum unvollständig/);
+    assert.match(h, /class="pp-sec"/);
+    assert.match(h, /keine Zuweisung im Zeitraum/);
+  }
+});
+
+/* ── Zusicherung: keine Station faellt jemals heraus ────────────────────── */
+
+test('druckZeitraum: KEINE Station faellt aus dem Zeitraum (barGeom-Gegenprobe)', () => {
+  // Die eigentliche Zusicherung, unabhaengig von einzelnen Beispielen: fuer
+  // jede Kombination muss barGeom JEDE Station durchlassen und der echte
+  // Builder jede Station drucken.
+  const KOMBIS = [
+    [st('2024-03-01', '2024-08-31'), st('2025-10-01', '2025-12-31'), st('2027-01-15', '2027-06-30')],
+    [st('2025-09-01', '2025-10-31'), st('2027-03-01', null)],
+    [st('2027-05-01', null), st('2026-02-01', null)],
+    [st('2026-01-01', '2026-01-01')],
+    [st('2020-01-01', '2020-01-02'), st('2030-12-30', '2030-12-31')],
+    // bewusst kaputte Station (bis vor von) — in dieser Welle nicht
+    // reparieren, aber sie darf nicht lautlos verschwinden.
+    [st('2027-03-01', '2026-01-01'), st('2025-09-01', '2025-10-31')],
+    [st('2025-09-01', null)],
+  ];
+  const PROFILE = [{}, { ausbildungsBeginn: '2024-09-01' }, { ausbildungsEnde: '2024-07-31' },
+    { ausbildungsBeginn: '2027-09-01' }, { ausbildungsBeginn: '2024-09-01', ausbildungsEnde: '2029-08-31' }];
+  for (const stns of KOMBIS) {
+    for (const person of PROFILE) {
+      const z = PP.druckZeitraum(person, stns, AJ);
+      assert.ok(z.von && z.bis && z.bis >= z.von, `degenerierter Zeitraum ${JSON.stringify(z)}`);
+      for (const s of stns) {
+        assert.ok(PP.barGeom(s, z), `Station ${s.von}..${s.bis} fehlt in ${JSON.stringify(z)}`);
+      }
+      const h = PP.renderTabelleHtml({ ...z, stand: AJ.heute,
+        personen: [{ name: 'A', beruf: 'B', stationen: stns }] });
+      const zeilen = (h.match(/<td>X<\/td>/g) || []).length;
+      assert.equal(zeilen, stns.length,
+        `nur ${zeilen} von ${stns.length} Stationen gedruckt (${JSON.stringify(z)})`);
+      assert.doesNotMatch(h, /keine Zuweisung im Zeitraum/);
+    }
+  }
+});
+
+test('druckZeitraum: defensive Aufrufe stuerzen nicht ab', () => {
+  assert.deepEqual(PP.druckZeitraum(null, null, AJ), { von: '2025-09-01', bis: '2026-08-31' });
+  // Ganz ohne Fenster bleibt nur ein leerer Zeitraum — der Builder sagt das
+  // dann auch ("Zeitraum fehlt"), statt etwas zu behaupten.
+  assert.deepEqual(PP.druckZeitraum(null, null, null), { von: '', bis: '' });
+});
+
+// Kurzform fuer die Faelle mit leerem Profil.
+function PlanerPrintZ(stationen) { return PP.druckZeitraum({}, stationen, AJ); }

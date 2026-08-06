@@ -131,6 +131,61 @@ const PlanerPrint = (() => {
     };
   }
 
+  /* ── Druckzeitraum einer einzelnen Person ───────────────────────────────
+     Liegt hier und nicht in abteilungs-planer.js, weil die Regel eine reine
+     Eigenschaft DIESES Druckdokuments ist: sie leitet sich vollstaendig aus
+     der Filterbedingung von barGeom() daneben ab. In der Planer-Datei war sie
+     nicht testbar (die braucht DOM, Backend und Session), hier laeuft sie in
+     node:test gegen dieselben Builder, die sie beliefert. App-Globals bleiben
+     draussen: das Ausbildungsjahr kommt als fertige ISO-Strings herein.
+
+       person   { ausbildungsBeginn, ausbildungsEnde }   beide optional
+       fenster  { von, bis, heute }                      ISO, Rueckfallebene
+       Rueckgabe{ von, bis }
+
+     Zusicherung: KEINE der uebergebenen Stationen darf aus dem Zeitraum
+     fallen. barGeom laesst eine Station genau dann durch, wenn
+       (station.bis || '9999-12-31') >= von   UND   station.von <= bis.
+     Deshalb ist von das Minimum und bis das Maximum ueber ALLE Von- UND
+     Bis-Werte — nicht nur ueber die Bis-Werte. Nur die Bis-Werte zu nehmen
+     verschluckte eine offene Station, die spaeter beginnt als jede andere
+     Station endet (z.B. 2025-09-01..2025-10-31 plus 2027-03-01..offen), und
+     das Minimum ueber beide Seiten deckt zusaetzlich den (hier bewusst nicht
+     reparierten) Fall station.bis < station.von ab. */
+  function juengstes(...werte) { return werte.filter(Boolean).sort()[0] || ''; }
+  function spaetestes(...werte) { const v = werte.filter(Boolean).sort(); return v[v.length - 1] || ''; }
+
+  function druckZeitraum(person, stationen, fenster) {
+    const p = person || {}, f = fenster || {}, stns = stationen || [];
+    let von, bis;
+
+    if (!stns.length) {
+      // Keine Station: Profildaten, sonst das uebergebene Fenster. Die beiden
+      // Profilfelder sind unabhaengig optional — ein halb gefuelltes Profil
+      // (nur Beginn ODER nur Ende) mischt Profil- und Fensterdatum und kann
+      // dabei ein Ende vor dem Beginn ergeben. Der Guard unten faengt das.
+      von = p.ausbildungsBeginn || f.von;
+      bis = p.ausbildungsEnde || f.bis;
+    } else {
+      const grenzen = stns.flatMap(s => [s.von, s.bis]).filter(Boolean);
+      von = juengstes(...grenzen) || f.von;
+      bis = spaetestes(...grenzen);
+      // Offene Station (bis === null) hat kein Ende — barGeom zeigt sie, der
+      // Balken endete aber am Zeitraumende. Damit sie sichtbar Raum bekommt,
+      // den Zeitraum bis Ausbildungsende bzw. mindestens Fensterende/heute
+      // ziehen. Verkuerzen kann das nichts: spaetestes() nimmt das Maximum.
+      if (stns.some(s => !s.bis)) bis = spaetestes(bis, p.ausbildungsEnde, f.bis, f.heute);
+    }
+
+    // EIN gemeinsamer Ausgang, damit der Guard JEDEN Pfad abdeckt — vorher
+    // stand er hinter einem fruehen return und war fuer den Pfad "keine
+    // Station" unerreichbar. Der Builder druckt bei bis < von nur einen
+    // Hinweis; ein Ein-Tages-Zeitraum (von === bis) ist gueltig.
+    if (!von) von = f.von || '';
+    if (!bis || bis < von) bis = von;
+    return { von, bis };
+  }
+
   /* ── Balkenlabel: Textbreite schaetzen und Inhalt staffeln ──────────────
      Warum geschaetzt statt gemessen: die Builder laufen in Node (Tests) und
      bauen einen HTML-String, es gibt zu diesem Zeitpunkt kein Layout, an dem
@@ -615,7 +670,8 @@ const PlanerPrint = (() => {
   }
 
   const api = { esc, fmtDe, fmtDeKurz, tageZwischen, buildRaster, barGeom, textBreitePx, barLabel,
-    TRACK_PX, zeitraumGrund, PRINT_CSS, renderTafelHtml, renderTabelleHtml, openPrintWindow, open };
+    TRACK_PX, zeitraumGrund, druckZeitraum, PRINT_CSS, renderTafelHtml, renderTabelleHtml,
+    openPrintWindow, open };
   if (typeof window !== 'undefined') window.PlanerPrint = api;
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   return api;
