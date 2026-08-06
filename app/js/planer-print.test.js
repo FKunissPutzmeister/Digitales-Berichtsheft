@@ -300,6 +300,46 @@ test('renderTafelHtml: Fremdeingaben werden escaped', () => {
   assert.doesNotMatch(h, /Kevin <Test>/);
 });
 
+test('renderTafelHtml: Beruf wird escaped', () => {
+  const sel = { ...SEL, personen: [{ name: 'A', beruf: '<i>Beruf</i> & "X"', gruppe: 'Zugewiesen', stationen: [] }] };
+  const h = PP.renderTafelHtml(sel);
+  assert.match(h, /<div class="pp-br">&lt;i&gt;Beruf&lt;\/i&gt; &amp; &quot;X&quot;<\/div>/);
+  assert.doesNotMatch(h, /<div class="pp-br"><i>Beruf<\/i>/);
+});
+
+// Balken-Marker und title-Attribut nutzen beide esc(s.abteilung) an ZWEI
+// verschiedenen Stellen im Template — ein Test, der nur irgendein
+// Vorkommen im Dokument prueft, wuerde beide Mutationen scheinbar toeten,
+// waehrend die andere ueberlebt. Deshalb je ein Assert, das gezielt nur die
+// eine oder die andere Einbaustelle trifft (Span-Inhalt vs. title="...").
+// Station ohne cutLeft/cutRight (komplett im SEL-Zeitraum), damit der
+// Marker exakt esc(abteilung) ist, ohne die ‹/›-Marker davor/danach.
+test('renderTafelHtml: Abteilungsname im Balken-Marker UND im title-Attribut werden escaped', () => {
+  const sel = { ...SEL, personen: [{ name: 'A', beruf: 'B', gruppe: 'Zugewiesen', stationen: [
+    { abteilung: '<b>&"Q</b>', von: '2026-01-01', bis: '2026-01-31', verantw: 'X', farbe: '#333' },
+  ] }] };
+  const h = PP.renderTafelHtml(sel);
+
+  // Marker (sichtbarer Text im Balken):
+  assert.match(h, /<span class="pp-bar__lbl">&lt;b&gt;&amp;&quot;Q&lt;\/b&gt;<\/span>/);
+  assert.doesNotMatch(h, /<span class="pp-bar__lbl"><b>&"Q<\/b><\/span>/);
+
+  // title-Attribut (Tooltip):
+  assert.match(h, /title="&lt;b&gt;&amp;&quot;Q&lt;\/b&gt; \(01\.01\.2026 – 31\.01\.2026\)"/);
+  assert.doesNotMatch(h, /title="<b>&"Q<\/b> \(/);
+});
+
+test('renderTafelHtml: Abteilungsname in der Legende wird escaped', () => {
+  const sel = { ...SEL, personen: [{ name: 'A', beruf: 'B', gruppe: 'Zugewiesen', stationen: [
+    { abteilung: '<u>Recht</u>', von: '2025-09-01', bis: '2025-10-31', verantw: 'X', farbe: '#111111' },
+  ] }] };
+  const h = PP.renderTafelHtml(sel);
+  // lastIndexOf wie im Nachbar-Test: "pp-legend" steht auch im PRINT_CSS.
+  const legende = h.slice(h.lastIndexOf('<div class="pp-legend">'));
+  assert.match(legende, /&lt;u&gt;Recht&lt;\/u&gt;/);
+  assert.doesNotMatch(legende, /<u>Recht<\/u>/);
+});
+
 test('renderTafelHtml: print-color-adjust gesetzt, sonst schluckt der Browser die Farben', () => {
   assert.match(PP.renderTafelHtml(SEL), /print-color-adjust:exact/);
 });
@@ -320,6 +360,67 @@ test('renderTafelHtml: fehlendes personen-Array stuerzt nicht ab, liefert leeres
   assert.match(h, /^<!DOCTYPE html>/);
   assert.match(h, /<\/html>\s*$/);
   assert.match(h, /0 Personen/);
+});
+
+// zeitraumUngueltig ist die einzige Stelle, die entscheidet, ob ein Zeitraum
+// degeneriert ist — beide Builder muessen fuer JEDE dieser Eingaben in den
+// Fruehausstieg gehen, nicht nur fuer echtes "von > bis". Insbesondere
+// '' / null / undefined sind der Weg, auf dem ein leeres <input
+// type="date"> (Task 6) einen degenerierten Zeitraum durchreicht — der
+// dortige Dialog-Guard sperrt den Drucken-Button dafuer NICHT, der Builder
+// muss sich also selbst schuetzen. Ein direkter Stringvergleich sel.von >
+// sel.bis waere hier false (weder '' > '' noch null > null noch
+// undefined > undefined ist true), obwohl buildRaster fuer alle diese
+// Faelle ein leeres Spaltenarray liefert — deshalb prueft zeitraumUngueltig
+// das tatsaechliche Rasterergebnis statt einer Vorbedingung.
+const DEGENERIERTE_ZEITRAEUME = [
+  ['von > bis (echte Daten)', '2026-08-31', '2026-01-01'],
+  ["leere Strings ('')", '', ''],
+  ['null', null, null],
+  ['undefined', undefined, undefined],
+  ['syntaktisch kaputtes Datum', '2026-13-45', '2026-13-45'],
+];
+
+for (const [label, von, bis] of DEGENERIERTE_ZEITRAEUME) {
+  test(`renderTafelHtml: degenerierter Zeitraum (${label}) liefert Hinweis statt colspan="0"/NaN/Infinity`, () => {
+    const sel = { ...SEL, von, bis };
+    const h = PP.renderTafelHtml(sel);
+    assert.match(h, /^<!DOCTYPE html>/);
+    assert.match(h, /<\/html>\s*$/);
+    assert.match(h, /Zeitraum ungueltig \(Ende vor Beginn\) — keine Tafel darstellbar/);
+    assert.doesNotMatch(h, /colspan="\d+"/);   // keine Tabellenzelle mit Balken/Spalten gebaut
+    assert.doesNotMatch(h, /NaN/);
+    assert.doesNotMatch(h, /Infinity/);
+  });
+
+  test(`renderTabelleHtml: degenerierter Zeitraum (${label}) liefert Hinweis statt Abschnitten`, () => {
+    const sel = { ...SEL, von, bis };
+    const h = PP.renderTabelleHtml(sel);
+    assert.match(h, /^<!DOCTYPE html>/);
+    assert.match(h, /<\/html>\s*$/);
+    assert.match(h, /Zeitraum ungueltig \(Ende vor Beginn\) — keine Tabelle darstellbar/);
+    assert.doesNotMatch(h, /class="pp-sec"/);
+    assert.doesNotMatch(h, /NaN/);
+    assert.doesNotMatch(h, /Infinity/);
+  });
+}
+
+test('renderTafelHtml/renderTabelleHtml: gueltiger Ein-Tages-Zeitraum (von === bis, echte Daten) wird normal gerendert', () => {
+  const sel = {
+    von: '2026-01-01', bis: '2026-01-01', stand: '2026-08-06',
+    personen: [{ name: 'A', beruf: 'B', gruppe: 'Zugewiesen', stationen: [
+      { abteilung: 'IT', von: '2026-01-01', bis: '2026-01-01', verantw: 'X', farbe: '#333' },
+    ] }],
+  };
+  const hT = PP.renderTafelHtml(sel);
+  assert.doesNotMatch(hT, /Zeitraum ungueltig/);
+  assert.match(hT, /colspan="1"/);
+  assert.match(hT, /background:#333/);
+
+  const hB = PP.renderTabelleHtml(sel);
+  assert.doesNotMatch(hB, /Zeitraum ungueltig/);
+  assert.match(hB, /class="pp-sec"/);
+  assert.match(hB, /01\.01\.2026 – 01\.01\.2026/);
 });
 
 test('renderTabelleHtml: Dokument im Hochformat', () => {

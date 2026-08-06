@@ -174,15 +174,20 @@ const PlanerPrint = (() => {
   }
 
   // Beide Druckvarianten muessen fuer denselben sel dasselbe Urteil faellen,
-  // ob der Zeitraum degeneriert ist (von > bis) — sonst zeigt die eine Sorte
-  // Papier eine Tafel/Tabelle, waehrend die andere einen Hinweis druckt.
-  // Direkter Stringvergleich statt "buildRaster(...).spalten.length === 0":
-  // ISO-Datumsstrings (YYYY-MM-DD) vergleichen sich lexikalisch korrekt
-  // chronologisch, die Pruefung braucht damit weder Date-Parsing noch die
-  // Rundungslogik von tageZwischen — robuster und ohne Seiteneffekt auf den
-  // spaeter (nur im Erfolgsfall) berechneten Raster.
-  function zeitraumUngueltig(sel) {
-    return sel.von > sel.bis;
+  // ob der Zeitraum degeneriert ist — sonst zeigt die eine Sorte Papier eine
+  // Tafel/Tabelle, waehrend die andere einen Hinweis druckt.
+  //
+  // Bewusst NICHT "sel.von > sel.bis": das ist fuer '' / null / undefined
+  // (leeres <input type="date">, Task 6) schlicht false — leere/gleiche
+  // Werte sind lexikalisch nicht "groesser" als einander — waehrend
+  // buildRaster fuer genau diese Eingaben trotzdem ein leeres Spaltenarray
+  // liefert (tageZwischen faengt ungueltige Date-Strings über NaN ab). Ein
+  // Stringvergleich prueft nur eine Vorbedingung; das tatsaechliche
+  // Rasterergebnis zu pruefen ist die schaerfere, tatsaechlich robustere
+  // Bedingung. Nimmt optional einen bereits berechneten Raster entgegen,
+  // damit renderTafelHtml buildRaster nicht zweimal aufrufen muss.
+  function zeitraumUngueltig(sel, raster) {
+    return !(raster || buildRaster(sel.von, sel.bis)).spalten.length;
   }
 
   /* Tafel = echte <table> mit <thead>: Browser wiederholen einen Tabellenkopf
@@ -192,18 +197,20 @@ const PlanerPrint = (() => {
      Pixelrechnung. table-layout:fixed ist dafuer Pflicht. */
   function renderTafelHtml(sel) {
     const range = { von: sel.von, bis: sel.bis };
+    const raster = buildRaster(sel.von, sel.bis);
 
     // Degenerierter Zeitraum: keine Tafel ohne Zeitachse drucken, sondern
     // Kopf + klarer Hinweis. Sonst waere die einzige Alternative
     // colspan="0" (ungueltig, Browser klemmt auf 1) und left/width:NaN% —
-    // ein Blatt, das etwas behauptet, was nicht da ist.
-    if (zeitraumUngueltig(sel)) {
+    // ein Blatt, das etwas behauptet, was nicht da ist. Raster wird bereits
+    // gebraucht (Spalten/Kopf unten) — hier durchgereicht, damit
+    // zeitraumUngueltig buildRaster nicht zweimal aufruft.
+    if (zeitraumUngueltig(sel, raster)) {
       const body = kopfHtml(sel, '')
         + `<div class="pp-none">Zeitraum ungueltig (Ende vor Beginn) — keine Tafel darstellbar</div>`;
       return dokument('Abteilungsdurchlauf', PRINT_CSS, body, 'size:A4 landscape;margin:12mm');
     }
 
-    const raster = buildRaster(sel.von, sel.bis);
     const personen = personenListe(sel);
 
     const NAME_PCT = 22;
