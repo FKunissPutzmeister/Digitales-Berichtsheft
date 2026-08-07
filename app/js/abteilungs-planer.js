@@ -630,6 +630,10 @@ document.addEventListener('DOMContentLoaded', async () => {
   let searchText = '', filterBeruf = '', filterAbteilung = '',
       filterVerantw = '', nurOhne = false, showInaktive = false;
   let selectedAzubiId = null;
+  // Verschobene Detail-Kachel: null = angedockt am rechten Tafelrand (CSS
+  // right:0), sonst {left,top} als Viewport-Koordinaten. Bewusst nur im
+  // Speicher — nach F5 sitzt die Kachel wieder am Ausgangsplatz.
+  let panelPos = null;
   const collapsed = new Set();                         // eingeklappte Gruppen (Titel)
   let editId = null;                                   // im Modal bearbeitete Zuweisung (null = neu)
   let addPresetAzubiId = null;                         // Vorauswahl beim Anlegen
@@ -856,16 +860,27 @@ document.addEventListener('DOMContentLoaded', async () => {
           <button type="button" data-z="quartal" class="${zoom === 'quartal' ? 'is-on' : ''}">Quartal</button>
           <button type="button" data-z="jahr" class="${zoom === 'jahr' ? 'is-on' : ''}">Jahr</button>
         </div>
-        <button type="button" class="btn btn-outline btn-sm" id="ptHeute">Heute</button>
-        <button type="button" class="btn btn-outline btn-sm" id="ptExport" title="Aktuell gefilterte Personen + Zuweisungen als CSV (öffnet in Excel)">Export</button>
-        <button type="button" class="btn btn-outline btn-sm" id="ptPrint" title="Azubis, Zeitraum und Darstellung wählen, dann drucken">Drucken</button>
-        <button type="button" class="btn btn-secondary btn-sm" id="ptAdd">+ Zuweisung</button>
+        <div class="pt-toolbar__row2">
+          <div class="pt-toolbar__actions">
+            <button type="button" class="btn btn-outline btn-sm" id="ptExport" title="Aktuell gefilterte Personen + Zuweisungen als CSV (öffnet in Excel)">Export</button>
+            <button type="button" class="btn btn-outline btn-sm" id="ptPrint" title="Azubis, Zeitraum und Darstellung wählen, dann drucken">Drucken</button>
+          </div>
+          <div class="pt-toolbar__right">
+            <button type="button" class="btn btn-outline btn-sm" id="ptHeute">Heute</button>
+            <button type="button" class="btn btn-secondary btn-sm" id="ptAdd">+ Zuweisung</button>
+          </div>
+        </div>
       </div>`;
   }
 
   function render() {
     const main = document.getElementById('mainContent');
     cleanupPMSelect(main);
+    // Eine verschobene Kachel hängt an der .app-shell (applyPanelPos) und damit
+    // außerhalb von #mainContent — ohne dieses Aufräumen gäbe es nach dem
+    // Neuaufbau zwei #ptPanel, und getElementById träfe das falsche.
+    const strayPanel = document.getElementById('ptPanel');
+    if (strayPanel && !main.contains(strayPanel)) strayPanel.remove();
     main.innerHTML = `
       <div class="page-header"><div class="page-header__left">
         <h1 class="page-title">Abteilungs-Planer</h1>
@@ -886,6 +901,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     renderLegend();
     renderPanel();
     bindBoardDrag();
+    bindPanelDrag();
     Modal.init(); Toast.init();
     scrollToToday();
   }
@@ -1106,9 +1122,9 @@ document.addEventListener('DOMContentLoaded', async () => {
   async function renderPanel(focusZid) {
     const panel = document.getElementById('ptPanel');
     if (!panel) return;
-    if (!selectedAzubiId) { panel.hidden = true; panel.innerHTML = ''; return; }
+    if (!selectedAzubiId) { panel.hidden = true; panel.innerHTML = ''; applyPanelPos(); return; }
     const a = azubiById.get(selectedAzubiId);
-    if (!a) { panel.hidden = true; return; }
+    if (!a) { panel.hidden = true; applyPanelPos(); return; }
     panel.hidden = false;
 
     // Grundgerüst sofort (Badges kommen nach dem Laden nach).
@@ -1131,6 +1147,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       </div>`;
     panel.innerHTML = `${head}<div class="pt-panel__body" id="ptPanelBody"><div class="pt-empty">Lädt …</div></div>${foot}`;
     bindPanelFoot();
+    applyPanelPos();                                   // Position der Sitzung wiederherstellen/nachklemmen
 
     const beurt = await ladeBeurteilungen(selectedAzubiId);
     if (selectedAzubiId !== a.id) return;              // zwischenzeitlich gewechselt
@@ -1178,6 +1195,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         const stnEl = bodyEl.querySelector(`[data-stn="${focusZid}"]`);
         if (stnEl) { stnEl.classList.add('pt-stn--focus'); stnEl.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); }
       }
+      applyPanelPos();     // Stationen ändern die Höhe → erneut ans Fenster klemmen
     }
   }
   function bindPanelFoot() {
@@ -1186,6 +1204,163 @@ document.addEventListener('DOMContentLoaded', async () => {
     document.getElementById('ptPanelPrint')?.addEventListener('click', () => printPerson(selectedAzubiId));
     document.getElementById('ptPanelCopy')?.addEventListener('click', () => openCopyDialog(selectedAzubiId));
   }
+
+  // ═══════════════════ DETAIL-KACHEL VERSCHIEBEN ═══════════════════
+  // Die Kachel schwebt über der Tafel (planer-board.css) und lässt sich an der
+  // Kopfzeile frei über die Seite ziehen; der Fensterrand hält sie fest.
+  // panelPos sind Viewport-Koordinaten der linken oberen Ecke.
+  const PANEL_MARGIN = 8;                              // Mindestluft zum Fensterrand
+  let panelDrag = null;
+  let lastHeadClick = 0;                               // für Doppelklick = zurücksetzen
+
+  // Unter 1100px ist die Kachel ein Vollhöhen-Drawer am Viewport-Rand –
+  // verschieben wäre dort sinnlos und würde das Layout zerlegen.
+  function panelDragBlocked() { return window.matchMedia('(max-width:1100px)').matches; }
+
+  function clampToViewport(left, top, w, h) {
+    const vw = document.documentElement.clientWidth;   // ohne Scrollbar, anders als innerWidth
+    const vh = document.documentElement.clientHeight;
+    // Ist die Kachel groesser als das Fenster, waere max < min – dann gewinnt
+    // min, sie bleibt oben/links ausgerichtet statt aus dem Bild zu wandern.
+    const maxL = Math.max(PANEL_MARGIN, vw - w - PANEL_MARGIN);
+    const maxT = Math.max(PANEL_MARGIN, vh - h - PANEL_MARGIN);
+    return { left: Math.min(Math.max(left, PANEL_MARGIN), maxL),
+             top:  Math.min(Math.max(top,  PANEL_MARGIN), maxT) };
+  }
+
+  // Höhe deckeln, damit die Kachel unten nicht aus dem Fenster ragt und die
+  // Fußleiste (+ Zuweisung / Durchlauf kopieren / Drucken) erreichbar bleibt.
+  // Gemessen statt gerechnet: die Oberkante hängt an Topbar, Testphase-Banner,
+  // Seitentitel UND am Umbruch der Toolbar – jede feste Zahl stimmt nur für
+  // eine Fensterbreite. Genau daran scheiterte das calc(100vh - 172px) im CSS,
+  // das als Fallback stehen bleibt, bis diese Funktion das erste Mal läuft:
+  // die Kachel startet real bei y≈204 und ragte damit 32px nach unten heraus.
+  function capPanelHeight(panel, moved) {
+    const vh = document.documentElement.clientHeight;
+    // Verschoben: die Kachel darf nie höher als das Fenster minus Luft sein –
+    // clampToViewport rechnet danach mit dieser Höhe weiter.
+    if (moved) { panel.style.maxHeight = (vh - 2 * PANEL_MARGIN) + 'px'; return; }
+    // Angedockt: von der real gemessenen Oberkante bis kurz über den
+    // Fensterboden. Bei nach unten gescrollter Seite ist top negativ, dann
+    // wächst der Deckel korrekt mit.
+    const top = Math.round(panel.getBoundingClientRect().top);
+    panel.style.maxHeight = Math.max(160, vh - top - PANEL_MARGIN) + 'px';
+  }
+
+  // panelPos → Position. Ohne Position (oder im Drawer-Modus) wird alles
+  // abgeräumt, damit wieder die CSS-Andockung am rechten Tafelrand greift –
+  // Inline-Styles schlagen jede Media-Query, das Aufräumen ist Pflicht.
+  //
+  // Die verschobene Kachel hängt an der .app-shell statt im Layout: das
+  // .main-content darüber trägt eine (identische) transform-Matrix und bildet
+  // damit einen Stacking-Context mit z-index:auto. Darin bleibt die Kachel
+  // IMMER unter der Sidebar (position:fixed, z-index 100) – egal welchen
+  // z-index sie bekommt; sie verschwindet dahinter und ist nicht mehr
+  // greifbar. Erst als Kind der Shell konkurriert ihr z-index direkt mit dem
+  // der Sidebar (siehe .pt-panel.is-moved in planer-board.css).
+  function applyPanelPos() {
+    const panel = document.getElementById('ptPanel'); if (!panel) return;
+    const layout = document.getElementById('ptLayout');
+    if (!panelPos || panel.hidden || panelDragBlocked()) {
+      // Der Drawer unter 1100px muss ebenfalls an der Shell hängen: im Layout
+      // bezieht sich sein position:fixed auf .main-content (transform-Matrix!)
+      // statt aufs Fenster – er wurde damit 1038px hoch in einem 800px-Fenster
+      // und seine Fußleiste war UNERREICHBAR, weil sich ein fixed-Element
+      // nicht ins Bild scrollen lässt. An der Shell meint top/bottom:0 wieder
+      // die Fensterhöhe.
+      const dockHost = (!panel.hidden && panelDragBlocked())
+        ? (document.querySelector('.app-shell') || document.body)
+        : layout;
+      if (dockHost && panel.parentElement !== dockHost) dockHost.appendChild(panel);
+      panel.style.left = ''; panel.style.top = '';
+      panel.classList.remove('is-moved');
+      // Der Drawer unter 1100px füllt die Höhe selbst (max-height:none), ein
+      // Inline-Deckel würde ihn 8px zu kurz machen.
+      if (panel.hidden || panelDragBlocked()) panel.style.maxHeight = '';
+      else capPanelHeight(panel, false);
+      return;
+    }
+    const host = document.querySelector('.app-shell') || document.body;
+    if (panel.parentElement !== host) host.appendChild(panel);
+    panel.classList.add('is-moved');
+    capPanelHeight(panel, true);
+    const want = clampToViewport(panelPos.left, panelPos.top, panel.offsetWidth, panel.offsetHeight);
+    panelPos = want;
+    // Zwei Durchgänge: setzen, messen, Versatz abziehen. Welches Element der
+    // Containing Block für position:fixed ist, hängt am Theme (filter,
+    // backdrop-filter und transform erzeugen jeweils einen) – der gemessene
+    // Fehler ist verlässlicher als jede Annahme darüber.
+    panel.style.left = want.left + 'px';
+    panel.style.top  = want.top + 'px';
+    const r = panel.getBoundingClientRect();
+    const ex = Math.round(r.left - want.left), ey = Math.round(r.top - want.top);
+    if (ex) panel.style.left = (want.left - ex) + 'px';
+    if (ey) panel.style.top  = (want.top - ey) + 'px';
+  }
+
+  // Nach SPA-Navigation auf eine andere Seite bleibt die an der Shell
+  // hängende Kachel sonst über der neuen Seite kleben – die Shell überlebt
+  // den innerHTML-Tausch des Routers.
+  window.addEventListener('pm-page-rendered', () => {
+    if (document.getElementById('ptBoard')) return;    // noch im Planer
+    const stray = document.getElementById('ptPanel');
+    if (stray && stray.parentElement !== document.getElementById('ptLayout')) stray.remove();
+    panelPos = null;
+  });
+
+  // pointerdown hängt an der Kachel, nicht an der Kopfzeile: renderPanel()
+  // tauscht das innerHTML komplett aus, ein Listener am Kopf wäre nach jedem
+  // Azubi-Wechsel weg.
+  function bindPanelDrag() {
+    document.getElementById('ptPanel')?.addEventListener('pointerdown', onPanelDown);
+  }
+  function onPanelDown(e) {
+    if (e.button != null && e.button !== 0) return;    // nur linke Maustaste
+    if (panelDragBlocked()) return;
+    if (!e.target.closest('.pt-panel__head')) return;  // nur am Griff
+    if (e.target.closest('button')) return;            // ×-Button bleibt Button
+    const panel = e.currentTarget;
+    const br = panel.getBoundingClientRect();
+    panelDrag = { panel, startX: e.clientX, startY: e.clientY, moved: false,
+                  dx: e.clientX - br.left, dy: e.clientY - br.top }; // Griffpunkt in der Kachel
+    panel.classList.add('is-dragging');
+    document.body.classList.add('pt-dragging');
+    window.addEventListener('pointermove', onPanelMove);
+    window.addEventListener('pointerup', onPanelUp);
+    window.addEventListener('pointercancel', onPanelUp);
+    e.preventDefault();
+  }
+  function onPanelMove(e) {
+    const d = panelDrag; if (!d) return;
+    // 3px Totzone: ein Klick auf den Kopf soll die Kachel nicht vom Rand lösen.
+    if (!d.moved && Math.abs(e.clientX - d.startX) < 3 && Math.abs(e.clientY - d.startY) < 3) return;
+    d.moved = true;
+    panelPos = { left: e.clientX - d.dx, top: e.clientY - d.dy };
+    applyPanelPos();
+  }
+  function onPanelUp() {
+    window.removeEventListener('pointermove', onPanelMove);
+    window.removeEventListener('pointerup', onPanelUp);
+    window.removeEventListener('pointercancel', onPanelUp);
+    const d = panelDrag; if (!d) return;
+    panelDrag = null;
+    d.panel.classList.remove('is-dragging');
+    document.body.classList.remove('pt-dragging');
+    if (d.moved) { lastHeadClick = 0; return; }
+    // Doppelklick auf den Kopf = zurück an den rechten Tafelrand. Über
+    // Zeitfenster erkannt statt via dblclick-Event: onPanelDown ruft
+    // preventDefault (sonst markiert das Ziehen Text), womit native
+    // click/dblclick je nach Browser ausbleiben – dieselbe Falle wie beim
+    // Balken-Drag weiter unten.
+    const now = Date.now();
+    if (now - lastHeadClick < 350) { lastHeadClick = 0; panelPos = null; applyPanelPos(); }
+    else lastHeadClick = now;
+  }
+
+  // Nach Fensteränderungen nachklemmen, sonst liegt die Kachel außerhalb –
+  // und beim Wechsel in den Drawer-Modus müssen die Inline-Styles weg. Läuft
+  // auch für die angedockte Kachel, deren Höhendeckel an der Fensterhöhe hängt.
+  window.addEventListener('resize', applyPanelPos);
 
   function scrollToToday(smooth) {
     const scroll = document.getElementById('ptScroll'); if (!scroll) return;

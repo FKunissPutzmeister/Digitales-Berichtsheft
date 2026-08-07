@@ -7,9 +7,15 @@
    die --pm-*-Tokens → Hell/Dunkel automatisch (variables.css).
    =================================================================== */
 
-/* ── Layout: Board + optionales Detail-Panel ── */
-.pt-layout { display:grid; grid-template-columns:1fr; gap:0; min-height:0; }
-.pt-layout.pt-has-panel { grid-template-columns:minmax(0,1fr) 384px; }
+/* ── Layout: Board + optionales Detail-Panel ──
+   Das Panel liegt als Overlay ueber der rechten Seite der Tafel (absolut, siehe
+   .pt-panel weiter unten) statt als zweite Grid-Spalte. Dadurch behaelt die
+   Plantafel beim Oeffnen ihre volle Breite und wird nicht mehr von 1096px auf
+   712px zusammengestaucht (Monatsspalten sprangen sonst bei jedem Klick).
+   Preis: die Balken unter dem Panel sind verdeckt, bis man es schliesst.
+   Die Klasse .pt-has-panel setzt das JS weiterhin, sie steuert aber kein
+   Layout mehr – reiner Zustands-Marker (nicht suchen, es fehlt keine Regel). */
+.pt-layout { position:relative; display:grid; grid-template-columns:1fr; gap:0; min-height:0; }
 
 /* ── Kopf / Toolbar ── */
 .pt-toolbar {
@@ -22,6 +28,24 @@
    .pm-select--block (0,2,0), das sonst width:100% erzwingt → Zeilenumbruch. */
 .pt-toolbar .pm-select.pm-select--block { width:auto; flex:0 1 190px; min-width:150px; }
 .pt-toolbar__spacer { flex:1 1 auto; }
+/* Export/Drucken als eine Einheit behandeln: ohne diesen Wrapper bricht
+   flex-wrap die Buttons einzeln um, sodass z.B. Export noch in die Zeile passt,
+   Drucken aber schon nicht mehr – die Gruppe reißt auseinander. Als ein
+   Flex-Item wandert sie geschlossen in die nächste Zeile. */
+/* Eigene Zeile fuer die Aktions-Buttons: flex-basis:100% zwingt den Wrapper
+   immer in eine eigene Flex-Zeile, damit die Aufteilung "Export/Drucken links,
+   Heute/+Zuweisung rechts" bei JEDER Fensterbreite gleich aussieht.
+   Ueber Raender war das nicht zu erreichen: .pt-toolbar__spacer (flex:1)
+   waechst und drueckt alles ab dem AJ-Stepper an das rechte Zeilenende, sobald
+   "Heute + Zuweisung" umbrechen. In einer so rechts gepackten Zeile verschiebt
+   margin-left an dieser Gruppe nicht sie selbst, sondern ihre linken Nachbarn
+   (den AJ/Zoom-Block) – und wie die Zeile gerade gepackt ist, haengt an der
+   Fensterbreite. Struktur statt Margins ist hier das stabilere Mittel. */
+.pt-toolbar__row2 { flex:0 0 100%; display:flex; align-items:center; gap:var(--sp-2); flex-wrap:wrap; }
+.pt-toolbar__actions { display:inline-flex; align-items:center; gap:var(--sp-2); flex-wrap:nowrap; }
+/* Heute + „+ Zuweisung" ganz rechts am Seitenrand: Auto-Margins schlucken den
+   freien Platz der Zeile, die Gruppe wandert also geschlossen an den Rand. */
+.pt-toolbar__right { display:inline-flex; align-items:center; gap:var(--sp-2); flex-wrap:nowrap; margin-left:auto; }
 
 .pt-stepper { display:inline-flex; align-items:center; border:1px solid var(--pm-grey-200); border-radius:var(--r-md); background:var(--pm-white); overflow:hidden; }
 .pt-stepper button { width:32px; height:36px; border:0; background:transparent; color:var(--pm-grey-600); cursor:pointer; font-size:15px; line-height:1; }
@@ -106,14 +130,32 @@
 
 .pt-empty { padding:var(--sp-8); text-align:center; color:var(--pm-grey-400); font-size:var(--text-sm); }
 
-/* ── Detail-Panel (rechts) ── */
-.pt-panel { border:1px solid var(--pm-grey-200); border-radius:var(--r-lg); background:var(--pm-white); box-shadow:var(--shadow-sm); display:flex; flex-direction:column; overflow:hidden; max-height:calc(100vh - 172px); }
+/* ── Detail-Panel (rechts, schwebend) ──
+   z-index 20 liegt ueber allen sticky-Ebenen der Tafel (pt-head 6/7,
+   pt-grp__head 5, pt-name 4, pt-today-flag 8), sonst schiebt sich der
+   Tabellenkopf beim Scrollen vor das Panel. Der groessere Schatten macht das
+   Schweben sichtbar; @media (max-width:1100px) unten ueberschreibt position
+   spaeter mit fixed (gleiche Spezifitaet, spaetere Regel gewinnt).
+   max-height ist nur der Startwert: der Abstand zur Fensteroberkante haengt an
+   Topbar, Banner, Titel und Toolbar-Umbruch, eine feste Zahl ragt also je nach
+   Fenster unten heraus. capPanelHeight() in abteilungs-planer.js ueberschreibt
+   den Deckel gemessen, sobald die Kachel gerendert wird. */
+.pt-panel { position:absolute; top:0; right:0; width:384px; z-index:20; border:1px solid var(--pm-grey-200); border-radius:var(--r-lg); background:var(--pm-white); box-shadow:var(--shadow-lg); display:flex; flex-direction:column; overflow:hidden; max-height:calc(100vh - 172px); }
 /* [hidden] muss am Panel wirken: die Klassenregel oben setzt display:flex und
-   schlaegt [hidden]{display:none} in der Spezifitaet. Am Bildschirm faellt das
-   nicht auf (das Panel ist im Flow nur ein 2px-Splitter), im Druck-Layout wird
-   daraus ein dokumenthoher weisser Block ueber der Tafel. */
+   schlaegt [hidden]{display:none} in der Spezifitaet. Ohne diese Regel bliebe
+   ein leerer weisser Block ueber der rechten Tafelhaelfte stehen, im
+   Druck-Layout ein dokumenthoher. */
 .pt-panel[hidden] { display:none; }
-.pt-panel__head { display:flex; align-items:center; gap:11px; padding:var(--sp-4); border-bottom:1px solid var(--pm-grey-200); }
+/* Die Kopfzeile ist der Zieh-Griff (Logik: bindPanelDrag in
+   abteilungs-planer.js). touch-action:none, damit das Ziehen am Touchscreen
+   nicht als Seiten-Scroll interpretiert wird; user-select:none, damit der Name
+   beim Ziehen nicht markiert wird. Der ×-Button darin bleibt ein Button. */
+.pt-panel__head { display:flex; align-items:center; gap:11px; padding:var(--sp-4); border-bottom:1px solid var(--pm-grey-200); cursor:grab; user-select:none; touch-action:none; }
+.pt-panel__head button { cursor:pointer; }
+.pt-panel.is-dragging .pt-panel__head { cursor:grabbing; }
+/* Waehrend des Ziehens global: kein Textmarkieren, Cursor bleibt der Griff,
+   auch wenn der Zeiger die Kachel verlaesst. */
+body.pt-dragging { user-select:none; cursor:grabbing; }
 .pt-panel__nm { font-size:var(--text-lg); font-weight:700; color:var(--pm-grey-900); }
 .pt-panel__meta { font-size:var(--text-xs); color:var(--pm-grey-400); }
 .pt-panel__close { margin-left:auto; width:32px; height:32px; border:1px solid var(--pm-grey-200); border-radius:var(--r-md); background:var(--pm-white); color:var(--pm-grey-500); cursor:pointer; display:flex; align-items:center; justify-content:center; }
@@ -147,10 +189,31 @@
 .pt-b-open { background:var(--color-warning-light); color:var(--color-warning); }
 .pt-b-cur { background:var(--pm-yellow-bg); color:var(--pm-grey-900); border:1px solid var(--pm-yellow); }
 
+/* Verschobene Kachel: die Andockung rechts muss weichen, das JS setzt dann
+   left/top inline (Viewport-Koordinaten, daher fixed — die Kachel bleibt beim
+   Scrollen an ihrem Platz). z-index 150 liegt ueber der Sidebar
+   (--z-sidebar 100) und unter Modal/Toast (200/300): der Dialog "Neue
+   Zuweisung" muss die Kachel weiterhin verdecken. Damit dieser z-index
+   ueberhaupt greift, haengt applyPanelPos() die Kachel an die .app-shell —
+   im Stacking-Context von .main-content bliebe sie unter der Sidebar.
+   Bewusst in min-width gekapselt, damit die Regel dem Drawer unter 1100px
+   (right:0) nicht in die Quere kommt: .pt-panel.is-moved (0,2,0) wuerde
+   .pt-panel (0,1,0) dort sonst ueberstimmen. */
+@media (min-width:1101px) {
+  .pt-panel.is-moved { position:fixed; right:auto; z-index:150; }
+}
+
 /* ── Responsive ── */
 @media (max-width:1100px) {
-  .pt-layout.pt-has-panel { grid-template-columns:1fr; }
-  .pt-panel { position:fixed; top:0; right:0; bottom:0; width:min(384px,92vw); z-index:60; border-radius:0; max-height:none; box-shadow:var(--shadow-lg); }
+  /* Schmale Viewports: aus dem Overlay am Tafelrand wird ein Vollhoehen-Drawer
+     am Viewport-Rand. Verschieben ist hier aus (applyPanelPos raeumt die
+     Inline-Styles ab), der Griff-Cursor waere also irrefuehrend.
+     top/bottom:0 ergeben nur dann die Fensterhoehe, wenn die Kachel an der
+     .app-shell haengt — dafuer sorgt applyPanelPos(). z-index 150 wie bei der
+     verschobenen Kachel: dort konkurriert er direkt mit der Sidebar (100),
+     der alte Wert 60 lag im Layout ohnehin wirkungslos unter ihr. */
+  .pt-panel { position:fixed; top:0; right:0; bottom:0; width:min(384px,92vw); z-index:150; border-radius:0; max-height:none; box-shadow:var(--shadow-lg); }
+  .pt-panel__head { cursor:default; }
 }
 @media (max-width:768px) {
   .pt-board { --name-w:170px; }
@@ -209,7 +272,6 @@
 
   .pt-scroll { max-height:none !important; overflow:visible !important; }
   .pt-wrap { box-shadow:none !important; border-color:#ccc !important; }
-  .pt-layout.pt-has-panel { grid-template-columns:1fr; }
   .pt-bar { box-shadow:none !important; print-color-adjust:exact; -webkit-print-color-adjust:exact; }
   @page { size:landscape; margin:12mm; }
 }
