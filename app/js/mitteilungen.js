@@ -12,6 +12,11 @@ document.addEventListener('DOMContentLoaded', async () => {
   const main = document.getElementById('mainContent');
   const esc = window.escapeHtml;
   const isAzubi = !!user.istAzubi;
+  // Reiner Verwaltungszugang – gleiche Definition wie in dashboard.js
+  // (renderAusbilderDashboard). Für diese Nutzer liefert der aus Wochen
+  // abgeleitete Ausbilder-Feed nichts, weil sie keine eigenen Azubis haben;
+  // ihre Mitteilungen stehen ausschließlich in dbo.Benachrichtigungen.
+  const nurVerwaltung = !user.istAusbilder && (user.role === 'admin' || user.kannPlanen);
 
   const ICON = {
     ok:      '<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>',
@@ -91,6 +96,39 @@ document.addEventListener('DOMContentLoaded', async () => {
     return items.sort((x, y) => y.ts - x.ts);
   }
 
+  // Verwaltungs-Mitteilungen (Versetzungen/Vertretungen/Beurteilungen) aus den
+  // Backend-Benachrichtigungen. Spiegelt VERWALTUNG_MT_TYPEN aus dashboard.js;
+  // wochenbezogene Typen bleiben aus, sie hätten hier kein KW/Jahr.
+  const VERWALTUNG_TYPEN = {
+    versetzung_neu:            { tone: 'info',    label: 'Abteilung',   titel: 'Neue Abteilung geplant' },
+    versetzung_geaendert:      { tone: 'warn',    label: 'Abteilung',   titel: 'Abteilungszeitraum geändert' },
+    versetzung_entfernt:       { tone: 'er',      label: 'Abteilung',   titel: 'Abteilung entfernt' },
+    vertretung_neu:            { tone: 'info',    label: 'Vertretung',  titel: 'Als Vertretung eingetragen', href: () => 'profil.html' },
+    vertretung_beendet:        { tone: 'warn',    label: 'Vertretung',  titel: 'Vertretung beendet',         href: () => 'profil.html' },
+    beurteilung_faellig:       { tone: 'er',      label: 'Beurteilung', titel: 'Beurteilung fällig',
+                                 href: b => `beurteilung.html?zuw=${encodeURIComponent(b.zuweisungId || '')}` },
+    beurteilung_abgeschlossen: { tone: 'ok',      label: 'Beurteilung', titel: 'Beurteilung abgeschlossen',
+                                 href: b => `beurteilung.html?zuw=${encodeURIComponent(b.zuweisungId || '')}` },
+  };
+
+  async function buildVerwaltungItems() {
+    let roh = [];
+    try { roh = await DB.getBenachrichtigungenFuerUser(); } catch (_) { return []; }
+    return roh.filter(b => VERWALTUNG_TYPEN[b.type]).map(b => {
+      const t = VERWALTUNG_TYPEN[b.type];
+      const typeKey = b.type.split('_')[0];   // versetzung | vertretung | beurteilung
+      return {
+        ts: b.timestamp || 0, tone: t.tone, typeKey, typeLabel: t.label,
+        title: esc(t.titel),
+        meta: relTime(b.timestamp),
+        gelesen: !!b.gelesen,
+        notifId: b.id,
+        href: t.href ? t.href(b) : 'abteilungs-planer.html',
+        nav: null,
+      };
+    });
+  }
+
   async function buildAzubiItems() {
     const notifs = (await DB.getBenachrichtigungenFuerUser(user.id))
       .filter(b => !String(b.type || '').startsWith('versetzung_') && b.type !== 'genehmigt');
@@ -131,7 +169,15 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   let items = [];
   try {
-    items = isAzubi ? await buildAzubiItems() : await buildAusbilderItems();
+    if (isAzubi) {
+      items = await buildAzubiItems();
+    } else {
+      items = await buildAusbilderItems();
+      // Verwaltungszugänge: Benachrichtigungs-Feed dazu (bei ihnen ist der
+      // Wochen-Feed leer, sonst ergänzt er ihn nur).
+      if (nurVerwaltung) items = [...items, ...await buildVerwaltungItems()];
+      items.sort((x, y) => y.ts - x.ts);
+    }
   } catch (e) {
     main.innerHTML = `
       <div class="page-header"><div class="page-header__left"><h1 class="page-title">Mitteilungen</h1></div></div>
@@ -143,7 +189,8 @@ document.addEventListener('DOMContentLoaded', async () => {
   let query = '', typeFilter = '', readFilter = '';
 
   // Typ-Optionen aus den vorhandenen Items ableiten (stabile Reihenfolge).
-  const typeOrder = ['eingereicht', 'zurueckgegeben', 'erstgenehmigt', 'beurteilung'];
+  const typeOrder = ['eingereicht', 'zurueckgegeben', 'erstgenehmigt', 'beurteilung',
+    'versetzung', 'vertretung'];
   const typeLabelByKey = {};
   items.forEach(it => { typeLabelByKey[it.typeKey] = it.typeLabel; });
   const typeKeys = Object.keys(typeLabelByKey).sort((a, b) => {

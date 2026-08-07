@@ -284,16 +284,6 @@ async function renderAzubiDashboard(user) {
   const MT_ICON_OK = '<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>';
   const MT_ICON_ER = '<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>';
   const mtEsc = window.escapeHtml;
-  const mtRelTime = ts => {
-    if (!ts) return '';
-    const s = Math.floor((Date.now() - ts) / 1000);
-    if (s < 60) return 'gerade eben';
-    if (s < 3600) return `vor ${Math.floor(s / 60)} Min.`;
-    if (s < 86400) return `vor ${Math.floor(s / 3600)} Std.`;
-    if (s < 86400 * 2) return 'gestern';
-    if (s < 86400 * 7) return `vor ${Math.floor(s / 86400)} Tagen`;
-    return new Date(ts).toLocaleDateString('de-DE');
-  };
   // Versetzungs-Mitteilungen erscheinen nur in der Glocke, nicht in dieser
   // KW-zentrischen Berichtsheft-Mitteilungsliste (hätten kein KW/Jahr).
   // „genehmigt" erzeugt bewusst keine Mitteilung; Versetzungen laufen über die
@@ -628,6 +618,13 @@ async function renderAusbilderDashboard(user) {
   // Hefte EINSEHEN dürfen sie unabhängig davon (zugriff.js darfWocheSehen).
   // Mitteilungen und Durchlauf bleiben ihnen in jedem Fall erhalten.
   const zeigeInbox = istKorrektor && (!nurVerwaltung || queue.length > 0);
+  // Gate 3: Die Mitteilungen-Spalte darf NICHT an Gate 1 hängen. Sie steckt im
+  // zweispaltigen Grid, und istKorrektor ist für reine Verwaltungszugänge
+  // (kein „Ist Ausbilder", keine eigenen Azubis) false — damit fiel die Kachel
+  // mitsamt dem Grid weg, obwohl Gate 2 sie ausdrücklich erhalten wollte.
+  // istKorrektor bleibt bewusst unangetastet: es steuert zusätzlich zeigeInbox
+  // und die Azubi-Suche, ein Admin bekäme darüber die Abnahme-Karte zurück.
+  const zeigeGrid = istKorrektor || nurVerwaltung;
 
   // Posteingang nach Azubi gruppieren → eine Karte pro Azubi statt einer
   // flachen Wochen-Liste. queue ist bereits älteste-zuerst, also ist
@@ -697,7 +694,14 @@ async function renderAusbilderDashboard(user) {
   // Mitteilungen (rechte Spalte): auf eine vernünftige Länge kappen; darüber
   // hinaus führt ein subtiler Button auf die Vollseite mit Filter + Suche.
   const MITT_CAP = 6;
-  const mittItems = buildAusbilderMitteilungen(allWochen, beurteilungen);
+  // Quelle des Feeds hängt daran, ob es eigene Azubis gibt: ohne sie sind
+  // allWochen/beurteilungen leer und die Kachel wäre zwar sichtbar, aber immer
+  // „Noch keine Mitteilungen." Für reine Verwaltungszugänge kommen die
+  // Einträge deshalb aus den Backend-Benachrichtigungen, die sie als
+  // Verantwortliche bzw. Vertretung tatsächlich erhalten.
+  const mittItems = (nurVerwaltung && meineAzubis.length === 0)
+    ? await buildVerwaltungMitteilungen()
+    : buildAusbilderMitteilungen(allWochen, beurteilungen);
   const mittListHtml = mittItems.length
     ? renderActivityRows(mittItems.slice(0, MITT_CAP))
     : '<div class="empty-state" style="padding:var(--sp-8)"><p class="empty-state__text">Noch keine Mitteilungen.</p></div>';
@@ -724,6 +728,12 @@ async function renderAusbilderDashboard(user) {
       ${mittMehrHtml}
     </div>`;
 
+  // Bliebe die Hero-Spalte leer (Verwaltungszugang ohne Abnahme und ohne
+  // Durchlauf-Zeilen), wäre das 1.6fr/1fr-Grid eine breite Leerfläche neben
+  // einer schmalen Karte. Dann die Mitteilungen einspaltig über die volle
+  // Breite rendern statt ein halbleeres Grid aufzuspannen.
+  const heroLeer = !zeigeInbox && !durchlaufHtml;
+
   const main = document.getElementById('mainContent');
   main.innerHTML = `
     <section class="welcome-hero">
@@ -737,7 +747,7 @@ async function renderAusbilderDashboard(user) {
       </div>
     </section>
 
-    ${istKorrektor ? `
+    ${!zeigeGrid ? durchlaufHtml : heroLeer ? mitteilungenCardHtml : `
     <div class="dashboard-grid">
       <!-- LINKS (Hero): Zu prüfen (nur Abnahmeberechtigte) + darunter der Abteilungsdurchlauf -->
       <div class="dashboard-grid__col dashboard-grid__col--hero">
@@ -773,7 +783,7 @@ async function renderAusbilderDashboard(user) {
         ${mitteilungenCardHtml}
       </div>
     </div>
-    ` : durchlaufHtml}
+    `}
   `;
 
   bindAusbilderCards();
@@ -1433,6 +1443,60 @@ function buildAusbilderMitteilungen(allWochen, beurteilungen = []) {
   });
 
   return items.sort((a, b) => b.ts - a.ts);
+}
+
+/* Relative Zeitangabe („vor 3 Std."). Auf Modulebene, weil sowohl das
+   Azubi-Widget als auch der Verwaltungs-Feed sie brauchen. */
+function mtRelTime(ts) {
+  if (!ts) return '';
+  const s = Math.floor((Date.now() - ts) / 1000);
+  if (s < 60) return 'gerade eben';
+  if (s < 3600) return `vor ${Math.floor(s / 60)} Min.`;
+  if (s < 86400) return `vor ${Math.floor(s / 3600)} Std.`;
+  if (s < 86400 * 2) return 'gestern';
+  if (s < 86400 * 7) return `vor ${Math.floor(s / 86400)} Tagen`;
+  return new Date(ts).toLocaleDateString('de-DE');
+}
+
+/* Mitteilungen für reine Verwaltungszugänge (Admin/Planer ohne eigene Azubis).
+   Deren Feed kann NICHT aus eigenen Wochen/Beurteilungen entstehen – es gibt
+   keine. Quelle sind die Backend-Benachrichtigungen, die sie als
+   Verantwortliche bzw. als eingetragene Vertretung erhalten. Dieselbe
+   Typ-Tabelle-Idee wie dh-mitteilungen.js: unbekannte (KW-bezogene) Typen
+   werden ausgelassen statt als „KW null/null" gerendert.
+   AzubiOid kommt aus dem Wochen-Join und ist bei diesen Typen NULL – die Titel
+   bleiben deshalb bewusst ohne Namen. */
+const VERWALTUNG_MT_TYPEN = {
+  versetzung_neu:            { type: 'info',    titel: 'Neue Abteilung geplant' },
+  versetzung_geaendert:      { type: 'yellow',  titel: 'Abteilungszeitraum geändert' },
+  versetzung_entfernt:       { type: 'error',   titel: 'Abteilung entfernt' },
+  vertretung_neu:            { type: 'info',    titel: 'Als Vertretung eingetragen', href: () => 'profil.html' },
+  vertretung_beendet:        { type: 'yellow',  titel: 'Vertretung beendet',         href: () => 'profil.html' },
+  beurteilung_faellig:       { type: 'error',   titel: 'Beurteilung fällig',
+                               href: b => `beurteilung.html?zuw=${encodeURIComponent(b.zuweisungId || '')}` },
+  beurteilung_abgeschlossen: { type: 'success', titel: 'Beurteilung abgeschlossen',
+                               href: b => `beurteilung.html?zuw=${encodeURIComponent(b.zuweisungId || '')}` },
+};
+
+async function buildVerwaltungMitteilungen() {
+  let roh = [];
+  // Fehlschlag darf das Dashboard nicht kosten – dann eben eine leere Kachel.
+  try { roh = await DB.getBenachrichtigungenFuerUser(); } catch (_) { return []; }
+  return roh
+    .filter(b => VERWALTUNG_MT_TYPEN[b.type])
+    .map(b => {
+      const t = VERWALTUNG_MT_TYPEN[b.type];
+      const titel = escapeHtml(t.titel);
+      return {
+        ts:   b.timestamp || 0,
+        type: t.type,
+        // Ungelesenes fett – die Aktivitäts-Zeilen haben keinen Unread-Punkt.
+        text: b.gelesen ? titel : `<strong>${titel}</strong>`,
+        time: mtRelTime(b.timestamp),
+        href: t.href ? t.href(b) : 'abteilungs-planer.html',
+      };
+    })
+    .sort((a, b) => b.ts - a.ts);
 }
 
 function renderActivityRows(items) {
