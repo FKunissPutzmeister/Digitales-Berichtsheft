@@ -1814,16 +1814,6 @@ html[data-theme="dark"] .b-hero__kw {
   position: relative; z-index: 1;
 }
 
-/* Schmale Kachel: Button und Datums-Strip nebeneinander sprengen die Breite →
-   stapeln, Strip füllt die Breite (1fr) statt abgeschnitten zu werden.
-   Grenze lag bei 768 px. Das iPad ist hochkant 834 px breit und fiel damit
-   genau daneben — beide Elemente wurden nebeneinander gequetscht. */
-@media (max-width: 900px) {
-  .b-hero__bottom { flex-direction: column; align-items: stretch; gap: 16px; }
-  .b-weekmini { grid-template-columns: repeat(7, 1fr); gap: 4px; }
-  .b-day { padding: 8px 0; }
-}
-
 .b-btn-primary {
   appearance: none; border: 0; cursor: pointer;
   font-weight: 600; font-size: 14px; line-height: 1;
@@ -1856,23 +1846,48 @@ html[data-theme="dark"] .b-hero__kw {
    unlesbar weiß-auf-weiß. */
 [data-theme="dark"] .b-btn-primary:hover { background: var(--pm-grey-100); }
 
+/* ── Responsiv-Leiter (Kachel-Innenleben): absteigend 1280 → 900, damit der
+   900er-Block bei gleicher Spezifität den 1280er tatsächlich überschreiben
+   kann. Vorher stand der 900er VOR dem 1280er — bei Quellcode-Reihenfolge
+   als Tie-Breaker gewann dadurch immer der 1280er, der 900er lief für jede
+   Eigenschaft leer, die in beiden Blöcken steht (b-weekmini, b-day). Hier
+   sind alle kollidierenden Werte heute identisch, die Verschiebung ist also
+   pixelneutral — sie stellt nur sicher, dass ein künftiger Unterschied auch
+   greift. */
 @media (max-width: 1280px) {
   .b-hero { padding: 24px 28px 20px; }
   /* 56 statt 64 px: der Hero belegt ab hier nur noch 2 Grid-Zeilen (248 px,
      s. Responsiv-Block am Dateiende). .bento .b-tile hat overflow:hidden —
      zu hoher Inhalt verschwindet lautlos, also muss er mitschrumpfen.
-     Rechnung: 44 (Kachel-Padding) + 90 (middle) + 72 (bottom) ≈ 206 px. */
+     Rechnung: 52 (Kachel-Padding, aus .bento .b-tile) + 90 (middle) +
+     72 (bottom) ≈ 214 px. */
   .b-hero__kw { font-size: 56px; }
-  /* Tablet: Wochen-Info oben, Kalender gestapelt darunter (volle Breite) */
+  /* .b-hero__middle enthält seit app/js/dashboard.js:368-373 nur noch die
+     KW-Zahl (h1.b-hero__kw) — der Kalender sitzt in .b-hero__bottom. Ohne
+     das Basis-"1fr auto" (zwei Spuren, Zeile 1737) würde die einzige Kachel
+     nur ihre erste Spur füllen und der Gap zur nie belegten zweiten Spur
+     bliebe trotzdem reserviert (getestet: 32 px zu schmal) — grid-template-
+     columns: 1fr bleibt daher nötig. gap ist mit nur einer Spalte dagegen
+     wirkungslos und entfällt. */
   .b-hero__middle {
     grid-template-columns: 1fr;
     align-items: stretch;
-    gap: 18px;
     padding: 12px 0 10px;
   }
   .b-weekmini { grid-template-columns: repeat(7, 1fr); }
   .b-day { padding: 8px 0; }
   .b-day .dnum { font-size: 18px; }
+}
+/* Hochformat: Button und Datums-Strip sprengen nebeneinander die Breite →
+   stapeln, Strip füllt die Breite (1fr) statt abgeschnitten zu werden.
+   Grenze lag bei 768 px. Das iPad ist hochkant 834 px breit und fiel damit
+   genau daneben — beide Elemente wurden nebeneinander gequetscht. Muss NACH
+   dem 1280er-Block stehen (s. Kommentar oben), auch wenn die heutigen
+   Kollisionen (b-weekmini, b-day) mit identischen Werten pixelneutral sind. */
+@media (max-width: 900px) {
+  .b-hero__bottom { flex-direction: column; align-items: stretch; gap: 16px; }
+  .b-weekmini { grid-template-columns: repeat(7, 1fr); gap: 4px; }
+  .b-day { padding: 8px 0; }
 }
 
 /* ───────── Ausbildung (Dark Tile mit SVG-Donut) ───────── */
@@ -2420,7 +2435,10 @@ html[data-theme="dark"] .b-recent::before {
 @media (max-width: 720px) {
   .bento { gap: 12px; }
   .b-hero, .b-mitteilungen { grid-column: span 12; }
-  .b-hero__middle { grid-template-columns: 1fr; gap: 18px; }
+  /* grid-template-columns: 1fr bleibt nötig (s. Kommentar beim 1280er-Block
+     weiter oben) — ohne die Wiederholung fiele .b-hero__middle auf das
+     Basis-"1fr auto" zurück und würde 32 px schmaler. */
+  .b-hero__middle { grid-template-columns: 1fr; }
   .b-hero__kw { font-size: 88px; }
 }
 
