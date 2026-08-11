@@ -623,6 +623,10 @@ html.sidebar-init-collapsed .main-wrapper         { margin-left: var(--sidebar-i
     overflow-y: auto;
     overscroll-behavior: contain;
     -webkit-overflow-scrolling: touch;
+    /* Am Ende der Liste soll der letzte Inhalt über dem Home-Indikator
+       stehen, nicht darunter verschwinden. Der Hintergrund zieht weiterhin
+       bis zur Kante durch. */
+    padding-bottom: env(safe-area-inset-bottom, 0px);
   }
 }
 

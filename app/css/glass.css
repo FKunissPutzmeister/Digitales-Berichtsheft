@@ -1074,7 +1074,11 @@ html.perf-lite[data-theme="dark"] .modal {
 @media (hover: none) and (pointer: coarse) and (min-width: 769px) {
   .sidebar {
     bottom: auto;
-    height: calc(100svh - var(--lg-gap) * 2);
+    /* Zusätzlich die untere Safe Area abziehen: Die Seiten laufen mit
+       viewport-fit=cover bewusst bis unter den Home-Indikator — der
+       Hintergrund soll dort durchziehen. Sichtbare Elemente dürfen es nicht,
+       sonst wird die Pille von diesem Streifen unten angeschnitten. */
+    height: calc(100svh - var(--lg-gap) * 2 - env(safe-area-inset-bottom, 0px));
   }
 }
 
