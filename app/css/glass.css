@@ -127,6 +127,42 @@ body:not(.login-page) {
   background-attachment: fixed;
 }
 
+/* ── Hintergrund-Ebene für iOS ──────────────────────────────────────
+   Der Seitenhintergrund oben hängt als Element-Hintergrund an der Box des
+   Wurzelelements. Auf iOS (Safari wie Edge, beide WebKit) ist diese Box durch
+   die ein- und ausfahrenden Browserleisten zeitweise kürzer als der sichtbare
+   Bereich — unten bleibt ein Streifen ungemalt und die flache Grundfarbe
+   (--pm-grey-50) erscheint als heller Balken quer über die Seite. Auftreten
+   unabhängig von der Scrollposition und auf allen Seiten.
+
+   `background-attachment: fixed` löst das nicht: genau diese Eigenschaft ist
+   auf iOS seit jeher fehlerhaft. Ein `position: fixed`-Element hingegen ist
+   dort korrekt exakt der sichtbare Bereich. Deshalb dieselben drei Ebenen
+   zusätzlich als echtes fixiertes Element.
+
+   Am Wurzelelement statt am Body, damit die Ebene hinter den Ambient-Lichtern
+   (body::before/::after, z-index 0) und hinter dem Inhalt (.app-shell,
+   z-index 1) liegt und deren Wirkung nicht überdeckt. Sie nutzt dieselben
+   Variablen wie die Body-Regel und folgt damit jedem Theme automatisch.
+
+   :has() grenzt die Login-Seite aus, die ihr eigenes dunkles Setup mitbringt.
+   Fehlt die Unterstützung, entfällt die Regel ersatzlos — dann bleibt es beim
+   bisherigen Verhalten, kaputt geht nichts. */
+html:not(:has(body.login-page))::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background-image:
+    var(--app-bg-overlay),
+    var(--app-bg-vignette),
+    var(--app-bg-image);
+  background-size: cover, cover, cover;
+  background-position: center, center, center;
+  background-repeat: no-repeat;
+}
+
 body:not(.login-page) .app-shell {
   position: relative;
   z-index: 1;
