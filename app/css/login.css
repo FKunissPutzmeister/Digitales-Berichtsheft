@@ -6,6 +6,12 @@
    versteckt – in der Produktiv-Version per data-Attribut ausblendbar.
    =================================================================== */
 
+/* Die fixierte App-Hintergrund-Ebene aus glass.css (html::before) gilt hier
+   nicht: Die Login-Seite bringt ihren eigenen Gelb-Backdrop mit. Der Ausschluss
+   sitzt hier statt per :has() in glass.css, damit die Ebene dort an keiner
+   Selektor-Unterstützung hängt. */
+html::before { display: none; }
+
 body.login-page {
   /* Brand-Gelb in beiden Themes stabil. Statt flacher Fläche ein
      dezenter Verlauf + zwei Lichtquellen → mehr Tiefe, weniger

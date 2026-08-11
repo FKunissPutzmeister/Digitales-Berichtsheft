@@ -150,10 +150,10 @@ body:not(.login-page) {
    z-index 1) liegt und deren Wirkung nicht überdeckt. Sie nutzt dieselben
    Variablen wie die Body-Regel und folgt damit jedem Theme automatisch.
 
-   :has() grenzt die Login-Seite aus, die ihr eigenes dunkles Setup mitbringt.
-   Fehlt die Unterstützung, entfällt die Regel ersatzlos — dann bleibt es beim
-   bisherigen Verhalten, kaputt geht nichts. */
-html:not(:has(body.login-page))::before {
+   Die Login-Seite schaltet die Ebene in ihrer eigenen login.css wieder ab
+   (dort geladen nach dieser Datei); sie bringt ein eigenes dunkles Setup mit.
+   Bewusst ohne :has() — daran soll eine tragende Regel nicht hängen. */
+html::before {
   content: '';
   position: fixed;
   inset: 0;
@@ -201,16 +201,15 @@ body.login-page::after {
   body::after { display: none; }
 }
 
-/* Touchgeräte bekommen den Hintergrund mitscrollend statt fixiert.
-   iOS-Safari zieht `background-attachment: fixed` beim Scrollen nicht sauber
-   mit; am Seitenende bleibt das Bild stehen und darunter blitzt die flache
-   Grundfarbe (--pm-grey-50) als heller Balken durch.
+/* Schmale Geräte: Hintergrund mitscrollend statt fixiert, oben ausgerichtet.
+   Bewusst weiterhin nur bis 768 px, also Handys.
 
-   Die Bedingung lautete nur `max-width: 768px` und erreichte damit Handys,
-   aber kein iPad (834 px hoch, 1194 px quer) — dieselbe Lücke, in die auch
-   die Hero-Stapelregel fiel. Der Zeigertyp trifft die Sache genauer als die
-   Breite: gemeint sind Geräte ohne Mauszeiger, unabhängig von ihrer Größe. */
-@media (max-width: 768px), (hover: none) and (pointer: coarse) {
+   Ein Versuch, das per Zeigertyp auf alle Touchgeräte auszuweiten, ist
+   zurückgenommen: Auf dem iPad wanderte das Hintergrundbild dadurch beim
+   Scrollen sichtbar mit. Die iOS-Schwäche bei fixierten Hintergründen löst
+   ohnehin die Ebene weiter unten (html::before) — als echtes fixiertes
+   Element statt über background-attachment. */
+@media (max-width: 768px) {
   body:not(.login-page) {
     background-attachment: scroll;
     background-position: center top, center top, center top;
