@@ -629,12 +629,63 @@ Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>"
 Die Kachel-Hintergründe haben pro Theme eigene Regeln, und `dashboard.css` wird von einer zweiten Seite geladen. Beides muss gegengeprüft werden, bevor die Sache steht.
 
 **Files:**
+- Modify: `app/css/dashboard.css` (drei tote Zeilen entfernen, Step 0)
 - Modify: `docs/superpowers/specs/2026-08-11-ipad-dashboard-layout-design.md` (Status)
-- Ggf. Modify: `app/css/dashboard.css` (nur falls die Prüfung etwas findet)
 
 **Interfaces:**
 - Consumes: alle vorherigen Tasks.
 - Produces: nichts.
+
+- [ ] **Step 0: Die drei toten Zeilen entfernen, die diese Änderung hinterlassen hat**
+
+Zwei Reviewer haben unabhängig voneinander dieselben wirkungslosen Deklarationen bemängelt. Sie stehen genau in dem Bereich, dessen ursprünglicher Bug totes CSS war — sie bleiben zu lassen, hieße das Problem zu wiederholen.
+
+**a) `.b-day .dnum { font-size: 17px; }`** im 900-px-Block ([dashboard.css:1824](../../../app/css/dashboard.css#L1824)). Seit der Anhebung von 768 auf 900 px wird diese Eigenschaft auf dem gesamten Bereich vom später stehenden 1280-px-Block mit `18px` überstimmt (gleiche Spezifität, Quellreihenfolge entscheidet). Die Zeile ersatzlos löschen — die 18 px sind der gewollte Wert.
+
+Der Block lautet danach:
+
+```css
+@media (max-width: 900px) {
+  .b-hero__bottom { flex-direction: column; align-items: stretch; gap: 16px; }
+  .b-weekmini { grid-template-columns: repeat(7, 1fr); gap: 4px; }
+  .b-day { padding: 8px 0; }
+}
+```
+
+**b) und c) `.b-recent { grid-column: span 12; grid-row: span 2; }`** — je einmal im 1280-px- und im 900-px-Block. Beide sind byte-identisch zur Basisregel ([dashboard.css:2139](../../../app/css/dashboard.css#L2139)) und ändern nichts. Beide Zeilen ersatzlos löschen.
+
+Die beiden Blöcke lauten danach:
+
+```css
+@media (max-width: 1280px) {
+  .b-hero         { grid-column: span 7; grid-row: span 2; }
+  .b-mitteilungen { grid-column: span 5; grid-row: span 2; }
+
+  /* Wirksame Basis ist .bento .b-tile mit 26/28 px — nicht die 30/30/28 px
+     aus der .b-azubi/.b-mitteilungen-Regel, die davon überstimmt werden.
+     In einem 248-px-Fach kostet das Polster rund einen ganzen Eintrag. */
+  .bento .b-mitteilungen { padding: 20px 22px 18px; }
+}
+```
+
+```css
+@media (max-width: 900px) {
+  .b-hero         { grid-column: span 6; grid-row: span 3; }
+  .b-mitteilungen { grid-column: span 6; grid-row: span 3; }
+  /* 6 Wochen-Cards auf ~710 px Inhaltsbreite ergäben je ~100 px. */
+  .b-recent__grid { grid-template-columns: repeat(3, 1fr); }
+}
+```
+
+Die einleitenden Kommentare beider Blöcke bleiben unverändert stehen.
+
+- [ ] **Step 0b: Nachmessen, dass die Löschungen nichts bewegt haben**
+
+Run: `node tools/check-dashboard-viewports.mjs`
+
+Erwartet: **Exit-Code 0**, alle fünf Viewports `OK` — identisch zum Stand nach Task 4. Ändert sich auch nur eine Zahl, war eine der Zeilen doch nicht tot: dann die Löschung zurücknehmen und im Report begründen.
+
+Zusätzlich der Handy-Check aus Task 4 Step 5 (dort im Wortlaut), weil Löschung b) und c) den 720-px-Bereich mitberühren. Erwartet: Hero und Mitteilungen gleich breit und gestapelt.
 
 - [ ] **Step 1: Dunkles Theme messen**
 
