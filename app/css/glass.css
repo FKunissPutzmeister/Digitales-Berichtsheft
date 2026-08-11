@@ -63,6 +63,11 @@
   --app-bg-image:        url('../assets/backgrounds/abstract-app-light.png');
   --app-bg-overlay:      linear-gradient(180deg, rgba(247, 247, 247, 0.18), rgba(247, 247, 247, 0.32));
   --app-bg-vignette:     radial-gradient(100% 80% at 50% 20%, rgba(255, 255, 255, 0.04), rgba(247, 247, 247, 0.18) 70%);
+  /* Grundfarbe der Seite. Auf iOS fuellt sie den Bereich hinter dem
+     Home-Indikator, den kein Element erreicht — deshalb am Unterrand des
+     Hintergrundbildes ausgerichtet (gemessen ~#E9E6E2) statt am kuehlen
+     #F7F7F7, das dort als heller Balken auffiel. */
+  --app-bg-base:         #EAE7E3;
   --sidebar-bg-image:    url('../assets/backgrounds/abstract-app-light.png');
   --sidebar-glass:       rgba(255, 255, 255, 0.48);
   --sidebar-glass-deep:  rgba(255, 255, 255, 0.66);

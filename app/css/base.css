@@ -32,7 +32,14 @@ body {
   font-weight: var(--fw-regular);
   line-height: var(--lh-normal);
   color: var(--pm-grey-800);
-  background-color: var(--pm-grey-50);
+  /* Diese Farbe ist mehr als eine Notfüllung: iOS malt damit den Bereich
+     hinter dem Home-Indikator und beim Überziehen der Seite. Dorthin reicht
+     kein Element, auch keine fixierte Ebene — nur die Farbe selbst zählt.
+     Steht sie zu weit vom Hintergrundbild ab, erscheint unten ein sichtbarer
+     heller Balken (gemessen: 25 px, #F7F7F7 gegen ~#E9E6E2 der Bildunterkante).
+     --app-bg-base fällt auf --pm-grey-50 zurück, das jedes Theme ohnehin als
+     seine Body-Grundfarbe definiert. */
+  background-color: var(--app-bg-base, var(--pm-grey-50));
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   /* Doppelte Absicherung gegen horizontales Seiten-Panning: verhindert,
