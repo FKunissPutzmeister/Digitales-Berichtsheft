@@ -124,9 +124,30 @@ for (const vp of VIEWPORTS) {
     if (custom) localStorage.setItem('customTheme', t);
     else localStorage.setItem('theme', t);
   }, { t: theme, custom: isCustom });
-  await page.goto(`${BASE}/app/dashboard.html`, { waitUntil: 'networkidle' });
-  await page.waitForSelector('.bento .b-hero', { timeout: 15000 });
-  await page.waitForSelector('.bento .b-recent', { timeout: 15000 });
+  /* Zweiter Versuch bei Netz-Zuckern. Ohne ihn erscheint ein einmaliger
+     Verbindungsabbruch als roher Stacktrace und der Lauf endet mit Exit 1 —
+     nicht zu unterscheiden von einem echten Layout-Befund. Das hat zweimal
+     einen Fehlalarm ausgelöst. Bleibt es auch beim zweiten Versuch dabei,
+     wird der Fehler ordentlich gemeldet statt verschluckt. */
+  let ladeFehler = null;
+  for (let versuch = 1; versuch <= 2; versuch++) {
+    try {
+      await page.goto(`${BASE}/app/dashboard.html`, { waitUntil: 'networkidle' });
+      await page.waitForSelector('.bento .b-hero', { timeout: 15000 });
+      await page.waitForSelector('.bento .b-recent', { timeout: 15000 });
+      ladeFehler = null;
+      break;
+    } catch (e) {
+      ladeFehler = e;
+      if (versuch === 1) console.log(`      (${vp.name}: Ladeversuch 1 fehlgeschlagen, wiederhole — ${e.name})`);
+    }
+  }
+  if (ladeFehler) {
+    console.log(`FEHLER ${vp.name.padEnd(18)} ${vp.width}x${vp.height}  Seite nicht ladbar: ${ladeFehler.name} — ${String(ladeFehler.message).split('\n')[0]}`);
+    fehler++;
+    await ctx.close();
+    continue;
+  }
 
   const m = await page.evaluate(messen);
   const probleme = [];
