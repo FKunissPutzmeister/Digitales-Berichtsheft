@@ -1857,14 +1857,21 @@ html[data-theme="dark"] .b-hero__kw {
 
 @media (max-width: 1280px) {
   .b-hero { padding: 24px 28px 20px; }
-  .b-hero__kw { font-size: 64px; }
+  /* 56 statt 64 px: der Hero belegt ab hier nur noch 2 Grid-Zeilen (248 px,
+     s. Responsiv-Block am Dateiende). .bento .b-tile hat overflow:hidden —
+     zu hoher Inhalt verschwindet lautlos, also muss er mitschrumpfen.
+     Rechnung: 44 (Kachel-Padding) + 90 (middle) + 72 (bottom) ≈ 206 px. */
+  .b-hero__kw { font-size: 56px; }
   /* Tablet: Wochen-Info oben, Kalender gestapelt darunter (volle Breite) */
   .b-hero__middle {
     grid-template-columns: 1fr;
     align-items: stretch;
     gap: 18px;
+    padding: 12px 0 10px;
   }
   .b-weekmini { grid-template-columns: repeat(7, 1fr); }
+  .b-day { padding: 8px 0; }
+  .b-day .dnum { font-size: 18px; }
 }
 
 /* ───────── Ausbildung (Dark Tile mit SVG-Donut) ───────── */
@@ -2374,12 +2381,20 @@ html[data-theme="dark"] .b-recent::before {
 [data-theme="dark"] .b-day .dnum { color: rgba(255,255,255,0.85); }
 [data-theme="dark"] .b-day--past .dnum, [data-theme="dark"] .b-day--weekend .dnum { color: rgba(255,255,255,0.35); }
 
-/* Responsiv */
-@media (max-width: 1180px) {
-  .b-hero { grid-column: span 12; grid-row: span 3; }
-  .b-azubi, .b-mitteilungen { grid-column: span 6; grid-row: span 3; }
-  .b-recent { grid-column: span 12; }
-  .b-stats { grid-column: span 6; grid-row: span 1; }
+/* ── Responsiv: Leiter 1280 / 900 / 720 ──
+   Die Grenze lag früher bei 1180 px und trennte damit zwei baugleiche Geräte:
+   iPad Air 11" ist quer 1180 px breit (Regel griff), iPad Pro 11" 1194 px
+   (Regel griff nicht) — zwei völlig verschiedene Layouts auf demselben
+   Schreibtisch. 1280 fängt beide ein und fällt mit dem Block weiter oben
+   zusammen, der Hero-Typografie und Sidebar-Breite reduziert.
+
+   Der alte Block adressierte außerdem .b-azubi und .b-stats. Beide Kacheln
+   existieren in keinem Template mehr; .b-mitteilungen verlor dadurch seinen
+   Partner und stand mit span 6 allein auf halber Breite. */
+@media (max-width: 1280px) {
+  .b-hero         { grid-column: span 7; grid-row: span 2; }
+  .b-mitteilungen { grid-column: span 5; grid-row: span 2; }
+  .b-recent       { grid-column: span 12; grid-row: span 2; }
 }
 @media (max-width: 720px) {
   .bento { gap: 12px; }
