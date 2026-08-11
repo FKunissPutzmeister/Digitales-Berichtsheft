@@ -126,10 +126,19 @@ zu hoher Inhalt wird ohne Scrollbalken und ohne Warnung abgeschnitten.
 | `.b-hero__kw` Schriftgröße | 64 px | 56 px |
 | `.b-day` Innenabstand | 12 px oben / 10 px unten | 8 px |
 | `.b-day .dnum` Schriftgröße | 20 px | 18 px |
-| `.b-mitteilungen` Innenabstand | 30 / 30 / 28 px | 20 / 22 / 18 px |
+| `.b-mitteilungen` Innenabstand | 26 / 28 px (aus `.bento .b-tile`) | 20 / 22 / 18 px |
 
 Der Hero landet damit bei rund 200 px in einem 248-px-Fach — ausreichend Puffer,
 damit Schriftgrößen-Schwankungen zwischen den Themes nicht sofort abschneiden.
+
+Die Padding-Regel braucht den Vorsatz `.bento`: `.bento .b-tile { padding: 26px 28px; }`
+([dashboard.css:1608](../../../app/css/dashboard.css#L1608)) hat die Spezifität
+(0,2,0) und überstimmt ein blankes `.b-mitteilungen` (0,1,0). Aus demselben
+Grund sind die `padding`-Angaben in den `.b-mitteilungen`-Regeln bei
+[1878](../../../app/css/dashboard.css#L1878) und
+[1917](../../../app/css/dashboard.css#L1917) toter Code — die dort stehenden
+30/30/28 px waren nie wirksam. Betroffen ist nur `padding`; die
+Raster-Eigenschaften setzt `.bento .b-tile` nicht.
 
 Zusätzlich bekommt `.b-mitteilungen__list` ein `overscroll-behavior: contain`,
 damit das Scrollen innerhalb der Kachel auf dem Touchgerät nicht in die
