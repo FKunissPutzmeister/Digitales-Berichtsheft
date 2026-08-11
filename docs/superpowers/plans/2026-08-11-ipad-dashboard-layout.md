@@ -12,7 +12,7 @@
 
 ## Global Constraints
 
-- Nur `app/css/dashboard.css` und `app/dashboard.html` (Cache-Token) werden verändert. Kein JavaScript, kein Backend, keine Datenbank.
+- Am ausgelieferten Code werden ausschließlich `app/css/dashboard.css` und `app/dashboard.html` (Cache-Token) verändert. Kein Anwendungs-JavaScript, kein Backend, keine Datenbank. Davon unberührt: das Prüfwerkzeug `tools/check-dashboard-viewports.mjs` (Task 1) und die Statuszeile der Spec (Task 5) — beide werden nicht ausgeliefert.
 - Desktop ab 1281 px muss pixelgleich bleiben.
 - Die Klassen `.b-azubi` und `.b-stats` werden nur aus den Media-Blöcken entfernt. Ihre Basis-Regeln ab [dashboard.css:1871](../../../app/css/dashboard.css#L1871) und [2302](../../../app/css/dashboard.css#L2302) bleiben unangetastet — `.b-mitteilungen` bezieht Hintergrund und Rahmen noch aus dem geteilten `.b-azubi`-Selektor.
 - Breakpoint-Leiter, verbindlich: `≤ 1280 px` Querformat/13″-Laptop, `≤ 900 px` Hochformat, `≤ 720 px` Handy.
