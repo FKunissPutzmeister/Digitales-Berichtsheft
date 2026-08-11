@@ -438,7 +438,30 @@ Den in Task 2 angelegten 1280-px-Block um eine Regel erweitern:
 
 Run: `node tools/check-dashboard-viewports.mjs`
 
-Erwartet: unverändert gegenüber Task 2 — Querformate und Desktop **OK**, `ipad-11-hoch` weiterhin **FEHLER** wegen der Hero-Höhe. Zusätzlich muss in der Ausgabezeile für `ipad-pro-11-quer` die Zahl hinter „Eintraege" gegenüber Task 2 gleich oder größer sein. Wird sie kleiner, ist der Innenabstand in die falsche Richtung gegangen.
+Erwartet: unverändert gegenüber Task 2 — Querformate und Desktop **OK**, `ipad-11-hoch` weiterhin **FEHLER** wegen der Hero-Höhe.
+
+Die Zahl hinter „Eintraege" in der Ausgabe taugt **nicht** als Erfolgsmaß: Das Dashboard-JS kappt die Liste bei sechs Einträgen, gezählt wird das DOM, nicht das Sichtbare. Sie steht in jedem Viewport auf 6.
+
+Aussagekräftig ist die nutzbare Höhe der Liste. Vor und nach der Änderung messen:
+
+```bash
+node -e "
+import('playwright').then(async ({chromium}) => {
+  const b = await chromium.launch({channel:'msedge', headless:true});
+  const c = await b.newContext({viewport:{width:1194,height:745}});
+  await c.request.post('http://localhost:3000/api/auth/login-by-email',
+    {data:{email:'florian.kern.demo@putzmeister.com'}});
+  const p = await c.newPage();
+  await p.goto('http://localhost:3000/app/dashboard.html', {waitUntil:'networkidle'});
+  await p.waitForSelector('.b-mitteilungen__list');
+  console.log('Listenhoehe:', await p.evaluate(() =>
+    Math.round(document.querySelector('.b-mitteilungen__list').clientHeight)), 'px');
+  await b.close();
+});
+"
+```
+
+Erwartet: Der Wert **nach** Step 2 liegt rund 20 px über dem Wert davor. Sinkt er, ist der Innenabstand in die falsche Richtung gegangen. Beide Zahlen im Report festhalten.
 
 - [ ] **Step 4: Commit**
 
