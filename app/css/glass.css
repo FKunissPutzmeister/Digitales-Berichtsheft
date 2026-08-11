@@ -160,7 +160,16 @@ body.login-page::after {
   body::after { display: none; }
 }
 
-@media (max-width: 768px) {
+/* Touchgeräte bekommen den Hintergrund mitscrollend statt fixiert.
+   iOS-Safari zieht `background-attachment: fixed` beim Scrollen nicht sauber
+   mit; am Seitenende bleibt das Bild stehen und darunter blitzt die flache
+   Grundfarbe (--pm-grey-50) als heller Balken durch.
+
+   Die Bedingung lautete nur `max-width: 768px` und erreichte damit Handys,
+   aber kein iPad (834 px hoch, 1194 px quer) — dieselbe Lücke, in die auch
+   die Hero-Stapelregel fiel. Der Zeigertyp trifft die Sache genauer als die
+   Breite: gemeint sind Geräte ohne Mauszeiger, unabhängig von ihrer Größe. */
+@media (max-width: 768px), (hover: none) and (pointer: coarse) {
   body:not(.login-page) {
     background-attachment: scroll;
     background-position: center top, center top, center top;

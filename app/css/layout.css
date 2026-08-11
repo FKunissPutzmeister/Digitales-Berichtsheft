@@ -5,7 +5,14 @@
 /* ── App-Shell ── */
 .app-shell {
   display: flex;
+  /* dvh statt vh für iOS: Dort meint 100vh die Höhe MIT eingeklappten
+     Browserleisten, ist also größer als der tatsächlich sichtbare Bereich.
+     Die Seite lässt sich dadurch immer um deren Höhe scrollen, obwohl der
+     Inhalt passt — und am Seitenende erscheint unter dem Hintergrundbild die
+     flache Grundfarbe. 100dvh folgt dem sichtbaren Bereich. Die vh-Zeile
+     bleibt als Rückfall für Browser ohne dvh stehen. */
   min-height: 100vh;
+  min-height: 100dvh;
 }
 
 /* ── Sidebar ── */
@@ -15,6 +22,7 @@
   top: 0;
   left: 0;
   height: 100vh;
+  height: 100dvh;   /* s. .app-shell: iOS-Leisten, sonst ragt die Sidebar über */
   width: var(--sidebar-w);
   background: var(--sidebar-bg);
   display: flex;
@@ -574,6 +582,7 @@ html.sidebar-init-collapsed .main-wrapper         { margin-left: var(--sidebar-i
   display: flex;
   flex-direction: column;
   min-height: 100vh;
+  min-height: 100dvh;   /* s. .app-shell */
   transition: margin-left var(--t-normal);
 }
 .sidebar.collapsed ~ .main-wrapper {
