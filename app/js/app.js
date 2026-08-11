@@ -2,6 +2,25 @@
    APP.JS – Auth-Guard, Sidebar, Toast, globale Hilfsfunktionen
    =================================================================== */
 
+/* Liefert den Container, der tatsächlich scrollt — oder null, wenn es das
+   Dokument selbst ist.
+
+   Auf Touchgeräten scrollt nicht die Seite, sondern der .main-wrapper
+   (Media-Query in layout.css). Grund: WebKit auf iOS zeichnet fixierte
+   Elemente während einer Scrollgeste nicht laufend neu, sie wandern sichtbar
+   mit. Scrollt das Dokument nicht, tritt das nicht auf.
+
+   Wer eine Scrollposition liest oder setzt, muss daher hier nachfragen statt
+   window.scrollY/scrollTo zu verwenden. Erkannt wird der Wechsel am
+   berechneten Stil, nicht an einer Geräteabfrage — so kann die CSS-Regel
+   allein bestimmen, welches Modell gilt. */
+function scrollHost() {
+  const wrapper = document.querySelector('.main-wrapper');
+  if (!wrapper) return null;
+  const overflow = getComputedStyle(wrapper).overflowY;
+  return (overflow === 'auto' || overflow === 'scroll') ? wrapper : null;
+}
+
 /* ── Auth Guard ── */
 async function requireAuth() {
   const user = await DB.fetchCurrentUser();
@@ -288,17 +307,22 @@ async function initLayout(activeNavId) {
 
   // Topbar-Schatten beim Scrollen (passiv, sehr günstig – nur Class-Toggle).
   // Sorgt für die dezente Tiefenwirkung gegenüber dem Inhalt.
+  // Liest die Position über scrollHost(), weil auf Touchgeräten nicht das
+  // Dokument scrollt, sondern der .main-wrapper (s. layout.css).
   const topbar = document.querySelector('.topbar');
   if (topbar) {
     let isScrolled = false;
     const onScroll = () => {
-      const shouldBe = window.scrollY > 4;
+      const host = scrollHost();
+      const shouldBe = (host ? host.scrollTop : window.scrollY) > 4;
       if (shouldBe !== isScrolled) {
         isScrolled = shouldBe;
         topbar.classList.toggle('is-scrolled', shouldBe);
       }
     };
     window.addEventListener('scroll', onScroll, { passive: true });
+    const host = scrollHost();
+    if (host) host.addEventListener('scroll', onScroll, { passive: true });
     onScroll();
   }
 

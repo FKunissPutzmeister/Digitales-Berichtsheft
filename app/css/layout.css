@@ -589,6 +589,43 @@ html.sidebar-init-collapsed .main-wrapper         { margin-left: var(--sidebar-i
   margin-left: var(--sidebar-icon-w);
 }
 
+/* ── Touchgeräte: der Inhalt scrollt, nicht die Seite ──
+   WebKit auf iOS zeichnet `position: fixed`-Elemente während einer
+   Scrollgeste nicht laufend neu, sondern erst wenn die Geste endet. Alles
+   Fixierte wandert dadurch sichtbar mit und springt zurück — die Sidebar
+   ebenso wie die Hintergrund-Ebene (html::before in glass.css). Mit CSS
+   allein ist dem nicht beizukommen, solange das Dokument selbst scrollt.
+
+   Also scrollt es hier nicht mehr: html und body werden auf Fensterhöhe
+   festgesetzt, der .main-wrapper übernimmt das Scrollen. Fixierte Elemente
+   haben damit nichts mehr, wogegen sie verrutschen könnten.
+
+   Zwei erwünschte Nebenwirkungen: Die iOS-Browserleisten fahren nicht mehr
+   ein und aus, die Fensterhöhe bleibt also konstant (das beruhigt auch die
+   Höhenangaben in dvh/svh). Und die sticky Topbar funktioniert unverändert,
+   weil sie im neuen Scroll-Container liegt.
+
+   Zwei JavaScript-Stellen kennen den Wechsel: der Topbar-Schatten und das
+   Zurücksetzen beim Seitenwechsel fragen über window.scrollHost() nach dem
+   tatsächlichen Scroll-Container (s. app.js). */
+@media (hover: none) and (pointer: coarse) {
+  html, body {
+    height: 100%;
+    overflow: hidden;
+  }
+  .app-shell {
+    height: 100%;
+    min-height: 0;
+  }
+  .main-wrapper {
+    height: 100%;
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+  }
+}
+
 
 /* ── Topbar ── */
 /* Leere Topbar-Elemente (DS-Header wurde entfernt) vollständig ausblenden */

@@ -158,7 +158,12 @@
     delete document.body.dataset.page;
     mainContent.innerHTML = newMain.innerHTML;
     document.title = doc.querySelector('title')?.textContent || document.title;
+    /* Auf Touchgeräten scrollt der .main-wrapper statt des Dokuments
+       (s. scrollHost() in app.js) — beide zurücksetzen, damit die neue Seite
+       in jedem Modell oben beginnt. */
     window.scrollTo(0, 0);
+    const host = typeof scrollHost === 'function' ? scrollHost() : null;
+    if (host) host.scrollTop = 0;
 
     /* Body-Level-Markup der Seite übernehmen (z. B. Modal-Overlays).
        Diese liegen als Geschwister der .app-shell AUSSERHALB von
