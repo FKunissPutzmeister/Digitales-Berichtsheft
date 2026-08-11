@@ -591,7 +591,7 @@ import('playwright').then(async ({chromium}) => {
   await c.request.post('http://localhost:3000/api/auth/login-by-email',
     {data:{email:'florian.kern.demo@putzmeister.com'}});
   const p = await c.newPage();
-  await p.goto('http://localhost:3000/dashboard.html', {waitUntil:'networkidle'});
+  await p.goto('http://localhost:3000/app/dashboard.html', {waitUntil:'networkidle'});
   await p.waitForSelector('.bento .b-hero');
   console.log(await p.evaluate(() => {
     const g = s => { const e=document.querySelector(s); if(!e) return null;
