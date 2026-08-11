@@ -1,7 +1,7 @@
 # Azubi-Dashboard auf 11″-iPads — Design
 
 **Datum:** 2026-08-11
-**Status:** freigegeben, Umsetzung offen
+**Status:** umgesetzt am 2026-08-11, verifiziert per `tools/check-dashboard-viewports.mjs`
 **Betrifft:** `app/css/dashboard.css` (Azubi-Bento). Kein JavaScript, kein Backend.
 
 ## Anlass
