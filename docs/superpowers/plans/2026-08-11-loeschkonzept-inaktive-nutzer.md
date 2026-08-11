@@ -19,6 +19,16 @@
 - **Demo-Konten nie löschen:** Ausnahme über `Email NOT LIKE '%.demo@%'` — exakt dasselbe Muster wie [users.js:231-233](../../../backend/services/users.js#L231-L233).
 - **Personennamen** werden immer erst am Anzeigeort über `displayName()` zu „Vorname Nachname" gedreht; in der DB steht „Nachname, Vorname". Neue Namensspalten speichern die **DB-Form** (roh), nicht die Anzeigeform.
 - **Tests laufen ohne Datenbank.** `node --test backend/services/<datei>.test.js` aus dem Repo-Root. DB-Zugriffe werden über einen Fake-Pool oder injizierte Funktionen ersetzt — Muster: [vertretungen.test.js:14-39](../../../backend/services/vertretungen.test.js#L14-L39).
+- **`node -e` findet `dotenv`/`mssql` NICHT.** Das Repo-Root hat ein `node_modules`, darin liegt nur Playwright; die Backend-Pakete stecken in `backend/node_modules`. `node backend/db/run-sql.js …` funktioniert (die Skriptdatei liegt in `backend/db/`, die Auflösung läuft von dort nach oben), ein `node -e` mit cwd = Repo-Root scheitert an `Cannot find module 'dotenv'`. Für DB-Abfragen deshalb **immer** eine Skriptdatei in den Scratchpad schreiben, absolute Requires verwenden und mit `NODE_PATH` starten:
+  ```bash
+  # datei: <scratchpad>/pruefung.js
+  #   const REPO = 'C:/Dev/Digitales-Berichtsheft';
+  #   require('dotenv').config({ path: REPO + '/backend/.env' });
+  #   const { getPool } = require(REPO + '/backend/db/connection');
+  NODE_PATH="C:/Dev/Digitales-Berichtsheft/backend/node_modules" node <scratchpad>/pruefung.js
+  ```
+  Zusätzlich: **verschachtelte Anführungszeichen über PowerShell vermeiden** — PowerShell zerlegt `node -e "… \"…\" …"` zu Syntaxfehlern. Solche Aufrufe über das Bash-Werkzeug ausführen.
+- **`git add` nur mit expliziten Pfaden.** Im Arbeitsbaum liegt unbeteiligte WIP (`app/css/dashboard.css`, `app/css/theme-silk.css`, `tools/check-dashboard-viewports.mjs`, `tools/_diag-*.mjs`). Niemals `git add -A` oder `git add .` — jeder Commit nennt seine Dateien einzeln, so wie in den Task-Schritten angegeben.
 - **Der Timer wird erst in Task 11 scharfgeschaltet.** Bis dahin existiert der Job, läuft aber nie automatisch — kein halbfertiger Löschjob darf gegen die Dev-Datenbank laufen.
 - **Commit-Sprache:** deutsche Commit-Messages ohne Umlaute (Repo-Konvention), Präfixe `feat:` / `fix:` / `docs:`.
 
@@ -1056,6 +1066,12 @@ test('PHASE_A: Benachrichtigungen-Bedingung deckt alle VIER Wege zur Person ab',
   assert.match(e.bedingung, /ZuweisungId IN \(@zuw\)/);
 });
 
+test('PHASE_A erfasst EssTag - Arbeitszeitdaten je Azubi', () => {
+  const e = R.PHASE_A.find(x => x.tabelle === 'EssTag');
+  assert.ok(e, 'EssTag fehlt in PHASE_A');
+  assert.equal(e.bedingung, 'AzubiOid = @oid');
+});
+
 test('PHASE_A enthaelt keine Tabelle, die per ON DELETE CASCADE mitgeht', () => {
   const tabellen = R.PHASE_A.map(e => e.tabelle);
   // Anhaenge haengen an Wochen, BeurteilungKriterien an Beurteilungen.
@@ -1178,6 +1194,10 @@ const PHASE_A = [
   { tabelle: 'Beurteilungen',   bedingung: 'AzubiOid = @oid' },
   { tabelle: 'Zuweisungen',     bedingung: 'AzubiOid = @oid' },
   { tabelle: 'FahrtgeldKonfig', bedingung: 'AzubiOid = @oid' },
+  // Arbeitszeitdaten je Azubi (Datum, Tagestyp, Ist/Soll/Diff). Steht in keiner
+  // Migration und wird von keinem Codepfad gelesen — gefunden über die
+  // INFORMATION_SCHEMA-Selbstprüfung. Personenbezogen, also von der Frist erfasst.
+  { tabelle: 'EssTag',          bedingung: 'AzubiOid = @oid' },
 ];
 
 // PHASE B — Handlungen an FREMDEN Nachweisen: Referenz nullen, Name behalten.
@@ -1276,37 +1296,33 @@ node --test backend/services/retention.test.js
 
 Expected: PASS, alle Tests grün.
 
-- [ ] **Step 5: Fremdschlüssel-Lage gegen die Dev-Datenbank verifizieren**
+- [ ] **Step 5: Fremdschlüssel-Lage — bereits verifiziert, nur abgleichen**
 
-Die Basistabellen `Wochen`, `Tage`, `Kommentare`, `Zuweisungen`, `Benachrichtigungen` stammen aus der Zeit vor der Migrationsnummerierung — ihre Fremdschlüssel liegen **nicht** im Repo. Die Reihenfolge oben ist eine begründete Annahme, kein verifizierter Stand.
+Die Fremdschlüssel der Basistabellen liegen nicht im Repo (sie stammen aus der Zeit vor der Migrationsnummerierung). Der Stand der Dev-Datenbank wurde deshalb **vor** der Umsetzung erhoben; das Ergebnis ist hier festgehalten, es muss **nicht** erneut abgefragt werden:
 
-Create `C:\Users\KunissF\AppData\Local\Temp\claude\c--Dev-Digitales-Berichtsheft\aa5a4966-0c66-4fed-8f80-0f4353f5ab2a\scratchpad\fk-lage.sql`:
-
-```sql
-SELECT
-  OBJECT_NAME(fk.parent_object_id)      AS KindTabelle,
-  cp.name                               AS KindSpalte,
-  OBJECT_NAME(fk.referenced_object_id)  AS ElternTabelle,
-  cr.name                               AS ElternSpalte,
-  fk.delete_referential_action_desc     AS BeimLoeschen
-FROM sys.foreign_keys fk
-JOIN sys.foreign_key_columns fkc ON fkc.constraint_object_id = fk.object_id
-JOIN sys.columns cp ON cp.object_id = fk.parent_object_id     AND cp.column_id = fkc.parent_column_id
-JOIN sys.columns cr ON cr.object_id = fk.referenced_object_id AND cr.column_id = fkc.referenced_column_id
-ORDER BY ElternTabelle, KindTabelle;
+```
+AbteilungVerantwortliche.AbteilungId -> Abteilungen   [CASCADE]
+BeurteilungKriterien.BeurteilungId   -> Beurteilungen [CASCADE]
+FehlerAnhaenge.FehlerId              -> Fehlerberichte[CASCADE]
+Kommentare.TagId                     -> Tage          [NO_ACTION]   <-- erzwingt Kommentare VOR Tage
+UserPhotos.Oid                       -> Users         [CASCADE]
+Anhaenge.WocheId                     -> Wochen        [CASCADE]
+Benachrichtigungen.WocheId           -> Wochen        [CASCADE]
+Kommentare.WocheId                   -> Wochen        [CASCADE]
+Tage.WocheId                         -> Wochen        [CASCADE]
 ```
 
-`run-sql.js` taugt hier **nicht**: es gibt nur `PRINT`-Ausgaben über das `info`-Event zurück, keine Ergebnismengen ([run-sql.js:19-22](../../../backend/db/run-sql.js#L19-L22)). Deshalb die Abfrage direkt ausführen:
+Daraus folgt für `PHASE_A`, und genau so steht es oben:
 
-```bash
-node -e "require('dotenv').config({path:'backend/.env'});const{getPool}=require('./backend/db/connection');getPool().then(async p=>{const r=await p.request().query(require('fs').readFileSync(process.argv[1],'utf8'));console.table(r.recordset);await p.close();}).catch(e=>{console.error(e.message);process.exit(1);})" "C:/Users/KunissF/AppData/Local/Temp/claude/c--Dev-Digitales-Berichtsheft/aa5a4966-0c66-4fed-8f80-0f4353f5ab2a/scratchpad/fk-lage.sql"
-```
+1. **`Kommentare` vor `Tage` ist zwingend** — `Kommentare.TagId` ist `NO_ACTION`.
+2. **Explizites Löschen statt Verlassen auf Kaskaden ist richtig.** `Wochen` kaskadiert auf `Tage` *und* `Kommentare`; weil `Kommentare.TagId` gleichzeitig `NO_ACTION` auf `Tage` steht, kann ein einzelnes `DELETE FROM dbo.Wochen` je nach Kaskaden-Reihenfolge am `NO_ACTION`-Constraint scheitern. Die Kinder vorher selbst zu löschen umgeht das.
+3. **`Beurteilungen.ZuweisungId` und `Benachrichtigungen.ZuweisungId` haben keinen Fremdschlüssel** — lose Referenzen. Der `ZuweisungId`-Zweig in der Benachrichtigungs-Bedingung ist deshalb nötig und wird von der Datenbank nicht ersetzt.
 
-Expected: eine Tabelle aller Fremdschlüssel. Abzugleichen:
+Verifiziert wurde außerdem: Migrationen 002, 014, 015, 024, 026, 028 und 029 sind gelaufen. **`CK_Benachrichtigungen_Typ` existiert dagegen nicht** — relevant für Task 9, dort beschrieben.
 
-1. Jeder FK mit `NO_ACTION`, dessen Kindtabelle in `PHASE_A` steht, muss **vor** seiner Elterntabelle gelöscht werden. Weicht die tatsächliche Lage von der Reihenfolge in `PHASE_A` ab → `PHASE_A` und den zugehörigen Test korrigieren.
-2. Erscheint eine Tabelle mit FK auf `Wochen`/`Zuweisungen`/`Users`, die **nicht** in `BEKANNTE_TABELLEN` steht → in die passende Phase aufnehmen.
-3. Zeigt `Benachrichtigungen.WocheId` einen FK auf `Wochen`, ist die Position „Benachrichtigungen zuerst" bestätigt.
+Als Spalten mit Personenbindung existieren in `dbo`: `AbteilungVerantwortliche(Email, Oid)`, `ApiKeys(UserOid)`, `AusbilderAzubis(AusbilderOid, AzubiOid)`, `Benachrichtigungen(FromUserOid, UserOid)`, `Beurteilungen(AzubiOid)`, `EssTag(AzubiOid)`, `FahrtgeldKonfig(AzubiOid)`, `Fehlerberichte(BenutzerOid)`, `Kommentare(UserOid)`, `McpLog(UserOid)`, `UserPhotos(Oid)`, `Users(Email, Oid)`, `Vertretungen(VertretenerOid, VertreterOid)`, `Wochen(AzubiOid)`, `Zuweisungen(AzubiOid)`. Alle sind in den Phasenlisten oder in `BEKANNTE_TABELLEN` abgedeckt — `Wochen`/`Zuweisungen`/`Kommentare` tragen ihre `AzubiOid`/`UserOid`-Bindung, `Tage` hängt über `WocheId`.
+
+Nichts zu tun in diesem Step außer: prüfen, dass die Liste oben mit `PHASE_A`/`PHASE_B`/`PHASE_C`/`BEKANNTE_TABELLEN` im Code übereinstimmt. Weicht etwas ab, Code und Test korrigieren.
 
 - [ ] **Step 6: Commit**
 
@@ -1619,13 +1635,24 @@ Expected: PASS. Schlägt der Test „ein Fehler rollt die gesamte Transaktion zu
 
 - [ ] **Step 5: Selbstprüfung gegen die Dev-Datenbank laufen lassen**
 
-Run:
+Skriptdatei in den Scratchpad schreiben (`node -e` findet `dotenv` nicht, siehe Global Constraints) — `<scratchpad>/pruef-tabellen.js`:
 
-```bash
-node -e "require('dotenv').config({path:'backend/.env'});const R=require('./backend/services/retention');R.pruefeUnbekannteTabellen().then(t=>{console.log('Unbekannte Tabellen mit Personenbindung:',t);process.exit(0)}).catch(e=>{console.error(e.message);process.exit(1)})"
+```js
+const REPO = 'C:/Dev/Digitales-Berichtsheft';
+require('dotenv').config({ path: REPO + '/backend/.env' });
+const R = require(REPO + '/backend/services/retention');
+R.pruefeUnbekannteTabellen()
+  .then((t) => { console.log('Unbekannte Tabellen mit Personenbindung:', t); process.exit(0); })
+  .catch((e) => { console.error(e.message); process.exit(1); });
 ```
 
-Expected: `[]` oder eine Liste. Jede genannte Tabelle prüfen: enthält sie personenbezogene Daten, gehört sie in die passende Phase; ist sie unbedenklich (z.B. eine reine Konfigurationstabelle), in `BEKANNTE_TABELLEN` aufnehmen — mit Kommentar, warum.
+Run (über das Bash-Werkzeug, nicht PowerShell):
+
+```bash
+NODE_PATH="C:/Dev/Digitales-Berichtsheft/backend/node_modules" node <scratchpad>/pruef-tabellen.js
+```
+
+Expected: **`[]`**. Der Stand der Dev-Datenbank ist vorab erhoben, und `EssTag` — die einzige Tabelle, die hier zunächst auftauchte — steht bereits in `PHASE_A`. Erscheint trotzdem etwas: enthält die Tabelle personenbezogene Daten, gehört sie in die passende Phase; ist sie unbedenklich, in `BEKANNTE_TABELLEN` aufnehmen — mit Kommentar, warum.
 
 - [ ] **Step 6: Commit**
 
@@ -1859,10 +1886,24 @@ Create `db/migrations/032_benachrichtigungen_loeschtyp.sql`:
 -- endgültigen Löschen eines Kontos. Dafür ein neuer Typ im
 -- CHECK-Constraint.
 --
--- MUSS laufen, BEVOR der Job scharfgeschaltet wird: sonst scheitert das
--- INSERT am CHECK und wird im Backend best-effort verschluckt
--- (catch (_) {} in routes/zuweisungen.js) — die Vorwarnung käme nie an,
--- ohne jede Fehlermeldung.
+-- BEFUND VOR DER UMSETZUNG: In der Dev-Datenbank existiert
+-- CK_Benachrichtigungen_Typ ÜBERHAUPT NICHT — Migration 022 ist dort nie
+-- gelaufen. Deshalb konnte der Typ 'erstgenehmigt' (routes/wochen.js:318)
+-- bisher geschrieben werden, obwohl Migration 022 ihn nicht kennt; er steht
+-- in den Daten. Diese Migration FÜHRT den Constraint also erstmals EIN,
+-- statt ihn zu erweitern. Bewusste Entscheidung: damit wird wirksam, was
+-- Migration 022 dokumentiert, und ein künftiger Tippfehler im Typ fällt hart
+-- auf, statt im best-effort-catch (catch (_) {} in routes/zuweisungen.js)
+-- still zu verschwinden.
+--
+-- Die Liste unten deckt alle 10 tatsächlich in dbo.Benachrichtigungen
+-- vorkommenden Typen ab (geprüft), das ALTER TABLE validiert den Bestand
+-- also erfolgreich.
+--
+-- FOLGE: Solange kein Constraint existiert, funktioniert die Vorwarnung auch
+-- ohne diese Migration. Sie ist trotzdem Voraussetzung fürs Scharfschalten —
+-- sonst bricht die Vorwarnung, sobald jemand Migration 022 nachträglich
+-- ausführt (deren Liste kennt 'loeschung_geplant' nicht).
 --
 -- WocheId und ZuweisungId bleiben bei diesem Typ NULL. Der betroffene
 -- Nutzer steht in FromUserOid; sein Konto ist inaktiv und für die
@@ -1889,11 +1930,10 @@ ALTER TABLE dbo.Benachrichtigungen ADD CONSTRAINT CK_Benachrichtigungen_Typ
 PRINT 'CK_Benachrichtigungen_Typ neu angelegt (inkl. loeschung_geplant).';
 ```
 
-> **Achtung:** Die Typ-Liste muss **alle** bereits genutzten Typen enthalten, sonst schlagen bestehende Mitteilungen fehl. Vor dem Ausführen gegenprüfen:
-> ```bash
-> node -e "require('dotenv').config({path:'backend/.env'});const{getPool}=require('./backend/db/connection');getPool().then(async p=>{const r=await p.request().query('SELECT DISTINCT Typ FROM dbo.Benachrichtigungen ORDER BY Typ');console.log(r.recordset.map(x=>x.Typ));await p.close()})"
-> ```
-> Jeder ausgegebene Typ muss in der `CHECK`-Liste stehen. `erstgenehmigt` ist gegenüber Migration 022 neu aufgenommen, weil [wochen.js:318](../../../backend/routes/wochen.js#L318) ihn schreibt — fehlt er, war das INSERT bisher stillschweigend fehlgeschlagen. Erscheinen weitere Typen, ergänzen.
+> **Bestand bereits geprüft** — nicht erneut abfragen. In `dbo.Benachrichtigungen` kommen genau diese 10 Typen vor:
+> `abgelehnt, beurteilung_abgeschlossen, beurteilung_faellig, erstgenehmigt, genehmigt, versetzung_entfernt, versetzung_geaendert, versetzung_neu, vertretung_beendet, vertretung_neu`
+>
+> Alle 10 stehen in der `CHECK`-Liste oben, `loeschung_geplant` ist der elfte. `ALTER TABLE … ADD CONSTRAINT` validiert den Bestand (Standard: `WITH CHECK`) und geht damit durch. Schlägt es trotzdem fehl, nennt die Fehlermeldung den verletzenden Wert — diesen Typ dann in die Liste aufnehmen, **nicht** `WITH NOCHECK` verwenden.
 
 - [ ] **Step 2: Migration ausführen und Idempotenz prüfen**
 
@@ -2081,11 +2121,37 @@ Beide Kataloge leiten ihren `typeKey` per `b.type.split('_')[0]` ab — bei `loe
 
 - [ ] **Step 9: Im Browser prüfen**
 
-Eine Test-Mitteilung setzen (OID eines aktiven Developer-Kontos als Empfänger, ein beliebiges inaktives Konto als Absender):
+Eine Test-Mitteilung setzen (OID eines aktiven Developer-Kontos als Empfänger, ein beliebiges inaktives Konto als Absender). Skriptdatei `<scratchpad>/test-mitteilung.js`:
+
+```js
+const REPO = 'C:/Dev/Digitales-Berichtsheft';
+require('dotenv').config({ path: REPO + '/backend/.env' });
+const { getPool, sql } = require(REPO + '/backend/db/connection');
+
+getPool().then(async (p) => {
+  const empf = (await p.request().query(
+    "SELECT TOP 1 Oid FROM dbo.Users WHERE Aktiv=1 AND Role='developer'")).recordset[0];
+  const von = (await p.request().query(
+    'SELECT TOP 1 Oid, Name FROM dbo.Users WHERE Aktiv=0')).recordset[0];
+  if (!empf || !von) { console.error('kein Developer- oder inaktives Konto gefunden'); process.exit(1); }
+  const r = await p.request()
+    .input('u', sql.NVarChar(36), empf.Oid)
+    .input('f', sql.NVarChar(36), von.Oid)
+    .query(`INSERT INTO dbo.Benachrichtigungen (UserOid, Typ, WocheId, FromUserOid)
+            OUTPUT inserted.Id VALUES (@u, 'loeschung_geplant', NULL, @f)`);
+  console.log('Testmitteilung Id', r.recordset[0].Id, 'fuer', empf.Oid, 'ueber', von.Name);
+  console.log('WIEDER ENTFERNEN MIT: DELETE FROM dbo.Benachrichtigungen WHERE Id =', r.recordset[0].Id);
+  await p.close();
+}).catch((e) => { console.error(e.message); process.exit(1); });
+```
+
+Run (über das Bash-Werkzeug):
 
 ```bash
-node -e "require('dotenv').config({path:'backend/.env'});const{getPool,sql}=require('./backend/db/connection');getPool().then(async p=>{const e=(await p.request().query(\"SELECT TOP 1 Oid FROM dbo.Users WHERE Aktiv=1 AND Role='developer'\")).recordset[0].Oid;const f=(await p.request().query('SELECT TOP 1 Oid FROM dbo.Users WHERE Aktiv=0')).recordset[0].Oid;await p.request().input('u',sql.NVarChar(36),e).input('f',sql.NVarChar(36),f).query(\"INSERT INTO dbo.Benachrichtigungen (UserOid,Typ,WocheId,FromUserOid) VALUES (@u,'loeschung_geplant',NULL,@f)\");console.log('Testmitteilung fuer',e,'ueber',f);await p.close()})"
+NODE_PATH="C:/Dev/Digitales-Berichtsheft/backend/node_modules" node <scratchpad>/test-mitteilung.js
 ```
+
+Schlägt das `INSERT` mit einer CHECK-Constraint-Verletzung fehl, ist Migration 032 nicht gelaufen — Step 2 nachholen.
 
 Backend starten, **http://localhost:3000/app/dashboard.html** mit `Strg+F5` laden, als Developer anmelden.
 
@@ -2193,11 +2259,36 @@ In `renderRow` den `aktivBadge` (Zeile 246-248) ersetzen:
 
 - [ ] **Step 5: Im Browser prüfen**
 
-Ein inaktives Testkonto mit künstlichem Stichtag versehen:
+Ein inaktives Testkonto mit künstlichem Stichtag versehen. Skriptdatei `<scratchpad>/stichtag-setzen.js`:
+
+```js
+const REPO = 'C:/Dev/Digitales-Berichtsheft';
+require('dotenv').config({ path: REPO + '/backend/.env' });
+const { getPool } = require(REPO + '/backend/db/connection');
+
+getPool().then(async (p) => {
+  // Bewusst ein .demo-Konto: es wird vom Job nie gelöscht, taugt aber zur
+  // Anzeigeprüfung. 350 Tage → Löschdatum in ~15 Tagen.
+  const r = await p.request().query(`
+    UPDATE TOP (1) dbo.Users
+       SET InaktivSeit = DATEADD(DAY, -350, SYSUTCDATETIME())
+     WHERE Aktiv = 0 AND Email LIKE '%.demo'`);
+  console.log('geaenderte Zeilen:', r.rowsAffected[0]);
+  const z = await p.request().query(`
+    SELECT Name, Email, InaktivSeit, LoeschsperreBis FROM dbo.Users
+     WHERE Aktiv = 0 AND Email LIKE '%.demo' ORDER BY InaktivSeit`);
+  console.table(z.recordset);
+  await p.close();
+}).catch((e) => { console.error(e.message); process.exit(1); });
+```
+
+Run (über das Bash-Werkzeug):
 
 ```bash
-node -e "require('dotenv').config({path:'backend/.env'});const{getPool}=require('./backend/db/connection');getPool().then(async p=>{const r=await p.request().query(\"UPDATE TOP (1) dbo.Users SET InaktivSeit = DATEADD(DAY,-350,SYSUTCDATETIME()) WHERE Aktiv=0 AND Email LIKE '%.demo'\");console.log('Zeilen:',r.rowsAffected[0]);await p.close()})"
+NODE_PATH="C:/Dev/Digitales-Berichtsheft/backend/node_modules" node <scratchpad>/stichtag-setzen.js
 ```
+
+Expected: `geaenderte Zeilen: 1` und eine Tabelle, in der genau ein Demo-Konto ein `InaktivSeit` trägt.
 
 Backend starten, **http://localhost:3000/app/nutzerverwaltung.html** mit `Strg+F5` laden, als Developer anmelden.
 
@@ -2529,10 +2620,35 @@ Expected: PASS über alle Dateien.
 
 - [ ] **Step 7: Trockenlauf gegen die Dev-Datenbank**
 
-Ein Lauf mit **injizierter** Löschfunktion, der nichts anfasst und nur berichtet:
+Ein Lauf mit **injizierter** Löschfunktion, der nichts anfasst und nur berichtet. Skriptdatei `<scratchpad>/trockenlauf.js`:
+
+```js
+const REPO = 'C:/Dev/Digitales-Berichtsheft';
+require('dotenv').config({ path: REPO + '/backend/.env' });
+const R = require(REPO + '/backend/services/retention');
+
+R.runRetention({
+  loescheNutzer: async (u) => {
+    console.log('WUERDE LOESCHEN:', u.oid, u.name, '| inaktiv seit', u.inaktivSeit);
+    return { tabellen: {}, phaseB: 0 };
+  },
+  sendeVorwarnung: async (u) => {
+    console.log('WUERDE WARNEN:', u.oid, u.name, '| inaktiv seit', u.inaktivSeit);
+    return true;
+  },
+  raeumeDateien: ({ existierendeOids }) => {
+    console.log('bekannte OIDs:', existierendeOids.size);
+    return { entfernt: [], probleme: [] };   // Dateien bleiben unangetastet
+  },
+  logFehler: (e) => console.log('FEHLER:', e.nachricht),
+}).then((b) => { console.log(JSON.stringify(b, null, 2)); process.exit(0); })
+  .catch((e) => { console.error(e); process.exit(1); });
+```
+
+Run (über das Bash-Werkzeug):
 
 ```bash
-node -e "require('dotenv').config({path:'backend/.env'});const R=require('./backend/services/retention');R.runRetention({loescheNutzer:async u=>{console.log('WUERDE LOESCHEN:',u.oid,u.name);return{tabellen:{},phaseB:0}},sendeVorwarnung:async u=>{console.log('WUERDE WARNEN:',u.oid,u.name);return true},raeumeDateien:({existierendeOids})=>{console.log('bekannte OIDs:',existierendeOids.size);return{entfernt:[],probleme:[]}},logFehler:e=>console.log('FEHLER:',e.nachricht)}).then(b=>{console.log(JSON.stringify(b,null,2));process.exit(0)}).catch(e=>{console.error(e);process.exit(1)})"
+NODE_PATH="C:/Dev/Digitales-Berichtsheft/backend/node_modules" node <scratchpad>/trockenlauf.js
 ```
 
 Expected: Ein Bericht ohne Einträge unter `fehler`. Nach Migration 030 haben alle inaktiven Konten einen frischen Stichtag, `geloescht` und `vorgewarnt` müssen daher **0** sein. Erscheint hier ein „WUERDE LOESCHEN", stimmt der Backfill nicht — nicht weitermachen, bevor das geklärt ist.
@@ -2684,60 +2800,141 @@ Und im Abschnitt „Betrieb & Integrationen" (Zeile 163-169) nach dem Fehlerberi
   `docs/superpowers/specs/2026-08-11-loeschkonzept-inaktive-nutzer-design.md`.
 ```
 
-- [ ] **Step 4: Manuelle Abnahme — Demo-Konten sind unantastbar**
+- [ ] **Step 4: Demo-Ausnahme prüfen — nur lesend**
 
-Run:
+Skriptdatei `<scratchpad>/demo-ausnahme.js`:
 
-```bash
-node -e "require('dotenv').config({path:'backend/.env'});const{getPool}=require('./backend/db/connection');const R=require('./backend/services/retention');getPool().then(async p=>{await p.request().query(\"UPDATE dbo.Users SET InaktivSeit = DATEADD(DAY,-400,SYSUTCDATETIME()) WHERE Aktiv=0 AND Email LIKE '%.demo'\");const k=await R.ermittleKandidaten();console.log('Kandidaten:',k.length);console.log('darunter Demo:',k.filter(u=>R.istDemoKonto(u.email)).length);console.log('faellig:',k.filter(u=>R.istFaellig(u)).map(u=>u.email));await p.close()})"
+```js
+const REPO = 'C:/Dev/Digitales-Berichtsheft';
+require('dotenv').config({ path: REPO + '/backend/.env' });
+const R = require(REPO + '/backend/services/retention');
+
+R.ermittleKandidaten().then(async (k) => {
+  console.log('Kandidaten:', k.length);
+  console.log('darunter Demo-Konten:', k.filter((u) => R.istDemoKonto(u.email)).length);
+  console.log('aktuell faellig:', k.filter((u) => R.istFaellig(u)).map((u) => u.email || u.oid));
+  console.log('im Vorwarnfenster:', k.filter((u) => R.istVorwarnFaellig(u)).map((u) => u.email || u.oid));
+  process.exit(0);
+}).catch((e) => { console.error(e.message); process.exit(1); });
 ```
 
-Expected: `darunter Demo: 0` — die Demo-Konten erscheinen schon in der SQL-Abfrage nicht. `faellig` darf **keine** `.demo`-Adresse enthalten.
-
-- [ ] **Step 5: Manuelle Abnahme — vollständiger Zyklus an einem Testkonto**
-
-1. Ein Wegwerf-Konto anlegen (kein Demo-Konto, damit es der Job überhaupt anfasst) und ihm über die Nutzerverwaltung Rolle `azubi` geben.
-2. Als dieses Konto eine Woche anlegen, einreichen; als Prüfer kommentieren und genehmigen; eine Abteilungszuweisung anlegen; ein IHK-PDF importieren.
-3. Konto in der Nutzerverwaltung auf inaktiv setzen → Zeile zeigt „Löschung am <heute + 365>".
-4. Stichtag künstlich vordatieren:
-   ```bash
-   node -e "require('dotenv').config({path:'backend/.env'});const{getPool,sql}=require('./backend/db/connection');getPool().then(async p=>{await p.request().input('e',sql.NVarChar(256),process.argv[1]).query('UPDATE dbo.Users SET InaktivSeit = DATEADD(DAY,-366,SYSUTCDATETIME()) WHERE Email=@e');console.log('vordatiert');await p.close()})" "<mail-des-testkontos>"
-   ```
-5. Sperre auf ein Datum in der Zukunft setzen, Lauf anstoßen (`runRetention` wie in Task 11 Step 7, aber **ohne** injiziertes `loescheNutzer`).
-   Expected: `gesperrt: 1`, `geloescht: 0`.
-6. Sperre leeren, Lauf erneut anstoßen.
-   Expected: `geloescht: 1`. Danach prüfen: `dbo.Users`-Zeile weg, Wochen/Tage/Kommentare/Beurteilungen/Zuweisungen des Kontos weg, `backend/data/ihk-imports/<oid>/` weg.
-
-- [ ] **Step 6: Manuelle Abnahme — der entscheidende Test: Prüfer löschen**
-
-Dies ist der Test, der das gesamte Denormalisierungs-Konzept belegt.
-
-1. Ein Wegwerf-**Prüfer**-Konto anlegen. Mit ihm eine Woche eines **noch aktiven** Azubis kommentieren und genehmigen, und ihn als Verantwortlichen einer Abteilungszuweisung dieses Azubis eintragen.
-2. Prüfer-Konto deaktivieren, Stichtag auf −366 Tage vordatieren, Lauf anstoßen.
-3. Als der Azubi anmelden, die betroffene Woche öffnen (`Strg+F5`).
-
-Expected:
-- Status-Banner nennt weiterhin **den Namen des gelöschten Prüfers** — nicht den statisch zugeordneten Ausbilder, nicht „Ausbilder/in".
-- Der Kommentar zeigt weiterhin seinen Namen, aber **kein Avatar-Foto**.
-- Der Ansprechpartner der Abteilungszuweisung zeigt weiterhin seinen Namen.
-- PDF-Export aus dem Profil: die Gegenzeichnung nennt seinen Namen.
-- In der Datenbank: `Wochen.KorrigiertVon IS NULL` bei gefülltem `KorrigiertVonName`, `Kommentare.UserOid IS NULL` bei gefülltem `AutorName`, `Zuweisungen.VerantwEmail = ''` bei gefülltem `VerantwName`.
-- Die Mitteilung des Azubis „Woche genehmigt" ist **noch da**, mit `FromUserOid IS NULL`.
-
-- [ ] **Step 7: Fehler-Posteingang prüfen**
-
-Run:
+Run (über das Bash-Werkzeug):
 
 ```bash
-node -e "require('dotenv').config({path:'backend/.env'});const{getPool}=require('./backend/db/connection');getPool().then(async p=>{const r=await p.request().query(\"SELECT TOP 20 Erstellt, Schweregrad, Nachricht FROM dbo.Fehlerberichte WHERE Nachricht LIKE '%[retention]%' ORDER BY Id DESC\");console.table(r.recordset);await p.close()})"
+NODE_PATH="C:/Dev/Digitales-Berichtsheft/backend/node_modules" node <scratchpad>/demo-ausnahme.js
 ```
 
-Expected: keine unerwarteten Einträge. Ein Eintrag „Tabellen mit Personenbindung, die der Loeschjob NICHT kennt" muss abgearbeitet werden, bevor der Job produktiv geht.
+Expected: `darunter Demo-Konten: 0` — sie werden bereits in der SQL-Bedingung ausgeschlossen. `aktuell faellig` muss **leer** sein: Migration 030 hat allen inaktiven Konten einen frischen Stichtag gegeben, es kann also noch niemand fällig sein. Ist die Liste nicht leer, **nicht weitermachen** und den Befund melden.
 
-- [ ] **Step 8: Commit**
+- [ ] **Step 5: Abnahme-Checkliste für Kuniß schreiben**
+
+Die vollständige Abnahme verändert die geteilte Dev-Datenbank (Konten vordatieren, ein Wegwerf-Konto tatsächlich löschen) und wird deshalb **nicht** automatisiert ausgeführt, sondern als Checkliste übergeben.
+
+Create `docs/superpowers/plans/2026-08-11-loeschkonzept-abnahme-checkliste.md`:
+
+```markdown
+# Löschkonzept — manuelle Abnahme
+
+Diese Schritte verändern die Dev-Datenbank und löschen echte Zeilen. Sie sind
+bewusst nicht automatisiert. Voraussetzung: Migrationen 030-032 sind gelaufen,
+alle Unit-Tests grün, Server läuft über http://localhost:3000.
+
+## A · Vollständiger Zyklus an einem Azubi-Testkonto
+
+- [ ] Wegwerf-Konto anlegen (**keine** `.demo`-Adresse — sonst fasst der Job es nie an),
+      Rolle `azubi` über die Nutzerverwaltung setzen.
+- [ ] Mit dem Konto eine Woche anlegen und einreichen; als Prüfer kommentieren und
+      genehmigen; eine Abteilungszuweisung anlegen; ein IHK-PDF importieren.
+- [ ] Konto auf inaktiv setzen → die Tabellenzeile zeigt „Löschung am <heute + 365>".
+- [ ] Stichtag vordatieren (Skript unten), Sperre auf ein Datum in der Zukunft setzen,
+      Trockenlauf ohne injiziertes `loescheNutzer` starten.
+      **Erwartet:** `gesperrt: 1`, `geloescht: 0`.
+- [ ] Sperre leeren, Lauf erneut starten.
+      **Erwartet:** `geloescht: 1`. Danach prüfen: `dbo.Users`-Zeile weg,
+      Wochen/Tage/Kommentare/Beurteilungen/Zuweisungen weg,
+      `backend/data/ihk-imports/<oid>/` weg.
+
+## B · Der entscheidende Test: einen Prüfer löschen
+
+Dieser Test belegt das gesamte Denormalisierungs-Konzept.
+
+- [ ] Wegwerf-**Prüfer**-Konto anlegen. Damit eine Woche eines **noch aktiven** Azubis
+      kommentieren und genehmigen, und den Prüfer als Verantwortlichen einer
+      Abteilungszuweisung dieses Azubis eintragen.
+- [ ] Prüfer-Konto deaktivieren, Stichtag auf −366 Tage vordatieren, Lauf starten.
+- [ ] Als der Azubi anmelden, die betroffene Woche öffnen (`Strg+F5`).
+
+**Erwartet:**
+
+- [ ] Status-Banner nennt weiterhin den Namen des gelöschten Prüfers — **nicht** den
+      statisch zugeordneten Ausbilder, **nicht** „Ausbilder/in".
+- [ ] Der Kommentar zeigt weiterhin seinen Namen, aber **kein** Avatar-Foto.
+- [ ] Der Ansprechpartner der Abteilungszuweisung zeigt weiterhin seinen Namen.
+- [ ] PDF-Export aus dem Profil: die Gegenzeichnung nennt seinen Namen.
+- [ ] In der Datenbank: `Wochen.KorrigiertVon IS NULL` bei gefülltem
+      `KorrigiertVonName`; `Kommentare.UserOid IS NULL` bei gefülltem `AutorName`;
+      `Zuweisungen.VerantwEmail = ''` bei gefülltem `VerantwName`.
+- [ ] Die Mitteilung des Azubis „Woche genehmigt" ist **noch da**, mit
+      `FromUserOid IS NULL`.
+
+## Hilfsskript: Stichtag vordatieren
+
+Als Datei ablegen und über das Bash-Werkzeug starten (`node -e` findet `dotenv`
+nicht — die Backend-Pakete liegen in `backend/node_modules`):
+
+    const REPO = 'C:/Dev/Digitales-Berichtsheft';
+    require('dotenv').config({ path: REPO + '/backend/.env' });
+    const { getPool, sql } = require(REPO + '/backend/db/connection');
+    const mail = process.argv[2];
+    getPool().then(async (p) => {
+      const r = await p.request()
+        .input('e', sql.NVarChar(256), mail)
+        .query(`UPDATE dbo.Users
+                   SET InaktivSeit = DATEADD(DAY, -366, SYSUTCDATETIME())
+                 WHERE Email = @e`);
+      console.log('vordatiert, Zeilen:', r.rowsAffected[0]);
+      await p.close();
+    }).catch((e) => { console.error(e.message); process.exit(1); });
+
+    NODE_PATH="C:/Dev/Digitales-Berichtsheft/backend/node_modules" \
+      node <datei>.js "<mail-des-testkontos>"
+
+## Danach
+
+- [ ] Vordatierte Demo-Konten zurücksetzen: `UPDATE dbo.Users SET InaktivSeit = SYSUTCDATETIME() WHERE Aktiv = 0 AND Email LIKE '%.demo'`
+- [ ] Fehler-Posteingang auf `[retention]`-Einträge prüfen.
+```
+
+- [ ] **Step 6: Fehler-Posteingang prüfen — nur lesend**
+
+Skriptdatei `<scratchpad>/retention-fehler.js`:
+
+```js
+const REPO = 'C:/Dev/Digitales-Berichtsheft';
+require('dotenv').config({ path: REPO + '/backend/.env' });
+const { getPool } = require(REPO + '/backend/db/connection');
+
+getPool().then(async (p) => {
+  const r = await p.request().query(`
+    SELECT TOP 20 Id, Schweregrad, Nachricht FROM dbo.Fehlerberichte
+     WHERE Nachricht LIKE '%[retention]%' ORDER BY Id DESC`);
+  console.log(r.recordset.length ? r.recordset : '(keine retention-Eintraege)');
+  await p.close();
+}).catch((e) => { console.error(e.message); process.exit(1); });
+```
+
+Run (über das Bash-Werkzeug):
 
 ```bash
-git add docs/funktionsweise.md README.md
+NODE_PATH="C:/Dev/Digitales-Berichtsheft/backend/node_modules" node <scratchpad>/retention-fehler.js
+```
+
+Expected: `(keine retention-Eintraege)`. Erscheint „Tabellen mit Personenbindung, die der Loeschjob NICHT kennt", muss das abgearbeitet werden, bevor der Job produktiv geht.
+
+- [ ] **Step 7: Commit**
+
+```bash
+git add docs/funktionsweise.md README.md docs/superpowers/plans/2026-08-11-loeschkonzept-abnahme-checkliste.md
 git commit -m "docs: Loeschkonzept in funktionsweise.md und README beschreiben
 
 Abschnitt 11 und die bekannten Grenzen sind nach der Umsetzung falsch:
@@ -2748,8 +2945,15 @@ ausdruecklich benannt."
 
 ---
 
+## Vor der Umsetzung geklärt
+
+Diese drei Punkte waren beim Schreiben des Plans offen und sind gegen die Dev-Datenbank erhoben worden. Die Ergebnisse sind in den Tasks eingearbeitet:
+
+1. **Fremdschlüssel-Lage** — erhoben, siehe Task 6 Step 5. Der Plan war in allen entscheidenden Punkten richtig: `Kommentare.TagId → Tage` ist `NO_ACTION` (Kommentare **müssen** vor Tage), `Beurteilungen.ZuweisungId` und `Benachrichtigungen.ZuweisungId` haben keinen Fremdschlüssel (der `ZuweisungId`-Zweig ist nötig).
+2. **`CK_Benachrichtigungen_Typ` existiert in der Dev-Datenbank nicht** — Migration 022 ist dort nie gelaufen, deshalb konnte `erstgenehmigt` geschrieben werden. Migration 032 **führt** den Constraint ein, statt ihn zu erweitern; entschieden am 2026-08-11. Die Behauptung „ohne 032 scheitert die Vorwarnung still" gilt für diese Datenbank **nicht** — 032 ist Vorsorge für den Fall, dass 022 nachträglich läuft.
+3. **`dbo.EssTag`** — eine Tabelle mit `AzubiOid` und Arbeitszeitdaten (Datum, Tagestyp, Ist/Soll/Diff), angelegt am 2026-06-15, von keinem Codepfad im Repo referenziert. Über die `INFORMATION_SCHEMA`-Selbstprüfung gefunden und auf Entscheidung vom 2026-08-11 in `PHASE_A` aufgenommen.
+
 ## Offene Punkte für den Reviewer
 
-1. **Fremdschlüssel-Lage** (Task 6, Step 5): Die Löschreihenfolge ist eine begründete Annahme. Die Basistabellen stammen aus der Zeit vor der Migrationsnummerierung, ihre Constraints liegen nicht im Repo. Weicht die tatsächliche Lage ab, sind `PHASE_A` **und** die zugehörigen Tests zu korrigieren.
-2. **`erstgenehmigt` im CHECK-Constraint** (Task 9, Step 1): [wochen.js:318](../../../backend/routes/wochen.js#L318) schreibt diesen Typ, Migration 022 kennt ihn nicht. Entweder sind diese Mitteilungen bisher stillschweigend fehlgeschlagen, oder der Constraint wurde außerhalb der Migrationen geändert. Die Bestandsabfrage in Step 1 klärt das.
-3. **Frist auf dem Dev-Server**: Für Tests wird `InaktivSeit` vordatiert, nicht die Frist verkürzt. Wer die Konstante zum Testen ändert, muss sie zurücksetzen — sie ist die dokumentierte Compliance-Entscheidung.
+1. **Frist auf dem Dev-Server**: Für Tests wird `InaktivSeit` vordatiert, nicht die Frist verkürzt. Wer die Konstante zum Testen ändert, muss sie zurücksetzen — sie ist die dokumentierte Compliance-Entscheidung.
+2. **Manuelle Abnahme läuft nicht automatisiert** (Task 12, Step 5): Sie verändert die geteilte Dev-Datenbank und löscht echte Zeilen. Sie wird als Checkliste übergeben. Der Prüfer-Löschtest aus Abschnitt B dieser Checkliste ist die einzige Verifikation, die das Denormalisierungs-Konzept end-to-end belegt — er darf nicht entfallen.
