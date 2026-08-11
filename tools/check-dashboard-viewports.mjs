@@ -4,7 +4,13 @@
    und ohne Fehlermeldung abgeschnitten. Genau das prüfen wir hier, plus die
    Frage, ob die drei Kacheln im sichtbaren Bereich ankommen.
 
-   Aufruf:  node tools/check-dashboard-viewports.mjs [--theme=dark] [--shots=out]
+   --theme= akzeptiert sowohl den Standard-Modus (light/dark, localStorage
+   'theme') als auch die Custom-Designs aus theme.js (localStorage
+   'customTheme') — genau die Stelle, an der eine Silk-Kappung sonst
+   unbemerkt durchrutscht: der Standard-Modus wird geprüft, das Theme, das
+   Azubis tatsächlich anwählen können, aber nicht.
+
+   Aufruf:  node tools/check-dashboard-viewports.mjs [--theme=silk] [--shots=out]
    Setzt ein laufendes Backend auf http://localhost:3000 voraus. */
 import { chromium } from 'playwright';
 import { mkdir } from 'node:fs/promises';
@@ -12,9 +18,13 @@ import { mkdir } from 'node:fs/promises';
 const BASE  = 'http://localhost:3000';
 const EMAIL = 'florian.kern.demo@putzmeister.com';
 
+/* Muss mit CUSTOM_THEMES in app/js/theme.js übereinstimmen. */
+const CUSTOM_THEMES = ['hyperspace', 'cmd', 'candy', 'silk', 'halloween', 'christmas'];
+
 const args     = process.argv.slice(2);
 const theme    = (args.find(a => a.startsWith('--theme=')) || '--theme=light').split('=')[1];
 const shotsDir = (args.find(a => a.startsWith('--shots=')) || '').split('=')[1] || null;
+const isCustom = CUSTOM_THEMES.includes(theme);
 
 /* Höhen sind die NUTZBAREN Höhen, nicht die Gerätehöhen: Safari auf dem iPad
    belegt im Querformat rund 90 px mit Tab- und Adressleiste. Der Seite steht
@@ -22,6 +32,10 @@ const shotsDir = (args.find(a => a.startsWith('--shots=')) || '').split('=')[1] 
 const VIEWPORTS = [
   { name: 'ipad-pro-11-quer',  width: 1194, height: 745,  erwartetNebeneinander: true,  heroZeilen: 2 },
   { name: 'ipad-air-11-quer',  width: 1180, height: 731,  erwartetNebeneinander: true,  heroZeilen: 2 },
+  /* Engster Fall zwischen den beiden 11"-iPads (834 px, Hochformat-Block
+     greift erst ab 900 px) und der alten 1180-px-Grenze: Button und
+     Tages-Streifen stehen hier noch nebeneinander, Hero bleibt 2-zeilig. */
+  { name: 'schmal-901',        width: 901,  height: 745,  erwartetNebeneinander: true,  heroZeilen: 2 },
   { name: 'ipad-11-hoch',      width: 834,  height: 1105, erwartetNebeneinander: true,  heroZeilen: 3 },
   { name: 'laptop-13',         width: 1280, height: 800,  erwartetNebeneinander: true,  heroZeilen: 2 },
   { name: 'desktop',           width: 1440, height: 900,  erwartetNebeneinander: true,  heroZeilen: 3 },
@@ -70,6 +84,8 @@ function messen() {
     mittUeberlauf: mitt ? ueberlauf(mitt) : null,
     sichtbareMitteilungen: document.querySelectorAll('.b-mitteilung').length,
     viewportHoehe: window.innerHeight,
+    aktivDataTheme: document.documentElement.getAttribute('data-theme'),
+    aktivDataSkin: document.documentElement.getAttribute('data-skin'),
   };
 }
 
@@ -93,15 +109,35 @@ for (const vp of VIEWPORTS) {
   }
 
   const page = await ctx.newPage();
-  await page.addInitScript((t) => {
-    localStorage.setItem('theme', t);
-  }, theme);
+  await page.addInitScript(({ t, custom }) => {
+    /* Custom-Designs (silk, hyperspace, cmd, halloween, christmas, candy)
+       hängen an 'customTheme', nicht an 'theme' (siehe theme.js:9-12) —
+       sonst bleibt das Theme unbemerkt auf dem Standard-Modus stehen. */
+    if (custom) localStorage.setItem('customTheme', t);
+    else localStorage.setItem('theme', t);
+  }, { t: theme, custom: isCustom });
   await page.goto(`${BASE}/app/dashboard.html`, { waitUntil: 'networkidle' });
   await page.waitForSelector('.bento .b-hero', { timeout: 15000 });
   await page.waitForSelector('.bento .b-recent', { timeout: 15000 });
 
   const m = await page.evaluate(messen);
   const probleme = [];
+
+  /* Muss mit setThemeAttrs()/REACT_SKIN_BASE in app/js/theme.js überein-
+     stimmen: Skins wie Silk setzen data-theme auf ihren Basismodus und
+     tragen die Identität in data-skin. Weicht das Gemessene ab, wurde das
+     angeforderte Theme stillschweigend nicht angewendet — genau die Lücke,
+     durch die die Silk-Kappung ursprünglich unbemerkt blieb. */
+  const REACT_SKIN_BASE = { silk: 'dark' };
+  const erwartetDataTheme = isCustom ? (REACT_SKIN_BASE[theme] || theme) : theme;
+  const erwartetDataSkin  = isCustom && REACT_SKIN_BASE[theme] ? theme : null;
+  if (m.aktivDataTheme !== erwartetDataTheme || (m.aktivDataSkin || null) !== erwartetDataSkin) {
+    probleme.push(
+      `Theme nicht angewendet: erwartet data-theme="${erwartetDataTheme}"` +
+      (erwartetDataSkin ? ` data-skin="${erwartetDataSkin}"` : ' (kein data-skin)') +
+      `, gemessen data-theme="${m.aktivDataTheme}" data-skin="${m.aktivDataSkin || ''}"`
+    );
+  }
 
   if (!m.hero || !m.mitt || !m.recent) {
     probleme.push('Eine der drei Kacheln wurde nicht gerendert');
@@ -142,8 +178,9 @@ for (const vp of VIEWPORTS) {
     probleme.push(`Tages-Kacheln nur ${m.tagHoehe} px hoch, unter dem 44-px-Touch-Minimum`);
   }
 
+  const aktivLabel = m.aktivDataSkin ? `${m.aktivDataTheme}/${m.aktivDataSkin}` : (m.aktivDataTheme || '?');
   const status = probleme.length ? 'FEHLER' : 'OK   ';
-  console.log(`${status} ${vp.name.padEnd(18)} ${vp.width}x${vp.height}  ` +
+  console.log(`${status} ${vp.name.padEnd(18)} ${vp.width}x${vp.height}  theme=${theme} (aktiv ${aktivLabel})  ` +
               `Hero ${m.hero ? Math.round(m.hero.height) : '?'}px  ` +
               `Mitteilungen ${m.mitt ? Math.round(m.mitt.width) : '?'}px breit / ${m.sichtbareMitteilungen} Eintraege  ` +
               `Zuletzt ab ${m.recent ? Math.round(m.recent.top) : '?'}px`);
