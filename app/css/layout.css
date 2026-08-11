@@ -589,6 +589,7 @@ html.sidebar-init-collapsed .main-wrapper         { margin-left: var(--sidebar-i
   margin-left: var(--sidebar-icon-w);
 }
 
+
 /* ── Topbar ── */
 /* Leere Topbar-Elemente (DS-Header wurde entfernt) vollständig ausblenden */
 .topbar:empty {

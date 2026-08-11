@@ -1059,6 +1059,26 @@ html.perf-lite[data-theme="dark"] .modal {
               transform 320ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 
+/* ── Touchgeräte: Sidebar-Höhe gegen die wandernden Browserleisten festnageln ──
+   Die Pille ist oben UND unten verankert (top/bottom: --lg-gap), ihre Höhe
+   ergibt sich also aus der Fensterhöhe. Auf iOS ändert sich die aber *während*
+   des Scrollens, weil Adress- und Tableiste ein- und ausfahren. Die Pille wird
+   dadurch laufend neu berechnet und wächst und schrumpft mit — genau das
+   wirkt wie ein „komisches Mitscrollen".
+
+   svh ist die Fensterhöhe MIT ausgefahrenen Leisten und bleibt beim Scrollen
+   konstant (anders als vh und dvh). Die untere Verankerung entfällt dafür,
+   sonst würden sich beide Angaben widersprechen.
+
+   Erst ab 769 px: darunter ist die Sidebar eine ausfahrende Schublade und
+   soll unverändert bleiben. */
+@media (hover: none) and (pointer: coarse) and (min-width: 769px) {
+  .sidebar {
+    bottom: auto;
+    height: calc(100svh - var(--lg-gap) * 2);
+  }
+}
+
 /* Specular highlight: dünner Lichtreflex oben innen */
 .sidebar::before {
   content: '';
