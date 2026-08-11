@@ -428,11 +428,16 @@ Den in Task 2 angelegten 1280-px-Block um eine Regel erweitern:
   .b-mitteilungen { grid-column: span 5; grid-row: span 2; }
   .b-recent       { grid-column: span 12; grid-row: span 2; }
 
-  /* Basis sind 30/30/28 px. In einem 248-px-Fach kostet das rund einen
-     ganzen Eintrag, deshalb hier schlanker. */
-  .b-mitteilungen { padding: 20px 22px 18px; }
+  /* Wirksame Basis ist .bento .b-tile mit 26/28 px — nicht die 30/30/28 px
+     aus der .b-azubi/.b-mitteilungen-Regel, die davon überstimmt werden.
+     In einem 248-px-Fach kostet das Polster rund einen ganzen Eintrag. */
+  .bento .b-mitteilungen { padding: 20px 22px 18px; }
 }
 ```
+
+**Der `.bento`-Vorsatz ist nicht optional.** `.bento .b-tile { padding: 26px 28px; }` ([dashboard.css:1608](../../../app/css/dashboard.css#L1608)) hat die Spezifität (0,2,0) und schlägt ein blankes `.b-mitteilungen` (0,1,0) — unabhängig von Quellreihenfolge und Media-Query. Ohne den Vorsatz hat die Regel schlicht keine Wirkung. Aus demselben Grund sind die `padding`-Angaben in den beiden `.b-mitteilungen`-Regeln bei [1878](../../../app/css/dashboard.css#L1878) und [1917](../../../app/css/dashboard.css#L1917) toter Code.
+
+Das betrifft **nur `padding`**. Die Raster-Eigenschaften (`grid-column`, `grid-row`) setzt `.bento .b-tile` nicht, dort gewinnen die blanken Selektoren regulär über die Quellreihenfolge — die Blöcke aus Task 2 und 4 brauchen den Vorsatz also nicht.
 
 - [ ] **Step 3: Messen**
 
@@ -461,7 +466,7 @@ import('playwright').then(async ({chromium}) => {
 "
 ```
 
-Erwartet: Der Wert **nach** Step 2 liegt rund 20 px über dem Wert davor. Sinkt er, ist der Innenabstand in die falsche Richtung gegangen. Beide Zahlen im Report festhalten.
+Erwartet: Der Wert **nach** Step 2 liegt 14 px über dem Wert davor (vertikale Basis 26 + 26 = 52 px, neu 20 + 18 = 38 px). Sinkt er oder bleibt er gleich, hat die Regel nicht gegriffen — dann zuerst die Spezifität prüfen, nicht die Pixelwerte ändern. Beide Zahlen im Report festhalten.
 
 - [ ] **Step 4: Commit**
 
