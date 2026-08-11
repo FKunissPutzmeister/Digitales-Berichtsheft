@@ -224,10 +224,14 @@ process.exit(fehler ? 1 : 0);
 
 Run: `node tools/check-dashboard-viewports.mjs`
 
+Der Server serviert das Repo-Wurzelverzeichnis; das Dashboard liegt daher unter `/app/dashboard.html`, nicht unter `/dashboard.html`.
+
 Erwartet: **Exit-Code 1.** Konkret muss mindestens erscheinen:
 - `ipad-air-11-quer` — „Leerfläche von … px rechts neben den Mitteilungen" (die Kachel steht auf `span 6` ohne Partner)
 - `ipad-pro-11-quer` — „Hero 380 px, erwartet 248 px" (der 1180-px-Block greift dort nicht)
-- bei beiden Querformaten — `"Zuletzt" beginnt erst bei … px, komplett unter der Kante`
+- `ipad-air-11-quer` — `"Zuletzt" beginnt erst bei … px, komplett unter der Kante`
+
+Beim iPad Pro erscheint der letzte Befund **nicht**, und das ist korrekt: Dort greift der 1180-px-Block gar nicht, der Hero bleibt auf `span 8` und schiebt „Zuletzt" nicht nach unten. Nur beim Air zieht sich der Hero über die volle Breite und drückt Mitteilungen und „Zuletzt" untereinander aus dem Bild. Die beiden Geräte sind unterschiedlich kaputt — genau das ist der Befund.
 
 Erscheinen diese Befunde nicht, misst das Skript das falsche Problem. Dann erst das Skript korrigieren, nicht das CSS.
 
@@ -647,7 +651,7 @@ import('playwright').then(async ({chromium}) => {
       {data:{email:'florian.kern.demo@putzmeister.com'}});
     const p = await c.newPage();
     await p.addInitScript(th => localStorage.setItem('customTheme', th), t);
-    await p.goto('http://localhost:3000/dashboard.html', {waitUntil:'networkidle'});
+    await p.goto('http://localhost:3000/app/dashboard.html', {waitUntil:'networkidle'});
     await p.waitForSelector('.bento .b-hero');
     const aktiv = await p.evaluate(() => document.documentElement.getAttribute('data-theme'));
     console.log(t, '→ data-theme =', aktiv);
