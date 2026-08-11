@@ -1951,6 +1951,8 @@ html[data-theme="dark"] .b-mitteilungen {
 }
 .b-mitteilungen__list {
   flex: 1; min-height: 0; overflow-y: auto;
+  /* Touch: am Listenende nicht in den Seiten-Scroll durchrutschen. */
+  overscroll-behavior: contain;
   display: flex; flex-direction: column; gap: var(--sp-2);
   margin: 0 -6px; padding: 2px 6px 0;
 }
@@ -2395,6 +2397,13 @@ html[data-theme="dark"] .b-recent::before {
   .b-hero         { grid-column: span 7; grid-row: span 2; }
   .b-mitteilungen { grid-column: span 5; grid-row: span 2; }
   .b-recent       { grid-column: span 12; grid-row: span 2; }
+
+  /* Effektive Basis ist .bento .b-tile mit 26px/28px (spezifischer als die
+     b-mitteilungen-Regeln weiter oben, die dadurch für das Padding toter
+     Code sind) — deshalb hier ebenfalls über .bento, sonst zieht die
+     Kachel-Basisregel trotz @media wieder. In einem 248-px-Fach kostet das
+     Polster sonst rund einen ganzen Eintrag, deshalb hier schlanker. */
+  .bento .b-mitteilungen { padding: 20px 22px 18px; }
 }
 @media (max-width: 720px) {
   .bento { gap: 12px; }
