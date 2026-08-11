@@ -1814,9 +1814,11 @@ html[data-theme="dark"] .b-hero__kw {
   position: relative; z-index: 1;
 }
 
-/* Mobil: fixe 7×50px-Spalten (≈398px) sprengen die Hero-Karte → Button und
-   Datums-Strip stapeln, Strip füllt die Breite (1fr) statt abgeschnitten zu werden. */
-@media (max-width: 768px) {
+/* Schmale Kachel: Button und Datums-Strip nebeneinander sprengen die Breite →
+   stapeln, Strip füllt die Breite (1fr) statt abgeschnitten zu werden.
+   Grenze lag bei 768 px. Das iPad ist hochkant 834 px breit und fiel damit
+   genau daneben — beide Elemente wurden nebeneinander gequetscht. */
+@media (max-width: 900px) {
   .b-hero__bottom { flex-direction: column; align-items: stretch; gap: 16px; }
   .b-weekmini { grid-template-columns: repeat(7, 1fr); gap: 4px; }
   .b-day { padding: 8px 0; }
@@ -2405,11 +2407,22 @@ html[data-theme="dark"] .b-recent::before {
      Polster sonst rund einen ganzen Eintrag, deshalb hier schlanker. */
   .bento .b-mitteilungen { padding: 20px 22px 18px; }
 }
+/* Hochformat. Der Hero braucht hier wieder 3 Zeilen: .b-hero__bottom stellt
+   Button und Tages-Streifen untereinander, das passt nicht in 248 px. */
+@media (max-width: 900px) {
+  .b-hero         { grid-column: span 6; grid-row: span 3; }
+  .b-mitteilungen { grid-column: span 6; grid-row: span 3; }
+  .b-recent       { grid-column: span 12; grid-row: span 2; }
+  /* 6 Wochen-Cards auf ~710 px Inhaltsbreite ergäben je ~100 px. */
+  .b-recent__grid { grid-template-columns: repeat(3, 1fr); }
+}
+/* Handy: alles einspaltig. .b-hero braucht hier explizit span 12 — vorher kam
+   das aus dem 1180er-Block, jetzt stünde es sonst auf span 6 aus dem
+   900er-Block. Die 3-Spalten-Regel für .b-recent__grid liegt jetzt bei 900 px.
+   .b-azubi/.b-stats sind entfernt: die Kacheln existieren in keinem Template. */
 @media (max-width: 720px) {
   .bento { gap: 12px; }
-  .b-azubi, .b-mitteilungen { grid-column: span 12; }
-  .b-stats { grid-column: span 12; }
-  .b-recent__grid { grid-template-columns: repeat(3, 1fr); }
+  .b-hero, .b-mitteilungen { grid-column: span 12; }
   .b-hero__middle { grid-template-columns: 1fr; gap: 18px; }
   .b-hero__kw { font-size: 88px; }
 }
