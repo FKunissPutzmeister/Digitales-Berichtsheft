@@ -38,6 +38,9 @@ const VIEWPORTS = [
   { name: 'schmal-901',        width: 901,  height: 745,  erwartetNebeneinander: true,  heroZeilen: 2 },
   { name: 'ipad-11-hoch',      width: 834,  height: 1105, erwartetNebeneinander: true,  heroZeilen: 3 },
   { name: 'laptop-13',         width: 1280, height: 800,  erwartetNebeneinander: true,  heroZeilen: 2 },
+  /* 1920×1080 bei 125 % Windows-Skalierung — die verbreitetste Arbeitsplatz-
+     Auflösung im Haus. Das Dashboard passte hier um 8 px nicht auf den Schirm. */
+  { name: 'laptop-125prozent', width: 1536, height: 864,  erwartetNebeneinander: true,  heroZeilen: 3 },
   { name: 'desktop',           width: 1440, height: 900,  erwartetNebeneinander: true,  heroZeilen: 3 },
 ];
 
@@ -84,6 +87,11 @@ function messen() {
     mittUeberlauf: mitt ? ueberlauf(mitt) : null,
     sichtbareMitteilungen: document.querySelectorAll('.b-mitteilung').length,
     viewportHoehe: window.innerHeight,
+    /* Das Dashboard ist als Ein-Schirm-Cockpit gedacht. Ein Scrollweg von
+       wenigen Pixeln ist kein harmloser Schönheitsfehler: Der Seitenhintergrund
+       hängt an .b-hero-Geschwistern mit background-attachment:fixed, beim
+       Überscrollen erscheint darunter die flache Grundfarbe als heller Balken. */
+    scrollUeberhang: document.documentElement.scrollHeight - window.innerHeight,
     aktivDataTheme: document.documentElement.getAttribute('data-theme'),
     aktivDataSkin: document.documentElement.getAttribute('data-skin'),
   };
@@ -166,6 +174,10 @@ for (const vp of VIEWPORTS) {
     if (m.recent.top >= m.viewportHoehe) {
       probleme.push(`"Zuletzt" beginnt erst bei ${Math.round(m.recent.top)} px, komplett unter der Kante (${m.viewportHoehe} px)`);
     }
+  }
+
+  if (m.scrollUeberhang > 0) {
+    probleme.push(`Seite scrollt um ${m.scrollUeberhang} px, obwohl das Dashboard auf einen Schirm passen soll`);
   }
 
   if (m.heroUeberlauf && m.heroUeberlauf.px > 1) {

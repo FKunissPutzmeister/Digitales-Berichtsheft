@@ -648,6 +648,13 @@ body[data-page="fahrgelderstattung"] .main-content {
 
 body[data-page="dashboard"] .main-content {
   padding-top: var(--sp-4);
+  /* Unten knapper als die --sp-6 der übrigen Seiten: Das Dashboard soll auf
+     einen Schirm passen, und bei 1536×864 (1920×1080 mit 125 % Skalierung —
+     die häufigste Arbeitsplatz-Auflösung) fehlten dafür 8 px. Ein solcher
+     Mini-Scrollweg ist sichtbar: der Seitenhintergrund liegt fix am Viewport,
+     beim Überscrollen erscheint darunter die flache Grundfarbe als heller
+     Balken. Zweiter Teil derselben Rechnung: das Padding von .welcome-hero. */
+  padding-bottom: var(--sp-3);
 }
 body[data-page="dashboard"] .welcome-hero {
   margin-top: 0;
