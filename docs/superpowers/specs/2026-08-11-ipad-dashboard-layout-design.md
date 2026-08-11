@@ -103,7 +103,7 @@ einzelnen Tag brauchen.
 | `> 1280 px` | Desktop, große Laptops | unverändert: Hero `span 8` × 3, Mitteilungen `span 4` × 3 |
 | `≤ 1280 px` | **iPad 11″ quer (beide Modelle)**, 13″-Laptops | Hero `span 7` × **2**, Mitteilungen `span 5` × 2, „Zuletzt" `span 12` × 2 |
 | `≤ 900 px` | iPad hoch, kleine Tablets | Hero + Mitteilungen je `span 6` × 3; Button und Tages-Streifen im Hero stapeln |
-| `≤ 720 px` | Handy | unverändert: alles einspaltig |
+| `≤ 720 px` | Handy | alles einspaltig; zwei Werte des 1280er-Blocks reichen ohne eigene Regel bis hierhin durch: `.b-hero__middle`-Padding bleibt bei 12px 0 10px (statt Basis 24px 0 18px), `.b-day .dnum` bei 18 px — harmlos, aber nicht „unverändert" |
 
 Die Grenze wandert von 1180 auf **1280 px**. Damit landen beide 11″-iPads im
 selben Layout, und die Grenze fällt mit dem bereits vorhandenen 1280-px-Block
@@ -128,8 +128,9 @@ zu hoher Inhalt wird ohne Scrollbalken und ohne Warnung abgeschnitten.
 | `.b-day .dnum` Schriftgröße | 20 px | 18 px |
 | `.b-mitteilungen` Innenabstand | 26 / 28 px (aus `.bento .b-tile`) | 20 / 22 / 18 px |
 
-Der Hero landet damit bei rund 200 px in einem 248-px-Fach — ausreichend Puffer,
-damit Schriftgrößen-Schwankungen zwischen den Themes nicht sofort abschneiden.
+Der Hero landet damit bei rund 214 px in einem 248-px-Fach (52 px Kachel-Padding
+aus `.bento .b-tile` + 90 px Middle + 72 px Bottom) — ausreichend Puffer, damit
+Schriftgrößen-Schwankungen zwischen den Themes nicht sofort abschneiden.
 
 Die Padding-Regel braucht den Vorsatz `.bento`: `.bento .b-tile { padding: 26px 28px; }`
 ([dashboard.css:1608](../../../app/css/dashboard.css#L1608)) hat die Spezifität
@@ -140,9 +141,11 @@ Grund sind die `padding`-Angaben in den `.b-mitteilungen`-Regeln bei
 30/30/28 px waren nie wirksam. Betroffen ist nur `padding`; die
 Raster-Eigenschaften setzt `.bento .b-tile` nicht.
 
-Zusätzlich bekommt `.b-mitteilungen__list` ein `overscroll-behavior: contain`,
-damit das Scrollen innerhalb der Kachel auf dem Touchgerät nicht in die
-Seite durchschlägt.
+Zusätzlich bekommt `.b-mitteilungen__list` ein `overscroll-behavior: contain`.
+Die Regel steht ohne Media-Query, gilt also für jede Eingabeart, nicht nur
+Touch: auch mit dem Mausrad scrollt die Seite am Listenende nicht mehr weiter
+mit — das ist unabhängig vom Gerät das erwartbarere Verhalten und bleibt
+deshalb bewusst auch auf dem Desktop bestehen.
 
 ### Bereich `≤ 900 px` (Hochformat)
 
