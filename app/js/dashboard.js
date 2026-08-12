@@ -945,12 +945,18 @@ function renderAzubiCard(c, idx) {
         <div class="azubi-card__info">
           <div class="azubi-card__name">${displayName(a.name)}</div>
           <div class="azubi-card__role">${a.beruf || '–'}</div>
-          <div class="azubi-card__status">
-            <span class="azubi-card__count">${n} ${n === 1 ? 'Bericht' : 'Berichte'} offen</span>
-            <span class="review-item__sep">·</span>
-            <span class="azubi-card__wait">${seitText}</span>
-            ${c.abgelehnt > 0 ? `<span class="badge badge--abgelehnt azubi-card__badge">${c.abgelehnt} zurückgegeben</span>` : ''}
-          </div>
+        </div>
+        <!-- Die Statuszeile steht bewusst NEBEN .azubi-card__info und VOR der
+             Schaltfläche, nicht darin: In schmalen Spalten legt dashboard.css
+             sie per Container-Abfrage in eine eigene Rasterzeile über die
+             volle Kartenbreite (sonst bricht sie auf vier Zeilen um). Hinter
+             die Schaltfläche gehängt stünde diese in breiten Fenstern
+             zwischen Name und Status — auch in der Vorlesereihenfolge. -->
+        <div class="azubi-card__status">
+          <span class="azubi-card__count">${n} ${n === 1 ? 'Bericht' : 'Berichte'} offen</span>
+          <span class="review-item__sep">·</span>
+          <span class="azubi-card__wait">${seitText}</span>
+          ${c.abgelehnt > 0 ? `<span class="badge badge--abgelehnt azubi-card__badge">${c.abgelehnt} zurückgegeben</span>` : ''}
         </div>
         <a class="btn btn-sm azubi-card__cta" href="wochenansicht.html"
            data-goto-azubi="${a.id}" data-goto-kw="${oldest.kw}" data-goto-year="${oldest.year}">

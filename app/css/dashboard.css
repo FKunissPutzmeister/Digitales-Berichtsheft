@@ -1423,6 +1423,11 @@
   position: relative;
   border-bottom: 1px solid var(--pm-grey-100);
   animation: slideInLeft var(--t-normal) both;
+  /* Bezugsgröße für die Container-Abfrage weiter unten: maßgeblich ist die
+     Breite der Karte, nicht die des Fensters. Die Spaltenbreite hängt am
+     Raster — ein Fenster-Breakpoint träfe sie nur zufällig. */
+  container-type: inline-size;
+  container-name: azubizeile;
 }
 .azubi-card:last-child { border-bottom: none; }
 
@@ -1463,7 +1468,6 @@
 .azubi-card__role {
   font-size: var(--text-xs);
   color: var(--pm-grey-500);
-  margin-bottom: 4px;
 }
 .azubi-card__status {
   display: flex;
@@ -1473,6 +1477,33 @@
   font-size: var(--text-sm);
   color: var(--pm-grey-600);
 }
+
+/* Die Statuszeile braucht rund 447 px am Stück. Neben Avatar, Schaltfläche
+   und Chevron bleiben ihr aber nur (Kartenbreite − 307) px — unterhalb von
+   760 px Kartenbreite bricht sie deshalb um, im iPad-Querformat auf vier
+   Zeilen (Zeilenhöhe 148 statt 93 px). Sie bekommt dann eine eigene
+   Rasterzeile über die volle Breite. */
+@container azubizeile (max-width: 760px) {
+  .azubi-card__header {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto auto;
+    grid-template-areas: "avatar info cta chevron"
+                         "meta   meta meta meta";
+    align-items: center;
+    column-gap: var(--sp-4);
+    row-gap: var(--sp-2);
+  }
+  .azubi-card__avatar  { grid-area: avatar; }
+  .azubi-card__info    { grid-area: info; }
+  .azubi-card__cta     { grid-area: cta; }
+  .azubi-card__chevron { grid-area: chevron; }
+  .azubi-card__status  { grid-area: meta; }
+}
+/* Die Angaben bleiben je für sich in einer Zeile. Ohne das schrumpfen sie in
+   schmalen Spalten, statt umzubrechen, und der Text bricht mitten in der
+   Angabe um („2 Berichte / offen“). */
+.azubi-card__count,
+.azubi-card__wait { white-space: nowrap; }
 .azubi-card__count { font-weight: var(--fw-bold); color: var(--pm-grey-800); }
 .azubi-card--urgent .azubi-card__wait { color: var(--color-error);   font-weight: var(--fw-bold); }
 .azubi-card--warn   .azubi-card__wait { color: var(--color-warning); font-weight: var(--fw-bold); }
@@ -1576,8 +1607,16 @@
 /* ── Responsive ── */
 @media (max-width: 1200px) {
   .stats-grid { grid-template-columns: repeat(2, 1fr); }
-  .dashboard-grid { grid-template-columns: 1fr; }
   .quick-access { grid-template-columns: repeat(3, 1fr); }
+}
+/* Das zweispaltige Cockpit hält bis 900 px. Vorher lag die Grenze bei
+   1200 px — ein iPad Pro 11" meldet im Querformat 1194 px und fiel damit um
+   sechs Pixel in die einspaltige Darstellung: 390 px Überhang, von der
+   Mitteilungs-Kachel blieben 90 von 468 px sichtbar. 900 px hält Abstand zu
+   jeder verbreiteten Gerätebreite (834 hoch / 1194 quer), gegengeprüft bis
+   hinunter zu einem 1024 px breiten Fenster. */
+@media (max-width: 900px) {
+  .dashboard-grid { grid-template-columns: 1fr; }
 }
 @media (max-width: 768px) {
   .welcome-banner { flex-direction: column; align-items: flex-start; }
