@@ -109,6 +109,10 @@ document.addEventListener('DOMContentLoaded', async () => {
                                  href: b => `beurteilung.html?zuw=${encodeURIComponent(b.zuweisungId || '')}` },
     beurteilung_abgeschlossen: { tone: 'ok',      label: 'Beurteilung', titel: 'Beurteilung abgeschlossen',
                                  href: b => `beurteilung.html?zuw=${encodeURIComponent(b.zuweisungId || '')}` },
+    // Spiegelt VERWALTUNG_MT_TYPEN in dashboard.js — fehlt der Typ hier,
+    // rendert die Mitteilung auf dieser Seite leer, ohne Fehlermeldung.
+    loeschung_geplant:         { tone: 'warn',    label: 'Löschung',    titel: 'Konto wird bald gelöscht',
+                                 href: () => 'nutzerverwaltung.html' },
   };
 
   async function buildVerwaltungItems() {

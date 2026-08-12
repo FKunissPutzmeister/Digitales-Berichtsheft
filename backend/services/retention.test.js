@@ -495,3 +495,66 @@ test('raeumeWaisenDateien: Einzelfehler stoppt die Schleife nicht', () => {
     echtesRm(dir, { recursive: true, force: true });
   }
 });
+
+/* ── Vorwarnung ─────────────────────────────────────────────────── */
+
+test('VORWARN_TYP ist der Wert aus dem CHECK-Constraint', () => {
+  assert.equal(R.VORWARN_TYP, 'loeschung_geplant');
+});
+
+test('sendeVorwarnung: schreibt je Empfaenger eine Mitteilung mit dem Betroffenen als Absender', async () => {
+  const inserts = [];
+  const pool = {
+    request() {
+      const inputs = {};
+      const api = {
+        input(n, _t, v) { inputs[n] = v; return api; },
+        query(text) {
+          if (/SELECT COUNT/i.test(text)) return Promise.resolve({ recordset: [{ n: 0 }] });
+          inserts.push(inputs);
+          return Promise.resolve({ rowsAffected: [1] });
+        },
+      };
+      return api;
+    },
+  };
+
+  const ok = await R.sendeVorwarnung(USER, { pool, empfaenger: ['p1', 'p2'] });
+
+  assert.equal(ok, true);
+  assert.equal(inserts.length, 2);
+  assert.equal(inserts[0].typ, 'loeschung_geplant');
+  // Der Betroffene ist der ABSENDER: die Empfaenger sehen sein inaktives Konto
+  // nicht in der Nutzerliste, der Name muss aus FromUserOid kommen.
+  assert.equal(inserts[0].fromOid, USER.oid);
+  assert.deepEqual(inserts.map(i => i.userOid), ['p1', 'p2']);
+});
+
+test('sendeVorwarnung: idempotent - bereits vorhandene Mitteilung verhindert ein zweites Senden', async () => {
+  let inserts = 0;
+  const pool = {
+    request() {
+      const api = {
+        input: () => api,
+        query(text) {
+          if (/SELECT COUNT/i.test(text)) return Promise.resolve({ recordset: [{ n: 1 }] });
+          inserts++;
+          return Promise.resolve({ rowsAffected: [1] });
+        },
+      };
+      return api;
+    },
+  };
+
+  const ok = await R.sendeVorwarnung(USER, { pool, empfaenger: ['p1'] });
+
+  assert.equal(ok, false);
+  assert.equal(inserts, 0, 'sonst kaeme die Meldung 30 Naechte hintereinander');
+});
+
+test('sendeVorwarnung: ohne Empfaenger kein Insert', async () => {
+  let inserts = 0;
+  const pool = { request() { const api = { input: () => api, query(t) { if (/SELECT COUNT/i.test(t)) return Promise.resolve({ recordset: [{ n: 0 }] }); inserts++; return Promise.resolve({ rowsAffected: [1] }); } }; return api; } };
+  assert.equal(await R.sendeVorwarnung(USER, { pool, empfaenger: [] }), false);
+  assert.equal(inserts, 0);
+});

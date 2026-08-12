@@ -355,10 +355,54 @@ function raeumeWaisenDateien({ dir = IHK_IMPORT_DIR, existierendeOids } = {}) {
   return { entfernt, probleme };
 }
 
+/* ── Vorwarnung ──────────────────────────────────────────────────
+   Muss vor dem ersten Scharfschalten per Migration 032 im CHECK-Constraint
+   stehen — sonst scheitert das INSERT still. */
+const VORWARN_TYP = 'loeschung_geplant';
+
+// Empfänger: Ausbildungsleitung (KannPlanen) plus Developer. Nur aktive Konten.
+async function ermittleVorwarnEmpfaenger(poolOverride) {
+  const pool = poolOverride || await getPool();
+  const res = await pool.request().query(`
+    SELECT Oid FROM dbo.Users
+     WHERE Aktiv = 1 AND (KannPlanen = 1 OR Role = 'developer')`);
+  return res.recordset.map((r) => r.Oid);
+}
+
+/* Eine Vorwarnung je Empfänger. Idempotent über die Existenzprüfung: der Job
+   läuft jede Nacht, das Vorwarnfenster ist 30 Tage breit — ohne die Prüfung
+   käme die Meldung 30 Nächte hintereinander.
+   Der betroffene Nutzer steht in FromUserOid: sein Konto ist inaktiv und für
+   Empfänger mit KannPlanen nicht in der Nutzerliste sichtbar, der Name muss
+   also aus dieser Referenz aufgelöst werden.
+   Rückgabe: true, wenn tatsächlich gesendet wurde. */
+async function sendeVorwarnung(user, { pool: poolOverride, empfaenger } = {}) {
+  const ziele = (empfaenger || []).filter(Boolean);
+  if (!ziele.length) return false;
+  const pool = poolOverride || await getPool();
+
+  const vorhanden = await pool.request()
+    .input('typ',     sql.NVarChar(40), VORWARN_TYP)
+    .input('fromOid', sql.NVarChar(36), user.oid)
+    .query('SELECT COUNT(*) AS n FROM dbo.Benachrichtigungen WHERE Typ = @typ AND FromUserOid = @fromOid');
+  if (vorhanden.recordset[0].n > 0) return false;
+
+  for (const userOid of ziele) {
+    await pool.request()
+      .input('userOid', sql.NVarChar(36), userOid)
+      .input('typ',     sql.NVarChar(40), VORWARN_TYP)
+      .input('fromOid', sql.NVarChar(36), user.oid)
+      .query(`INSERT INTO dbo.Benachrichtigungen (UserOid, Typ, WocheId, FromUserOid)
+              VALUES (@userOid, @typ, NULL, @fromOid)`);
+  }
+  return true;
+}
+
 module.exports = {
   LOESCHFRIST_TAGE, VORWARN_TAGE,
   istDemoKonto, loeschDatum, istFaellig, istVorwarnFaellig,
   PHASE_A, PHASE_B, PHASE_C, BEKANNTE_TABELLEN,
   baueAnweisungen, loescheNutzer, ermittleKandidaten, pruefeUnbekannteTabellen,
   IHK_IMPORT_DIR, raeumeWaisenDateien,
+  VORWARN_TYP, ermittleVorwarnEmpfaenger, sendeVorwarnung,
 };
