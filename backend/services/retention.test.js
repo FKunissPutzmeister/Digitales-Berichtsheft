@@ -235,3 +235,123 @@ test('BEKANNTE_TABELLEN vereint alle drei Phasen', () => {
     assert.ok(R.BEKANNTE_TABELLEN.has(t), `${t} fehlt in BEKANNTE_TABELLEN`);
   }
 });
+
+/* ── SQL-Erzeugung und Löschtransaktion ─────────────────────────── */
+
+const USER = {
+  oid: 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee',
+  name: 'Muster, Max', email: 'max.muster@putzmeister.com',
+  aktiv: false, inaktivSeit: '2020-01-01T00:00:00.000Z', loeschsperreBis: null,
+};
+
+test('baueAnweisungen: Platzhalter @wochen und @zuw werden zu Subselects', () => {
+  const alle = R.baueAnweisungen(USER);
+  const ben = alle.find(a => a.tabelle === 'Benachrichtigungen' && a.phase === 'A');
+  assert.match(ben.sql, /WocheId IN \(SELECT Id FROM dbo\.Wochen WHERE AzubiOid = @oid\)/);
+  assert.match(ben.sql, /ZuweisungId IN \(SELECT Id FROM dbo\.Zuweisungen WHERE AzubiOid = @oid\)/);
+});
+
+test('baueAnweisungen: Phase A erzeugt DELETE, Phase B UPDATE, Phase C DELETE', () => {
+  const alle = R.baueAnweisungen(USER);
+  const a = alle.filter(x => x.phase === 'A');
+  const b = alle.filter(x => x.phase === 'B');
+  const c = alle.filter(x => x.phase === 'C');
+  assert.ok(a.length && b.length && c.length);
+  for (const x of a) assert.match(x.sql, /^DELETE FROM dbo\./);
+  for (const x of b) assert.match(x.sql, /^UPDATE dbo\./);
+  for (const x of c) assert.match(x.sql, /^DELETE FROM dbo\./);
+});
+
+test('baueAnweisungen: Reihenfolge ist A, dann B, dann C', () => {
+  const phasen = R.baueAnweisungen(USER).map(a => a.phase);
+  assert.deepEqual([...new Set(phasen)], ['A', 'B', 'C']);
+  // Users ganz am Ende
+  assert.equal(R.baueAnweisungen(USER).at(-1).tabelle, 'Users');
+});
+
+test('baueAnweisungen: keine Zeichenkettenverkettung von @oid - alles parametrisiert', () => {
+  const boese = { ...USER, oid: "x'; DROP TABLE dbo.Users; --" };
+  for (const a of R.baueAnweisungen(boese)) {
+    assert.ok(!a.sql.includes('DROP TABLE'), `${a.tabelle}: OID darf nie im SQL-Text landen`);
+    assert.ok(!a.sql.includes(boese.oid));
+  }
+});
+
+test('loescheNutzer: fuehrt alle Anweisungen in einer Transaktion aus und zaehlt Zeilen', async () => {
+  const ausgefuehrt = [];
+  const tx = {
+    begin: async () => { ausgefuehrt.push('BEGIN'); },
+    commit: async () => { ausgefuehrt.push('COMMIT'); },
+    rollback: async () => { ausgefuehrt.push('ROLLBACK'); },
+  };
+  const request = () => {
+    const api = {
+      input: () => api,
+      query: (text) => {
+        ausgefuehrt.push(text.split('\n')[0].trim());
+        return Promise.resolve({ rowsAffected: [2] });
+      },
+    };
+    return api;
+  };
+
+  const bericht = await R.loescheNutzer(USER, { tx, request });
+
+  assert.equal(ausgefuehrt[0], 'BEGIN');
+  assert.equal(ausgefuehrt.at(-1), 'COMMIT');
+  assert.ok(!ausgefuehrt.includes('ROLLBACK'));
+  // Jede Tabelle taucht mit ihrer Zeilenzahl im Bericht auf.
+  assert.equal(bericht.tabellen.Users, 2);
+  assert.equal(bericht.tabellen.Wochen, 4); // Phase A + Phase B je 2
+  // phaseB zaehlt nur die Anonymisierungen in FREMDEN Heften.
+  assert.equal(bericht.phaseB, R.PHASE_B.length * 2);
+});
+
+test('loescheNutzer: Person ohne Berichtsheft - Phase A trifft nichts, B und C laufen trotzdem', async () => {
+  const ausgefuehrt = [];
+  const tx = { begin: async () => {}, commit: async () => { ausgefuehrt.push('COMMIT'); }, rollback: async () => {} };
+  const request = () => {
+    const api = {
+      input: () => api,
+      // Kein eigenes Heft: DELETEs treffen 0 Zeilen, die UPDATEs aus Phase B
+      // (Gegenzeichnungen in fremden Heften) sehr wohl. Genau der Fall eines
+      // reinen Pruefer-Kontos - und der Grund, warum der Job NICHT nach Rolle
+      // verzweigt (siehe Spec, Kern-Erkenntnis 1).
+      query: (text) => Promise.resolve({ rowsAffected: [/^UPDATE/.test(text) ? 1 : 0] }),
+    };
+    return api;
+  };
+
+  const bericht = await R.loescheNutzer(USER, { tx, request });
+
+  assert.ok(ausgefuehrt.includes('COMMIT'));
+  assert.equal(bericht.tabellen.Tage, 0);
+  assert.equal(bericht.phaseB, R.PHASE_B.length);
+});
+
+test('loescheNutzer: ein Fehler rollt die gesamte Transaktion zurueck', async () => {
+  const ausgefuehrt = [];
+  const tx = {
+    begin: async () => { ausgefuehrt.push('BEGIN'); },
+    commit: async () => { ausgefuehrt.push('COMMIT'); },
+    rollback: async () => { ausgefuehrt.push('ROLLBACK'); },
+  };
+  let n = 0;
+  const request = () => {
+    const api = {
+      input: () => api,
+      query: () => {
+        n++;
+        // Mitten in Phase B abbrechen: der schlimmste Zustand waere
+        // "Heft geloescht, Konto und Belege noch da".
+        if (n === 9) return Promise.reject(new Error('Deadlock'));
+        return Promise.resolve({ rowsAffected: [1] });
+      },
+    };
+    return api;
+  };
+
+  await assert.rejects(() => R.loescheNutzer(USER, { tx, request }), /Deadlock/);
+  assert.ok(ausgefuehrt.includes('ROLLBACK'));
+  assert.ok(!ausgefuehrt.includes('COMMIT'));
+});
