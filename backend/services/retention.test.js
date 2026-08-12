@@ -113,3 +113,110 @@ test('istDemoKonto erkennt das .demo-Suffix im Lokalteil', () => {
   assert.equal(R.istDemoKonto('lena.mueller@putzmeister.demo'), false);
   assert.equal(R.istDemoKonto(null), false);
 });
+
+/* ── Phasenlisten ───────────────────────────────────────────────
+   Die Reihenfolge ist fachlich erzwungen, nicht von der DB: es gibt fast
+   keine Fremdschlüssel auf dbo.Users. Diese Tests sind die einzige Stelle,
+   die eine falsche Umsortierung bemerkt. */
+
+const idx = (liste, tabelle) => liste.findIndex(e => e.tabelle === tabelle);
+
+test('PHASE_A: Benachrichtigungen zuerst - sie verweisen auf Wochen UND Zuweisungen', () => {
+  assert.equal(idx(R.PHASE_A, 'Benachrichtigungen'), 0);
+});
+
+test('PHASE_A: Kommentare vor Tage - FK_Kommentare_Tage hat kein ON DELETE CASCADE', () => {
+  assert.ok(idx(R.PHASE_A, 'Kommentare') < idx(R.PHASE_A, 'Tage'));
+});
+
+test('PHASE_A: Tage vor Wochen', () => {
+  assert.ok(idx(R.PHASE_A, 'Tage') < idx(R.PHASE_A, 'Wochen'));
+});
+
+test('PHASE_A: Beurteilungen vor Zuweisungen - Beurteilungen.ZuweisungId', () => {
+  assert.ok(idx(R.PHASE_A, 'Beurteilungen') < idx(R.PHASE_A, 'Zuweisungen'));
+});
+
+test('PHASE_A: Benachrichtigungen-Bedingung deckt alle VIER Wege zur Person ab', () => {
+  const e = R.PHASE_A.find(x => x.tabelle === 'Benachrichtigungen');
+  // Bei 'erstgenehmigt' steht der Azubi in KEINER Personenspalte (UserOid =
+  // Ausbilder, FromUserOid = Pruefer, WocheId = Woche des Azubis), und
+  // Beurteilungs-Mitteilungen haben FromUserOid = NULL.
+  assert.match(e.bedingung, /UserOid = @oid/);
+  assert.match(e.bedingung, /FromUserOid = @oid/);
+  assert.match(e.bedingung, /WocheId IN \(@wochen\)/);
+  assert.match(e.bedingung, /ZuweisungId IN \(@zuw\)/);
+});
+
+test('PHASE_A erfasst EssTag - Arbeitszeitdaten je Azubi', () => {
+  const e = R.PHASE_A.find(x => x.tabelle === 'EssTag');
+  assert.ok(e, 'EssTag fehlt in PHASE_A');
+  assert.equal(e.bedingung, 'AzubiOid = @oid');
+});
+
+test('PHASE_A enthaelt keine Tabelle, die per ON DELETE CASCADE mitgeht', () => {
+  const tabellen = R.PHASE_A.map(e => e.tabelle);
+  // Anhaenge haengen an Wochen, BeurteilungKriterien an Beurteilungen.
+  assert.ok(!tabellen.includes('Anhaenge'));
+  assert.ok(!tabellen.includes('BeurteilungKriterien'));
+});
+
+test('PHASE_B besteht ausschliesslich aus UPDATE-Anweisungen', () => {
+  for (const e of R.PHASE_B) {
+    assert.match(e.anweisung, /^SET /, `${e.tabelle}: erwartet SET-Klausel`);
+    assert.ok(!/DELETE/i.test(e.anweisung), `${e.tabelle}: kein DELETE in Phase B`);
+  }
+});
+
+test('PHASE_B: jede Namensspalte wird per COALESCE geschrieben, nie ueberschrieben', () => {
+  const mitName = R.PHASE_B.filter(e => /Name = /.test(e.anweisung));
+  assert.equal(mitName.length, 3, 'erwartet drei Namensspalten');
+  for (const e of mitName) {
+    assert.match(e.anweisung, /COALESCE\(\w+Name, @name\)/, `${e.tabelle}: COALESCE fehlt`);
+  }
+});
+
+test('PHASE_B: Wochen behalten den Gegenzeichner-Namen und verlieren die OID', () => {
+  const e = R.PHASE_B.find(x => x.tabelle === 'Wochen');
+  assert.match(e.anweisung, /KorrigiertVonName = COALESCE\(KorrigiertVonName, @name\)/);
+  assert.match(e.anweisung, /KorrigiertVon = NULL/);
+});
+
+test('PHASE_B: Zuweisungen verlieren die E-Mail - sonst waere die Loeschung wirkungslos', () => {
+  const e = R.PHASE_B.find(x => x.tabelle === 'Zuweisungen');
+  assert.match(e.anweisung, /VerantwName = COALESCE\(VerantwName, @name\)/);
+  assert.match(e.anweisung, /VerantwEmail = ''/);
+});
+
+test('PHASE_B: Benachrichtigungen werden nur genullt, nicht geloescht', () => {
+  const e = R.PHASE_B.find(x => x.tabelle === 'Benachrichtigungen');
+  // Die Zeile gehoert dem Empfaenger: ein Azubi soll seine Mitteilung
+  // "Woche genehmigt" nicht verlieren, weil der Pruefer gegangen ist.
+  assert.match(e.anweisung, /FromUserOid = NULL/);
+});
+
+test('PHASE_C: Users zuletzt', () => {
+  assert.equal(R.PHASE_C[R.PHASE_C.length - 1].tabelle, 'Users');
+});
+
+test('PHASE_C enthaelt UserPhotos nicht - FK_UserPhotos_Users kaskadiert', () => {
+  assert.ok(!R.PHASE_C.map(e => e.tabelle).includes('UserPhotos'));
+});
+
+test('PHASE_C: AbteilungVerantwortliche bindet ueber OID UND E-Mail', () => {
+  const e = R.PHASE_C.find(x => x.tabelle === 'AbteilungVerantwortliche');
+  assert.match(e.bedingung, /Oid = @oid/);
+  assert.match(e.bedingung, /Email\) = LOWER\(@email\)/);
+});
+
+test('BEKANNTE_TABELLEN vereint alle drei Phasen', () => {
+  for (const liste of [R.PHASE_A, R.PHASE_B, R.PHASE_C]) {
+    for (const e of liste) {
+      assert.ok(R.BEKANNTE_TABELLEN.has(e.tabelle), `${e.tabelle} fehlt in BEKANNTE_TABELLEN`);
+    }
+  }
+  // Kaskaden-Kinder gehoeren dazu, damit die Selbstpruefung sie nicht meldet.
+  for (const t of ['Anhaenge', 'BeurteilungKriterien', 'UserPhotos', 'Fehlerberichte']) {
+    assert.ok(R.BEKANNTE_TABELLEN.has(t), `${t} fehlt in BEKANNTE_TABELLEN`);
+  }
+});
