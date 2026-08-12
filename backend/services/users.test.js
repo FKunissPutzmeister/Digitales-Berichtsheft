@@ -160,6 +160,15 @@ test('updateUserProfile: manuelles Deaktivieren stempelt InaktivSeit ebenfalls',
   assert.match(text, /InaktivSeit = CASE WHEN @aktiv = 0 THEN COALESCE\(InaktivSeit, SYSUTCDATETIME\(\)\) ELSE NULL END/);
 });
 
+test('updateUserProfile: manuelles Reaktivieren leert InaktivSeit', async () => {
+  const pool = fakePool();
+  await updateUserProfile('g1', { aktiv: true }, pool);
+
+  const { sql: text, inputs } = pool.calls[0];
+  assert.equal(inputs.aktiv, true);
+  assert.match(text, /InaktivSeit = CASE WHEN @aktiv = 0 THEN COALESCE\(InaktivSeit, SYSUTCDATETIME\(\)\) ELSE NULL END/);
+});
+
 test('updateUserProfile: ohne aktiv-Feld wird InaktivSeit nicht angefasst', async () => {
   const pool = fakePool();
   await updateUserProfile('g1', { beruf: 'Mechatroniker' }, pool);
