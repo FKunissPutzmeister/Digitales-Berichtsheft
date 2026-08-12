@@ -95,7 +95,7 @@ const PHASE_A = [
   {
     tabelle: 'Benachrichtigungen',
     // Vier Wege zur Person: bei 'erstgenehmigt' steht der Azubi in KEINER
-    // Personenspalte (wochen.js:315-322), Beurteilungs-Mitteilungen haben
+    // Personenspalte (wochen.js:320-327), Beurteilungs-Mitteilungen haben
     // FromUserOid = NULL und hängen nur über ZuweisungId.
     // Trifft auch Mitteilungen ANDERER an dieser Woche/Zuweisung — gewollt,
     // die Referenz existiert danach nicht mehr.

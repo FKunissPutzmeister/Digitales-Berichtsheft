@@ -139,13 +139,16 @@ test('PHASE_A: Beurteilungen vor Zuweisungen - Beurteilungen.ZuweisungId', () =>
 
 test('PHASE_A: Benachrichtigungen-Bedingung deckt alle VIER Wege zur Person ab', () => {
   const e = R.PHASE_A.find(x => x.tabelle === 'Benachrichtigungen');
-  // Bei 'erstgenehmigt' steht der Azubi in KEINER Personenspalte (UserOid =
-  // Ausbilder, FromUserOid = Pruefer, WocheId = Woche des Azubis), und
-  // Beurteilungs-Mitteilungen haben FromUserOid = NULL.
-  assert.match(e.bedingung, /UserOid = @oid/);
-  assert.match(e.bedingung, /FromUserOid = @oid/);
-  assert.match(e.bedingung, /WocheId IN \(@wochen\)/);
-  assert.match(e.bedingung, /ZuweisungId IN \(@zuw\)/);
+  // Exakter Vergleich statt vier Teilstring-Regexe: 'UserOid = @oid' ist ein
+  // Teilstring von 'FromUserOid = @oid', ein /UserOid = @oid/-Match wuerde also
+  // auch dann noch gruen sein, wenn der erste Zweig ganz fehlt.
+  // Die vier Zweige sind nicht redundant: bei 'erstgenehmigt' steht der Azubi in
+  // KEINER Personenspalte (wochen.js), und Beurteilungs-Mitteilungen haben
+  // FromUserOid = NULL und haengen nur ueber ZuweisungId.
+  assert.equal(
+    e.bedingung,
+    'UserOid = @oid OR FromUserOid = @oid OR WocheId IN (@wochen) OR ZuweisungId IN (@zuw)'
+  );
 });
 
 test('PHASE_A erfasst EssTag - Arbeitszeitdaten je Azubi', () => {
@@ -205,8 +208,9 @@ test('PHASE_C enthaelt UserPhotos nicht - FK_UserPhotos_Users kaskadiert', () =>
 
 test('PHASE_C: AbteilungVerantwortliche bindet ueber OID UND E-Mail', () => {
   const e = R.PHASE_C.find(x => x.tabelle === 'AbteilungVerantwortliche');
-  assert.match(e.bedingung, /Oid = @oid/);
-  assert.match(e.bedingung, /Email\) = LOWER\(@email\)/);
+  // Exakter Vergleich: /Oid = @oid/ haette auch in AzubiOid, UserOid,
+  // AusbilderOid etc. gematcht und verdeckt falsch geschriebene Bedingungen.
+  assert.equal(e.bedingung, 'Oid = @oid OR LOWER(Email) = LOWER(@email)');
 });
 
 test('BEKANNTE_TABELLEN vereint alle drei Phasen', () => {
