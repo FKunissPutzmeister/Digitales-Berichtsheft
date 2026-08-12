@@ -2530,7 +2530,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         <div class="comment__body">
           <div class="comment__header">
             ${renderAvatar(author || { name: k.autorName || '', oid: k.userId }, 'avatar--sm')}
-            <span class="comment__name">${autorAnzeige}</span>
+            <span class="comment__name">${escapeHtml(autorAnzeige)}</span>
             <span class="comment__date">${k.datum || ''}</span>
             ${canDelete ? `<button class="btn btn-sm btn-ghost comment__delete" data-delete-kommentar="${k.id}" title="Kommentar löschen" style="margin-left:auto;color:var(--color-error)">
               <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" style="width:14px;height:14px"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/></svg>
