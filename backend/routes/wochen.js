@@ -296,7 +296,12 @@ router.patch('/:id/status', async (req, res) => {
     let setClause = 'Status = @status, EndabnahmeDirekt = @flag';
     if (treffer.korrektur) {
       request.input('korrigiertVon', sql.NVarChar(36), user.oid);
-      setClause += ', KorrigiertVon = @korrigiertVon, KorrigiertAm = SYSUTCDATETIME()';
+      // Name mitschreiben (Migration 031): die Gegenzeichnung im
+      // Ausbildungsnachweis muss den Prüfer auch dann noch nennen, wenn sein
+      // Konto später vom Retention-Job gelöscht wird. DB-Form, nicht Anzeigeform.
+      request.input('korrigiertVonName', sql.NVarChar(200), user.name ?? null);
+      setClause += ', KorrigiertVon = @korrigiertVon, KorrigiertVonName = @korrigiertVonName'
+                 + ', KorrigiertAm = SYSUTCDATETIME()';
     }
     // Abgabe des Azubis datieren (Migration 028). Ohne diesen Stempel trug der
     // Ausbildungsnachweis nur ein Genehmigungsdatum, aber kein Abgabedatum.

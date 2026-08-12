@@ -93,9 +93,9 @@ test('buildBackupPayload: Wochen-Keys entsprechen exakt normalizeWoche (api.js)'
   assert.deepEqual(Object.keys(w).sort(), [
     'azubiId', 'betriebEintrag', 'endDate', 'endabnahmeDirekt', 'eingereichtAm',
     'eingereichtVon', 'erlaubteAktionen', 'gesamtstunden', 'id', 'kommentare',
-    'korrigiertAm', 'korrigiertVon', 'kw', 'schuleEintrag', 'startDate',
-    'status', 'tage', 'typ', 'unterweisungAktiv', 'unterweisungEintrag',
-    'viewerRolle', 'wochenOrt', 'year',
+    'korrigiertAm', 'korrigiertVon', 'korrigiertVonName', 'kw', 'schuleEintrag',
+    'startDate', 'status', 'tage', 'typ', 'unterweisungAktiv',
+    'unterweisungEintrag', 'viewerRolle', 'wochenOrt', 'year',
   ].sort());
 });
 
@@ -160,7 +160,7 @@ test('buildBackupPayload: Kommentare werden auf die Client-Form gebracht', () =>
   ] })];
   const ks = B.buildBackupPayload(AZUBI, rows, JETZT).wochen[0].kommentare;
   assert.deepEqual(Object.keys(ks[0]).sort(),
-    ['datum', 'id', 'tagId', 'text', 'typ', 'userId', 'wocheId'].sort());
+    ['autorName', 'datum', 'id', 'tagId', 'text', 'typ', 'userId', 'wocheId'].sort());
   assert.equal(ks[0].userId, 'OID-P');
   assert.equal(ks[0].datum, '2026-08-04');
   assert.equal(ks[0].tagId, 100);

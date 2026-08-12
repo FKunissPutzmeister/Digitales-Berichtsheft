@@ -187,6 +187,9 @@ function normalizeKommentar(k) {
     id: k.Id,
     wocheId: k.WocheId,
     userId: k.UserOid,
+    // Denormalisierter Autorname (Migration 031). NULL bei Altbestand →
+    // die Anzeige löst dann wie bisher über userId auf.
+    autorName: k.AutorName ?? null,
     text: k.Text,
     datum: toDateStr(k.Datum),
     typ: k.Typ,
@@ -228,6 +231,9 @@ function normalizeWoche(w) {
     // Kommt über SELECT w.* bereits aus dem Backend, hier nur durchgereicht.
     korrigiertVon: w.KorrigiertVon ?? null,
     korrigiertAm:  toDateStr(w.KorrigiertAm),
+    // Denormalisierter Name des Gegenzeichners (Migration 031). NULL bei
+    // Altbestand → Anzeige/Export lösen dann wie bisher über korrigiertVon auf.
+    korrigiertVonName: w.KorrigiertVonName ?? null,
     // Abgabe-Stempel des Azubis (Migration 028) – Gegenstück zu korrigiertAm.
     eingereichtVon: w.EingereichtVon ?? null,
     eingereichtAm:  toDateStr(w.EingereichtAm),
@@ -244,7 +250,10 @@ function normalizeZuweisung(z) {
     id: z.Id,
     azubiId: z.AzubiOid,
     verantwEmail: email,
-    verantwName: email ? dn(email) : '',
+    // Gespeicherter Name hat Vorrang (Migration 031); erst danach die
+    // Ableitung aus der E-Mail. Nach dem Löschen der Person ist die E-Mail
+    // leer und nur noch der gespeicherte Name vorhanden.
+    verantwName: z.VerantwName || (email ? dn(email) : ''),
     // OID des Verantwortlichen (per E-Mail-JOIN in GET /api/zuweisungen), sobald
     // die Person sich per SSO angemeldet hat / per Entra-Sync bekannt ist —
     // Voraussetzung für das Echtfoto im Ansprechpartner-Avatar (dlb-avatar).

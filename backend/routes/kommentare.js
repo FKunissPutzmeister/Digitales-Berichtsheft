@@ -23,14 +23,17 @@ router.post('/:wocheId/kommentare', async (req, res) => {
     const result = await pool.request()
       .input('wocheId', sql.Int,             req.params.wocheId)
       .input('userOid', sql.NVarChar(36),    req.user.oid)
+      // Name mitschreiben (Migration 031): nach dem Löschen des Kontos zeigte
+      // die Kommentarliste sonst "Unbekannt". DB-Form, nicht Anzeigeform.
+      .input('autorName', sql.NVarChar(200), req.user.name ?? null)
       .input('text',    sql.NVarChar(sql.MAX), text)
       .input('datum',   sql.Date,            new Date().toISOString().split('T')[0])
       .input('typ',     sql.NVarChar(20),    sichererTyp)
       .input('tagId',   sql.Int,             tagId ?? null)
       .query(`
-        INSERT INTO dbo.Kommentare (WocheId, UserOid, Text, Datum, Typ, TagId)
+        INSERT INTO dbo.Kommentare (WocheId, UserOid, AutorName, Text, Datum, Typ, TagId)
         OUTPUT inserted.Id
-        VALUES (@wocheId, @userOid, @text, @datum, @typ, @tagId)
+        VALUES (@wocheId, @userOid, @autorName, @text, @datum, @typ, @tagId)
       `);
     res.json({ id: result.recordset[0].Id });
   } catch (err) {

@@ -26,6 +26,21 @@ async function oidForEmail(pool, email) {
     return r.recordset[0] ? r.recordset[0].Oid : null;
   } catch (_) { return null; }
 }
+// Anzeigename des Verantwortlichen zum Zeitpunkt der Zuweisung, denormalisiert
+// nach Zuweisungen.VerantwName (Migration 031). Nötig, weil die Zuweisung nur
+// die E-Mail trägt und der Retention-Job diese beim Löschen der Person leert —
+// ohne den gespeicherten Namen stünde danach überall "–".
+// Kein Treffer (Verantwortlicher noch ohne SSO-Login) → null; die Anzeige
+// leitet dann wie bisher aus der E-Mail ab.
+async function nameForEmail(pool, email) {
+  if (!email) return null;
+  try {
+    const r = await pool.request()
+      .input('email', sql.NVarChar(255), String(email).toLowerCase())
+      .query('SELECT TOP 1 Name FROM dbo.Users WHERE LOWER(Email) = @email');
+    return r.recordset[0] ? r.recordset[0].Name : null;
+  } catch (_) { return null; }
+}
 async function benachrichtige(pool, empfaengerOids, typ, fromOid) {
   // Aktive Vertreter der Empfänger mitbenachrichtigen (Azubis haben keine → no-op).
   const erweitert = await mitVertretern(pool, empfaengerOids);
@@ -130,16 +145,18 @@ router.post('/', nurPlaner, async (req, res) => {
       });
     }
 
+    const verantwName = await nameForEmail(pool, verantwEmail);
     const result = await pool.request()
       .input('azubiOid',     sql.NVarChar(36),  azubiOid)
       .input('verantwEmail', sql.NVarChar(255), (verantwEmail || '').toLowerCase() || null)
+      .input('verantwName',  sql.NVarChar(200), verantwName)
       .input('abteilung',    sql.NVarChar(100), abteilung || null)
       .input('von',          sql.Date,          von)
       .input('bis',          sql.Date,          bis)
       .query(`
-        INSERT INTO dbo.Zuweisungen (AzubiOid, VerantwEmail, Abteilung, Von, Bis)
+        INSERT INTO dbo.Zuweisungen (AzubiOid, VerantwEmail, VerantwName, Abteilung, Von, Bis)
         OUTPUT inserted.Id
-        VALUES (@azubiOid, @verantwEmail, @abteilung, @von, @bis)
+        VALUES (@azubiOid, @verantwEmail, @verantwName, @abteilung, @von, @bis)
       `);
     await benachrichtige(pool, [azubiOid, await oidForEmail(pool, verantwEmail)],
       'versetzung_neu', req.user.oid);
