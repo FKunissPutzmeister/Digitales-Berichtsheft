@@ -65,7 +65,7 @@ test('istFaellig: abgelaufene Sperre haelt nicht zurueck, Frist laeuft nicht neu
 });
 
 test('istFaellig: Demo-Konto ist nie faellig', () => {
-  const u = konto('2020-01-01T00:00:00.000Z', { email: 'lena.mueller@putzmeister.demo' });
+  const u = konto('2020-01-01T00:00:00.000Z', { email: 'lena.mueller.demo@putzmeister.com' });
   assert.equal(R.istFaellig(u, { jetzt: JETZT }), false);
 });
 
@@ -74,7 +74,7 @@ test('istFaellig: Konto ohne E-Mail ist faellig (kein Demo-Konto)', () => {
   assert.equal(R.istFaellig(u, { jetzt: JETZT }), true);
 });
 
-test('istFaellig gilt fuer JEDE Rolle - es gibt keine Ausnameliste', () => {
+test('istFaellig gilt fuer JEDE Rolle - es gibt keine Ausnahmeliste', () => {
   for (const role of ['azubi', 'pruefer', 'admin', 'dhstudent', 'developer']) {
     const u = konto('2020-01-01T00:00:00.000Z', { role });
     assert.equal(R.istFaellig(u, { jetzt: JETZT }), true, `Rolle ${role} muesste faellig sein`);
@@ -102,9 +102,14 @@ test('istVorwarnFaellig: gesperrtes Konto wird nicht vorgewarnt', () => {
   assert.equal(R.istVorwarnFaellig(u, { jetzt: JETZT }), false);
 });
 
-test('istDemoKonto erkennt die .demo-Domain', () => {
-  assert.equal(R.istDemoKonto('lena.mueller@putzmeister.demo'), true);
-  assert.equal(R.istDemoKonto('LENA@PUTZMEISTER.DEMO'), true);
+test('istDemoKonto erkennt das .demo-Suffix im Lokalteil', () => {
+  // So heissen die echten Demo-Konten (backend/db/seed-demo-users.sql):
+  assert.equal(R.istDemoKonto('lena.mueller.demo@putzmeister.com'), true);
+  assert.equal(R.istDemoKonto('admin.demo@putzmeister.com'), true);
+  assert.equal(R.istDemoKonto('LENA.MUELLER.DEMO@PUTZMEISTER.COM'), true);  // case-insensitiv
   assert.equal(R.istDemoKonto('lena.mueller@putzmeister.com'), false);
+  // Eine .demo-DOMAIN ist kein Demo-Konto in diesem System — der frueher hier
+  // gepruefte Fall, der alle echten Demo-Konten durchgelassen haette:
+  assert.equal(R.istDemoKonto('lena.mueller@putzmeister.demo'), false);
   assert.equal(R.istDemoKonto(null), false);
 });

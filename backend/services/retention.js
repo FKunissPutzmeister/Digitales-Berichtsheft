@@ -24,7 +24,11 @@ const TAG_MS = 24 * 3600 * 1000;
 // Entra-Sync (users.js listManagedUsers). Ohne sie radiert der erste
 // Nachtlauf den Demo-Datenbestand.
 function istDemoKonto(email) {
-  return /\.demo$/i.test(String(email || '').trim());
+  // `.demo` steht im LOKALTEIL, nicht in der Domain: die Konten heißen
+  // `lena.mueller.demo@putzmeister.com`. Ein `/\.demo$/`-Test würde keines
+  // von ihnen erkennen. Muster deckungsgleich mit dem SQL-Guard
+  // `Email NOT LIKE '%.demo@%'` in users.js.
+  return /\.demo@/i.test(String(email || '').trim());
 }
 
 // Stichtag + Frist. Ohne Stempel (Altbestand, aktives Konto) → null.
