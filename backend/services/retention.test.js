@@ -175,6 +175,9 @@ test('PHASE_B: jede Namensspalte wird per COALESCE geschrieben, nie ueberschrieb
   const mitName = R.PHASE_B.filter(e => /Name = /.test(e.anweisung));
   assert.equal(mitName.length, 3, 'erwartet drei Namensspalten');
   for (const e of mitName) {
+    // Generisches Muster: prueft, dass COALESCE ueberhaupt benutzt wird und dass
+    // exakt drei Spalten NAME-Zuweisungen haben. Spezifische Spaltennamen werden
+    // durch einzelne Tests abgesichert (Wochen, Kommentare, Zuweisungen).
     assert.match(e.anweisung, /COALESCE\(\w+Name, @name\)/, `${e.tabelle}: COALESCE fehlt`);
   }
 });
@@ -189,6 +192,14 @@ test('PHASE_B: Zuweisungen verlieren die E-Mail - sonst waere die Loeschung wirk
   const e = R.PHASE_B.find(x => x.tabelle === 'Zuweisungen');
   assert.match(e.anweisung, /VerantwName = COALESCE\(VerantwName, @name\)/);
   assert.match(e.anweisung, /VerantwEmail = ''/);
+});
+
+test('PHASE_B: Kommentare behalten den Autornamen und verlieren die OID', () => {
+  const e = R.PHASE_B.find(x => x.tabelle === 'Kommentare');
+  // Exakter Vergleich, nicht /COALESCE\(\w+Name, @name\)/: das generische Muster
+  // wuerde auch eine falsche Spalte akzeptieren, solange sie auf "Name" endet.
+  assert.equal(e.anweisung, 'SET AutorName = COALESCE(AutorName, @name), UserOid = NULL');
+  assert.equal(e.bedingung, 'UserOid = @oid');
 });
 
 test('PHASE_B: Benachrichtigungen werden nur genullt, nicht geloescht', () => {
