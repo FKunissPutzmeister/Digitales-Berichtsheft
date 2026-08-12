@@ -67,13 +67,23 @@ braucht 447 px.
 Das ist **kein iPad-Problem** — es tritt überall auf, wo die Spalte schmaler
 als rund 760 px ist:
 
-| Spaltenbreite | Zeilenhöhe heute |
+| Spaltenbreite | Zeilenhöhe vor dem Umbau |
 |---|---|
+| 964 px (iPad quer, einspaltig) | 93 px |
 | 897 px (Fenster 1920) | 93 px |
+| 794 px (Fenster 1024, einspaltig) | 93 px |
 | 661 px (Fenster 1536) | 120 px |
 | 604 px (iPad hoch) | 148 px |
 | 602 px (Fenster 1440) | 148 px |
-| 556 px (iPad quer) | 148 px |
+
+Zu beachten: Im iPad-Querformat war die Zeile vor dem Umbau **93 px** hoch —
+die Spalte war ja 964 px breit. Erst Entscheidung 1 verengt sie auf 556 px und
+würde die Zeile damit auf 148 px treiben. Entscheidung 2 fängt das ab und
+bringt sie auf 113 px; unterm Strich ist die Zeile dort also 20 px höher als
+vorher, während die Seite 390 px Überhang verliert.
+
+Ein Gewinn ohne Gegenrechnung ist Entscheidung 2 dort, wo die Spalte schon
+vorher schmal war: iPad-Hochformat und Fenster ab 1440 px.
 
 Die Statuszeile bekommt deshalb eine eigene Rasterzeile über die volle Breite
 der Karte, sobald sie sonst umbrechen würde. Ausgelöst über eine
@@ -120,21 +130,25 @@ Statuszeile und den aufgeklappten Zustand an fünf Breiten. Für das Raster
 zusätzlich `tools/check-dashboard-viewports.mjs` (misst das Azubi-Dashboard,
 fängt Rückschritte am gemeinsamen CSS).
 
-Gemessen nach der Umsetzung:
+Gemessen vor und nach der Umsetzung. **Der Überhang gehört an den jeweiligen
+Scroll-Container**: auf Touchgeräten scrollt `.main-wrapper`, am Desktop das
+Dokument (siehe `docs/ios-touch-verhalten.md`). Eine erste Messung las
+durchgehend `.main-wrapper` aus und meldete für alle Desktop-Fälle
+fälschlich 0 px.
 
 | Fenster | Spalte | Zeile | Status | Überhang |
 |---|---|---|---|---|
-| iPad quer 1194 × 745 | 556 px | 113 px | 1 Zeile | **0 px** |
-| iPad hoch 834 × 1105 | 604 px | 113 px | 1 Zeile | 32 px (vorher 67) |
-| Fenster 1024 × 768 | 450 px | 140 px | 2 Zeilen | 0 px |
-| Fenster 1440 × 900 | 602 px | 113 px | 1 Zeile | 0 px |
-| Fenster 1536 × 864 | 661 px | 113 px | 1 Zeile | 0 px |
-| Fenster 1920 × 1080 | 897 px | 84 px | 1 Zeile | 0 px |
+| iPad quer 1194 × 745 | 964 → 556 px | 93 → 113 px | 1 Zeile | 390 → **0 px** |
+| iPad hoch 834 × 1105 | 604 px | 148 → **113 px** | 4 → 1 Zeile | 67 → 32 px |
+| Fenster 1024 × 768 | 794 → 450 px | 93 → 140 px | 2 Zeilen | 355 → **0 px** |
+| Fenster 1440 × 900 | 602 px | 148 → **113 px** | 4 → 1 Zeile | 0 px |
+| Fenster 1536 × 864 | 661 px | 120 → **113 px** | 2 → 1 Zeile | 0 px |
+| Fenster 1920 × 1080 | 897 px | 93 → **84 px** | 1 Zeile | 0 px |
 
 Bei 1024 px bleibt die Statuszeile zweizeilig: der vollen Rasterzeile stehen
 dort nur 410 px zur Verfügung, die Angaben brauchen 447 px. Die Zeile ist
-damit 140 statt 113 px hoch — hingenommen, weil die Zweispaltigkeit in diesem
-Fenster den Überhang von rund 280 px auf null bringt.
+damit 140 statt 93 px hoch — hingenommen, weil die Zweispaltigkeit in diesem
+Fenster den Überhang von 355 px auf null bringt.
 
 Das Azubi-Dashboard teilt sich `dashboard.css`; `tools/check-dashboard-viewports.mjs`
 läuft an allen sieben Viewports ohne Befund. Die Testsuite: 387 von 387.
