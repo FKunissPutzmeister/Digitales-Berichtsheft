@@ -39,7 +39,14 @@ async function nameForEmail(pool, email) {
       .input('email', sql.NVarChar(255), String(email).toLowerCase())
       .query('SELECT TOP 1 Name FROM dbo.Users WHERE LOWER(Email) = @email');
     return r.recordset[0] ? r.recordset[0].Name : null;
-  } catch (_) { return null; }
+  } catch (err) {
+    // Anders als oidForEmail (dessen Fehlschlag nur eine Benachrichtigung
+    // ausfallen lässt) verpasst ein Fehlschlag hier die EINZIGE Chance, den
+    // Namen festzuhalten, bevor die Person ggf. gelöscht wird (Migration 031
+    // hat bewusst kein Backfill) — deshalb hier sichtbar loggen.
+    logError({ quelle: 'backend', nachricht: `[zuweisungen] nameForEmail: ${err.message}`, stack: err.stack });
+    return null;
+  }
 }
 async function benachrichtige(pool, empfaengerOids, typ, fromOid) {
   // Aktive Vertreter der Empfänger mitbenachrichtigen (Azubis haben keine → no-op).
@@ -217,15 +224,22 @@ router.patch('/:id', nurPlaner, async (req, res) => {
       });
     }
 
+    // Name zur neuen E-Mail neu auflösen (Migration 031): ohne das würde der
+    // bereits gespeicherte VerantwName der VORHERIGEN Person stehen bleiben
+    // und laut normalizeZuweisung-Vorrang die geänderte E-Mail überstimmen —
+    // die Zeile zeigte dann dauerhaft die falsche Person an.
+    const verantwName = await nameForEmail(pool, verantwEmail);
     await pool.request()
       .input('id',           sql.Int,           id)
       .input('verantwEmail', sql.NVarChar(255), verantwEmail)
+      .input('verantwName',  sql.NVarChar(200), verantwName)
       .input('abteilung',    sql.NVarChar(100), abteilung)
       .input('von',          sql.Date,          von)
       .input('bis',          sql.Date,          bis)
       .query(`
         UPDATE dbo.Zuweisungen
-        SET VerantwEmail = @verantwEmail, Abteilung = @abteilung, Von = @von, Bis = @bis
+        SET VerantwEmail = @verantwEmail, VerantwName = @verantwName,
+            Abteilung = @abteilung, Von = @von, Bis = @bis
         WHERE Id = @id
       `);
     // Azubi + alter UND neuer Verantwortlicher (falls umgehängt) informieren.
