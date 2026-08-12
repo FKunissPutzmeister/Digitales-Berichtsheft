@@ -355,3 +355,70 @@ test('loescheNutzer: ein Fehler rollt die gesamte Transaktion zurueck', async ()
   assert.ok(ausgefuehrt.includes('ROLLBACK'));
   assert.ok(!ausgefuehrt.includes('COMMIT'));
 });
+
+test('loescheNutzer: boesartige OID erreicht die DB nur als gebundener Parameter, nie im SQL-Text', async () => {
+  const boese = { ...USER, oid: "x'; DROP TABLE dbo.Users; --" };
+  const gebundeneOids = [];
+  const tx = { begin: async () => {}, commit: async () => {}, rollback: async () => {} };
+  const request = () => {
+    const api = {
+      input: (name, _type, wert) => {
+        if (name === 'oid') gebundeneOids.push(wert);
+        return api;
+      },
+      query: (text) => {
+        // Die Ende-zu-Ende-Garantie: was baueAnweisungen() strukturell schon
+        // zusichert, muss auch durch loescheNutzer() hindurch stimmen - hier
+        // wird tatsaechlich der SQL-Text inspiziert, der an .query() geht.
+        assert.ok(!text.includes(boese.oid), 'OID darf nie im SQL-Text landen');
+        assert.ok(!text.includes('DROP TABLE'), 'DROP TABLE darf nie im SQL-Text landen');
+        return Promise.resolve({ rowsAffected: [0] });
+      },
+    };
+    return api;
+  };
+
+  await R.loescheNutzer(boese, { tx, request });
+
+  // Die OID ist tatsaechlich geflossen - nur eben ausschliesslich gebunden.
+  assert.ok(gebundeneOids.length > 0);
+  for (const wert of gebundeneOids) assert.equal(wert, boese.oid);
+});
+
+test('ermittleKandidaten: bildet DB-Zeilen praezise auf das user-Format ab', async () => {
+  const mitSperre = {
+    Oid: 'g1', Name: 'Muster, Max', Email: 'max.muster@putzmeister.com', Role: 'azubi',
+    Aktiv: 0,
+    InaktivSeit: new Date('2026-01-15T09:30:00.000Z'),
+    LoeschsperreBis: new Date('2027-03-01T00:00:00.000Z'),
+  };
+  const ohneStempel = {
+    Oid: 'g2', Name: 'Ohne, Sperre', Email: null, Role: 'pruefer',
+    Aktiv: 0, InaktivSeit: null, LoeschsperreBis: null,
+  };
+  const pool = {
+    request: () => {
+      const api = { input: () => api, query: async () => ({ recordset: [mitSperre, ohneStempel] }) };
+      return api;
+    },
+  };
+
+  const kandidaten = await R.ermittleKandidaten(pool);
+
+  assert.equal(kandidaten.length, 2);
+  const [a, b] = kandidaten;
+  assert.equal(a.oid, 'g1');
+  assert.equal(a.name, 'Muster, Max');
+  assert.equal(a.email, 'max.muster@putzmeister.com');
+  assert.equal(a.role, 'azubi');
+  assert.equal(a.aktiv, false); // Aktiv: 0 (SQL BIT) -> echtes boolean false, nicht 0
+  assert.equal(a.inaktivSeit, '2026-01-15T09:30:00.000Z');
+  // Bloss ein Datum, keine Uhrzeit - LoeschsperreBis ist DATE in der DB.
+  assert.equal(a.loeschsperreBis, '2027-03-01');
+  // NULL in InaktivSeit/LoeschsperreBis muss zu null werden - nicht zum
+  // 1.1.1970 (new Date(null) ergibt Epoch, kein Fehler) und nicht zu
+  // 'Invalid Date' oder undefined.
+  assert.equal(b.email, null);
+  assert.equal(b.inaktivSeit, null);
+  assert.equal(b.loeschsperreBis, null);
+});

@@ -291,8 +291,13 @@ async function ermittleKandidaten(poolOverride) {
   }));
 }
 
-/* Selbstprüfung gegen stilles Vergessen: Spalten, die auf 'Oid' enden oder
-   'Email' heißen, verraten eine Personenbindung. Steht ihre Tabelle nicht in
+/* Selbstprüfung gegen stilles Vergessen: drei Spaltenmuster verraten eine
+   Personenbindung — '%Oid' (Fremdverweis auf dbo.Users), '%Von' (Handlung
+   EINER Person, wie BeurteiltVon/KenntnisnahmeVon/KorrigiertVon/
+   HochgeladenVon aus PHASE_B — ein reines '%Oid' würde keine davon sehen,
+   weil sie nicht so heißen) und '%Email' (nicht nur die exakte Spalte
+   'Email', sondern auch Formen wie VerantwEmail, die es in Zuweisungen
+   schon gibt). Steht die Tabelle einer Fundstelle nicht in
    BEKANNTE_TABELLEN, hat jemand eine Tabelle angelegt, ohne den Löschjob
    anzupassen — dann bleiben dort personenbezogene Daten liegen.
    Liefert die Namen der unbekannten Tabellen; der Aufrufer meldet sie. */
@@ -302,7 +307,7 @@ async function pruefeUnbekannteTabellen(poolOverride) {
     SELECT DISTINCT TABLE_NAME
       FROM INFORMATION_SCHEMA.COLUMNS
      WHERE TABLE_SCHEMA = 'dbo'
-       AND (COLUMN_NAME LIKE '%Oid' OR COLUMN_NAME = 'Email')`);
+       AND (COLUMN_NAME LIKE '%Oid' OR COLUMN_NAME LIKE '%Von' OR COLUMN_NAME LIKE '%Email')`);
   return res.recordset
     .map((r) => r.TABLE_NAME)
     .filter((t) => !BEKANNTE_TABELLEN.has(t));
