@@ -70,6 +70,10 @@ function buildReqUser(row) {
     // Zeitpunkt des allerersten Logins (nie überschrieben) — Gating fürs
     // IHK-Import-Onboarding, siehe onboarding-ihk-import.js.
     ersteAnmeldung: row.ErsteAnmeldung ? new Date(row.ErsteAnmeldung).toISOString() : null,
+    // Löschkonzept (Migration 030): Stichtag der 365-Tage-Frist und eine
+    // optionale Sperre. Die Nutzerverwaltung zeigt daraus das Löschdatum.
+    inaktivSeit:     row.InaktivSeit ? new Date(row.InaktivSeit).toISOString() : null,
+    loeschsperreBis: toDay(row.LoeschsperreBis),
   };
 }
 
@@ -87,6 +91,9 @@ const PATCH_COLUMNS = {
   ausbildungEnde:   { col: 'AusbildungEnde',   type: () => sql.Date },
   berichtTyp:       { col: 'BerichtTyp',       type: () => sql.NVarChar(20) },
   aktiv:            { col: 'Aktiv',            type: () => sql.Bit },
+  // Löschsperre: hält ein Konto über die 365-Tage-Frist hinaus zurück
+  // (Prüfungsanfechtung, Rechtsstreit). Siehe services/retention.js.
+  loeschsperreBis:  { col: 'LoeschsperreBis',  type: () => sql.Date },
 };
 
 function validateUserPatch(fields) {
@@ -205,10 +212,10 @@ async function listUsers({ role, exclRole, inclInactive } = {}) {
   return res.recordset;
 }
 
-async function updateUserProfile(oid, fields) {
+async function updateUserProfile(oid, fields, poolOverride) {
   const check = validateUserPatch(fields);
   if (!check.ok) throw new Error(check.error);
-  const pool = await getPool();
+  const pool = poolOverride || await getPool();
   const r = pool.request();
   r.input('oid', sql.NVarChar(36), oid);
   const sets = [];
@@ -219,6 +226,12 @@ async function updateUserProfile(oid, fields) {
     sets.push(`${c.col} = @${key}`);
   }
   if (sets.length === 0) return;
+  // Manuelle Deaktivierung in der Nutzerverwaltung muss die Löschfrist genauso
+  // starten wie der Entra-Sync (setUsersAktiv) — sonst bliebe InaktivSeit auf
+  // NULL und das Konto würde nie fällig. Gleiche CASE/COALESCE-Semantik dort.
+  if ('aktiv' in fields) {
+    sets.push('InaktivSeit = CASE WHEN @aktiv = 0 THEN COALESCE(InaktivSeit, SYSUTCDATETIME()) ELSE NULL END');
+  }
   sets.push('AktualisiertAm = SYSUTCDATETIME()');
   await r.query(`UPDATE dbo.Users SET ${sets.join(', ')} WHERE Oid = @oid`);
 }
@@ -235,13 +248,23 @@ async function listManagedUsers(roles) {
 }
 
 // Aktiv-Flag für eine OID-Liste setzen (parametrisiert). No-op bei leerer Liste.
-async function setUsersAktiv(oids, aktiv) {
+// poolOverride ist ausschließlich für Unit-Tests (Fake-Pool) gedacht.
+async function setUsersAktiv(oids, aktiv, poolOverride) {
   if (!oids || !oids.length) return 0;
-  const pool = await getPool();
+  const pool = poolOverride || await getPool();
   const r = pool.request();
   r.input('aktiv', sql.Bit, aktiv ? 1 : 0);
   const params = oids.map((oid, i) => { r.input(`o${i}`, sql.NVarChar(36), oid); return `@o${i}`; });
-  const res = await r.query(`UPDATE dbo.Users SET Aktiv = @aktiv, AktualisiertAm = SYSUTCDATETIME() WHERE Oid IN (${params.join(',')})`);
+  // InaktivSeit ist der Stichtag der Löschfrist (Migration 030).
+  // COALESCE ist wesentlich: entraSync ruft setUsersAktiv(stale, false) bei
+  // JEDEM Lauf auf. Ein blindes SYSUTCDATETIME() würde die Frist alle 6 Stunden
+  // nach hinten schieben und das Konto nie fällig werden lassen.
+  const res = await r.query(`
+    UPDATE dbo.Users
+       SET Aktiv = @aktiv,
+           InaktivSeit = CASE WHEN @aktiv = 0 THEN COALESCE(InaktivSeit, SYSUTCDATETIME()) ELSE NULL END,
+           AktualisiertAm = SYSUTCDATETIME()
+     WHERE Oid IN (${params.join(',')})`);
   return res.rowsAffected[0];
 }
 

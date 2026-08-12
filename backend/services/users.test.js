@@ -2,7 +2,7 @@
 process.env.NODE_ENV = 'test';
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { parseRoleClaim, buildReqUser, validateUserPatch, landingPathForUser } = require('./users');
+const { parseRoleClaim, buildReqUser, validateUserPatch, landingPathForUser, setUsersAktiv, updateUserProfile } = require('./users');
 
 const ROLE_URI = 'http://schemas.microsoft.com/ws/2008/06/identity/claims/role';
 
@@ -98,4 +98,93 @@ test('landingPathForUser: dhstudent → Abteilungsdurchlauf, sonst Dashboard', (
   assert.equal(landingPathForUser(buildReqUser({ Oid: 'g2', Role: 'pruefer' })), '/app/dashboard.html');
   assert.equal(landingPathForUser(buildReqUser({ Oid: 'g3', Role: 'developer' })), '/app/dashboard.html');
   assert.equal(landingPathForUser(null), '/app/dashboard.html');
+});
+
+/* ── Löschkonzept: Stichtag InaktivSeit ─────────────────────────
+   Fake-Pool statt echter DB (Muster wie vertretungen.test.js): wir prüfen
+   das erzeugte SQL, nicht das DB-Ergebnis. */
+
+function fakePool() {
+  const calls = [];
+  return {
+    calls,
+    request() {
+      const inputs = {};
+      const api = {
+        input(name, _typ, val) { inputs[name] = val; return api; },
+        query(text) { calls.push({ sql: text, inputs }); return Promise.resolve({ rowsAffected: [1] }); },
+      };
+      return api;
+    },
+  };
+}
+
+test('setUsersAktiv: Deaktivieren stempelt InaktivSeit, ohne einen bestehenden Stempel zu ueberschreiben', async () => {
+  const pool = fakePool();
+  await setUsersAktiv(['g1', 'g2'], false, pool);
+
+  assert.equal(pool.calls.length, 1);
+  const { sql: text, inputs } = pool.calls[0];
+  assert.equal(inputs.aktiv, 0);
+  assert.equal(inputs.o0, 'g1');
+  assert.equal(inputs.o1, 'g2');
+  // COALESCE ist der Kern: der Entra-Sync ruft das bei jedem Lauf erneut auf.
+  // Ein blindes SYSUTCDATETIME() wuerde die Frist ewig nach hinten schieben.
+  assert.match(text, /COALESCE\(InaktivSeit, SYSUTCDATETIME\(\)\)/);
+  assert.match(text, /Oid IN \(@o0,@o1\)/);
+});
+
+test('setUsersAktiv: Reaktivieren leert InaktivSeit', async () => {
+  const pool = fakePool();
+  await setUsersAktiv(['g1'], true, pool);
+
+  const { sql: text, inputs } = pool.calls[0];
+  assert.equal(inputs.aktiv, 1);
+  // Ein CASE deckt beide Richtungen in einer Anweisung ab.
+  assert.match(text, /WHEN @aktiv = 0 THEN COALESCE\(InaktivSeit, SYSUTCDATETIME\(\)\) ELSE NULL END/);
+});
+
+test('setUsersAktiv: leere Liste macht keinen DB-Aufruf', async () => {
+  const pool = fakePool();
+  assert.equal(await setUsersAktiv([], false, pool), 0);
+  assert.equal(pool.calls.length, 0);
+});
+
+test('updateUserProfile: manuelles Deaktivieren stempelt InaktivSeit ebenfalls', async () => {
+  const pool = fakePool();
+  await updateUserProfile('g1', { aktiv: false }, pool);
+
+  const { sql: text, inputs } = pool.calls[0];
+  assert.equal(inputs.aktiv, false);
+  assert.match(text, /Aktiv = @aktiv/);
+  assert.match(text, /InaktivSeit = CASE WHEN @aktiv = 0 THEN COALESCE\(InaktivSeit, SYSUTCDATETIME\(\)\) ELSE NULL END/);
+});
+
+test('updateUserProfile: ohne aktiv-Feld wird InaktivSeit nicht angefasst', async () => {
+  const pool = fakePool();
+  await updateUserProfile('g1', { beruf: 'Mechatroniker' }, pool);
+
+  const { sql: text } = pool.calls[0];
+  assert.match(text, /Beruf = @beruf/);
+  assert.ok(!/InaktivSeit/.test(text), 'InaktivSeit darf hier nicht vorkommen');
+});
+
+test('validateUserPatch akzeptiert loeschsperreBis', () => {
+  assert.equal(validateUserPatch({ loeschsperreBis: '2027-01-01' }).ok, true);
+  assert.equal(validateUserPatch({ loeschSperre: '2027-01-01' }).ok, false);
+});
+
+test('buildReqUser liefert inaktivSeit und loeschsperreBis', () => {
+  const u = buildReqUser({
+    Oid: 'g9', Name: 'Muster, Max', Role: 'azubi',
+    InaktivSeit: '2026-01-15T02:00:00.000Z', LoeschsperreBis: '2027-03-01',
+  });
+  assert.equal(u.inaktivSeit, '2026-01-15T02:00:00.000Z');
+  assert.equal(u.loeschsperreBis, '2027-03-01');
+});
+
+test('buildReqUser: fehlende Loeschkonzept-Spalten ergeben null', () => {
+  const u = buildReqUser({ Oid: 'g10', Role: 'pruefer' });
+  assert.equal(u.inaktivSeit, null);
+  assert.equal(u.loeschsperreBis, null);
 });
