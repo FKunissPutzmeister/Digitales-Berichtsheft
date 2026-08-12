@@ -10,6 +10,8 @@
    Spec: docs/superpowers/specs/2026-08-11-loeschkonzept-inaktive-nutzer-design.md
    ===================================================================== */
 
+const fs = require('node:fs');
+const path = require('node:path');
 const { getPool, sql } = require('../db/connection');
 
 // Fristen bewusst als Konstanten, NICHT als .env-Variablen: die Löschfrist ist
@@ -313,9 +315,50 @@ async function pruefeUnbekannteTabellen(poolOverride) {
     .filter((t) => !BEKANNTE_TABELLEN.has(t));
 }
 
+/* ── Dateien: IHK-Import-Archiv ──────────────────────────────────
+   backend/data/ihk-imports/<oid>/ enthält vollständige IHK-Nachweis-PDFs und
+   hat KEINE Rotation (routes/ihk-imports.js). Ohne diesen Schritt löscht der
+   Job die Datenbank und lässt das PDF liegen.
+
+   Bewusst zustandslos: gelöscht wird jeder Ordner, dessen OID keine
+   dbo.Users-Zeile mehr hat. Damit ist der Schritt selbstheilend — schlägt ein
+   rmSync fehl (offenes Handle, Virenscanner; bei pruneOldBackups real
+   aufgetreten), greift der nächste Lauf denselben Ordner wieder auf, ohne dass
+   irgendwo ein Merkzettel geführt werden muss. Nebeneffekt: bestehender
+   Waisen-Altbestand wird mit aufgeräumt. */
+const IHK_IMPORT_DIR = path.join(__dirname, '..', 'data', 'ihk-imports');
+const GUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+function raeumeWaisenDateien({ dir = IHK_IMPORT_DIR, existierendeOids } = {}) {
+  const entfernt = [];
+  const probleme = [];
+  if (!fs.existsSync(dir)) return { entfernt, probleme };
+
+  // Vergleich case-insensitiv: Graph liefert OIDs lowercase, ein von Hand
+  // angelegter Ordner kann anders geschrieben sein.
+  const bekannt = new Set([...(existierendeOids || [])].map((o) => String(o).toLowerCase()));
+
+  for (const name of fs.readdirSync(dir)) {
+    // Alles, was nicht wie eine OID aussieht, bleibt unangetastet — Schutz
+    // gegen versehentliches Löschen fremder Daten (wie bei pruneOldBackups).
+    if (!GUID_RE.test(name)) continue;
+    if (bekannt.has(name.toLowerCase())) continue;
+    const p = path.join(dir, name);
+    try {
+      if (!fs.statSync(p).isDirectory()) continue;
+      fs.rmSync(p, { recursive: true, force: true });
+      entfernt.push(name);
+    } catch (err) {
+      probleme.push(`${name}: ${err.message}`);   // weiter mit dem nächsten
+    }
+  }
+  return { entfernt, probleme };
+}
+
 module.exports = {
   LOESCHFRIST_TAGE, VORWARN_TAGE,
   istDemoKonto, loeschDatum, istFaellig, istVorwarnFaellig,
   PHASE_A, PHASE_B, PHASE_C, BEKANNTE_TABELLEN,
   baueAnweisungen, loescheNutzer, ermittleKandidaten, pruefeUnbekannteTabellen,
+  IHK_IMPORT_DIR, raeumeWaisenDateien,
 };

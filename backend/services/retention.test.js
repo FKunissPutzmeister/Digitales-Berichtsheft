@@ -5,6 +5,9 @@
 process.env.NODE_ENV = 'test';
 const test = require('node:test');
 const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const os = require('node:os');
+const path = require('node:path');
 const R = require('./retention.js');
 
 const JETZT = new Date('2027-06-15T03:00:00.000Z');
@@ -421,4 +424,74 @@ test('ermittleKandidaten: bildet DB-Zeilen praezise auf das user-Format ab', asy
   assert.equal(b.email, null);
   assert.equal(b.inaktivSeit, null);
   assert.equal(b.loeschsperreBis, null);
+});
+
+/* ── Waisen-Ordner der IHK-Importe ──────────────────────────────
+   Zustandslos: gelöscht wird jeder Ordner, dessen OID keine Users-Zeile mehr
+   hat. Dadurch selbstheilend — ein fehlgeschlagenes rmSync greift der nächste
+   Lauf wieder auf, ohne Merkzettel. */
+
+function tempDirMit(ordner) {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'retention-test-'));
+  for (const name of ordner) {
+    fs.mkdirSync(path.join(dir, name));
+    fs.writeFileSync(path.join(dir, name, 'nachweis.pdf'), 'x');
+  }
+  return dir;
+}
+
+const OID_A = 'aaaaaaaa-1111-2222-3333-444444444444';
+const OID_B = 'bbbbbbbb-1111-2222-3333-444444444444';
+
+test('raeumeWaisenDateien: loescht Ordner ohne Users-Zeile, laesst den anderen stehen', () => {
+  const dir = tempDirMit([OID_A, OID_B]);
+  const res = R.raeumeWaisenDateien({ dir, existierendeOids: new Set([OID_B]) });
+
+  assert.deepEqual(res.entfernt, [OID_A]);
+  assert.deepEqual(res.probleme, []);
+  assert.equal(fs.existsSync(path.join(dir, OID_A)), false);
+  assert.equal(fs.existsSync(path.join(dir, OID_B)), true);
+  fs.rmSync(dir, { recursive: true, force: true });
+});
+
+test('raeumeWaisenDateien: OID-Vergleich ist case-insensitiv', () => {
+  const dir = tempDirMit([OID_A.toUpperCase()]);
+  const res = R.raeumeWaisenDateien({ dir, existierendeOids: new Set([OID_A]) });
+
+  assert.deepEqual(res.entfernt, [], 'Grossschreibung darf nicht als Waise gelten');
+  fs.rmSync(dir, { recursive: true, force: true });
+});
+
+test('raeumeWaisenDateien: ignoriert Namen, die keine GUID sind', () => {
+  const dir = tempDirMit(['nicht-eine-guid', '_temp']);
+  const res = R.raeumeWaisenDateien({ dir, existierendeOids: new Set() });
+
+  assert.deepEqual(res.entfernt, [], 'Fremde Ordner bleiben unangetastet');
+  assert.equal(fs.existsSync(path.join(dir, 'nicht-eine-guid')), true);
+  fs.rmSync(dir, { recursive: true, force: true });
+});
+
+test('raeumeWaisenDateien: fehlendes Verzeichnis ist kein Fehler', () => {
+  const res = R.raeumeWaisenDateien({ dir: path.join(os.tmpdir(), 'gibt-es-nicht-12345'), existierendeOids: new Set() });
+  assert.deepEqual(res.entfernt, []);
+  assert.deepEqual(res.probleme, []);
+});
+
+test('raeumeWaisenDateien: Einzelfehler stoppt die Schleife nicht', () => {
+  const dir = tempDirMit([OID_A, OID_B]);
+  const echtesRm = fs.rmSync;
+  let ersterVersuch = true;
+  fs.rmSync = (p, o) => {
+    if (ersterVersuch && String(p).includes(OID_A)) { ersterVersuch = false; throw new Error('EPERM'); }
+    return echtesRm(p, o);
+  };
+  try {
+    const res = R.raeumeWaisenDateien({ dir, existierendeOids: new Set() });
+    assert.deepEqual(res.entfernt, [OID_B], 'der zweite Ordner muss trotzdem weg sein');
+    assert.equal(res.probleme.length, 1);
+    assert.match(res.probleme[0], /EPERM/);
+  } finally {
+    fs.rmSync = echtesRm;
+    echtesRm(dir, { recursive: true, force: true });
+  }
 });
