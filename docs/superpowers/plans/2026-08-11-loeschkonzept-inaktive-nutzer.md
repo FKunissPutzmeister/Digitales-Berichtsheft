@@ -850,7 +850,7 @@ test('istFaellig: abgelaufene Sperre haelt nicht zurueck, Frist laeuft nicht neu
 });
 
 test('istFaellig: Demo-Konto ist nie faellig', () => {
-  const u = konto('2020-01-01T00:00:00.000Z', { email: 'lena.mueller@putzmeister.demo' });
+  const u = konto('2020-01-01T00:00:00.000Z', { email: 'lena.mueller.demo@putzmeister.com' });
   assert.equal(R.istFaellig(u, { jetzt: JETZT }), false);
 });
 
@@ -887,10 +887,15 @@ test('istVorwarnFaellig: gesperrtes Konto wird nicht vorgewarnt', () => {
   assert.equal(R.istVorwarnFaellig(u, { jetzt: JETZT }), false);
 });
 
-test('istDemoKonto erkennt die .demo-Domain', () => {
-  assert.equal(R.istDemoKonto('lena.mueller@putzmeister.demo'), true);
-  assert.equal(R.istDemoKonto('LENA@PUTZMEISTER.DEMO'), true);
+test('istDemoKonto erkennt das .demo-Suffix im Lokalteil', () => {
+  // So heissen die echten Demo-Konten (backend/db/seed-demo-users.sql):
+  assert.equal(R.istDemoKonto('lena.mueller.demo@putzmeister.com'), true);
+  assert.equal(R.istDemoKonto('admin.demo@putzmeister.com'), true);
+  assert.equal(R.istDemoKonto('LENA.MUELLER.DEMO@PUTZMEISTER.COM'), true);  // case-insensitiv
   assert.equal(R.istDemoKonto('lena.mueller@putzmeister.com'), false);
+  // Eine .demo-DOMAIN ist kein Demo-Konto in diesem System — der frueher hier
+  // gepruefte Fall, der alle echten Demo-Konten durchgelassen haette:
+  assert.equal(R.istDemoKonto('lena.mueller@putzmeister.demo'), false);
   assert.equal(R.istDemoKonto(null), false);
 });
 ```
@@ -936,7 +941,11 @@ const TAG_MS = 24 * 3600 * 1000;
 // Entra-Sync (users.js listManagedUsers). Ohne sie radiert der erste
 // Nachtlauf den Demo-Datenbestand.
 function istDemoKonto(email) {
-  return /\.demo$/i.test(String(email || '').trim());
+  // `.demo` steht im LOKALTEIL, nicht in der Domain: die Konten heißen
+  // `lena.mueller.demo@putzmeister.com`. Ein `/\.demo$/`-Test würde keines
+  // von ihnen erkennen. Muster deckungsgleich mit dem SQL-Guard
+  // `Email NOT LIKE '%.demo@%'` in users.js.
+  return /\.demo@/i.test(String(email || '').trim());
 }
 
 // Stichtag + Frist. Ohne Stempel (Altbestand, aktives Konto) → null.
@@ -1575,7 +1584,7 @@ async function loescheNutzer(user, deps = {}) {
 async function ermittleKandidaten(poolOverride) {
   const pool = poolOverride || await getPool();
   const res = await pool.request()
-    .input('demo', sql.NVarChar(20), '%.demo')
+    .input('demo', sql.NVarChar(20), '%.demo@%')
     .query(`
       SELECT Oid, Name, Email, Role, Aktiv, InaktivSeit, LoeschsperreBis
         FROM dbo.Users
@@ -2272,11 +2281,11 @@ getPool().then(async (p) => {
   const r = await p.request().query(`
     UPDATE TOP (1) dbo.Users
        SET InaktivSeit = DATEADD(DAY, -350, SYSUTCDATETIME())
-     WHERE Aktiv = 0 AND Email LIKE '%.demo'`);
+     WHERE Aktiv = 0 AND Email LIKE '%.demo@%'`);
   console.log('geaenderte Zeilen:', r.rowsAffected[0]);
   const z = await p.request().query(`
     SELECT Name, Email, InaktivSeit, LoeschsperreBis FROM dbo.Users
-     WHERE Aktiv = 0 AND Email LIKE '%.demo' ORDER BY InaktivSeit`);
+     WHERE Aktiv = 0 AND Email LIKE '%.demo@%' ORDER BY InaktivSeit`);
   console.table(z.recordset);
   await p.close();
 }).catch((e) => { console.error(e.message); process.exit(1); });
@@ -2901,7 +2910,7 @@ nicht — die Backend-Pakete liegen in `backend/node_modules`):
 
 ## Danach
 
-- [ ] Vordatierte Demo-Konten zurücksetzen: `UPDATE dbo.Users SET InaktivSeit = SYSUTCDATETIME() WHERE Aktiv = 0 AND Email LIKE '%.demo'`
+- [ ] Vordatierte Demo-Konten zurücksetzen: `UPDATE dbo.Users SET InaktivSeit = SYSUTCDATETIME() WHERE Aktiv = 0 AND Email LIKE '%.demo@%'`
 - [ ] Fehler-Posteingang auf `[retention]`-Einträge prüfen.
 ```
 
