@@ -1240,10 +1240,13 @@ document.addEventListener('DOMContentLoaded', async () => {
   async function renderStatusBanner(woche, azubiAusbilderName, currentUser) {
     if (!woche) return '';
 
-    // Tatsächlich handelnde Person (KorrigiertVon) statt des statisch
-    // zugeordneten Ausbilders — ein Azubi kann mehrere Ausbilder haben.
+    // Tatsächlich handelnde Person: erst der beim Genehmigen gespeicherte Name
+    // (Migration 031), dann die Live-Auflösung über die OID (Altbestand).
+    // Der frühere Fallback auf azubiAusbilderName bleibt als LETZTE Stufe —
+    // er ist der gefährliche Fall (statisch zugeordneter, evtl. FALSCHER
+    // Ausbilder) und darf erst greifen, wenn beide Quellen leer sind.
     const korrektor = woche.korrigiertVon ? await DB.getUser(woche.korrigiertVon) : null;
-    const korrektorName = korrektor ? displayName(korrektor.name) : '';
+    const korrektorName = displayName(woche.korrigiertVonName || (korrektor ? korrektor.name : '') || '');
 
     if (woche.status === 'genehmigt') {
       const name = korrektorName || azubiAusbilderName;
@@ -1301,7 +1304,14 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     if (woche.status === 'abgelehnt') {
       const rejectionComment = (woche.kommentare || []).slice().reverse().find(k => k.typ === 'abgelehnt');
-      const author = rejectionComment ? await DB.getUser(rejectionComment.userId) : null;
+      // Gespeicherter Autorname hat Vorrang (Migration 031); nur bei
+      // Altbestand noch ein Users-Abruf.
+      const author = rejectionComment && !rejectionComment.autorName
+        ? await DB.getUser(rejectionComment.userId)
+        : null;
+      const authorName = displayName(
+        (rejectionComment && rejectionComment.autorName) || (author ? author.name : '') || ''
+      ) || 'Ausbilder/in';
       return `
         <div class="week-status-banner week-status-banner--abgelehnt">
           <div class="week-status-banner__icon" aria-hidden="true">
@@ -1312,7 +1322,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             ${rejectionComment ? `
               <div class="week-status-banner__quote">
                 <div class="week-status-banner__quote-text">${escapeHtml(rejectionComment.text)}</div>
-                <div class="week-status-banner__quote-meta">— ${author ? displayName(author.name) : 'Ausbilder/in'}${rejectionComment.datum ? ' · ' + rejectionComment.datum : ''}</div>
+                <div class="week-status-banner__quote-meta">— ${escapeHtml(authorName)}${rejectionComment.datum ? ' · ' + rejectionComment.datum : ''}</div>
               </div>
             ` : `<p class="week-status-banner__text">Bitte überarbeite die Einträge und gib die Woche erneut frei.</p>`}
           </div>
@@ -2510,14 +2520,17 @@ document.addEventListener('DOMContentLoaded', async () => {
   // ── Events ────────────────────────────────────────────────────────
 
   async function renderComment(k) {
-    const author = await DB.getUser(k.userId);
+    // Gespeicherter Autorname hat Vorrang (Migration 031). Nur bei Altbestand
+    // (autorName NULL) noch ein Users-Abruf — spart zugleich Requests.
+    const author = k.autorName ? null : await DB.getUser(k.userId);
+    const autorAnzeige = displayName(k.autorName || (author ? author.name : '') || '') || 'Unbekannt';
     const canDelete = isAusbilder && k.userId === user.id;
     return `
       <div class="comment comment--ausbilder" data-kommentar-id="${k.id}">
         <div class="comment__body">
           <div class="comment__header">
-            ${renderAvatar(author, 'avatar--sm')}
-            <span class="comment__name">${author ? displayName(author.name) : 'Unbekannt'}</span>
+            ${renderAvatar(author || { name: k.autorName || '', oid: k.userId }, 'avatar--sm')}
+            <span class="comment__name">${autorAnzeige}</span>
             <span class="comment__date">${k.datum || ''}</span>
             ${canDelete ? `<button class="btn btn-sm btn-ghost comment__delete" data-delete-kommentar="${k.id}" title="Kommentar löschen" style="margin-left:auto;color:var(--color-error)">
               <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" style="width:14px;height:14px"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/></svg>

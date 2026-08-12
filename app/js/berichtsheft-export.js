@@ -362,7 +362,10 @@ const BerichtsheftExport = (() => {
     const aj = ausbildungsjahr(w.startDate);
     const zeitraum = `${DateUtil.formatDate(w.startDate)} – ${DateUtil.formatDate(w.endDate)} (KW ${w.kw}/${w.year})`;
     const inhalt = taeglich ? renderWocheTaeglich(w) : renderWocheWoechentlich(w);
-    const b = bestaetigung(w, ctx.nameByOid[w.korrigiertVon]);
+    // Gespeicherter Name des Gegenzeichners hat Vorrang (Migration 031);
+    // nameByOid ist die Live-Auflösung für Altbestand. bestaetigung() dreht
+    // den Namen selbst über displayName().
+    const b = bestaetigung(w, w.korrigiertVonName || ctx.nameByOid[w.korrigiertVon]);
 
     const inhaltTabelle = taeglich
       ? `<table class="inhalt inhalt--tag">
