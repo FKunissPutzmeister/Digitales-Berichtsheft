@@ -13,38 +13,32 @@ function nurPlaner(req, res, next) {
   next();
 }
 
-// Best-effort In-App-Benachrichtigung an Azubi + Verantwortlichen bei
-// Versetzungen. Fehler dürfen den eigentlichen Zuweisungs-Vorgang NIE brechen
-// (u.a. wenn der CHECK-Constraint die Versetzungs-Typen noch nicht kennt →
-// Migration 019 muss laufen). WocheId bleibt NULL (referenziert eine Zuweisung).
-async function oidForEmail(pool, email) {
-  if (!email) return null;
-  try {
-    const r = await pool.request()
-      .input('email', sql.NVarChar(255), String(email).toLowerCase())
-      .query('SELECT TOP 1 Oid FROM dbo.Users WHERE LOWER(Email) = @email');
-    return r.recordset[0] ? r.recordset[0].Oid : null;
-  } catch (_) { return null; }
-}
-// Anzeigename des Verantwortlichen zum Zeitpunkt der Zuweisung, denormalisiert
-// nach Zuweisungen.VerantwName (Migration 031). Nötig, weil die Zuweisung nur
-// die E-Mail trägt und der Retention-Job diese beim Löschen der Person leert —
+// Nutzer (Oid + Name) zu einer E-Mail auflösen — eine Abfrage für beide
+// Zwecke, die rund um den Verantwortlichen einer Zuweisung anfallen: die
+// In-App-Benachrichtigung braucht die Oid (Fehler dürfen den eigentlichen
+// Zuweisungs-Vorgang NIE brechen, u.a. wenn der CHECK-Constraint die
+// Versetzungs-Typen noch nicht kennt → Migration 019 muss laufen; WocheId
+// bleibt NULL, referenziert eine Zuweisung), und Zuweisungen.VerantwName
+// (Migration 031) braucht den Namen — denormalisiert, weil die Zuweisung nur
+// die E-Mail trägt und der Retention-Job diese beim Löschen der Person leert;
 // ohne den gespeicherten Namen stünde danach überall "–".
 // Kein Treffer (Verantwortlicher noch ohne SSO-Login) → null; die Anzeige
-// leitet dann wie bisher aus der E-Mail ab.
-async function nameForEmail(pool, email) {
+// leitet den Namen dann wie bisher aus der E-Mail ab, die Benachrichtigung
+// bleibt für diesen Empfänger einfach aus (benachrichtige()/mitVertretern()
+// filtern null-Einträge ohnehin heraus).
+async function userForEmail(pool, email) {
   if (!email) return null;
   try {
     const r = await pool.request()
       .input('email', sql.NVarChar(255), String(email).toLowerCase())
-      .query('SELECT TOP 1 Name FROM dbo.Users WHERE LOWER(Email) = @email');
-    return r.recordset[0] ? r.recordset[0].Name : null;
+      .query('SELECT TOP 1 Oid, Name FROM dbo.Users WHERE LOWER(Email) = @email');
+    return r.recordset[0] ? { oid: r.recordset[0].Oid, name: r.recordset[0].Name } : null;
   } catch (err) {
-    // Anders als oidForEmail (dessen Fehlschlag nur eine Benachrichtigung
-    // ausfallen lässt) verpasst ein Fehlschlag hier die EINZIGE Chance, den
-    // Namen festzuhalten, bevor die Person ggf. gelöscht wird (Migration 031
-    // hat bewusst kein Backfill) — deshalb hier sichtbar loggen.
-    logError({ quelle: 'backend', nachricht: `[zuweisungen] nameForEmail: ${err.message}`, stack: err.stack });
+    // Ein Fehlschlag hier verpasst nicht nur eine Benachrichtigung, sondern
+    // auch die einzige Chance, den Namen vor einer späteren Löschung der
+    // Person festzuhalten (Migration 031 hat bewusst kein Backfill) —
+    // deshalb sichtbar loggen statt stillschweigend zu verschlucken.
+    logError({ quelle: 'backend', nachricht: `[zuweisungen] userForEmail: ${err.message}`, stack: err.stack });
     return null;
   }
 }
@@ -152,11 +146,13 @@ router.post('/', nurPlaner, async (req, res) => {
       });
     }
 
-    const verantwName = await nameForEmail(pool, verantwEmail);
+    // Eine Auflösung bedient sowohl die Spalte (Name) als auch die
+    // Benachrichtigung (Oid) — kein zweiter Lookup für dieselbe E-Mail.
+    const verantwUser = await userForEmail(pool, verantwEmail);
     const result = await pool.request()
       .input('azubiOid',     sql.NVarChar(36),  azubiOid)
       .input('verantwEmail', sql.NVarChar(255), (verantwEmail || '').toLowerCase() || null)
-      .input('verantwName',  sql.NVarChar(200), verantwName)
+      .input('verantwName',  sql.NVarChar(200), verantwUser ? verantwUser.name : null)
       .input('abteilung',    sql.NVarChar(100), abteilung || null)
       .input('von',          sql.Date,          von)
       .input('bis',          sql.Date,          bis)
@@ -165,7 +161,7 @@ router.post('/', nurPlaner, async (req, res) => {
         OUTPUT inserted.Id
         VALUES (@azubiOid, @verantwEmail, @verantwName, @abteilung, @von, @bis)
       `);
-    await benachrichtige(pool, [azubiOid, await oidForEmail(pool, verantwEmail)],
+    await benachrichtige(pool, [azubiOid, verantwUser ? verantwUser.oid : null],
       'versetzung_neu', req.user.oid);
     res.json({ id: result.recordset[0].Id });
   } catch (err) {
@@ -224,15 +220,16 @@ router.patch('/:id', nurPlaner, async (req, res) => {
       });
     }
 
-    // Name zur neuen E-Mail neu auflösen (Migration 031): ohne das würde der
-    // bereits gespeicherte VerantwName der VORHERIGEN Person stehen bleiben
-    // und laut normalizeZuweisung-Vorrang die geänderte E-Mail überstimmen —
-    // die Zeile zeigte dann dauerhaft die falsche Person an.
-    const verantwName = await nameForEmail(pool, verantwEmail);
+    // Nutzer zur neuen E-Mail neu auflösen (Migration 031): ohne das würde
+    // der bereits gespeicherte VerantwName der VORHERIGEN Person stehen
+    // bleiben und laut normalizeZuweisung-Vorrang die geänderte E-Mail
+    // überstimmen — die Zeile zeigte dann dauerhaft die falsche Person an.
+    // Dieselbe Auflösung liefert zugleich die Oid für die Benachrichtigung.
+    const verantwUser = await userForEmail(pool, verantwEmail);
     await pool.request()
       .input('id',           sql.Int,           id)
       .input('verantwEmail', sql.NVarChar(255), verantwEmail)
-      .input('verantwName',  sql.NVarChar(200), verantwName)
+      .input('verantwName',  sql.NVarChar(200), verantwUser ? verantwUser.name : null)
       .input('abteilung',    sql.NVarChar(100), abteilung)
       .input('von',          sql.Date,          von)
       .input('bis',          sql.Date,          bis)
@@ -243,8 +240,10 @@ router.patch('/:id', nurPlaner, async (req, res) => {
         WHERE Id = @id
       `);
     // Azubi + alter UND neuer Verantwortlicher (falls umgehängt) informieren.
+    // Für die vorherige E-Mail wird nur die Oid gebraucht — ein zweiter
+    // Lookup ist hier legitim, weil er eine andere Person betrifft.
     await benachrichtige(pool,
-      [row.AzubiOid, await oidForEmail(pool, verantwEmail), await oidForEmail(pool, row.VerantwEmail)],
+      [row.AzubiOid, verantwUser ? verantwUser.oid : null, (await userForEmail(pool, row.VerantwEmail))?.oid ?? null],
       'versetzung_geaendert', req.user.oid);
     res.json({ ok: true });
   } catch (err) {
@@ -281,7 +280,7 @@ router.delete('/:id', nurPlaner, async (req, res) => {
     }
     await tx.commit(); tx = null;
     if (row) {
-      await benachrichtige(pool, [row.AzubiOid, await oidForEmail(pool, row.VerantwEmail)],
+      await benachrichtige(pool, [row.AzubiOid, (await userForEmail(pool, row.VerantwEmail))?.oid ?? null],
         'versetzung_entfernt', req.user.oid);
     }
     res.json({ ok: true });
