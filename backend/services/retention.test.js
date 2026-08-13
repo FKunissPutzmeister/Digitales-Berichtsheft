@@ -212,6 +212,17 @@ test('PHASE_B: Kommentare behalten den Autornamen und verlieren die OID', () => 
   assert.equal(e.bedingung, 'UserOid = @oid');
 });
 
+test('PHASE_B nullt Vertretungen.ErstelltVon - der Ersteller ist sonst nirgends erfasst', () => {
+  // PHASE_C loescht Vertretungen nur ueber VertretenerOid/VertreterOid. Wer als
+  // Planer eine Vertretung zwischen ZWEI ANDEREN Personen eingetragen hat,
+  // hinterlaesst seine OID in ErstelltVon - ein dangling GUID ist ein
+  // pseudonymer Personenbezug (Spec: "Ihre OIDs werden trotzdem genullt").
+  const e = R.PHASE_B.find(x => x.tabelle === 'Vertretungen');
+  assert.ok(e, 'Vertretungen fehlt in PHASE_B');
+  assert.equal(e.anweisung, 'SET ErstelltVon = NULL');
+  assert.equal(e.bedingung, 'ErstelltVon = @oid');
+});
+
 test('PHASE_B: Benachrichtigungen werden nur genullt, nicht geloescht', () => {
   const e = R.PHASE_B.find(x => x.tabelle === 'Benachrichtigungen');
   // Die Zeile gehoert dem Empfaenger: ein Azubi soll seine Mitteilung
@@ -234,16 +245,94 @@ test('PHASE_C: AbteilungVerantwortliche bindet ueber OID UND E-Mail', () => {
   assert.equal(e.bedingung, 'Oid = @oid OR LOWER(Email) = LOWER(@email)');
 });
 
-test('BEKANNTE_TABELLEN vereint alle drei Phasen', () => {
-  for (const liste of [R.PHASE_A, R.PHASE_B, R.PHASE_C]) {
-    for (const e of liste) {
-      assert.ok(R.BEKANNTE_TABELLEN.has(e.tabelle), `${e.tabelle} fehlt in BEKANNTE_TABELLEN`);
-    }
+/* ── Selbstprüfung: SPALTEN-granular, nicht tabellen-granular ────
+   Eine tabellen-granulare Prüfung ist blind für eine NEUE personenbezogene
+   Spalte auf einer bereits bekannten Tabelle — genau so blieb
+   Vertretungen.ErstelltVon zwölf Reviews lang unentdeckt. */
+
+test('istBekannteSpalte deckt jede Spalte ab, die eine der drei Phasen anfasst', () => {
+  // Diese Menge wird im Modul AUS den Phasenlisten abgeleitet; die Liste hier
+  // ist die unabhaengige Gegenprobe, dass die Ableitung wirklich alles erwischt.
+  const ausPhasen = [
+    ['Benachrichtigungen', 'UserOid'], ['Benachrichtigungen', 'FromUserOid'],
+    ['Wochen', 'AzubiOid'], ['Wochen', 'KorrigiertVon'],
+    ['Kommentare', 'UserOid'],
+    ['Zuweisungen', 'AzubiOid'], ['Zuweisungen', 'VerantwEmail'],
+    ['Beurteilungen', 'AzubiOid'], ['Beurteilungen', 'BeurteiltVon'],
+    ['Beurteilungen', 'KenntnisnahmeVon'], ['Beurteilungen', 'KorrigiertVon'],
+    ['Anhaenge', 'HochgeladenVon'],
+    ['FahrtgeldKonfig', 'AzubiOid'], ['EssTag', 'AzubiOid'],
+    ['AusbilderAzubis', 'AzubiOid'], ['AusbilderAzubis', 'AusbilderOid'],
+    ['AbteilungVerantwortliche', 'Oid'], ['AbteilungVerantwortliche', 'Email'],
+    ['Vertretungen', 'VertretenerOid'], ['Vertretungen', 'VertreterOid'],
+    ['Vertretungen', 'ErstelltVon'],
+    ['McpLog', 'UserOid'], ['ApiKeys', 'UserOid'],
+    ['Users', 'Oid'],
+  ];
+  for (const [tabelle, spalte] of ausPhasen) {
+    assert.equal(R.istBekannteSpalte(tabelle, spalte), true, `${tabelle}.${spalte} fehlt`);
   }
-  // Kaskaden-Kinder gehoeren dazu, damit die Selbstpruefung sie nicht meldet.
-  for (const t of ['Anhaenge', 'BeurteilungKriterien', 'UserPhotos', 'Fehlerberichte']) {
-    assert.ok(R.BEKANNTE_TABELLEN.has(t), `${t} fehlt in BEKANNTE_TABELLEN`);
-  }
+});
+
+test('istBekannteSpalte kennt die Spalten, die keine Phase ausdruecken kann', () => {
+  // Handgepflegt, weil aus den Phasenlisten nicht ableitbar - jede mit Grund:
+  assert.equal(R.istBekannteSpalte('UserPhotos', 'Oid'), true);          // Kaskaden-Kind
+  assert.equal(R.istBekannteSpalte('Users', 'Email'), true);             // Zeile stirbt in PHASE_C
+  assert.equal(R.istBekannteSpalte('Wochen', 'EingereichtVon'), true);   // azubi-exklusiv
+});
+
+test('istBekannteSpalte: bewusst ausgenommene Tabellen gelten komplett als bekannt', () => {
+  // Eigene 90-Tage-Rotation (services/fehlerberichte.js).
+  assert.equal(R.istBekannteSpalte('Fehlerberichte', 'BenutzerOid'), true);
+  assert.equal(R.istBekannteSpalte('Fehlerberichte', 'ErledigtVon'), true);
+  assert.equal(R.istBekannteSpalte('FehlerAnhaenge', 'IrgendwasOid'), true);
+});
+
+test('istBekannteSpalte: eine NEUE Spalte auf einer BEKANNTEN Tabelle ist unbekannt', () => {
+  // Der eigentliche Zweck der Umstellung. Tabellen-granular waeren beide hier
+  // faelschlich "bekannt", weil Vertretungen/Wochen in den Phasen stehen.
+  assert.equal(R.istBekannteSpalte('Vertretungen', 'GeplantVon'), false);
+  assert.equal(R.istBekannteSpalte('Wochen', 'GeprueftVonOid'), false);
+  // Und eine ganz neue Tabelle natuerlich auch.
+  assert.equal(R.istBekannteSpalte('NeueTabelle', 'AzubiOid'), false);
+});
+
+test('istBekannteSpalte vergleicht Gross-/Kleinschreibung nicht mit', () => {
+  // SQL Server ist bei Bezeichnern nicht case-sensitiv; INFORMATION_SCHEMA
+  // liefert die Schreibweise aus dem CREATE TABLE.
+  assert.equal(R.istBekannteSpalte('wochen', 'korrigiertvon'), true);
+  assert.equal(R.istBekannteSpalte('WOCHEN', 'KORRIGIERTVON'), true);
+});
+
+test('istBekannteSpalte: kein Teilstring-Treffer zwischen aehnlichen Spalten', () => {
+  // UserOid steckt in FromUserOid, Oid in AzubiOid. Der Vergleich muss exakt
+  // sein - McpLog fuehrt nur UserOid, kein FromUserOid.
+  assert.equal(R.istBekannteSpalte('McpLog', 'FromUserOid'), false);
+  assert.equal(R.istBekannteSpalte('ApiKeys', 'AzubiOid'), false);
+});
+
+function schemaPool(zeilen) {
+  return { request: () => ({ query: async () => ({ recordset: zeilen }) }) };
+}
+
+test('pruefeUnbekannteSpalten meldet Tabelle.Spalte, nicht bloss die Tabelle', async () => {
+  const treffer = await R.pruefeUnbekannteSpalten(schemaPool([
+    { TABLE_NAME: 'Wochen',       COLUMN_NAME: 'KorrigiertVon' },
+    { TABLE_NAME: 'Vertretungen', COLUMN_NAME: 'GeplantVon' },
+    { TABLE_NAME: 'NeueTabelle',  COLUMN_NAME: 'AzubiOid' },
+  ]));
+  assert.deepEqual(treffer, ['Vertretungen.GeplantVon', 'NeueTabelle.AzubiOid']);
+});
+
+test('pruefeUnbekannteSpalten: vollstaendig bekanntes Schema ergibt eine leere Liste', async () => {
+  const treffer = await R.pruefeUnbekannteSpalten(schemaPool([
+    { TABLE_NAME: 'Users',        COLUMN_NAME: 'Oid' },
+    { TABLE_NAME: 'Users',        COLUMN_NAME: 'Email' },
+    { TABLE_NAME: 'UserPhotos',   COLUMN_NAME: 'Oid' },
+    { TABLE_NAME: 'Wochen',       COLUMN_NAME: 'EingereichtVon' },
+    { TABLE_NAME: 'Fehlerberichte', COLUMN_NAME: 'ErledigtVon' },
+  ]));
+  assert.deepEqual(treffer, []);
 });
 
 /* ── SQL-Erzeugung und Löschtransaktion ─────────────────────────── */
@@ -631,7 +720,7 @@ function deps(over = {}) {
     sendeVorwarnung: async () => true,
     empfaenger: async () => ['p1'],
     raeumeDateien: () => ({ entfernt: ['x'], probleme: [] }),
-    pruefeTabellen: async () => [],
+    pruefeSpalten: async () => [],
     logFehler: () => {},
     // Ohne diese Injektion würde alleUserOids() versuchen, den echten Pool zu
     // holen (getPool()) - runRetention wäre in Tests nicht ohne DB lauffähig.
@@ -696,10 +785,10 @@ test('runRetention: werfendes listKandidaten loescht nichts (fail closed)', asyn
   assert.equal(b.fehler[0].fehler, 'DB weg');
 });
 
-test('runRetention: unbekannte Tabelle wird als Fehler gemeldet, der Lauf laeuft weiter', async () => {
+test('runRetention: unbekannte Spalte wird als Fehler gemeldet, der Lauf laeuft weiter', async () => {
   const gemeldet = [];
   const b = await R.runRetention(deps({
-    pruefeTabellen: async () => ['NeueTabelle'],
+    pruefeSpalten: async () => ['Vertretungen.GeplantVon'],
     logFehler: (e) => gemeldet.push(e.nachricht),
   }));
 
@@ -709,7 +798,7 @@ test('runRetention: unbekannte Tabelle wird als Fehler gemeldet, der Lauf laeuft
   // fest formulierte Zeichenkette - kein Muster, ein Wert.
   assert.equal(
     gemeldet[0],
-    '[retention] Tabellen mit Personenbindung, die der Loeschjob NICHT kennt: NeueTabelle — personenbezogene Daten bleiben dort liegen.'
+    '[retention] Spalten mit Personenbindung, die der Loeschjob NICHT kennt: Vertretungen.GeplantVon — personenbezogene Daten bleiben dort liegen.'
   );
 });
 

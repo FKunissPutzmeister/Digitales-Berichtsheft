@@ -171,6 +171,17 @@ const PHASE_B = [
   { tabelle: 'Beurteilungen', anweisung: 'SET KorrigiertVon = NULL',    bedingung: 'KorrigiertVon = @oid' },
   { tabelle: 'Anhaenge',      anweisung: 'SET HochgeladenVon = NULL',   bedingung: 'HochgeladenVon = @oid' },
   {
+    tabelle: 'Vertretungen',
+    // PHASE_C loescht Vertretungen nur ueber VertretenerOid/VertreterOid. Wer
+    // als Planer eine Vertretung zwischen ZWEI ANDEREN Personen eingetragen
+    // hat, steht in keiner dieser beiden Spalten — seine OID bliebe fuer immer
+    // in ErstelltVon stehen. Ein dangling GUID ist ein pseudonymer
+    // Personenbezug, also wird auch diese Referenz genullt (Spec, "Nicht
+    // betroffen — geprueft": "Ihre OIDs werden trotzdem genullt").
+    anweisung: 'SET ErstelltVon = NULL',
+    bedingung: 'ErstelltVon = @oid',
+  },
+  {
     tabelle: 'Benachrichtigungen',
     // Genullt, NICHT gelöscht: die Zeile gehört dem Empfänger. Ein Azubi soll
     // seine Mitteilung "Woche genehmigt" nicht verlieren, weil der Prüfer das
@@ -193,17 +204,71 @@ const PHASE_C = [
   { tabelle: 'Users',                    bedingung: 'Oid = @oid' },
 ];
 
-// Für die Selbstprüfung gegen INFORMATION_SCHEMA: alles, was der Job kennt.
-// Kaskaden-Kinder und fremdverwaltete Tabellen gehören dazu, sonst meldet die
-// Prüfung sie fälschlich als vergessen. Fehlerberichte hat eine eigene
-// 90-Tage-Rotation (services/fehlerberichte.js) und ist bewusst ausgenommen.
-const BEKANNTE_TABELLEN = new Set([
-  ...PHASE_A.map(e => e.tabelle),
-  ...PHASE_B.map(e => e.tabelle),
-  ...PHASE_C.map(e => e.tabelle),
-  'Anhaenge', 'BeurteilungKriterien', 'UserPhotos',
-  'Fehlerberichte', 'FehlerAnhaenge',
+/* ── Bekannte Spalten für die Selbstprüfung ──────────────────────
+   SPALTEN-granular, nicht tabellen-granular. Eine Prüfung auf Tabellennamen
+   ist blind für eine NEUE personenbezogene Spalte auf einer bereits bekannten
+   Tabelle — genau so blieb Vertretungen.ErstelltVon lange unentdeckt, obwohl
+   Vertretungen längst in PHASE_C stand.
+
+   Der Großteil der Menge wird AUS den Phasenlisten abgeleitet: was eine Phase
+   anfasst, kennt der Job per Definition. Damit kann die Menge nicht mehr
+   auseinanderdriften, wenn jemand eine Phase erweitert. */
+
+// Spaltenmuster mit Personenbindung — deckungsgleich mit dem SQL-Filter in
+// pruefeUnbekannteSpalten: '%Oid' (Fremdverweis auf dbo.Users), '%Von'
+// (Handlung EINER Person: BeurteiltVon, HochgeladenVon, ErstelltVon …) und
+// '%Email'.
+const PERSONEN_SPALTE_RE = /(Oid|Von|Email)$/i;
+
+// Spaltennamen aus einem SQL-Fragment ziehen. Bezeichner mit '@' davor sind
+// gebundene Parameter (@oid, @name, @email) bzw. Subselect-Platzhalter
+// (@wochen, @zuw) — Werte, keine Spalten, deshalb ausgeschlossen.
+function spaltenAusFragment(fragment) {
+  const out = [];
+  for (const m of String(fragment || '').matchAll(/(@?)([A-Za-z_][A-Za-z0-9_]*)/g)) {
+    if (m[1]) continue;
+    if (PERSONEN_SPALTE_RE.test(m[2])) out.push(m[2]);
+  }
+  return out;
+}
+
+const spaltenSchluessel = (tabelle, spalte) => `${tabelle}.${spalte}`.toLowerCase();
+
+const BEKANNTE_SPALTEN = new Set([
+  // Abgeleitet: jede Personenspalte, die in einer Bedingung oder Anweisung
+  // der drei Phasen vorkommt.
+  ...[...PHASE_A, ...PHASE_B, ...PHASE_C].flatMap((e) => [
+    ...spaltenAusFragment(e.bedingung),
+    ...spaltenAusFragment(e.anweisung),
+  ].map((spalte) => spaltenSchluessel(e.tabelle, spalte))),
+
+  // Handgepflegt — was die Phasenlisten nicht ausdrücken können, je mit Grund:
+  // Kaskaden-Kind: die Zeile geht per FK_UserPhotos_Users ON DELETE CASCADE
+  // mit dem Users-DELETE aus PHASE_C, die Spalte IST die User-Oid.
+  spaltenSchluessel('UserPhotos', 'Oid'),
+  // Die ganze Users-Zeile stirbt in PHASE_C (Oid = @oid) — damit auch Email.
+  // Steht hier, weil keine Phase die Spalte einzeln nennt.
+  spaltenSchluessel('Users', 'Email'),
+  // Azubi-exklusiv: 'einreichen' kann nur der Azubi selbst (zugriff.js
+  // wochenAktionen), die Woche wird in PHASE_A mit ihm gelöscht. In FREMDEN
+  // Wochen kann diese OID deshalb nie stehen (Spec, "Nicht betroffen").
+  spaltenSchluessel('Wochen', 'EingereichtVon'),
 ]);
+
+// Ganze Tabellen, die bewusst außerhalb des Löschkonzepts liegen: eigene
+// 90-Tage-Rotation in services/fehlerberichte.js, nach 365 Tagen Inaktivität
+// längst verfallen. Hier absichtlich TABELLEN-granular — auch eine künftige
+// Personenspalte dort ist von der Rotation erfasst.
+const AUSGENOMMENE_TABELLEN = new Set(['fehlerberichte', 'fehleranhaenge']);
+
+// Kennt der Löschjob diese Spalte? Vergleich exakt auf (Tabelle, Spalte) und
+// case-insensitiv, weil SQL Server Bezeichner nicht case-sensitiv behandelt.
+// Exakt heißt: 'UserOid' deckt NICHT 'FromUserOid' ab, 'Oid' nicht 'AzubiOid' —
+// die Namen dieses Schemas enthalten einander als Teilstrings.
+function istBekannteSpalte(tabelle, spalte) {
+  if (AUSGENOMMENE_TABELLEN.has(String(tabelle).toLowerCase())) return true;
+  return BEKANNTE_SPALTEN.has(spaltenSchluessel(tabelle, spalte));
+}
 
 /* ── SQL-Erzeugung ───────────────────────────────────────────────
    @oid/@name/@email bleiben PARAMETER (mssql-Bindung) — nur die beiden
@@ -306,20 +371,31 @@ async function ermittleKandidaten(poolOverride) {
    HochgeladenVon aus PHASE_B — ein reines '%Oid' würde keine davon sehen,
    weil sie nicht so heißen) und '%Email' (nicht nur die exakte Spalte
    'Email', sondern auch Formen wie VerantwEmail, die es in Zuweisungen
-   schon gibt). Steht die Tabelle einer Fundstelle nicht in
-   BEKANNTE_TABELLEN, hat jemand eine Tabelle angelegt, ohne den Löschjob
-   anzupassen — dann bleiben dort personenbezogene Daten liegen.
-   Liefert die Namen der unbekannten Tabellen; der Aufrufer meldet sie. */
-async function pruefeUnbekannteTabellen(poolOverride) {
+   schon gibt).
+
+   Verglichen wird das Paar (Tabelle, Spalte), NICHT bloß der Tabellenname:
+   eine neue Personenspalte auf einer längst bekannten Tabelle wäre sonst
+   unsichtbar, und genau das ist der reale Fehlerfall (Vertretungen.ErstelltVon).
+
+   Ausgenommen ist die Spalte, die exakt 'Von' heißt: das ist im ganzen Schema
+   der Anfang eines Zeitraums (Zuweisungen.Von, Vertretungen.Von, jeweils mit
+   'Bis'), kein Personenverweis. Ohne diesen Ausschluss meldete die Prüfung bei
+   jedem neuen Datumsbereich einen Falschtreffer — und Falschtreffer sind der
+   Weg, auf dem eine solche Prüfung stillgelegt wird.
+
+   Liefert 'Tabelle.Spalte' je unbekannter Fundstelle; der Aufrufer meldet sie. */
+async function pruefeUnbekannteSpalten(poolOverride) {
   const pool = poolOverride || await getPool();
   const res = await pool.request().query(`
-    SELECT DISTINCT TABLE_NAME
+    SELECT TABLE_NAME, COLUMN_NAME
       FROM INFORMATION_SCHEMA.COLUMNS
      WHERE TABLE_SCHEMA = 'dbo'
-       AND (COLUMN_NAME LIKE '%Oid' OR COLUMN_NAME LIKE '%Von' OR COLUMN_NAME LIKE '%Email')`);
+       AND COLUMN_NAME <> 'Von'
+       AND (COLUMN_NAME LIKE '%Oid' OR COLUMN_NAME LIKE '%Von' OR COLUMN_NAME LIKE '%Email')
+     ORDER BY TABLE_NAME, COLUMN_NAME`);
   return res.recordset
-    .map((r) => r.TABLE_NAME)
-    .filter((t) => !BEKANNTE_TABELLEN.has(t));
+    .filter((r) => !istBekannteSpalte(r.TABLE_NAME, r.COLUMN_NAME))
+    .map((r) => `${r.TABLE_NAME}.${r.COLUMN_NAME}`);
 }
 
 /* ── Dateien: IHK-Import-Archiv ──────────────────────────────────
@@ -418,7 +494,7 @@ async function runRetention(deps = {}) {
     sendeVorwarnung: warnFn = sendeVorwarnung,
     empfaenger: empfaengerFn = ermittleVorwarnEmpfaenger,
     raeumeDateien = raeumeWaisenDateien,
-    pruefeTabellen = pruefeUnbekannteTabellen,
+    pruefeSpalten = pruefeUnbekannteSpalten,
     jetzt = new Date(),
     fristTage = LOESCHFRIST_TAGE,
     vorwarnTage = VORWARN_TAGE,
@@ -510,15 +586,15 @@ async function runRetention(deps = {}) {
 
   // Selbstprüfung: nachrangig, darf den Lauf nicht kippen. Absichtlich NUR
   // logFehler, kein bericht.fehler-Eintrag: es betrifft keine Person dieses
-  // Laufs, sondern ein strukturelles Versaeumnis (neue Tabelle vergessen) -
-  // ein Eintrag dort wuerde bei jedem Lauf doppelt gemeldet werden (Fehlerinbox
-  // UND Bericht). Nicht ohne Ruecksprache "fixen".
+  // Laufs, sondern ein strukturelles Versaeumnis (neue Personenspalte
+  // vergessen) - ein Eintrag dort wuerde bei jedem Lauf doppelt gemeldet werden
+  // (Fehlerinbox UND Bericht). Nicht ohne Ruecksprache "fixen".
   try {
-    const unbekannt = await pruefeTabellen();
+    const unbekannt = await pruefeSpalten();
     if (unbekannt.length) {
       logFehler({
         quelle: 'backend',
-        nachricht: `[retention] Tabellen mit Personenbindung, die der Loeschjob NICHT kennt: ${unbekannt.join(', ')} — personenbezogene Daten bleiben dort liegen.`,
+        nachricht: `[retention] Spalten mit Personenbindung, die der Loeschjob NICHT kennt: ${unbekannt.join(', ')} — personenbezogene Daten bleiben dort liegen.`,
         schweregrad: 'hoch',
       });
     }
@@ -552,8 +628,8 @@ function runRetentionSerialisiert(deps = {}) {
 module.exports = {
   LOESCHFRIST_TAGE, VORWARN_TAGE,
   istDemoKonto, loeschDatum, istFaellig, istVorwarnFaellig,
-  PHASE_A, PHASE_B, PHASE_C, BEKANNTE_TABELLEN,
-  baueAnweisungen, loescheNutzer, ermittleKandidaten, pruefeUnbekannteTabellen,
+  PHASE_A, PHASE_B, PHASE_C, BEKANNTE_SPALTEN, istBekannteSpalte,
+  baueAnweisungen, loescheNutzer, ermittleKandidaten, pruefeUnbekannteSpalten,
   IHK_IMPORT_DIR, raeumeWaisenDateien,
   VORWARN_TYP, ermittleVorwarnEmpfaenger, sendeVorwarnung,
   runRetention, runRetentionSerialisiert,
