@@ -855,6 +855,46 @@ test('runRetention: Dateiaufraeumung bekommt die OIDs der VERBLEIBENDEN Nutzer',
   assert.equal(gesehen.has('gesperrt'), true);
 });
 
+test('runRetention: leere OID-Menge ueberspringt die Dateiaufraeumung komplett', async () => {
+  // Der Katastrophenfall: dbo.Users liefert erfolgreich NULL Zeilen (falscher
+  // DB_NAME in .env nach einem Deployment, leere/wiederhergestellte Datenbank).
+  // Dann gilt JEDER ihk-imports-Ordner als Waise - und das sind vollstaendige
+  // IHK-Nachweis-PDFs aktiver Azubis, ohne Archiv und ohne Rotation. Das
+  // umgebende try/catch faengt nur eine WERFENDE Abfrage, nicht diese.
+  let aufgerufen = 0;
+  const gemeldet = [];
+  const b = await R.runRetention(deps({
+    listKandidaten: async () => [],
+    alleOids: async () => [],
+    raeumeDateien: () => { aufgerufen++; return { entfernt: ['darf-nicht-passieren'], probleme: [] }; },
+    logFehler: (e) => gemeldet.push(e),
+  }));
+
+  assert.equal(aufgerufen, 0, 'raeumeWaisenDateien darf gar nicht laufen');
+  assert.equal(b.dateienEntfernt, 0);
+  assert.equal(b.fehler.length, 1, 'der uebersprungene Schritt gehoert in den Bericht');
+  assert.equal(b.fehler[0].name, '(dateien)');
+  assert.equal(gemeldet.length, 1);
+  assert.equal(gemeldet[0].schweregrad, 'hoch');
+  assert.match(gemeldet[0].nachricht, /uebersprungen/);
+});
+
+test('runRetention: eine einzige verbleibende OID reicht als Plausibilitaet', async () => {
+  // Kein Schwellwert oberhalb von Null: die realen Ausfallmodi liefern exakt
+  // null Zeilen. Ein "mindestens N"-Wert waere eine Zahl ohne Grundlage, die
+  // auf einer kleinen oder frisch aufgesetzten Installation gegen die Nutzer
+  // arbeitet - und die Aufraeumung dort dauerhaft stilllegt.
+  let gesehen = null;
+  const b = await R.runRetention(deps({
+    listKandidaten: async () => [],
+    alleOids: async () => ['ein-einziger-nutzer'],
+    raeumeDateien: ({ existierendeOids }) => { gesehen = existierendeOids; return { entfernt: [], probleme: [] }; },
+  }));
+
+  assert.equal(gesehen.size, 1);
+  assert.deepEqual(b.fehler, []);
+});
+
 /* ── Lauf-Sperre ────────────────────────────────────────────────────────
    Pendant zu 'runBackup: zwei gleichzeitige Laeufe erzeugen nur einen
    Durchlauf' in berichtsheftBackup.test.js. Fuer einen unwiderruflichen

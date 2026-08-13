@@ -581,18 +581,35 @@ async function runRetention(deps = {}) {
   // Konten als Waisen und ihre IHK-PDFs würden gelöscht.
   try {
     const alle = await alleUserOids(deps);
-    for (const oid of verbleibend) alle.add(oid);
-    // Explizit entfernen, was DIESER Lauf gerade gelöscht hat — unabhängig
-    // davon, ob alleUserOids() (echte DB-Abfrage oder injizierter Snapshot)
-    // die Löschung bereits widerspiegelt. Ohne dieses Entfernen bliebe das
-    // IHK-PDF eines gerade gelöschten Kontos liegen, sobald die Quelle von
-    // alleUserOids() nicht in derselben Sekunde konsistent ist.
-    for (const oid of geloeschteOids) alle.delete(oid);
-    const res = raeumeDateien({ dir, existierendeOids: alle });
-    bericht.dateienEntfernt = res.entfernt.length;
-    for (const p of res.probleme) {
-      bericht.fehler.push({ oid: null, name: '(dateien)', fehler: p });
-      logFehler({ quelle: 'backend', nachricht: `[retention] Datei: ${p}` });
+    // Plausibilitaets-Untergrenze. 'SELECT Oid FROM dbo.Users' kann ERFOLGREICH
+    // eine leere Menge liefern — falscher DB_NAME in der .env nach einem
+    // Deployment, leere oder gerade wiederhergestellte Datenbank. Dann gilt
+    // JEDER ihk-imports-Ordner als Waise, und das sind vollstaendige
+    // IHK-Nachweis-PDFs aktiver Azubis: kein Archiv, keine Rotation, nirgends
+    // eine zweite Kopie. Das umgebende try/catch faengt nur eine werfende
+    // Abfrage, nicht diesen Fall — deshalb hier ein eigener Riegel.
+    // Bewusst KEINE Schwelle oberhalb von Null: die realen Ausfallmodi liefern
+    // exakt null Zeilen, waehrend jede feste Mindestzahl auf einer kleinen oder
+    // frisch aufgesetzten Installation die Aufraeumung dauerhaft stilllegte.
+    if (alle.size === 0) {
+      const nachricht = '[retention] Dateiaufraeumung uebersprungen: dbo.Users lieferte KEINE Oid. '
+        + 'Ohne Nutzerliste gaelte jeder ihk-imports-Ordner als Waise (falscher DB_NAME? leere Datenbank?).';
+      bericht.fehler.push({ oid: null, name: '(dateien)', fehler: nachricht });
+      logFehler({ quelle: 'backend', nachricht, schweregrad: 'hoch' });
+    } else {
+      for (const oid of verbleibend) alle.add(oid);
+      // Explizit entfernen, was DIESER Lauf gerade gelöscht hat — unabhängig
+      // davon, ob alleUserOids() (echte DB-Abfrage oder injizierter Snapshot)
+      // die Löschung bereits widerspiegelt. Ohne dieses Entfernen bliebe das
+      // IHK-PDF eines gerade gelöschten Kontos liegen, sobald die Quelle von
+      // alleUserOids() nicht in derselben Sekunde konsistent ist.
+      for (const oid of geloeschteOids) alle.delete(oid);
+      const res = raeumeDateien({ dir, existierendeOids: alle });
+      bericht.dateienEntfernt = res.entfernt.length;
+      for (const p of res.probleme) {
+        bericht.fehler.push({ oid: null, name: '(dateien)', fehler: p });
+        logFehler({ quelle: 'backend', nachricht: `[retention] Datei: ${p}` });
+      }
     }
   } catch (err) {
     bericht.fehler.push({ oid: null, name: '(dateien)', fehler: err.message });
