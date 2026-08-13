@@ -508,7 +508,11 @@ async function runRetention(deps = {}) {
     logFehler({ quelle: 'backend', nachricht: `[retention] Dateien: ${err.message}`, stack: err.stack });
   }
 
-  // Selbstprüfung: nachrangig, darf den Lauf nicht kippen.
+  // Selbstprüfung: nachrangig, darf den Lauf nicht kippen. Absichtlich NUR
+  // logFehler, kein bericht.fehler-Eintrag: es betrifft keine Person dieses
+  // Laufs, sondern ein strukturelles Versaeumnis (neue Tabelle vergessen) -
+  // ein Eintrag dort wuerde bei jedem Lauf doppelt gemeldet werden (Fehlerinbox
+  // UND Bericht). Nicht ohne Ruecksprache "fixen".
   try {
     const unbekannt = await pruefeTabellen();
     if (unbekannt.length) {

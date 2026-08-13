@@ -10,7 +10,14 @@ const os = require('node:os');
 const path = require('node:path');
 const R = require('./retention.js');
 
-const JETZT = new Date('2027-06-15T03:00:00.000Z');
+// Mittags-UTC bewusst gewaehlt: bei 12:00Z faellt das lokale Kalenderdatum auf
+// jeder Maschine von UTC-11 bis UTC+12 auf denselben Tag wie das UTC-Datum
+// (siehe Fix-Runde 1 zu Task 11) - jede Assertion, die JETZT direkt oder ueber
+// istFaellig/istVorwarnFaellig nutzt, ist damit unabhaengig von der Zeitzone
+// der ausfuehrenden Maschine. Vorher stand hier 03:00Z: unter TZ=America/
+// Los_Angeles faellt 03:00Z bereits auf den 14. lokal (20:00 Uhr Ortszeit) -
+// der istFaellig-Sperre-Test unten haette dort das falsche Ergebnis erwartet.
+const JETZT = new Date('2027-06-15T12:00:00.000Z');
 
 // Konto, dessen Frist an einem gewählten Tag abläuft.
 function konto(inaktivSeit, extra = {}) {
@@ -565,35 +572,44 @@ test('sendeVorwarnung: ohne Empfaenger kein Insert', async () => {
    DateUtil.toISODate (lokale Getter, kein toISOString()). Ein Vergleich mit
    jetzt.toISOString() nimmt bei bestimmten Uhrzeiten den falschen Kalendertag.
 
-   Eigener Zeitpunkt (nicht die JETZT-Fixture von oben): um 23:30 UTC liegt der
-   Ortstag in Mitteleuropa bereits einen Tag weiter - genau das Fenster, in dem
-   eine UTC-Berechnung danebenliegt. Die Erwartungswerte werden aus DIESEM
-   Zeitpunkt selbst über lokale Date-Getter (getFullYear/getMonth/getDate)
-   abgeleitet statt hart codiert - der Test ist damit auf jeder Maschine mit
-   sich selbst konsistent und bleibt bei jeder Zeitzone korrekt, auch wenn der
-   Unterschied zur alten UTC-Rechnung nur auf manchen Maschinen sichtbar wird. */
-const GRENZZEITPUNKT = new Date('2027-06-15T23:30:00.000Z');
-
-function lokalesDatum(d) {
-  const j = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, '0');
-  const t = String(d.getDate()).padStart(2, '0');
-  return `${j}-${m}-${t}`;
+   Ein echtes Date koennte das nur auf Maschinen zeigen, deren TZ-Offset im
+   fraglichen Fenster tatsaechlich vom UTC-Datum abweicht - auf UTC selbst und
+   auf jedem negativen Offset waeren alter (UTC-) und neuer (Orts-)Code
+   identisch, der Test also blind (Fix-Runde 1, Punkt 2). Deshalb hier ein
+   Kunst-"jetzt": lokale Datumsteile und toISOString()/getTime() weichen
+   ABSICHTLICH voneinander ab. sperreGreift liest nur die lokalen Getter,
+   istFaellig zusaetzlich getTime() fuer den Faelligkeits-Vergleich - beide
+   werden bedient, aber mit bewusst widersprüchlichen Werten. Damit prueft der
+   Test die Ortsdatum-Semantik auf JEDER Maschine, nicht nur auf manchen. */
+function jetztMitLokal(lokalJahr, lokalMonat, lokalTag, utcIso) {
+  return {
+    getFullYear: () => lokalJahr,
+    getMonth:    () => lokalMonat - 1,
+    getDate:     () => lokalTag,
+    getTime:     () => new Date(utcIso).getTime(),
+    toISOString: () => utcIso,
+  };
 }
-function lokalerVortag(d) {
-  return new Date(d.getFullYear(), d.getMonth(), d.getDate() - 1);
-}
 
-test('istFaellig: Sperre auf dem lokalen "heute" haelt noch zurueck', () => {
-  const heuteLokal = lokalesDatum(GRENZZEITPUNKT);
-  const u = konto('2020-01-01T00:00:00.000Z', { loeschsperreBis: heuteLokal });
-  assert.equal(R.istFaellig(u, { jetzt: GRENZZEITPUNKT }), false);
+// Lokal 16.06., UTC-Anteil bewusst 15.06. (23:30Z) - genau das Fenster, in dem
+// eine UTC-Berechnung den falschen Tag naehme. inaktivSeit liegt weit in der
+// Vergangenheit, damit der Faelligkeits-Vergleich (ziel <= jetzt.getTime())
+// nie die Ursache eines Fehlschlags sein kann - hier geht es ausschliesslich
+// um sperreGreift.
+test('istFaellig: Sperre auf dem lokalen "heute" haelt noch zurueck - unabhaengig von der Zeitzone', () => {
+  const jetzt = jetztMitLokal(2027, 6, 16, '2027-06-15T23:30:00.000Z');
+  const u = konto('2020-01-01T00:00:00.000Z', { loeschsperreBis: '2027-06-16' });
+  assert.equal(R.istFaellig(u, { jetzt }), false);
 });
 
-test('istFaellig: Sperre auf dem lokalen Vortag haelt NICHT mehr zurueck', () => {
-  const gesternLokal = lokalesDatum(lokalerVortag(GRENZZEITPUNKT));
-  const u = konto('2020-01-01T00:00:00.000Z', { loeschsperreBis: gesternLokal });
-  assert.equal(R.istFaellig(u, { jetzt: GRENZZEITPUNKT }), true);
+test('istFaellig: Sperre auf dem lokalen Vortag haelt NICHT mehr zurueck - unabhaengig von der Zeitzone', () => {
+  const jetzt = jetztMitLokal(2027, 6, 16, '2027-06-15T23:30:00.000Z');
+  const u = konto('2020-01-01T00:00:00.000Z', { loeschsperreBis: '2027-06-15' });
+  // Unter der alten UTC-Berechnung waere das UTC-Datum von jetzt ('2027-06-15')
+  // identisch mit dieser Sperre - sie wuerde faelschlich noch greifen. Dieser
+  // Test faellt also durch, sobald sperreGreift wieder auf toISOString()
+  // zurueckgestellt wird, unabhaengig von der Maschine, auf der er laeuft.
+  assert.equal(R.istFaellig(u, { jetzt }), true);
 });
 
 /* ── Orchestrierung ─────────────────────────────────────────────── */
@@ -708,4 +724,37 @@ test('runRetention: Dateiaufraeumung bekommt die OIDs der VERBLEIBENDEN Nutzer',
   assert.equal(gesehen.has('faellig'), false);
   assert.equal(gesehen.has('vorwarn'), true);
   assert.equal(gesehen.has('gesperrt'), true);
+});
+
+/* ── Lauf-Sperre ────────────────────────────────────────────────────────
+   Pendant zu 'runBackup: zwei gleichzeitige Laeufe erzeugen nur einen
+   Durchlauf' in berichtsheftBackup.test.js. Fuer einen unwiderruflichen
+   Loeschjob ist "zwei Laeufe kollidierten" kein Defekt, der in Produktion
+   entdeckt werden soll - der 03:00-Timer und ein evtl. manueller Aufruf
+   duerfen sich nicht ueberlappen, sonst verarbeiten beide Laeufe dieselben
+   Kandidaten doppelt (doppelte Loeschversuche, doppelte Vorwarnungen). */
+test('runRetentionSerialisiert: zwei gleichzeitige Laeufe erzeugen nur einen Durchlauf', async () => {
+  let aufrufe = 0;
+  const d = deps({
+    listKandidaten: async () => {
+      aufrufe++;
+      await new Promise((r) => setTimeout(r, 20));   // Lauf ueberlappen lassen
+      return kandidatenSatz();
+    },
+  });
+
+  const [a, b] = await Promise.all([
+    R.runRetentionSerialisiert(d),
+    R.runRetentionSerialisiert(d),
+  ]);
+
+  assert.equal(aufrufe, 1, 'der zweite Aufruf darf keinen zweiten Lauf starten');
+  assert.equal(a, b, 'beide Aufrufe bekommen denselben Bericht');
+  assert.equal(a.kandidaten, 3, 'der eine tatsaechliche Lauf verarbeitet die volle Kandidatenliste');
+
+  // Nach dem Lauf ist die Sperre wieder frei - ein dritter Aufruf startet
+  // einen neuen, eigenstaendigen Lauf.
+  const c = await R.runRetentionSerialisiert(d);
+  assert.equal(aufrufe, 2);
+  assert.notEqual(c, a);
 });
