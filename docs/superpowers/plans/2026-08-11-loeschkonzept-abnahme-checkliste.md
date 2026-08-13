@@ -1,8 +1,14 @@
 # Löschkonzept — manuelle Abnahme
 
 Diese Schritte verändern die Dev-Datenbank und löschen echte Zeilen. Sie sind
-bewusst nicht automatisiert. Voraussetzung: Migrationen 030-032 sind gelaufen,
-alle Unit-Tests grün, Server läuft über http://localhost:3000.
+bewusst nicht automatisiert. Voraussetzung: Migrationen 030-**033** sind
+gelaufen, alle Unit-Tests grün, Server läuft über http://localhost:3000.
+
+`033_belege_oid_nullable.sql` ist dabei nicht optional: `Kommentare.UserOid` und
+`Anhaenge.HochgeladenVon` waren `NOT NULL`, während Phase B sie auf `NULL` setzt.
+Ohne 033 scheitert die **ganze** Löschtransaktion für genau die Prüfer- und
+Ausbilder-Konten, um die es hier geht — und die Zusicherung in Abschnitt B,
+`Kommentare.UserOid IS NULL`, ist erst danach überhaupt erfüllbar.
 
 **Wichtig zu jedem „Lauf starten" unten:** Dies ist die geteilte Dev-Datenbank.
 `ermittleKandidaten()` liefert ohne Einschränkung **jeden** fälligen Kandidaten
@@ -60,7 +66,7 @@ bei der Abnahme nicht entfallen.
 - [ ] PDF-Export aus dem Profil des Azubis: die Gegenzeichnung nennt seinen Namen.
 - [ ] In der Datenbank: `Wochen.KorrigiertVon IS NULL` bei gefülltem
       `KorrigiertVonName`; `Kommentare.UserOid IS NULL` bei gefülltem `AutorName`;
-      `Zuweisungen.VerantwEmail = ''` bei gefülltem `VerantwName`.
+      `Zuweisungen.VerantwEmail IS NULL` bei gefülltem `VerantwName`.
 - [ ] Die Mitteilung des Azubis „Woche genehmigt" ist **noch da**, mit
       `FromUserOid IS NULL`.
 
@@ -194,6 +200,10 @@ nichts hängen geblieben ist:
           SELECT TOP 20 Id, Schweregrad, Nachricht FROM dbo.Fehlerberichte
            WHERE Nachricht LIKE '%[[]retention[]]%' ORDER BY Id DESC;
 
-      Erwartet: keine Zeilen. Erscheint „Tabellen mit Personenbindung, die der
-      Loeschjob NICHT kennt", muss das abgearbeitet werden, bevor der Job
-      produktiv geht.
+      Erwartet: keine Zeilen. Erscheint „Spalten mit Personenbindung, die der
+      Loeschjob NICHT kennt" (die Selbstprüfung vergleicht `Tabelle.Spalte`),
+      muss das abgearbeitet werden, bevor der Job produktiv geht — ein Treffer
+      bedeutet personenbezogene Daten, die keine Phase anfasst. Ebenso
+      abzuarbeiten: „Dateiaufraeumung uebersprungen" — dann hat
+      `SELECT Oid FROM dbo.Users` keine einzige Zeile geliefert (falscher
+      `DB_NAME`?), und der Schritt hat aus Sicherheitsgründen nichts getan.
