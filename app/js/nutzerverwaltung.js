@@ -111,6 +111,14 @@ document.addEventListener('DOMContentLoaded', async () => {
                 Aktiv
               </label>
             </div>
+            <div class="form-group">
+              <label class="form-label" for="nvLoeschsperre">
+                Löschung zurückhalten bis
+                <span class="form-hint">· leer = normale Frist (365 Tage nach Deaktivierung)</span>
+              </label>
+              <input class="form-control" type="date" id="nvLoeschsperre" name="loeschsperreBis">
+              <p class="form-hint" id="nvLoeschHinweis"></p>
+            </div>
             <div class="form-group" id="nvAusbilderBlock" hidden>
               <label class="form-label">Dauerhafte Ausbilder <span class="form-hint">· sehen &amp; korrigieren alle Wochen</span></label>
               <div class="nv-ausbilder-list" id="nvAusbilderList"></div>
@@ -148,6 +156,21 @@ document.addEventListener('DOMContentLoaded', async () => {
     document.getElementById('nvIstAusbilder').checked = !!u.istAusbilder;
     document.getElementById('nvIstAzubi').checked    = !!u.istAzubi;
     document.getElementById('nvAktiv').checked       = u.aktiv !== false;
+    document.getElementById('nvLoeschsperre').value  = u.loeschsperreBis || '';
+    // Löschdatum aus dem Stichtag ableiten (365 Tage, wie services/retention.js).
+    const hinweis = document.getElementById('nvLoeschHinweis');
+    if (u.aktiv !== false || !u.inaktivSeit) {
+      hinweis.textContent = u.aktiv !== false
+        ? 'Aktives Konto — die Frist läuft erst ab einer Deaktivierung.'
+        : 'Kein Stichtag hinterlegt — dieses Konto wird nicht automatisch gelöscht.';
+    } else {
+      const ziel = new Date(new Date(u.inaktivSeit).getTime() + 365 * 24 * 3600 * 1000);
+      // inaktivSeit/ziel.toISOString() sind volle ISO-Zeitstempel (mit Uhrzeit+Z);
+      // DateUtil.formatDate haengt selbst 'T00:00:00' an und erwartet daher ein
+      // reines YYYY-MM-DD — deshalb hier auf die ersten 10 Zeichen kuerzen, sonst
+      // entsteht ein "...ZT00:00:00"-String und toLocaleDateString liefert "Invalid Date".
+      hinweis.textContent = `Inaktiv seit ${DateUtil.formatDate(u.inaktivSeit.slice(0, 10))} · endgültige Löschung am ${DateUtil.formatDate(ziel.toISOString().slice(0, 10))}`;
+    }
 
     /* Dauerhafte Ausbilder nur bei Azubis (inkl. getaggter Azubis, z.B. Developer+Azubi) */
     const ausbilderBlock = document.getElementById('nvAusbilderBlock');
@@ -205,6 +228,9 @@ document.addEventListener('DOMContentLoaded', async () => {
       istAusbilder:     document.getElementById('nvIstAusbilder').checked,
       istAzubi:         document.getElementById('nvIstAzubi').checked,
       aktiv:            document.getElementById('nvAktiv').checked,
+      // Leerer Wert = keine Sperre. null statt '' senden, damit die Spalte
+      // wirklich geleert wird (sql.Date verträgt '' nicht).
+      loeschsperreBis:  document.getElementById('nvLoeschsperre').value || null,
     };
 
     try {
@@ -243,9 +269,24 @@ document.addEventListener('DOMContentLoaded', async () => {
   /* ── Render-Helfer ── */
   function renderRow(u) {
     const label = ROLE_LABELS[u.role] || esc(u.role);
-    const aktivBadge = u.aktiv !== false
-      ? `<span class="badge badge--genehmigt">aktiv</span>`
-      : `<span class="badge badge--grey">inaktiv</span>`;
+    // Bei inaktiven Konten das Löschdatum direkt an das Badge hängen: die
+    // Zeile ist der einzige Ort, an dem ein Developer die Fälligkeit sieht,
+    // ohne das Modal zu öffnen.
+    let aktivBadge;
+    if (u.aktiv !== false) {
+      aktivBadge = `<span class="badge badge--genehmigt">aktiv</span>`;
+    } else if (u.loeschsperreBis) {
+      aktivBadge = `<span class="badge badge--grey">inaktiv</span>`
+                 + `<div class="nv-table__email">Löschung zurückgehalten bis ${esc(DateUtil.formatDate(u.loeschsperreBis))}</div>`;
+    } else if (u.inaktivSeit) {
+      const ziel = new Date(new Date(u.inaktivSeit).getTime() + 365 * 24 * 3600 * 1000);
+      // ziel.toISOString() ist ein voller Zeitstempel; auf YYYY-MM-DD kuerzen,
+      // siehe Kommentar in openModal() (sonst "Invalid Date").
+      aktivBadge = `<span class="badge badge--grey">inaktiv</span>`
+                 + `<div class="nv-table__email">Löschung am ${esc(DateUtil.formatDate(ziel.toISOString().slice(0, 10)))}</div>`;
+    } else {
+      aktivBadge = `<span class="badge badge--grey">inaktiv</span>`;
+    }
     const sel = selected.has(u.oid);
     return `
       <tr data-oid="${esc(u.oid)}"${sel ? ' class="nv-row--selected"' : ''}>
