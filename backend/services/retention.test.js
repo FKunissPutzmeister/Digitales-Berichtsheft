@@ -666,15 +666,68 @@ test('sendeVorwarnung: schreibt je Empfaenger eine Mitteilung mit dem Betroffene
   assert.deepEqual(inserts.map(i => i.userOid), ['p1', 'p2']);
 });
 
-test('sendeVorwarnung: idempotent - bereits vorhandene Mitteilung verhindert ein zweites Senden', async () => {
-  let inserts = 0;
+/* Pool-Attrappe, die die Existenzpruefung EMPFAENGERGENAU beantwortet: genau
+   so verhaelt sich die Datenbank, sobald der Schluessel den Empfaenger
+   enthaelt. 'bereitsGewarnt' sind die Empfaenger, fuer die schon eine
+   Mitteilung dieses Typs zu diesem Absender existiert. */
+function vorwarnPool(bereitsGewarnt = []) {
+  const inserts = [];
   const pool = {
     request() {
+      const inputs = {};
       const api = {
-        input: () => api,
+        input(n, _t, v) { inputs[n] = v; return api; },
         query(text) {
-          if (/SELECT COUNT/i.test(text)) return Promise.resolve({ recordset: [{ n: 1 }] });
-          inserts++;
+          if (/SELECT COUNT/i.test(text)) {
+            const n = bereitsGewarnt.includes(inputs.userOid) ? 1 : 0;
+            return Promise.resolve({ recordset: [{ n }] });
+          }
+          inserts.push(inputs);
+          return Promise.resolve({ rowsAffected: [1] });
+        },
+      };
+      return api;
+    },
+  };
+  return { pool, inserts };
+}
+
+test('sendeVorwarnung: idempotent je EMPFAENGER - kein zweites Senden an denselben', async () => {
+  const { pool, inserts } = vorwarnPool(['p1']);
+
+  const ok = await R.sendeVorwarnung(USER, { pool, empfaenger: ['p1'] });
+
+  assert.equal(ok, false);
+  assert.equal(inserts.length, 0, 'sonst kaeme die Meldung 30 Naechte hintereinander');
+});
+
+test('sendeVorwarnung: ein NEUER Empfaenger wird gewarnt, obwohl andere es schon sind', async () => {
+  // Der Schluessel der Existenzpruefung enthielt nur Typ + Absender. Damit
+  // unterdrueckte die Zeile der ERSTEN Nacht die Warnung fuer ALLE Empfaenger:
+  // wer waehrend der 30 Tage KannPlanen oder die Rolle developer bekommt, wurde
+  // nie gewarnt.
+  const { pool, inserts } = vorwarnPool(['p1']);
+
+  const ok = await R.sendeVorwarnung(USER, { pool, empfaenger: ['p1', 'p2'] });
+
+  assert.equal(ok, true);
+  assert.deepEqual(inserts.map((i) => i.userOid), ['p2']);
+  assert.equal(inserts[0].typ, 'loeschung_geplant');
+  assert.equal(inserts[0].fromOid, USER.oid);
+});
+
+test('sendeVorwarnung: die Existenzpruefung bindet Typ, Absender UND Empfaenger', async () => {
+  const gefragt = [];
+  const pool = {
+    request() {
+      const inputs = {};
+      const api = {
+        input(n, _t, v) { inputs[n] = v; return api; },
+        query(text) {
+          if (/SELECT COUNT/i.test(text)) {
+            gefragt.push({ text, inputs: { ...inputs } });
+            return Promise.resolve({ recordset: [{ n: 0 }] });
+          }
           return Promise.resolve({ rowsAffected: [1] });
         },
       };
@@ -682,10 +735,19 @@ test('sendeVorwarnung: idempotent - bereits vorhandene Mitteilung verhindert ein
     },
   };
 
-  const ok = await R.sendeVorwarnung(USER, { pool, empfaenger: ['p1'] });
+  await R.sendeVorwarnung(USER, { pool, empfaenger: ['p1', 'p2'] });
 
-  assert.equal(ok, false);
-  assert.equal(inserts, 0, 'sonst kaeme die Meldung 30 Naechte hintereinander');
+  // Je Empfaenger eine eigene Pruefung — nicht eine fuer alle.
+  assert.equal(gefragt.length, 2);
+  assert.deepEqual(gefragt.map((g) => g.inputs.userOid), ['p1', 'p2']);
+  // Exakter Vergleich der WHERE-Klausel: 'FromUserOid' enthaelt 'UserOid' als
+  // Teilstring, ein /UserOid = @userOid/-Match waere also auch dann gruen, wenn
+  // der Empfaenger im Schluessel gar nicht vorkommt.
+  assert.equal(
+    gefragt[0].text.replace(/\s+/g, ' ').trim(),
+    'SELECT COUNT(*) AS n FROM dbo.Benachrichtigungen '
+      + 'WHERE Typ = @typ AND FromUserOid = @fromOid AND UserOid = @userOid'
+  );
 });
 
 test('sendeVorwarnung: ohne Empfaenger kein Insert', async () => {

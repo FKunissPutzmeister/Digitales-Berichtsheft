@@ -472,28 +472,37 @@ async function ermittleVorwarnEmpfaenger(poolOverride) {
    käme die Meldung 30 Nächte hintereinander.
    Der betroffene Nutzer steht in FromUserOid: sein Konto ist inaktiv und für
    Empfänger mit KannPlanen nicht in der Nutzerliste sichtbar, der Name muss
-   also aus dieser Referenz aufgelöst werden.
-   Rückgabe: true, wenn tatsächlich gesendet wurde. */
+   also aus dieser Referenz aufgelöst werden (Users-JOIN in
+   GET /api/benachrichtigungen).
+   Der Idempotenz-Schlüssel enthält den EMPFÄNGER, und die Prüfung steht
+   deshalb IN der Schleife: ohne UserOid im Schlüssel unterdrückt die Zeile der
+   ersten Nacht die Warnung für alle anderen Empfänger — wer während der 30 Tage
+   `KannPlanen` oder die Rolle `developer` bekommt, würde nie gewarnt.
+   Rückgabe: true, wenn mindestens eine Mitteilung tatsächlich geschrieben wurde. */
 async function sendeVorwarnung(user, { pool: poolOverride, empfaenger } = {}) {
   const ziele = (empfaenger || []).filter(Boolean);
   if (!ziele.length) return false;
   const pool = poolOverride || await getPool();
 
-  const vorhanden = await pool.request()
-    .input('typ',     sql.NVarChar(40), VORWARN_TYP)
-    .input('fromOid', sql.NVarChar(36), user.oid)
-    .query('SELECT COUNT(*) AS n FROM dbo.Benachrichtigungen WHERE Typ = @typ AND FromUserOid = @fromOid');
-  if (vorhanden.recordset[0].n > 0) return false;
-
+  let gesendet = 0;
   for (const userOid of ziele) {
+    const vorhanden = await pool.request()
+      .input('typ',     sql.NVarChar(40), VORWARN_TYP)
+      .input('fromOid', sql.NVarChar(36), user.oid)
+      .input('userOid', sql.NVarChar(36), userOid)
+      .query(`SELECT COUNT(*) AS n FROM dbo.Benachrichtigungen
+               WHERE Typ = @typ AND FromUserOid = @fromOid AND UserOid = @userOid`);
+    if (vorhanden.recordset[0].n > 0) continue;
+
     await pool.request()
       .input('userOid', sql.NVarChar(36), userOid)
       .input('typ',     sql.NVarChar(40), VORWARN_TYP)
       .input('fromOid', sql.NVarChar(36), user.oid)
       .query(`INSERT INTO dbo.Benachrichtigungen (UserOid, Typ, WocheId, FromUserOid)
               VALUES (@userOid, @typ, NULL, @fromOid)`);
+    gesendet++;
   }
-  return true;
+  return gesendet > 0;
 }
 
 /* ── Ein vollständiger Lauf ──────────────────────────────────────
