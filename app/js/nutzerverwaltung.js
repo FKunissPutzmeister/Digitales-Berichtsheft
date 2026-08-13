@@ -20,6 +20,14 @@ document.addEventListener('DOMContentLoaded', async () => {
   /* ── XSS-Schutz: alle user-supplied strings durch esc() jagen ── */
   const esc = window.escapeHtml;
 
+  /* Heutiges Datum als lokales YYYY-MM-DD — dieselbe Form wie loeschsperreBis,
+     damit der Stringvergleich chronologisch ist. NICHT toISOString() nehmen:
+     das ist UTC und würde die Grenze je nach lokaler Zeitzone um bis zu einen
+     Tag verschieben (Löschsperre greift NUR, wenn loeschsperreBis >= heute —
+     services/retention.js: sperreGreift). Einmal pro Seitenaufruf berechnet,
+     von openModal() und renderRow() geteilt (keine zweite Vergleichsform). */
+  const heuteStr = DateUtil.toISODate(new Date());
+
   /* Mehrfachauswahl: OIDs der markierten Zeilen; überlebt Re-Renders/Filter. */
   const selected = new Set();
 
@@ -169,7 +177,18 @@ document.addEventListener('DOMContentLoaded', async () => {
       // DateUtil.formatDate haengt selbst 'T00:00:00' an und erwartet daher ein
       // reines YYYY-MM-DD — deshalb hier auf die ersten 10 Zeichen kuerzen, sonst
       // entsteht ein "...ZT00:00:00"-String und toLocaleDateString liefert "Invalid Date".
-      hinweis.textContent = `Inaktiv seit ${DateUtil.formatDate(u.inaktivSeit.slice(0, 10))} · endgültige Löschung am ${DateUtil.formatDate(ziel.toISOString().slice(0, 10))}`;
+      const seit  = DateUtil.formatDate(u.inaktivSeit.slice(0, 10));
+      const zielS = DateUtil.formatDate(ziel.toISOString().slice(0, 10));
+      // Eine Sperre greift nur, solange sie das heutige Datum noch abdeckt
+      // (sperreGreift in services/retention.js) — sonst wird eine bereits
+      // abgelaufene Sperre fälschlich als aktiver Schutz angezeigt.
+      if (u.loeschsperreBis && u.loeschsperreBis >= heuteStr) {
+        hinweis.textContent = `Inaktiv seit ${seit} · Löschung zurückgehalten bis ${DateUtil.formatDate(u.loeschsperreBis)} (regulär ${zielS})`;
+      } else if (u.loeschsperreBis) {
+        hinweis.textContent = `Inaktiv seit ${seit} · Sperre abgelaufen am ${DateUtil.formatDate(u.loeschsperreBis)} · endgültige Löschung am ${zielS}`;
+      } else {
+        hinweis.textContent = `Inaktiv seit ${seit} · endgültige Löschung am ${zielS}`;
+      }
     }
 
     /* Dauerhafte Ausbilder nur bei Azubis (inkl. getaggter Azubis, z.B. Developer+Azubi) */
@@ -275,15 +294,24 @@ document.addEventListener('DOMContentLoaded', async () => {
     let aktivBadge;
     if (u.aktiv !== false) {
       aktivBadge = `<span class="badge badge--genehmigt">aktiv</span>`;
-    } else if (u.loeschsperreBis) {
+    } else if (u.loeschsperreBis && u.loeschsperreBis >= heuteStr) {
+      // Sperre greift nur, solange sie das heutige Datum noch abdeckt
+      // (sperreGreift in services/retention.js) — sonst würde eine bereits
+      // abgelaufene Sperre fälschlich als aktiver Schutz angezeigt.
       aktivBadge = `<span class="badge badge--grey">inaktiv</span>`
                  + `<div class="nv-table__email">Löschung zurückgehalten bis ${esc(DateUtil.formatDate(u.loeschsperreBis))}</div>`;
     } else if (u.inaktivSeit) {
       const ziel = new Date(new Date(u.inaktivSeit).getTime() + 365 * 24 * 3600 * 1000);
       // ziel.toISOString() ist ein voller Zeitstempel; auf YYYY-MM-DD kuerzen,
       // siehe Kommentar in openModal() (sonst "Invalid Date").
+      // Eine abgelaufene Sperre (loeschsperreBis < heuteStr) fällt hierhin durch;
+      // sichtbar als abgelaufen markieren statt sie stillschweigend zu verschweigen.
+      const abgelaufenZeile = u.loeschsperreBis
+        ? `<div class="nv-table__email">Sperre abgelaufen am ${esc(DateUtil.formatDate(u.loeschsperreBis))}</div>`
+        : '';
       aktivBadge = `<span class="badge badge--grey">inaktiv</span>`
-                 + `<div class="nv-table__email">Löschung am ${esc(DateUtil.formatDate(ziel.toISOString().slice(0, 10)))}</div>`;
+                 + `<div class="nv-table__email">Löschung am ${esc(DateUtil.formatDate(ziel.toISOString().slice(0, 10)))}</div>`
+                 + abgelaufenZeile;
     } else {
       aktivBadge = `<span class="badge badge--grey">inaktiv</span>`;
     }
