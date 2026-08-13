@@ -701,7 +701,13 @@ async function renderAusbilderDashboard(user) {
   // Verantwortliche bzw. Vertretung tatsächlich erhalten.
   const mittItems = (nurVerwaltung && meineAzubis.length === 0)
     ? await buildVerwaltungMitteilungen()
-    : buildAusbilderMitteilungen(allWochen, beurteilungen);
+    // Ausnahme vom nurVerwaltung-Gate, nur fuer diesen einen Typ: istAusbilder
+    // ist fuer JEDEN developer und JEDEN pruefer hart auf true gesetzt
+    // (buildReqUser) - ohne diese Ausnahme saehen genau die Empfaenger der
+    // Loesch-Vorwarnung (ermittleVorwarnEmpfaenger: KannPlanen ODER
+    // Role='developer') sie nie. Alle anderen Verwaltungstypen bleiben gegated.
+    : [...buildAusbilderMitteilungen(allWochen, beurteilungen),
+       ...await buildVerwaltungMitteilungen(['loeschung_geplant'])].sort((a, b) => b.ts - a.ts);
   const mittListHtml = mittItems.length
     ? renderActivityRows(mittItems.slice(0, MITT_CAP))
     : '<div class="empty-state" style="padding:var(--sp-8)"><p class="empty-state__text">Noch keine Mitteilungen.</p></div>';
@@ -1489,12 +1495,14 @@ const VERWALTUNG_MT_TYPEN = {
                                href: () => 'nutzerverwaltung.html' },
 };
 
-async function buildVerwaltungMitteilungen() {
+// nurTypen (optional): beschraenkt das Ergebnis auf diese Typen, statt auf
+// alle Schluessel von VERWALTUNG_MT_TYPEN - siehe Aufrufstelle unten.
+async function buildVerwaltungMitteilungen(nurTypen) {
   let roh = [];
   // Fehlschlag darf das Dashboard nicht kosten – dann eben eine leere Kachel.
   try { roh = await DB.getBenachrichtigungenFuerUser(); } catch (_) { return []; }
   return roh
-    .filter(b => VERWALTUNG_MT_TYPEN[b.type])
+    .filter(b => VERWALTUNG_MT_TYPEN[b.type] && (!nurTypen || nurTypen.includes(b.type)))
     .map(b => {
       const t = VERWALTUNG_MT_TYPEN[b.type];
       const titel = escapeHtml(t.titel);

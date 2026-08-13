@@ -115,10 +115,12 @@ document.addEventListener('DOMContentLoaded', async () => {
                                  href: () => 'nutzerverwaltung.html' },
   };
 
-  async function buildVerwaltungItems() {
+  // nurTypen (optional): beschraenkt das Ergebnis auf diese Typen, statt auf
+  // alle Schluessel von VERWALTUNG_TYPEN - siehe Aufrufstelle unten.
+  async function buildVerwaltungItems(nurTypen) {
     let roh = [];
     try { roh = await DB.getBenachrichtigungenFuerUser(); } catch (_) { return []; }
-    return roh.filter(b => VERWALTUNG_TYPEN[b.type]).map(b => {
+    return roh.filter(b => VERWALTUNG_TYPEN[b.type] && (!nurTypen || nurTypen.includes(b.type))).map(b => {
       const t = VERWALTUNG_TYPEN[b.type];
       const typeKey = b.type.split('_')[0];   // versetzung | vertretung | beurteilung
       return {
@@ -177,9 +179,18 @@ document.addEventListener('DOMContentLoaded', async () => {
       items = await buildAzubiItems();
     } else {
       items = await buildAusbilderItems();
-      // Verwaltungszugänge: Benachrichtigungs-Feed dazu (bei ihnen ist der
-      // Wochen-Feed leer, sonst ergänzt er ihn nur).
-      if (nurVerwaltung) items = [...items, ...await buildVerwaltungItems()];
+      if (nurVerwaltung) {
+        // Verwaltungszugänge: Benachrichtigungs-Feed dazu (bei ihnen ist der
+        // Wochen-Feed leer, sonst ergänzt er ihn nur).
+        items = [...items, ...await buildVerwaltungItems()];
+      } else {
+        // Ausnahme vom nurVerwaltung-Gate, nur fuer diesen einen Typ: istAusbilder
+        // ist fuer JEDEN developer und JEDEN pruefer hart auf true gesetzt
+        // (buildReqUser) - ohne diese Ausnahme saehen genau die Empfaenger der
+        // Loesch-Vorwarnung (ermittleVorwarnEmpfaenger: KannPlanen ODER
+        // Role='developer') sie nie. Alle anderen Verwaltungstypen bleiben gegated.
+        items = [...items, ...await buildVerwaltungItems(['loeschung_geplant'])];
+      }
       items.sort((x, y) => y.ts - x.ts);
     }
   } catch (e) {
