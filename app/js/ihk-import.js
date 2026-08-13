@@ -496,7 +496,9 @@ const IhkImport = (() => {
       // in der IHK-Plattform bereits genehmigt war – und ein erneuter Import
       // derselben PDF darf eine importierte Woche wieder überschreiben.
       // Nicht überschreibbar ist nur, was in DIESER App geprüft wurde (der
-      // Server blockt das über den KorrigiertVon-Stempel).
+      // Server blockt das über den Korrektur-Stempel: KorrigiertVon ODER
+      // KorrigiertVonName — der Retention-Job nullt die OID und lässt nach
+      // 365 Tagen nur den Namen stehen, siehe services/zugriff.js schreibGate).
       const woche = existing || {
         azubiId:       _user.id,
         kw:            pw.kw,

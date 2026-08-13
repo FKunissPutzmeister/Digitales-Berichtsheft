@@ -141,11 +141,19 @@ router.post('/', async (req, res) => {
         .input('azubiOid', sql.NVarChar(36), azubiOid)
         .input('kw',       sql.TinyInt,      kw)
         .input('jahr',     sql.SmallInt,     jahr)
-        .query(`SELECT Id, Status, KorrigiertVon FROM dbo.Wochen WITH (UPDLOCK, HOLDLOCK)
+        // KorrigiertVonName MUSS mitgelesen werden: der Retention-Job nullt
+        // KorrigiertVon und lässt nur diesen Namen stehen (retention.js PHASE_B).
+        // Ohne ihn verliert schreibGate den Überschreibschutz für jede Woche,
+        // deren Gegenzeichner inzwischen gelöscht wurde.
+        .query(`SELECT Id, Status, KorrigiertVon, KorrigiertVonName FROM dbo.Wochen WITH (UPDLOCK, HOLDLOCK)
                  WHERE AzubiOid = @azubiOid AND KW = @kw AND Jahr = @jahr`)).recordset[0] || null;
 
       const gate = schreibGate(
-        vorhanden ? { status: vorhanden.Status, korrigiertVon: vorhanden.KorrigiertVon } : null,
+        vorhanden ? {
+          status: vorhanden.Status,
+          korrigiertVon: vorhanden.KorrigiertVon,
+          korrigiertVonName: vorhanden.KorrigiertVonName,
+        } : null,
         { migration, wunschStatus: status },
       );
       if (!gate.ok) {

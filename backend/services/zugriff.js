@@ -133,7 +133,10 @@ const GESPERRTE_STATUS = ['freigegeben', 'erstgenehmigt', 'genehmigt'];
 // Darf INHALT (Wochentexte + Tage) geschrieben werden, und welchen Status trägt
 // die Woche danach? Die eine Wahrheit für POST /api/wochen.
 //
-//   vorhanden = null | { status, korrigiertVon }   – aktueller DB-Zustand
+//   vorhanden = null | { status, korrigiertVon, korrigiertVonName }
+//                     – aktueller DB-Zustand. BEIDE Korrektur-Marker gehören
+//                       dazu: der Retention-Job nullt KorrigiertVon und behält
+//                       nur KorrigiertVonName (retention.js PHASE_B).
 //   migration = true  – Datenübernahme (IHK-PDF-Import, JSON-Restore). Nur die
 //                       bringt einen FREMDEN Status mit; normales Speichern darf
 //                       den Status NIE setzen (sonst genehmigt sich der Azubi selbst).
@@ -149,9 +152,15 @@ function schreibGate(vorhanden, { migration = false, wunschStatus } = {}) {
   }
   // Eine Migration darf über einen importierten Status hinwegschreiben (erneuter
   // Import derselben PDF), aber NIEMALS über eine in DIESER App erteilte Abnahme.
-  // Die trägt immer einen KorrigiertVon-Stempel (PATCH /:id/status, korrektur:true);
-  // importierte Wochen tragen ihn nie.
-  if (gesperrt && vorhanden.korrigiertVon) {
+  // Die trägt einen Korrektur-Stempel (PATCH /:id/status, korrektur:true);
+  // importierte Wochen tragen keinen.
+  //
+  // ZWEI Marker, weil der Retention-Job KorrigiertVon nullt und ausschließlich
+  // den denormalisierten KorrigiertVonName stehen lässt (retention.js PHASE_B).
+  // Nur die OID zu prüfen hieße: sobald der gegenzeichnende Prüfer nach 365
+  // Tagen gelöscht ist, dürfte ein noch aktiver Azubi dieselbe IHK-PDF erneut
+  // importieren und Inhalt UND Status der gegengezeichneten Woche überschreiben.
+  if (gesperrt && (vorhanden.korrigiertVon || vorhanden.korrigiertVonName)) {
     return { ok: false, grund: `Woche wurde in dieser App bereits geprüft (${alt}) und kann nicht per Import überschrieben werden.` };
   }
   if (!migration) return { ok: true, status: alt || 'offen' };

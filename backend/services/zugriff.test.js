@@ -304,6 +304,31 @@ test('schreibGate: Migration schreibt NICHT über eine hier erteilte Abnahme', (
   }
 });
 
+test('schreibGate: Migration schreibt NICHT ueber eine Abnahme, die nur noch den Namen traegt', () => {
+  // Der Retention-Job nullt KorrigiertVon und behaelt KorrigiertVonName
+  // (PHASE_B, services/retention.js). Ohne diesen zweiten Marker verlaeuft der
+  // Schreibschutz einer in DIESER App gegengezeichneten Woche ins Leere, sobald
+  // der Pruefer geloescht ist: ein noch aktiver Azubi koennte dieselbe IHK-PDF
+  // erneut importieren und Inhalt UND Status der Woche ueberschreiben.
+  for (const status of ['freigegeben', 'erstgenehmigt', 'genehmigt']) {
+    const g = schreibGate(
+      { status, korrigiertVon: null, korrigiertVonName: 'Muster, Max' },
+      { migration: true, wunschStatus: 'offen' },
+    );
+    assert.equal(g.ok, false, `${status} + KorrigiertVonName muss blocken`);
+    assert.match(g.grund, /bereits geprüft/);
+  }
+});
+
+test('schreibGate: Migration ueberschreibt eine importierte Woche ohne beide Marker', () => {
+  // Gegenprobe zum Test darueber: fehlen BEIDE Marker, stammt die Abnahme aus
+  // der IHK-Plattform und ein erneuter Import darf sie geradeziehen.
+  assert.deepStrictEqual(
+    schreibGate({ status: 'genehmigt', korrigiertVon: null, korrigiertVonName: null },
+      { migration: true, wunschStatus: 'genehmigt' }),
+    { ok: true, status: 'genehmigt' });
+});
+
 test('schreibGate: Migration weist einen unbekannten Status ab', () => {
   const g = schreibGate(null, { migration: true, wunschStatus: 'irgendwas' });
   assert.equal(g.ok, false);
