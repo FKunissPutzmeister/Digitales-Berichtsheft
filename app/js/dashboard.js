@@ -1490,8 +1490,10 @@ const VERWALTUNG_MT_TYPEN = {
                                href: b => `beurteilung.html?zuw=${encodeURIComponent(b.zuweisungId || '')}` },
   // Retention-Job: ein Konto wird in höchstens 30 Tagen endgültig gelöscht.
   // Der Betroffene steht in FromUserOid — sein Konto ist inaktiv und in der
-  // Nutzerliste nicht sichtbar, deshalb gehört der Name in den Titel.
-  loeschung_geplant:         { type: 'yellow',  titel: 'Konto wird bald gelöscht',
+  // Nutzerliste nicht sichtbar, deshalb gehört der Name in den Titel. Er kommt
+  // über den Users-JOIN in GET /api/benachrichtigungen als fromUserName.
+  loeschung_geplant:         { type: 'yellow',
+                               titel: b => `Konto wird bald gelöscht: ${displayName(b.fromUserName) || 'unbekanntes Konto'}`,
                                href: () => 'nutzerverwaltung.html' },
 };
 
@@ -1505,7 +1507,10 @@ async function buildVerwaltungMitteilungen(nurTypen) {
     .filter(b => VERWALTUNG_MT_TYPEN[b.type] && (!nurTypen || nurTypen.includes(b.type)))
     .map(b => {
       const t = VERWALTUNG_MT_TYPEN[b.type];
-      const titel = escapeHtml(t.titel);
+      // titel darf eine Funktion sein, wenn der Text Daten der Mitteilung
+      // braucht (z. B. den Namen des betroffenen Kontos bei loeschung_geplant).
+      // escapeHtml bleibt in JEDEM Fall die letzte Station vor dem DOM.
+      const titel = escapeHtml(typeof t.titel === 'function' ? t.titel(b) : t.titel);
       return {
         ts:   b.timestamp || 0,
         type: t.type,

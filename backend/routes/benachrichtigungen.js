@@ -9,9 +9,16 @@ router.get('/', async (req, res) => {
     const result = await pool.request()
       .input('userOid', sql.NVarChar(36), req.user.oid)
       .query(`
-        SELECT b.*, w.KW, w.Jahr, w.AzubiOid
+        -- FromUserName kommt aus dem zweiten JOIN, weil manche Mitteilungen den
+        -- Namen des Absenders IM TEXT brauchen. Bei 'loeschung_geplant' ist der
+        -- Absender das Konto, das geloescht werden soll: es ist inaktiv und
+        -- damit fuer Empfaenger mit KannPlanen gar nicht in der Nutzerliste
+        -- sichtbar (routes/users.js) — ohne den Namen hier ist die Vorwarnung
+        -- nicht zuordenbar und deshalb unbrauchbar.
+        SELECT b.*, w.KW, w.Jahr, w.AzubiOid, fu.Name AS FromUserName
         FROM dbo.Benachrichtigungen b
         LEFT JOIN dbo.Wochen w ON w.Id = b.WocheId
+        LEFT JOIN dbo.Users fu ON fu.Oid = b.FromUserOid
         WHERE b.UserOid = @userOid
         ORDER BY b.Timestamp DESC
       `);

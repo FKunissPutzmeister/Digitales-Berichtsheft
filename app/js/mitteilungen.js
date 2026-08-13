@@ -111,7 +111,10 @@ document.addEventListener('DOMContentLoaded', async () => {
                                  href: b => `beurteilung.html?zuw=${encodeURIComponent(b.zuweisungId || '')}` },
     // Spiegelt VERWALTUNG_MT_TYPEN in dashboard.js — fehlt der Typ hier,
     // rendert die Mitteilung auf dieser Seite leer, ohne Fehlermeldung.
-    loeschung_geplant:         { tone: 'warn',    label: 'Löschung',    titel: 'Konto wird bald gelöscht',
+    // Der Name des betroffenen (inaktiven, in der Nutzerliste unsichtbaren)
+    // Kontos gehört in den Text; er kommt als fromUserName aus dem Users-JOIN.
+    loeschung_geplant:         { tone: 'warn',    label: 'Löschung',
+                                 titel: b => `Konto wird bald gelöscht: ${displayName(b.fromUserName) || 'unbekanntes Konto'}`,
                                  href: () => 'nutzerverwaltung.html' },
   };
 
@@ -122,10 +125,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     try { roh = await DB.getBenachrichtigungenFuerUser(); } catch (_) { return []; }
     return roh.filter(b => VERWALTUNG_TYPEN[b.type] && (!nurTypen || nurTypen.includes(b.type))).map(b => {
       const t = VERWALTUNG_TYPEN[b.type];
-      const typeKey = b.type.split('_')[0];   // versetzung | vertretung | beurteilung
+      const typeKey = b.type.split('_')[0];   // versetzung | vertretung | beurteilung | loeschung
       return {
         ts: b.timestamp || 0, tone: t.tone, typeKey, typeLabel: t.label,
-        title: esc(t.titel),
+        // titel darf eine Funktion sein (Text mit Daten der Mitteilung);
+        // esc() bleibt in jedem Fall die letzte Station vor dem DOM.
+        title: esc(typeof t.titel === 'function' ? t.titel(b) : t.titel),
         meta: relTime(b.timestamp),
         gelesen: !!b.gelesen,
         notifId: b.id,

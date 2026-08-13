@@ -380,8 +380,13 @@ aktiven Azubis entwertet, sobald sein damaliger Prüfer das Unternehmen verläss
 Dieser Name verschwindet, wenn das Heft selbst gelöscht wird.
 
 30 Tage vor der Löschung erhalten Ausbildungsleitung und Entwickler eine
-Mitteilung. Ein Einzelfall lässt sich in der Nutzerverwaltung über „Löschung
-zurückhalten bis" aufschieben (laufende Prüfungsanfechtung, Rechtsstreit).
+Mitteilung, die das betroffene Konto mit **Namen** nennt. Für die
+Ausbildungsleitung ist sie **reine Information** — sie kann die Löschung nicht
+selbst aufschieben: Das Feld „Löschung zurückhalten bis" steht in der
+Nutzerverwaltung, und die ist ausschließlich für Entwickler-Konten zugänglich.
+Soll ein Einzelfall zurückgehalten werden (laufende Prüfungsanfechtung,
+Rechtsstreit), muss die Ausbildungsleitung das der IT melden; dort wird das Datum
+eingetragen. Für die Meldung bleiben nach der Vorwarnung 30 Tage.
 
 Praktischer Rat unverändert: den PDF-Ausbildungsnachweis **vor** dem Austritt
 erzeugen — danach kann der Azubi ihn nicht mehr selbst exportieren, und nach

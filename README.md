@@ -173,11 +173,14 @@ Der Parser (`ihk-parser.js`) ist ohne DOM Node-testbar.
   der **Name** an Belegen in fremden Heften (Gegenzeichnung, Kommentar-Autor,
   Ansprechpartner) — ohne ihn wäre der Ausbildungsnachweis eines noch aktiven
   Azubis entwertet, sobald sein damaliger Prüfer ausscheidet. 30 Tage vorher
-  geht eine Mitteilung an Ausbildungsleitung und Entwickler; Einzelfälle lassen
-  sich in der Nutzerverwaltung über „Löschung zurückhalten bis" aufschieben.
+  geht eine Mitteilung mit dem **Namen** des betroffenen Kontos an
+  Ausbildungsleitung (`KannPlanen`) und Entwickler — für die Ausbildungsleitung
+  **rein informativ**. Aufschieben kann einen Einzelfall nur ein `developer`
+  über „Löschung zurückhalten bis" in der Nutzerverwaltung; sowohl die Seite als
+  auch der Endpunkt `PATCH /api/users/:oid` sind developer-only.
   Demo-Konten (`.demo`) sind ausgenommen. Kein Start-Lauf beim Serverstart
   (`node --watch` würde sonst bei jeder Code-Änderung löschen), keine Archiv-
-  Kopie. Voraussetzung: Migrationen 030-032. Siehe
+  Kopie. Voraussetzung: Migrationen 030-033. Siehe
   `backend/services/retention.js` und
   `docs/superpowers/specs/2026-08-11-loeschkonzept-inaktive-nutzer-design.md`.
 - **Namensanzeige**: Personennamen werden überall via `displayName()` als

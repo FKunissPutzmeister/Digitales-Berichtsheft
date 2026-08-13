@@ -290,6 +290,11 @@ function normalizeBenachrichtigung(b) {
     year: b.Jahr,
     azubiId: b.AzubiOid,
     fromUserId: b.FromUserOid,
+    // Name des Absenders aus dem Users-JOIN in GET /api/benachrichtigungen
+    // (DB-Form "Nachname, Vorname" – für die Anzeige durch displayName()
+    // drehen). Gebraucht von Typen, deren Text den Namen tragen muss, weil das
+    // betroffene Konto in der Nutzerliste nicht auftaucht: loeschung_geplant.
+    fromUserName: b.FromUserName ?? '',
     timestamp: b.Timestamp ? new Date(b.Timestamp).getTime() : null,
     gelesen: !!b.Gelesen,
   };
