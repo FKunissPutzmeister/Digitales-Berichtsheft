@@ -10,6 +10,28 @@
 
 **Spec:** [docs/superpowers/specs/2026-08-11-loeschkonzept-inaktive-nutzer-design.md](../specs/2026-08-11-loeschkonzept-inaktive-nutzer-design.md)
 
+> **Nachtrag (2026-08-13, nach dem Abschluss-Review).** Dieser Plan ist ab hier
+> ein historisches Dokument: er beschreibt, was gebaut werden *sollte*. Drei
+> Dinge weichen im Endstand bewusst ab, und die Snippets unten benutzen noch die
+> alten Namen:
+>
+> - `BEKANNTE_TABELLEN` heißt jetzt `BEKANNTE_SPALTEN`, `pruefeUnbekannteTabellen`
+>   heißt `pruefeUnbekannteSpalten`. Die Selbstprüfung vergleicht
+>   `Tabelle.Spalte`-Paare statt nur Tabellennamen — der Tabellenvergleich war
+>   blind für eine neue personenbezogene Spalte auf einer bereits bekannten
+>   Tabelle, und genau so ist `Vertretungen.ErstelltVon` durch zwölf Reviews
+>   gekommen. **Ein aus diesem Plan kopiertes `R.pruefeUnbekannteTabellen()`
+>   wirft heute einen `TypeError`.**
+> - Phase B setzt `Zuweisungen.VerantwEmail` auf `NULL`, nicht auf `''`.
+> - Migration **033** kam hinzu: `Kommentare.UserOid` und
+>   `Anhaenge.HochgeladenVon` waren `NOT NULL`, wodurch Phase B mit Fehler 515
+>   die gesamte Löschtransaktion zurückgerollt hätte — für genau die
+>   Personengruppe, für die das Drei-Phasen-Modell gebaut wurde.
+>
+> Verbindlich sind der Code, [README.md](../../../README.md),
+> [docs/funktionsweise.md](../../funktionsweise.md) und die
+> [Abnahme-Checkliste](2026-08-11-loeschkonzept-abnahme-checkliste.md).
+
 ## Global Constraints
 
 - **Frist:** `LOESCHFRIST_TAGE = 365`, `VORWARN_TAGE = 30` — als Konstanten im Modul, **keine** `.env`-Variable. Testbarkeit läuft über injizierte Parameter `jetzt` / `fristTage` / `vorwarnTage`.
