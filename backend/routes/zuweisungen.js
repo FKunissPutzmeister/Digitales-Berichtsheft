@@ -247,6 +247,8 @@ router.patch('/:id', nurPlaner, async (req, res) => {
       'versetzung_geaendert', req.user.oid);
     res.json({ ok: true });
   } catch (err) {
+    logError({ quelle: 'backend', nachricht: `[zuweisungen] patch: ${err.message}`, stack: err.stack,
+      kontext: { route: req.path, methode: req.method }, benutzerOid: req.user && req.user.oid, benutzerName: req.user && req.user.name });
     res.status(500).json({ error: err.message });
   }
 });
