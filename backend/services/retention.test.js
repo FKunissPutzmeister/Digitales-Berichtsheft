@@ -10,13 +10,21 @@ const os = require('node:os');
 const path = require('node:path');
 const R = require('./retention.js');
 
-// Mittags-UTC bewusst gewaehlt: bei 12:00Z faellt das lokale Kalenderdatum auf
-// jeder Maschine von UTC-11 bis UTC+12 auf denselben Tag wie das UTC-Datum
-// (siehe Fix-Runde 1 zu Task 11) - jede Assertion, die JETZT direkt oder ueber
-// istFaellig/istVorwarnFaellig nutzt, ist damit unabhaengig von der Zeitzone
-// der ausfuehrenden Maschine. Vorher stand hier 03:00Z: unter TZ=America/
-// Los_Angeles faellt 03:00Z bereits auf den 14. lokal (20:00 Uhr Ortszeit) -
+// Mittags-UTC bewusst gewaehlt: bei 12:00Z faellt das lokale Kalenderdatum von
+// UTC-12 bis UTC+11:59 auf denselben Tag wie das UTC-Datum. Ab UTC+12 nicht
+// mehr - dort ist 12:00Z bereits Mitternacht des FOLGETAGS (Neuseeland +12/+13,
+// Chatham +12:45, Kiritimati +14). Und weil die real vorkommenden Offsets von
+// UTC-12 bis UTC+14 reichen, also 26 Stunden ueberspannen, kann KEIN fester
+// Zeitpunkt universell sicher sein: 24 Stunden Kalendertag decken 26 Stunden
+// Offset-Spanne nicht ab. 12:00Z ist nur die breiteste erreichbare Auswahl und
+// deckt jede Zeitzone ab, in der dieses Projekt betrieben wird.
+// Vorher stand hier 03:00Z, was schon in Europa/Amerika bricht: unter
+// TZ=America/Los_Angeles faellt 03:00Z auf den 14. lokal (20:00 Ortszeit) -
 // der istFaellig-Sperre-Test unten haette dort das falsche Ergebnis erwartet.
+// GENAU DESHALB benutzen die beiden kritischen Grenztests der Sperre unten
+// (sperreGreift, Ortsdatum) kein echtes Date, sondern ein duck-typed 'jetzt'
+// mit absichtlich widerspruechlichen lokalen und UTC-Anteilen - nur so ist die
+// Zusicherung von der Zeitzone der ausfuehrenden Maschine wirklich unabhaengig.
 const JETZT = new Date('2027-06-15T12:00:00.000Z');
 
 // Konto, dessen Frist an einem gewählten Tag abläuft.
@@ -200,8 +208,11 @@ test('PHASE_B: Wochen behalten den Gegenzeichner-Namen und verlieren die OID', (
 
 test('PHASE_B: Zuweisungen verlieren die E-Mail - sonst waere die Loeschung wirkungslos', () => {
   const e = R.PHASE_B.find(x => x.tabelle === 'Zuweisungen');
-  assert.match(e.anweisung, /VerantwName = COALESCE\(VerantwName, @name\)/);
-  assert.match(e.anweisung, /VerantwEmail = ''/);
+  // NULL, nicht '': die Spalte ist nullable, POST/PATCH schreiben fuer
+  // "kein Verantwortlicher" ebenfalls NULL, und ein '' koennte ueber
+  // LOWER(v.Email) = LOWER(z.VerantwEmail) an eine Users-Zeile mit leerer
+  // E-Mail andocken. Exakter Vergleich der ganzen Anweisung.
+  assert.equal(e.anweisung, 'SET VerantwName = COALESCE(VerantwName, @name), VerantwEmail = NULL');
 });
 
 test('PHASE_B: Kommentare behalten den Autornamen und verlieren die OID', () => {

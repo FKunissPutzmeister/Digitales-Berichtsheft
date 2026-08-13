@@ -156,7 +156,11 @@ const PHASE_B = [
     // dieses Leeren wäre die Löschung wirkungslos. Nebeneffekt gewollt: der
     // befristete Lesezugriff hängt an dieser E-Mail (zugriff.js), sie darf
     // keinem neuen Träger derselben Adresse Zugriff geben.
-    anweisung: "SET VerantwName = COALESCE(VerantwName, @name), VerantwEmail = ''",
+    // NULL, nicht '': die Spalte ist nullable, und POST/PATCH /api/zuweisungen
+    // schreiben für "kein Verantwortlicher" ohnehin NULL. Ein '' könnte über
+    // `LOWER(v.Email) = LOWER(z.VerantwEmail)` (routes/zuweisungen.js) an eine
+    // Users-Zeile mit leerer E-Mail andocken — NULL vergleicht nie gleich.
+    anweisung: 'SET VerantwName = COALESCE(VerantwName, @name), VerantwEmail = NULL',
     bedingung: 'LOWER(VerantwEmail) = LOWER(@email)',
   },
   {
