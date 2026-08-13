@@ -309,6 +309,21 @@ function baueAnweisungen(_user) {
    deps.tx/deps.request sind für Tests; produktiv wird beides aus dem Pool
    gebaut. Transaktions-Muster wie ausbilderAzubis.js setFuerAzubi. */
 async function loescheNutzer(user, deps = {}) {
+  /* Eigener Wachposten. ermittleKandidaten filtert bereits, aber DAS ist der
+     unwiderrufliche Einstiegspunkt: er loescht bisher, was man ihm gibt. Die
+     Abnahme-Checkliste laesst einen Operator eine listKandidaten-Filterzeile
+     von Hand schreiben — eine Zeile ueber einer echten Loeschung.
+     BEWUSST nur diese zwei Bedingungen: ein gesperrtes Konto ist nach Ablauf
+     der Sperre legitim loeschbar, und die Frist erneut zu pruefen waere die
+     Aufgabe von istFaellig doppelt (und damit eine zweite Wahrheit). */
+  if (!user || !user.oid) throw new Error('loescheNutzer: kein Nutzer uebergeben.');
+  if (user.aktiv) {
+    throw new Error(`loescheNutzer: Konto ${user.oid} ist aktiv und wird nicht geloescht.`);
+  }
+  if (istDemoKonto(user.email)) {
+    throw new Error(`loescheNutzer: Konto ${user.oid} ist ein Demo-Konto und wird nie geloescht.`);
+  }
+
   const pool = deps.pool || (deps.tx ? null : await getPool());
   const tx = deps.tx || new sql.Transaction(pool);
   const request = deps.request || (() => new sql.Request(tx));

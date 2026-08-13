@@ -455,6 +455,46 @@ test('loescheNutzer: ein Fehler rollt die gesamte Transaktion zurueck', async ()
   assert.ok(!ausgefuehrt.includes('COMMIT'));
 });
 
+/* Eigener Wachposten am unwiderruflichen Einstiegspunkt. ermittleKandidaten
+   filtert, aber loescheNutzer loescht bisher jedes Objekt, das man ihm gibt —
+   und die Abnahme-Checkliste laesst einen Operator eine listKandidaten-Filter-
+   zeile HANDSCHREIBEN, eine Zeile ueber einer echten Loeschung. Bewusst nur
+   diese zwei Bedingungen: eine Sperre laeuft irgendwann legitim ab, und die
+   Frist erneut zu pruefen waere die Aufgabe von istFaellig doppelt. */
+test('loescheNutzer: ein AKTIVES Konto wird abgewiesen, nicht geloescht', async () => {
+  let queries = 0;
+  const tx = { begin: async () => { queries++; }, commit: async () => {}, rollback: async () => {} };
+  const request = () => { const api = { input: () => api, query: () => { queries++; return Promise.resolve({ rowsAffected: [1] }); } }; return api; };
+
+  await assert.rejects(
+    () => R.loescheNutzer({ ...USER, aktiv: true }, { tx, request }),
+    /aktiv/i,
+  );
+  assert.equal(queries, 0, 'die Transaktion darf nicht einmal beginnen');
+});
+
+test('loescheNutzer: ein Demo-Konto wird abgewiesen, nicht geloescht', async () => {
+  let queries = 0;
+  const tx = { begin: async () => { queries++; }, commit: async () => {}, rollback: async () => {} };
+  const request = () => { const api = { input: () => api, query: () => { queries++; return Promise.resolve({ rowsAffected: [1] }); } }; return api; };
+
+  await assert.rejects(
+    () => R.loescheNutzer({ ...USER, email: 'lena.mueller.demo@putzmeister.com' }, { tx, request }),
+    /Demo/i,
+  );
+  assert.equal(queries, 0, 'die Transaktion darf nicht einmal beginnen');
+});
+
+test('loescheNutzer: ein gesperrtes Konto wird NICHT abgewiesen - die Sperre laeuft ab', async () => {
+  // Absichtlich keine Sperr-/Fristpruefung hier: eine abgelaufene Sperre macht
+  // das Konto legitim loeschbar, und die Frist prueft istFaellig.
+  const tx = { begin: async () => {}, commit: async () => {}, rollback: async () => {} };
+  const request = () => { const api = { input: () => api, query: () => Promise.resolve({ rowsAffected: [0] }) }; return api; };
+
+  const bericht = await R.loescheNutzer({ ...USER, loeschsperreBis: '2099-12-31' }, { tx, request });
+  assert.equal(bericht.phaseB, 0);
+});
+
 test('loescheNutzer: boesartige OID erreicht die DB nur als gebundener Parameter, nie im SQL-Text', async () => {
   const boese = { ...USER, oid: "x'; DROP TABLE dbo.Users; --" };
   const gebundeneOids = [];
