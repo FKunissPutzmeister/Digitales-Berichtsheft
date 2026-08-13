@@ -266,3 +266,42 @@ function planeBackup() {
 runBerichtsheftBackupWennNoetig({ logFehler }).then(protokolliereBackup).catch(meldeBackupFehler);
 planeBackup();
 console.log(`[backup] aktiv — täglich ${BACKUP_STUNDE}:00 Uhr, Aufbewahrung ${BACKUP_AUFBEWAHRUNG} Tage.`);
+
+// ── Nächtliches Löschkonzept (Retention) ─────────────────────────
+// Löscht Konten 365 Tage nach ihrer Deaktivierung endgültig und warnt 30 Tage
+// vorher. Eine Stunde nach dem Backup, damit ein frischer Snapshot vorliegt.
+// Selbst-nachplanender setTimeout wie beim Backup: trifft dauerhaft 03:00
+// Ortszeit, ohne über Neustarts oder Sommerzeitwechsel wegzudriften.
+//
+// BEWUSST KEIN Start-Lauf: der Dev-Server läuft mit `node --watch` und würde
+// bei jeder Code-Änderung löschen. Anders als beim Backup ist das hier
+// unwiderruflich.
+const {
+  runRetentionSerialisiert,
+  LOESCHFRIST_TAGE,
+  VORWARN_TAGE,
+} = require('./services/retention');
+const RETENTION_STUNDE = 3;
+
+function protokolliereRetention(bericht) {
+  if (!bericht) return;
+  console.log(`[retention] ${bericht.kandidaten} Kandidaten, ${bericht.geloescht} geloescht, `
+    + `${bericht.vorgewarnt} vorgewarnt, ${bericht.gesperrt} zurueckgehalten, `
+    + `${bericht.dateienEntfernt} Ordner entfernt, ${bericht.fehler.length} Fehler.`);
+}
+function meldeRetentionFehler(err) {
+  console.error('[retention] Lauf fehlgeschlagen:', err.message);
+  logFehler({ quelle: 'backend', nachricht: `[retention] Lauf: ${err.message}`, stack: err.stack });
+}
+function planeRetention() {
+  setTimeout(() => {
+    runRetentionSerialisiert({ logFehler })
+      .then(protokolliereRetention)
+      .catch(meldeRetentionFehler)
+      .finally(planeRetention);   // Kette hält auch nach einem Fehlschlag
+  }, msBisNaechsteUhrzeit(RETENTION_STUNDE));
+}
+
+planeRetention();
+console.log(`[retention] aktiv — taeglich ${RETENTION_STUNDE}:00 Uhr, `
+  + `Loeschfrist ${LOESCHFRIST_TAGE} Tage, Vorwarnung ${VORWARN_TAGE} Tage vorher.`);

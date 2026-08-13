@@ -558,3 +558,154 @@ test('sendeVorwarnung: ohne Empfaenger kein Insert', async () => {
   assert.equal(await R.sendeVorwarnung(USER, { pool, empfaenger: [] }), false);
   assert.equal(inserts, 0);
 });
+
+/* ── sperreGreift: Vergleich auf Ortsdatum, nicht auf UTC-Datum ──────────
+   Die Sperre ist im Spec auf das Ortsdatum ("heute" am Serverstandort)
+   definiert, genauso wie die Frontend-Korrektur in app/js/api.js
+   DateUtil.toISODate (lokale Getter, kein toISOString()). Ein Vergleich mit
+   jetzt.toISOString() nimmt bei bestimmten Uhrzeiten den falschen Kalendertag.
+
+   Eigener Zeitpunkt (nicht die JETZT-Fixture von oben): um 23:30 UTC liegt der
+   Ortstag in Mitteleuropa bereits einen Tag weiter - genau das Fenster, in dem
+   eine UTC-Berechnung danebenliegt. Die Erwartungswerte werden aus DIESEM
+   Zeitpunkt selbst über lokale Date-Getter (getFullYear/getMonth/getDate)
+   abgeleitet statt hart codiert - der Test ist damit auf jeder Maschine mit
+   sich selbst konsistent und bleibt bei jeder Zeitzone korrekt, auch wenn der
+   Unterschied zur alten UTC-Rechnung nur auf manchen Maschinen sichtbar wird. */
+const GRENZZEITPUNKT = new Date('2027-06-15T23:30:00.000Z');
+
+function lokalesDatum(d) {
+  const j = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const t = String(d.getDate()).padStart(2, '0');
+  return `${j}-${m}-${t}`;
+}
+function lokalerVortag(d) {
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate() - 1);
+}
+
+test('istFaellig: Sperre auf dem lokalen "heute" haelt noch zurueck', () => {
+  const heuteLokal = lokalesDatum(GRENZZEITPUNKT);
+  const u = konto('2020-01-01T00:00:00.000Z', { loeschsperreBis: heuteLokal });
+  assert.equal(R.istFaellig(u, { jetzt: GRENZZEITPUNKT }), false);
+});
+
+test('istFaellig: Sperre auf dem lokalen Vortag haelt NICHT mehr zurueck', () => {
+  const gesternLokal = lokalesDatum(lokalerVortag(GRENZZEITPUNKT));
+  const u = konto('2020-01-01T00:00:00.000Z', { loeschsperreBis: gesternLokal });
+  assert.equal(R.istFaellig(u, { jetzt: GRENZZEITPUNKT }), true);
+});
+
+/* ── Orchestrierung ─────────────────────────────────────────────── */
+
+// Drei Konten: fällig, im Vorwarnfenster, gesperrt.
+function kandidatenSatz() {
+  return [
+    { ...USER, oid: 'faellig',  inaktivSeit: '2026-06-15T02:00:00.000Z' },
+    { ...USER, oid: 'vorwarn',  inaktivSeit: '2026-07-01T02:00:00.000Z' },
+    { ...USER, oid: 'gesperrt', inaktivSeit: '2026-06-15T02:00:00.000Z', loeschsperreBis: '2027-12-31' },
+  ];
+}
+
+function deps(over = {}) {
+  return {
+    jetzt: JETZT,
+    listKandidaten: async () => kandidatenSatz(),
+    loescheNutzer: async () => ({ tabellen: { Users: 1 }, phaseB: 3 }),
+    sendeVorwarnung: async () => true,
+    empfaenger: async () => ['p1'],
+    raeumeDateien: () => ({ entfernt: ['x'], probleme: [] }),
+    pruefeTabellen: async () => [],
+    logFehler: () => {},
+    // Ohne diese Injektion würde alleUserOids() versuchen, den echten Pool zu
+    // holen (getPool()) - runRetention wäre in Tests nicht ohne DB lauffähig.
+    alleOids: async () => ['faellig', 'vorwarn', 'gesperrt'],
+    ...over,
+  };
+}
+
+test('runRetention: loescht Faellige, warnt im Fenster vor, laesst Gesperrte stehen', async () => {
+  const geloescht = [];
+  const gewarnt = [];
+  const b = await R.runRetention(deps({
+    loescheNutzer: async (u) => { geloescht.push(u.oid); return { tabellen: { Users: 1 }, phaseB: 5 }; },
+    sendeVorwarnung: async (u) => { gewarnt.push(u.oid); return true; },
+  }));
+
+  assert.deepEqual(geloescht, ['faellig']);
+  assert.deepEqual(gewarnt, ['vorwarn']);
+  assert.equal(b.kandidaten, 3);
+  assert.equal(b.geloescht, 1);
+  assert.equal(b.vorgewarnt, 1);
+  assert.equal(b.gesperrt, 1);
+  assert.equal(b.anonymisiert, 5);
+  assert.deepEqual(b.fehler, []);
+});
+
+test('runRetention: ein werfendes loescheNutzer stoppt den Lauf nicht', async () => {
+  const versucht = [];
+  const b = await R.runRetention(deps({
+    listKandidaten: async () => [
+      { ...USER, oid: 'a', inaktivSeit: '2026-06-15T02:00:00.000Z' },
+      { ...USER, oid: 'b', inaktivSeit: '2026-06-15T02:00:00.000Z' },
+    ],
+    loescheNutzer: async (u) => {
+      versucht.push(u.oid);
+      if (u.oid === 'a') throw new Error('Deadlock');
+      return { tabellen: { Users: 1 }, phaseB: 0 };
+    },
+    alleOids: async () => ['a', 'b'],
+  }));
+
+  assert.deepEqual(versucht, ['a', 'b'], 'b muss trotz Fehler bei a versucht werden');
+  assert.equal(b.geloescht, 1);
+  assert.equal(b.fehler.length, 1);
+  assert.equal(b.fehler[0].oid, 'a');
+});
+
+test('runRetention: werfendes listKandidaten loescht nichts (fail closed)', async () => {
+  let geloescht = 0;
+  const b = await R.runRetention(deps({
+    listKandidaten: async () => { throw new Error('DB weg'); },
+    loescheNutzer: async () => { geloescht++; return { tabellen: {}, phaseB: 0 }; },
+  }));
+
+  assert.equal(geloescht, 0);
+  assert.equal(b.geloescht, 0);
+  assert.equal(b.kandidaten, 0);
+  assert.equal(b.fehler.length, 1);
+  // assert.equal statt assert.match: err.message ist hier ein exakt bekannter
+  // literaler String ('DB weg'), kein Muster - assert.equal ist die staerkere,
+  // zutreffende Zusicherung (siehe Projektregel zu assert.match vs. assert.equal).
+  assert.equal(b.fehler[0].fehler, 'DB weg');
+});
+
+test('runRetention: unbekannte Tabelle wird als Fehler gemeldet, der Lauf laeuft weiter', async () => {
+  const gemeldet = [];
+  const b = await R.runRetention(deps({
+    pruefeTabellen: async () => ['NeueTabelle'],
+    logFehler: (e) => gemeldet.push(e.nachricht),
+  }));
+
+  assert.equal(b.geloescht, 1, 'die Faelligen werden trotzdem geloescht');
+  assert.equal(gemeldet.length, 1);
+  // assert.equal statt assert.match: die Meldung ist eine vollstaendig bekannte,
+  // fest formulierte Zeichenkette - kein Muster, ein Wert.
+  assert.equal(
+    gemeldet[0],
+    '[retention] Tabellen mit Personenbindung, die der Loeschjob NICHT kennt: NeueTabelle — personenbezogene Daten bleiben dort liegen.'
+  );
+});
+
+test('runRetention: Dateiaufraeumung bekommt die OIDs der VERBLEIBENDEN Nutzer', async () => {
+  let gesehen = null;
+  await R.runRetention(deps({
+    raeumeDateien: ({ existierendeOids }) => { gesehen = existierendeOids; return { entfernt: [], probleme: [] }; },
+  }));
+
+  // 'faellig' ist gelöscht, darf also NICHT als existierend gelten —
+  // sonst bliebe sein IHK-PDF liegen.
+  assert.equal(gesehen.has('faellig'), false);
+  assert.equal(gesehen.has('vorwarn'), true);
+  assert.equal(gesehen.has('gesperrt'), true);
+});

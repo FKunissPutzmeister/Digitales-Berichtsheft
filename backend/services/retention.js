@@ -45,10 +45,17 @@ function loeschDatum(user, { fristTage = LOESCHFRIST_TAGE } = {}) {
 
 // Greift die Löschsperre? Sie hält zurück, solange LoeschsperreBis >= heute.
 // Vergleich auf Tagesebene, damit eine Sperre "bis 15.06." den 15. noch abdeckt.
+// "heute" ist das ORTSDATUM (lokale Getter), nicht jetzt.toISOString() — die
+// Sperre steht in der Nutzerverwaltung als Kalendertag am Serverstandort, und
+// das Frontend (app/js/api.js DateUtil.toISODate) rechnet genauso lokal. Ein
+// UTC-Datum würde in bestimmten Nachtstunden auf den falschen Tag fallen.
 function sperreGreift(user, jetzt) {
   if (!user || !user.loeschsperreBis) return false;
   const bis = String(user.loeschsperreBis).slice(0, 10);
-  const heute = jetzt.toISOString().slice(0, 10);
+  const j = jetzt.getFullYear();
+  const m = String(jetzt.getMonth() + 1).padStart(2, '0');
+  const t = String(jetzt.getDate()).padStart(2, '0');
+  const heute = `${j}-${m}-${t}`;
   return bis >= heute;
 }
 
@@ -398,6 +405,146 @@ async function sendeVorwarnung(user, { pool: poolOverride, empfaenger } = {}) {
   return true;
 }
 
+/* ── Ein vollständiger Lauf ──────────────────────────────────────
+   Reihenfolge: Kandidaten lesen → vorwarnen → löschen → Dateien → Selbstprüfung.
+   Fail closed: scheitert das Lesen der Kandidatenliste, wird NICHTS gelöscht
+   (wie entraSync bei Token-/Gruppenfehlern). Ein Fehler bei EINEM Nutzer rollt
+   nur dessen Transaktion zurück und stoppt den Lauf nicht (wie fuehreBackupAus).
+   Alle Abhängigkeiten injizierbar → ohne DB und ohne echte Uhr testbar. */
+async function runRetention(deps = {}) {
+  const {
+    listKandidaten = ermittleKandidaten,
+    loescheNutzer: loescheFn = loescheNutzer,
+    sendeVorwarnung: warnFn = sendeVorwarnung,
+    empfaenger: empfaengerFn = ermittleVorwarnEmpfaenger,
+    raeumeDateien = raeumeWaisenDateien,
+    pruefeTabellen = pruefeUnbekannteTabellen,
+    jetzt = new Date(),
+    fristTage = LOESCHFRIST_TAGE,
+    vorwarnTage = VORWARN_TAGE,
+    dir = IHK_IMPORT_DIR,
+    logFehler = () => {},
+  } = deps;
+
+  const bericht = {
+    kandidaten: 0, vorgewarnt: 0, geloescht: 0, gesperrt: 0,
+    anonymisiert: 0, dateienEntfernt: 0, fehler: [],
+  };
+
+  let kandidaten;
+  try {
+    kandidaten = (await listKandidaten()) || [];
+  } catch (err) {
+    // Ohne verlässliche Liste wird nicht gelöscht.
+    bericht.fehler.push({ oid: null, name: '(kandidaten)', fehler: err.message });
+    logFehler({ quelle: 'backend', nachricht: `[retention] Kandidaten: ${err.message}`, stack: err.stack });
+    return bericht;
+  }
+  bericht.kandidaten = kandidaten.length;
+
+  const opts = { jetzt, fristTage, vorwarnTage };
+  const verbleibend = new Set(kandidaten.map((u) => u.oid));
+
+  // Vorwarnen
+  const zuWarnen = kandidaten.filter((u) => istVorwarnFaellig(u, opts));
+  if (zuWarnen.length) {
+    let empfaenger = [];
+    try { empfaenger = (await empfaengerFn()) || []; }
+    catch (err) {
+      bericht.fehler.push({ oid: null, name: '(empfaenger)', fehler: err.message });
+      logFehler({ quelle: 'backend', nachricht: `[retention] Empfaenger: ${err.message}`, stack: err.stack });
+    }
+    for (const u of zuWarnen) {
+      try { if (await warnFn(u, { empfaenger })) bericht.vorgewarnt++; }
+      catch (err) {
+        bericht.fehler.push({ oid: u.oid, name: u.name || '', fehler: err.message });
+        logFehler({ quelle: 'backend', nachricht: `[retention] Vorwarnung ${u.oid}: ${err.message}`, stack: err.stack });
+      }
+    }
+  }
+
+  // Löschen
+  const geloeschteOids = new Set();
+  for (const u of kandidaten) {
+    if (!istFaellig(u, opts)) {
+      // Nur als "gesperrt" zählen, was ohne Sperre fällig WÄRE — sonst zählte
+      // jedes Konto mit Restlaufzeit mit.
+      if (u.loeschsperreBis && istFaellig({ ...u, loeschsperreBis: null }, opts)) bericht.gesperrt++;
+      continue;
+    }
+    try {
+      const zeilen = await loescheFn(u);
+      bericht.geloescht++;
+      verbleibend.delete(u.oid);
+      geloeschteOids.add(u.oid);
+      // Nur Phase B: Belege in FREMDEN Heften, an denen der Name stehen bleibt.
+      bericht.anonymisiert += (zeilen && zeilen.phaseB) || 0;
+    } catch (err) {
+      bericht.fehler.push({ oid: u.oid, name: u.name || '', fehler: err.message });
+      logFehler({ quelle: 'backend', nachricht: `[retention] Loeschen ${u.oid}: ${err.message}`, stack: err.stack });
+    }
+  }
+
+  // Dateien: alle OIDs, die es noch gibt — die eben gelöschten sind raus.
+  // Muss ALLE Nutzer kennen, nicht nur die Kandidaten, sonst gelten aktive
+  // Konten als Waisen und ihre IHK-PDFs würden gelöscht.
+  try {
+    const alle = await alleUserOids(deps);
+    for (const oid of verbleibend) alle.add(oid);
+    // Explizit entfernen, was DIESER Lauf gerade gelöscht hat — unabhängig
+    // davon, ob alleUserOids() (echte DB-Abfrage oder injizierter Snapshot)
+    // die Löschung bereits widerspiegelt. Ohne dieses Entfernen bliebe das
+    // IHK-PDF eines gerade gelöschten Kontos liegen, sobald die Quelle von
+    // alleUserOids() nicht in derselben Sekunde konsistent ist.
+    for (const oid of geloeschteOids) alle.delete(oid);
+    const res = raeumeDateien({ dir, existierendeOids: alle });
+    bericht.dateienEntfernt = res.entfernt.length;
+    for (const p of res.probleme) {
+      bericht.fehler.push({ oid: null, name: '(dateien)', fehler: p });
+      logFehler({ quelle: 'backend', nachricht: `[retention] Datei: ${p}` });
+    }
+  } catch (err) {
+    bericht.fehler.push({ oid: null, name: '(dateien)', fehler: err.message });
+    logFehler({ quelle: 'backend', nachricht: `[retention] Dateien: ${err.message}`, stack: err.stack });
+  }
+
+  // Selbstprüfung: nachrangig, darf den Lauf nicht kippen.
+  try {
+    const unbekannt = await pruefeTabellen();
+    if (unbekannt.length) {
+      logFehler({
+        quelle: 'backend',
+        nachricht: `[retention] Tabellen mit Personenbindung, die der Loeschjob NICHT kennt: ${unbekannt.join(', ')} — personenbezogene Daten bleiben dort liegen.`,
+        schweregrad: 'hoch',
+      });
+    }
+  } catch (err) {
+    logFehler({ quelle: 'backend', nachricht: `[retention] Selbstpruefung: ${err.message}`, stack: err.stack });
+  }
+
+  return bericht;
+}
+
+// OIDs aller noch existierenden Nutzer (für die Waisen-Erkennung).
+// Injizierbar über deps.alleOids, damit runRetention ohne DB testbar bleibt.
+async function alleUserOids(deps = {}) {
+  if (deps.alleOids) return new Set(await deps.alleOids());
+  const pool = await getPool();
+  const res = await pool.request().query('SELECT Oid FROM dbo.Users');
+  return new Set(res.recordset.map((r) => r.Oid));
+}
+
+/* Lauf-Sperre wie bei runBackup: der 03:00-Timer und ein evtl. manueller
+   Aufruf dürfen sich nicht überlappen — zwei parallele Läufe würden dieselben
+   Kandidaten doppelt verarbeiten. */
+let laufenderLauf = null;
+
+function runRetentionSerialisiert(deps = {}) {
+  if (laufenderLauf) return laufenderLauf;
+  laufenderLauf = runRetention(deps).finally(() => { laufenderLauf = null; });
+  return laufenderLauf;
+}
+
 module.exports = {
   LOESCHFRIST_TAGE, VORWARN_TAGE,
   istDemoKonto, loeschDatum, istFaellig, istVorwarnFaellig,
@@ -405,4 +552,5 @@ module.exports = {
   baueAnweisungen, loescheNutzer, ermittleKandidaten, pruefeUnbekannteTabellen,
   IHK_IMPORT_DIR, raeumeWaisenDateien,
   VORWARN_TYP, ermittleVorwarnEmpfaenger, sendeVorwarnung,
+  runRetention, runRetentionSerialisiert,
 };
