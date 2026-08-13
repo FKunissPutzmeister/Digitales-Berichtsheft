@@ -370,8 +370,8 @@ Wirksam wird der Austritt aus der Entra-Gruppe: Beim nächsten Abgleich wird das
 Konto **inaktiv**, eine Anmeldung ist nicht mehr möglich, und ab diesem Tag
 läuft eine Frist von **365 Tagen**. Danach löscht ein nächtlicher Job das Konto
 und alle daran hängenden Daten endgültig — Wochen, Tage, Kommentare,
-Beurteilungen, Anhänge, Profilfoto und die importierten IHK-PDFs. Dieselbe Regel
-gilt für **alle** Rollen, auch für Prüfer und Ausbilder.
+Beurteilungen, Zuweisungen, Anhänge, Profilfoto und die importierten IHK-PDFs.
+Dieselbe Regel gilt für **alle** Rollen, auch für Prüfer und Ausbilder.
 
 Erhalten bleibt allein der **Name** an Belegen in *fremden* Heften: die
 Gegenzeichnung einer Woche, ein Ausbilder-Kommentar, das Ansprechpartner-Feld
