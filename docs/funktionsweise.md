@@ -365,14 +365,27 @@ Datenbank).
 ## 11. Sonderfälle und typische Fragen
 
 **Was passiert, wenn ein Azubi ausgelernt ist?**
-Nichts automatisch. Das Feld „Ausbildungsende" ist reine Information; kein Job
-wertet es aus. Wirksam wird erst der Austritt aus der Entra-Gruppe: Beim nächsten
-Abgleich wird das Konto **inaktiv**, eine Anmeldung ist nicht mehr möglich. Alle
-Wochen, Beurteilungen und Anhänge bleiben in der Datenbank und für Berechtigte
-lesbar. Es gibt derzeit **kein Archivierungs- und kein Löschkonzept** — wer die
-Daten nach Ablauf einer Aufbewahrungsfrist entfernen will, muss das organisieren.
-Praktischer Rat: den PDF-Ausbildungsnachweis **vor** dem Austritt erzeugen, denn
-danach kann der Azubi ihn nicht mehr selbst exportieren.
+Das Feld „Ausbildungsende" ist reine Information; kein Job wertet es aus.
+Wirksam wird der Austritt aus der Entra-Gruppe: Beim nächsten Abgleich wird das
+Konto **inaktiv**, eine Anmeldung ist nicht mehr möglich, und ab diesem Tag
+läuft eine Frist von **365 Tagen**. Danach löscht ein nächtlicher Job das Konto
+und alle daran hängenden Daten endgültig — Wochen, Tage, Kommentare,
+Beurteilungen, Anhänge, Profilfoto und die importierten IHK-PDFs. Dieselbe Regel
+gilt für **alle** Rollen, auch für Prüfer und Ausbilder.
+
+Erhalten bleibt allein der **Name** an Belegen in *fremden* Heften: die
+Gegenzeichnung einer Woche, ein Ausbilder-Kommentar, das Ansprechpartner-Feld
+einer Abteilungszuweisung. Ohne das wäre der Ausbildungsnachweis eines noch
+aktiven Azubis entwertet, sobald sein damaliger Prüfer das Unternehmen verlässt.
+Dieser Name verschwindet, wenn das Heft selbst gelöscht wird.
+
+30 Tage vor der Löschung erhalten Ausbildungsleitung und Entwickler eine
+Mitteilung. Ein Einzelfall lässt sich in der Nutzerverwaltung über „Löschung
+zurückhalten bis" aufschieben (laufende Prüfungsanfechtung, Rechtsstreit).
+
+Praktischer Rat unverändert: den PDF-Ausbildungsnachweis **vor** dem Austritt
+erzeugen — danach kann der Azubi ihn nicht mehr selbst exportieren, und nach
+Ablauf der Frist existieren die Daten nicht mehr.
 
 **Ein Prüfer sagt, er sehe „seinen" Azubi nicht.**
 Der Reihe nach prüfen: (1) Ist die Abteilungs-Zuweisung schon aktiv, oder liegt
@@ -426,8 +439,10 @@ Damit niemand etwas erwartet, was die Anwendung nicht leistet:
 - **Keine Vollständigkeitsprüfung.** Es gibt keine Auswertung „diese Wochen
   fehlen komplett" über den ganzen Ausbildungszeitraum und keine Erinnerung an
   nie eingereichte Wochen.
-- **Kein Lösch-/Archivkonzept** und keine Datenschutz-Informationsseite in der
-  Anwendung.
+- **Kein Archiv.** Gelöscht heißt gelöscht — es gibt keine Langzeitkopie. Der
+  nächtliche JSON-Snapshot in `backend/data/backups/` verfällt nach 30 Tagen und
+  ist kein Archiv. Eine Datenschutz-Informationsseite fehlt in der Anwendung
+  weiterhin.
 - **Kein automatischer Abschluss zum Ausbildungsende** (siehe oben).
 - **Keine E-Mail-Benachrichtigungen** — Mitteilungen erscheinen nur in der
   Anwendung.

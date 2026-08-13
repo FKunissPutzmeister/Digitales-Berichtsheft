@@ -28,6 +28,7 @@ Ausgeliefert wird `app/` (Frontend, Vanilla JS) + `backend/` (Node.js/Express +
 | Benachrichtigungen + Mitteilungen-Feed | ✅ erledigt |
 | Berichtsheft-Export (JSON-Backup + PDF-Ausbildungsnachweis) | ✅ erledigt |
 | Automatische tägliche Berichtsheft-Backups (server-seitig, JSON) | ✅ erledigt |
+| Löschkonzept (Retention-Job, 365 Tage ab Deaktivierung) | ✅ erledigt |
 | Fehlerberichte (Frontend + Backend, Dev-Ansicht) | ✅ erledigt |
 | MCP-Server (Bearer-API-Key-Auth) für externen Tages-Import | ✅ erledigt |
 | Entra-Gruppen-Sync (Microsoft Graph, App-only) für Rollenvergabe | ✅ erledigt |
@@ -165,6 +166,20 @@ Der Parser (`ihk-parser.js`) ist ohne DOM Node-testbar.
 - **MCP-Server** (`backend/mcp/`) mit Bearer-API-Key-Auth für externen Tages-Import
 - **Entra-Gruppen-Sync** (Microsoft Graph, App-only): mappt Azure-Gruppen auf Rollen
 - **Fehlerberichte**: Frontend- und Backend-Fehler werden persistiert (90-Tage-Cleanup)
+- **Löschkonzept (Retention):** Ein Job löscht täglich um 03:00 jedes Konto
+  endgültig, das seit **365 Tagen** inaktiv ist — unabhängig von der Rolle, samt
+  Wochen, Tagen, Kommentaren, Beurteilungen, Zuweisungen, Profilfoto und dem
+  IHK-Import-Archiv unter `backend/data/ihk-imports/<oid>/`. Erhalten bleibt nur
+  der **Name** an Belegen in fremden Heften (Gegenzeichnung, Kommentar-Autor,
+  Ansprechpartner) — ohne ihn wäre der Ausbildungsnachweis eines noch aktiven
+  Azubis entwertet, sobald sein damaliger Prüfer ausscheidet. 30 Tage vorher
+  geht eine Mitteilung an Ausbildungsleitung und Entwickler; Einzelfälle lassen
+  sich in der Nutzerverwaltung über „Löschung zurückhalten bis" aufschieben.
+  Demo-Konten (`.demo`) sind ausgenommen. Kein Start-Lauf beim Serverstart
+  (`node --watch` würde sonst bei jeder Code-Änderung löschen), keine Archiv-
+  Kopie. Voraussetzung: Migrationen 030-032. Siehe
+  `backend/services/retention.js` und
+  `docs/superpowers/specs/2026-08-11-loeschkonzept-inaktive-nutzer-design.md`.
 - **Namensanzeige**: Personennamen werden überall via `displayName()` als
   „Vorname Nachname" gerendert (Backend liefert „Nachname, Vorname" roh)
 
