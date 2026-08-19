@@ -421,10 +421,23 @@ function wireDurchlaufDetail(root, ctx = {}) {
     if (ctx.ausbilderMode && ctx.azubiId && typeof setPersistedAzubiId === 'function') setPersistedAzubiId(ctx.azubiId);
     window.location.href = 'wochenansicht.html';
   }));
+  // Wochen-Umschalter: alle Wochen liegen im DOM, sichtbar ist immer genau eine.
+  const box = root.querySelector('.dlb-wkbox');
+  if (!box) return;
+  box.querySelectorAll('.dlb-wkpill').forEach(pill => pill.addEventListener('click', () => {
+    box.querySelectorAll('.dlb-wkpill').forEach(p => {
+      const on = p === pill;
+      p.classList.toggle('is-active', on);
+      p.setAttribute('aria-pressed', String(on));
+    });
+    box.querySelectorAll('.dlb-wk').forEach(w => w.classList.toggle('is-active', w.dataset.i === pill.dataset.i));
+  }));
 }
 
-/* Lesbarer „Tätigkeitsbericht": alle Wochen untereinander, je Woche eine
-   Kopfzeile (KW + Zeitraum + Öffnen-Button) und darunter der eingetragene Text.
+/* Lesbarer „Tätigkeitsbericht": EINE Woche auf einmal, oben ein Umschalter mit
+   den Wochen dieser Abteilung – ab 1 durchnummeriert, damit „Woche 3" heißt
+   „dritte Woche in der Abteilung". Die echte KW steht im Kopf der Woche und
+   führt per Button in die Wochenansicht.
    Passt sich dem Berichtstyp an: wöchentliches Berichtsheft → EIN Textblock je
    Woche (Wochenebene); tägliches → je Tag ein Block; ohne Ganztag/Halbtag/
    Anwesenheit.
@@ -441,43 +454,54 @@ function wochenDigestHtml(wochen) {
   const lab = l => l ? `<span class="dlb-entry__lab">${l}</span>` : '';
   const block = (l, t) => `<div class="dlb-entry">${lab(l)}<div class="dlb-entry__t dlb-rich">${sanitizeRichHtml(t)}</div></div>`;
 
-  return wochen.map(w => {
+  const items = wochen.map(w => {
     // Wochenebene zuerst (wöchentliches Berichtsheft); sonst Tagesebene.
     const wk = [];
     if (hatText(w.betriebEintrag)) wk.push(['', w.betriebEintrag]);
     if (hatText(w.schuleEintrag)) wk.push(['Berufsschule', w.schuleEintrag]);
     if (hatText(w.unterweisungEintrag)) wk.push(['Unterweisung', w.unterweisungEintrag]);
-
-    let body;
     if (wk.length) {
-      body = `<div class="dlb-wk__body">${wk.map(([l, t]) => block(l, t)).join('')}</div>`;
-    } else {
-      const tage = (w.tage || []).slice().sort((a, b) => (a.datum || '').localeCompare(b.datum || ''));
-      const dayRows = tage.map(t => {
-        const segs = [];
-        if (hatText(t.betriebEintrag)) segs.push(['', t.betriebEintrag]);
-        if (hatText(t.schuleEintrag)) segs.push(['Berufsschule', t.schuleEintrag]);
-        if (hatText(t.unterweisungEintrag)) segs.push(['Unterweisung', t.unterweisungEintrag]);
-        if (!segs.length && hatText(t.eintrag)) segs.push(['', t.eintrag]);
-        if (!segs.length) return '';
-        const p = (t.datum || '').split('-');
-        const d = t.datum ? new Date(t.datum + 'T00:00:00') : null;
-        const dl = d ? `${WD[d.getDay()]} ${p[2]}.${p[1]}.` : '';
-        const txt = segs.map(([l, t2]) => (l ? lab(l) : '') + sanitizeRichHtml(t2)).join('');
-        return `<div class="dlb-day"><span class="dlb-day__d">${dl}</span><div class="dlb-day__t dlb-rich">${txt}</div></div>`;
-      }).filter(Boolean).join('');
-      body = dayRows ? `<div class="dlb-wk__body">${dayRows}</div>` : `<div class="dlb-wk__empty">Keine Einträge erfasst.</div>`;
+      return { w, leer: false, body: `<div class="dlb-wk__body">${wk.map(([l, t]) => block(l, t)).join('')}</div>` };
     }
 
-    return `<div class="dlb-wk">
+    const tage = (w.tage || []).slice().sort((a, b) => (a.datum || '').localeCompare(b.datum || ''));
+    const dayRows = tage.map(t => {
+      const segs = [];
+      if (hatText(t.betriebEintrag)) segs.push(['', t.betriebEintrag]);
+      if (hatText(t.schuleEintrag)) segs.push(['Berufsschule', t.schuleEintrag]);
+      if (hatText(t.unterweisungEintrag)) segs.push(['Unterweisung', t.unterweisungEintrag]);
+      if (!segs.length && hatText(t.eintrag)) segs.push(['', t.eintrag]);
+      if (!segs.length) return '';
+      const p = (t.datum || '').split('-');
+      const d = t.datum ? new Date(t.datum + 'T00:00:00') : null;
+      const dl = d ? `${WD[d.getDay()]} ${p[2]}.${p[1]}.` : '';
+      const txt = segs.map(([l, t2]) => `<div class="dlb-dayseg">${lab(l)}<div class="dlb-rich">${sanitizeRichHtml(t2)}</div></div>`).join('');
+      return `<div class="dlb-day"><span class="dlb-day__d">${dl}</span><div class="dlb-day__t">${txt}</div></div>`;
+    }).filter(Boolean).join('');
+    return { w, leer: !dayRows,
+             body: dayRows ? `<div class="dlb-wk__body">${dayRows}</div>` : `<div class="dlb-wk__empty">Keine Einträge erfasst.</div>` };
+  });
+
+  // Startwoche: die laufende Woche, sonst Woche 1.
+  const heute = DateUtil.toISODate(new Date());
+  const start = Math.max(0, items.findIndex(it => it.w.startDate <= heute && heute <= it.w.endDate));
+
+  const nav = items.map((it, i) => `<button class="dlb-wkpill${it.leer ? ' dlb-wkpill--empty' : ''}${i === start ? ' is-active' : ''}"
+      type="button" data-i="${i}" aria-pressed="${i === start}"
+      title="KW ${it.w.kw} · ${DateUtil.formatDate(it.w.startDate)} – ${DateUtil.formatDate(it.w.endDate)}${it.leer ? ' · keine Einträge' : ''}">${i + 1}</button>`).join('');
+  const panes = items.map((it, i) => `<article class="dlb-wk${i === start ? ' is-active' : ''}" data-i="${i}">
       <div class="dlb-wk__head">
-        <span class="dlb-wk__kw">KW ${w.kw}</span>
-        <span class="dlb-wk__range">${DateUtil.formatDate(w.startDate)} – ${DateUtil.formatDate(w.endDate)}</span>
-        <button class="dlb-wk__open" type="button" data-kw="${w.kw}" data-year="${w.year}">Öffnen ${DLB_ICO.chev}</button>
+        <span class="dlb-wk__kw">Woche ${i + 1}</span>
+        <span class="dlb-wk__range">KW ${it.w.kw} · ${DateUtil.formatDate(it.w.startDate)} – ${DateUtil.formatDate(it.w.endDate)}</span>
+        <button class="dlb-wk__open" type="button" data-kw="${it.w.kw}" data-year="${it.w.year}">Wochenansicht ${DLB_ICO.chev}</button>
       </div>
-      ${body}
-    </div>`;
-  }).join('');
+      ${it.body}
+    </article>`).join('');
+
+  return `<div class="dlb-wkbox">
+    <div class="dlb-wknav"><span class="dlb-wknav__lab">Woche</span>${nav}</div>
+    ${panes}
+  </div>`;
 }
 
 /* Read-only Sicht für Ausbilder: derselbe Status-Board wie beim Azubi

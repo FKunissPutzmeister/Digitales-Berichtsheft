@@ -874,8 +874,18 @@ a.dlb-stop:hover .dlb-stop__node { transform: translateY(-3px); }
 .dlb-panel__title { font-size: var(--text-base); color: var(--pm-grey-800); margin-bottom: var(--sp-4); }
 .dlb-panel__body { display: flex; flex-direction: column; gap: var(--sp-3); align-items: flex-start; }
 .dlb-weeks { display: flex; flex-direction: column; gap: 12px; }
-/* Tätigkeitsbericht: Woche = Kopf (KW + Zeitraum + Öffnen) + gelesene Tageszeilen */
-.dlb-wk { border: 1px solid var(--pm-grey-200); border-radius: var(--r-md); background: var(--pm-white); overflow: hidden; }
+/* Tätigkeitsbericht: EINE Woche sichtbar, oben der Wochen-Umschalter (1…n) */
+.dlb-wkbox { display: flex; flex-direction: column; gap: 12px; }
+.dlb-wknav { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.dlb-wknav__lab { margin-right: 4px; font-size: 10px; font-weight: 800; letter-spacing: 0.05em; text-transform: uppercase; color: var(--pm-grey-500); }
+.dlb-wkpill { min-width: 32px; height: 30px; padding: 0 9px; border-radius: var(--r-full); border: 1px solid var(--pm-grey-200); background: var(--pm-white);
+  color: var(--pm-grey-700); font-family: var(--font-body); font-weight: var(--fw-bold); font-size: 13px; font-variant-numeric: tabular-nums; cursor: pointer;
+  transition: background 0.14s, border-color 0.14s, color 0.14s; }
+.dlb-wkpill:hover { border-color: var(--pm-yellow); background: var(--pm-yellow-bg); color: var(--pm-grey-900); }
+.dlb-wkpill--empty { color: var(--pm-grey-400); }
+.dlb-wkpill.is-active { background: var(--pm-yellow); border-color: var(--pm-yellow); color: var(--on-yellow-text); }
+.dlb-wk { display: none; border: 1px solid var(--pm-grey-200); border-radius: var(--r-md); background: var(--pm-white); overflow: hidden; }
+.dlb-wk.is-active { display: block; }
 .dlb-wk__head { display: flex; align-items: center; gap: 10px; padding: 9px 12px; background: var(--pm-grey-50); border-bottom: 1px solid var(--pm-grey-200); }
 .dlb-wk__kw { flex: 0 0 auto; font-family: var(--font-heading); font-weight: var(--fw-bold); font-size: var(--text-sm); color: var(--pm-grey-800); }
 .dlb-wk__range { flex: 1 1 auto; font-size: 12px; color: var(--pm-grey-500); font-variant-numeric: tabular-nums; }
@@ -888,6 +898,7 @@ a.dlb-stop:hover .dlb-stop__node { transform: translateY(-3px); }
 .dlb-day:first-child { border-top: none; }
 .dlb-day__d { flex: 0 0 72px; padding-top: 1px; font-size: 11.5px; font-weight: var(--fw-bold); color: var(--pm-grey-500); font-variant-numeric: tabular-nums; }
 .dlb-day__t { flex: 1 1 auto; min-width: 0; font-size: var(--text-sm); line-height: 1.55; color: var(--pm-grey-800); }
+.dlb-dayseg + .dlb-dayseg { margin-top: 7px; }
 /* Textblock (Wochenebene = wöchentliches Berichtsheft), mehrzeilig */
 .dlb-entry { padding: 9px 0; border-top: 1px dashed var(--pm-grey-100); }
 .dlb-entry:first-child { border-top: none; }
