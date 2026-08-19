@@ -13,18 +13,33 @@
 .dh-main { position: relative; z-index: 1; }
 
 /* ── Schlanke Topbar ── */
+/* Fläche/Blur exakt wie die reguläre .topbar (layout.css + glass.css):
+   --topbar-bg-glass ist der EINE Token, den jedes Theme für schwebende Chrome
+   setzt (candy: 0.80-Weiß, hyperspace: 0.78-Nachtblau, cmd: 0.82-Schwarzgrün …).
+   Vorher stand hier ein hartes var(--pm-white) – in candy also eine deckend
+   weiße Platte quer über der Zuckerwatte-Szene, in silk ein flacher Riegel.
+   Derselbe Blur macht daraus in jedem Theme automatisch Milchglas. */
 .dh-topbar {
   display: flex;
   align-items: center;
   gap: var(--sp-6);
   height: var(--topbar-h);
   padding: 0 var(--sp-6);
-  background: var(--pm-white);
+  background: var(--topbar-bg-glass);
+  backdrop-filter: blur(var(--glass-blur)) saturate(160%);
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(160%);
+  /* Hauchdünne Lichtkante oben – identisch zu glass.css' .topbar */
+  box-shadow: inset 0 1px 0 var(--glass-highlight);
   border-bottom: 1px solid var(--pm-grey-200);
   position: sticky;
   top: 0;
   z-index: var(--z-sticky);
 }
+/* Perf-Lite (theme.js setzt html.perf-lite auf schwachen Geräten): ohne Blur
+   muss die Fläche deckend werden, sonst wird die Topbar über der animierten
+   Szene unlesbar. Spiegelt den Sammelblock aus glass.css. */
+html.perf-lite .dh-topbar { background: var(--pm-white); }
+html.perf-lite[data-theme="dark"] .dh-topbar { background: var(--inverse-surface-soft); }
 .dh-topbar__brand {
   display: flex;
   align-items: center;
@@ -172,34 +187,62 @@
   color: var(--pm-grey-900);
   margin: 0 0 var(--sp-4);
 }
-/* ── Hero: ruhige Variante nur für diese Seite ──────────────────────
+/* ── Hero: ruhige Variante NUR für die Standard-Modi ────────────────
    Der geteilte .welcome-banner trägt über glass.css ein Foto (--app-bg-image),
    eine gelbe Kante und zwei gelbe Leuchtkreise. Auf dieser Seite ist das zu
-   dominant. Selektor bewusst mit .dh-page davor (0,3,0): glass.css setzt die
-   Flächen über [data-theme="light"|"dark"] .welcome-banner (0,2,0) – ohne den
-   Zusatz entschiede allein die Ladereihenfolge der Stylesheets.
-   Die Textfarben bleiben unangetastet (hell: dunkler Text via glass, dunkel:
-   --on-inverse-text) und passen auf --pm-white in beiden Themes. */
-.dh-page .dh-main .welcome-banner {
+   dominant.
+
+   WARUM [data-theme="light"|"dark"] AM SELEKTOR STEHT:
+   glass.css definiert für .welcome-banner eine BASIS-Regel (dunkle
+   --inverse-surface-Fläche + weißer Text) und überschreibt sie danach nur für
+   die zwei Standard-Modi. Alle Custom-Designs (candy, hyperspace, cmd,
+   halloween, christmas) fallen bewusst auf diese Basis zurück und färben sie
+   über ihre eigenen --inverse-surface-*-Token ein.
+
+   Ein ungescopetes .dh-page .welcome-banner kaperte diesen Rückfall für JEDES
+   Theme: der weiße Schleier lag unter candy als helle Fläche unter dem
+   (weiterhin weißen) Basis-Text → unlesbar; unter hyperspace/cmd als graue
+   Platte mitten in der dunklen Szene. Die Ruhig-Variante gilt deshalb
+   ausschließlich für light/dark – Custom-Designs bekommen ihren themeeigenen
+   Hero geschenkt, ohne dass hier je etwas nachgezogen werden muss.
+
+   Spezifität: 0,4,0 (html + 3 Klassen/Attribute) schlägt glass.css' 0,2,0
+   unabhängig von der Ladereihenfolge der Stylesheets. */
+html[data-theme="light"] .dh-page .dh-main .welcome-banner,
+html[data-theme="dark"]  .dh-page .dh-main .welcome-banner {
   /* Bild bleibt, tritt aber weit zurück: ein fast deckender Schleier darüber
      lässt es nur noch als Textur durchscheinen. */
   background-color: var(--pm-white);
-  background-image:
-    linear-gradient(135deg, rgba(255, 255, 255, 0.72) 0%, rgba(255, 255, 255, 0.62) 100%),
-    var(--app-bg-image);
   background-size: cover, cover;
   background-position: center, center;
   border: 1px solid var(--pm-grey-200);
   box-shadow: var(--shadow-sm);
 }
-[data-theme="dark"] .dh-page .dh-main .welcome-banner {
+html[data-theme="light"] .dh-page .dh-main .welcome-banner {
+  background-image:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.72) 0%, rgba(255, 255, 255, 0.62) 100%),
+    var(--app-bg-image);
+}
+html[data-theme="dark"] .dh-page .dh-main .welcome-banner {
   background-image:
     linear-gradient(135deg, rgba(45, 45, 45, 0.86) 0%, rgba(45, 45, 45, 0.78) 100%),
     var(--app-bg-image);
 }
-/* Die gelben Leuchtkreise bleiben, nur deutlich schwächer. */
-.dh-page .dh-main .welcome-banner::before { background: rgba(255, 195, 0, 0.07); }
-.dh-page .dh-main .welcome-banner::after  { background: rgba(255, 195, 0, 0.05); }
+/* Die beiden Leuchtkreise (dashboard.css ~25/36) sind dort auf das literale
+   Marken-Gelb rgba(255,195,0,…) gesetzt. In den Custom-Designs, die --pm-yellow
+   auf ihre eigene Akzentfarbe umbiegen, blieb dadurch ein themefremder gelber
+   Fleck im Hero stehen (unter cmd/hyperspace als Ocker-Blase gut sichtbar).
+   Hier auf den Akzent-Token umgestellt: candy → Bubblegum-Pink,
+   hyperspace → Cyan, cmd → Phosphor-Grün, halloween → Kürbis-Orange.
+   Bewusst nur für .dh-page – der Ausbilder-Hero teilt sich dieselbe Komponente
+   und soll sich nicht mit ändern. */
+.dh-page .dh-main .welcome-banner::before { background: color-mix(in srgb, var(--pm-yellow) 9%, transparent); }
+.dh-page .dh-main .welcome-banner::after  { background: color-mix(in srgb, var(--pm-yellow) 6%, transparent); }
+/* In den Standard-Modi bleibt es beim gedämpften Marken-Gelb wie bisher. */
+html[data-theme="light"] .dh-page .dh-main .welcome-banner::before,
+html[data-theme="dark"]  .dh-page .dh-main .welcome-banner::before { background: rgba(255, 195, 0, 0.07); }
+html[data-theme="light"] .dh-page .dh-main .welcome-banner::after,
+html[data-theme="dark"]  .dh-page .dh-main .welcome-banner::after  { background: rgba(255, 195, 0, 0.05); }
 
 /* Abstand zwischen den Blöcken (Hero → KPIs → Filter → Stationen → Zeitstrahl). */
 .dh-main .planer-kpis { margin-top: var(--sp-5); }

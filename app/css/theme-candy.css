@@ -746,7 +746,11 @@ html[data-theme="candy"] { color-scheme: light; }
 [data-theme="candy"] .stat-card,
 [data-theme="candy"] .profil-section,
 [data-theme="candy"] .verwaltung-panel,
-[data-theme="candy"] .week-toolbar {
+[data-theme="candy"] .week-toolbar,
+/* .profil-logout fehlte bisher – als einzige Fläche der Profil-Seiten blieb
+   sie deckend weiß und schnitt die Szene quer durch (auf der DH-Profil-Seite
+   besonders auffällig, weil sie dort der letzte Block ist). */
+[data-theme="candy"] .profil-logout {
   /* Deutlich transparenter (vorher 0.90 → 0.78 → 0.64) → die Candy-Szene
      scheint klar durch; dunkler Text (#371A31) bleibt über dem hellen
      Himmel/Wiese noch gut lesbar (>= 4.5:1). */
@@ -1391,6 +1395,10 @@ html[data-theme="candy"] .bento .b-mitteilungen::after {
   [data-theme="candy"] .profil-section,
   [data-theme="candy"] .verwaltung-panel,
   [data-theme="candy"] .week-toolbar,
+  [data-theme="candy"] .dh-stations,
+  [data-theme="candy"] .dh-tl,
+  [data-theme="candy"] .dh-empty,
+  [data-theme="candy"] .dh-notif__panel,
   [data-theme="candy"] .modal,
   [data-theme="candy"] .toast {
     background-color: #FFFFFF;
@@ -1409,4 +1417,186 @@ html[data-theme="candy"] .bento .b-mitteilungen::after {
    hier bereits dezent (Standard-Basiswerte) – kein weiterer Eingriff. */
 [data-theme="candy"] body[data-page="wochenansicht"] .time-spinner__input {
   border-color: rgba(15, 23, 42, 0.20);
+}
+
+/* ===================================================================
+   DH-ANSICHT (Rolle dhstudent, body.dh-page)
+   -------------------------------------------------------------------
+   Die Seite hat eine eigene Topbar-Shell mit eigenem .dh-*-Namensraum
+   (css/abteilungsdurchlauf.css) und ist rein über Design-Tokens gebaut.
+   Token allein reichen hier aber nicht: --pm-white ist unter candy als
+   EINZIGEM Theme deckend (#FFFFFF), weil die Karten ihre Transluzenz
+   oben per Regel bekommen (.card/.stat-card/… = rgba(255,255,255,0.64)).
+   Ohne die Spiegelung unten lagen die drei DH-Flächen als deckend weiße
+   Platten über der Zuckerwatte-Szene – Himmel, Regenbogen und Wiese waren
+   ausgerechnet in der Bildmitte abgeschnitten.
+   =================================================================== */
+[data-theme="candy"] .dh-stations,
+[data-theme="candy"] .dh-tl,
+[data-theme="candy"] .dh-empty,
+[data-theme="candy"] .dh-notif__panel,
+/* .planer-kpi teilt sich die Klasse mit dem Azubi-Planer – deshalb .dh-page
+   davor, damit dort nichts mitwandert. */
+[data-theme="candy"] .dh-page .planer-kpi {
+  background-color: rgba(255, 255, 255, 0.64);
+}
+
+/* ── REGENBOGEN-SCHIENE ─────────────────────────────────────────────
+   Die durchgehende Zeitachse der Stationen-Liste (.dh-stations::before)
+   ist im Standard eine 2px-Linie in --pm-grey-200. Unter candy wäre das
+   auf der 0.64-Fläche ein kaum sichtbarer Rosa-Strich – dabei ist es das
+   EINE Element der Seite, das die Aussage „Durchlauf" trägt. Es wird
+   deshalb hier zum Signature-Element: ein Regenbogen, der von der ersten
+   zur letzten Station läuft. Farbfolge identisch zur .progress-bar__fill
+   weiter oben, damit die Seite nicht zwei verschiedene Regenbögen kennt.
+
+   Geometrie: die Punkte sitzen absolut bei left:0 in .dh-station; 28px
+   Container-Padding + 7px halber Punkt ergeben Mitte ≈ 35px. left:33px
+   mit width:4px trifft dieselbe Mitte wie die 2px-Basislinie bei
+   left:34px – die Schiene wird nur dicker, nicht versetzt. ── */
+[data-theme="candy"] .dh-stations::before {
+  left: 33px;
+  width: 4px;
+  border-radius: 2px;
+  background: linear-gradient(180deg,
+    #FF5FA8 0%, #FFB13D 22%, #FFE45C 40%, #58D68D 60%, #5CA8FF 80%, #9D7BFF 100%);
+  opacity: 0.85;
+}
+
+/* ── GUMDROPS STATT PUNKTEN ─────────────────────────────────────────
+   Die Farbe des Punktes kommt als INLINE-Style aus colorFor(abteilung)
+   (abteilungsdurchlauf.js) und stiftet die Zuordnung Zeile ↔ Segment im
+   Zeitstrahl – sie darf nicht angetastet werden. Aus dem flachen Kreis
+   wird deshalb allein über Schatten ein gewölbtes Gummibärchen: innerer
+   Bodenschatten = Wölbung, weicher Außenschatten = Auflage auf der
+   Fläche, ::before = Lichtpunkt oben links.
+
+   Der weiße 3px-Rand der Basis wirkt auf der transluzenten Fläche wie
+   ein Loch → hellster Pastellton der Skala statt reinem Weiß. ── */
+[data-theme="candy"] .dh-station__dot {
+  width: 16px;
+  height: 16px;
+  border-color: var(--pm-grey-50);
+  box-shadow:
+    0 0 0 1px var(--pm-grey-300),
+    0 2px 4px rgba(150, 40, 100, 0.30),
+    inset 0 -3px 5px rgba(0, 0, 0, 0.22);
+}
+/* Aktuelle Station: Ring im Akzent-Pink – gleiche Aussage wie in der Basis,
+   nur mit der Gumdrop-Wölbung darunter. Spezifität 0,3,0 muss sowohl über
+   der Regel darüber (0,2,0) als auch über .dh-station--aktuell
+   .dh-station__dot aus abteilungsdurchlauf.css (0,2,0) liegen. */
+[data-theme="candy"] .dh-station--aktuell .dh-station__dot {
+  box-shadow:
+    0 0 0 2px var(--pm-yellow-dark),
+    0 2px 6px rgba(255, 111, 181, 0.45),
+    inset 0 -3px 5px rgba(0, 0, 0, 0.22);
+}
+/* Glanzpunkt. Das Eltern-Element ist bereits position:absolute, das
+   ::before bezieht sich also auf den Punkt selbst. */
+[data-theme="candy"] .dh-station__dot::before {
+  content: '';
+  position: absolute;
+  left: 2px;
+  top: 1px;
+  width: 6px;
+  height: 4px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.80);
+  transform: rotate(-24deg);
+  pointer-events: none;
+}
+
+/* ── FILTER-CHIPS ALS BONBON-PILLEN ─────────────────────────────────
+   Der aktive Chip ist die Primäraktion der Filterzeile und bekommt
+   deshalb exakt das Rezept von .btn-primary weiter oben (Candy-Stripes +
+   Zuckerguss-Glanzkante).
+
+   Textfarbe bewusst --on-yellow-text (#3D1030) statt Weiß: auf dem
+   Bubblegum-Pink #FF6FB5 sind das ~6.2:1, Weiß käme nur auf ~2.5:1.
+   Der Zähler daneben ist ohnehin dunkel und passt dazu. ── */
+[data-theme="candy"] .dh-chip.is-active {
+  background-color: var(--pm-yellow);
+  background-image:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.50), rgba(255, 255, 255, 0) 46%),
+    repeating-linear-gradient(115deg, rgba(255, 255, 255, 0) 0 10px, rgba(255, 255, 255, 0.38) 10px 20px);
+  border-color: rgba(255, 255, 255, 0.85);
+  color: var(--on-yellow-text);
+  box-shadow: 0 3px 10px rgba(255, 111, 181, 0.30), inset 0 1px 0 rgba(255, 255, 255, 0.60);
+}
+[data-theme="candy"] .dh-chip.is-active .dh-chip__count {
+  background: rgba(255, 255, 255, 0.55);
+  color: var(--on-yellow-text);
+}
+/* Inaktive Chips: weiße Zuckerkruste wie .badge, damit sie auf der Szene
+   als Bedienelement lesbar bleiben und nicht als Textfragment. */
+[data-theme="candy"] .dh-chip:not(.is-active) {
+  background-color: rgba(255, 255, 255, 0.78);
+  border-color: rgba(255, 255, 255, 0.85);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.70), 0 1px 2px rgba(150, 40, 100, 0.10);
+}
+
+/* ── AUSKLAPPEN-BUTTON ALS PLUM-PILLE ───────────────────────────────
+   Optik 1:1 von .b-btn-primary („Woche öffnen ›") aus dem Azubi-
+   Dashboard: dunkle Plum-Fläche (--pm-grey-900 = #371A31), weißer Text,
+   weiche tiefe Schattenwolke, 1px-Hochglanz innen oben, Hover hebt um
+   1px an. Damit ist die einzige echte Aktion dieser Seite dasselbe
+   Element wie die einzige echte Aktion des Dashboards.
+   Spezifität 0,2,0 bzw. 0,3,0 schlägt die Basisregeln (0,1,0 / 0,2,0)
+   aus abteilungsdurchlauf.css. ── */
+[data-theme="candy"] .dh-tl__toggle {
+  background: var(--pm-grey-900);
+  border-color: transparent;
+  color: #FFFFFF;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.12),
+    0 10px 26px -12px rgba(55, 26, 49, 0.75);
+  transition: background var(--t-fast), transform var(--t-fast), box-shadow var(--t-fast);
+}
+[data-theme="candy"] .dh-tl__toggle:hover {
+  background: #23101F;
+  color: #FFFFFF;
+  transform: translateY(-1px);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.16),
+    0 14px 32px -12px rgba(55, 26, 49, 0.85);
+}
+@media (prefers-reduced-motion: reduce) {
+  [data-theme="candy"] .dh-tl__toggle:hover { transform: none; }
+}
+
+/* ── ZEITSTRAHL-SEGMENTE MIT ZUCKERGUSS ─────────────────────────────
+   Auch hier kommt die Fläche als INLINE-Style aus colorFor() – ein
+   background-image aus dem Stylesheet verlöre gegen das inline gesetzte
+   background-SHORTHAND (das setzt background-image implizit auf none und
+   steht als Inline-Style über jeder Autorenregel ohne !important).
+   Der Guss liegt deshalb als ::before darüber: oben ein heller Glanz,
+   unten ein Schattensaum = gewölbtes Bonbon. Der Verlauf ist so gelegt,
+   dass das vertikal zentrierte Label im schwachen Teil liegt und weiß
+   lesbar bleibt.
+
+   Kapselform nur im aufgeklappten Track – im Mini-Band stoßen die
+   Segmente randlos aneinander (Basis: border-radius 0), das bleibt so. ── */
+[data-theme="candy"] .dh-tl__seg::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  background: linear-gradient(180deg,
+    rgba(255, 255, 255, 0.45) 0%,
+    rgba(255, 255, 255, 0.06) 34%,
+    rgba(0, 0, 0, 0.05) 72%,
+    rgba(0, 0, 0, 0.16) 100%);
+}
+[data-theme="candy"] .dh-tl__track .dh-tl__seg {
+  border-radius: var(--r-full);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.55),
+    0 2px 5px rgba(150, 40, 100, 0.28);
+}
+/* Mini-Band: nur der Guss (s.o.) plus eine Innenkante, damit das Band als
+   eingelassene Rinne wirkt statt als aufgemalter Strich. */
+[data-theme="candy"] .dh-tl__mini {
+  box-shadow: inset 0 1px 3px rgba(150, 40, 100, 0.16);
 }

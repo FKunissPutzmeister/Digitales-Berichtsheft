@@ -31,13 +31,21 @@
   /* frost = Glas mit Blur (Haupt-Panels); flat = transluzentes Glas ohne
      Blur (viele/kleine Wiederholungs-Kacheln → Performance); btn = Glas-
      Button; blur/grad = animierte Headings. */
+  /* DH-Ansicht (Rolle dhstudent, body.dh-page): eigene Topbar-Shell mit eigenem
+     .dh-*-Namensraum. Die Selektoren stehen bewusst MIT .dh-page davor –
+     .welcome-banner und .planer-kpi kommen auch auf Azubi-/Planer-Seiten vor,
+     ungescopet würde deren Optik unter Silk mit verändert. */
   var SEL = {
     frost: ['.card', '.stat-card', '.welcome-hero', '.b-hero', '.b-azubi', '.b-recent',
-            '.modal', '.pm-select__menu', '.dropdown__menu', '.week-status-bar'],
+            '.modal', '.pm-select__menu', '.dropdown__menu', '.week-status-bar',
+            '.dh-page .welcome-banner', '.dh-stations', '.dh-tl', '.dh-empty',
+            '.dh-notif__panel'],
     flat:  ['.b-tile', '.b-wkcard', '.b-day', '.day-card', '.tag-row',
-            '.time-spinner', '.dash-out-item', '.quick-access-tile'],
+            '.time-spinner', '.dash-out-item', '.quick-access-tile',
+            '.dh-page .planer-kpi'],
     btn:   ['.btn', '.b-btn-primary', '.demo-login-btn', '.btn-ms', '.week-nav__btn',
-            '.pm-select__trigger', '.week-actions button'],
+            '.pm-select__trigger', '.week-actions button',
+            '.dh-chip', '.dh-tl__toggle'],
     /* blur (BlurText) bewusst LEER: das Per-Buchstabe-Reveal auf der Begrüßung
        mountete erst nach dem async React-Bundle. Auf kaltem Load war die fertige
        „Guten Morgen …" also schon sichtbar, wurde dann per silk-sr-only versteckt

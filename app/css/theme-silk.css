@@ -206,7 +206,7 @@ html[data-skin="silk"][data-theme="dark"] .bento .b-recent {
    heller Text. Ergebnis: lila Liquid-Glass-Pill wie das Demo. */
 [data-skin="silk"] :is(.btn, .b-btn-primary, .demo-login-btn, .btn-ms,
   .week-nav__btn, .week-today-btn, .pm-select__trigger,
-  .week-actions button, .silk-host--btn) {
+  .week-actions button, .dh-chip, .dh-tl__toggle, .silk-host--btn) {
   background: transparent !important;
   /* border KOMPLETT (nicht nur -color): normalisiert auch die Breite
      (btn-outline/week-nav: 1.5–2px Basis vs. 1px .silk-host) → kein
@@ -222,12 +222,12 @@ html[data-skin="silk"][data-theme="dark"] .bento .b-recent {
 }
 [data-skin="silk"] :is(.btn, .b-btn-primary, .demo-login-btn, .btn-ms,
   .week-nav__btn, .week-today-btn, .pm-select__trigger,
-  .week-actions button, .silk-host--btn) :is(.pm-select__value, span, small) {
+  .week-actions button, .dh-chip, .dh-tl__toggle, .silk-host--btn) :is(.pm-select__value, span, small) {
   color: inherit !important;
 }
 [data-skin="silk"] :is(.btn, .b-btn-primary, .demo-login-btn, .btn-ms,
   .week-nav__btn, .week-today-btn, .pm-select__trigger,
-  .week-actions button, .silk-host--btn) svg {
+  .week-actions button, .dh-chip, .dh-tl__toggle, .silk-host--btn) svg {
   color: hsl(var(--silk-hue,252) 100% 94%) !important;
 }
 /* Button-Glas = reines CSS-::before (KEIN React-GlassSurface mehr): ein
@@ -241,7 +241,7 @@ html[data-skin="silk"][data-theme="dark"] .bento .b-recent {
    (gleiche Entscheidung wie bei den Panels oben; nimmt Klicks nie ab). */
 [data-skin="silk"] :is(.btn, .b-btn-primary, .demo-login-btn, .btn-ms,
   .week-nav__btn, .week-today-btn, .pm-select__trigger,
-  .week-actions button, .silk-host--btn)::before {
+  .week-actions button, .dh-chip, .dh-tl__toggle, .silk-host--btn)::before {
   content: '';
   position: absolute; inset: 0; z-index: -1;
   border-radius: inherit; pointer-events: none;
@@ -256,6 +256,18 @@ html[data-skin="silk"][data-theme="dark"] .bento .b-recent {
 /* Primär-Button: kräftigeres Indigo → Aktionshierarchie. */
 [data-skin="silk"] :is(.btn-primary, .b-btn-primary)::before {
   background: hsl(var(--silk-hue,252) 89% 63% / 0.52);
+}
+/* Aktiver Status-Chip der DH-Ansicht: gleiche Hierarchie-Stufe wie ein
+   Primär-Button (die Baseline oben macht sonst ALLE Chips gleich transparent,
+   der gewählte Filter wäre nicht mehr erkennbar). */
+[data-skin="silk"] .dh-chip.is-active::before {
+  background: hsl(var(--silk-hue,252) 89% 63% / 0.52);
+}
+/* Der Zähler im Chip trägt eine eigene Fläche (--pm-grey-100) – über dem
+   Indigo-Glas zu schwach. Auf transluzentes Weiß heben. */
+[data-skin="silk"] .dh-chip__count {
+  background: hsl(var(--silk-hue,252) 100% 92% / 0.18) !important;
+  color: hsl(var(--silk-hue,252) 100% 96%) !important;
 }
 /* „Diese Woche" = niedrige Hierarchie: kein gefülltes Glas-Backing, nur Text
    + Hover-Border-Glow (silk-host::after). Quiet/transparent statt Pille. */
