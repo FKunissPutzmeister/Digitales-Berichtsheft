@@ -862,7 +862,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         </div>
         <div class="pt-toolbar__row2">
           <div class="pt-toolbar__actions">
-            <button type="button" class="btn btn-outline btn-sm" id="ptExport" title="Aktuell gefilterte Personen + Zuweisungen als CSV (öffnet in Excel)">Export</button>
+            <button type="button" class="btn btn-outline btn-sm" id="ptExport" title="Aktuell gefilterte Personen + Zuweisungen als Excel-Arbeitsmappe (Übersicht, Zuweisungen, Personen, Abteilungen, Belegung, Verantwortliche)">Export</button>
             <button type="button" class="btn btn-outline btn-sm" id="ptPrint" title="Azubis, Zeitraum und Darstellung wählen, dann drucken">Drucken</button>
           </div>
           <div class="pt-toolbar__right">
@@ -892,13 +892,11 @@ document.addEventListener('DOMContentLoaded', async () => {
           <div class="pt-scroll" id="ptScroll">
             <div class="pt-board" id="ptBoard" style="--tl-w:${Math.round(ajWindow().days * DAY_PX[zoom])}px"></div>
           </div>
-          <div class="pt-legend" id="ptLegend"></div>
         </div>
         <aside class="pt-panel" id="ptPanel" ${selectedAzubiId ? '' : 'hidden'}></aside>
       </div>`;
     bindToolbar();
     renderTimeline();
-    renderLegend();
     renderPanel();
     bindBoardDrag();
     bindPanelDrag();
@@ -921,7 +919,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       if (today < w.start || today > w.end) { ajStartYear = today.getMonth() >= 8 ? today.getFullYear() : today.getFullYear() - 1; afterAjOrZoom(); }
       scrollToToday(true);
     });
-    on('ptExport', 'click', exportCsv);
+    on('ptExport', 'click', exportExcel);
     on('ptPrint', 'click', () => {
       // Vorauswahl = genau die Personen, die die Toolbar gerade zeigt.
       // Namen sind hier bereits Anzeigenamen ("Vorname Nachname", siehe
@@ -1078,17 +1076,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     board.querySelectorAll('.pt-name[data-azubi]').forEach(n => n.addEventListener('keydown', e => {
       if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); selectAzubi(n.dataset.azubi); }
     }));
-  }
-
-  function renderLegend() {
-    const el = document.getElementById('ptLegend'); if (!el) return;
-    const depts = [...new Set([
-      ...abteilungenKatalog.map(a => a.name),
-      ...alleZuweisungen.map(z => z.abteilung).filter(Boolean),
-    ])].sort((a, b) => a.localeCompare(b, 'de'));
-    el.innerHTML = depts.map(d => `<b><span class="pt-swatch" style="background:${colorFor(d)}"></span>${escHtml(d)}</b>`).join('')
-      + `<b><span class="pt-swatch" style="background:repeating-linear-gradient(45deg,transparent 0 3px,var(--pm-grey-300) 3px 4px);border:1px solid var(--pm-grey-200)"></span>ungeplant</b>`
-      + `<b><span class="pt-swatch" style="background:var(--color-error-mid)"></span>Heute</b>`;
   }
 
   // ── Beurteilungen (lazy pro Azubi) ──
@@ -1690,37 +1677,84 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (!PlanerPrint.openPrintWindow(html)) Toast.error('Popup blockiert', 'Bitte Pop-ups für diese Seite erlauben.');
   }
 
-  // ═══════════════════ EXPORT (CSV für Excel) ═══════════════════
-  // Aktuell gefilterte Personen, eine Zeile je Zuweisung; ungeplante Personen
-  // bekommen eine Leerzeile, damit Vollständigkeit (wie in der Excel-Liste)
-  // sichtbar bleibt. Deutsches Excel: Semikolon-Delimiter + UTF-8-BOM (Umlaute).
-  function exportCsv() {
-    const cols = ['Nachname', 'Vorname', 'Beruf', 'Gruppe', 'Abteilung', 'Von', 'Bis', 'Verantwortliche/r', 'Status'];
+  // ═══════════════════ EXPORT (Excel-Arbeitsmappe) ═══════════════════
+  // Aktuell gefilterte Personen + ALLE ihre Zuweisungen. Die Mappe selbst
+  // (Blätter, Formeln, Formatierung) baut abteilungsplaner-export.js.
+
+  // 0,9-MB-Bundle erst beim ersten Export holen, nicht bei jedem Seitenaufruf.
+  function ladeExcelJs() {
+    if (window.ExcelJS) return Promise.resolve(window.ExcelJS);
+    return new Promise((resolve, reject) => {
+      const s = document.createElement('script');
+      s.src = 'js/vendor/exceljs.min.js';
+      s.onload = () => (window.ExcelJS ? resolve(window.ExcelJS) : reject(new Error('ExcelJS nicht verfügbar.')));
+      s.onerror = () => reject(new Error('ExcelJS konnte nicht geladen werden.'));
+      document.head.appendChild(s);
+    });
+  }
+
+  function exportModelInput() {
     const splitName = (n) => {
       const parts = String(n || '').trim().split(/\s+/);        // Anzeige = "Vorname Nachname"
       return parts.length < 2 ? { vor: '', nach: n || '' } : { vor: parts.slice(0, -1).join(' '), nach: parts[parts.length - 1] };
     };
-    const rows = [];
-    azubis.filter(passtFilter).forEach(a => {
-      const { vor, nach } = splitName(a.name);
-      const gruppe = gruppeVon(a);
-      const stns = zuwList(a.id);
-      if (!stns.length) {
-        rows.push([nach, vor, a.beruf || '', gruppe, '', '', '', '', 'ungeplant']);
-      } else {
-        stns.forEach(z => rows.push([nach, vor, a.beruf || '', gruppe, z.abteilung || '',
-          DateUtil.formatDate(z.von), z.bis ? DateUtil.formatDate(z.bis) : 'offen',
-          displayName(z.verantwName || '') || verantwNameFor(z.verantwEmail) || '', statusOf(z).label]));
-      }
-    });
-    const esc = v => { const s = String(v ?? ''); return /[";\r\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s; };
-    const csv = '﻿' + [cols, ...rows].map(r => r.map(esc).join(';')).join('\r\n');
-    const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8;' }));
-    const link = document.createElement('a');
-    link.href = url; link.download = `abteilungsplaner_${ajLabel().replace(/[^\w]+/g, '_')}.csv`;
-    document.body.appendChild(link); link.click(); link.remove();
-    setTimeout(() => URL.revokeObjectURL(url), 1000);
-    Toast.success('Exportiert', `${rows.length} Zeile(n) als CSV.`);
+    const gefiltert = azubis.filter(passtFilter);
+    const ids = new Set(gefiltert.map(a => a.id));
+    const filter = [];
+    if (searchText) filter.push({ label: 'Suche', wert: searchText });
+    if (filterBeruf) filter.push({ label: 'Beruf', wert: filterBeruf });
+    if (filterAbteilung) filter.push({ label: 'Abteilung', wert: filterAbteilung });
+    if (filterVerantw) filter.push({ label: 'Verantwortlich', wert: verantwNameFor(filterVerantw) || filterVerantw });
+    if (nurOhne) filter.push({ label: 'nur ohne Zuweisung', wert: 'ja' });
+    if (showInaktive) filter.push({ label: 'inaktive Personen', wert: 'eingeschlossen' });
+    return {
+      ajStartYear, heute: todayISO,
+      exportiertVon: displayName(user.name || '') || user.email || '',
+      filter,
+      personen: gefiltert.map(a => {
+        const { vor, nach } = splitName(a.name);
+        return {
+          id: a.id, nachname: nach, vorname: vor, name: a.name,
+          beruf: a.beruf || '', typ: a.istDhStudent ? 'DH-Student' : 'Azubi',
+          gruppe: gruppeVon(a), email: a.email || '', aktiv: a.aktiv !== false,
+          ausbildungVon: a.ausbildungsBeginn || '', ausbildungBis: a.ausbildungsEnde || '',
+        };
+      }),
+      zuweisungen: alleZuweisungen.filter(z => ids.has(z.azubiId)).map(z => ({
+        id: z.id, personId: z.azubiId, abteilung: z.abteilung || '',
+        von: z.von || '', bis: z.bis || '',
+        verantwEmail: z.verantwEmail || '',
+        verantwName: displayName(z.verantwName || '') || verantwNameFor(z.verantwEmail) || '',
+      })),
+      abteilungen: abteilungenKatalog.map(a => ({
+        name: a.name, istPmm: !!a.istPmm, aktiv: a.aktiv !== false, farbe: colorFor(a.name),
+        verantwortliche: (a.verantwortliche || []).map(v => ({ email: v.email || '', name: displayName(v.name || '') || '' })),
+      })),
+    };
+  }
+
+  async function exportExcel() {
+    const btn = document.getElementById('ptExport');
+    const label = btn ? btn.textContent : '';
+    if (btn) { btn.disabled = true; btn.textContent = 'Erzeuge …'; }
+    try {
+      const ExcelJS = await ladeExcelJs();
+      const model = AbtPlanerExport.buildExportModel(exportModelInput());
+      const wb = AbtPlanerExport.buildWorkbook(ExcelJS, model);
+      const buf = await wb.xlsx.writeBuffer();
+      const url = URL.createObjectURL(new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }));
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `Abteilungsplaner_${ajLabel().replace(/[^\w]+/g, '_')}_${todayISO}.xlsx`;
+      document.body.appendChild(link); link.click(); link.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+      Toast.success('Excel exportiert', `${model.personen.length} Personen · ${model.zuweisungen.length} Zuweisungen · 7 Blätter.`);
+    } catch (err) {
+      console.error('[planer] Excel-Export fehlgeschlagen:', err);
+      Toast.error('Export fehlgeschlagen', err.message || 'Unbekannter Fehler.');
+    } finally {
+      if (btn) { btn.disabled = false; btn.textContent = label; }
+    }
   }
 
   // Modals einmalig binden (Markup ist statisch in abteilungs-planer.html).

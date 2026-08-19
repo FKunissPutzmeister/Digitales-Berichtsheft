@@ -124,10 +124,6 @@
 .pt-today { position:absolute; top:0; bottom:0; width:2px; background:var(--color-error-mid); z-index:2; pointer-events:none; }
 .pt-today-flag { position:absolute; top:4px; transform:translateX(-50%); background:var(--color-error-mid); color:#fff; font-size:9.5px; font-weight:800; padding:1px 6px; border-radius:4px; white-space:nowrap; font-variant-numeric:tabular-nums; z-index:8; }
 
-.pt-legend { display:flex; align-items:center; gap:14px; flex-wrap:wrap; padding:10px var(--sp-4); border-top:1px solid var(--pm-grey-200); background:var(--pm-white); font-size:var(--text-xs); color:var(--pm-grey-600); }
-.pt-legend b { display:inline-flex; align-items:center; gap:6px; font-weight:500; }
-.pt-swatch { width:11px; height:11px; border-radius:3px; }
-
 .pt-empty { padding:var(--sp-8); text-align:center; color:var(--pm-grey-400); font-size:var(--text-sm); }
 
 /* ── Detail-Panel (rechts, schwebend) ──
@@ -223,7 +219,7 @@ body.pt-dragging { user-select:none; cursor:grabbing; }
 /* ── Druck ── */
 @media print {
   .sidebar, .sidebar-overlay, .topbar, .pt-toolbar, .pt-panel__close,
-  .pt-panel__foot, .pt-legend, .pt-grip { display:none !important; }
+  .pt-panel__foot, .pt-grip { display:none !important; }
 
   /* Das Detail-Panel gehoert nie aufs Papier. display:none genuegt: es nimmt
      das Element vollstaendig aus dem Rendering, damit greift auch die
