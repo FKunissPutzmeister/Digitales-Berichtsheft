@@ -2005,6 +2005,32 @@ body[data-page="wochenansicht"] .tag-row--weekend .tag-row__summary > .tag-row__
 body[data-page="wochenansicht"] .tag-row--weekend .tag-row__summary > .tag-row__field:nth-child(5) {
   display: none;
 }
+/* ── Wochenendtag wird genutzt ─────────────────────────────────
+   Sobald am Sa/So eine Anwesenheit gewählt wird, tauscht das Re-Render die
+   Zeile komplett aus – eine Transition kann daran nicht ansetzen. Die neue
+   Zeile trägt deshalb einmalig .tag-row--we-aktiviert und blendet Fläche
+   und die neu hinzugekommenen Felder ein, statt hart umzuspringen.
+   Kein `to`-Keyframe: dann ist das Ziel automatisch der normale Zustand und
+   muss nicht doppelt gepflegt werden. Bewegung-reduzieren greift global
+   über base.css. */
+/* Startfarbe kommt als --tag-row-we-bg inline von der alten Zeile (siehe
+   markiereWochenendStart) – jedes Theme tönt das Wochenende anders. */
+@keyframes tag-row-we-flaeche { from { background-color: var(--tag-row-we-bg, transparent); } }
+@keyframes tag-row-we-feld    { from { opacity: 0; transform: translateY(5px); } }
+
+body[data-page="wochenansicht"] .tag-row--we-aktiviert {
+  animation: tag-row-we-flaeche 360ms cubic-bezier(.22, 1, .36, 1) both;
+}
+body[data-page="wochenansicht"] .tag-row--we-aktiviert .tag-row__field--ort,
+body[data-page="wochenansicht"] .tag-row--we-aktiviert .tag-row__field--time,
+body[data-page="wochenansicht"] .tag-row--we-aktiviert .tag-row__chevron {
+  animation: tag-row-we-feld 300ms cubic-bezier(.22, 1, .36, 1) both;
+}
+/* Leichter Versatz: Ort zuerst, dann ArbZ, dann der Pfeil – das liest sich
+   als eine Bewegung statt als drei gleichzeitige Einblendungen. */
+body[data-page="wochenansicht"] .tag-row--we-aktiviert .tag-row__field--time { animation-delay: 60ms; }
+body[data-page="wochenansicht"] .tag-row--we-aktiviert .tag-row__chevron     { animation-delay: 120ms; }
+
 body[data-page="wochenansicht"] .tag-row__summary--no-toggle {
   cursor: default;
 }

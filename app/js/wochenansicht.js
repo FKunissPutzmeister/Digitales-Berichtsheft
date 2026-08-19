@@ -371,6 +371,10 @@ document.addEventListener('DOMContentLoaded', async () => {
   // feuerte N-mal (→ mehrere Wochen freigegeben, mehrere Toasts). Deshalb
   // binden wir sie genau einmal und lesen den jeweils aktuellen Stand hier.
   let currentWoche = null;
+  // Stammdaten + Zuweisung des zuletzt gerenderten Azubis. Ein Re-Render,
+  // der daran nichts ändert (Wochenend-Umschalten), darf sie wiederverwenden
+  // statt erneut zwei Fetches abzuwarten.
+  let renderCtx = null;
   let currentMonday = null;
   let currentBerichtTyp = null;
   let shellEventsBound = false;
@@ -561,7 +565,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     window._spinnerCallback = cb;
   }
 
-  async function render(preloadedWoche) {
+  async function render(preloadedWoche, reuseCtx) {
     detachAllAutocompletes();
     // Wenn dieser Render durch einen KW-Wechsel ausgelöst wurde, hängen
     // wir die --entering-Klasse + data-dir direkt ans Markup. So ist die
@@ -585,11 +589,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Ein Aufrufer, der die Woche gerade selbst gespeichert hat, kann den frischen
     // Stand direkt mitgeben – erspart den sonst redundanten dritten GET /wochen
     // (u. a. beim Wochenend-Umschalten spürbar).
+    const ctx = (reuseCtx && renderCtx?.azubiId === azubiId) ? renderCtx : null;
     const [azubiUser, woche, azubiZuw] = await Promise.all([
-      DB.getUser(azubiId),
+      ctx ? ctx.azubiUser : DB.getUser(azubiId),
       preloadedWoche || DB.getWoche(azubiId, currentKW, currentYear),
-      DB.getAktuellerAusbilder(azubiId)
+      ctx ? ctx.azubiZuw : DB.getAktuellerAusbilder(azubiId)
     ]);
+    renderCtx = { azubiId, azubiUser, azubiZuw };
     const berichtTyp = azubiUser?.berichtTyp || 'täglich';   // = getBerichtTyp(), ohne Extra-Fetch
     const monday = DateUtil.getMondayOfKW(currentKW, currentYear);
     const sunday = new Date(monday);
@@ -1137,7 +1143,7 @@ document.addEventListener('DOMContentLoaded', async () => {
               </select>
             </div>
 
-            <div class="tag-row__field">
+            <div class="tag-row__field tag-row__field--ort">
               ${!weFrei ? `
                 <label class="tag-row__field-label">Ort</label>
                 <select class="tag-row__select day-card__select${(!readonly && !isAbwesend && !tag.ort) ? ' tag-row__select--needs-input' : ''}" data-field="ort" data-date="${dateStr}"
@@ -1892,7 +1898,7 @@ document.addEventListener('DOMContentLoaded', async () => {
               </select>
             </div>
 
-            <div class="tag-row__field">
+            <div class="tag-row__field tag-row__field--ort">
               ${!weFrei ? `
                 <label class="tag-row__field-label">Ort</label>
                 <select class="tag-row__select day-card__select${(!readonly && !isAbwesend && !tag.ort) ? ' tag-row__select--needs-input' : ''}" data-field="ort" data-date="${dateStr}"
@@ -2792,6 +2798,44 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
   }
 
+  // Kopie der aktuell gerenderten Woche mit geänderter Anwesenheit eines Tages
+  // – Vorlage für ein sofortiges Re-Render, bevor der Save durch ist.
+  function wocheMitAnwesenheit(dateStr, anwesenheit) {
+    const monday = DateUtil.getMondayOfKW(currentKW, currentYear);
+    const sunday = new Date(monday); sunday.setDate(monday.getDate() + 6);
+    const w = currentWoche
+      ? { ...currentWoche, tage: [...(currentWoche.tage || [])] }
+      : {
+          azubiId: viewAzubiId || user.id, kw: currentKW, year: currentYear,
+          startDate: DateUtil.toISODate(monday), endDate: DateUtil.toISODate(sunday),
+          status: 'offen', gesamtstunden: 0, kommentare: [], tage: [],
+        };
+    const i = w.tage.findIndex(t => t.datum === dateStr);
+    const alt = i >= 0 ? w.tage[i] : { datum: dateStr, tagdauer: 'ganztag' };
+    const tag = { ...alt, anwesenheit };
+    if (i >= 0) w.tage[i] = tag; else w.tage.push(tag);
+    return w;
+  }
+
+  // Ein aktivierter Wochenendtag bekommt Ort, ArbZ und (im Tages-Modus) den
+  // Aufklapp-Pfeil dazu. Weil das Re-Render die Zeile komplett austauscht,
+  // kann keine CSS-Transition greifen – die neue Zeile blendet sie stattdessen
+  // einmalig ein (.tag-row--we-aktiviert, siehe wochenansicht.css).
+  function wochenendFlaeche(dateStr) {
+    const row = document.querySelector(`.tag-row[data-date="${dateStr}"]`);
+    return row ? getComputedStyle(row).backgroundColor : null;
+  }
+  function markiereWochenendStart(dateStr, anwesenheit, vorherBg) {
+    if (anwesenheit === 'Wochenende' || !anwesenheit) return;
+    const row = document.querySelector(`.tag-row[data-date="${dateStr}"]`);
+    if (!row) return;
+    // Startfarbe der Fläche vom alten Knoten übernehmen: die Wochenend-Tönung
+    // ist pro Theme eine andere (hell getönt bis nahezu transparent), ein
+    // fester Wert würde in den dunklen Themes als Block aufblitzen.
+    if (vorherBg) row.style.setProperty('--tag-row-we-bg', vorherBg);
+    row.classList.add('tag-row--we-aktiviert');
+  }
+
   function bindDayCardEvents() {
     // Editor ist in jeder Tageskarte permanent sichtbar (kein Toggle).
     // Daher kein Klick-Handler auf .tag-row__summary mehr nötig.
@@ -2802,10 +2846,20 @@ document.addEventListener('DOMContentLoaded', async () => {
         const dateStr = sel.dataset.date;
         const isAbwesend = sel.value !== 'anwesend' && sel.value !== '';
         // Sa/So: der Zeilenaufbau ändert sich strukturell (Ort, ArbZ und Editor
-        // kommen dazu bzw. fallen weg) → speichern und die Woche neu rendern.
+        // kommen dazu bzw. fallen weg) → neu rendern. Optimistisch: die Woche
+        // wird lokal gepatcht und sofort gerendert (Stammdaten/Zuweisung aus
+        // dem letzten Render), der Server-Save läuft danach. Vorher hing das
+        // Erscheinen von Ort/ArbZ an GET-alle-Wochen + POST + zwei Fetches –
+        // spürbare Verzögerung, bis das Ort-Feld bedienbar war.
         if (istWochenendTag(dateStr)) {
-          const savedWoche = await autoSave(dateStr);
-          await render(savedWoche);
+          const lokal = wocheMitAnwesenheit(dateStr, sel.value);
+          const vorherBg = wochenendFlaeche(dateStr);
+          await render(lokal, true);
+          markiereWochenendStart(dateStr, sel.value, vorherBg);
+          const gespeichert = await autoSave(dateStr);
+          // Id der ggf. neu angelegten Woche nachziehen – ohne sie liefe jede
+          // Status-Aktion gegen /wochen/undefined/status (s. autoSaveImpl).
+          if (gespeichert?.id != null) lokal.id = gespeichert.id;
           return;
         }
         const row = document.getElementById('dayCard_' + dateStr);
@@ -2952,9 +3006,14 @@ document.addEventListener('DOMContentLoaded', async () => {
         anwesenheitSel.addEventListener('change', async () => {
           const isAbwesend = anwesenheitSel.value !== 'anwesend' && anwesenheitSel.value !== '';
           // Sa/So: Ort und ArbZ kommen dazu bzw. fallen weg → neu rendern.
+          // Optimistisch wie im Tages-Modus: erst rendern, dann speichern.
           if (istWochenendTag(dateStr)) {
-            const savedWoche = await autoSave(dateStr);
-            await render(savedWoche);
+            const lokal = wocheMitAnwesenheit(dateStr, anwesenheitSel.value);
+            const vorherBg = wochenendFlaeche(dateStr);
+            await render(lokal, true);
+            markiereWochenendStart(dateStr, anwesenheitSel.value, vorherBg);
+            const gespeichert = await autoSave(dateStr);
+            if (gespeichert?.id != null) lokal.id = gespeichert.id;
             return;
           }
           if (ortSel) {
