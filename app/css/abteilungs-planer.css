@@ -769,8 +769,8 @@
   background: var(--pm-white); border: 1px solid var(--pm-grey-200); border-radius: var(--r-xl);
   padding: var(--sp-5) var(--sp-6); margin-bottom: var(--sp-6); overflow: hidden; box-shadow: var(--shadow-md); }
 .dlb-hero::before { content: ''; position: absolute; inset: 0; pointer-events: none; background: radial-gradient(120% 140% at 100% 0%, var(--pm-yellow-bg), transparent 60%); }
-.dlb-hero--link { text-decoration: none; color: inherit; transition: box-shadow .2s var(--ease-out-quart), transform .2s var(--ease-out-quart), border-color .2s; }
-.dlb-hero--link:hover { transform: translateY(-2px); border-color: var(--pm-yellow); box-shadow: var(--shadow-lg); }
+/* ponytail: kein Hover-Effekt auf dem Fokus-Hero (Klick bleibt, Fokus-Ring via :focus-visible) */
+.dlb-hero--link { text-decoration: none; color: inherit; }
 .dlb-hero--quiet { box-shadow: var(--shadow-sm); }
 .dlb-hero--quiet::before { display: none; }
 .dlb-hero__main { position: relative; z-index: 1; min-width: 0; flex: 1 1 340px; }
@@ -789,7 +789,9 @@
 .dlb-hero__proglab b { color: var(--pm-grey-800); font-weight: var(--fw-bold); }
 .dlb-hero__side { position: relative; z-index: 1; display: flex; flex-direction: column; align-items: flex-end; justify-content: space-between; gap: var(--sp-4); text-align: right; flex: 0 0 auto; }
 .dlb-hero__cta { display: inline-flex; align-items: center; gap: 5px; font-size: var(--text-sm); font-weight: var(--fw-bold); color: var(--pm-yellow-darker); white-space: nowrap; }
-.dlb-hero__cta svg { width: 15px; height: 15px; }
+.dlb-hero__cta svg { width: 15px; height: 15px; transition: transform .18s var(--ease-out-quart); }
+/* dezentes Hover-Feedback: nur der Pfeil rückt nach rechts */
+.dlb-hero--link:hover .dlb-hero__cta svg { transform: translateX(3px); }
 
 /* Section-Kopf (nur Titel + optionaler Zähl-Chip; keine Erklärtexte) */
 .dlb-sec-h { display: flex; align-items: center; gap: 10px; margin: var(--sp-6) 0 var(--sp-4); }
