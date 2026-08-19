@@ -1372,11 +1372,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     const ort = woche?.wochenOrt || 'betrieb_schule';
     const unterweisung = !!woche?.unterweisungAktiv;
 
-    if (htmlIsEmpty(woche?.betriebEintrag || '')) {
+    if (ort !== 'schule' && htmlIsEmpty(woche?.betriebEintrag || '')) {
       errors.push({ scope: 'kachel', kachelId: 'betrieb', label: 'Betrieb',
                     msg: 'Wocheneintrag „Betrieb" fehlt' });
     }
-    if (ort === 'betrieb_schule' && htmlIsEmpty(woche?.schuleEintrag || '')) {
+    if (ort !== 'betrieb' && htmlIsEmpty(woche?.schuleEintrag || '')) {
       errors.push({ scope: 'kachel', kachelId: 'schule', label: 'Schule',
                     msg: 'Wocheneintrag „Schule" fehlt' });
     }
@@ -1735,7 +1735,8 @@ document.addEventListener('DOMContentLoaded', async () => {
             <select id="wochenOrtSelect" class="tag-row__select wochen-options__select"
                     ${readonly ? 'disabled' : ''}>
               <option value="betrieb"        ${ort === 'betrieb' ? 'selected' : ''}>Betrieb</option>
-              <option value="betrieb_schule" ${ort === 'betrieb_schule' ? 'selected' : ''}>Schule/Betrieb</option>
+              <option value="schule"         ${ort === 'schule' ? 'selected' : ''}>Schule</option>
+              <option value="betrieb_schule" ${ort === 'betrieb_schule' ? 'selected' : ''}>Betrieb/Schule</option>
             </select>
           </div>
           <label class="wochen-options__check">
@@ -1900,9 +1901,10 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   function buildWochenKacheln(ort, unterweisung, woche, readonly) {
-    const ids = ['betrieb'];
-    if (ort === 'betrieb_schule') ids.push('schule');
-    if (unterweisung)             ids.push('unterweisung');
+    const ids = [];
+    if (ort !== 'schule')  ids.push('betrieb');
+    if (ort !== 'betrieb') ids.push('schule');
+    if (unterweisung)      ids.push('unterweisung');
     return ids.map(id => wochenKachelHtml(id, readonly)).join('');
   }
 
@@ -1992,10 +1994,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     const tmp = document.createElement('div');
     tmp.innerHTML = wochenKachelHtml(id, readonly).trim();
     node = tmp.firstElementChild;
-    // Reihenfolge wahren: Unterweisung ans Ende, Schule davor.
-    const before = id === 'schule'
-      ? container.querySelector('.wochen-kachel[data-kachel-id="unterweisung"]')
-      : null;
+    // Reihenfolge wahren: Betrieb, Schule, Unterweisung – vor der ersten
+    // bereits vorhandenen Kachel einhängen, die nach dieser kommt.
+    const order = ['betrieb', 'schule', 'unterweisung'];
+    const before = order.slice(order.indexOf(id) + 1)
+      .map(k => container.querySelector(`.wochen-kachel[data-kachel-id="${k}"]`))
+      .find(Boolean) || null;
     container.insertBefore(node, before);
 
     // CSS-fadeIn der Kachel unterdrücken – wir animieren die Höhe selbst.
@@ -2907,8 +2911,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Speichern im Hintergrund. Kein Voll-Rerender, kein Warten aufs Netzwerk.
     document.getElementById('wochenOrtSelect')?.addEventListener('change', (e) => {
       const wlocal = collectWochenState(woche);
-      if (e.target.value === 'betrieb_schule') addWochenKachel('schule', wlocal, isReadonly);
-      else                                      removeWochenKachel('schule');
+      const ort = e.target.value;
+      ['betrieb', 'schule'].forEach((id) => {
+        const an = ort === 'betrieb_schule' || ort === id;
+        if (an) addWochenKachel(id, wlocal, isReadonly);
+        else    removeWochenKachel(id);
+      });
       debounceSaveWoche();
     });
 

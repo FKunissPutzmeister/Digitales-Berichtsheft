@@ -428,9 +428,16 @@ const IhkImport = (() => {
   // Wochenbasis: Textfelder auf Wochenebene, Tage tragen nur Anwesenheit/Ort.
   function applyWeekly(woche, pw) {
     woche.typ = 'wöchentlich';
-    const hasSchule       = !!(pw.schuleText       && pw.schuleText.trim());
     const hasUnterweisung = !!(pw.unterweisungText && pw.unterweisungText.trim());
-    woche.wochenOrt         = hasSchule ? 'betrieb_schule' : 'betrieb';
+    // Wochen-Ort aus den Tagen UND den Texten ableiten: eine Woche mit
+    // Schultagen (Rest z. B. Urlaub) hat oft keinen Schul-Text im PDF – der
+    // Ort muss trotzdem Schule zeigen, sonst fehlt die Schul-Kachel.
+    const orte = pw.tage.map(t => t.ort || '');
+    const hasSchule  = orte.some(o => o.includes('Schule'))
+                       || !!(pw.schuleText  && pw.schuleText.trim());
+    const hasBetrieb = orte.some(o => o.includes('Betrieb'))
+                       || !!(pw.betriebText && pw.betriebText.trim());
+    woche.wochenOrt = hasSchule ? (hasBetrieb ? 'betrieb_schule' : 'schule') : 'betrieb';
     woche.unterweisungAktiv = hasUnterweisung;
     if (pw.betriebText)      woche.betriebEintrag      = pw.betriebText;
     if (pw.schuleText)       woche.schuleEintrag       = pw.schuleText;
@@ -606,5 +613,7 @@ const IhkImport = (() => {
     if (summary.uebernommen) document.dispatchEvent(new CustomEvent('ihkImportErfolgreich', { detail: summary }));
   }
 
-  return { renderSection, bind };
+  // _applyWeekly: für direkte Node-Tests exportiert.
+  return { renderSection, bind, _applyWeekly: applyWeekly };
 })();
+if (typeof module !== 'undefined' && module.exports) module.exports = IhkImport;
