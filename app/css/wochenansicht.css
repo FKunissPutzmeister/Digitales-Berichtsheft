@@ -855,7 +855,6 @@ html[data-skin="silk"] body[data-page="wochenansicht"] .day-section .ql-editor {
   color: var(--pm-grey-300);
 }
 
-
 /* ── Tägliche Ansicht: Tabellenlayout ── */
 .tag-tabelle {
   background: var(--pm-white);
@@ -973,92 +972,107 @@ html[data-skin="silk"] body[data-page="wochenansicht"] .day-section .ql-editor {
 }
 
 /* ===================================================================
-   STATUS-BANNER (genehmigt / freigegeben / abgelehnt)
+   WOCHEN-STATUS IN DER WERKZEUGLEISTE
+   -------------------------------------------------------------------
+   Loest das fruehere .week-status-banner ab. Das Banner wiederholte in
+   Prosa, was die Leiste daneben ohnehin zeigte ("Eingereicht",
+   "schreibgeschuetzt"), und behauptete "Du kannst noch nichts aendern"
+   direkt neben dem Knopf, der genau das tut. Auch die Rueckgabe-
+   Begruendung stand doppelt: sie wird beim Zurueckgeben zusaetzlich als
+   'ausbilder'-Kommentar gespiegelt und erscheint im Kommentarbereich.
    =================================================================== */
-.week-status-banner {
-  display: flex;
-  align-items: flex-start;
-  gap: var(--sp-4);
-  padding: var(--sp-4) var(--sp-5);
-  border-radius: var(--r-lg);
-  margin-bottom: var(--sp-5);
-  border-left: 4px solid;
-  /* Frosted-Glass-Effekt: leichter Backdrop-Blur über dem getinteten
-     Hintergrund. Banner wirkt dadurch schwebend ohne harten Schatten. */
-  backdrop-filter: blur(10px) saturate(140%);
-  -webkit-backdrop-filter: blur(10px) saturate(140%);
-  animation: fadeIn var(--t-normal) both;
+
+/* Eine Farbe je Zustand; Flaeche und Textfarbe werden daraus abgeleitet.
+   Die --status-*-bg-Token sind hier bewusst NICHT im Spiel: sie fehlen in
+   cmd/halloween/christmas/hyperspace fuer 'erstgenehmigt' und fielen dort
+   auf den Hellmodus-Pastellton zurueck (hellila auf Schwarz). */
+.week-toolbar[data-status="freigegeben"]   { --ws: var(--status-freigegeben); }
+.week-toolbar[data-status="erstgenehmigt"] { --ws: var(--status-erstgenehmigt); }
+.week-toolbar[data-status="genehmigt"]     { --ws: var(--status-genehmigt); }
+.week-toolbar[data-status="abgelehnt"]     { --ws: var(--status-abgelehnt); }
+
+.week-toolbar[data-status] {
+  /* Textfarbe zieht 36 % Richtung Vordergrundfarbe des Themes: auf hellem
+     Grund wird sie dunkler, auf dunklem heller. Ein Ausdruck fuer alle acht
+     Themes statt handgepflegter Farbwerte je Theme. */
+  --ws-text: color-mix(in oklab, var(--ws) 64%, var(--pm-grey-900) 36%);
+  --ws-tint: color-mix(in oklab, var(--ws) 24%, transparent);
 }
-.week-status-banner__icon {
-  width: 36px;
-  height: 36px;
+/* Toenung als zusaetzliche Hintergrund-EBENE ueber der Flaeche des Themes.
+   Zwei Fallen stecken hier drin:
+   - Kein Pseudo-Element: glass.css setzt .week-toolbar{position:static
+     !important} (Sticky wurde auf Nutzerwunsch entfernt). Ein absolut
+     positioniertes ::before haette dort keinen Bezugsrahmen und spannte sich
+     ueber die ganze Seite statt ueber die Leiste.
+   - Kein background-color: jedes Theme setzt .week-toolbar{background:...}
+     mit gleicher Spezifitaet und spaeterer Ladereihenfolge, eine Farbe hier
+     verloere also immer. Der linear-gradient liegt als BILD ueber der Farbe,
+     und das vorangestellte html hebt die Spezifitaet (0,2,1) knapp ueber die
+     Theme-Regeln (0,2,0), ohne !important. */
+html .week-toolbar[data-status] {
+  /* Kein durchgehender Farbbalken, sondern ein Verlauf in der linken Ecke:
+     volle Toenung hinter Symbol + Wort, danach weich auslaufend. Die Stopps
+     sind absolut, nicht in Prozent — der Statusblock ist mit 141-190 px
+     (laengstes Wort + Stift) unabhaengig von der Viewportbreite, ein
+     Prozentwert wuerde auf dem iPad an einer ganz anderen Stelle auslaufen. */
+  background-image: linear-gradient(90deg, var(--ws-tint) 0 200px, transparent 360px);
+}
+
+/* Symbol + Wort. line-height:1 ist Pflicht: mit geerbter Zeilenhoehe sitzt
+   der Text tiefer als das Icon. Icon in em, damit es mitwaechst — und um
+   0,03em angehoben, weil die Versalmitte des Wortes gemessen so weit ueber
+   der Boxmitte liegt (die Unterlaengen ziehen die Box nach unten). */
+.week-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45em;
+  font-family: var(--font-heading);
+  font-size: var(--text-lg);
+  font-weight: var(--fw-bold);
+  line-height: 1;
+  color: var(--ws-text);
+  white-space: nowrap;
+  --ws-ico: 1.05em;
+}
+.week-status svg {
+  width: var(--ws-ico);
+  height: var(--ws-ico);
+  flex-shrink: 0;
+  transform: translateY(-0.03em);
+}
+/* Flache Glyphen (Haken, Pfeil) fuellen ihren 24er-Kasten nur zu ~42 %, die
+   Kreis-Icons zu ~83 % — bei gleicher Kastengroesse wirken sie wie aus einem
+   anderen Icon-Satz. */
+.week-toolbar[data-status="erstgenehmigt"] .week-status { --ws-ico: 1.4em; }
+.week-toolbar[data-status="abgelehnt"]     .week-status { --ws-ico: 1.35em; }
+
+/* "Woche bearbeiten": randlos, runde Hitbox, Hover-Flaeche — dieselbe
+   Sprache wie die KW-Pfeile rechts. Beschriftung in title/aria-label. */
+.week-edit-btn {
+  /* 42 px wie der Genehmigen-Kreis: die Azubis arbeiten auf 11"-iPads, und
+     tools/check-ausbilder-seiten.mjs meldet alles unter 40 px als zu kleines
+     Tippziel. Der Stift bleibt trotzdem 19 px klein — gross ist nur die
+     unsichtbare Trefferflaeche. */
+  width: 42px;
+  height: 42px;
+  border: none;
   border-radius: 50%;
-  display: flex;
+  background: transparent;
+  color: var(--pm-grey-500);
+  display: inline-flex;
   align-items: center;
   justify-content: center;
+  cursor: pointer;
   flex-shrink: 0;
-  background: rgba(255,255,255,0.7);
-  backdrop-filter: blur(6px);
-  -webkit-backdrop-filter: blur(6px);
+  /* Die randlose Hitbox traegt ~11 px unsichtbare Innenluft; ohne Korrektur
+     stuende der Stift optisch doppelt so weit vom Wort weg wie gesetzt. */
+  margin-left: -8px;
+  transition: background var(--t-fast), color var(--t-fast), transform .1s ease;
 }
-.week-status-banner__icon svg { width: 20px; height: 20px; }
-.week-status-banner__body { flex: 1; min-width: 0; }
-.week-status-banner__title {
-  font-family: var(--font-heading);
-  font-size: var(--text-base);
-  font-weight: var(--fw-bold);
-  color: var(--pm-grey-900);
-  margin-bottom: 4px;
-}
-.week-status-banner__text {
-  font-size: var(--text-sm);
-  color: var(--pm-grey-700);
-  line-height: var(--lh-normal);
-  margin: 0;
-}
-.week-status-banner__quote {
-  margin-top: var(--sp-2);
-  padding: var(--sp-3) var(--sp-4);
-  background: rgba(255,255,255,0.6);
-  border-radius: var(--r-md);
-  border-left: 3px solid var(--color-error);
-}
-.week-status-banner__quote-text {
-  font-size: var(--text-sm);
-  color: var(--pm-grey-800);
-  line-height: var(--lh-relaxed);
-  white-space: pre-wrap;
-}
-.week-status-banner__quote-meta {
-  font-size: var(--text-xs);
-  color: var(--pm-grey-500);
-  margin-top: var(--sp-2);
-  font-style: italic;
-}
-
-.week-status-banner--genehmigt {
-  background: var(--color-success-light);
-  border-left-color: var(--color-success);
-}
-.week-status-banner--genehmigt .week-status-banner__icon { color: var(--color-success); }
-
-.week-status-banner--freigegeben {
-  background: var(--color-info-light);
-  border-left-color: var(--color-info);
-}
-.week-status-banner--freigegeben .week-status-banner__icon { color: var(--color-info); }
-
-.week-status-banner--abgelehnt {
-  background: var(--color-error-light);
-  border-left-color: var(--color-error);
-}
-.week-status-banner--abgelehnt .week-status-banner__icon { color: var(--color-error); }
-
-.week-status-banner--erstgenehmigt {
-  background: var(--status-erstgenehmigt-bg);
-  border-left-color: var(--status-erstgenehmigt);
-}
-.week-status-banner--erstgenehmigt .week-status-banner__icon { color: var(--status-erstgenehmigt); }
+.week-edit-btn:hover  { background: var(--pm-grey-100); color: var(--pm-grey-900); }
+.week-edit-btn:active { transform: scale(0.94); }
+.week-edit-btn:focus-visible { outline: none; box-shadow: 0 0 0 3px var(--pm-yellow-pale); }
+.week-edit-btn svg { width: 19px; height: 19px; }
 
 /* ===================================================================
    TAG-LEGENDE & TAGES-VOLLSTÄNDIGKEITSPUNKT
@@ -2005,14 +2019,14 @@ body[data-page="wochenansicht"] .tag-row--weekend .tag-row__summary > .tag-row__
 body[data-page="wochenansicht"] .tag-row--weekend .tag-row__summary > .tag-row__field:nth-child(5) {
   display: none;
 }
-/* ── Wochenendtag wird genutzt ─────────────────────────────────
-   Sobald am Sa/So eine Anwesenheit gewählt wird, tauscht das Re-Render die
+/* ── Wochenendtag wird genutzt ─────────────────────────────────────────
+   Sobald am Sa/So eine Anwesenheit gewaehlt wird, tauscht das Re-Render die
    Zeile komplett aus – eine Transition kann daran nicht ansetzen. Die neue
-   Zeile trägt deshalb einmalig .tag-row--we-aktiviert und blendet Fläche
+   Zeile traegt deshalb einmalig .tag-row--we-aktiviert und blendet Flaeche
    und die neu hinzugekommenen Felder ein, statt hart umzuspringen.
    Kein `to`-Keyframe: dann ist das Ziel automatisch der normale Zustand und
    muss nicht doppelt gepflegt werden. Bewegung-reduzieren greift global
-   über base.css. */
+   ueber base.css. */
 /* Startfarbe kommt als --tag-row-we-bg inline von der alten Zeile (siehe
    markiereWochenendStart) – jedes Theme tönt das Wochenende anders. */
 @keyframes tag-row-we-flaeche { from { background-color: var(--tag-row-we-bg, transparent); } }
@@ -3203,7 +3217,6 @@ body[data-page="wochenansicht"] .btn-lg {
   color: #ffffff !important;
 }
 
-
 /* ===================================================================
    DRUCK-OPTIMIERUNG (PDF-Export)
    =================================================================== */
@@ -3220,6 +3233,7 @@ body[data-page="wochenansicht"] .btn-lg {
   /* Bedien-Elemente ausblenden */
   .week-nav__btn,
   .week-actions,
+  .week-edit-btn,
   .bericht-typ-bar,
   .week-status-bar__autosave,
   #addCommentBtn,
@@ -3230,20 +3244,9 @@ body[data-page="wochenansicht"] .btn-lg {
   .tag-cards__toolbar,
   .ql-toolbar { display: none !important; }
 
-  /* Status-Banner als Text mit Rahmen, ohne Farbflächen */
-  .week-status-banner {
-    background: transparent !important;
-    border: 1pt solid #000 !important;
-    border-radius: 0 !important;
-    padding: 6pt 8pt !important;
-    margin-bottom: 8pt !important;
-  }
-  .week-status-banner__icon { display: none !important; }
-  .week-status-banner__quote {
-    background: transparent !important;
-    border-left: 2pt solid #000 !important;
-    border-radius: 0 !important;
-  }
+  /* Status im Ausdruck als schwarzer Text, ohne Toenung */
+  html .week-toolbar[data-status] { background-image: none !important; }
+  .week-status { color: #000 !important; }
 
   /* Stammdaten: auf dem Bildschirm versteckt (display:none, s. oben),
      für den IHK-Ausdruck hier eingeblendet */
@@ -3497,35 +3500,6 @@ body[data-page="wochenansicht"] .time-spinner__input.spinner-bump-down {
   border-color: var(--pm-yellow);
   box-shadow: 0 0 0 3px rgba(255, 195, 0, 0.18);
 }
-
-
-/* Status-Banner: stärkere Border-Akzentuierung im Dark Mode.
-   Der Hintergrund war mit 3 % Deckkraft praktisch durchsichtig, sodass der
-   gold-/farbige Ambient-Verlauf hinter dem Banner deutlich durchschien.
-   Jetzt ein klar deckenderer dunkler Panel-Hintergrund (leicht frostig) –
-   die Status-Farbe tragen weiterhin das Icon und der linke Rand. */
-[data-theme="dark"] .week-status-banner {
-  background-color: rgba(48, 48, 54, 0.90);
-  border-color: rgba(255, 255, 255, 0.10);
-  backdrop-filter: blur(4px) saturate(130%);
-  -webkit-backdrop-filter: blur(4px) saturate(130%);
-}
-[data-theme="dark"] .week-status-banner__title { color: var(--pm-grey-900); }
-[data-theme="dark"] .week-status-banner__text  { color: var(--pm-grey-700); }
-[data-theme="dark"] .week-status-banner__icon  {
-  background: rgba(255, 255, 255, 0.10);
-  backdrop-filter: blur(8px);
-}
-/* Rückgabe-Begründung: Der Zitat-Kasten behielt seinen hellen
-   rgba(255,255,255,0.6)-Hintergrund, während die Text-/Stempelfarben im
-   Dark Mode auf helle Grautöne invertieren (--pm-grey-500/800) → hell auf
-   hell = unsichtbar. Deshalb hier ein dunkles Panel; die bestehenden
-   (invertiert-hellen) Textfarben tragen dann den nötigen Kontrast. */
-[data-theme="dark"] .week-status-banner__quote {
-  background: rgba(255, 255, 255, 0.06);
-}
-[data-theme="dark"] .week-status-banner__quote-text { color: var(--pm-grey-800); }
-[data-theme="dark"] .week-status-banner__quote-meta { color: var(--pm-grey-500); }
 
 /* Bottom-Bar (Gesamt-Stunden): minimalistisch, ohne grauen Balken.
    Hintergrund/Schatten bleiben transparent – nur Wochensumme in Brand-Gelb. */

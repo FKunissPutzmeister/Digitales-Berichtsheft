@@ -662,14 +662,26 @@ document.addEventListener('DOMContentLoaded', async () => {
       return null;
     })();
 
+    /* Der Wochenstatus lebt jetzt in der Werkzeugleiste selbst: sie nimmt die
+       Statusfarbe an und traegt Symbol + Wort. 'offen' bleibt wortlos — ein
+       Entwurf braucht keine Zustandsmeldung, das tut der Autospeichern-Hinweis. */
+    const zeigtStatus = !!woche && woche.status !== 'offen';
+    const statusHtml = zeigtStatus ? `
+          <span class="week-status">
+            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.4" aria-hidden="true">${STATUS_ICON[woche.status] || ''}</svg>
+            ${WOCHEN_STATUS_LABEL[woche.status] || getStatusLabel(woche.status)}
+          </span>` : '';
+
     const azubiSelectorHtml = isAusbilder ? await renderAzubiSelector(azubiId) : '';
 
-    // Nur Wochen-Kommentare (tagId === null). Der 'abgelehnt'-Kommentar dient
-    // ausschließlich als Datenquelle für das Rückgabe-Banner oben und wird
-    // hier ausgeblendet – im Kommentarbereich erscheinen nur explizit
-    // hinzugefügte Kommentare (inkl. der als 'ausbilder' gespiegelten
-    // Rückgabe-Begründung, siehe rejectInlineSubmit-Handler).
-    const wochenKommentare = (woche?.kommentare || []).filter(k => k.tagId === null && k.typ !== 'abgelehnt');
+    // Nur Wochen-Kommentare (tagId === null). Der 'abgelehnt'-Kommentar wird
+    // beim Zurückgeben zusätzlich als 'ausbilder'-Kommentar gespiegelt (siehe
+    // rejectInlineSubmit-Handler) – dann wäre er hier doppelt und fällt raus.
+    // Altbestand VOR der Spiegelung hat nur das 'abgelehnt'-Original; seit das
+    // Rückgabe-Banner weg ist, wäre die Begründung sonst nirgends mehr zu sehen.
+    const alleWochenKommentare = (woche?.kommentare || []).filter(k => k.tagId === null);
+    const wochenKommentare = alleWochenKommentare.filter(k => k.typ !== 'abgelehnt'
+      || !alleWochenKommentare.some(m => m.typ !== 'abgelehnt' && m.text === k.text));
     const wochenKommentareHtml = woche && wochenKommentare.length
       ? `<div class="card" style="margin-top:var(--sp-5)">
           <div class="card__header"><span class="card__title">Kommentare</span></div>
@@ -698,10 +710,9 @@ document.addEventListener('DOMContentLoaded', async () => {
 
       ${renderStammdatenPrintBlock(azubiUser, azubiAusbilderName, ausbildungsjahr, azubiZuw)}
 
-      ${await renderStatusBanner(woche, azubiAusbilderName, user)}
-
-      <div class="week-toolbar">
+      <div class="week-toolbar"${zeigtStatus ? ` data-status="${woche.status}"` : ''}>
         <div class="week-toolbar__left">
+          ${statusHtml}
           ${canApprove ? `
             <button class="btn-approve-circle" id="approveBtn" type="button" title="${canErstgenehmigen ? 'Erstgenehmigen' : 'Genehmigen'}" aria-label="${canErstgenehmigen ? 'Erstgenehmigen' : 'Genehmigen'}">
               <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3" style="width:22px;height:22px"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
@@ -713,11 +724,9 @@ document.addEventListener('DOMContentLoaded', async () => {
               Zurückgeben
             </button>
           ` : ''}
-          ${!canRelease && !canApprove && !canReject && woche ? `<span class="badge badge--${woche.status}">${getStatusLabel(woche.status)}</span>` : ''}
           ${canWithdraw ? `
-            <button class="btn btn-outline" id="withdrawBtn" type="button">
-              <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" style="width:16px;height:16px"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 0 0-2 2v11a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2v-5"/><path stroke-linecap="round" stroke-linejoin="round" d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-              Woche bearbeiten
+            <button class="week-edit-btn" id="withdrawBtn" type="button" title="Woche bearbeiten" aria-label="Woche bearbeiten">
+              <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 0 0-2 2v11a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2v-5"/><path stroke-linecap="round" stroke-linejoin="round" d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
             </button>
           ` : ''}
           ${!isReadonly && user.istAzubi ? `
@@ -726,7 +735,7 @@ document.addEventListener('DOMContentLoaded', async () => {
               <span>Automatische Speicherung aktiv${lastSavedStr ? ` · letzte Speicherung: <strong>${lastSavedStr} Uhr</strong>` : ''}</span>
             </span>
           ` : ''}
-          ${isReadonly ? `
+          ${isReadonly && !zeigtStatus ? `
             <span class="week-toolbar__autosave week-toolbar__autosave--lock">
               <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
               <span>Schreibgeschützt</span>
@@ -1242,102 +1251,19 @@ document.addEventListener('DOMContentLoaded', async () => {
     `;
   }
 
-  // ── Status-Banner ─────────────────────────────────────────────────
-  async function renderStatusBanner(woche, azubiAusbilderName, currentUser) {
-    if (!woche) return '';
-
-    // Tatsächlich handelnde Person: erst der beim Genehmigen gespeicherte Name
-    // (Migration 031), dann die Live-Auflösung über die OID (Altbestand).
-    // Der frühere Fallback auf azubiAusbilderName bleibt als LETZTE Stufe —
-    // er ist der gefährliche Fall (statisch zugeordneter, evtl. FALSCHER
-    // Ausbilder) und darf erst greifen, wenn beide Quellen leer sind.
-    const korrektor = woche.korrigiertVon ? await DB.getUser(woche.korrigiertVon) : null;
-    const korrektorName = displayName(woche.korrigiertVonName || (korrektor ? korrektor.name : '') || '');
-
-    if (woche.status === 'genehmigt') {
-      const name = korrektorName || azubiAusbilderName;
-      return `
-        <div class="week-status-banner week-status-banner--genehmigt">
-          <div class="week-status-banner__icon" aria-hidden="true">
-            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-          </div>
-          <div class="week-status-banner__body">
-            <div class="week-status-banner__title">Diese Woche wurde genehmigt</div>
-            <p class="week-status-banner__text">Die Einträge sind abgenommen und schreibgeschützt. ${name ? `Genehmigt durch <strong>${escapeHtml(name)}</strong>.` : ''}</p>
-          </div>
-        </div>
-      `;
-    }
-
-    if (woche.status === 'erstgenehmigt') {
-      const isAzubi = currentUser.istAzubi;
-      const von = korrektorName ? ` von <strong>${escapeHtml(korrektorName)}</strong>` : '';
-      return `
-        <div class="week-status-banner week-status-banner--erstgenehmigt">
-          <div class="week-status-banner__icon" aria-hidden="true">
-            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
-          </div>
-          <div class="week-status-banner__body">
-            <div class="week-status-banner__title">Erstgenehmigt – wartet auf Endabnahme</div>
-            <p class="week-status-banner__text">
-              ${isAzubi
-                ? `Diese Woche wurde${von} erstgenehmigt. Die endgültige Genehmigung erfolgt durch deine Ausbilder/in.`
-                : `Erstgenehmigt${von}. Bitte als Endabnahme über <strong>Genehmigen</strong> oder <strong>Zurückgeben</strong> entscheiden.`}
-            </p>
-          </div>
-        </div>
-      `;
-    }
-
-    if (woche.status === 'freigegeben') {
-      const isAzubi = currentUser.istAzubi;
-      return `
-        <div class="week-status-banner week-status-banner--freigegeben">
-          <div class="week-status-banner__icon" aria-hidden="true">
-            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-          </div>
-          <div class="week-status-banner__body">
-            <div class="week-status-banner__title">Eingereicht</div>
-            <p class="week-status-banner__text">
-              ${isAzubi
-                ? `Wartet auf Prüfung${azubiAusbilderName ? ` durch <strong>${azubiAusbilderName}</strong>` : ''}. Du kannst noch nichts ändern – wenn deine Ausbilder/in zurückgibt, wird die Woche wieder editierbar.`
-                : `Bitte prüfen und über <strong>Genehmigen</strong> oder <strong>Zurückgeben</strong> entscheiden.`}
-            </p>
-          </div>
-        </div>
-      `;
-    }
-
-    if (woche.status === 'abgelehnt') {
-      const rejectionComment = (woche.kommentare || []).slice().reverse().find(k => k.typ === 'abgelehnt');
-      // Gespeicherter Autorname hat Vorrang (Migration 031); nur bei
-      // Altbestand noch ein Users-Abruf.
-      const author = rejectionComment && !rejectionComment.autorName
-        ? await DB.getUser(rejectionComment.userId)
-        : null;
-      const authorName = displayName(
-        (rejectionComment && rejectionComment.autorName) || (author ? author.name : '') || ''
-      ) || 'Ausbilder/in';
-      return `
-        <div class="week-status-banner week-status-banner--abgelehnt">
-          <div class="week-status-banner__icon" aria-hidden="true">
-            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
-          </div>
-          <div class="week-status-banner__body">
-            <div class="week-status-banner__title">Zurückgegeben – bitte überarbeiten</div>
-            ${rejectionComment ? `
-              <div class="week-status-banner__quote">
-                <div class="week-status-banner__quote-text">${escapeHtml(rejectionComment.text)}</div>
-                <div class="week-status-banner__quote-meta">— ${escapeHtml(authorName)}${rejectionComment.datum ? ' · ' + rejectionComment.datum : ''}</div>
-              </div>
-            ` : `<p class="week-status-banner__text">Bitte überarbeite die Einträge und gib die Woche erneut frei.</p>`}
-          </div>
-        </div>
-      `;
-    }
-
-    return '';
-  }
+  /* Ein Symbol je Wochenstatus. Der Rueckgabe-Pfeil ist derselbe wie auf dem
+     Zurueckgeben-Knopf der Ausbilder — Azubi und Ausbilder sehen fuer dieselbe
+     Sache dasselbe Zeichen. */
+  const STATUS_ICON = {
+    freigegeben:   '<circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>',
+    erstgenehmigt: '<path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/>',
+    genehmigt:     '<path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>',
+    abgelehnt:     '<path stroke-linecap="round" stroke-linejoin="round" d="M9 14 4 9l5-5"/><path stroke-linecap="round" stroke-linejoin="round" d="M4 9h11a5 5 0 0 1 5 5v1"/>',
+  };
+  /* getStatusLabel() liefert fuer 'abgelehnt' den Enum-Namen "Abgelehnt".
+     Auf dem Wochenblatt heisst die Aktion aber "Zurueckgeben" — hier also
+     dasselbe Wort wie auf dem Knopf, der den Zustand ausgeloest hat. */
+  const WOCHEN_STATUS_LABEL = { abgelehnt: 'Zurückgegeben' };
 
   // ── Pflichtfeld-Validierung ───────────────────────────────────────
   function htmlIsEmpty(html) {

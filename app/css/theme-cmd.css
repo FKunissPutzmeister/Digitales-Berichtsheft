@@ -796,18 +796,12 @@ html[data-theme="cmd"] .bento .b-recent {
    (Die Status-BADGES sind oben unter §Status-Badges abgedeckt.)
    =================================================================== */
 
-/* Wochenansicht-Banner-Titel: war einheitlich hellgrün (--pm-grey-900),
-   sitzt auf dunklem Tint → neutral weiß. */
-[data-theme="cmd"] .week-status-banner__title { color: rgba(255, 255, 255, 0.95); }
-
-/* Rückgabe-Zitat-Kasten: derselbe „hell auf hell"-Fall wie im Standard-
-   Dark-Mode (siehe wochenansicht.css, [data-theme="dark"] .week-status-
-   banner__quote) – der helle rgba(255,255,255,0.6)-Kasten blieb hier aber
-   unfixt, weil CMD kein [data-theme="dark"] ist. Auf dem rot getönten
-   Banner ergab das einen muddy rosa Kasten mit hellgrünem Text. */
-[data-theme="cmd"] .week-status-banner__quote {
-  background: rgba(255, 255, 255, 0.06);
-}
+/* Wochen-Werkzeugleiste: der Wochenstatus toent sie in wochenansicht.css mit
+   seiner Statusfarbe ein (Blau/Lila/Rot). Das bricht das Terminal aus
+   Schwarz und Phosphorgruen auf, deshalb hier keine Flaeche — Symbol und
+   Wort tragen den Zustand in CMD allein. Spezifitaet (0,3,0) schlaegt das
+   html-Praefix der Basisregel (0,2,1). */
+[data-theme="cmd"] .week-toolbar[data-status] { background-image: none; }
 
 /* Dashboard-Hero-Status „Genehmigt": dunkelgrüner Text auf HELLER
    Mint-Pille (wie im Dark-Mode hell belassen) → schwarz statt grün. */
