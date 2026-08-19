@@ -2665,7 +2665,13 @@ document.addEventListener('DOMContentLoaded', async () => {
         return;
       }
       clearValidationErrors();
-      Modal.open('releaseModal');
+      // Ohne Zwischenbestätigung freigeben (wie Genehmigen/Zurückgeben): die
+      // Pflichtfeld-Prüfung oben ist der eigentliche Schutz, und die Freigabe
+      // lässt sich per „Woche bearbeiten" jederzeit zurückziehen.
+      if (!currentWoche) { Toast.warning('Keine Einträge', 'Bitte zuerst Einträge erfassen.'); return; }
+      await DB.setWocheStatus(currentWoche.id, 'freigegeben');
+      Toast.success('Eingereicht', `KW ${currentKW} wurde eingereicht.`);
+      render();
     });
 
     // Genehmigen ohne Zwischenbestätigung: direkt setzen (keine Modal-Abfrage).
@@ -2764,14 +2770,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       render();
     });
 
-    // Freigabe bestätigen.
-    document.getElementById('releaseConfirmBtn')?.addEventListener('click', async () => {
-      if (!currentWoche) { Toast.warning('Keine Einträge', 'Bitte zuerst Einträge erfassen.'); Modal.closeAll(); return; }
-      await DB.setWocheStatus(currentWoche.id, 'freigegeben');
-      Modal.closeAll();
-      Toast.success('Eingereicht', `KW ${currentKW} wurde eingereicht.`);
-      render();
-    });
+    // (Freigeben läuft ohne Zwischenbestätigung direkt im releaseBtnBottom-Handler.)
 
     // (Genehmigen läuft ohne Zwischenbestätigung direkt über den approveBtn-Handler.)
 
