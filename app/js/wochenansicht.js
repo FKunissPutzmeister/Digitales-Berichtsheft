@@ -463,8 +463,8 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   // Nutzer-Einstellung „Unterweisung standardmäßig aktiv" (Profil → Eingabe-
-  // hilfen, pro Gerät). Steuert nur den Startwert NEUER (noch nicht gespei-
-  // cherter) Wochen; gespeicherte Wochen behalten ihren eigenen Wert. Default AUS.
+  // hilfen, pro Gerät). Aktiviert die Unterweisung in JEDER noch nicht einge-
+  // reichten Woche; eingereichte/genehmigte behalten ihren Wert. Default AUS.
   function unterweisungDefaultOn() {
     try { return localStorage.getItem(UNTERWEISUNG_DEFAULT_KEY) === '1'; }
     catch (e) { return false; }
@@ -1113,12 +1113,11 @@ document.addEventListener('DOMContentLoaded', async () => {
       const schuleExpanded  = hasSchule || showSchule;
       // Bleibt nach Reload aufgeklappt, wenn der Nutzer die Kachel aktiviert
       // hat – auch ohne Inhalt (siehe getDayCompletion: dann Pflichtfeld).
-      // Für einen noch nie gespeicherten Tag (Flag undefined) zieht zusätzlich
-      // die Profil-Einstellung „Unterweisung standardmäßig aktiv" – dieselbe
-      // Regel wie im Wochen-Modus (renderWochenKacheln, s. u.). Ein Tag mit
-      // explizit false bleibt zu, und im Lesemodus wird nichts erzwungen.
+      // Zusätzlich zieht die Profil-Einstellung „Unterweisung standardmäßig
+      // aktiv" in jeder noch nicht eingereichten Woche (!readonly) – dieselbe
+      // Regel wie im Wochen-Modus (renderWochenKacheln, s. u.).
       const unterweisungExpanded = !!tag.unterweisungAktiv || hasUnterweisung
-        || (!readonly && tag.unterweisungAktiv === undefined && unterweisungDefaultOn());
+        || (!readonly && unterweisungDefaultOn());
       // Sichtbarkeit der Kachel: im eigenen (schreibbaren) Heft reicht ein
       // gewählter Ort, damit der Azubi sie bei Bedarf aufklappen kann. Im
       // Prüfer-/Ausbilder-Lesemodus (readonly) wäre das Kästchen nur ein
@@ -1722,9 +1721,10 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   function renderWochenKacheln(woche, readonly, monday) {
     const ort = woche?.wochenOrt || 'betrieb_schule';
-    // Neue (noch nicht gespeicherte) Woche → Startwert aus der Nutzer-Einstellung;
-    // gespeicherte Woche behält ihren eigenen Wert.
-    const unterweisung = woche ? !!woche.unterweisungAktiv : unterweisungDefaultOn();
+    // Profil-Einstellung greift in JEDER noch nicht eingereichten Woche
+    // (readonly = freigegeben/genehmigt oder fremdes Heft), nicht nur in einer
+    // ungespeicherten.
+    const unterweisung = !!woche?.unterweisungAktiv || (!readonly && unterweisungDefaultOn());
 
     return `
       <div class="wochen-wrap">

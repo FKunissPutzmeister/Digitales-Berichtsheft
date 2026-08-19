@@ -183,8 +183,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     catch (e) { return false; }
   }
 
-  /* „Unterweisung standardmäßig aktiv": Opt-in, Default AUS. Neue Wochen
-     starten dann mit angehakter „mit Unterweisung"-Option (wochenansicht.js). */
+  /* „Unterweisung standardmäßig aktiv": Opt-in, Default AUS. Jede noch nicht
+     eingereichte Woche ist dann „mit Unterweisung" angehakt (wochenansicht.js). */
   function unterweisungDefaultEnabled() {
     try { return localStorage.getItem(UNTERWEISUNG_DEFAULT_KEY) === '1'; }
     catch (e) { return false; }
@@ -217,7 +217,7 @@ document.addEventListener('DOMContentLoaded', async () => {
           <div class="settings-row">
             <div class="settings-row__text">
               <div class="settings-row__label">Unterweisung standardmäßig aktiv</div>
-              <div class="settings-row__desc">Neue Wochen starten mit aktivierter Option „mit Unterweisung".</div>
+              <div class="settings-row__desc">Jede noch nicht eingereichte Woche ist „mit Unterweisung" angehakt.</div>
             </div>
             <label class="ios-switch">
               <input type="checkbox" id="unterweisungDefaultToggle" ${untOn ? 'checked' : ''}
