@@ -69,3 +69,21 @@ graphify-out/
 
 # Brainstorming-Visual-Companion-Sitzungen (lokale Mockup-Scratch-Dateien)
 .superpowers/
+
+# Ruflo local secrets and runtime data
+.env
+.env.local
+.env.*.local
+.claude-flow/data/
+.claude-flow/logs/
+.claude-flow/sessions/
+.swarm/
+ruvector.db
+
+# Ruflo: maschinenlokaler bzw. staendig neu geschriebener Laufzeitzustand.
+# memory-package.json enthaelt einen absoluten Pfad ins npm-Verzeichnis des
+# jeweiligen Rechners, metrics/ und security/ werden bei jedem Lauf neu
+# geschrieben – beides gehoert nicht in die Versionierung.
+.claude-flow/memory-package.json
+.claude-flow/metrics/
+.claude-flow/security/
