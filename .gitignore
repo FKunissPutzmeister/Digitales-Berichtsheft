@@ -87,3 +87,7 @@ ruvector.db
 .claude-flow/memory-package.json
 .claude-flow/metrics/
 .claude-flow/security/
+
+# Mockups: dienen der Entscheidung und sind danach erledigt – nicht ins
+# geteilte Repo (ausgeliefert wird app/ + backend/).
+mockups/
