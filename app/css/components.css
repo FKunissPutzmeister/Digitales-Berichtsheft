@@ -856,34 +856,47 @@ select.form-control {
   position: sticky;
   top: calc(-1 * var(--sp-1)); /* Menü-Padding ausgleichen */
   margin: calc(-1 * var(--sp-1)) calc(-1 * var(--sp-1)) var(--sp-1);
-  padding: var(--sp-2);
+  padding: var(--sp-2) var(--sp-3);
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
   background: var(--pm-white);
   border-bottom: 1px solid var(--pm-grey-200);
   z-index: 1;
 }
+/* Randlos: die Lupe + die Trennlinie der Kopfzeile reichen als Hinweis,
+   ein zweiter Kasten im Menü wirkt schwer. */
+.pm-select__search-ico {
+  flex-shrink: 0;
+  display: inline-flex;
+  color: var(--pm-grey-500);
+}
+.pm-select__search-ico svg { width: 14px; height: 14px; }
 .pm-select__search input {
-  width: 100%;
-  padding: var(--sp-2) var(--sp-3);
-  border: 1px solid var(--pm-grey-300);
-  border-radius: var(--r-sm);
+  flex: 1;
+  min-width: 0;
+  padding: 0;
+  border: none;
+  background: none;
   font-family: var(--font-body);
   font-size: var(--text-sm);
+  line-height: 22px;
   color: var(--pm-grey-800);
-  background: var(--pm-white);
 }
-.pm-select__search input:focus {
-  outline: none;
-  border-color: var(--pm-yellow-darker);
+.pm-select__search input:focus { outline: none; }
+.pm-select__search input::placeholder { color: var(--pm-grey-500); }
+.pm-select__empty {
+  padding: var(--sp-3);
+  font-family: var(--font-body);
+  font-size: var(--text-sm);
+  color: var(--pm-grey-500);
+  text-align: center;
 }
 [data-theme="dark"] .pm-select__search {
   background: var(--inverse-surface-soft); /* wie das Dark-Menü selbst */
   border-color: rgba(255, 255, 255, 0.08);
 }
-[data-theme="dark"] .pm-select__search input {
-  background: rgba(255, 255, 255, 0.06);
-  border-color: rgba(255, 255, 255, 0.12);
-  color: #fff;
-}
+[data-theme="dark"] .pm-select__search input { color: #fff; }
 .pm-select__option {
   display: flex;
   align-items: center;
@@ -943,6 +956,8 @@ select.form-control {
   font-style: italic;
 }
 .pm-select__hl { background: var(--pm-yellow-pale); color: inherit; border-radius: 2px; }
+/* Dunkel: das blasse Gelb wird auf dunklem Grund matschig. */
+[data-theme="dark"] .pm-select__hl { background: rgba(255, 195, 0, 0.28); color: #fff; }
 .pm-select__option[hidden] { display: none; }
 
 /* Kompakte Variante für Tag-Tabellen-Zeilen */

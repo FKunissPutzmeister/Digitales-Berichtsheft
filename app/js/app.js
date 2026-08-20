@@ -485,7 +485,6 @@ class PMSelect {
     this.native.dataset.pmEnhanced = 'true';
     this.native._pmInstance = this;
     this.query = '';
-    this.queryTimer = null;
 
     this.wrapper = document.createElement('div');
     this.wrapper.className = 'pm-select';
@@ -522,6 +521,9 @@ class PMSelect {
     if (nativeSelect.dataset.pmSearch != null) {
       this.searchWrap = document.createElement('div');
       this.searchWrap.className = 'pm-select__search';
+      this.searchWrap.innerHTML = '<span class="pm-select__search-ico" aria-hidden="true">'
+        + '<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">'
+        + '<circle cx="11" cy="11" r="7"/><line x1="16.5" y1="16.5" x2="21" y2="21"/></svg></span>';
       this.searchInput = document.createElement('input');
       this.searchInput.type = 'search';
       this.searchInput.placeholder = nativeSelect.dataset.pmSearch || 'Suchen …';
@@ -532,6 +534,13 @@ class PMSelect {
       });
       this.searchWrap.appendChild(this.searchInput);
     }
+
+    // Sichtbare Antwort, wenn die Suche nichts findet (sonst stünde da ein
+    // leerer Kasten). Überlebt Rebuilds wie das Suchfeld.
+    this.emptyEl = document.createElement('div');
+    this.emptyEl.className = 'pm-select__empty';
+    this.emptyEl.textContent = 'Keine Treffer';
+    this.emptyEl.hidden = true;
 
     // <select> in den Wrapper verschieben, daneben Trigger einfügen
     nativeSelect.parentNode.insertBefore(this.wrapper, nativeSelect);
@@ -580,29 +589,98 @@ class PMSelect {
       btn.appendChild(text);
       this.menu.appendChild(btn);
     });
+    this.menu.appendChild(this.emptyEl);
   }
 
-  // Filtert die Optionen per Wort-Präfix (Vor- ODER Nachname) und hebt den
-  // getroffenen Präfix hellgelb hervor. Leere Query → alle sichtbar, kein Markup.
+  /* Kleinschreiben + Diakritika entfernen, aber LÄNGENTREU (ü→u, ß→s), damit
+     die Treffer-Positionen weiter aufs Original-Label passen. So findet
+     „buro" auch „Büro". */
+  static _norm(s) {
+    return String(s).toLowerCase().replace(/ß/g, 's')
+      .normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  }
+
+  /* Tippfehler-Abstand des Suchbegriffs zum BESTEN PRÄFIX eines Wortes (das
+     Wortende ist frei). Eine Rechnung für alle Fälle: „einakuf" → „Einkauf" und
+     „fertigunk" → „Fertigungssteuerung" (Vertipper im Präfix).
+     Damerau: ein Buchstabendreher zählt als EIN Fehler, nicht als zwei – sonst
+     fällt „Dipso" für „Dispo" durch, und Dreher sind der häufigste Tippfehler. */
+  static _prefixDist(term, word) {
+    let prev2 = null;
+    let prev = new Array(word.length + 1);
+    for (let j = 0; j <= word.length; j++) prev[j] = j;
+    for (let i = 1; i <= term.length; i++) {
+      const cur = new Array(word.length + 1);
+      cur[0] = i;
+      for (let j = 1; j <= word.length; j++) {
+        cur[j] = Math.min(
+          prev[j] + 1,                                                  // Zeichen fehlt
+          cur[j - 1] + 1,                                               // Zeichen zu viel
+          prev[j - 1] + (term[i - 1] === word[j - 1] ? 0 : 1)            // Vertipper
+        );
+        if (i > 1 && j > 1 && term[i - 1] === word[j - 2] && term[i - 2] === word[j - 1]) {
+          cur[j] = Math.min(cur[j], prev2[j - 2] + 1);                   // Dreher
+        }
+      }
+      prev2 = prev;
+      prev = cur;
+    }
+    return Math.min(...prev);
+  }
+
+  /* Treffer-Bereiche eines Labels für die aktuelle Query, oder null wenn ein
+     Suchbegriff fehlt. Mehrere Begriffe müssen ALLE vorkommen („ein pmm" →
+     „Einkauf PMM"), Reihenfolge egal. Erst wörtlich (auch mitten im Wort),
+     dann tippfehlertolerant – Toleranz wächst mit der Länge des Begriffs,
+     kurze Begriffe bleiben streng, damit die Liste nicht ausufert. */
+  _matchRanges(label, query) {
+    const hay = PMSelect._norm(label);
+    const terms = PMSelect._norm(query).split(/\s+/).filter(Boolean);
+    const ranges = [];
+    for (const term of terms) {
+      const at = hay.indexOf(term);
+      if (at >= 0) { ranges.push([at, at + term.length]); continue; }
+      const tol = term.length <= 3 ? 0 : term.length <= 5 ? 1 : 2;
+      let hit = null;
+      if (tol) {
+        for (const m of hay.matchAll(/\S+/g)) {
+          if (PMSelect._prefixDist(term, m[0]) <= tol) { hit = [m.index, m.index + m[0].length]; break; }
+        }
+      }
+      if (!hit) return null;                 // ein Begriff fehlt → Option raus
+      ranges.push(hit);                      // Vertipper: ganzes Wort markieren
+    }
+    return ranges;
+  }
+
+  /* Label mit hellgelb hervorgehobenen Treffer-Bereichen (überlappende
+     Bereiche verschmelzen). */
+  static _markHtml(label, ranges) {
+    let html = '', pos = 0;
+    for (const [s, e] of [...ranges].sort((a, b) => a[0] - b[0])) {
+      if (e <= pos) continue;
+      const start = Math.max(s, pos);
+      html += _pmEscapeHtml(label.slice(pos, start))
+        + `<mark class="pm-select__hl">${_pmEscapeHtml(label.slice(start, e))}</mark>`;
+      pos = e;
+    }
+    return html + _pmEscapeHtml(label.slice(pos));
+  }
+
+  // Blendet alles aus, was nicht zur Query passt, und hebt die Treffer hervor.
+  // Leere Query → alle sichtbar, kein Markup.
   filterByQuery() {
-    const q = this.query;
-    const ql = q.toLowerCase();
+    const q = this.query.trim();
+    let hits = 0;
     this.menu.querySelectorAll('.pm-select__option').forEach(btn => {
       const textEl = btn.querySelector('.pm-select__option-text');
       const label = (btn._pmLabel != null) ? btn._pmLabel : textEl.textContent;
-      if (!q) { textEl.textContent = label; btn.hidden = false; return; }
-      let matched = false;
-      const html = label.split(/(\s+)/).map(tok => {
-        if (/^\s+$/.test(tok)) return _pmEscapeHtml(tok);
-        if (tok.toLowerCase().startsWith(ql)) {
-          matched = true;
-          return `<mark class="pm-select__hl">${_pmEscapeHtml(tok.slice(0, q.length))}</mark>${_pmEscapeHtml(tok.slice(q.length))}`;
-        }
-        return _pmEscapeHtml(tok);
-      }).join('');
-      btn.hidden = !matched;
-      if (matched) textEl.innerHTML = html;
+      if (!q) { textEl.textContent = label; btn.hidden = false; hits++; return; }
+      const ranges = this._matchRanges(label, q);
+      btn.hidden = !ranges;
+      if (ranges) { textEl.innerHTML = PMSelect._markHtml(label, ranges); hits++; }
     });
+    this.emptyEl.hidden = hits > 0;
   }
   // Tippen sammelt sich in einem unsichtbaren Puffer (verfällt nach 1,5 s).
   // Space NICHT abfangen (bleibt Auswahl/öffnen). Liefert true, wenn behandelt.
@@ -630,11 +708,17 @@ class PMSelect {
     return false;
   }
   _afterQuery() {
-    clearTimeout(this.queryTimer);
-    this.queryTimer = setTimeout(() => { this.query = ''; this.filterByQuery(); }, 1500);
+    // Kein Verfall: solange das Menü offen ist, IST die Query der sichtbare
+    // Filter (gefilterte Liste + gelb hervorgehobene Treffer). Ein Timeout
+    // löschte die Eingabe nach 1,5 s stillschweigend – die Vorschläge sprangen
+    // dann zurück, als hätte man nichts getippt. Zurückgesetzt wird beim
+    // Öffnen, beim Schließen und per Backspace.
     this.filterByQuery();
+    // Ohne sichtbaren Treffer bliebe der Fokus auf einer ausgeblendeten Option
+    // hängen (Fokus damit weg vom Menü) und jede weitere Taste, auch
+    // Backspace, käme nirgends an → in diesem Fall zurück auf den Trigger.
     const fv = this.menu.querySelector('.pm-select__option:not(:disabled):not([hidden])');
-    if (fv) fv.focus();
+    (fv || this.trigger).focus();
   }
 
   attachEvents() {
@@ -791,7 +875,6 @@ class PMSelect {
 
   close() {
     if (this.menu.hidden) return;
-    clearTimeout(this.queryTimer);
     this.query = '';
     if (this.searchInput) this.searchInput.value = '';
     this.menu.hidden = true;
@@ -813,7 +896,6 @@ class PMSelect {
     this.close();
     if (this.optionsObserver) this.optionsObserver.disconnect();
     if (this.disabledObserver) this.disabledObserver.disconnect();
-    clearTimeout(this.queryTimer);
   }
 
   toggle() {
