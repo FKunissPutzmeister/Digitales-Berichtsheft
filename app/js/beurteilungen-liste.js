@@ -16,6 +16,10 @@ document.addEventListener('DOMContentLoaded', async () => {
   const mitSelector = user.role === 'admin' || user.role === 'developer'
     || (user.istAusbilder && !user.istReinerPruefer);
 
+  // Von der Dashboard-Kachel "Offene Beurteilungen" kommt man mit diesem
+  // Filter direkt hier an, statt blind bei irgendeiner Beurteilung zu landen.
+  const nurOffen = new URLSearchParams(window.location.search).get('filter') === 'offen';
+
   const main = document.getElementById('mainContent');
   main.innerHTML = `
     <div class="page-header"><div class="page-header__left">
@@ -27,11 +31,17 @@ document.addEventListener('DOMContentLoaded', async () => {
   const listWrap = document.getElementById('beurtListWrap');
 
   function renderListe(liste) {
-    if (!liste.length) {
-      listWrap.innerHTML = `<div class="durchlauf-empty">Keine Beurteilungen vorhanden.</div>`;
+    const gefiltert = nurOffen ? liste.filter(b => b.status === 'offen') : liste;
+    if (!gefiltert.length) {
+      listWrap.innerHTML = nurOffen
+        ? `<div class="durchlauf-empty">Keine offenen Beurteilungen vorhanden.</div>`
+        : `<div class="durchlauf-empty">Keine Beurteilungen vorhanden.</div>`;
       return;
     }
-    listWrap.innerHTML = `<div class="durchlauf-list">${liste.map(b => `
+    const hinweis = nurOffen
+      ? `<p class="durchlauf-hinweis"><a href="beurteilungen.html">Alle Beurteilungen anzeigen</a></p>`
+      : '';
+    listWrap.innerHTML = `${hinweis}<div class="durchlauf-list">${gefiltert.map(b => `
       <div class="durchlauf-card durchlauf-card--clickable" data-zuw="${b.zuweisungId}" role="button" tabindex="0">
         <span class="badge ${b.status === 'abgeschlossen' ? 'badge--genehmigt' : 'badge--grey'} durchlauf-card__badge">
           ${b.status === 'abgeschlossen' ? 'Abgeschlossen' : 'Offen'}

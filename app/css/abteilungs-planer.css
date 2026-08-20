@@ -616,6 +616,9 @@
   outline: none;
 }
 .durchlauf-empty { padding: var(--sp-8); text-align: center; color: var(--pm-grey-500); }
+.durchlauf-hinweis { margin: 0 0 var(--sp-3); font-size: var(--text-sm); }
+.durchlauf-hinweis a { color: var(--pm-grey-600); font-weight: var(--fw-bold); text-decoration: none; }
+.durchlauf-hinweis a:hover { color: var(--pm-grey-900); text-decoration: underline; }
 
 /* ===================================================================
    ABTEILUNGSDURCHLAUF – Status-Board (Azubi-Eigensicht, read-only, 2026-07)

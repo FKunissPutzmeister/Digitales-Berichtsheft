@@ -570,7 +570,14 @@ async function renderReinerPrueferDashboard(user) {
     el.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); goBerichte(); } });
   }
   if (offeneBeurteilungen.length) {
-    const goBeurteilung = () => { window.location.href = `beurteilung.html?zuw=${offeneBeurteilungen[0].zuweisungId}`; };
+    // Bei genau einer offenen Beurteilung gibt es nichts auszuwählen — direkt
+    // zum Bogen. Bei mehreren erst die Auswahl-Liste zeigen (Zeitraum/Azubi
+    // sichtbar), statt blind die älteste zu öffnen.
+    const goBeurteilung = () => {
+      window.location.href = offeneBeurteilungen.length === 1
+        ? `beurteilung.html?zuw=${offeneBeurteilungen[0].zuweisungId}`
+        : 'beurteilungen.html?filter=offen';
+    };
     const el = document.getElementById('statOffeneBeurteilungen');
     el.addEventListener('click', goBeurteilung);
     el.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); goBeurteilung(); } });
