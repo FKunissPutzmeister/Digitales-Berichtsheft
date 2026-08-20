@@ -2825,7 +2825,26 @@ html[data-theme="dark"] .welcome-hero {
      · „Mitteilungen"        → recent  (Aktivität/zuletzt)
    Das Bild liegt hinter einem Scrim in Kachel-Grundfarbe, damit die (dichten)
    Listeninhalte lesbar bleiben. Bewusst NUR auf die Standard-Themes light/dark
-   gescoped – Custom-Themes (candy/silk/hyperspace/…) behalten ihr Aussehen. */
+   gescoped – Custom-Themes (candy/silk/hyperspace/…) behalten ihr Aussehen.
+   Dunkel-Scrim am 2026-08-20 zurueckgenommen: das Motiv war zu praesent. NICHT
+   per hoeherem Alpha auf rgba(12,14,19) – ein dunklerer Schleier druckt Schwaden
+   UND Flaeche gleich weit runter, das Verhaeltnis (und damit der Eindruck) bleibt.
+   Zwei Stellschrauben, nicht eine: die Farbe des Schleiers bestimmt die
+   KACHELHELLIGKEIT (Mittelwert), sein Alpha die TEXTURSTAERKE (Spanne). Wer nur
+   das Alpha auf einer sehr dunklen Farbe erhoeht, dimmt beides gleich weit und
+   aendert am Eindruck nichts. Gemessen auf der leeren Kachel (Leuchtdichte):
+     0.66/0.52/0.44 auf 12,14,19 → Spanne 12.0, Mittel 36.2, Verh. 0.33  Original, Motiv zu praesent
+     0.82/0.74/0.68 auf 12,14,19 → Spanne  8.0, Mittel 26.1, Verh. 0.31  nur dunkler, kein Unterschied sichtbar
+     0.89/0.86/0.83 auf 20,22,27 → Spanne  4.0, Mittel 27.4, Verh. 0.15  halbe Textur, aber zu dunkel/schwer
+     0.86/0.83/0.80 auf 48,50,55 → Spanne  4.0, Mittel 51.8, Verh. 0.08  zu hell → wirkt blass
+     0.76/0.72/0.68 auf 23,25,30 → Spanne  5.7, Mittel 35.0, Verh. 0.16  AKTIV: Tiefe wie im Original, halbe Textur
+   Also: Schleierfarbe so hell waehlen, dass der Mittelwert bei ~36 bleibt, und
+   das Alpha so hoch, dass die Spanne faellt. Textur schwaecher = Alpha rauf UND
+   Farbe ein paar Stufen heller (sonst kippt es ins Dunkle).
+   Entsaetigen bringt hier nichts: die Buntheit im Motiv liegt bei 3.7/255, die
+   Schwaden sind reine Helligkeitsstruktur.
+   Hell bleibt unangetastet – dort ist das Motiv ohnehin unsichtbar (Spanne 0,
+   die Schwaden im Hellmodus kommen vom Seitenhintergrund, nicht von der Kachel). */
 .review-inbox,
 .card.rot,
 .card--mitteilungen {
@@ -2858,17 +2877,17 @@ html[data-theme="light"] .card--mitteilungen {
 /* Dark Mode – dunkler Scrim über dunklem Bild */
 html[data-theme="dark"] .review-inbox {
   background-image:
-    linear-gradient(120deg, rgba(12,14,19,0.66) 0%, rgba(12,14,19,0.52) 46%, rgba(12,14,19,0.44) 100%),
+    linear-gradient(120deg, rgba(23,25,30,0.76) 0%, rgba(23,25,30,0.72) 46%, rgba(23,25,30,0.68) 100%),
     url("../assets/backgrounds/tile-series-week-dark.png?v=20260602-series");
 }
 html[data-theme="dark"] .card.rot {
   background-image:
-    linear-gradient(120deg, rgba(12,14,19,0.66) 0%, rgba(12,14,19,0.52) 46%, rgba(12,14,19,0.44) 100%),
+    linear-gradient(120deg, rgba(23,25,30,0.76) 0%, rgba(23,25,30,0.72) 46%, rgba(23,25,30,0.68) 100%),
     url("../assets/backgrounds/tile-series-training-dark.png?v=20260602-series");
 }
 html[data-theme="dark"] .card--mitteilungen {
   background-image:
-    linear-gradient(120deg, rgba(12,14,19,0.66) 0%, rgba(12,14,19,0.52) 46%, rgba(12,14,19,0.44) 100%),
+    linear-gradient(120deg, rgba(23,25,30,0.76) 0%, rgba(23,25,30,0.72) 46%, rgba(23,25,30,0.68) 100%),
     url("../assets/backgrounds/tile-series-recent-dark.png?v=20260602-series");
 }
 
