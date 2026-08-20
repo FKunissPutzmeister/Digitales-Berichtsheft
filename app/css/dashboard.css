@@ -3058,6 +3058,7 @@ html:is([data-theme="dark"], [data-theme="hyperspace"], [data-theme="halloween"]
   flex-direction: column;
   gap: var(--sp-2);
   padding: 16px 28px 26px;
+  margin-bottom: 24px;
 }
 .card.rot .rot-row {
   border: 1px solid var(--tile-pill-border);
@@ -3112,7 +3113,7 @@ html:is([data-theme="dark"], [data-theme="hyperspace"], [data-theme="halloween"]
   .card--mitteilungen > .card__header,
   .card.rot > .rot__head { padding: 20px 20px 0; }
   .review-inbox .review-list,
-  .card.rot .rot__list { padding: 12px 20px 20px; }
+  .card.rot .rot__list { padding: 12px 20px 20px; margin-bottom: 20px; }
   .card--mitteilungen > .card__body { padding-left: 20px; padding-right: 20px; }
   .card--mitteilungen .activity-more { margin: 0 20px 18px; }
   .review-inbox .review-filter-bar { padding: 12px 20px 0; }
