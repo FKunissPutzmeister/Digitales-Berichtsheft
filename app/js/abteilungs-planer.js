@@ -743,13 +743,45 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   // ── Zeit-/Gruppen-Helfer ──
-  function ajWindow() {
-    const start = new Date(ajStartYear, 8, 1);         // 1. Sep
-    const end   = new Date(ajStartYear + 1, 7, 31);    // 31. Aug
-    const days  = Math.round((end - start) / DAY) + 1;
-    return { start, end, days };
+  // Sichtbare Breite der Zeitleiste (ohne Namensspalte). Gemessen statt
+  // gerechnet: --name-w wechselt per Media-Query auf 170px.
+  function timelineViewportWidth() {
+    const scroll = document.getElementById('ptScroll');
+    const board  = document.getElementById('ptBoard');
+    if (!scroll || !board) return 1200;
+    const nameW = parseFloat(getComputedStyle(board).getPropertyValue('--name-w')) || 240;
+    return Math.max(560, scroll.clientWidth - nameW - 1);   // -1px: kein Sub-Pixel-Ueberlauf
   }
-  function ajLabel() { return `AJ ${ajStartYear}/${String(ajStartYear + 1).slice(2)}`; }
+  // Fenster = Ausbildungsjahr + AUSBLICK. Der Ausblick fuellt genau den Platz,
+  // der rechts sonst leer stehen blieb (Jahres-Zoom auf breiten Schirmen), und
+  // ist mindestens AUSBLICK_MIN_DAYS lang – damit ein Einsatz ueber den 31.8.
+  // hinaus sichtbar weiterlaeuft statt an der Jahresgrenze abgeschnitten zu
+  // wirken. Passt das Fenster in die Breite, wird die Skala (pxd) so gedehnt,
+  // dass sie exakt aufgeht; sonst bleibt der Zoom-Wert und die Tafel scrollt.
+  // ajEnd = hartes AJ-Ende fuer alles, was am Ausbildungsjahr haengt (Druck,
+  // Heute-Sprung) – dort darf der Ausblick NICHT mitzaehlen.
+  const AUSBLICK_MIN_DAYS = 61;
+  function ajWindow() {
+    const start  = new Date(ajStartYear, 8, 1);         // 1. Sep
+    const ajEnd  = new Date(ajStartYear + 1, 7, 31);    // 31. Aug
+    const ajDays = Math.round((ajEnd - start) / DAY) + 1;
+    const avail  = timelineViewportWidth();
+    // Passt das ganze Ausbildungsjahr in die Breite (praktisch: Zoom „Jahr"),
+    // ist die Tafel eine Fit-Ansicht: Fenster auf die Breite aufziehen und die
+    // Skala exakt einpassen – so bleibt rechts kein Rand und es entsteht auch
+    // kein Scrollbalken, wenn der Ausblick breiter waere als der freie Platz.
+    // Bei „Monat"/„Quartal" scrollt die Tafel ohnehin, dort bleibt px/Tag
+    // unangetastet und der Ausblick haengt einfach hinten dran.
+    const fitsAj = ajDays * DAY_PX[zoom] <= avail;
+    const days   = Math.max(ajDays + AUSBLICK_MIN_DAYS, fitsAj ? Math.floor(avail / DAY_PX[zoom]) : 0);
+    const pxd    = fitsAj ? avail / days : DAY_PX[zoom];
+    // Ueber setDate statt start + n*DAY, damit die Sommerzeit-Umstellung nicht
+    // auf den Vortag 23:00 fuehrt.
+    const end = new Date(start.getFullYear(), start.getMonth(), start.getDate() + (days - 1));
+    return { start, end, days, ajEnd, pxd, w: days * pxd };
+  }
+  function ausblickStart() { return new Date(ajStartYear + 1, 8, 1); }   // 1. Sep des Folge-AJ
+  function ajLabel(y = ajStartYear) { return `AJ ${y}/${String(y + 1).slice(2)}`; }
   // Lehrjahr wird aktuell nicht getrackt – daher keine Lehrjahr-Gruppen mehr.
   // "Ohne Zuordnung" bedeutet hier wörtlich: aktuell keine laufende Zuweisung
   // (aktuelleZuw === null), nicht "Lehrjahr unbekannt".
@@ -874,6 +906,7 @@ document.addEventListener('DOMContentLoaded', async () => {
           <input type="checkbox" id="ptNurOhne" ${nurOhne ? 'checked' : ''}> ohne Zuweisung
         </label>
         <div class="pt-toolbar__spacer"></div>
+        <div class="pt-toolbar__nav">
         <div class="pt-stepper">
           <button type="button" id="ptAjPrev" aria-label="Vorheriges Ausbildungsjahr">‹</button>
           <span class="pt-stepper__lbl" id="ptAjLabel">${ajLabel()}</span>
@@ -884,15 +917,11 @@ document.addEventListener('DOMContentLoaded', async () => {
           <button type="button" data-z="quartal" class="${zoom === 'quartal' ? 'is-on' : ''}">Quartal</button>
           <button type="button" data-z="jahr" class="${zoom === 'jahr' ? 'is-on' : ''}">Jahr</button>
         </div>
-        <div class="pt-toolbar__row2">
-          <div class="pt-toolbar__actions">
-            <button type="button" class="btn btn-outline btn-sm" id="ptExport" title="Aktuell gefilterte Personen + Zuweisungen als Excel-Arbeitsmappe (Übersicht, Zuweisungen, Personen, Abteilungen, Belegung, Verantwortliche)">Export</button>
-            <button type="button" class="btn btn-outline btn-sm" id="ptPrint" title="Azubis, Zeitraum und Darstellung wählen, dann drucken">Drucken</button>
-          </div>
-          <div class="pt-toolbar__right">
-            <button type="button" class="btn btn-outline btn-sm" id="ptHeute">Heute</button>
-            <button type="button" class="btn btn-secondary btn-sm" id="ptAdd">+ Zuweisung</button>
-          </div>
+        <button type="button" class="pt-ib" id="ptHeute" title="Heute" aria-label="Zu heute springen">${Icon('calendar', { size: 19 })}</button>
+        <span class="pt-toolbar__sep"></span>
+        <button type="button" class="pt-ib" id="ptExport" aria-label="Exportieren" title="Aktuell gefilterte Personen + Zuweisungen als Excel-Arbeitsmappe (Übersicht, Zuweisungen, Personen, Abteilungen, Belegung, Verantwortliche)">${Icon('download', { size: 19 })}</button>
+        <button type="button" class="pt-ib" id="ptPrint" aria-label="Drucken" title="Azubis, Zeitraum und Darstellung wählen, dann drucken">${Icon('print', { size: 19 })}</button>
+        <button type="button" class="btn btn-secondary btn-sm" id="ptAdd">+ Zuweisung</button>
         </div>
       </div>`;
   }
@@ -914,11 +943,13 @@ document.addEventListener('DOMContentLoaded', async () => {
       <div class="pt-layout ${selectedAzubiId ? 'pt-has-panel' : ''}" id="ptLayout">
         <div class="pt-wrap">
           <div class="pt-scroll" id="ptScroll">
-            <div class="pt-board" id="ptBoard" style="--tl-w:${Math.round(ajWindow().days * DAY_PX[zoom])}px"></div>
+            <div class="pt-board" id="ptBoard"></div>
           </div>
         </div>
         <aside class="pt-panel" id="ptPanel" ${selectedAzubiId ? '' : 'hidden'}></aside>
       </div>`;
+    applyTlWidth();          // erst jetzt messbar: #ptScroll steht im DOM
+    observeTlWidth();
     bindToolbar();
     renderTimeline();
     renderPanel();
@@ -940,7 +971,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     on('ptHeute', 'click', () => {
       // Falls „heute" außerhalb des gewählten AJ liegt, erst dorthin springen.
       const w = ajWindow();
-      if (today < w.start || today > w.end) { ajStartYear = today.getMonth() >= 8 ? today.getFullYear() : today.getFullYear() - 1; afterAjOrZoom(); }
+      if (today < w.start || today > w.ajEnd) { ajStartYear = today.getMonth() >= 8 ? today.getFullYear() : today.getFullYear() - 1; afterAjOrZoom(); }
       scrollToToday(true);
     });
     on('ptExport', 'click', exportExcel);
@@ -962,7 +993,7 @@ document.addEventListener('DOMContentLoaded', async () => {
           stationen: stationenFuerDruck(a.id),
         })),
         von: DateUtil.toISODate(win.start),
-        bis: DateUtil.toISODate(win.end),
+        bis: DateUtil.toISODate(win.ajEnd),   // Druck-Preset = AJ, ohne Ausblick
         ajLabel: ajLabel(),
         stand: todayISO,
       });
@@ -972,16 +1003,40 @@ document.addEventListener('DOMContentLoaded', async () => {
       const b = e.target.closest('button'); if (!b) return;
       zoom = b.dataset.z;
       document.querySelectorAll('#ptZoom button').forEach(x => x.classList.toggle('is-on', x === b));
-      const board = document.getElementById('ptBoard');
-      if (board) board.style.setProperty('--tl-w', Math.round(ajWindow().days * DAY_PX[zoom]) + 'px');
+      applyTlWidth();
       renderTimeline();
       scrollToToday();
     });
   }
+  function applyTlWidth() {
+    const board = document.getElementById('ptBoard');
+    if (board) board.style.setProperty('--tl-w', Math.round(ajWindow().w) + 'px');
+  }
+  // Die Breite bestimmt, wie viele Ausblick-Monate ins Fenster passen – aendert
+  // sie sich, muessen Skala UND Kopf/Zone neu gezeichnet werden. Ein
+  // ResizeObserver deckt auch das Ein-/Ausklappen der Sidebar ab, das kein
+  // resize-Event ausloest. Neu gezeichnet wird nur bei echter Breitenaenderung,
+  // sonst laeuft schon der erste Observer-Aufruf ins Leere.
+  let tlRo = null, tlRoTimer = null;
+  function observeTlWidth() {
+    const scroll = document.getElementById('ptScroll');
+    if (!scroll || typeof ResizeObserver === 'undefined') return;
+    if (tlRo) tlRo.disconnect();
+    tlRo = new ResizeObserver(() => {
+      clearTimeout(tlRoTimer);
+      tlRoTimer = setTimeout(() => {
+        const board = document.getElementById('ptBoard'); if (!board) return;
+        const next = Math.round(ajWindow().w) + 'px';
+        if (board.style.getPropertyValue('--tl-w') === next) return;
+        board.style.setProperty('--tl-w', next);
+        renderTimeline();
+      }, 120);
+    });
+    tlRo.observe(scroll);
+  }
   function afterAjOrZoom() {
     document.getElementById('ptAjLabel').textContent = ajLabel();
-    const board = document.getElementById('ptBoard');
-    if (board) board.style.setProperty('--tl-w', Math.round(ajWindow().days * DAY_PX[zoom]) + 'px');
+    applyTlWidth();
     renderTimeline();
     renderPanel();
     scrollToToday();
@@ -996,7 +1051,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (e < win.start || s > win.end) return null;
     const startIdx = Math.round((s - win.start) / DAY);
     const endIdx   = Math.round((e - win.start) / DAY);
-    return { left: startIdx / win.days * 100, width: (endIdx - startIdx + 1) / win.days * 100, open: !z.bis };
+    return { left: startIdx / win.days * 100, width: (endIdx - startIdx + 1) / win.days * 100, open: !z.bis,
+             clipL: von < win.start, clipR: !!z.bis && bisRaw > win.end };
   }
   function pctLeftOf(date, win) { return Math.round((date - win.start) / DAY) / win.days * 100; }
 
@@ -1005,14 +1061,25 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (!board) return;
     const win = ajWindow();
 
-    // Monatskopf
+    // Monatskopf – Monate jenseits des 31.8. gehoeren zum Ausblick und treten
+    // farblich zurueck (Klasse pt-month--ahead).
+    const ausblick = ausblickStart();
     let months = '';
     let cur = new Date(win.start);
     while (cur <= win.end) {
       const name = cur.toLocaleDateString('de-DE', { month: 'short' }).replace('.', '');
-      months += `<div class="pt-month" style="left:${pctLeftOf(cur, win)}%">${name.charAt(0).toUpperCase() + name.slice(1)}<span class="yr">${String(cur.getFullYear()).slice(2)}</span></div>`;
+      const ahead = cur >= ausblick ? ' pt-month--ahead' : '';
+      months += `<div class="pt-month${ahead}" style="left:${pctLeftOf(cur, win)}%">${name.charAt(0).toUpperCase() + name.slice(1)}<span class="yr">${String(cur.getFullYear()).slice(2)}</span></div>`;
       cur = new Date(cur.getFullYear(), cur.getMonth() + 1, 1);
     }
+    // Ausblick-Zone in px (nicht %): die Flaeche unter den Zeilen sitzt in
+    // .pt-board, dessen Breite die Namensspalte mit einschliesst.
+    const ausblickPx = Math.round((ausblick - win.start) / DAY) * win.pxd;
+    const ausblickW  = Math.max(0, win.w - ausblickPx);
+    const zoneHead = `<div class="pt-zone" style="left:${ausblickPx.toFixed(1)}px;width:${ausblickW.toFixed(1)}px"></div>`;
+    const zoneBody = `<div class="pt-zone" style="left:calc(var(--name-w) + ${ausblickPx.toFixed(1)}px);width:${ausblickW.toFixed(1)}px"></div>`
+      + `<div class="pt-zoneline" style="left:calc(var(--name-w) + ${ausblickPx.toFixed(1)}px)"></div>`;
+    const zoneChip = `<button type="button" class="pt-zonechip" id="ptZoneChip" title="Zum nächsten Ausbildungsjahr">${ajLabel(ajStartYear + 1)}${DLB_ICO.chev}</button>`;
     const todayInWin = today >= win.start && today <= win.end;
     const todayFlag = todayInWin
       ? `<div class="pt-today-flag" style="left:${pctLeftOf(today, win)}%">Heute · ${today.toLocaleDateString('de-DE', { day: 'numeric', month: 'short' }).replace('.', '')}</div>` : '';
@@ -1030,7 +1097,8 @@ document.addEventListener('DOMContentLoaded', async () => {
           const bars = zuwList(a.id).map(z => {
             const geo = barGeom(z, win); if (!geo) return '';
             const isConf = konf.has(z.id);
-            const cls = 'pt-bar' + (geo.open ? ' pt-bar--open' : '') + (isConf ? ' pt-bar--conf' : '');
+            const cls = 'pt-bar' + (geo.open ? ' pt-bar--open' : '') + (isConf ? ' pt-bar--conf' : '')
+              + (geo.clipL ? ' pt-bar--contl' : '') + (geo.clipR ? ' pt-bar--contr' : '');
             const bisTxt = z.bis ? DateUtil.formatDate(z.bis) : 'offen';
             return `<div class="${cls}" data-id="${z.id}" data-azubi="${a.id}"
               style="left:${geo.left}%;width:${geo.width}%;background:${colorFor(z.abteilung)}"
@@ -1086,9 +1154,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     board.innerHTML = `
       <div class="pt-head">
         <div class="pt-head__name">Person</div>
-        <div class="pt-months">${months}${todayFlag}</div>
+        <div class="pt-months">${zoneHead}${months}${todayFlag}${zoneChip}</div>
       </div>
+      ${zoneBody}
       ${body}`;
+
+    document.getElementById('ptZoneChip')?.addEventListener('click', () => { ajStartYear++; afterAjOrZoom(); });
 
     // Zeilen-/Gruppen-Events
     board.querySelectorAll('.pt-grp__head').forEach(h => h.addEventListener('click', () => {
@@ -1143,10 +1214,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const foot = `
       <div class="pt-panel__foot">
         <button type="button" class="btn btn-secondary" id="ptPanelAdd">+ Zuweisung</button>
-        <div class="pt-panel__foot-row">
-          <button type="button" class="btn btn-outline" id="ptPanelCopy">Durchlauf kopieren</button>
-          <button type="button" class="btn btn-outline" id="ptPanelPrint">Drucken</button>
-        </div>
+        <button type="button" class="btn btn-outline" id="ptPanelPrint">Drucken</button>
       </div>`;
     const head = `
       <div class="pt-panel__head">
@@ -1222,7 +1290,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     document.getElementById('ptPanelClose')?.addEventListener('click', () => selectAzubi(selectedAzubiId));
     document.getElementById('ptPanelAdd')?.addEventListener('click', () => openZuwModal(null, selectedAzubiId));
     document.getElementById('ptPanelPrint')?.addEventListener('click', () => printPerson(selectedAzubiId));
-    document.getElementById('ptPanelCopy')?.addEventListener('click', () => openCopyDialog(selectedAzubiId));
   }
 
   // ═══════════════════ DETAIL-KACHEL VERSCHIEBEN ═══════════════════
@@ -1249,7 +1316,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   // Höhe deckeln, damit die Kachel unten nicht aus dem Fenster ragt und die
-  // Fußleiste (+ Zuweisung / Durchlauf kopieren / Drucken) erreichbar bleibt.
+  // Fußleiste (+ Zuweisung / Drucken) erreichbar bleibt.
   // Gemessen statt gerechnet: die Oberkante hängt an Topbar, Testphase-Banner,
   // Seitentitel UND am Umbruch der Toolbar – jede feste Zahl stimmt nur für
   // eine Fensterbreite. Genau daran scheiterte das calc(100vh - 172px) im CSS,
@@ -1386,8 +1453,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const scroll = document.getElementById('ptScroll'); if (!scroll) return;
     const win = ajWindow();
     if (today < win.start || today > win.end) { scroll.scrollLeft = 0; return; }
-    const tlW = ajWindow().days * DAY_PX[zoom];
-    const x = Math.max(0, (Math.round((today - win.start) / DAY) / win.days) * tlW - scroll.clientWidth * 0.4);
+    const x = Math.max(0, Math.round((today - win.start) / DAY) * win.pxd - scroll.clientWidth * 0.4);
     requestAnimationFrame(() => scroll.scrollTo({ left: x, behavior: smooth ? 'smooth' : 'auto' }));
   }
 
@@ -1420,8 +1486,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     const grip = e.target.closest('.pt-grip');
     const mode = grip ? (grip.dataset.grip === 'l' ? 'resize-l' : 'resize-r') : 'move';
     if (mode !== 'move' && !z.bis) return;             // offene Zuweisung: nur verschieben
+    const dragWin = ajWindow();
     drag = { bar, z, mode, startX: e.clientX, von0: z.von, bis0: z.bis || z.von,
-             dayPx: DAY_PX[zoom], win: ajWindow(), moved: false, newVon: z.von, newBis: z.bis };
+             dayPx: dragWin.pxd, win: dragWin, moved: false, newVon: z.von, newBis: z.bis };
     bar.classList.add('is-dragging');
     window.addEventListener('pointermove', onDragMove);
     window.addEventListener('pointerup', onDragUp);
@@ -1596,84 +1663,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
   }
 
-  // ═══════════════════ DURCHLAUF KOPIEREN ═══════════════════
-  function openCopyDialog(sourceId) {
-    const src = azubiById.get(sourceId);
-    const srcStns = zuwList(sourceId).filter(z => z.bis);   // offene nicht kopieren
-    if (!src || !srcStns.length) { Toast.info('Nichts zu kopieren', 'Diese Person hat keine (abgeschlossenen) Stationen.'); return; }
-    const ziele = azubis.filter(a => a.id !== sourceId);
-
-    let overlay = document.getElementById('ptCopyModal');
-    if (overlay) overlay.remove();
-    overlay = document.createElement('div');
-    overlay.className = 'modal-overlay'; overlay.id = 'ptCopyModal';
-    overlay.innerHTML = `
-      <div class="modal">
-        <div class="modal__header">
-          <h3 class="modal__title">Durchlauf von ${escHtml(src.name)} kopieren</h3>
-          <button class="modal__close" data-modal-close><svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="width:18px;height:18px"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
-        </div>
-        <div class="modal__body">
-          <p style="margin:0 0 10px;color:var(--pm-grey-600);font-size:var(--text-sm)">${srcStns.length} Station(en) werden auf die gewählten Personen übertragen. Die Daten werden am Ausbildungsbeginn der Zielperson ausgerichtet (auf Montag gerundet).</p>
-          <input type="search" class="form-control" id="ptCopySearch" placeholder="Personen filtern …" style="margin-bottom:10px">
-          <div id="ptCopyList" style="max-height:320px;overflow:auto;display:flex;flex-direction:column;gap:2px"></div>
-        </div>
-        <div class="modal__footer">
-          <button class="btn btn-outline" data-modal-close>Abbrechen</button>
-          <button class="btn btn-secondary" id="ptCopyConfirm">Kopieren</button>
-        </div>
-      </div>`;
-    document.body.appendChild(overlay);
-
-    const listEl = overlay.querySelector('#ptCopyList');
-    const renderList = (q = '') => {
-      listEl.innerHTML = ziele.filter(a => a.name.toLowerCase().includes(q)).map(a => `
-        <label style="display:flex;align-items:center;gap:9px;padding:7px 9px;border:1px solid var(--pm-grey-200);border-radius:var(--r-md);cursor:pointer">
-          <input type="checkbox" value="${a.id}">
-          <span style="font-weight:600;font-size:var(--text-sm)">${escHtml(a.name)}</span>
-          <span style="color:var(--pm-grey-400);font-size:var(--text-xs)">${escHtml(a.beruf || '')}</span>
-        </label>`).join('') || `<div class="pt-empty">Keine Treffer.</div>`;
-    };
-    renderList();
-    overlay.querySelector('#ptCopySearch').addEventListener('input', e => renderList(e.target.value.toLowerCase()));
-    overlay.querySelectorAll('[data-modal-close]').forEach(b => b.addEventListener('click', () => overlay.remove()));
-    overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
-    overlay.classList.add('open');
-
-    overlay.querySelector('#ptCopyConfirm').addEventListener('click', async () => {
-      const targetIds = [...overlay.querySelectorAll('#ptCopyList input:checked')].map(c => c.value);
-      if (!targetIds.length) { Toast.error('Keine Auswahl', 'Bitte mindestens eine Zielperson wählen.'); return; }
-      overlay.remove();
-      await copyDurchlauf(sourceId, srcStns, targetIds);
-    });
-  }
-  async function copyDurchlauf(sourceId, srcStns, targetIds) {
-    const src = azubiById.get(sourceId);
-    let angelegt = 0, uebersprungen = 0;
-    for (const tid of targetIds) {
-      const ziel = azubiById.get(tid);
-      // Offset: Differenz der Ausbildungsbeginne (sonst 0), damit Stationen an
-      // der äquivalenten Stelle im Zyklus der Zielperson landen.
-      let offset = 0;
-      if (src.ausbildungsBeginn && ziel.ausbildungsBeginn) offset = diffDays(src.ausbildungsBeginn, ziel.ausbildungsBeginn);
-      for (const z of srcStns) {
-        const von = snapMondayISO(addDaysISO(z.von, offset));
-        const bis = addDaysISO(von, diffDays(z.von, z.bis));
-        // Kollision im Ziel? (In-Memory-Vorabprüfung; Backend prüft verbindlich.)
-        if (zuwList(tid).some(x => zeitraeumeUeberschneiden(von, bis, x.von, x.bis))) { uebersprungen++; continue; }
-        try {
-          const id = await DB.addZuweisung({ azubiId: tid, verantwEmail: z.verantwEmail, von, bis, abteilung: z.abteilung });
-          const neu = { id, azubiId: tid, verantwEmail: z.verantwEmail, verantwName: z.verantwName, abteilung: z.abteilung, von, bis, azubiName: '', azubiBeruf: '' };
-          if (!zuwByAzubi.has(tid)) zuwByAzubi.set(tid, []);
-          zuwByAzubi.get(tid).push(neu); alleZuweisungen.push(neu); angelegt++;
-        } catch (e) { uebersprungen++; }
-      }
-      zuwList(tid).sort((a, b) => (a.von || '').localeCompare(b.von || ''));
-    }
-    renderTimeline(); renderPanel();
-    Toast.success('Kopiert', `${angelegt} Station(en) angelegt${uebersprungen ? `, ${uebersprungen} wegen Überschneidung übersprungen` : ''}.`);
-  }
-
   // ═══════════════════ DRUCK (eine Person) ═══════════════════
   // Nutzt das Tabellen-Dokument aus planer-print.js — dadurch nur noch EIN
   // Druck-Stylesheet im Projekt statt dreier kopierter <style>-Bloecke.
@@ -1694,7 +1683,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const win = ajWindow();
     const zeitraum = PlanerPrint.druckZeitraum(a, stationen, {
       von: DateUtil.toISODate(win.start),
-      bis: DateUtil.toISODate(win.end),
+      bis: DateUtil.toISODate(win.ajEnd),
       heute: todayISO,
     });
     const html = PlanerPrint.renderTabelleHtml({
@@ -1768,8 +1757,8 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   async function exportExcel() {
     const btn = document.getElementById('ptExport');
-    const label = btn ? btn.textContent : '';
-    if (btn) { btn.disabled = true; btn.textContent = 'Erzeuge …'; }
+    const icon = btn ? btn.innerHTML : '';
+    if (btn) { btn.disabled = true; btn.setAttribute('aria-busy', 'true'); btn.innerHTML = Icon('refresh', { size: 19, cls: 'pt-ib__spin' }); }
     try {
       const ExcelJS = await ladeExcelJs();
       const model = AbtPlanerExport.buildExportModel(exportModelInput());
@@ -1786,7 +1775,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       console.error('[planer] Excel-Export fehlgeschlagen:', err);
       Toast.error('Export fehlgeschlagen', err.message || 'Unbekannter Fehler.');
     } finally {
-      if (btn) { btn.disabled = false; btn.textContent = label; }
+      if (btn) { btn.disabled = false; btn.removeAttribute('aria-busy'); btn.innerHTML = icon; }
     }
   }
 

@@ -28,24 +28,25 @@
    .pm-select--block (0,2,0), das sonst width:100% erzwingt → Zeilenumbruch. */
 .pt-toolbar .pm-select.pm-select--block { width:auto; flex:0 1 190px; min-width:150px; }
 .pt-toolbar__spacer { flex:1 1 auto; }
-/* Export/Drucken als eine Einheit behandeln: ohne diesen Wrapper bricht
-   flex-wrap die Buttons einzeln um, sodass z.B. Export noch in die Zeile passt,
-   Drucken aber schon nicht mehr – die Gruppe reißt auseinander. Als ein
-   Flex-Item wandert sie geschlossen in die nächste Zeile. */
-/* Eigene Zeile fuer die Aktions-Buttons: flex-basis:100% zwingt den Wrapper
-   immer in eine eigene Flex-Zeile, damit die Aufteilung "Export/Drucken links,
-   Heute/+Zuweisung rechts" bei JEDER Fensterbreite gleich aussieht.
-   Ueber Raender war das nicht zu erreichen: .pt-toolbar__spacer (flex:1)
-   waechst und drueckt alles ab dem AJ-Stepper an das rechte Zeilenende, sobald
-   "Heute + Zuweisung" umbrechen. In einer so rechts gepackten Zeile verschiebt
-   margin-left an dieser Gruppe nicht sie selbst, sondern ihre linken Nachbarn
-   (den AJ/Zoom-Block) – und wie die Zeile gerade gepackt ist, haengt an der
-   Fensterbreite. Struktur statt Margins ist hier das stabilere Mittel. */
-.pt-toolbar__row2 { flex:0 0 100%; display:flex; align-items:center; gap:var(--sp-2); flex-wrap:wrap; }
-.pt-toolbar__actions { display:inline-flex; align-items:center; gap:var(--sp-2); flex-wrap:nowrap; }
-/* Heute + „+ Zuweisung" ganz rechts am Seitenrand: Auto-Margins schlucken den
-   freien Platz der Zeile, die Gruppe wandert also geschlossen an den Rand. */
-.pt-toolbar__right { display:inline-flex; align-items:center; gap:var(--sp-2); flex-wrap:nowrap; margin-left:auto; }
+/* Heute / Export / Drucken sind reine Icon-Buttons – randlos, Beschriftung nur
+   als title + aria-label. Dadurch passt die ganze Leiste wieder in EINE Zeile;
+   die frühere zweite Reihe (.pt-toolbar__row2 & Co.) ist damit entfallen. */
+.pt-ib { width:34px; height:34px; border:0; border-radius:var(--r-md); background:transparent; color:var(--pm-grey-500);
+  display:inline-flex; align-items:center; justify-content:center; cursor:pointer; transition:background .12s, color .12s; }
+.pt-ib:hover { background:var(--pm-grey-100); color:var(--pm-grey-900); }
+.pt-ib:disabled { cursor:default; opacity:.65; }
+.pt-ib .icon { width:19px; height:19px; }
+/* Export laeuft ueber ein nachgeladenes Bundle – waehrend dessen dreht sich das
+   Icon an Stelle des frueheren Textwechsels ("Erzeuge …"). */
+.pt-ib__spin { animation:pt-spin 1s linear infinite; }
+@keyframes pt-spin { to { transform:rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .pt-ib__spin { animation:none; } }
+.pt-toolbar__sep { width:1px; height:22px; background:var(--pm-grey-200); margin:0 3px; }
+/* AJ-Stepper, Zoom, Icons und „+ Zuweisung" gehoeren zusammen und sind darum EIN
+   Flex-Item: bei schmalem Fenster wandert die Gruppe geschlossen in die zweite
+   Zeile (margin-left:auto haelt sie dort am rechten Rand), statt dass einzelne
+   Buttons abreissen. */
+.pt-toolbar__nav { display:inline-flex; align-items:center; gap:var(--sp-2); flex-wrap:nowrap; margin-left:auto; }
 
 .pt-stepper { display:inline-flex; align-items:center; border:1px solid var(--pm-grey-200); border-radius:var(--r-md); background:var(--pm-white); overflow:hidden; }
 .pt-stepper button { width:32px; height:36px; border:0; background:transparent; color:var(--pm-grey-600); cursor:pointer; font-size:15px; line-height:1; }
@@ -120,11 +121,41 @@
 .pt-grip--r { right:0; } .pt-grip--r::after { right:2px; }
 .pt-bar--open { -webkit-mask-image:linear-gradient(90deg,#000 80%,transparent 100%); mask-image:linear-gradient(90deg,#000 80%,transparent 100%); }
 .pt-bar--conf { outline:2px solid var(--color-error-mid); outline-offset:1px; }
+/* Balken, der ueber den Fensterrand hinauslaeuft, bekommt eine Pfeilkappe statt
+   einer flachen Schnittkante – sonst liest man dort ein Ende, wo keins ist.
+   (Offene Zuweisungen ohne Bis-Datum tragen weiter den Verlauf aus
+   .pt-bar--open, das ist eine andere Aussage.) */
+.pt-bar--contr { clip-path:polygon(0 0, calc(100% - 11px) 0, 100% 50%, calc(100% - 11px) 100%, 0 100%); padding-right:19px; }
+.pt-bar--contl { clip-path:polygon(11px 0, 100% 0, 100% 100%, 11px 100%, 0 50%); padding-left:19px; }
+.pt-bar--contl.pt-bar--contr { clip-path:polygon(11px 0, calc(100% - 11px) 0, 100% 50%, calc(100% - 11px) 100%, 11px 100%, 0 50%); }
 
 .pt-today { position:absolute; top:0; bottom:0; width:2px; background:var(--color-error-mid); z-index:2; pointer-events:none; }
 .pt-today-flag { position:absolute; top:4px; transform:translateX(-50%); background:var(--color-error-mid); color:#fff; font-size:9.5px; font-weight:800; padding:1px 6px; border-radius:4px; white-space:nowrap; font-variant-numeric:tabular-nums; z-index:8; }
 
 .pt-empty { padding:var(--sp-8); text-align:center; color:var(--pm-grey-400); font-size:var(--text-sm); }
+
+/* ── Ausblick: das Fenster reicht ueber den 31.8. hinaus (siehe ajWindow) ──
+   Die Toenung liegt als EIN Element hinter den Zeilen (kein z-index: die
+   spaeter im DOM stehenden Balken malen dadurch darueber). Weil Gruppenkoepfe
+   (z-index 5) die Flaeche unterbrechen, traegt eine eigene Linie (z-index 3)
+   die Grenze durch die ganze Tafel. Farben absichtlich als rgba statt Token:
+   die Flavor-Themes (silk & Co.) faerben --pm-grey-* um, ein getoenter
+   Neutralton wuerde dort zur sichtbaren Box. */
+.pt-wrap { --pt-zone-bg:rgba(26,26,26,.055); --pt-zone-line:#8A8A8A; }
+[data-theme="dark"] .pt-wrap { --pt-zone-bg:rgba(255,255,255,.055); --pt-zone-line:#8A8A90; }
+.pt-zone { position:absolute; top:0; bottom:0; background:var(--pt-zone-bg); pointer-events:none; }
+.pt-zoneline { position:absolute; top:42px; bottom:0; width:0; border-left:1px dashed var(--pt-zone-line); z-index:3; pointer-events:none; }
+.pt-months .pt-zone { border-left:1px dashed var(--pt-zone-line); }
+.pt-month--ahead { color:var(--pm-grey-400); }
+.pt-month--ahead .yr { color:var(--pm-grey-300); }
+/* Sprung ins Folge-AJ: sitzt am rechten Kopfende, damit es nicht mit der
+   Heute-Fahne kollidiert (die klebt am 20. Aug, also dicht an der Grenze). */
+.pt-zonechip { position:absolute; top:9px; right:9px; z-index:9; display:inline-flex; align-items:center; gap:5px;
+  height:24px; padding:0 8px 0 10px; border:1px solid var(--pm-grey-200); border-radius:var(--r-full);
+  background:var(--pm-white); color:var(--pm-grey-600); font-size:var(--text-xs); font-weight:700;
+  white-space:nowrap; cursor:pointer; }
+.pt-zonechip:hover { border-color:var(--pm-grey-400); color:var(--pm-grey-900); }
+.pt-zonechip svg { width:12px; height:12px; }
 
 /* ── Detail-Panel (rechts, schwebend) ──
    z-index 20 liegt ueber allen sticky-Ebenen der Tafel (pt-head 6/7,
@@ -179,8 +210,6 @@ body.pt-dragging { user-select:none; cursor:grabbing; }
 
 .pt-panel__foot { border-top:1px solid var(--pm-grey-200); padding:var(--sp-4); display:flex; flex-direction:column; gap:8px; }
 .pt-panel__foot .btn { width:100%; justify-content:center; }
-.pt-panel__foot-row { display:flex; gap:8px; }
-.pt-panel__foot-row .btn { flex:1; }
 
 /* Beurteilungs-Badges (eigene Farben, unabhängig von .badge) */
 .pt-b-ok { background:var(--color-success-light); color:var(--color-success); }
@@ -222,7 +251,7 @@ body.pt-dragging { user-select:none; cursor:grabbing; }
 /* ── Druck ── */
 @media print {
   .sidebar, .sidebar-overlay, .topbar, .pt-toolbar, .pt-panel__close,
-  .pt-panel__foot, .pt-grip { display:none !important; }
+  .pt-panel__foot, .pt-grip, .pt-zonechip { display:none !important; }
 
   /* Das Detail-Panel gehoert nie aufs Papier. display:none genuegt: es nimmt
      das Element vollstaendig aus dem Rendering, damit greift auch die

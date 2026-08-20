@@ -18,6 +18,11 @@
 
    Neues Icon hinzufügen: Eintrag in MAP ergänzen (Basisname OHNE
    Stil-Suffix) und neu ausführen.
+
+   ACHTUNG: Die Iconify-API liefert inzwischen UNoptimierte Pfade —
+   ein kompletter Lauf schreibt darum alle bestehenden Icons um (gleiche
+   Form, andere Zahlenschreibweise). Für EIN neues Icon lohnt es sich,
+   nur dessen Zeile aus dem Lauf in app/js/icons.js zu übernehmen.
    =================================================================== */
 import fs from 'node:fs';
 import path from 'node:path';
@@ -63,6 +68,7 @@ const MAP = {
   refresh:      'refresh-circle',
   search:       'magnifer',
   download:     'download-minimalistic',
+  print:        'printer-minimalistic',
   paperclip:    'paperclip',
 };
 
