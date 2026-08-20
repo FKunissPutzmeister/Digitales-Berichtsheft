@@ -951,7 +951,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     applyTlWidth();          // erst jetzt messbar: #ptScroll steht im DOM
     observeTlWidth();
     bindToolbar();
-    requestAnimationFrame(fitToolbar);   // nach dem PMSelect-Umbau messen
+    // Nach dem PMSelect-Umbau messen; die Toolbar-Hoehe bestimmt mit, wie viel
+    // Platz die Tafel darunter hat – daher erst skalieren, dann deckeln.
+    requestAnimationFrame(() => { fitToolbar(); capBoardHeight(); });
     renderTimeline();
     renderPanel();
     bindBoardDrag();
@@ -1029,6 +1031,30 @@ document.addEventListener('DOMContentLoaded', async () => {
     tbFitting = false;
   }
 
+  // Hoehe der Plantafel gemessen statt gerechnet – dasselbe Muster wie
+  // capPanelHeight() bei der Detail-Kachel. Bezugsrahmen ist der Scroll-Host
+  // (auf Touchgeraeten .main-wrapper, sonst das Dokument, s. scrollHost() in
+  // app.js): dessen clientHeight hat die Safe-Area unten schon abgezogen.
+  // Bei nach unten gescrolltem Host wird top negativ – dann auf 0 geklemmt,
+  // sonst wuechse die Tafel mit jedem Scrollschritt weiter.
+  const BOARD_BOTTOM_GAP = 6;
+  function capBoardHeight() {
+    const scroll = document.getElementById('ptScroll'); if (!scroll) return;
+    const host = (typeof scrollHost === 'function') ? scrollHost() : null;
+    const hostTop = host ? host.getBoundingClientRect().top : 0;
+    const hostH   = host ? host.clientHeight : document.documentElement.clientHeight;
+    const top = Math.max(0, scroll.getBoundingClientRect().top - hostTop);
+    const cap = Math.max(240, hostH - top - BOARD_BOTTOM_GAP);
+    scroll.style.maxHeight = cap + 'px';
+    // Zweiter Durchgang: unter der Tafel liegen noch Innenabstaende des
+    // Seitencontainers (und auf dem iPad die Safe-Area), die von hier aus nicht
+    // einzeln messbar sind. Statt sie zu erraten, den entstandenen Ueberhang
+    // wieder abziehen – sonst faengt die Seite an, um wenige Pixel zu scrollen.
+    const box = host || document.documentElement;
+    const over = box.scrollHeight - box.clientHeight;
+    if (over > 0) scroll.style.maxHeight = Math.max(240, cap - over) + 'px';
+  }
+
   function applyTlWidth() {
     const board = document.getElementById('ptBoard');
     if (board) board.style.setProperty('--tl-w', Math.round(ajWindow().w) + 'px');
@@ -1047,6 +1073,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       clearTimeout(tlRoTimer);
       tlRoTimer = setTimeout(() => {
         fitToolbar();
+        capBoardHeight();
         const board = document.getElementById('ptBoard'); if (!board) return;
         const next = Math.round(ajWindow().w) + 'px';
         if (board.style.getPropertyValue('--tl-w') === next) return;
@@ -1470,6 +1497,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   // und beim Wechsel in den Drawer-Modus müssen die Inline-Styles weg. Läuft
   // auch für die angedockte Kachel, deren Höhendeckel an der Fensterhöhe hängt.
   window.addEventListener('resize', applyPanelPos);
+  window.addEventListener('resize', capBoardHeight);
 
   function scrollToToday(smooth) {
     const scroll = document.getElementById('ptScroll'); if (!scroll) return;

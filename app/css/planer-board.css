@@ -102,6 +102,11 @@
 
 /* ── Plantafel-Rahmen ── */
 .pt-wrap { border:1px solid var(--pm-grey-200); border-radius:var(--r-lg); background:var(--pm-white); box-shadow:var(--shadow-sm); display:flex; flex-direction:column; overflow:hidden; }
+/* max-height ist nur der Startwert bis capBoardHeight() (abteilungs-planer.js)
+   das erste Mal laeuft: die Oberkante der Tafel haengt an Topbar,
+   Testphase-Banner, Seitentitel UND an der Toolbar, die sich auf kleinen
+   Schirmen kleiner skaliert. Die Zahl 230 unterstellte einen Start bei y=230,
+   real sind es ~150 – unter der Tafel blieben dadurch ~80px ungenutzt. */
 .pt-scroll { overflow:auto; max-height:calc(100vh - 230px); }
 .pt-scroll.is-panning { cursor:grabbing; user-select:none; }
 .pt-board { --name-w:240px; --tl-w:1200px; min-width:calc(var(--name-w) + var(--tl-w)); position:relative; }
