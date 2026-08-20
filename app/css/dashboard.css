@@ -2758,6 +2758,8 @@ html[data-theme="dark"] .welcome-hero {
 .rot-sum-item b { font-weight: 700; }
 .rot-sum-dot { width: 8px; height: 8px; border-radius: 50%; }
 
+/* 330px ist nur Startwert und Untergrenze: capDurchlaufListe() (dashboard.js)
+   zieht die Liste bis zum Fensterboden auf, sobald darunter Platz frei ist. */
 .rot__list { max-height: 330px; overflow-y: auto; border-top: 1px solid var(--pm-grey-100, #eef0f2); }
 
 /* Zeile = Kopf (Azubi-Identität) + Journey (aktuelle → nächste Station) */

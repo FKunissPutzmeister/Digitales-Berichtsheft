@@ -933,6 +933,29 @@ function bindDurchlaufListe(root) {
       r.style.display = (!q || (r.dataset.name || '').includes(q)) ? '' : 'none';
     });
   });
+  requestAnimationFrame(() => capDurchlaufListe(list));
+  window.addEventListener('resize', () => capDurchlaufListe(list));
+}
+
+/* Die Liste ist das unterste Element der Seite. Der feste Deckel von 330px
+   (dashboard.css .rot__list) schnitt sie mitten im Fenster ab und ließ darunter
+   eine Leerfläche stehen. Stattdessen bis zum Fensterboden aufziehen – gemessen
+   statt geraten, wie capBoardHeight() im Planer, inkl. zweitem Durchgang für
+   die Abstände unter der Kachel (Kachel-Padding, Wrapper, iPad-Safe-Area).
+   Nur vergrößern: liegt die Liste (Ausbilder-Dashboard mit langer „Zu prüfen"-
+   Karte darüber) schon unterhalb des Fensters, bleibt der CSS-Wert. */
+const ROT_LIST_MIN = 330;
+function capDurchlaufListe(list) {
+  if (!list.isConnected) return;
+  const host = (typeof scrollHost === 'function') ? scrollHost() : null;
+  const hostTop = host ? host.getBoundingClientRect().top : 0;
+  const hostH   = host ? host.clientHeight : document.documentElement.clientHeight;
+  const top = list.getBoundingClientRect().top - hostTop;
+  const platz = Math.max(ROT_LIST_MIN, hostH - top);
+  list.style.maxHeight = platz + 'px';
+  const box = host || document.documentElement;
+  const over = box.scrollHeight - box.clientHeight;
+  if (over > 0) list.style.maxHeight = Math.max(ROT_LIST_MIN, platz - over) + 'px';
 }
 
 /* ── Azubi-Karte: ein Azubi mit seinen offenen Berichten ───────────
