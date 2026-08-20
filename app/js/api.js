@@ -619,6 +619,29 @@ const DB = {
     await apiFetch(`/zuweisungen/${id}`, { method: 'DELETE' });
   },
 
+  /* Eigene Gruppen der Plantafel (dbo.PlanerGruppen, Migration 035).
+     Gemeinsam gepflegt: alle Planer sehen dieselben Gruppen. `mitglieder` ist
+     eine Liste von Azubi-Oids und beim Speichern immer die VOLLE Zielliste. */
+  async getPlanerGruppen() {
+    // Leere Liste statt Fehler: ohne Gruppen ist die Tafel voll benutzbar,
+    // ein Ausfall hier darf sie nicht am Laden hindern (z.B. Migration 035
+    // noch nicht gelaufen).
+    try { return await apiFetch('/planer-gruppen'); }
+    catch (e) { console.warn('[api] Planer-Gruppen nicht geladen:', e.message); return []; }
+  },
+
+  async createPlanerGruppe(name, mitglieder = []) {
+    return await apiFetch('/planer-gruppen', { method: 'POST', body: { name, mitglieder } });
+  },
+
+  async updatePlanerGruppe(id, fields) {
+    await apiFetch(`/planer-gruppen/${id}`, { method: 'PUT', body: fields });
+  },
+
+  async deletePlanerGruppe(id) {
+    await apiFetch(`/planer-gruppen/${id}`, { method: 'DELETE' });
+  },
+
   /* Vertretungen (Self-Service-Delegation) – meine vergebenen + erhaltenen */
   async getVertretungen() {
     try { return await apiFetch('/vertretungen'); }

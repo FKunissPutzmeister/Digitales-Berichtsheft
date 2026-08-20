@@ -665,9 +665,14 @@ document.addEventListener('DOMContentLoaded', async () => {
   let switchDir = 0;                                   // AJ-Wechselrichtung fuer das Eingangs-Feedback (+1/-1)
 
   // ── Daten einmal laden (Namen kommen per JOIN mit) ──
-  const [azubisRaw, dhRaw, abteilungenKatalog, alleZuweisungen] = await Promise.all([
+  const [azubisRaw, dhRaw, abteilungenKatalog, alleZuweisungen, gruppenRaw] = await Promise.all([
     DB.getAzubis(), DB.getDhStudenten(), DB.getAbteilungen(), DB.getAllZuweisungen(),
+    DB.getPlanerGruppen(),
   ]);
+  // Eigene Gruppen (Migration 035): gemeinsam gepflegte, frei benannte Buendel.
+  // Nicht im State-Konstanten-Block oben, weil sie nach jeder Aenderung neu
+  // vom Server kommen (einzige Quelle der Wahrheit, kein lokales Patchen).
+  let planerGruppen = Array.isArray(gruppenRaw) ? gruppenRaw : [];
   // Nach Nachname sortieren (unabhängig vom Speicherformat), dann Anzeige-
   // Namen "Vorname Nachname" + Initialen "FK" setzen (initials via api.js).
   const nachnameKey = raw => {
@@ -862,7 +867,46 @@ document.addEventListener('DOMContentLoaded', async () => {
       if (!byGroup.has(g)) byGroup.set(g, []);
       byGroup.get(g).push(a);
     });
-    return GROUP_ORDER.filter(g => byGroup.has(g)).map(g => ({ title: g, azubis: byGroup.get(g) }));
+    const automatisch = GROUP_ORDER.filter(g => byGroup.has(g))
+      .map(g => ({ key: 'a:' + g, title: g, azubis: byGroup.get(g) }));
+
+    // Eigene Gruppen stehen DARUEBER; die automatischen bleiben unveraendert.
+    // Eine Person kann in mehreren eigenen Gruppen sein und steht dann mehrfach
+    // auf der Tafel – bewusst so gewaehlt, damit "Schlosserei" und "Pruefung
+    // Herbst" gleichzeitig moeglich sind. Die Zeilen sind identisch aufgebaut,
+    // Auswahl/Ziehen wirken auf denselben Datensatz.
+    const sichtbar = new Map(gefiltert.map(a => [a.id, a]));
+    const eigene = planerGruppen.map(g => {
+      // Mitglieder in der Reihenfolge der Tafel (nach Nachname), nicht in der
+      // Speicherreihenfolge. Der aktuelle Filter gilt auch hier – deshalb
+      // zusaetzlich `gesamt` (alle Mitglieder, die es noch gibt): sonst waere
+      // nicht erkennbar, dass jemand nur ausgefiltert ist. Gelöschte Personen
+      // zaehlen bewusst nicht mit, sonst stimmte die Zahl nie wieder.
+      const alle = azubis.filter(a => g.mitglieder.includes(a.id));
+      const drin = alle.filter(a => sichtbar.has(a.id));
+      return {
+        key: 'g:' + g.id,
+        title: g.name,
+        gruppeId: g.id,
+        gesamt: alle.length,
+        // Zwei ganz verschiedene Gruende, warum ein Mitglied fehlt – im Kopf
+        // getrennt ausgewiesen, sonst raetselt man (ein "5 von 6" ohne aktiven
+        // Filter sieht wie ein Fehler aus): ausgeschieden (aktiv=false, die
+        // Tafel zeigt solche Personen nie) vs. von einem Filter ausgeblendet.
+        ausgeschieden: alle.filter(a => a.aktiv === false && !sichtbar.has(a.id)).length,
+        azubis: drin,
+      };
+    });
+    // Eigene Gruppen bleiben auch leer sichtbar (frisch angelegt oder alle
+    // Mitglieder ausgefiltert) – sonst waere eine neue Gruppe unsichtbar und
+    // wirkte verloren. Die automatischen verschwinden wie bisher, wenn leer.
+    return [...eigene, ...automatisch];
+  }
+
+  // Gruppen neu vom Server holen und Tafel zeichnen (nach Anlegen/Aendern/Loeschen).
+  async function ladeGruppenNeu() {
+    planerGruppen = await DB.getPlanerGruppen();
+    renderTimeline();
   }
 
   // ── Options der Filter-Dropdowns ──
@@ -918,8 +962,8 @@ document.addEventListener('DOMContentLoaded', async () => {
           <button type="button" data-z="quartal" class="${zoom === 'quartal' ? 'is-on' : ''}">Quartal</button>
           <button type="button" data-z="jahr" class="${zoom === 'jahr' ? 'is-on' : ''}">Jahr</button>
         </div>
-        <button type="button" class="pt-ib" id="ptHeute" title="Heute" aria-label="Zu heute springen">${Icon('calendar', { size: 19 })}</button>
         <span class="pt-toolbar__sep"></span>
+        <button type="button" class="pt-ib" id="ptGrpAdd" aria-label="Gruppe anlegen" title="Eigene Gruppe anlegen (Name + Mitglieder)">${Icon('users', { size: 19 })}</button>
         <button type="button" class="pt-ib" id="ptExport" aria-label="Exportieren" title="Aktuell gefilterte Personen + Zuweisungen als Excel-Arbeitsmappe (Übersicht, Zuweisungen, Personen, Abteilungen, Belegung, Verantwortliche)">${Icon('download', { size: 19 })}</button>
         <button type="button" class="pt-ib" id="ptPrint" aria-label="Drucken" title="Azubis, Zeitraum und Darstellung wählen, dann drucken">${Icon('print', { size: 19 })}</button>
         <button type="button" class="btn btn-secondary btn-sm" id="ptAdd">+ Zuweisung</button>
@@ -972,17 +1016,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     on('ptNurOhne', 'change', e => { nurOhne = e.target.checked; renderTimeline(); });
     on('ptAjPrev', 'click', () => { ajStartYear--; afterAjOrZoom(-1); });
     on('ptAjNext', 'click', () => { ajStartYear++; afterAjOrZoom(1); });
-    on('ptHeute', 'click', () => {
-      // Falls „heute" außerhalb des gewählten AJ liegt, erst dorthin springen.
-      const w = ajWindow();
-      if (today < w.start || today > w.ajEnd) {
-        const ziel = today.getMonth() >= 8 ? today.getFullYear() : today.getFullYear() - 1;
-        const dir = Math.sign(ziel - ajStartYear);
-        ajStartYear = ziel;
-        afterAjOrZoom(dir);
-      }
-      scrollToToday(true);
-    });
+    on('ptGrpAdd', 'click', () => openGruppeDialog(null));
     on('ptExport', 'click', exportExcel);
     on('ptPrint', 'click', () => {
       // Vorauswahl = genau die Personen, die die Toolbar gerade zeigt.
@@ -1164,7 +1198,13 @@ document.addEventListener('DOMContentLoaded', async () => {
       body = `<div class="pt-empty">Keine Personen für die aktuelle Filterung.</div>`;
     } else {
       body = groups.map(g => {
-        const isColl = collapsed.has(g.title);
+        const isColl = collapsed.has(g.key);   // Schluessel, nicht Titel: eigene Gruppen duerfen so heissen wie eine automatische
+        const versteckt = g.gesamt ? g.gesamt - g.azubis.length : 0;   // fehlende Mitglieder
+        const gefiltert = versteckt - (g.ausgeschieden || 0);
+        const warum = [
+          g.ausgeschieden ? `${g.ausgeschieden} ausgeschieden` : '',
+          gefiltert > 0 ? `${gefiltert} durch die Filter ausgeblendet` : '',
+        ].filter(Boolean).join(', ');
         const rows = g.azubis.map(a => {
           const konf = konfliktIds(a.id);
           const bars = zuwList(a.id).map(z => {
@@ -1210,16 +1250,30 @@ document.addEventListener('DOMContentLoaded', async () => {
               <div class="pt-track">${emptyGap}${gaps}${todayLine}${bars}</div>
             </div>`;
         }).join('');
+        // Aktionen nur bei eigenen Gruppen. Sie sitzen INNERHALB von
+        // .pt-grp__head-inner, weil dieser Bereich horizontal sticky ist –
+        // rechts am Tafelrand waeren sie beim Scrollen weg. Der Aufklapp-Griff
+        // ist deshalb ein eigener Button daneben (Button in Button ist kein
+        // gueltiges HTML, und der Klick wuerde sich verbeissen).
+        const aktionen = g.gruppeId ? `
+              <span class="pt-grp__actions">
+                <button type="button" class="pt-grp__ib" data-grp-edit="${g.gruppeId}" title="Gruppe bearbeiten" aria-label="Gruppe ${escHtml(g.title)} bearbeiten">${Icon('edit', { size: 14 })}</button>
+                <button type="button" class="pt-grp__ib" data-grp-del="${g.gruppeId}" title="Gruppe löschen" aria-label="Gruppe ${escHtml(g.title)} löschen">${Icon('trash', { size: 14 })}</button>
+              </span>` : '';
         return `
-          <div class="pt-grp ${isColl ? 'is-collapsed' : ''}" data-group="${escHtml(g.title)}">
-            <button type="button" class="pt-grp__head" data-group="${escHtml(g.title)}">
+          <div class="pt-grp ${isColl ? 'is-collapsed' : ''}${g.gruppeId ? ' pt-grp--eigen' : ''}" data-group="${escHtml(g.key)}">
+            <div class="pt-grp__head">
               <span class="pt-grp__head-inner">
-                <span class="pt-grp__caret">▼</span>
-                <span class="pt-grp__title">${escHtml(g.title)}</span>
-                <span class="pt-grp__count">${g.azubis.length}</span>
+                <button type="button" class="pt-grp__toggle" data-group="${escHtml(g.key)}" aria-expanded="${!isColl}">
+                  <span class="pt-grp__caret">▼</span>
+                  <span class="pt-grp__title">${escHtml(g.title)}</span>
+                  <span class="pt-grp__count"${versteckt ? ` title="${g.gesamt} Mitglieder · ${escHtml(warum)}"` : ''}>${g.azubis.length}${versteckt ? ` von ${g.gesamt}` : ''}</span>
+                </button>${aktionen}
               </span>
-            </button>
-            <div class="pt-rows">${rows}</div>
+            </div>
+            <div class="pt-rows">${rows}${g.gruppeId && !g.azubis.length ? `<div class="pt-grp__leer">${versteckt
+              ? `Kein Mitglied sichtbar: ${escHtml(warum)}.`
+              : 'Noch niemand in dieser Gruppe – über das Stift-Symbol Personen hinzufügen.'}</div>` : ''}</div>
           </div>`;
       }).join('');
     }
@@ -1241,10 +1295,17 @@ document.addEventListener('DOMContentLoaded', async () => {
     document.getElementById('ptZoneChip')?.addEventListener('click', () => { ajStartYear++; afterAjOrZoom(1); });
 
     // Zeilen-/Gruppen-Events
-    board.querySelectorAll('.pt-grp__head').forEach(h => h.addEventListener('click', () => {
+    board.querySelectorAll('.pt-grp__toggle').forEach(h => h.addEventListener('click', () => {
       const t = h.dataset.group;
       if (collapsed.has(t)) collapsed.delete(t); else collapsed.add(t);
-      h.closest('.pt-grp').classList.toggle('is-collapsed');
+      const zu = h.closest('.pt-grp').classList.toggle('is-collapsed');
+      h.setAttribute('aria-expanded', String(!zu));
+    }));
+    board.querySelectorAll('[data-grp-edit]').forEach(b => b.addEventListener('click', () => {
+      openGruppeDialog(planerGruppen.find(g => String(g.id) === b.dataset.grpEdit) || null);
+    }));
+    board.querySelectorAll('[data-grp-del]').forEach(b => b.addEventListener('click', () => {
+      openGruppeDelete(planerGruppen.find(g => String(g.id) === b.dataset.grpDel) || null);
     }));
     board.querySelectorAll('.pt-name[data-azubi]').forEach(n => n.addEventListener('click', () => selectAzubi(n.dataset.azubi)));
     board.querySelectorAll('.pt-name[data-azubi]').forEach(n => n.addEventListener('keydown', e => {
@@ -1293,13 +1354,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     const foot = `
       <div class="pt-panel__foot">
         <button type="button" class="btn btn-secondary" id="ptPanelAdd">+ Zuweisung</button>
-        <button type="button" class="btn btn-outline" id="ptPanelPrint">Drucken</button>
       </div>`;
     const head = `
       <div class="pt-panel__head">
         ${renderAvatar(a)}
         <div><div class="pt-panel__nm">${escHtml(a.name)}</div><div class="pt-panel__meta">${escHtml(a.beruf || '')} · ${escHtml(grp)}</div></div>
-        <button type="button" class="pt-panel__close" id="ptPanelClose" aria-label="Panel schließen">
+        <button type="button" class="pt-panel__hb" id="ptPanelPrint" aria-label="Drucken" title="Diesen Durchlauf drucken">${Icon('print', { size: 16 })}</button>
+        <button type="button" class="pt-panel__hb pt-panel__close" id="ptPanelClose" aria-label="Panel schließen">
           <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.4" style="width:16px;height:16px"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
         </button>
       </div>`;
@@ -1484,7 +1545,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (e.button != null && e.button !== 0) return;    // nur linke Maustaste
     if (panelDragBlocked()) return;
     if (!e.target.closest('.pt-panel__head')) return;  // nur am Griff
-    if (e.target.closest('button')) return;            // ×-Button bleibt Button
+    if (e.target.closest('button')) return;            // Kopf-Icons bleiben Buttons
     const panel = e.currentTarget;
     const br = panel.getBoundingClientRect();
     panelDrag = { panel, startX: e.clientX, startY: e.clientY, moved: false,
@@ -1529,12 +1590,22 @@ document.addEventListener('DOMContentLoaded', async () => {
   window.addEventListener('resize', applyPanelPos);
   window.addEventListener('resize', capBoardHeight);
 
-  function scrollToToday(smooth) {
+  function scrollToToday() {
     const scroll = document.getElementById('ptScroll'); if (!scroll) return;
     const win = ajWindow();
     if (today < win.start || today > win.end) { scroll.scrollLeft = 0; return; }
     const x = Math.max(0, Math.round((today - win.start) / DAY) * win.pxd - scroll.clientWidth * 0.4);
-    requestAnimationFrame(() => scroll.scrollTo({ left: x, behavior: smooth ? 'smooth' : 'auto' }));
+    requestAnimationFrame(() => scroll.scrollTo({ left: x, behavior: 'auto' }));
+  }
+
+  // Eine Zeile senkrecht ins Bild holen. Nur die Tafel scrollt, die Seite
+  // bleibt stehen – deshalb kein scrollIntoView (das zieht auch den Scroll-Host
+  // mit und wuerde auf dem iPad die ganze Seite verschieben).
+  function scrollRowIntoView(azubiId) {
+    const scroll = document.getElementById('ptScroll'); if (!scroll) return;
+    const row = [...scroll.querySelectorAll('.pt-row')].find(r => r.dataset.azubi === String(azubiId));
+    if (!row) return;
+    scroll.scrollTop += row.getBoundingClientRect().top - scroll.getBoundingClientRect().top - scroll.clientHeight / 3;
   }
 
   // ═══════════════════ DRAG / RESIZE ═══════════════════
@@ -1726,6 +1797,136 @@ document.addEventListener('DOMContentLoaded', async () => {
       : 'Diese Zuweisung wird unwiderruflich entfernt. Fortfahren?';
     Modal.open('zuweisungDeleteModal');
   }
+  /* ═══════════════════ EIGENE GRUPPEN ═══════════════════
+     Anlegen/Bearbeiten in einem Dialog: Name + Mitgliederliste mit Suche.
+     Die Liste zeigt bewusst ALLE Personen, nicht nur die von der Toolbar
+     gefilterten – wer eine Gruppe zusammenstellt, will nicht erst den Filter
+     aufräumen müssen. Gespeichert wird immer die vollständige Zielliste
+     (PUT ersetzt die Mitglieder), damit es keine Reihenfolge-Effekte gibt. */
+  let grpDlg = { id: null, gewaehlt: new Set(), suche: '' };
+  let grpDeleteId = null;
+
+  // Waehlbar ist nur, wer auch auf der Tafel erscheinen kann: ausgeschiedene
+  // Personen (aktiv=false) zeigt die Tafel nie, und Oids ohne Person dahinter
+  // (geloescht) schon gar nicht. Beides gehoert nicht in die Auswahl.
+  function waehlbareAzubis() { return azubis.filter(a => a.aktiv !== false); }
+
+  function openGruppeDialog(gruppe) {
+    const waehlbar = new Set(waehlbareAzubis().map(a => a.id));
+    const bisher = gruppe ? gruppe.mitglieder : [];
+    // Altbestand: Mitglieder, die nicht mehr waehlbar sind, stehen nicht in der
+    // Liste – dann muss der Dialog sagen, dass Speichern sie entfernt. Sonst
+    // waere es ein stiller Datenverlust.
+    const entfallen = bisher.filter(o => !waehlbar.has(o)).length;
+    grpDlg = {
+      id: gruppe ? gruppe.id : null,
+      gewaehlt: new Set(bisher.filter(o => waehlbar.has(o))),
+      suche: '',
+    };
+    const note = document.getElementById('ptGrpNote');
+    if (note) {
+      note.textContent = entfallen
+        ? (entfallen === 1
+          ? '1 ausgeschiedene Person ist noch in dieser Gruppe. Sie erscheint nicht auf der Tafel und wird beim Speichern entfernt.'
+          : `${entfallen} ausgeschiedene Personen sind noch in dieser Gruppe. Sie erscheinen nicht auf der Tafel und werden beim Speichern entfernt.`)
+        : '';
+      note.hidden = !entfallen;
+    }
+    const t = document.querySelector('#ptGruppeModal .modal__title');
+    if (t) t.textContent = gruppe ? 'Gruppe bearbeiten' : 'Gruppe anlegen';
+    const nameI = document.getElementById('ptGrpName');
+    if (nameI) nameI.value = gruppe ? gruppe.name : '';
+    const suche = document.getElementById('ptGrpSearch');
+    if (suche) suche.value = '';
+    grpFehler('');
+    grpZeichnen();
+    Modal.open('ptGruppeModal');
+    setTimeout(() => nameI && nameI.focus(), 30);
+  }
+
+  function grpFehler(text) {
+    const el = document.getElementById('ptGrpErr');
+    if (!el) return;
+    el.textContent = text || '';
+    el.hidden = !text;
+  }
+
+  function grpZeichnen() {
+    const list = document.getElementById('ptGrpList');
+    if (!list) return;
+    const q = grpDlg.suche;
+    const basis = waehlbareAzubis();
+    const sichtbar = q ? basis.filter(a => fuzzyMatch(q, `${a.name} ${a.beruf || ''}`)) : basis;
+    list.innerHTML = sichtbar.map(a => `
+      <label class="pp-dlg__item">
+        <input type="checkbox" data-oid="${escHtml(a.id)}" ${grpDlg.gewaehlt.has(a.id) ? 'checked' : ''}>
+        <b>${escHtml(a.name)}</b><span>${escHtml(a.beruf || '')}</span>
+      </label>`).join('')
+      || `<div class="pp-dlg__item">${q ? 'Keine Treffer.' : 'Keine Personen vorhanden.'}</div>`;
+    list.querySelectorAll('input[data-oid]').forEach(cb => cb.addEventListener('change', () => {
+      if (cb.checked) grpDlg.gewaehlt.add(cb.dataset.oid); else grpDlg.gewaehlt.delete(cb.dataset.oid);
+      grpZaehler();
+    }));
+    grpZaehler();
+  }
+  function grpZaehler() {
+    const count = document.getElementById('ptGrpCount');
+    if (count) count.textContent = `(${grpDlg.gewaehlt.size} gewählt)`;
+  }
+
+  function initGruppeModal() {
+    const suche = document.getElementById('ptGrpSearch');
+    suche?.addEventListener('input', e => { grpDlg.suche = e.target.value.trim().toLowerCase(); grpZeichnen(); });
+    document.getElementById('ptGrpNone')?.addEventListener('click', () => { grpDlg.gewaehlt.clear(); grpZeichnen(); });
+    // Enter im Namensfeld speichert, statt (wie im Formular ueblich) nichts zu tun.
+    document.getElementById('ptGrpName')?.addEventListener('keydown', e => {
+      if (e.key === 'Enter') { e.preventDefault(); document.getElementById('ptGrpSave')?.click(); }
+    });
+    document.getElementById('ptGrpSave')?.addEventListener('click', async () => {
+      const btn = document.getElementById('ptGrpSave');
+      const name = document.getElementById('ptGrpName').value.trim();
+      if (!name) { grpFehler('Bitte einen Namen angeben.'); return; }
+      const mitglieder = [...grpDlg.gewaehlt];
+      btn.disabled = true;
+      try {
+        if (grpDlg.id) await DB.updatePlanerGruppe(grpDlg.id, { name, mitglieder });
+        else await DB.createPlanerGruppe(name, mitglieder);
+      } catch (e) {
+        // Doppelter Name (409) ist der einzige erwartbare Fehler und gehoert in
+        // den Dialog, nicht in einen Toast hinter dem geschlossenen Dialog.
+        grpFehler(e.message || 'Konnte nicht gespeichert werden.');
+        btn.disabled = false;
+        return;
+      }
+      btn.disabled = false;
+      Modal.closeAll();
+      Toast.success(grpDlg.id ? 'Gruppe gespeichert' : 'Gruppe angelegt',
+        `${escHtml(name)} · ${mitglieder.length} ${mitglieder.length === 1 ? 'Person' : 'Personen'}`);
+      await ladeGruppenNeu();
+    });
+  }
+
+  function openGruppeDelete(gruppe) {
+    if (!gruppe) return;
+    grpDeleteId = gruppe.id;
+    const el = document.getElementById('ptGrpDeleteText');
+    if (el) el.textContent = `„${gruppe.name}" wird entfernt (${gruppe.mitglieder.length} `
+      + `${gruppe.mitglieder.length === 1 ? 'Mitglied' : 'Mitglieder'}). `
+      + 'Die Personen und ihre Zuweisungen bleiben unverändert.';
+    Modal.open('ptGrpDeleteModal');
+  }
+  function initGruppeDeleteModal() {
+    document.getElementById('ptGrpDeleteConfirmBtn')?.addEventListener('click', async () => {
+      if (grpDeleteId == null) return;
+      const id = grpDeleteId; grpDeleteId = null;
+      try { await DB.deletePlanerGruppe(id); }
+      catch (e) { Modal.closeAll(); Toast.error('Nicht möglich', e.message || 'Konnte nicht gelöscht werden.'); return; }
+      Modal.closeAll();
+      Toast.success('Gelöscht', 'Gruppe wurde entfernt.');
+      await ladeGruppenNeu();
+    });
+  }
+
   function initDeleteModal() {
     document.getElementById('zuweisungDeleteConfirmBtn')?.addEventListener('click', async () => {
       if (pendingDeleteId == null) return;
@@ -1862,6 +2063,25 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Modals einmalig binden (Markup ist statisch in abteilungs-planer.html).
   initZuweisungModal();
   initDeleteModal();
+  initGruppeModal();
+  initGruppeDeleteModal();
+
+  // Sprung aus dem Dashboard („Abteilungsdurchlauf"-Kachel): die geklickte
+  // Person vorwaehlen, damit hier direkt ihre Detail-Kachel offen steht. Den
+  // Schluessel sofort verbrauchen – ein spaeteres F5 soll nicht wieder
+  // aufklappen. Vergleich ueber String(), weil im Dashboard-DOM (data-Attribut)
+  // aus jeder Id ein String wird; dieselbe Stelle in der read-only
+  // Ausbilder-Sicht macht es genauso (findAzubi weiter oben).
+  const gotoId = sessionStorage.getItem('gotoAzubiId');
+  if (gotoId) {
+    sessionStorage.removeItem('gotoAzubiId');
+    const treffer = azubis.find(a => String(a.id) === String(gotoId));
+    if (treffer) selectedAzubiId = treffer.id;
+  }
 
   render();
+  // Nach dem Aufbau (capBoardHeight laeuft im rAF davor) die vorgewaehlte
+  // Zeile ins Bild holen – sonst steht die Kachel offen, waehrend ihre Zeile
+  // weit unten in der Tafel liegt.
+  if (selectedAzubiId) requestAnimationFrame(() => scrollRowIntoView(selectedAzubiId));
 });

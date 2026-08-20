@@ -116,6 +116,7 @@ const usersRouter          = require('./routes/users');
 const wochenRouter         = require('./routes/wochen');
 const zuweisungenRouter    = require('./routes/zuweisungen');
 const vertretungenRouter   = require('./routes/vertretungen');
+const planerGruppenRouter  = require('./routes/planerGruppen');
 const abteilungenRouter    = require('./routes/abteilungen');
 const kommentareRouter     = require('./routes/kommentare');
 const anhaengeRouter       = require('./routes/anhaenge');
@@ -133,6 +134,7 @@ app.use('/api/users',               devAuth, usersRouter);
 app.use('/api/wochen',              devAuth, wochenRouter);
 app.use('/api/zuweisungen',         devAuth, zuweisungenRouter);
 app.use('/api/vertretungen',        devAuth, vertretungenRouter);
+app.use('/api/planer-gruppen',      devAuth, planerGruppenRouter);
 app.use('/api/abteilungen',         devAuth, abteilungenRouter);
 app.use('/api/wochen',              devAuth, kommentareRouter);   // POST /api/wochen/:id/kommentare
 app.use('/api/wochen',              devAuth, anhaengeRouter);     // /api/wochen/:id/anhaenge, /api/wochen/anhaenge/:id

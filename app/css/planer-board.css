@@ -121,11 +121,31 @@
 /* ── Gruppen ── */
 .pt-grp { border-bottom:1px solid var(--pm-grey-200); }
 .pt-grp:last-child { border-bottom:0; }
-.pt-grp__head { position:relative; z-index:5; display:flex; align-items:center; height:34px; padding:0; background:var(--pm-grey-50); border:0; border-bottom:1px solid var(--pm-grey-100); cursor:pointer; user-select:none; width:100%; text-align:left; }
+.pt-grp__head { position:relative; z-index:5; display:flex; align-items:center; height:34px; padding:0; background:var(--pm-grey-50); border:0; border-bottom:1px solid var(--pm-grey-100); user-select:none; width:100%; text-align:left; }
 .pt-grp__head:hover { background:var(--pm-grey-100); }
 /* Label bleibt beim Horizontal-Scroll am linken Rand sichtbar (die Fläche
    scrollt mit, nur der Inhalt ist sticky). */
 .pt-grp__head-inner { position:sticky; left:0; display:inline-flex; align-items:center; gap:9px; padding:0 var(--sp-4); }
+/* Der Aufklapp-Griff ist ein eigener Button, damit die Gruppen-Aktionen als
+   Geschwister IM sticky Bereich liegen koennen (Button in Button geht nicht). */
+.pt-grp__toggle { display:inline-flex; align-items:center; gap:9px; padding:0; background:none; border:0; font:inherit; color:inherit; cursor:pointer; }
+/* Eigene Gruppen: Stift + Papierkorb. Dauerhaft sichtbar, aber zurueckgenommen
+   (auf dem iPad gibt es kein Hover, rein hover-sichtbare Bedienelemente waeren
+   dort unerreichbar); am Kopf kraeftiger. */
+.pt-grp__actions { display:inline-flex; align-items:center; gap:2px; margin-left:4px; }
+.pt-grp__ib { display:inline-flex; align-items:center; justify-content:center; width:24px; height:24px; padding:0; border:0; border-radius:var(--r-sm); background:none; color:var(--pm-grey-400); opacity:.6; cursor:pointer; }
+.pt-grp__head:hover .pt-grp__ib { opacity:1; }
+.pt-grp__ib:hover { background:var(--pm-grey-200); color:var(--pm-grey-900); }
+.pt-grp__ib:focus-visible { opacity:1; outline:2px solid var(--pm-yellow); outline-offset:1px; }
+.pt-grp__leer { position:sticky; left:0; padding:9px var(--sp-4); font-size:var(--text-xs); color:var(--pm-grey-400); }
+/* Der Fehlertext im Gruppen-Dialog hat keine 96px-Labelspalte davor. */
+.pt-grp-dlg__err { margin-left:0; }
+/* „Mitglieder (12 gewählt)" passt nicht in die 96px-Spalte des Druck-Dialogs
+   (dort stehen nur kurze Labels) und brach zweizeilig um. */
+#ptGruppeModal .pp-dlg__lbl { flex:0 0 auto; }
+/* Altbestand-Hinweis: die Gruppe enthaelt noch ausgeschiedene Personen, die
+   nicht mehr waehlbar sind und beim Speichern herausfallen. */
+.pt-grp-dlg__note { margin:0 0 8px; font-size:var(--text-xs); line-height:1.45; color:var(--color-warning-mid); }
 .pt-grp__caret { color:var(--pm-grey-400); font-size:10px; transition:transform .15s; }
 .pt-grp.is-collapsed .pt-grp__caret { transform:rotate(-90deg); }
 .pt-grp__title { font-size:var(--text-sm); font-weight:700; letter-spacing:.03em; text-transform:uppercase; color:var(--pm-grey-700); }
@@ -255,8 +275,13 @@
 body.pt-dragging { user-select:none; cursor:grabbing; }
 .pt-panel__nm { font-size:var(--text-lg); font-weight:700; color:var(--pm-grey-900); }
 .pt-panel__meta { font-size:var(--text-xs); color:var(--pm-grey-400); }
-.pt-panel__close { margin-left:auto; width:32px; height:32px; border:1px solid var(--pm-grey-200); border-radius:var(--r-md); background:var(--pm-white); color:var(--pm-grey-500); cursor:pointer; display:flex; align-items:center; justify-content:center; }
-.pt-panel__close:hover { border-color:var(--pm-grey-400); color:var(--pm-grey-900); }
+/* Kopf-Icons (Drucken, Schliessen): gleiche 32px-Pille, das erste schiebt die
+   Gruppe an den rechten Rand. Drucken sass vorher als Textknopf in der
+   Fussleiste – dort blieb nur noch „+ Zuweisung". */
+.pt-panel__hb { width:32px; height:32px; border:1px solid var(--pm-grey-200); border-radius:var(--r-md); background:var(--pm-white); color:var(--pm-grey-500); cursor:pointer; display:flex; align-items:center; justify-content:center; flex:none; }
+.pt-panel__hb:hover { border-color:var(--pm-grey-400); color:var(--pm-grey-900); }
+.pt-panel__hb:first-of-type { margin-left:auto; }   /* :first-of-type = erster <button> im Kopf */
+.pt-panel__hb + .pt-panel__hb { margin-left:-5px; } /* Icons enger als der 11px-Kopfabstand */
 .pt-panel__body { flex:1; overflow:auto; padding:var(--sp-4); }
 .pt-label { font-size:var(--text-xs); font-weight:800; letter-spacing:.08em; text-transform:uppercase; color:var(--pm-grey-400); margin-bottom:10px; }
 

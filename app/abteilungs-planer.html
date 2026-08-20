@@ -99,6 +99,54 @@
   </div>
 </div>
 
+<!-- Eigene Gruppe anlegen/bearbeiten: Name + Mitglieder mit Suche.
+     Nutzt die Listen-Optik des Druck-Dialogs (.pp-dlg__list/__item) – gleiche
+     Aufgabe, gleiches Aussehen, keine zweite Variante derselben Liste. -->
+<div class="modal-overlay" id="ptGruppeModal">
+  <div class="modal">
+    <div class="modal__header">
+      <h3 class="modal__title">Gruppe anlegen</h3>
+      <button class="modal__close" data-modal-close aria-label="Schließen">&times;</button>
+    </div>
+    <div class="modal__body">
+      <div class="form-group">
+        <label class="form-label" for="ptGrpName">Name</label>
+        <input type="text" class="form-control" id="ptGrpName" maxlength="60"
+               placeholder="z. B. Schlosserei 2026" autocomplete="off" spellcheck="false">
+      </div>
+      <p class="pp-dlg__err pt-grp-dlg__err" id="ptGrpErr" hidden></p>
+      <div class="pp-dlg__row pp-dlg__row--head">
+        <span class="pp-dlg__lbl">Mitglieder <span id="ptGrpCount"></span></span>
+        <div><button type="button" class="btn btn-outline btn-sm" id="ptGrpNone">Keine</button></div>
+      </div>
+      <p class="pt-grp-dlg__note" id="ptGrpNote" hidden></p>
+      <input type="search" id="ptGrpSearch" class="form-control" placeholder="Person suchen …" aria-label="Person suchen">
+      <div class="pp-dlg__list" id="ptGrpList"></div>
+    </div>
+    <div class="modal__footer">
+      <button class="btn btn-outline" data-modal-close>Abbrechen</button>
+      <button class="btn btn-secondary" id="ptGrpSave">Speichern</button>
+    </div>
+  </div>
+</div>
+
+<!-- Bestätigung: eigene Gruppe löschen -->
+<div class="modal-overlay" id="ptGrpDeleteModal">
+  <div class="modal">
+    <div class="modal__header">
+      <h3 class="modal__title">Gruppe löschen?</h3>
+      <button class="modal__close" data-modal-close aria-label="Schließen">&times;</button>
+    </div>
+    <div class="modal__body">
+      <p id="ptGrpDeleteText" style="margin:0;color:var(--pm-grey-700);font-size:var(--text-sm);line-height:1.5"></p>
+    </div>
+    <div class="modal__footer">
+      <button class="btn btn-outline" data-modal-close>Abbrechen</button>
+      <button class="btn btn-danger" id="ptGrpDeleteConfirmBtn">Löschen</button>
+    </div>
+  </div>
+</div>
+
 <!-- Druck-Dialog: Azubis, Zeitraum und Darstellung vor dem Drucken waehlen.
      Bewusst ohne <select class="form-control"> — PmSelect wrappt die zu
      full-width .pm-select--block, Breitenangaben am Select wirken dann nicht. -->
