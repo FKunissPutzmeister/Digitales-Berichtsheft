@@ -1185,22 +1185,31 @@ document.addEventListener('DOMContentLoaded', async () => {
         else                                    badge = `<span class="pt-stn__badge pt-b-draft">${st.label}</span>`;
         const konfMark = konf.has(z.id) ? ` <span class="pt-tag pt-tag--conf">Konflikt</span>` : '';
         const bisTxt = z.bis ? DateUtil.formatDate(z.bis) : 'offen';
+        // Abgeschlossene Beurteilung: ganze Kachel verlinkt auf die Detailseite
+        // (gleiches Muster wie der "Öffnen"-Link im Durchlauf-Board, dlbBeurtBlock).
+        const abgeschlossen = b && b.status === 'abgeschlossen';
+        const tag = abgeschlossen ? 'a' : 'div';
+        const hrefAttr = abgeschlossen ? ` href="beurteilung.html?zuw=${z.id}"` : '';
+        const clickCls = abgeschlossen ? ' pt-stn--clickable' : '';
         return `${luecke}
-          <div class="pt-stn ${st.key === 'aktuell' ? 'pt-stn--cur' : ''}" data-stn="${z.id}" style="--pt-sd:${colorFor(z.abteilung)}">
+          <${tag} class="pt-stn ${st.key === 'aktuell' ? 'pt-stn--cur' : ''}${clickCls}" data-stn="${z.id}"${hrefAttr} style="--pt-sd:${colorFor(z.abteilung)}">
             <div class="pt-stn__acts">
               <button type="button" data-edit="${z.id}" aria-label="Bearbeiten" title="Bearbeiten">✎</button>
               <button type="button" data-del="${z.id}" aria-label="Löschen" title="Löschen">✕</button>
             </div>
             <div class="pt-stn__top"><span class="pt-stn__abt">${escHtml(z.abteilung || '–')}${konfMark}</span>${badge}</div>
             <div class="pt-stn__meta">${DateUtil.formatDate(z.von)} – ${bisTxt} · ${escHtml(z.verantwName || verantwNameFor(z.verantwEmail) || '–')}</div>
-          </div>`;
+          </${tag}>`;
       }).join('');
     }
     const bodyEl = document.getElementById('ptPanelBody');
     if (bodyEl) {
       bodyEl.innerHTML = `<div class="pt-label">Alle Stationen (${stns.length})</div>${bodyHtml}`;
-      bodyEl.querySelectorAll('[data-edit]').forEach(btn => btn.addEventListener('click', () => openZuwModal(findZuw(Number(btn.dataset.edit)), null)));
-      bodyEl.querySelectorAll('[data-del]').forEach(btn => btn.addEventListener('click', () => askDelete(Number(btn.dataset.del))));
+      // stopPropagation/preventDefault: verhindert, dass ein Klick auf ✎/✕
+      // zusätzlich die Link-Navigation der umschließenden Kachel auslöst,
+      // wenn die Station (abgeschlossene Beurteilung) ein <a> ist.
+      bodyEl.querySelectorAll('[data-edit]').forEach(btn => btn.addEventListener('click', (e) => { e.stopPropagation(); e.preventDefault(); openZuwModal(findZuw(Number(btn.dataset.edit)), null); }));
+      bodyEl.querySelectorAll('[data-del]').forEach(btn => btn.addEventListener('click', (e) => { e.stopPropagation(); e.preventDefault(); askDelete(Number(btn.dataset.del)); }));
       // Balken-Klick: zugehörige Station ins Blickfeld holen + kurz hervorheben.
       if (focusZid != null) {
         const stnEl = bodyEl.querySelector(`[data-stn="${focusZid}"]`);

@@ -163,6 +163,9 @@ body.pt-dragging { user-select:none; cursor:grabbing; }
 .pt-stn::before { content:""; position:absolute; left:0; top:11px; bottom:11px; width:3px; border-radius:3px; background:var(--pt-sd,var(--pm-grey-300)); }
 .pt-stn--cur { border-color:var(--pm-yellow); }
 .pt-stn--focus { outline:2px solid var(--pm-yellow); outline-offset:1px; }
+/* Abgeschlossene Beurteilung: ganze Kachel ist ein Link zu beurteilung.html. */
+.pt-stn--clickable { display:block; cursor:pointer; text-decoration:none; color:inherit; transition:transform .15s ease, box-shadow .15s ease, border-color .15s ease; }
+.pt-stn--clickable:hover { border-color:var(--pm-grey-400); box-shadow:var(--shadow-md); transform:translateY(-1px); }
 .pt-stn__top { display:flex; align-items:center; gap:8px; padding-right:52px; }
 .pt-stn__abt { font-size:var(--text-sm); font-weight:700; color:var(--pm-grey-900); }
 .pt-stn__badge { font-size:9.5px; font-weight:800; letter-spacing:.02em; padding:2px 8px; border-radius:20px; margin-left:auto; }
