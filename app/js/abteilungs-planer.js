@@ -662,6 +662,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   let editId = null;                                   // im Modal bearbeitete Zuweisung (null = neu)
   let addPresetAzubiId = null;                         // Vorauswahl beim Anlegen
   let lastUndo = null;                                 // { id, prev:{von,bis} } für Strg+Z
+  let switchDir = 0;                                   // AJ-Wechselrichtung fuer das Eingangs-Feedback (+1/-1)
 
   // ── Daten einmal laden (Namen kommen per JOIN mit) ──
   const [azubisRaw, dhRaw, abteilungenKatalog, alleZuweisungen] = await Promise.all([
@@ -969,12 +970,17 @@ document.addEventListener('DOMContentLoaded', async () => {
     on('ptFilterAbteilung', 'change', e => { filterAbteilung = e.target.value; renderTimeline(); });
     on('ptFilterVerantw', 'change', e => { filterVerantw = e.target.value; renderTimeline(); });
     on('ptNurOhne', 'change', e => { nurOhne = e.target.checked; renderTimeline(); });
-    on('ptAjPrev', 'click', () => { ajStartYear--; afterAjOrZoom(); });
-    on('ptAjNext', 'click', () => { ajStartYear++; afterAjOrZoom(); });
+    on('ptAjPrev', 'click', () => { ajStartYear--; afterAjOrZoom(-1); });
+    on('ptAjNext', 'click', () => { ajStartYear++; afterAjOrZoom(1); });
     on('ptHeute', 'click', () => {
       // Falls „heute" außerhalb des gewählten AJ liegt, erst dorthin springen.
       const w = ajWindow();
-      if (today < w.start || today > w.ajEnd) { ajStartYear = today.getMonth() >= 8 ? today.getFullYear() : today.getFullYear() - 1; afterAjOrZoom(); }
+      if (today < w.start || today > w.ajEnd) {
+        const ziel = today.getMonth() >= 8 ? today.getFullYear() : today.getFullYear() - 1;
+        const dir = Math.sign(ziel - ajStartYear);
+        ajStartYear = ziel;
+        afterAjOrZoom(dir);
+      }
       scrollToToday(true);
     });
     on('ptExport', 'click', exportExcel);
@@ -1083,12 +1089,30 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
     tlRo.observe(scroll);
   }
-  function afterAjOrZoom() {
+  // dir: +1 = vorwaerts, -1 = zurueck, 0/undefined = ohne Feedback (Zoomwechsel).
+  function afterAjOrZoom(dir) {
+    switchDir = dir || 0;
     document.getElementById('ptAjLabel').textContent = ajLabel();
+    nudgeAjLabel(dir);
     applyTlWidth();
     renderTimeline();
     renderPanel();
     scrollToToday();
+  }
+
+  // Die Jahreszahl selbst bekommt denselben kleinen Impuls wie die Balken.
+  // Per WAAPI statt CSS-Klasse: das Element bleibt beim Wechsel bestehen (nur
+  // sein Text aendert sich), eine CSS-Animation wuerde ohne Reflow-Trick nicht
+  // neu starten.
+  function nudgeAjLabel(dir) {
+    if (!dir) return;
+    if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    const lbl = document.getElementById('ptAjLabel');
+    if (!lbl || !lbl.animate) return;
+    lbl.getAnimations().forEach(a => a.cancel());
+    lbl.animate(
+      [{ transform: `translateX(${dir * 8}px)`, opacity: 0.25 }, { transform: 'none', opacity: 1 }],
+      { duration: 180, easing: 'ease-out' });
   }
 
   // Balken-Geometrie relativ zum AJ-Fenster (in %). null = außerhalb.
@@ -1200,6 +1224,12 @@ document.addEventListener('DOMContentLoaded', async () => {
       }).join('');
     }
 
+    // Eingangs-Feedback: haengt an den neuen Knoten, laeuft also von selbst nach
+    // dem Neuaufbau an. Klasse bleibt bis zum naechsten Render stehen – die
+    // Animation ist dann langst durch, ein Timer waere nur eine Fehlerquelle.
+    board.classList.toggle('is-switching', switchDir !== 0);
+    if (switchDir) { board.style.setProperty('--pt-shift', (switchDir * 10) + 'px'); switchDir = 0; }
+
     board.innerHTML = `
       <div class="pt-head">
         <div class="pt-head__name">Person</div>
@@ -1208,7 +1238,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       ${zoneBody}
       ${body}`;
 
-    document.getElementById('ptZoneChip')?.addEventListener('click', () => { ajStartYear++; afterAjOrZoom(); });
+    document.getElementById('ptZoneChip')?.addEventListener('click', () => { ajStartYear++; afterAjOrZoom(1); });
 
     // Zeilen-/Gruppen-Events
     board.querySelectorAll('.pt-grp__head').forEach(h => h.addEventListener('click', () => {

@@ -181,6 +181,29 @@
 
 .pt-empty { padding:var(--sp-8); text-align:center; color:var(--pm-grey-400); font-size:var(--text-sm); }
 
+/* ── Feedback beim Ausbildungsjahr-Wechsel ──
+   Bewusst klein und bewusst ANDERS als der Jahres-/Wochen-Slide (dort 70px
+   raus + 480ms federnd rein): hier setzen sich nur die neuen Balken um 8px aus
+   der Wechselrichtung zusammen, dazu blinkt der Monatskopf einmal an.
+   Zwei Entscheidungen aus dem gescheiterten Wochen-Wechsel uebernommen:
+     • KEIN Exit-Klon und keine Ueberblendung auf derselben Flaeche – genau das
+       ergab dort das lesbare Doppelbild ("alte Woche noch da, neue schon halb").
+     • Kein Timer, der ab dem Klick rechnet: die Animation haengt an den frisch
+       erzeugten Knoten und startet damit automatisch NACH dem Neuaufbau.
+   fill-mode bleibt absichtlich none – ein gefuellter Endzustand wuerde den
+   transform:translateY(-1px) des Hovers ueberstimmen. */
+@keyframes pt-shift-in { from { transform:translateX(var(--pt-shift,10px)); opacity:.3; } to { transform:none; opacity:1; } }
+@keyframes pt-head-in  { from { opacity:.45; } to { opacity:1; } }
+/* Easing bewusst nur ease-out und nicht stark vorgezogen: mit einer schnellen
+   Kurve war die Strecke nach 30ms zu 70% abgefahren und las sich als Sprung –
+   derselbe Befund wie beim verworfenen Wochen-Pager-Slide. */
+.pt-board.is-switching .pt-bar   { animation:pt-shift-in 200ms ease-out; }
+.pt-board.is-switching .pt-months { animation:pt-head-in 180ms ease-out; }
+@media (prefers-reduced-motion: reduce) {
+  .pt-board.is-switching .pt-bar,
+  .pt-board.is-switching .pt-months { animation:none; }
+}
+
 /* ── Ausblick: das Fenster reicht ueber den 31.8. hinaus (siehe ajWindow) ──
    Die Toenung liegt als EIN Element hinter den Zeilen (kein z-index: die
    spaeter im DOM stehenden Balken malen dadurch darueber). Weil Gruppenkoepfe
