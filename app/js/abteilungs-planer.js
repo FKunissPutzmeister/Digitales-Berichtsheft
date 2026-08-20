@@ -766,15 +766,15 @@ document.addEventListener('DOMContentLoaded', async () => {
     const ajEnd  = new Date(ajStartYear + 1, 7, 31);    // 31. Aug
     const ajDays = Math.round((ajEnd - start) / DAY) + 1;
     const avail  = timelineViewportWidth();
-    // Passt das ganze Ausbildungsjahr in die Breite (praktisch: Zoom „Jahr"),
-    // ist die Tafel eine Fit-Ansicht: Fenster auf die Breite aufziehen und die
-    // Skala exakt einpassen – so bleibt rechts kein Rand und es entsteht auch
-    // kein Scrollbalken, wenn der Ausblick breiter waere als der freie Platz.
-    // Bei „Monat"/„Quartal" scrollt die Tafel ohnehin, dort bleibt px/Tag
-    // unangetastet und der Ausblick haengt einfach hinten dran.
-    const fitsAj = ajDays * DAY_PX[zoom] <= avail;
-    const days   = Math.max(ajDays + AUSBLICK_MIN_DAYS, fitsAj ? Math.floor(avail / DAY_PX[zoom]) : 0);
-    const pxd    = fitsAj ? avail / days : DAY_PX[zoom];
+    // „Jahr" ist eine Fit-Ansicht: Ausbildungsjahr + Ausblick fuellt die Breite
+    // exakt aus – auf breiten Schirmen wird die Skala gedehnt (kein toter Rand),
+    // auf einem 14"-Notebook gestaucht (kein Scrollbalken, wo vorher keiner
+    // war). DAY_PX.jahr dient dort nur noch als Maß fuer die Ausblick-Laenge.
+    // „Monat"/„Quartal" sollen scrollen, dort bleibt px/Tag unangetastet und
+    // der Ausblick haengt einfach hinten dran.
+    const fit  = zoom === 'jahr';
+    const days = Math.max(ajDays + AUSBLICK_MIN_DAYS, fit ? Math.floor(avail / DAY_PX[zoom]) : 0);
+    const pxd  = fit ? avail / days : DAY_PX[zoom];
     // Ueber setDate statt start + n*DAY, damit die Sommerzeit-Umstellung nicht
     // auf den Vortag 23:00 fuehrt.
     const end = new Date(start.getFullYear(), start.getMonth(), start.getDate() + (days - 1));
@@ -902,7 +902,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         <select class="form-control" id="ptFilterBeruf" data-pm-search="Beruf suchen …" aria-label="Beruf filtern">${berufOptions()}</select>
         <select class="form-control" id="ptFilterAbteilung" data-pm-search="Abteilung suchen …" aria-label="Abteilung filtern">${abteilungOptions()}</select>
         <select class="form-control" id="ptFilterVerantw" data-pm-search="Verantwortliche suchen …" aria-label="Verantwortliche filtern">${verantwOptions()}</select>
-        <label class="pt-quickfilter" style="display:inline-flex;align-items:center;gap:6px;font-size:var(--text-sm);color:var(--pm-grey-700);white-space:nowrap">
+        <label class="pt-quickfilter">
           <input type="checkbox" id="ptNurOhne" ${nurOhne ? 'checked' : ''}> ohne Zuweisung
         </label>
         <div class="pt-toolbar__spacer"></div>
@@ -951,6 +951,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     applyTlWidth();          // erst jetzt messbar: #ptScroll steht im DOM
     observeTlWidth();
     bindToolbar();
+    requestAnimationFrame(fitToolbar);   // nach dem PMSelect-Umbau messen
     renderTimeline();
     renderPanel();
     bindBoardDrag();
@@ -1008,6 +1009,26 @@ document.addEventListener('DOMContentLoaded', async () => {
       scrollToToday();
     });
   }
+  // Passt die Toolbar in EINE Zeile? Sonst eine Stufe kleiner (data-scale, Maße
+  // im CSS). Geprueft wird immer von der groessten Stufe an, damit sie beim
+  // Verbreitern von selbst wieder hochgeht; die Funktion ist idempotent und
+  // darf darum beliebig oft laufen. „Eine Zeile" heisst: die Leiste ist nicht
+  // hoeher als ihr hoechstes Kind.
+  const TB_SCALES = ['', 'sm', 'xs'];
+  let tbFitting = false;
+  function fitToolbar() {
+    const tb = document.querySelector('.pt-toolbar');
+    if (!tb || tbFitting) return;
+    tbFitting = true;
+    for (const s of TB_SCALES) {
+      if (s) tb.dataset.scale = s; else delete tb.dataset.scale;
+      let tallest = 0;
+      for (const el of tb.children) tallest = Math.max(tallest, el.offsetHeight);
+      if (tb.offsetHeight <= tallest + 2) break;
+    }
+    tbFitting = false;
+  }
+
   function applyTlWidth() {
     const board = document.getElementById('ptBoard');
     if (board) board.style.setProperty('--tl-w', Math.round(ajWindow().w) + 'px');
@@ -1025,6 +1046,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     tlRo = new ResizeObserver(() => {
       clearTimeout(tlRoTimer);
       tlRoTimer = setTimeout(() => {
+        fitToolbar();
         const board = document.getElementById('ptBoard'); if (!board) return;
         const next = Math.round(ajWindow().w) + 'px';
         if (board.style.getPropertyValue('--tl-w') === next) return;

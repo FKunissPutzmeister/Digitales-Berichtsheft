@@ -17,44 +17,86 @@
    Layout mehr – reiner Zustands-Marker (nicht suchen, es fehlt keine Regel). */
 .pt-layout { position:relative; display:grid; grid-template-columns:1fr; gap:0; min-height:0; }
 
-/* ── Kopf / Toolbar ── */
+/* ── Kopf / Toolbar ──
+   Alle Bedienelemente haengen an EINEM Maßsatz. Passt die Leiste nicht in eine
+   Zeile (14"-Notebook, ausgeklappte Sidebar), setzt fitToolbar() in
+   abteilungs-planer.js data-scale="sm"/"xs" und der ganze Satz wird kleiner –
+   dasselbe Design runterskaliert, statt Umbruch oder engerer Packung. */
 .pt-toolbar {
-  display:flex; align-items:center; gap:var(--sp-2); flex-wrap:wrap; margin-bottom:var(--sp-4);
+  --pt-ctl-h:36px; --pt-ctl-fs:var(--text-sm); --pt-search-w:220px;
+  --pt-sel-w:150px; --pt-sel-min:130px; --pt-seg-pad:13px;
+  --pt-ib-s:34px; --pt-ib-i:19px; --pt-gap:var(--sp-2);
+  display:flex; align-items:center; gap:var(--pt-gap); flex-wrap:wrap; margin-bottom:var(--sp-4);
 }
+.pt-toolbar[data-scale="sm"] {
+  --pt-ctl-h:32px; --pt-ctl-fs:13px; --pt-search-w:176px;
+  --pt-sel-w:118px; --pt-sel-min:104px; --pt-seg-pad:10px;
+  --pt-ib-s:30px; --pt-ib-i:18px; --pt-gap:6px;
+}
+.pt-toolbar[data-scale="xs"] {
+  --pt-ctl-h:30px; --pt-ctl-fs:12px; --pt-search-w:118px;
+  --pt-sel-w:92px; --pt-sel-min:84px; --pt-seg-pad:5px;
+  --pt-ib-s:24px; --pt-ib-i:16px; --pt-gap:3px;
+}
+/* Engste Stufe: schmaleres Feldinnere, damit "Person suchen …" ganz hineinpasst,
+   und der Trenner entfaellt – die 10px entscheiden hier ueber eine oder zwei
+   Zeilen (14"-Notebook mit ausgeklappter Sidebar). */
+.pt-toolbar[data-scale="xs"] .pt-search input { padding:0 8px; }
+.pt-toolbar[data-scale="xs"] .pt-toolbar__sep { display:none; }
+.pt-toolbar[data-scale="xs"] .pt-stepper__lbl { padding:0 6px; }
+.pt-toolbar[data-scale="xs"] .btn-sm { padding:0 9px; }
 .pt-search { position:relative; }
-.pt-search input { width:220px; }
-.pt-toolbar .form-control { height:36px; }
+.pt-search input { width:var(--pt-search-w); }
+.pt-toolbar .form-control { height:var(--pt-ctl-h); font-size:var(--pt-ctl-fs); }
+.pt-quickfilter { display:inline-flex; align-items:center; gap:6px; white-space:nowrap;
+  font-size:var(--pt-ctl-fs); color:var(--pm-grey-700); }
+.pt-toolbar .btn-sm { height:var(--pt-ctl-h); font-size:var(--pt-ctl-fs); }
 /* Filter-Selects inline halten statt full-width gestapelt. (0,3,0) überstimmt
    .pm-select--block (0,2,0), das sonst width:100% erzwingt → Zeilenumbruch. */
-.pt-toolbar .pm-select.pm-select--block { width:auto; flex:0 1 190px; min-width:150px; }
+/* Grundbreite klein, Wachstum bis zur eigenen Textbreite: ueber den Umbruch
+   entscheidet die flex-basis, nicht die Endbreite – mit kleiner Basis bleibt die
+   Leiste also viel laenger in einer Zeile, und der freie Platz landet danach
+   trotzdem in den Filtern (max-content deckelt bei „so breit wie der Text").
+   Wachstum 3 gegen 1 des Spacers: erst die Filter fuellen, dann der Rest.
+   Deckel max-content (nicht ein fester Wert): so bleibt „Alle Berufe" schmal
+   und der freie Platz landet bei „Alle Verantwortlichen", das ihn braucht –
+   gemessen deutlich weniger gekuerzte Labels als bei gleich breiten Feldern. */
+.pt-toolbar .pm-select.pm-select--block { width:auto; flex:3 1 var(--pt-sel-w);
+  min-width:var(--pt-sel-min); max-width:max-content; }
+/* Sichtbar ist beim PMSelect der Trigger – der Wrapper wird in components.css
+   ausgenullt. Ohne diese Regel blieben die Filter 40px hoch, waehrend Suchfeld
+   und Buttons mitskalieren (und die Zeile dadurch zu hoch). Gleiche Spezifitaet
+   wie .pm-select.pm-select--block .pm-select__trigger – diese Datei laedt
+   spaeter und gewinnt darum. */
+.pt-toolbar .pm-select .pm-select__trigger { height:var(--pt-ctl-h); font-size:var(--pt-ctl-fs); }
 .pt-toolbar__spacer { flex:1 1 auto; }
 /* Heute / Export / Drucken sind reine Icon-Buttons – randlos, Beschriftung nur
    als title + aria-label. Dadurch passt die ganze Leiste wieder in EINE Zeile;
    die frühere zweite Reihe (.pt-toolbar__row2 & Co.) ist damit entfallen. */
-.pt-ib { width:34px; height:34px; border:0; border-radius:var(--r-md); background:transparent; color:var(--pm-grey-500);
+.pt-ib { width:var(--pt-ib-s); height:var(--pt-ib-s); border:0; border-radius:var(--r-md); background:transparent; color:var(--pm-grey-500);
   display:inline-flex; align-items:center; justify-content:center; cursor:pointer; transition:background .12s, color .12s; }
 .pt-ib:hover { background:var(--pm-grey-100); color:var(--pm-grey-900); }
 .pt-ib:disabled { cursor:default; opacity:.65; }
-.pt-ib .icon { width:19px; height:19px; }
+.pt-ib .icon { width:var(--pt-ib-i); height:var(--pt-ib-i); }
 /* Export laeuft ueber ein nachgeladenes Bundle – waehrend dessen dreht sich das
    Icon an Stelle des frueheren Textwechsels ("Erzeuge …"). */
 .pt-ib__spin { animation:pt-spin 1s linear infinite; }
 @keyframes pt-spin { to { transform:rotate(360deg); } }
 @media (prefers-reduced-motion: reduce) { .pt-ib__spin { animation:none; } }
-.pt-toolbar__sep { width:1px; height:22px; background:var(--pm-grey-200); margin:0 3px; }
+.pt-toolbar__sep { width:1px; height:calc(var(--pt-ctl-h) - 14px); background:var(--pm-grey-200); margin:0 3px; }
 /* AJ-Stepper, Zoom, Icons und „+ Zuweisung" gehoeren zusammen und sind darum EIN
    Flex-Item: bei schmalem Fenster wandert die Gruppe geschlossen in die zweite
    Zeile (margin-left:auto haelt sie dort am rechten Rand), statt dass einzelne
    Buttons abreissen. */
 .pt-toolbar__nav { display:inline-flex; align-items:center; gap:var(--sp-2); flex-wrap:nowrap; margin-left:auto; }
 
-.pt-stepper { display:inline-flex; align-items:center; border:1px solid var(--pm-grey-200); border-radius:var(--r-md); background:var(--pm-white); overflow:hidden; }
-.pt-stepper button { width:32px; height:36px; border:0; background:transparent; color:var(--pm-grey-600); cursor:pointer; font-size:15px; line-height:1; }
+.pt-stepper { display:inline-flex; align-items:center; border:1px solid var(--pm-grey-200); border-radius:var(--r-md); background:var(--pm-white); overflow:hidden; height:var(--pt-ctl-h); }
+.pt-stepper button { width:calc(var(--pt-ctl-h) - 5px); height:100%; border:0; background:transparent; color:var(--pm-grey-600); cursor:pointer; font-size:15px; line-height:1; }
 .pt-stepper button:hover { background:var(--pm-grey-100); color:var(--pm-grey-900); }
-.pt-stepper__lbl { padding:0 12px; font-size:var(--text-sm); font-weight:700; font-variant-numeric:tabular-nums; border-left:1px solid var(--pm-grey-200); border-right:1px solid var(--pm-grey-200); line-height:36px; white-space:nowrap; }
+.pt-stepper__lbl { padding:0 10px; font-size:var(--pt-ctl-fs); font-weight:700; font-variant-numeric:tabular-nums; border-left:1px solid var(--pm-grey-200); border-right:1px solid var(--pm-grey-200); line-height:calc(var(--pt-ctl-h) - 2px); white-space:nowrap; }
 
-.pt-seg { display:inline-flex; border:1px solid var(--pm-grey-200); border-radius:var(--r-md); background:var(--pm-white); overflow:hidden; }
-.pt-seg button { height:36px; padding:0 13px; border:0; background:transparent; color:var(--pm-grey-600); cursor:pointer; font-size:var(--text-sm); font-weight:600; }
+.pt-seg { display:inline-flex; border:1px solid var(--pm-grey-200); border-radius:var(--r-md); background:var(--pm-white); overflow:hidden; height:var(--pt-ctl-h); }
+.pt-seg button { height:100%; padding:0 var(--pt-seg-pad); border:0; background:transparent; color:var(--pm-grey-600); cursor:pointer; font-size:var(--pt-ctl-fs); font-weight:600; }
 .pt-seg button + button { border-left:1px solid var(--pm-grey-200); }
 .pt-seg button.is-on { background:var(--pm-grey-900); color:var(--pm-white); }
 
