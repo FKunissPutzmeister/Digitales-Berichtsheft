@@ -6,8 +6,12 @@
    Struktur folgt dem Rest der App: Welcome-Banner-Hero + .card-Container.
    =================================================================== */
 
-/* Lesbare Dokumentbreite (etwas schmaler als der DH-Standard 1180px). */
-.beurt-page .dh-main { max-width: 1040px; }
+/* Lesbare Dokumentbreite (etwas schmaler als der DH-Standard 1180px).
+   .dh-main ist in abteilungsdurchlauf.css bewusst volle Breite + margin:0
+   (kein Lesekorridor für das Durchlauf-Board) – hier auf dieser einen Seite
+   (body.beurt-page) zentrieren wir stattdessen, sonst bleibt rechts viel
+   Leerraum auf breiten Bildschirmen. */
+.beurt-page .dh-main { max-width: 1040px; margin: 0 auto; }
 
 /* ── Ladezustand ── */
 .beurt-loading {
