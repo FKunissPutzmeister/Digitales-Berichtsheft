@@ -64,12 +64,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     /* Custom-Designs sehen Azubis UND Developer – Ausbilder/Admin sehen nur
        den Hell/Dunkel-Umschalter: Titel ohne „& Themes", keine Custom-Design-
        Gruppe. (Developer erhalten zusätzlich die Saison-Themes, siehe
-       THEME_DESIGNS-Filter oben.)
-       TEMPORÄR (2026-08-20, auf Wunsch): Demo-User Florian Kern sieht die
-       Themes-Option vorübergehend nicht — Ausnahme wieder entfernen, sobald
-       nicht mehr benötigt. */
-    const isDemoFlorianKern = (user.email || '').toLowerCase() === 'florian.kern.demo@putzmeister.com';
-    const showThemes = (isAzubi || isDeveloper) && !isDemoFlorianKern;
+       THEME_DESIGNS-Filter oben.) */
+    const showThemes = isAzubi || isDeveloper;
     const title = showThemes ? 'Darstellung &amp; Themes' : 'Darstellung';
 
     const customGroup = !showThemes ? '' : `
