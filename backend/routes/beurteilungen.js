@@ -37,15 +37,14 @@ router.get('/', async (req, res) => {
     if (zuweisungId) {
       const zuw = await svc.ladeZuweisung(pool, Number(zuweisungId));
       if (!zuw) return res.status(404).json({ error: 'Zuweisung nicht gefunden.' });
-      const darfBearbeiten = await svc.darfBeurteilen(req.user, zuw, pool);
+      const darfAnsehen = await svc.darfBeurteilen(req.user, zuw, pool); // breit: inkl. dauerhaftem Ausbilder
       const istAzubiOwner = req.user.oid === zuw.azubiOid;
-      if (!darfBearbeiten && !istAzubiOwner) return res.status(403).json({ error: 'Kein Zugriff.' });
+      if (!darfAnsehen && !istAzubiOwner) return res.status(403).json({ error: 'Kein Zugriff.' });
       const b = await svc.getByZuweisung(pool, Number(zuweisungId));
       // Azubi sieht die Beurteilung erst, wenn abgeschlossen.
-      if (istAzubiOwner && !darfBearbeiten && (!b || b.Status !== 'abgeschlossen')) return res.json(null);
+      if (istAzubiOwner && !darfAnsehen && (!b || b.Status !== 'abgeschlossen')) return res.json(null);
       if (b) {
-        b.darfAusbilderBestaetigen = b.Status === 'abgeschlossen' && !b.ausbilderSchrittEntfaellt
-          && !b.AusbilderBestaetigtAm && await svc.istDauerhafterAusbilder(req.user, zuw.azubiOid, pool);
+        b.modus = await svc.ermittleModus(req.user, zuw, b, pool);
       }
       return res.json(b);
     }
@@ -93,7 +92,7 @@ router.post('/', async (req, res) => {
     const { zuweisungId, kriterien, individuelleBeurteilung, gespraechAm } = req.body;
     const zuw = await svc.ladeZuweisung(pool, Number(zuweisungId));
     if (!zuw) return res.status(404).json({ error: 'Zuweisung nicht gefunden.' });
-    if (!(await svc.darfBeurteilen(req.user, zuw, pool))) return res.status(403).json({ error: 'Kein Beurteilungsrecht.' });
+    if (!svc.darfBeurteilungBearbeiten(req.user, zuw)) return res.status(403).json({ error: 'Kein Beurteilungsrecht.' });
     const id = await svc.upsertEntwurf(pool, {
       zuweisungId: zuw.id, azubiOid: zuw.azubiOid, kriterien, individuelleBeurteilung, gespraechAm,
     });
@@ -105,7 +104,9 @@ router.post('/', async (req, res) => {
   }
 });
 
-// Gemeinsame Autorisierung für PATCH auf :id (Verantwortliche/dev).
+// Gemeinsame Autorisierung für PATCH auf :id (nur der zeitlich zugewiesene
+// Prüfer bzw. admin/developer — NICHT der dauerhafte Ausbilder, siehe
+// Design-Spec 2026-08-21).
 async function ladeUndAutorisiere(req, res) {
   const pool = await getPool();
   const r = await pool.request()
@@ -114,7 +115,7 @@ async function ladeUndAutorisiere(req, res) {
   const b = r.recordset[0];
   if (!b) { res.status(404).json({ error: 'Beurteilung nicht gefunden.' }); return null; }
   const zuw = await svc.ladeZuweisung(pool, b.ZuweisungId);
-  if (!(await svc.darfBeurteilen(req.user, zuw, pool))) { res.status(403).json({ error: 'Kein Beurteilungsrecht.' }); return null; }
+  if (!svc.darfBeurteilungBearbeiten(req.user, zuw)) { res.status(403).json({ error: 'Kein Beurteilungsrecht.' }); return null; }
   return { pool, b, zuw };
 }
 
@@ -165,35 +166,37 @@ router.patch('/:id/kenntnisnahme', async (req, res) => {
   }
 });
 
-// PATCH /api/beurteilungen/:id/ausbilder-bestaetigung  (nur der dauerhafte Ausbilder des Azubis)
-router.patch('/:id/ausbilder-bestaetigung', async (req, res) => {
+// PATCH /api/beurteilungen/:id/ausbildungsleiter-bestaetigung
+// (nur der Nutzer, den ermittleAusbildungsleiter fuer diesen Azubi liefert)
+router.patch('/:id/ausbildungsleiter-bestaetigung', async (req, res) => {
   try {
     const pool = await getPool();
     const r = await pool.request().input('id', sql.Int, Number(req.params.id))
-      .query('SELECT Id, AzubiOid, BeurteiltVon, Status, AusbilderBestaetigtAm FROM dbo.Beurteilungen WHERE Id=@id');
+      .query('SELECT Id, AzubiOid, BeurteiltVon, Status, AusbildungsleiterBestaetigtAm FROM dbo.Beurteilungen WHERE Id=@id');
     const b = r.recordset[0];
     if (!b) return res.status(404).json({ error: 'Beurteilung nicht gefunden.' });
-    if (!(await svc.istDauerhafterAusbilder(req.user, b.AzubiOid, pool))) {
-      return res.status(403).json({ error: 'Nur der zuständige Ausbilder kann bestätigen.' });
+    const ausbildungsleiterOid = await svc.ermittleAusbildungsleiter(pool, b.AzubiOid);
+    if (!ausbildungsleiterOid || ausbildungsleiterOid !== req.user.oid) {
+      return res.status(403).json({ error: 'Nur der zuständige Ausbildungsleiter kann bestätigen.' });
     }
     if (b.Status !== 'abgeschlossen') return res.status(400).json({ error: 'Beurteilung ist noch nicht abgeschlossen.' });
-    if (await svc.berechneAusbilderSchrittEntfaellt(b.BeurteiltVon, b.AzubiOid)) {
+    if (b.BeurteiltVon && b.BeurteiltVon === ausbildungsleiterOid) {
       return res.status(400).json({ error: 'Dieser Bestätigungsschritt ist für diese Beurteilung nicht erforderlich.' });
     }
-    await svc.ausbilderBestaetigen(pool, b.Id, req.user.oid, req.body.signatur || null);
+    await svc.ausbildungsleiterBestaetigen(pool, b.Id, req.user.oid, req.body.signatur || null);
     res.json({ ok: true });
   } catch (err) {
     if (unterschriftenSvc.istValidierungsfehler(err)) return res.status(400).json({ error: err.message });
-    logError({ quelle: 'backend', nachricht: `[beurteilungen] ausbilder-bestaetigung: ${err.message}`, stack: err.stack,
+    logError({ quelle: 'backend', nachricht: `[beurteilungen] ausbildungsleiter-bestaetigung: ${err.message}`, stack: err.stack,
       kontext: { route: req.path, methode: req.method }, benutzerOid: req.user && req.user.oid, benutzerName: req.user && req.user.name });
     res.status(500).json({ error: err.message });
   }
 });
 
 const ROLLE_SPALTEN = {
-  beurteiler: { bild: 'BeurteilerUnterschriftBild', ext: 'BeurteilerUnterschriftExt' },
-  azubi:      { bild: 'KenntnisnahmeUnterschriftBild', ext: 'KenntnisnahmeUnterschriftExt' },
-  ausbilder:  { bild: 'AusbilderUnterschriftBild', ext: 'AusbilderUnterschriftExt' },
+  beurteiler:      { bild: 'BeurteilerUnterschriftBild', ext: 'BeurteilerUnterschriftExt' },
+  azubi:           { bild: 'KenntnisnahmeUnterschriftBild', ext: 'KenntnisnahmeUnterschriftExt' },
+  ausbildungsleiter: { bild: 'AusbildungsleiterUnterschriftBild', ext: 'AusbildungsleiterUnterschriftExt' },
 };
 
 // GET /api/beurteilungen/:id/unterschrift/:rolle  – streamt das Bild (image/png|jpeg)
