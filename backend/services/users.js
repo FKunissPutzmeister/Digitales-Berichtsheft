@@ -56,6 +56,11 @@ function buildReqUser(row) {
     role,
     kannPlanen:   isDev || !!row.KannPlanen,
     istAusbilder: isDev || role === 'pruefer' || !!row.IstAusbilder,
+    // Ausbildungsleiter: eigenständiges Tag, KEIN Zusammenhang mit istAusbilder
+    // (der dauerhafte Ausbilder ist eine andere Rolle, siehe Design-Spec
+    // 2026-08-21). Genau zwei Personen im echten Betrieb, je Bereich eine.
+    istAusbildungsleiter: !!row.IstAusbildungsleiter,
+    ausbildungsleiterBereich: row.AusbildungsleiterBereich ?? null,
     // Azubi = Basisrolle 'azubi' ODER explizites Zusatz-Tag IstAzubi (z.B. ein
     // Developer, der zugleich ein Berichtsheft führt). Bewusst NICHT isDev —
     // sonst wäre jeder Developer automatisch Azubi.
@@ -86,6 +91,8 @@ const PATCH_COLUMNS = {
   kannPlanen:       { col: 'KannPlanen',       type: () => sql.Bit },
   istAusbilder:     { col: 'IstAusbilder',     type: () => sql.Bit },
   istAzubi:         { col: 'IstAzubi',         type: () => sql.Bit },
+  istAusbildungsleiter:     { col: 'IstAusbildungsleiter',     type: () => sql.Bit },
+  ausbildungsleiterBereich: { col: 'AusbildungsleiterBereich', type: () => sql.NVarChar(20) },
   beruf:            { col: 'Beruf',            type: () => sql.NVarChar(200) },
   ausbildungBeginn: { col: 'AusbildungBeginn', type: () => sql.Date },
   ausbildungEnde:   { col: 'AusbildungEnde',   type: () => sql.Date },
@@ -106,6 +113,10 @@ function validateUserPatch(fields) {
   }
   if ('berichtTyp' in fields && !ALLOWED_BERICHT.includes(fields.berichtTyp)) {
     return { ok: false, error: 'Ungültiger Berichtstyp' };
+  }
+  if ('ausbildungsleiterBereich' in fields && fields.ausbildungsleiterBereich != null
+      && !['technisch', 'kaufmaennisch'].includes(fields.ausbildungsleiterBereich)) {
+    return { ok: false, error: 'Ungültiger Ausbildungsleiter-Bereich' };
   }
   return { ok: true };
 }
