@@ -135,7 +135,7 @@ document.addEventListener('DOMContentLoaded', async () => {
               <label class="form-label">Dauerhafte Ausbilder <span class="form-hint">· sehen &amp; korrigieren alle Wochen</span></label>
               <div class="nv-ausbilder-list" id="nvAusbilderList"></div>
             </div>
-            <div class="form-group" id="nvAusbildungsleiterBlock" hidden>
+            <div class="form-group" id="nvAusbildungsleiterBlock">
               <label class="form-label" for="nvAusbildungsleiterBereich">Zuständig für</label>
               <select class="form-control" id="nvAusbildungsleiterBereich">
                 <option value="technisch">Technische Berufe</option>
@@ -159,29 +159,66 @@ document.addEventListener('DOMContentLoaded', async () => {
     /* Speichern */
     document.getElementById('nvSaveBtn').addEventListener('click', handleSave);
 
-    document.getElementById('nvIstAusbildungsleiter').addEventListener('change', (e) => {
-      document.getElementById('nvAusbildungsleiterBlock').hidden = !e.target.checked;
-    });
+    /* Rolle/Häkchen bestimmen, welche Felder überhaupt greifen — nicht
+       benötigte Felder bleiben sichtbar, aber ausgegraut (siehe
+       updateFieldAvailability), statt sie ein-/auszublenden. Live auf jede
+       Änderung im Modal reagieren, nicht nur beim Öffnen. */
+    document.getElementById('nvRole').addEventListener('change', updateFieldAvailability);
+    document.getElementById('nvIstAzubi').addEventListener('change', updateFieldAvailability);
+    document.getElementById('nvIstAusbildungsleiter').addEventListener('change', updateFieldAvailability);
+  }
+
+  /* Graut Felder aus, die für die aktuelle Rolle/Häkchen-Kombination
+     nicht greifen — bleiben aber sichtbar (kein hidden), damit erkennbar ist,
+     dass die Option existiert und unter welcher Bedingung sie verfügbar wird.
+     Wird beim Öffnen des Modals einmal aufgerufen und danach live bei jeder
+     Änderung von Rolle/„Ist Azubi“/„Ist Ausbildungsleiter“. */
+  function updateFieldAvailability() {
+    const role = document.getElementById('nvRole').value;
+    const istAzubi = document.getElementById('nvIstAzubi').checked;
+    const istAusbildungsleiter = document.getElementById('nvIstAusbildungsleiter').checked;
+
+    // Berichtstyp + Ausbildungszeitraum sind nur für (getaggte) Azubis relevant
+    // — dieselbe Bedingung, die vorher schon für Berichtstyp allein galt.
+    const azubiRelevant = role === 'azubi' || istAzubi;
+    document.getElementById('nvBerichtTyp').disabled = !azubiRelevant;
+    document.getElementById('nvAusbildungBeginn').disabled = !azubiRelevant;
+    document.getElementById('nvAusbildungEnde').disabled = !azubiRelevant;
+
+    // „Zuständig für“ ist nur relevant, wenn „Ist Ausbildungsleiter“ gesetzt ist.
+    document.getElementById('nvAusbildungsleiterBereich').disabled = !istAusbildungsleiter;
+  }
+
+  // Über die PMSelect-Instanz setzen, damit das sichtbare Custom-Label mitzieht.
+  // Ein reines native.value=… triggert PMSelects Observer NICHT (der lauscht
+  // nur aufs selected-ATTRIBUT eines <option> bzw. aufs disabled-Attribut) —
+  // das Dropdown bliebe optisch auf der beim Modal-Aufbau initial sichtbaren
+  // Auswahl stehen, unabhängig vom tatsächlichen Wert (siehe selber Kommentar/
+  // Fix in wochenansicht.js). Betrifft alle drei PmSelect-verstärkten Selects
+  // in diesem Modal: Rolle, Berichtstyp, Ausbildungsleiter-Bereich.
+  function setSelectValue(id, value) {
+    const el = document.getElementById(id);
+    if (el._pmInstance) el._pmInstance.setValue(value);
+    else el.value = value;
   }
 
   function openModal(u) {
     editingUser = u;
-    document.getElementById('nvRole').value         = u.role || 'azubi';
+    setSelectValue('nvRole', u.role || 'azubi');
     document.getElementById('nvBeruf').value        = u.beruf || '';
-    document.getElementById('nvBerichtTyp').value   = u.berichtTyp || 'wöchentlich';
-    /* Berichtstyp nur für echte Azubis (role azubi ODER IstAzubi-Tag, z.B. Florian Kern)
-       editierbar; für Admin/Prüfer/DH-Student/Developer ausgrauen. */
-    document.getElementById('nvBerichtTyp').disabled = !u.istAzubi;
+    setSelectValue('nvBerichtTyp', u.berichtTyp || 'wöchentlich');
     /* READ uses ausbildungsBeginn/ausbildungsEnde (with medial 's') */
     document.getElementById('nvAusbildungBeginn').value = u.ausbildungsBeginn || '';
     document.getElementById('nvAusbildungEnde').value   = u.ausbildungsEnde   || '';
     document.getElementById('nvKannPlanen').checked  = !!u.kannPlanen;
     document.getElementById('nvIstAusbilder').checked = !!u.istAusbilder;
     document.getElementById('nvIstAusbildungsleiter').checked = !!u.istAusbildungsleiter;
-    document.getElementById('nvAusbildungsleiterBereich').value = u.ausbildungsleiterBereich || 'technisch';
-    document.getElementById('nvAusbildungsleiterBlock').hidden = !u.istAusbildungsleiter;
+    setSelectValue('nvAusbildungsleiterBereich', u.ausbildungsleiterBereich || 'technisch');
     document.getElementById('nvIstAzubi').checked    = !!u.istAzubi;
     document.getElementById('nvAktiv').checked       = u.aktiv !== false;
+    // Muss NACH Rolle/„Ist Azubi“/„Ist Ausbildungsleiter“ gesetzt werden, weil
+    // sie vom aktuellen DOM-Zustand dieser Felder liest (siehe buildModal).
+    updateFieldAvailability();
     document.getElementById('nvLoeschsperre').value  = u.loeschsperreBis || '';
     // Löschdatum aus dem Stichtag ableiten (365 Tage, wie services/retention.js).
     const hinweis = document.getElementById('nvLoeschHinweis');
