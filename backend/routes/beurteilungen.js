@@ -42,6 +42,10 @@ router.get('/', async (req, res) => {
       const b = await svc.getByZuweisung(pool, Number(zuweisungId));
       // Azubi sieht die Beurteilung erst, wenn abgeschlossen.
       if (istAzubiOwner && !darfBearbeiten && (!b || b.Status !== 'abgeschlossen')) return res.json(null);
+      if (b) {
+        b.darfAusbilderBestaetigen = b.Status === 'abgeschlossen' && !b.ausbilderSchrittEntfaellt
+          && !b.AusbilderBestaetigtAm && await svc.istDauerhafterAusbilder(req.user, zuw.azubiOid, pool);
+      }
       return res.json(b);
     }
 
@@ -113,13 +117,21 @@ async function ladeUndAutorisiere(req, res) {
   return { pool, b, zuw };
 }
 
+// Signatur-Validierungsfehler (dataUrlToBuffer/pruefeGroesse werfen "Ungültige
+// Unterschrift."/"...zu groß...") sind Client-Fehler (400), kein Server-Bug —
+// analog zum bestehenden Muster in backend/routes/unterschrift.js.
+function istSignaturFehler(err) {
+  return /zu groß|Ungültige/.test(err.message);
+}
+
 // PATCH /api/beurteilungen/:id/abschliessen
 router.patch('/:id/abschliessen', async (req, res) => {
   try {
     const ctx = await ladeUndAutorisiere(req, res); if (!ctx) return;
-    await svc.abschliessen(ctx.pool, ctx.b.Id, req.user.oid);
+    await svc.abschliessen(ctx.pool, ctx.b.Id, req.user.oid, req.body.signatur || null);
     res.json({ ok: true });
   } catch (err) {
+    if (istSignaturFehler(err)) return res.status(400).json({ error: err.message });
     logError({ quelle: 'backend', nachricht: `[beurteilungen] abschliessen: ${err.message}`, stack: err.stack,
       kontext: { route: req.path, methode: req.method }, benutzerOid: req.user && req.user.oid, benutzerName: req.user && req.user.name });
     res.status(500).json({ error: err.message });
@@ -149,10 +161,67 @@ router.patch('/:id/kenntnisnahme', async (req, res) => {
     const row = r.recordset[0];
     if (!row) return res.status(404).json({ error: 'Beurteilung nicht gefunden.' });
     if (row.AzubiOid !== req.user.oid) return res.status(403).json({ error: 'Nur der Azubi kann bestätigen.' });
-    await svc.kenntnisnahme(pool, Number(req.params.id), req.user.oid);
+    await svc.kenntnisnahme(pool, Number(req.params.id), req.user.oid, req.body.signatur || null);
     res.json({ ok: true });
   } catch (err) {
+    if (istSignaturFehler(err)) return res.status(400).json({ error: err.message });
     logError({ quelle: 'backend', nachricht: `[beurteilungen] kenntnisnahme: ${err.message}`, stack: err.stack,
+      kontext: { route: req.path, methode: req.method }, benutzerOid: req.user && req.user.oid, benutzerName: req.user && req.user.name });
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// PATCH /api/beurteilungen/:id/ausbilder-bestaetigung  (nur der dauerhafte Ausbilder des Azubis)
+router.patch('/:id/ausbilder-bestaetigung', async (req, res) => {
+  try {
+    const pool = await getPool();
+    const r = await pool.request().input('id', sql.Int, Number(req.params.id))
+      .query('SELECT Id, AzubiOid, Status, AusbilderBestaetigtAm FROM dbo.Beurteilungen WHERE Id=@id');
+    const b = r.recordset[0];
+    if (!b) return res.status(404).json({ error: 'Beurteilung nicht gefunden.' });
+    if (!(await svc.istDauerhafterAusbilder(req.user, b.AzubiOid, pool))) {
+      return res.status(403).json({ error: 'Nur der zuständige Ausbilder kann bestätigen.' });
+    }
+    if (b.Status !== 'abgeschlossen') return res.status(400).json({ error: 'Beurteilung ist noch nicht abgeschlossen.' });
+    await svc.ausbilderBestaetigen(pool, b.Id, req.user.oid, req.body.signatur || null);
+    res.json({ ok: true });
+  } catch (err) {
+    if (istSignaturFehler(err)) return res.status(400).json({ error: err.message });
+    logError({ quelle: 'backend', nachricht: `[beurteilungen] ausbilder-bestaetigung: ${err.message}`, stack: err.stack,
+      kontext: { route: req.path, methode: req.method }, benutzerOid: req.user && req.user.oid, benutzerName: req.user && req.user.name });
+    res.status(500).json({ error: err.message });
+  }
+});
+
+const ROLLE_SPALTEN = {
+  beurteiler: { bild: 'BeurteilerUnterschriftBild', ext: 'BeurteilerUnterschriftExt' },
+  azubi:      { bild: 'KenntnisnahmeUnterschriftBild', ext: 'KenntnisnahmeUnterschriftExt' },
+  ausbilder:  { bild: 'AusbilderUnterschriftBild', ext: 'AusbilderUnterschriftExt' },
+};
+
+// GET /api/beurteilungen/:id/unterschrift/:rolle  – streamt das Bild (image/png|jpeg)
+// Zugriff wie beim Lesen der Beurteilung: verantwortlich ODER Azubi-Eigentümer.
+router.get('/:id/unterschrift/:rolle', async (req, res) => {
+  try {
+    const spalten = ROLLE_SPALTEN[req.params.rolle];
+    if (!spalten) return res.status(400).json({ error: 'Unbekannte Rolle.' });
+    const pool = await getPool();
+    const meta = await pool.request().input('id', sql.Int, Number(req.params.id))
+      .query('SELECT ZuweisungId, AzubiOid FROM dbo.Beurteilungen WHERE Id=@id');
+    const row = meta.recordset[0];
+    if (!row) return res.status(404).end();
+    const zuw = await svc.ladeZuweisung(pool, row.ZuweisungId);
+    const darfBearbeiten = await svc.darfBeurteilen(req.user, zuw, pool);
+    const istAzubiOwner = req.user.oid === row.AzubiOid;
+    if (!darfBearbeiten && !istAzubiOwner) return res.status(403).json({ error: 'Kein Zugriff.' });
+    const bild = await pool.request().input('id', sql.Int, Number(req.params.id))
+      .query(`SELECT ${spalten.bild} AS Bild, ${spalten.ext} AS Ext FROM dbo.Beurteilungen WHERE Id=@id`);
+    const b = bild.recordset[0];
+    if (!b || !b.Bild) return res.status(404).end();
+    res.setHeader('Content-Type', `image/${b.Ext === 'jpeg' ? 'jpeg' : 'png'}`);
+    res.send(b.Bild);
+  } catch (err) {
+    logError({ quelle: 'backend', nachricht: `[beurteilungen] unterschrift: ${err.message}`, stack: err.stack,
       kontext: { route: req.path, methode: req.method }, benutzerOid: req.user && req.user.oid, benutzerName: req.user && req.user.name });
     res.status(500).json({ error: err.message });
   }
