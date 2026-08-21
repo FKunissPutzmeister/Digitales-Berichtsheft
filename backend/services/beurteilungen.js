@@ -6,6 +6,7 @@ const { berechne } = require('../../app/js/beurteilung-core.js');
 const { ladeKorrekturKontext } = require('./zugriffContext');
 const { verantwortlichFuerZuweisung, ymd } = require('./zugriff');
 const { aktiveVertreteneEmails } = require('./vertretungen');
+const { listFuerAzubi } = require('./ausbilderAzubis');
 
 const heuteYmd = () => new Date().toISOString().slice(0, 10);
 
@@ -27,6 +28,22 @@ async function darfBeurteilen(user, zuweisung, pool) {
   if (user.role === 'developer' || user.role === 'admin') return true;
   const kontext = await ladeKorrekturKontext(pool, user);
   return verantwortlichFuerZuweisung(user, zuweisung, kontext);
+}
+
+// Datums-UNABHÄNGIGE Prüfung: ist userOid unter den dauerhaften Ausbildern
+// dieses Azubis (dbo.AusbilderAzubis)? Reine Logik, DB-unabhängig testbar —
+// analog zum Muster verantwortlichFuerZuweisung/darfBeurteilen.
+function istDauerhafterAusbilderVon(userOid, ausbilderZeilen) {
+  if (!userOid) return false;
+  return (ausbilderZeilen || []).some(a => a.oid === userOid);
+}
+
+// Ist der Nutzer der dauerhafte Ausbilder DIESES Azubis? admin/developer
+// zählen immer (wie bei darfBeurteilen). user zuerst, analog zu darfBeurteilen.
+async function istDauerhafterAusbilder(user, azubiOid, pool) {
+  if (user.role === 'developer' || user.role === 'admin') return true;
+  const zeilen = await listFuerAzubi(azubiOid);
+  return istDauerhafterAusbilderVon(user.oid, zeilen);
 }
 
 async function ladeKriterien(pool, beurteilungId) {
@@ -267,5 +284,5 @@ async function listMeineBeurteilbaren(pool, user, azubiOid) {
 module.exports = {
   ladeZuweisung, darfBeurteilen, getByZuweisung, listByAzubi,
   upsertEntwurf, abschliessen, patchNachAbschluss, kenntnisnahme, ermittleUndErzeugeFaellige,
-  listMeineBeurteilbaren,
+  listMeineBeurteilbaren, istDauerhafterAusbilderVon, istDauerhafterAusbilder,
 };
