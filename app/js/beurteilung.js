@@ -157,11 +157,18 @@ function renderActions(ctx) {
   document.getElementById('beurtPdf').addEventListener('click', () => exportBeurteilungPdf(ctx));
   if (!bestaetigt) {
     document.getElementById('beurtAck').addEventListener('click', async () => {
-      try {
-        await DB.kenntnisnahmeBeurteilung(beurteilung.id);
-        Toast.success('Bestätigt', 'Kenntnisnahme wurde vermerkt.');
-        setTimeout(() => location.reload(), 800);
-      } catch (e) { Toast.error('Fehler', e.message); }
+      const bestehende = await DB.getMeineUnterschrift().catch(() => null);
+      window.SignaturDialog.open({
+        name: displayName(user.name || ''),
+        bestehende,
+        onSave: async (sig) => {
+          try {
+            await DB.kenntnisnahmeBeurteilung(beurteilung.id, sig);
+            Toast.success('Bestätigt', 'Kenntnisnahme wurde vermerkt.');
+            setTimeout(() => location.reload(), 800);
+          } catch (e) { Toast.error('Fehler', e.message); }
+        },
+      });
     });
   }
 }
