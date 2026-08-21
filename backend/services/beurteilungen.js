@@ -7,6 +7,7 @@ const { ladeKorrekturKontext } = require('./zugriffContext');
 const { verantwortlichFuerZuweisung, ymd } = require('./zugriff');
 const { aktiveVertreteneEmails } = require('./vertretungen');
 const { listFuerAzubi } = require('./ausbilderAzubis');
+const unterschriftenSvc = require('./unterschriften');
 
 const heuteYmd = () => new Date().toISOString().slice(0, 10);
 
@@ -134,11 +135,15 @@ async function erzeugeBenachrichtigung(runner, { userOid, typ, zuweisungId, from
             VALUES (@userOid,@typ,@zid,@from)`);
 }
 
-async function abschliessen(pool, id, autorOid) {
+async function abschliessen(pool, id, autorOid, signatur) {
   const cur = await pool.request().input('id', sql.Int, id)
     .query('SELECT Id, ZuweisungId, AzubiOid FROM dbo.Beurteilungen WHERE Id=@id');
   const b = cur.recordset[0];
   if (!b) throw new Error('Beurteilung nicht gefunden.');
+  const sigBytes = signatur ? unterschriftenSvc.dataUrlToBuffer(signatur.dataUrl) : null;
+  if (signatur && !sigBytes) throw new Error('Ungültige Unterschrift.');
+  unterschriftenSvc.pruefeGroesse(sigBytes);
+  const sigExt = signatur ? unterschriftenSvc.normExt(signatur.extension) : null;
   // Status-Update UND Azubi-Mitteilung atomar: schlägt der Benachrichtigungs-
   // INSERT fehl (z.B. CHECK-Constraint), wird auch der Abschluss zurückgerollt –
   // kein stiller Zustand "abgeschlossen ohne Mitteilung".
@@ -148,14 +153,25 @@ async function abschliessen(pool, id, autorOid) {
     await new sql.Request(tx)
       .input('id', sql.Int, id)
       .input('von', sql.NVarChar(36), autorOid)
+      .input('bild', sql.VarBinary(sql.MAX), sigBytes)
+      .input('ext', sql.NVarChar(10), sigExt)
       .query(`UPDATE dbo.Beurteilungen SET Status='abgeschlossen',
-                AbgeschlossenAm=SYSUTCDATETIME(), BeurteiltVon=@von, AktualisiertAm=SYSUTCDATETIME()
+                AbgeschlossenAm=SYSUTCDATETIME(), BeurteiltVon=@von,
+                BeurteilerUnterschriftBild=@bild, BeurteilerUnterschriftExt=@ext,
+                AktualisiertAm=SYSUTCDATETIME()
               WHERE Id=@id`);
     await erzeugeBenachrichtigung(tx, {
       userOid: b.AzubiOid, typ: 'beurteilung_abgeschlossen', zuweisungId: b.ZuweisungId, fromUserOid: autorOid,
     });
     await tx.commit();
   } catch (e) { await tx.rollback(); throw e; }
+  // Persönliche Standard-Unterschrift aktualisieren — best effort, AUSSERHALB
+  // der Transaktion: ein Fehlschlag hier darf den bereits committeten Abschluss
+  // nicht zurückrollen (rein komfortbezogen, kein Blocker).
+  if (signatur) {
+    try { await unterschriftenSvc.speichereMeine(pool, autorOid, signatur); }
+    catch (e) { console.error('[beurteilungen] speichereMeine (best effort):', e.message); }
+  }
 }
 
 async function patchNachAbschluss(pool, id, { kriterien, individuelleBeurteilung, gespraechAm }, autorOid) {
