@@ -121,17 +121,27 @@ function renderActions(ctx) {
     document.getElementById('beurtFinish').addEventListener('click', async () => {
       const st = form.getState();
       if (st.kriterien.length < 10) { Toast.error('Unvollständig', 'Bitte alle 10 Kriterien bewerten.'); return; }
-      try {
-        if (abgeschlossen) {
+      if (abgeschlossen) {
+        try {
           await DB.patchBeurteilung(id, st);
           Toast.success('Aktualisiert', 'Beurteilung wurde aktualisiert (Azubi wird informiert).');
-        } else {
-          id = await DB.saveBeurteilungEntwurf({ zuweisungId: zuweisung.id, ...st });
-          await DB.abschliessenBeurteilung(id);
-          Toast.success('Abgeschlossen', 'Beurteilung abgeschlossen. Der Azubi wurde benachrichtigt.');
-        }
-        setTimeout(back, 800); // nach dem Abgeben zurück zur Ausgangsseite
-      } catch (e) { Toast.error('Fehler', e.message); }
+          setTimeout(back, 800);
+        } catch (e) { Toast.error('Fehler', e.message); }
+        return;
+      }
+      const bestehende = await DB.getMeineUnterschrift().catch(() => null);
+      window.SignaturDialog.open({
+        name: displayName(user.name || ''),
+        bestehende,
+        onSave: async (sig) => {
+          try {
+            id = await DB.saveBeurteilungEntwurf({ zuweisungId: zuweisung.id, ...st });
+            await DB.abschliessenBeurteilung(id, sig);
+            Toast.success('Abgeschlossen', 'Beurteilung abgeschlossen. Der Azubi wurde benachrichtigt.');
+            setTimeout(back, 800);
+          } catch (e) { Toast.error('Fehler', e.message); }
+        },
+      });
     });
 
     document.getElementById('beurtPdf').addEventListener('click', () => exportBeurteilungPdf(ctx)); // Task 10

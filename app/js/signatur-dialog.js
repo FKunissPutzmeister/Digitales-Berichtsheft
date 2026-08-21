@@ -214,7 +214,7 @@
       Toast?.warning?.('Leer', 'Bitte zuerst eine Unterschrift erstellen.');
       return;
     }
-    state.onSave?.(sig);
+    await state.onSave?.(sig);
     Modal?.closeAll?.();
   }
 
@@ -223,8 +223,8 @@
     document.body.insertAdjacentHTML('beforeend', buildMarkup(bestehende));
     state = { onSave, activeTab: 'draw', currentFont: FONTS[0], pendingUpload: null, drawCtx: null, drawInk: false, drawReady: false, bestehende: bestehende || null };
 
-    document.getElementById('fg-sig-use-bestehende')?.addEventListener('click', () => {
-      state.onSave?.(state.bestehende);
+    document.getElementById('fg-sig-use-bestehende')?.addEventListener('click', async () => {
+      await state.onSave?.(state.bestehende);
       Modal?.closeAll?.();
     });
 
