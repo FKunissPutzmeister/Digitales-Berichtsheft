@@ -57,10 +57,30 @@ async function ladeKriterien(pool, beurteilungId) {
 async function getByZuweisung(pool, zuweisungId) {
   const r = await pool.request()
     .input('zid', sql.Int, zuweisungId)
-    .query('SELECT * FROM dbo.Beurteilungen WHERE ZuweisungId = @zid');
+    .query(`SELECT Id, ZuweisungId, AzubiOid, Status, IndividuelleBeurteilung, GesamtPunkte, Note,
+              GespraechAm, BeurteiltVon, AbgeschlossenAm, KenntnisnahmeVon, KenntnisnahmeAm,
+              KorrigiertVon, KorrigiertAm, ErstelltAm, AktualisiertAm,
+              BeurteilerUnterschriftExt, KenntnisnahmeUnterschriftExt,
+              AusbilderBestaetigtVon, AusbilderBestaetigtAm, AusbilderUnterschriftExt
+            FROM dbo.Beurteilungen WHERE ZuweisungId = @zid`);
   const b = r.recordset[0];
   if (!b) return null;
   b.kriterien = await ladeKriterien(pool, b.Id);
+  // Personalunion: hat der Beurteiler selbst bereits die dauerhafte
+  // Ausbilder-Rolle für diesen Azubi, entfällt der dritte Signaturschritt
+  // (keine doppelte Unterschrift derselben Person).
+  const ausbilderZeilen = b.BeurteiltVon ? await listFuerAzubi(b.AzubiOid) : [];
+  b.ausbilderSchrittEntfaellt = istDauerhafterAusbilderVon(b.BeurteiltVon, ausbilderZeilen);
+  // Nur die *Ext-Spalten wurden geladen (nicht die *Bild-Spalten selbst — bis
+  // zu 2 MB je Slot, hier nur als Vorhanden-Flag gebraucht). Bild/Ext werden
+  // immer gemeinsam geschrieben, daher ist Ext-non-null gleichwertig zu
+  // Bild-non-null. Die eigentlichen Bilder kommen über den Bild-Endpunkt (Task 13).
+  b.hatBeurteilerUnterschrift = !!b.BeurteilerUnterschriftExt;
+  b.hatKenntnisnahmeUnterschrift = !!b.KenntnisnahmeUnterschriftExt;
+  b.hatAusbilderUnterschrift = !!b.AusbilderUnterschriftExt;
+  delete b.BeurteilerUnterschriftExt;
+  delete b.KenntnisnahmeUnterschriftExt;
+  delete b.AusbilderUnterschriftExt;
   return b;
 }
 
@@ -334,4 +354,5 @@ module.exports = {
   ladeZuweisung, darfBeurteilen, getByZuweisung, listByAzubi,
   upsertEntwurf, abschliessen, patchNachAbschluss, kenntnisnahme, ermittleUndErzeugeFaellige,
   listMeineBeurteilbaren, istDauerhafterAusbilderVon, istDauerhafterAusbilder,
+  ausbilderBestaetigen,
 };
