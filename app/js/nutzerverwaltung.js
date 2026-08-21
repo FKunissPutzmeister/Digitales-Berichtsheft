@@ -111,6 +111,10 @@ document.addEventListener('DOMContentLoaded', async () => {
                 Ist Ausbilder
               </label>
               <label class="nv-form__check-label">
+                <input type="checkbox" id="nvIstAusbildungsleiter" name="istAusbildungsleiter">
+                Ist Ausbildungsleiter
+              </label>
+              <label class="nv-form__check-label">
                 <input type="checkbox" id="nvIstAzubi" name="istAzubi">
                 Ist Azubi
               </label>
@@ -131,6 +135,13 @@ document.addEventListener('DOMContentLoaded', async () => {
               <label class="form-label">Dauerhafte Ausbilder <span class="form-hint">· sehen &amp; korrigieren alle Wochen</span></label>
               <div class="nv-ausbilder-list" id="nvAusbilderList"></div>
             </div>
+            <div class="form-group" id="nvAusbildungsleiterBlock" hidden>
+              <label class="form-label" for="nvAusbildungsleiterBereich">Zuständig für</label>
+              <select class="form-control" id="nvAusbildungsleiterBereich">
+                <option value="technisch">Technische Berufe</option>
+                <option value="kaufmaennisch">Kaufmännische Berufe, IT &amp; DH</option>
+              </select>
+            </div>
           </form>
         </div>
         <div class="modal__footer">
@@ -147,6 +158,10 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     /* Speichern */
     document.getElementById('nvSaveBtn').addEventListener('click', handleSave);
+
+    document.getElementById('nvIstAusbildungsleiter').addEventListener('change', (e) => {
+      document.getElementById('nvAusbildungsleiterBlock').hidden = !e.target.checked;
+    });
   }
 
   function openModal(u) {
@@ -162,6 +177,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     document.getElementById('nvAusbildungEnde').value   = u.ausbildungsEnde   || '';
     document.getElementById('nvKannPlanen').checked  = !!u.kannPlanen;
     document.getElementById('nvIstAusbilder').checked = !!u.istAusbilder;
+    document.getElementById('nvIstAusbildungsleiter').checked = !!u.istAusbildungsleiter;
+    document.getElementById('nvAusbildungsleiterBereich').value = u.ausbildungsleiterBereich || 'technisch';
+    document.getElementById('nvAusbildungsleiterBlock').hidden = !u.istAusbildungsleiter;
     document.getElementById('nvIstAzubi').checked    = !!u.istAzubi;
     document.getElementById('nvAktiv').checked       = u.aktiv !== false;
     document.getElementById('nvLoeschsperre').value  = u.loeschsperreBis || '';
@@ -245,6 +263,10 @@ document.addEventListener('DOMContentLoaded', async () => {
       ausbildungEnde:   endeVal    || null,
       kannPlanen:       document.getElementById('nvKannPlanen').checked,
       istAusbilder:     document.getElementById('nvIstAusbilder').checked,
+      istAusbildungsleiter: document.getElementById('nvIstAusbildungsleiter').checked,
+      ausbildungsleiterBereich: document.getElementById('nvIstAusbildungsleiter').checked
+        ? document.getElementById('nvAusbildungsleiterBereich').value
+        : null,
       istAzubi:         document.getElementById('nvIstAzubi').checked,
       aktiv:            document.getElementById('nvAktiv').checked,
       // Leerer Wert = keine Sperre. null statt '' senden, damit die Spalte
