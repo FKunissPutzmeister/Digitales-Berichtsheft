@@ -78,11 +78,15 @@ async function loadContext(zuweisungId) {
   if (!zuweisung) throw new Error('Zuweisung nicht gefunden.');
   const me = DB.getCurrentUser();
   const azubi = await DB.getUser(zuweisung.azubiId);
-  // editable, wenn ich verantwortlich bin (E-Mail-Match) ODER developer/admin – der Server prüft es endgültig.
+  // editable ist NUR der clientseitige Fallback für den Fall, dass noch gar
+  // keine Beurteilung existiert (dann kann der Server keinen modus mitgeben —
+  // siehe renderActions). Sobald eine Beurteilung existiert, ist ausschließlich
+  // beurteilung.modus (serverseitig ermittelt) maßgeblich für die UI. Der
+  // dauerhafte Ausbilder gehört bewusst NICHT mehr hierher (siehe Design-Spec
+  // 2026-08-21) — der Server prüft bei jeder Aktion ohnehin endgültig.
   const email = (me.email || '').toLowerCase();
   const editable = me.role === 'developer' || me.role === 'admin'
-    || (!!zuweisung.verantwEmail && zuweisung.verantwEmail.toLowerCase() === email)
-    || (me.istAusbilder && !me.istAzubi && me.oid !== zuweisung.azubiId);
+    || (!!zuweisung.verantwEmail && zuweisung.verantwEmail.toLowerCase() === email);
   return { zuweisung, beurteilung, azubi, editable: !!editable && me.oid !== zuweisung.azubiId };
 }
 
@@ -95,15 +99,21 @@ async function resolveZuweisung(zuweisungId) {
   catch (e) { return null; }
 }
 
-// Rendert die Aktionsleiste (Speichern/Abschließen/PDF/Berichte für Verantwortliche, Kenntnisnahme/PDF für Azubi/DH).
+// Rendert die Aktionsleiste je nach serverseitig ermitteltem Modus:
+// 'bearbeiten' (Prüfer) / 'azubi' / 'ausbildungsleiter' / 'ansicht' (u.a.
+// der dauerhafte Ausbilder — nur Drucken, keine Aktionen).
 function renderActions(ctx) {
   const { zuweisung, beurteilung, editable, form, user, back } = ctx;
   const host = document.getElementById('beurtActions');
   if (!host) return;
   let id = beurteilung?.id || null;
   const status = beurteilung?.status || (editable ? 'neu' : null);
+  // Ohne bestehende Beurteilung kennt nur der Client-Fallback (editable) den
+  // Modus; sobald eine Beurteilung existiert, ist beurteilung.modus die
+  // serverseitig autoritative Quelle.
+  const modus = beurteilung?.modus || (editable ? 'bearbeiten' : null);
 
-  if (editable) {
+  if (modus === 'bearbeiten') {
     const abgeschlossen = status === 'abgeschlossen';
     host.innerHTML = `
       <button class="btn btn-ghost" id="beurtPdf">Als PDF</button>
@@ -144,20 +154,27 @@ function renderActions(ctx) {
       });
     });
 
-    document.getElementById('beurtPdf').addEventListener('click', () => exportBeurteilungPdf(ctx)); // Task 10
+    document.getElementById('beurtPdf').addEventListener('click', () => exportBeurteilungPdf(ctx));
+    return;
+  }
 
-    if (abgeschlossen && ctx.beurteilung?.darfAusbilderBestaetigen) {
-      document.getElementById('beurtActions').insertAdjacentHTML('beforeend',
-        `<button class="btn btn-secondary" id="beurtAusbilderBestaetigen">Als Ausbilder bestätigen</button>`);
-      document.getElementById('beurtAusbilderBestaetigen').addEventListener('click', async () => {
+  if (modus === 'azubi') {
+    const bestaetigt = !!beurteilung?.kenntnisnahmeAm;
+    host.innerHTML = `
+      <button class="btn btn-ghost" id="beurtPdf">Als PDF</button>
+      <button class="btn btn-primary" id="beurtAck" ${bestaetigt ? 'disabled' : ''}>
+        ${bestaetigt ? 'Kenntnisnahme bestätigt' : 'Kenntnisnahme bestätigen'}</button>`;
+    document.getElementById('beurtPdf').addEventListener('click', () => exportBeurteilungPdf(ctx));
+    if (!bestaetigt) {
+      document.getElementById('beurtAck').addEventListener('click', async () => {
         const bestehende = await DB.getMeineUnterschrift().catch(() => null);
         window.SignaturDialog.open({
           name: displayName(user.name || ''),
           bestehende,
           onSave: async (sig) => {
             try {
-              await DB.ausbilderBestaetigenBeurteilung(ctx.beurteilung.id, sig);
-              Toast.success('Bestätigt', 'Beurteilung als Ausbilder bestätigt.');
+              await DB.kenntnisnahmeBeurteilung(beurteilung.id, sig);
+              Toast.success('Bestätigt', 'Kenntnisnahme wurde vermerkt.');
               setTimeout(() => location.reload(), 800);
             } catch (e) { Toast.error('Fehler', e.message); }
           },
@@ -167,29 +184,35 @@ function renderActions(ctx) {
     return;
   }
 
-  // Read-only (Azubi/DH): Kenntnisnahme + PDF.
-  const bestaetigt = !!beurteilung?.kenntnisnahmeAm;
-  host.innerHTML = `
-    <button class="btn btn-ghost" id="beurtPdf">Als PDF</button>
-    <button class="btn btn-primary" id="beurtAck" ${bestaetigt ? 'disabled' : ''}>
-      ${bestaetigt ? 'Kenntnisnahme bestätigt' : 'Kenntnisnahme bestätigen'}</button>`;
-  document.getElementById('beurtPdf').addEventListener('click', () => exportBeurteilungPdf(ctx));
-  if (!bestaetigt) {
-    document.getElementById('beurtAck').addEventListener('click', async () => {
-      const bestehende = await DB.getMeineUnterschrift().catch(() => null);
-      window.SignaturDialog.open({
-        name: displayName(user.name || ''),
-        bestehende,
-        onSave: async (sig) => {
-          try {
-            await DB.kenntnisnahmeBeurteilung(beurteilung.id, sig);
-            Toast.success('Bestätigt', 'Kenntnisnahme wurde vermerkt.');
-            setTimeout(() => location.reload(), 800);
-          } catch (e) { Toast.error('Fehler', e.message); }
-        },
+  if (modus === 'ausbildungsleiter') {
+    const bestaetigt = !!beurteilung?.ausbildungsleiterBestaetigtAm;
+    host.innerHTML = `
+      <button class="btn btn-ghost" id="beurtPdf">Als PDF</button>
+      <button class="btn btn-primary" id="beurtAusbildungsleiterBestaetigen" ${bestaetigt ? 'disabled' : ''}>
+        ${bestaetigt ? 'Als Ausbildungsleiter bestätigt' : 'Als Ausbildungsleiter bestätigen'}</button>`;
+    document.getElementById('beurtPdf').addEventListener('click', () => exportBeurteilungPdf(ctx));
+    if (!bestaetigt) {
+      document.getElementById('beurtAusbildungsleiterBestaetigen').addEventListener('click', async () => {
+        const bestehende = await DB.getMeineUnterschrift().catch(() => null);
+        window.SignaturDialog.open({
+          name: displayName(user.name || ''),
+          bestehende,
+          onSave: async (sig) => {
+            try {
+              await DB.ausbildungsleiterBestaetigenBeurteilung(beurteilung.id, sig);
+              Toast.success('Bestätigt', 'Beurteilung als Ausbildungsleiter bestätigt.');
+              setTimeout(() => location.reload(), 800);
+            } catch (e) { Toast.error('Fehler', e.message); }
+          },
+        });
       });
-    });
+    }
+    return;
   }
+
+  // modus === 'ansicht' (u.a. der dauerhafte Ausbilder): nur Drucken.
+  host.innerHTML = `<button class="btn btn-ghost" id="beurtPdf">Als PDF</button>`;
+  document.getElementById('beurtPdf').addEventListener('click', () => exportBeurteilungPdf(ctx));
 }
 
 // Exportiert die Beurteilung als druckfertiges A4-HTML (Print-Muster wie berichtsheft-export.js).
