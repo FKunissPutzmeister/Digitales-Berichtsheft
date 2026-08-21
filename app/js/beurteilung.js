@@ -145,6 +145,25 @@ function renderActions(ctx) {
     });
 
     document.getElementById('beurtPdf').addEventListener('click', () => exportBeurteilungPdf(ctx)); // Task 10
+
+    if (abgeschlossen && ctx.beurteilung?.darfAusbilderBestaetigen) {
+      document.getElementById('beurtActions').insertAdjacentHTML('beforeend',
+        `<button class="btn btn-secondary" id="beurtAusbilderBestaetigen">Als Ausbilder bestätigen</button>`);
+      document.getElementById('beurtAusbilderBestaetigen').addEventListener('click', async () => {
+        const bestehende = await DB.getMeineUnterschrift().catch(() => null);
+        window.SignaturDialog.open({
+          name: displayName(user.name || ''),
+          bestehende,
+          onSave: async (sig) => {
+            try {
+              await DB.ausbilderBestaetigenBeurteilung(ctx.beurteilung.id, sig);
+              Toast.success('Bestätigt', 'Beurteilung als Ausbilder bestätigt.');
+              setTimeout(() => location.reload(), 800);
+            } catch (e) { Toast.error('Fehler', e.message); }
+          },
+        });
+      });
+    }
     return;
   }
 
