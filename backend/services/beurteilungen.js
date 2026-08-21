@@ -202,12 +202,23 @@ async function patchNachAbschluss(pool, id, { kriterien, individuelleBeurteilung
   } catch (e) { await tx.rollback(); throw e; }
 }
 
-async function kenntnisnahme(pool, id, azubiOid) {
+async function kenntnisnahme(pool, id, azubiOid, signatur) {
+  const sigBytes = signatur ? unterschriftenSvc.dataUrlToBuffer(signatur.dataUrl) : null;
+  if (signatur && !sigBytes) throw new Error('Ungültige Unterschrift.');
+  unterschriftenSvc.pruefeGroesse(sigBytes);
+  const sigExt = signatur ? unterschriftenSvc.normExt(signatur.extension) : null;
   await pool.request()
     .input('id', sql.Int, id)
     .input('oid', sql.NVarChar(36), azubiOid)
+    .input('bild', sql.VarBinary(sql.MAX), sigBytes)
+    .input('ext', sql.NVarChar(10), sigExt)
     .query(`UPDATE dbo.Beurteilungen SET KenntnisnahmeVon=@oid, KenntnisnahmeAm=SYSUTCDATETIME(),
+              KenntnisnahmeUnterschriftBild=@bild, KenntnisnahmeUnterschriftExt=@ext,
               AktualisiertAm=SYSUTCDATETIME() WHERE Id=@id AND AzubiOid=@oid`);
+  if (signatur) {
+    try { await unterschriftenSvc.speichereMeine(pool, azubiOid, signatur); }
+    catch (e) { console.error('[beurteilungen] speichereMeine (best effort):', e.message); }
+  }
 }
 
 // Beendete Durchläufe des Nutzers ohne abgeschlossene Beurteilung -> Mitteilung anlegen (idempotent).
