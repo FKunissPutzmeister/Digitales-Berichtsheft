@@ -57,6 +57,18 @@ test('buildReqUser: IstAzubi-Spalte ist additiver Azubi-Grant (z.B. Developer, d
   assert.equal(u.istAusbilder, true); // Dev-Flags bleiben erhalten
 });
 
+test('buildReqUser: IstAusbildungsleiter-Spalte mit Bereich', () => {
+  const u = buildReqUser({ Oid: 'g4c', Role: 'pruefer', KannPlanen: false, IstAusbilder: false, IstAusbildungsleiter: 1, AusbildungsleiterBereich: 'technisch' });
+  assert.equal(u.istAusbildungsleiter, true);
+  assert.equal(u.ausbildungsleiterBereich, 'technisch');
+});
+
+test('buildReqUser: fehlendes IstAusbildungsleiter ergibt false/null', () => {
+  const u = buildReqUser({ Oid: 'g4d', Role: 'pruefer', KannPlanen: false, IstAusbilder: false, IstAusbildungsleiter: 0 });
+  assert.equal(u.istAusbildungsleiter, false);
+  assert.equal(u.ausbildungsleiterBereich, null);
+});
+
 test('buildReqUser(null) gibt null', () => {
   assert.equal(buildReqUser(null), null);
 });
@@ -79,6 +91,23 @@ test('validateUserPatch lehnt ungültigen berichtTyp ab', () => {
 
 test('validateUserPatch lehnt leeren Patch ab', () => {
   assert.equal(validateUserPatch({}).ok, false);
+});
+
+test('validateUserPatch akzeptiert erlaubte ausbildungsleiterBereich-Werte', () => {
+  assert.equal(validateUserPatch({ ausbildungsleiterBereich: 'technisch' }).ok, true);
+  assert.equal(validateUserPatch({ ausbildungsleiterBereich: 'kaufmaennisch' }).ok, true);
+});
+
+test('validateUserPatch akzeptiert ausbildungsleiterBereich=null (Haken entfernt)', () => {
+  assert.equal(validateUserPatch({ ausbildungsleiterBereich: null }).ok, true);
+});
+
+test('validateUserPatch lehnt ungültigen ausbildungsleiterBereich ab', () => {
+  assert.equal(validateUserPatch({ ausbildungsleiterBereich: 'unsinn' }).ok, false);
+});
+
+test('validateUserPatch: ausbildungsleiterBereich ist optional (Feld fehlt)', () => {
+  assert.equal(validateUserPatch({ istAusbildungsleiter: true }).ok, true);
 });
 
 test('buildReqUser: dhstudent positiv', () => {

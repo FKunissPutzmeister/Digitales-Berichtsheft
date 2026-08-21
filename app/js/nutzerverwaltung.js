@@ -111,6 +111,10 @@ document.addEventListener('DOMContentLoaded', async () => {
                 Ist Ausbilder
               </label>
               <label class="nv-form__check-label">
+                <input type="checkbox" id="nvIstAusbildungsleiter" name="istAusbildungsleiter">
+                Ist Ausbildungsleiter
+              </label>
+              <label class="nv-form__check-label">
                 <input type="checkbox" id="nvIstAzubi" name="istAzubi">
                 Ist Azubi
               </label>
@@ -131,6 +135,13 @@ document.addEventListener('DOMContentLoaded', async () => {
               <label class="form-label">Dauerhafte Ausbilder <span class="form-hint">· sehen &amp; korrigieren alle Wochen</span></label>
               <div class="nv-ausbilder-list" id="nvAusbilderList"></div>
             </div>
+            <div class="form-group" id="nvAusbildungsleiterBlock" hidden>
+              <label class="form-label" for="nvAusbildungsleiterBereich">Zuständig für</label>
+              <select class="form-control" id="nvAusbildungsleiterBereich">
+                <option value="technisch">Technische Berufe</option>
+                <option value="kaufmaennisch">Kaufmännische Berufe, IT &amp; DH</option>
+              </select>
+            </div>
           </form>
         </div>
         <div class="modal__footer">
@@ -147,6 +158,10 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     /* Speichern */
     document.getElementById('nvSaveBtn').addEventListener('click', handleSave);
+
+    document.getElementById('nvIstAusbildungsleiter').addEventListener('change', (e) => {
+      document.getElementById('nvAusbildungsleiterBlock').hidden = !e.target.checked;
+    });
   }
 
   function openModal(u) {
@@ -162,6 +177,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     document.getElementById('nvAusbildungEnde').value   = u.ausbildungsEnde   || '';
     document.getElementById('nvKannPlanen').checked  = !!u.kannPlanen;
     document.getElementById('nvIstAusbilder').checked = !!u.istAusbilder;
+    document.getElementById('nvIstAusbildungsleiter').checked = !!u.istAusbildungsleiter;
+    document.getElementById('nvAusbildungsleiterBereich').value = u.ausbildungsleiterBereich || 'technisch';
+    document.getElementById('nvAusbildungsleiterBlock').hidden = !u.istAusbildungsleiter;
     document.getElementById('nvIstAzubi').checked    = !!u.istAzubi;
     document.getElementById('nvAktiv').checked       = u.aktiv !== false;
     document.getElementById('nvLoeschsperre').value  = u.loeschsperreBis || '';
@@ -245,6 +263,10 @@ document.addEventListener('DOMContentLoaded', async () => {
       ausbildungEnde:   endeVal    || null,
       kannPlanen:       document.getElementById('nvKannPlanen').checked,
       istAusbilder:     document.getElementById('nvIstAusbilder').checked,
+      istAusbildungsleiter: document.getElementById('nvIstAusbildungsleiter').checked,
+      ausbildungsleiterBereich: document.getElementById('nvIstAusbildungsleiter').checked
+        ? document.getElementById('nvAusbildungsleiterBereich').value
+        : null,
       istAzubi:         document.getElementById('nvIstAzubi').checked,
       aktiv:            document.getElementById('nvAktiv').checked,
       // Leerer Wert = keine Sperre. null statt '' senden, damit die Spalte
@@ -471,6 +493,24 @@ document.addEventListener('DOMContentLoaded', async () => {
               <tr><th>Nutzer</th><th>Bezeichnung</th><th>Erstellt</th><th>Zuletzt genutzt</th><th>Status</th><th></th></tr>
             </thead>
             <tbody id="akTableBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:var(--sp-5)">
+      <div class="card__body">
+        <div class="nv-toolbar" style="justify-content:space-between;align-items:flex-start">
+          <div>
+            <h2 style="margin:0;font-size:var(--text-lg)">Berufe</h2>
+            <p class="form-hint" style="margin:4px 0 0;max-width:70ch">Ordnet Berufsbezeichnungen einem Bereich zu (technisch/kaufmännisch), damit der zuständige Ausbildungsleiter im Beurteilungsbogen automatisch ermittelt werden kann.</p>
+          </div>
+          <button class="btn btn-primary" type="button" id="bfAddBtn">+ Beruf hinzufügen</button>
+        </div>
+        <div style="overflow-x:auto">
+          <table class="nv-table">
+            <thead><tr><th>Beruf</th><th>Bereich</th><th></th></tr></thead>
+            <tbody id="bfTableBody"></tbody>
           </table>
         </div>
       </div>
@@ -785,4 +825,94 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   document.getElementById('akAddBtn')?.addEventListener('click', openAkAdd);
   loadApiKeys();
+
+  /* ── Berufe-Katalog ──────────────────────────────────────────────── */
+  let berufe = [];
+  const bfBody = document.getElementById('bfTableBody');
+  const BEREICH_LABELS = { technisch: 'Technisch', kaufmaennisch: 'Kaufmännisch' };
+
+  function renderBerufe() {
+    if (!berufe.length) {
+      bfBody.innerHTML = `<tr><td colspan="3"><div class="nv-empty">Noch keine Berufe im Katalog.</div></td></tr>`;
+      return;
+    }
+    bfBody.innerHTML = berufe.map(b => `
+      <tr data-id="${b.id}">
+        <td>${esc(b.beruf)}</td>
+        <td>${esc(BEREICH_LABELS[b.bereich] || b.bereich)}</td>
+        <td class="nv-table__actions">
+          <button class="btn btn-sm btn-outline bf-edit" type="button" data-id="${b.id}">Bearbeiten</button>
+          <button class="btn btn-sm btn-outline bf-del" type="button" data-id="${b.id}">Löschen</button>
+        </td>
+      </tr>`).join('');
+    bfBody.querySelectorAll('.bf-edit').forEach(btn => btn.addEventListener('click', () =>
+      openBerufModal(berufe.find(b => b.id === Number(btn.dataset.id)))));
+    bfBody.querySelectorAll('.bf-del').forEach(btn => btn.addEventListener('click', async () => {
+      if (!confirm('Diesen Beruf aus dem Katalog löschen?')) return;
+      try {
+        await DB.deleteBeruf(Number(btn.dataset.id));
+        berufe = berufe.filter(b => b.id !== Number(btn.dataset.id));
+        renderBerufe();
+        Toast.success('Gelöscht');
+      } catch (e) { Toast.error('Fehler', e.message); }
+    }));
+  }
+
+  async function loadBerufe() {
+    try { berufe = await DB.getBerufe(); }
+    catch (e) { berufe = []; Toast.error('Berufe konnten nicht geladen werden', e.message); }
+    renderBerufe();
+  }
+
+  function openBerufModal(beruf) {
+    let ov = document.getElementById('bfEditModal'); if (ov) ov.remove();
+    ov = document.createElement('div'); ov.className = 'modal-overlay'; ov.id = 'bfEditModal';
+    const bekannteBerufe = [...new Set(users.map(u => u.beruf).filter(Boolean))].sort((a, b2) => a.localeCompare(b2, 'de'));
+    ov.innerHTML = `
+      <div class="modal" role="dialog" aria-modal="true">
+        <div class="modal__header"><h2 class="modal__title">${beruf ? 'Beruf bearbeiten' : 'Beruf hinzufügen'}</h2>
+          <button class="modal__close" type="button" data-x aria-label="Schließen">&times;</button></div>
+        <div class="modal__body">
+          <form class="nv-form" novalidate>
+            <div class="form-group">
+              <label class="form-label" for="bfBeruf">Beruf</label>
+              <input class="form-control" id="bfBeruf" list="bfBerufVorschlaege" value="${esc(beruf?.beruf || '')}" autocomplete="off">
+              <datalist id="bfBerufVorschlaege">${bekannteBerufe.map(b => `<option value="${esc(b)}">`).join('')}</datalist>
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="bfBereich">Bereich</label>
+              <select class="form-control" id="bfBereich">
+                <option value="technisch" ${beruf?.bereich === 'technisch' ? 'selected' : ''}>Technisch</option>
+                <option value="kaufmaennisch" ${beruf?.bereich !== 'technisch' ? 'selected' : ''}>Kaufmännisch</option>
+              </select>
+            </div>
+          </form>
+        </div>
+        <div class="modal__footer">
+          <button class="btn btn-outline" type="button" data-x>Abbrechen</button>
+          <button class="btn btn-primary" type="button" id="bfSaveBtn">Speichern</button>
+        </div>
+      </div>`;
+    document.body.appendChild(ov); ov.classList.add('open');
+    document.body.style.overflow = 'hidden';
+    const close = () => { ov.remove(); document.body.style.overflow = ''; };
+    ov.querySelectorAll('[data-x]').forEach(b => b.addEventListener('click', close));
+    ov.addEventListener('click', e => { if (e.target === ov) close(); });
+    ov.querySelector('#bfSaveBtn').addEventListener('click', async () => {
+      const fields = { beruf: document.getElementById('bfBeruf').value.trim(), bereich: document.getElementById('bfBereich').value };
+      if (!fields.beruf) { Toast.error('Bitte einen Beruf angeben.'); return; }
+      try {
+        const saved = beruf ? await DB.updateBeruf(beruf.id, fields) : await DB.createBeruf(fields);
+        const idx = berufe.findIndex(b => b.id === saved.id);
+        if (idx !== -1) berufe[idx] = saved; else berufe.push(saved);
+        berufe.sort((a, b2) => a.beruf.localeCompare(b2.beruf, 'de'));
+        renderBerufe();
+        close();
+        Toast.success('Gespeichert');
+      } catch (e) { Toast.error('Fehler', e.message); }
+    });
+  }
+
+  document.getElementById('bfAddBtn')?.addEventListener('click', () => openBerufModal(null));
+  loadBerufe();
 });

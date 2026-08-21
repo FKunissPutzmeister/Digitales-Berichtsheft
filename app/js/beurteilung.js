@@ -78,11 +78,15 @@ async function loadContext(zuweisungId) {
   if (!zuweisung) throw new Error('Zuweisung nicht gefunden.');
   const me = DB.getCurrentUser();
   const azubi = await DB.getUser(zuweisung.azubiId);
-  // editable, wenn ich verantwortlich bin (E-Mail-Match) ODER developer/admin – der Server prüft es endgültig.
+  // editable ist NUR der clientseitige Fallback für den Fall, dass noch gar
+  // keine Beurteilung existiert (dann kann der Server keinen modus mitgeben —
+  // siehe renderActions). Sobald eine Beurteilung existiert, ist ausschließlich
+  // beurteilung.modus (serverseitig ermittelt) maßgeblich für die UI. Der
+  // dauerhafte Ausbilder gehört bewusst NICHT mehr hierher (siehe Design-Spec
+  // 2026-08-21) — der Server prüft bei jeder Aktion ohnehin endgültig.
   const email = (me.email || '').toLowerCase();
   const editable = me.role === 'developer' || me.role === 'admin'
-    || (!!zuweisung.verantwEmail && zuweisung.verantwEmail.toLowerCase() === email)
-    || (me.istAusbilder && !me.istAzubi && me.oid !== zuweisung.azubiId);
+    || (!!zuweisung.verantwEmail && zuweisung.verantwEmail.toLowerCase() === email);
   return { zuweisung, beurteilung, azubi, editable: !!editable && me.oid !== zuweisung.azubiId };
 }
 
@@ -95,15 +99,21 @@ async function resolveZuweisung(zuweisungId) {
   catch (e) { return null; }
 }
 
-// Rendert die Aktionsleiste (Speichern/Abschließen/PDF/Berichte für Verantwortliche, Kenntnisnahme/PDF für Azubi/DH).
+// Rendert die Aktionsleiste je nach serverseitig ermitteltem Modus:
+// 'bearbeiten' (Prüfer) / 'azubi' / 'ausbildungsleiter' / 'ansicht' (u.a.
+// der dauerhafte Ausbilder — nur Drucken, keine Aktionen).
 function renderActions(ctx) {
   const { zuweisung, beurteilung, editable, form, user, back } = ctx;
   const host = document.getElementById('beurtActions');
   if (!host) return;
   let id = beurteilung?.id || null;
   const status = beurteilung?.status || (editable ? 'neu' : null);
+  // Ohne bestehende Beurteilung kennt nur der Client-Fallback (editable) den
+  // Modus; sobald eine Beurteilung existiert, ist beurteilung.modus die
+  // serverseitig autoritative Quelle.
+  const modus = beurteilung?.modus || (editable ? 'bearbeiten' : null);
 
-  if (editable) {
+  if (modus === 'bearbeiten') {
     const abgeschlossen = status === 'abgeschlossen';
     host.innerHTML = `
       <button class="btn btn-ghost" id="beurtPdf">Als PDF</button>
@@ -121,39 +131,88 @@ function renderActions(ctx) {
     document.getElementById('beurtFinish').addEventListener('click', async () => {
       const st = form.getState();
       if (st.kriterien.length < 10) { Toast.error('Unvollständig', 'Bitte alle 10 Kriterien bewerten.'); return; }
-      try {
-        if (abgeschlossen) {
+      if (abgeschlossen) {
+        try {
           await DB.patchBeurteilung(id, st);
           Toast.success('Aktualisiert', 'Beurteilung wurde aktualisiert (Azubi wird informiert).');
-        } else {
-          id = await DB.saveBeurteilungEntwurf({ zuweisungId: zuweisung.id, ...st });
-          await DB.abschliessenBeurteilung(id);
-          Toast.success('Abgeschlossen', 'Beurteilung abgeschlossen. Der Azubi wurde benachrichtigt.');
-        }
-        setTimeout(back, 800); // nach dem Abgeben zurück zur Ausgangsseite
-      } catch (e) { Toast.error('Fehler', e.message); }
+          setTimeout(back, 800);
+        } catch (e) { Toast.error('Fehler', e.message); }
+        return;
+      }
+      const bestehende = await DB.getMeineUnterschrift().catch(() => null);
+      window.SignaturDialog.open({
+        name: displayName(user.name || ''),
+        bestehende,
+        onSave: async (sig) => {
+          try {
+            id = await DB.saveBeurteilungEntwurf({ zuweisungId: zuweisung.id, ...st });
+            await DB.abschliessenBeurteilung(id, sig);
+            Toast.success('Abgeschlossen', 'Beurteilung abgeschlossen. Der Azubi wurde benachrichtigt.');
+            setTimeout(back, 800);
+          } catch (e) { Toast.error('Fehler', e.message); }
+        },
+      });
     });
 
-    document.getElementById('beurtPdf').addEventListener('click', () => exportBeurteilungPdf(ctx)); // Task 10
+    document.getElementById('beurtPdf').addEventListener('click', () => exportBeurteilungPdf(ctx));
     return;
   }
 
-  // Read-only (Azubi/DH): Kenntnisnahme + PDF.
-  const bestaetigt = !!beurteilung?.kenntnisnahmeAm;
-  host.innerHTML = `
-    <button class="btn btn-ghost" id="beurtPdf">Als PDF</button>
-    <button class="btn btn-primary" id="beurtAck" ${bestaetigt ? 'disabled' : ''}>
-      ${bestaetigt ? 'Kenntnisnahme bestätigt' : 'Kenntnisnahme bestätigen'}</button>`;
-  document.getElementById('beurtPdf').addEventListener('click', () => exportBeurteilungPdf(ctx));
-  if (!bestaetigt) {
-    document.getElementById('beurtAck').addEventListener('click', async () => {
-      try {
-        await DB.kenntnisnahmeBeurteilung(beurteilung.id);
-        Toast.success('Bestätigt', 'Kenntnisnahme wurde vermerkt.');
-        setTimeout(() => location.reload(), 800);
-      } catch (e) { Toast.error('Fehler', e.message); }
-    });
+  if (modus === 'azubi') {
+    const bestaetigt = !!beurteilung?.kenntnisnahmeAm;
+    host.innerHTML = `
+      <button class="btn btn-ghost" id="beurtPdf">Als PDF</button>
+      <button class="btn btn-primary" id="beurtAck" ${bestaetigt ? 'disabled' : ''}>
+        ${bestaetigt ? 'Kenntnisnahme bestätigt' : 'Kenntnisnahme bestätigen'}</button>`;
+    document.getElementById('beurtPdf').addEventListener('click', () => exportBeurteilungPdf(ctx));
+    if (!bestaetigt) {
+      document.getElementById('beurtAck').addEventListener('click', async () => {
+        const bestehende = await DB.getMeineUnterschrift().catch(() => null);
+        window.SignaturDialog.open({
+          name: displayName(user.name || ''),
+          bestehende,
+          onSave: async (sig) => {
+            try {
+              await DB.kenntnisnahmeBeurteilung(beurteilung.id, sig);
+              Toast.success('Bestätigt', 'Kenntnisnahme wurde vermerkt.');
+              setTimeout(() => location.reload(), 800);
+            } catch (e) { Toast.error('Fehler', e.message); }
+          },
+        });
+      });
+    }
+    return;
   }
+
+  if (modus === 'ausbildungsleiter') {
+    const bestaetigt = !!beurteilung?.ausbildungsleiterBestaetigtAm;
+    host.innerHTML = `
+      <button class="btn btn-ghost" id="beurtPdf">Als PDF</button>
+      <button class="btn btn-primary" id="beurtAusbildungsleiterBestaetigen" ${bestaetigt ? 'disabled' : ''}>
+        ${bestaetigt ? 'Als Ausbildungsleiter bestätigt' : 'Als Ausbildungsleiter bestätigen'}</button>`;
+    document.getElementById('beurtPdf').addEventListener('click', () => exportBeurteilungPdf(ctx));
+    if (!bestaetigt) {
+      document.getElementById('beurtAusbildungsleiterBestaetigen').addEventListener('click', async () => {
+        const bestehende = await DB.getMeineUnterschrift().catch(() => null);
+        window.SignaturDialog.open({
+          name: displayName(user.name || ''),
+          bestehende,
+          onSave: async (sig) => {
+            try {
+              await DB.ausbildungsleiterBestaetigenBeurteilung(beurteilung.id, sig);
+              Toast.success('Bestätigt', 'Beurteilung als Ausbildungsleiter bestätigt.');
+              setTimeout(() => location.reload(), 800);
+            } catch (e) { Toast.error('Fehler', e.message); }
+          },
+        });
+      });
+    }
+    return;
+  }
+
+  // modus === 'ansicht' (u.a. der dauerhafte Ausbilder): nur Drucken.
+  host.innerHTML = `<button class="btn btn-ghost" id="beurtPdf">Als PDF</button>`;
+  document.getElementById('beurtPdf').addEventListener('click', () => exportBeurteilungPdf(ctx));
 }
 
 // Exportiert die Beurteilung als druckfertiges A4-HTML (Print-Muster wie berichtsheft-export.js).
@@ -180,6 +239,12 @@ function exportBeurteilungPdf(ctx) {
   }).join('');
   const blockSum = block => f1(r.bloecke[block]);
 
+  const signSlot = (rolle, hat, label) => `
+    <div class="sign__slot">
+      <div class="sign__img">${hat ? `<img src="${DB.beurteilungUnterschriftUrl(beurteilung.id, rolle)}" alt="Unterschrift ${esc(label)}" onerror="this.style.display='none'">` : ''}</div>
+      <div class="sign__line">${esc(label)}</div>
+    </div>`;
+
   const html = `<!DOCTYPE html><html lang="de"><head><meta charset="UTF-8">
 <title>Beurteilung – ${esc(displayName(azubi?.name || ''))}</title><style>
   * { -webkit-print-color-adjust: exact; print-color-adjust: exact; box-sizing: border-box; }
@@ -199,7 +264,10 @@ function exportBeurteilungPdf(ctx) {
   .fuss .note { font-size:14pt; font-weight:700; }
   .indiv { border:1px solid #999; padding:3mm; margin-top:4mm; min-height:30mm; white-space:pre-wrap; }
   .sign { display:flex; justify-content:space-between; margin-top:16mm; gap:8mm; }
-  .sign div { flex:1; border-top:1px solid #333; padding-top:2mm; font-size:8pt; text-align:center; }
+  .sign__slot { flex:1; display:flex; flex-direction:column; align-items:center; }
+  .sign__img { height:14mm; width:100%; display:flex; align-items:flex-end; justify-content:center; }
+  .sign__img img { max-height:14mm; max-width:100%; }
+  .sign__line { border-top:1px solid #333; padding-top:2mm; font-size:8pt; text-align:center; width:100%; }
   @media print { @page { size:A4; margin:0; } body { background:#fff; } .toolbar { display:none; } .sheet { margin:0; box-shadow:none; } }
 </style></head><body>
   <div class="toolbar"><button type="button" onclick="window.print()">Als PDF speichern / Drucken</button></div>
@@ -227,9 +295,9 @@ function exportBeurteilungPdf(ctx) {
     </div>
     <div><b>Individuelle Beurteilung:</b><div class="indiv">${esc(indiv)}</div></div>
     <div class="sign">
-      <div>Unterschrift des/r Beurteilenden</div>
-      <div>Unterschrift des/r Ausbildungsleiters/-in</div>
-      <div>Unterschrift des/r Auszubildenden</div>
+      ${beurteilung ? signSlot('beurteiler', beurteilung.hatBeurteilerUnterschrift, 'Unterschrift des/r Beurteilenden') : `<div class="sign__slot"><div class="sign__img"></div><div class="sign__line">Unterschrift des/r Beurteilenden</div></div>`}
+      ${beurteilung && !beurteilung.ausbildungsleiterSchrittEntfaellt ? signSlot('ausbildungsleiter', beurteilung.hatAusbildungsleiterUnterschrift, 'Unterschrift des/r Ausbildungsleiters/-in') : `<div class="sign__slot"><div class="sign__img"></div><div class="sign__line">${beurteilung?.ausbildungsleiterSchrittEntfaellt ? '' : 'Unterschrift des/r Ausbildungsleiters/-in'}</div></div>`}
+      ${beurteilung ? signSlot('azubi', beurteilung.hatKenntnisnahmeUnterschrift, 'Unterschrift des/r Auszubildenden') : `<div class="sign__slot"><div class="sign__img"></div><div class="sign__line">Unterschrift des/r Auszubildenden</div></div>`}
     </div>
     <p style="margin-top:6mm;font-size:8.5pt">Beurteilungsgespräch durchgeführt und Kopie erhalten am:
       ${gespraech ? esc(DateUtil.formatDate(gespraech)) : '________________'}</p>

@@ -6,6 +6,8 @@ const { berechne } = require('../../app/js/beurteilung-core.js');
 const { ladeKorrekturKontext } = require('./zugriffContext');
 const { verantwortlichFuerZuweisung, ymd } = require('./zugriff');
 const { aktiveVertreteneEmails } = require('./vertretungen');
+const unterschriftenSvc = require('./unterschriften');
+const berufeSvc = require('./berufe');
 
 const heuteYmd = () => new Date().toISOString().slice(0, 10);
 
@@ -29,6 +31,50 @@ async function darfBeurteilen(user, zuweisung, pool) {
   return verantwortlichFuerZuweisung(user, zuweisung, kontext);
 }
 
+// Eng: darf NUR der zeitlich zugewiesene Prüfer (E-Mail-Match) ODER admin/
+// developer bearbeiten. Anders als das bestehende, breitere darfBeurteilen
+// (das über verantwortlichFuerZuweisung auch den dauerhaften Ausbilder
+// einschließt) — der darf die Beurteilung zwar ANSEHEN, aber nicht mehr
+// bearbeiten (siehe Design-Spec 2026-08-21). Rein synchron, keine DB nötig.
+function darfBeurteilungBearbeiten(user, zuweisung) {
+  if (user.role === 'developer' || user.role === 'admin') return true;
+  if (!zuweisung) return false;
+  const email = (user.email || '').toLowerCase();
+  return !!email && (zuweisung.verantwortlicherEmail || '').toLowerCase() === email;
+}
+
+// Ermittelt den zuständigen Ausbildungsleiter für einen Azubi: dessen Beruf
+// wird über den Berufe-Katalog auf einen Bereich abgebildet, dann wird der
+// (einzige vorgesehene) Nutzer mit IstAusbildungsleiter=1 in diesem Bereich
+// gesucht. null, wenn kein Katalog-Treffer ODER kein passend getaggter
+// Nutzer existiert — beide Fälle werden von den Aufrufern gleich behandelt
+// (dritter Schritt entfällt lautlos, siehe Design-Spec, Abschnitt Randfälle).
+async function ermittleAusbildungsleiter(pool, azubiOid) {
+  const r = await pool.request().input('oid', sql.NVarChar(36), azubiOid)
+    .query('SELECT Beruf FROM dbo.Users WHERE Oid=@oid');
+  const beruf = r.recordset[0]?.Beruf ?? null;
+  const katalog = await berufeSvc.listBerufe();
+  const bereich = berufeSvc.bereichFuerBeruf(beruf, katalog);
+  if (!bereich) return null;
+  const leiter = await pool.request().input('bereich', sql.NVarChar(20), bereich)
+    .query('SELECT TOP 1 Oid FROM dbo.Users WHERE IstAusbildungsleiter=1 AND AusbildungsleiterBereich=@bereich ORDER BY Oid');
+  return leiter.recordset[0]?.Oid ?? null;
+}
+
+// Bestimmt, in welchem der vier Modi das Frontend die Beurteilung anzeigen
+// soll — EINE serverseitige Quelle statt (fehleranfälliger) Client-Heuristik.
+// b = das Ergebnis von getByZuweisung (oder irgendein Objekt mit denselben
+// AzubiOid/Status/AusbildungsleiterBestaetigtAm-Feldern).
+async function ermittleModus(user, zuweisung, b, pool) {
+  if (darfBeurteilungBearbeiten(user, zuweisung)) return 'bearbeiten';
+  if (user.oid === b.AzubiOid) return 'azubi';
+  if (b.Status === 'abgeschlossen' && !b.AusbildungsleiterBestaetigtAm && !b.ausbildungsleiterSchrittEntfaellt) {
+    const ausbildungsleiterOid = await ermittleAusbildungsleiter(pool, b.AzubiOid);
+    if (ausbildungsleiterOid && ausbildungsleiterOid === user.oid) return 'ausbildungsleiter';
+  }
+  return 'ansicht';
+}
+
 async function ladeKriterien(pool, beurteilungId) {
   const r = await pool.request()
     .input('bid', sql.Int, beurteilungId)
@@ -39,10 +85,30 @@ async function ladeKriterien(pool, beurteilungId) {
 async function getByZuweisung(pool, zuweisungId) {
   const r = await pool.request()
     .input('zid', sql.Int, zuweisungId)
-    .query('SELECT * FROM dbo.Beurteilungen WHERE ZuweisungId = @zid');
+    .query(`SELECT Id, ZuweisungId, AzubiOid, Status, IndividuelleBeurteilung, GesamtPunkte, Note,
+              GespraechAm, BeurteiltVon, AbgeschlossenAm, KenntnisnahmeVon, KenntnisnahmeAm,
+              KorrigiertVon, KorrigiertAm, ErstelltAm, AktualisiertAm,
+              BeurteilerUnterschriftExt, KenntnisnahmeUnterschriftExt,
+              AusbildungsleiterBestaetigtVon, AusbildungsleiterBestaetigtAm, AusbildungsleiterUnterschriftExt
+            FROM dbo.Beurteilungen WHERE ZuweisungId = @zid`);
   const b = r.recordset[0];
   if (!b) return null;
   b.kriterien = await ladeKriterien(pool, b.Id);
+  // Personalunion: ist der Beurteiler selbst der zuständige Ausbildungsleiter
+  // für diesen Azubi, entfällt der dritte Signaturschritt (keine doppelte
+  // Unterschrift derselben Person).
+  const ausbildungsleiterOid = b.BeurteiltVon ? await ermittleAusbildungsleiter(pool, b.AzubiOid) : null;
+  b.ausbildungsleiterSchrittEntfaellt = !!ausbildungsleiterOid && ausbildungsleiterOid === b.BeurteiltVon;
+  // Nur die *Ext-Spalten wurden geladen (nicht die *Bild-Spalten selbst — bis
+  // zu 2 MB je Slot, hier nur als Vorhanden-Flag gebraucht). Bild/Ext werden
+  // immer gemeinsam geschrieben, daher ist Ext-non-null gleichwertig zu
+  // Bild-non-null. Die eigentlichen Bilder kommen über den Bild-Endpunkt.
+  b.hatBeurteilerUnterschrift = !!b.BeurteilerUnterschriftExt;
+  b.hatKenntnisnahmeUnterschrift = !!b.KenntnisnahmeUnterschriftExt;
+  b.hatAusbildungsleiterUnterschrift = !!b.AusbildungsleiterUnterschriftExt;
+  delete b.BeurteilerUnterschriftExt;
+  delete b.KenntnisnahmeUnterschriftExt;
+  delete b.AusbildungsleiterUnterschriftExt;
   return b;
 }
 
@@ -117,11 +183,15 @@ async function erzeugeBenachrichtigung(runner, { userOid, typ, zuweisungId, from
             VALUES (@userOid,@typ,@zid,@from)`);
 }
 
-async function abschliessen(pool, id, autorOid) {
+async function abschliessen(pool, id, autorOid, signatur) {
   const cur = await pool.request().input('id', sql.Int, id)
     .query('SELECT Id, ZuweisungId, AzubiOid FROM dbo.Beurteilungen WHERE Id=@id');
   const b = cur.recordset[0];
   if (!b) throw new Error('Beurteilung nicht gefunden.');
+  const sigBytes = signatur ? unterschriftenSvc.dataUrlToBuffer(signatur.dataUrl) : null;
+  if (signatur && !sigBytes) throw new Error('Ungültige Unterschrift.');
+  unterschriftenSvc.pruefeGroesse(sigBytes);
+  const sigExt = signatur ? unterschriftenSvc.normExt(signatur.extension) : null;
   // Status-Update UND Azubi-Mitteilung atomar: schlägt der Benachrichtigungs-
   // INSERT fehl (z.B. CHECK-Constraint), wird auch der Abschluss zurückgerollt –
   // kein stiller Zustand "abgeschlossen ohne Mitteilung".
@@ -131,14 +201,25 @@ async function abschliessen(pool, id, autorOid) {
     await new sql.Request(tx)
       .input('id', sql.Int, id)
       .input('von', sql.NVarChar(36), autorOid)
+      .input('bild', sql.VarBinary(sql.MAX), sigBytes)
+      .input('ext', sql.NVarChar(10), sigExt)
       .query(`UPDATE dbo.Beurteilungen SET Status='abgeschlossen',
-                AbgeschlossenAm=SYSUTCDATETIME(), BeurteiltVon=@von, AktualisiertAm=SYSUTCDATETIME()
+                AbgeschlossenAm=SYSUTCDATETIME(), BeurteiltVon=@von,
+                BeurteilerUnterschriftBild=@bild, BeurteilerUnterschriftExt=@ext,
+                AktualisiertAm=SYSUTCDATETIME()
               WHERE Id=@id`);
     await erzeugeBenachrichtigung(tx, {
       userOid: b.AzubiOid, typ: 'beurteilung_abgeschlossen', zuweisungId: b.ZuweisungId, fromUserOid: autorOid,
     });
     await tx.commit();
   } catch (e) { await tx.rollback(); throw e; }
+  // Persönliche Standard-Unterschrift aktualisieren — best effort, AUSSERHALB
+  // der Transaktion: ein Fehlschlag hier darf den bereits committeten Abschluss
+  // nicht zurückrollen (rein komfortbezogen, kein Blocker).
+  if (signatur) {
+    try { await unterschriftenSvc.speichereMeine(pool, autorOid, signatur); }
+    catch (e) { console.error('[beurteilungen] speichereMeine (best effort):', e.message); }
+  }
 }
 
 async function patchNachAbschluss(pool, id, { kriterien, individuelleBeurteilung, gespraechAm }, autorOid) {
@@ -159,6 +240,10 @@ async function patchNachAbschluss(pool, id, { kriterien, individuelleBeurteilung
       .input('von', sql.NVarChar(36), autorOid)
       .query(`UPDATE dbo.Beurteilungen SET IndividuelleBeurteilung=@indiv, GesamtPunkte=@ges,
                 Note=@note, GespraechAm=@gespr, KorrigiertVon=@von, KorrigiertAm=SYSUTCDATETIME(),
+                KenntnisnahmeVon=NULL, KenntnisnahmeAm=NULL,
+                KenntnisnahmeUnterschriftBild=NULL, KenntnisnahmeUnterschriftExt=NULL,
+                AusbildungsleiterBestaetigtVon=NULL, AusbildungsleiterBestaetigtAm=NULL,
+                AusbildungsleiterUnterschriftBild=NULL, AusbildungsleiterUnterschriftExt=NULL,
                 AktualisiertAm=SYSUTCDATETIME() WHERE Id=@id`);
     await schreibeKriterien(tx, id, kriterien);
     // Mitteilung im selben Transaktions-Rahmen (atomar mit der Korrektur).
@@ -169,12 +254,45 @@ async function patchNachAbschluss(pool, id, { kriterien, individuelleBeurteilung
   } catch (e) { await tx.rollback(); throw e; }
 }
 
-async function kenntnisnahme(pool, id, azubiOid) {
+async function kenntnisnahme(pool, id, azubiOid, signatur) {
+  const sigBytes = signatur ? unterschriftenSvc.dataUrlToBuffer(signatur.dataUrl) : null;
+  if (signatur && !sigBytes) throw new Error('Ungültige Unterschrift.');
+  unterschriftenSvc.pruefeGroesse(sigBytes);
+  const sigExt = signatur ? unterschriftenSvc.normExt(signatur.extension) : null;
   await pool.request()
     .input('id', sql.Int, id)
     .input('oid', sql.NVarChar(36), azubiOid)
+    .input('bild', sql.VarBinary(sql.MAX), sigBytes)
+    .input('ext', sql.NVarChar(10), sigExt)
     .query(`UPDATE dbo.Beurteilungen SET KenntnisnahmeVon=@oid, KenntnisnahmeAm=SYSUTCDATETIME(),
+              KenntnisnahmeUnterschriftBild=@bild, KenntnisnahmeUnterschriftExt=@ext,
               AktualisiertAm=SYSUTCDATETIME() WHERE Id=@id AND AzubiOid=@oid`);
+  if (signatur) {
+    try { await unterschriftenSvc.speichereMeine(pool, azubiOid, signatur); }
+    catch (e) { console.error('[beurteilungen] speichereMeine (best effort):', e.message); }
+  }
+}
+
+// Dritter, eigenständiger Schritt: der zuständige Ausbildungsleiter bestätigt
+// die Beurteilung — unabhängig davon, ob/wann der Azubi seine Kenntnisnahme
+// gegeben hat (keine Reihenfolge-Pflicht, siehe Design-Spec).
+async function ausbildungsleiterBestaetigen(pool, id, ausbildungsleiterOid, signatur) {
+  const sigBytes = signatur ? unterschriftenSvc.dataUrlToBuffer(signatur.dataUrl) : null;
+  if (signatur && !sigBytes) throw new Error('Ungültige Unterschrift.');
+  unterschriftenSvc.pruefeGroesse(sigBytes);
+  const sigExt = signatur ? unterschriftenSvc.normExt(signatur.extension) : null;
+  await pool.request()
+    .input('id', sql.Int, id)
+    .input('von', sql.NVarChar(36), ausbildungsleiterOid)
+    .input('bild', sql.VarBinary(sql.MAX), sigBytes)
+    .input('ext', sql.NVarChar(10), sigExt)
+    .query(`UPDATE dbo.Beurteilungen SET AusbildungsleiterBestaetigtVon=@von, AusbildungsleiterBestaetigtAm=SYSUTCDATETIME(),
+              AusbildungsleiterUnterschriftBild=@bild, AusbildungsleiterUnterschriftExt=@ext,
+              AktualisiertAm=SYSUTCDATETIME() WHERE Id=@id`);
+  if (signatur) {
+    try { await unterschriftenSvc.speichereMeine(pool, ausbildungsleiterOid, signatur); }
+    catch (e) { console.error('[beurteilungen] speichereMeine (best effort):', e.message); }
+  }
 }
 
 // Beendete Durchläufe des Nutzers ohne abgeschlossene Beurteilung -> Mitteilung anlegen (idempotent).
@@ -265,7 +383,8 @@ async function listMeineBeurteilbaren(pool, user, azubiOid) {
 }
 
 module.exports = {
-  ladeZuweisung, darfBeurteilen, getByZuweisung, listByAzubi,
+  ladeZuweisung, darfBeurteilen, darfBeurteilungBearbeiten, ermittleAusbildungsleiter, ermittleModus,
+  getByZuweisung, listByAzubi,
   upsertEntwurf, abschliessen, patchNachAbschluss, kenntnisnahme, ermittleUndErzeugeFaellige,
-  listMeineBeurteilbaren,
+  listMeineBeurteilbaren, ausbildungsleiterBestaetigen,
 };

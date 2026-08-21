@@ -1,10 +1,11 @@
 /* ===================================================================
-   FAHRTGELD-SIGNATUR.JS
-   Signatur-Erstelldialog für die Fahrgelderstattung.
+   SIGNATUR-DIALOG.JS
+   Geteilter Signatur-Erstelldialog (Fahrgelderstattung + Beurteilung).
    Drei Tabs: Zeichnen (Canvas/Pointer), Tippen (Name → Handschrift),
    Hochladen (PNG/JPG). Liefert { dataUrl, extension } an onSave.
    Erzeugung der dataUrl ist der einzige Zweck — Persistenz/Einbettung
-   liegen bei fahrgelderstattung.js bzw. fahrtgeld-core.js.
+   liegen beim jeweiligen Aufrufer (fahrgelderstattung.js bzw.
+   beurteilung.js).
    =================================================================== */
 (function () {
   'use strict';
@@ -20,7 +21,7 @@
 
   let state = null;  // { onSave, activeTab, currentFont, pendingUpload, drawCtx, drawInk, drawReady }
 
-  function buildMarkup() {
+  function buildMarkup(bestehende) {
     return `
       <div class="modal-overlay" id="fgSigModal" role="dialog" aria-modal="true" aria-label="Unterschrift erstellen">
         <div class="modal" style="max-width:600px">
@@ -31,6 +32,13 @@
             </button>
           </div>
           <div class="modal__body">
+            ${bestehende ? `
+              <div class="sig-bestehende">
+                <img src="${bestehende.dataUrl}" alt="Hinterlegte Unterschrift" class="sig-bestehende__img">
+                <button class="btn btn-primary btn-sm" id="fg-sig-use-bestehende" type="button">Diese Unterschrift verwenden</button>
+              </div>
+              <p class="hint" style="margin:var(--sp-3) 0">Oder neu erstellen:</p>
+            ` : ''}
             <div class="sig-tabs" role="tablist">
               <button class="sig-tab is-active" data-sig-tab="draw"   type="button">Zeichnen</button>
               <button class="sig-tab"           data-sig-tab="type"   type="button">Tippen</button>
@@ -206,14 +214,19 @@
       Toast?.warning?.('Leer', 'Bitte zuerst eine Unterschrift erstellen.');
       return;
     }
-    state.onSave?.(sig);
+    await state.onSave?.(sig);
     Modal?.closeAll?.();
   }
 
-  function open({ name, onSave }) {
+  function open({ name, onSave, bestehende }) {
     document.getElementById('fgSigModal')?.remove();
-    document.body.insertAdjacentHTML('beforeend', buildMarkup());
-    state = { onSave, activeTab: 'draw', currentFont: FONTS[0], pendingUpload: null, drawCtx: null, drawInk: false, drawReady: false };
+    document.body.insertAdjacentHTML('beforeend', buildMarkup(bestehende));
+    state = { onSave, activeTab: 'draw', currentFont: FONTS[0], pendingUpload: null, drawCtx: null, drawInk: false, drawReady: false, bestehende: bestehende || null };
+
+    document.getElementById('fg-sig-use-bestehende')?.addEventListener('click', async () => {
+      await state.onSave?.(state.bestehende);
+      Modal?.closeAll?.();
+    });
 
     document.querySelectorAll('#fgSigModal .sig-tab').forEach(btn =>
       btn.addEventListener('click', () => switchTab(btn.dataset.sigTab)));

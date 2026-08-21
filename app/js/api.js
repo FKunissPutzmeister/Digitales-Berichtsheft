@@ -318,6 +318,13 @@ function normalizeBeurteilung(b) {
     korrigiertVon: b.KorrigiertVon ?? null,
     korrigiertAm: b.KorrigiertAm ?? null,
     kriterien: (b.kriterien || []).map(k => ({ kriteriumKey: k.kriteriumKey, punkte: k.punkte })),
+    modus: b.modus ?? null,
+    ausbildungsleiterSchrittEntfaellt: !!b.ausbildungsleiterSchrittEntfaellt,
+    ausbildungsleiterBestaetigtVon: b.AusbildungsleiterBestaetigtVon ?? null,
+    ausbildungsleiterBestaetigtAm: b.AusbildungsleiterBestaetigtAm ?? null,
+    hatBeurteilerUnterschrift: !!b.hatBeurteilerUnterschrift,
+    hatKenntnisnahmeUnterschrift: !!b.hatKenntnisnahmeUnterschrift,
+    hatAusbildungsleiterUnterschrift: !!b.hatAusbildungsleiterUnterschrift,
   };
 }
 
@@ -867,13 +874,39 @@ const DB = {
     const data = await apiFetch('/beurteilungen', { method: 'POST', body: payload });
     return data.id;
   },
-  async abschliessenBeurteilung(id) {
-    await apiFetch(`/beurteilungen/${id}/abschliessen`, { method: 'PATCH' });
+  async abschliessenBeurteilung(id, signatur) {
+    await apiFetch(`/beurteilungen/${id}/abschliessen`, { method: 'PATCH', body: { signatur: signatur || null } });
   },
   async patchBeurteilung(id, payload) {
     await apiFetch(`/beurteilungen/${id}`, { method: 'PATCH', body: payload });
   },
-  async kenntnisnahmeBeurteilung(id) {
-    await apiFetch(`/beurteilungen/${id}/kenntnisnahme`, { method: 'PATCH' });
+  async kenntnisnahmeBeurteilung(id, signatur) {
+    await apiFetch(`/beurteilungen/${id}/kenntnisnahme`, { method: 'PATCH', body: { signatur: signatur || null } });
+  },
+  async ausbildungsleiterBestaetigenBeurteilung(id, signatur) {
+    await apiFetch(`/beurteilungen/${id}/ausbildungsleiter-bestaetigung`, { method: 'PATCH', body: { signatur: signatur || null } });
+  },
+  beurteilungUnterschriftUrl(beurteilungId, rolle) {
+    return `${API_BASE}/beurteilungen/${beurteilungId}/unterschrift/${rolle}`;
+  },
+  async getMeineUnterschrift() {
+    return await apiFetch('/unterschrift/meine');
+  },
+  async setMeineUnterschrift(signatur) {
+    await apiFetch('/unterschrift/meine', { method: 'PUT', body: signatur });
+  },
+
+  /* Berufe-Katalog */
+  async getBerufe() {
+    return await apiFetch('/berufe');
+  },
+  async createBeruf(fields) {
+    return await apiFetch('/berufe', { method: 'POST', body: fields });
+  },
+  async updateBeruf(id, fields) {
+    return await apiFetch(`/berufe/${id}`, { method: 'PATCH', body: fields });
+  },
+  async deleteBeruf(id) {
+    await apiFetch(`/berufe/${id}`, { method: 'DELETE' });
   },
 };

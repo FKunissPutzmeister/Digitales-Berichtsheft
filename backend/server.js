@@ -123,6 +123,8 @@ const anhaengeRouter       = require('./routes/anhaenge');
 const benachrichtigungenRouter = require('./routes/benachrichtigungen');
 const fahrtgeldRouter      = require('./routes/fahrtgeld');
 const beurteilungenRouter  = require('./routes/beurteilungen');
+const unterschriftRouter   = require('./routes/unterschrift');
+const berufeRouter         = require('./routes/berufe');
 const ihkImportsRouter     = require('./routes/ihk-imports');
 const syncRouter           = require('./routes/sync');
 const apiKeysRouter        = require('./routes/apiKeys');
@@ -136,11 +138,13 @@ app.use('/api/zuweisungen',         devAuth, zuweisungenRouter);
 app.use('/api/vertretungen',        devAuth, vertretungenRouter);
 app.use('/api/planer-gruppen',      devAuth, planerGruppenRouter);
 app.use('/api/abteilungen',         devAuth, abteilungenRouter);
+app.use('/api/berufe',              devAuth, berufeRouter);
 app.use('/api/wochen',              devAuth, kommentareRouter);   // POST /api/wochen/:id/kommentare
 app.use('/api/wochen',              devAuth, anhaengeRouter);     // /api/wochen/:id/anhaenge, /api/wochen/anhaenge/:id
 app.use('/api/benachrichtigungen',  devAuth, benachrichtigungenRouter);
 app.use('/api/fahrtgeld',           devAuth, fahrtgeldRouter);
 app.use('/api/beurteilungen',       devAuth, beurteilungenRouter);
+app.use('/api/unterschrift',        devAuth, unterschriftRouter);
 app.use('/api/ihk-imports',         devAuth, ihkImportsRouter);
 app.use('/api/sync',                devAuth, syncRouter);
 app.use('/api/apikeys',             devAuth, apiKeysRouter);
