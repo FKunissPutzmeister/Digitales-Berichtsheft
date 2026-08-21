@@ -21,7 +21,7 @@
 
   let state = null;  // { onSave, activeTab, currentFont, pendingUpload, drawCtx, drawInk, drawReady }
 
-  function buildMarkup() {
+  function buildMarkup(bestehende) {
     return `
       <div class="modal-overlay" id="fgSigModal" role="dialog" aria-modal="true" aria-label="Unterschrift erstellen">
         <div class="modal" style="max-width:600px">
@@ -32,6 +32,13 @@
             </button>
           </div>
           <div class="modal__body">
+            ${bestehende ? `
+              <div class="sig-bestehende">
+                <img src="${bestehende.dataUrl}" alt="Hinterlegte Unterschrift" class="sig-bestehende__img">
+                <button class="btn btn-primary btn-sm" id="fg-sig-use-bestehende" type="button">Diese Unterschrift verwenden</button>
+              </div>
+              <p class="hint" style="margin:var(--sp-3) 0">Oder neu erstellen:</p>
+            ` : ''}
             <div class="sig-tabs" role="tablist">
               <button class="sig-tab is-active" data-sig-tab="draw"   type="button">Zeichnen</button>
               <button class="sig-tab"           data-sig-tab="type"   type="button">Tippen</button>
@@ -211,10 +218,15 @@
     Modal?.closeAll?.();
   }
 
-  function open({ name, onSave }) {
+  function open({ name, onSave, bestehende }) {
     document.getElementById('fgSigModal')?.remove();
-    document.body.insertAdjacentHTML('beforeend', buildMarkup());
-    state = { onSave, activeTab: 'draw', currentFont: FONTS[0], pendingUpload: null, drawCtx: null, drawInk: false, drawReady: false };
+    document.body.insertAdjacentHTML('beforeend', buildMarkup(bestehende));
+    state = { onSave, activeTab: 'draw', currentFont: FONTS[0], pendingUpload: null, drawCtx: null, drawInk: false, drawReady: false, bestehende: bestehende || null };
+
+    document.getElementById('fg-sig-use-bestehende')?.addEventListener('click', () => {
+      state.onSave?.(state.bestehende);
+      Modal?.closeAll?.();
+    });
 
     document.querySelectorAll('#fgSigModal .sig-tab').forEach(btn =>
       btn.addEventListener('click', () => switchTab(btn.dataset.sigTab)));
