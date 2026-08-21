@@ -31,6 +31,13 @@ function pruefeGroesse(bytes) {
   if (bytes && bytes.length > MAX_BYTES) throw new Error('Unterschrift zu groß (max. 2 MB).');
 }
 
+// Signatur-Validierungsfehler (dataUrlToBuffer/pruefeGroesse) sind Client-
+// Fehler (400), kein Server-Bug — von allen Routen wiederverwendet, die
+// Signaturen entgegennehmen.
+function istValidierungsfehler(err) {
+  return /zu groß|Ungültige/.test(err.message);
+}
+
 async function holeMeine(pool, oid) {
   const r = await pool.request()
     .input('oid', sql.NVarChar(36), oid)
@@ -57,4 +64,4 @@ async function speichereMeine(pool, oid, { dataUrl, extension } = {}) {
   return bytes;
 }
 
-module.exports = { dataUrlToBuffer, bufferToDataUrl, normExt, pruefeGroesse, holeMeine, speichereMeine, MAX_BYTES };
+module.exports = { dataUrlToBuffer, bufferToDataUrl, normExt, pruefeGroesse, istValidierungsfehler, holeMeine, speichereMeine, MAX_BYTES };

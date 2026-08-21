@@ -47,6 +47,15 @@ async function istDauerhafterAusbilder(user, azubiOid, pool) {
   return istDauerhafterAusbilderVon(user.oid, zeilen);
 }
 
+// Wiederverwendbare Personalunion-Prüfung für Schreibpfade (die Lesepfad-
+// Berechnung steckt bereits in getByZuweisung; dieser Helfer macht dieselbe
+// Prüfung verfügbar, ohne eine ganze Zuweisung laden zu müssen).
+async function berechneAusbilderSchrittEntfaellt(beurteiltVon, azubiOid) {
+  if (!beurteiltVon) return false;
+  const zeilen = await listFuerAzubi(azubiOid);
+  return istDauerhafterAusbilderVon(beurteiltVon, zeilen);
+}
+
 async function ladeKriterien(pool, beurteilungId) {
   const r = await pool.request()
     .input('bid', sql.Int, beurteilungId)
@@ -358,5 +367,5 @@ module.exports = {
   ladeZuweisung, darfBeurteilen, getByZuweisung, listByAzubi,
   upsertEntwurf, abschliessen, patchNachAbschluss, kenntnisnahme, ermittleUndErzeugeFaellige,
   listMeineBeurteilbaren, istDauerhafterAusbilderVon, istDauerhafterAusbilder,
-  ausbilderBestaetigen,
+  ausbilderBestaetigen, berechneAusbilderSchrittEntfaellt,
 };

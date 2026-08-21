@@ -22,7 +22,7 @@ router.put('/meine', async (req, res) => {
     await svc.speichereMeine(pool, req.user.oid, req.body || {});
     res.json({ ok: true });
   } catch (err) {
-    const clientError = /zu groß|Ungültige/.test(err.message);
+    const clientError = svc.istValidierungsfehler(err);
     if (!clientError) {
       logError({ quelle: 'backend', nachricht: `[unterschrift] meine put: ${err.message}`, stack: err.stack,
         kontext: { route: req.path, methode: req.method }, benutzerOid: req.user && req.user.oid, benutzerName: req.user && req.user.name });

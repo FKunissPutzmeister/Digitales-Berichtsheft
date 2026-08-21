@@ -1,6 +1,7 @@
 const router = require('express').Router();
 const { getPool, sql } = require('../db/connection');
 const svc = require('../services/beurteilungen');
+const unterschriftenSvc = require('../services/unterschriften');
 const { ladeKorrekturKontext } = require('../services/zugriffContext');
 const { logError } = require('../services/fehlerberichte');
 
@@ -117,13 +118,6 @@ async function ladeUndAutorisiere(req, res) {
   return { pool, b, zuw };
 }
 
-// Signatur-Validierungsfehler (dataUrlToBuffer/pruefeGroesse werfen "Ungültige
-// Unterschrift."/"...zu groß...") sind Client-Fehler (400), kein Server-Bug —
-// analog zum bestehenden Muster in backend/routes/unterschrift.js.
-function istSignaturFehler(err) {
-  return /zu groß|Ungültige/.test(err.message);
-}
-
 // PATCH /api/beurteilungen/:id/abschliessen
 router.patch('/:id/abschliessen', async (req, res) => {
   try {
@@ -131,7 +125,7 @@ router.patch('/:id/abschliessen', async (req, res) => {
     await svc.abschliessen(ctx.pool, ctx.b.Id, req.user.oid, req.body.signatur || null);
     res.json({ ok: true });
   } catch (err) {
-    if (istSignaturFehler(err)) return res.status(400).json({ error: err.message });
+    if (unterschriftenSvc.istValidierungsfehler(err)) return res.status(400).json({ error: err.message });
     logError({ quelle: 'backend', nachricht: `[beurteilungen] abschliessen: ${err.message}`, stack: err.stack,
       kontext: { route: req.path, methode: req.method }, benutzerOid: req.user && req.user.oid, benutzerName: req.user && req.user.name });
     res.status(500).json({ error: err.message });
@@ -164,7 +158,7 @@ router.patch('/:id/kenntnisnahme', async (req, res) => {
     await svc.kenntnisnahme(pool, Number(req.params.id), req.user.oid, req.body.signatur || null);
     res.json({ ok: true });
   } catch (err) {
-    if (istSignaturFehler(err)) return res.status(400).json({ error: err.message });
+    if (unterschriftenSvc.istValidierungsfehler(err)) return res.status(400).json({ error: err.message });
     logError({ quelle: 'backend', nachricht: `[beurteilungen] kenntnisnahme: ${err.message}`, stack: err.stack,
       kontext: { route: req.path, methode: req.method }, benutzerOid: req.user && req.user.oid, benutzerName: req.user && req.user.name });
     res.status(500).json({ error: err.message });
@@ -176,17 +170,20 @@ router.patch('/:id/ausbilder-bestaetigung', async (req, res) => {
   try {
     const pool = await getPool();
     const r = await pool.request().input('id', sql.Int, Number(req.params.id))
-      .query('SELECT Id, AzubiOid, Status, AusbilderBestaetigtAm FROM dbo.Beurteilungen WHERE Id=@id');
+      .query('SELECT Id, AzubiOid, BeurteiltVon, Status, AusbilderBestaetigtAm FROM dbo.Beurteilungen WHERE Id=@id');
     const b = r.recordset[0];
     if (!b) return res.status(404).json({ error: 'Beurteilung nicht gefunden.' });
     if (!(await svc.istDauerhafterAusbilder(req.user, b.AzubiOid, pool))) {
       return res.status(403).json({ error: 'Nur der zuständige Ausbilder kann bestätigen.' });
     }
     if (b.Status !== 'abgeschlossen') return res.status(400).json({ error: 'Beurteilung ist noch nicht abgeschlossen.' });
+    if (await svc.berechneAusbilderSchrittEntfaellt(b.BeurteiltVon, b.AzubiOid)) {
+      return res.status(400).json({ error: 'Dieser Bestätigungsschritt ist für diese Beurteilung nicht erforderlich.' });
+    }
     await svc.ausbilderBestaetigen(pool, b.Id, req.user.oid, req.body.signatur || null);
     res.json({ ok: true });
   } catch (err) {
-    if (istSignaturFehler(err)) return res.status(400).json({ error: err.message });
+    if (unterschriftenSvc.istValidierungsfehler(err)) return res.status(400).json({ error: err.message });
     logError({ quelle: 'backend', nachricht: `[beurteilungen] ausbilder-bestaetigung: ${err.message}`, stack: err.stack,
       kontext: { route: req.path, methode: req.method }, benutzerOid: req.user && req.user.oid, benutzerName: req.user && req.user.name });
     res.status(500).json({ error: err.message });

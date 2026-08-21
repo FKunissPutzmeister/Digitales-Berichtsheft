@@ -87,3 +87,9 @@ test('speichereMeine: wirft bei zu grosser Unterschrift, OHNE die DB anzufassen'
   await assert.rejects(() => U.speichereMeine(pool, 'OID-1', { dataUrl: `data:image/png;base64,${riesig}`, extension: 'png' }), /zu groß/);
   assert.equal(pool.calls.length, 0);
 });
+
+test('istValidierungsfehler erkennt Groessen- und Formatfehler, sonst nicht', () => {
+  assert.equal(U.istValidierungsfehler(new Error('Unterschrift zu groß (max. 2 MB).')), true);
+  assert.equal(U.istValidierungsfehler(new Error('Ungültige Unterschrift.')), true);
+  assert.equal(U.istValidierungsfehler(new Error('Datenbank nicht erreichbar')), false);
+});
