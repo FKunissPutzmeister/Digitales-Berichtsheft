@@ -61,6 +61,20 @@ async function ermittleAusbildungsleiter(pool, azubiOid) {
   return leiter.recordset[0]?.Oid ?? null;
 }
 
+// Bestimmt, in welchem der vier Modi das Frontend die Beurteilung anzeigen
+// soll — EINE serverseitige Quelle statt (fehleranfälliger) Client-Heuristik.
+// b = das Ergebnis von getByZuweisung (oder irgendein Objekt mit denselben
+// AzubiOid/Status/AusbildungsleiterBestaetigtAm-Feldern).
+async function ermittleModus(user, zuweisung, b, pool) {
+  if (darfBeurteilungBearbeiten(user, zuweisung)) return 'bearbeiten';
+  if (user.oid === b.AzubiOid) return 'azubi';
+  if (b.Status === 'abgeschlossen' && !b.AusbildungsleiterBestaetigtAm && !b.ausbildungsleiterSchrittEntfaellt) {
+    const ausbildungsleiterOid = await ermittleAusbildungsleiter(pool, b.AzubiOid);
+    if (ausbildungsleiterOid && ausbildungsleiterOid === user.oid) return 'ausbildungsleiter';
+  }
+  return 'ansicht';
+}
+
 async function ladeKriterien(pool, beurteilungId) {
   const r = await pool.request()
     .input('bid', sql.Int, beurteilungId)
@@ -75,26 +89,26 @@ async function getByZuweisung(pool, zuweisungId) {
               GespraechAm, BeurteiltVon, AbgeschlossenAm, KenntnisnahmeVon, KenntnisnahmeAm,
               KorrigiertVon, KorrigiertAm, ErstelltAm, AktualisiertAm,
               BeurteilerUnterschriftExt, KenntnisnahmeUnterschriftExt,
-              AusbilderBestaetigtVon, AusbilderBestaetigtAm, AusbilderUnterschriftExt
+              AusbildungsleiterBestaetigtVon, AusbildungsleiterBestaetigtAm, AusbildungsleiterUnterschriftExt
             FROM dbo.Beurteilungen WHERE ZuweisungId = @zid`);
   const b = r.recordset[0];
   if (!b) return null;
   b.kriterien = await ladeKriterien(pool, b.Id);
-  // Personalunion: hat der Beurteiler selbst bereits die dauerhafte
-  // Ausbilder-Rolle für diesen Azubi, entfällt der dritte Signaturschritt
-  // (keine doppelte Unterschrift derselben Person).
-  const ausbilderZeilen = b.BeurteiltVon ? await listFuerAzubi(b.AzubiOid) : [];
-  b.ausbilderSchrittEntfaellt = istDauerhafterAusbilderVon(b.BeurteiltVon, ausbilderZeilen);
+  // Personalunion: ist der Beurteiler selbst der zuständige Ausbildungsleiter
+  // für diesen Azubi, entfällt der dritte Signaturschritt (keine doppelte
+  // Unterschrift derselben Person).
+  const ausbildungsleiterOid = b.BeurteiltVon ? await ermittleAusbildungsleiter(pool, b.AzubiOid) : null;
+  b.ausbildungsleiterSchrittEntfaellt = !!ausbildungsleiterOid && ausbildungsleiterOid === b.BeurteiltVon;
   // Nur die *Ext-Spalten wurden geladen (nicht die *Bild-Spalten selbst — bis
   // zu 2 MB je Slot, hier nur als Vorhanden-Flag gebraucht). Bild/Ext werden
   // immer gemeinsam geschrieben, daher ist Ext-non-null gleichwertig zu
-  // Bild-non-null. Die eigentlichen Bilder kommen über den Bild-Endpunkt (Task 13).
+  // Bild-non-null. Die eigentlichen Bilder kommen über den Bild-Endpunkt.
   b.hatBeurteilerUnterschrift = !!b.BeurteilerUnterschriftExt;
   b.hatKenntnisnahmeUnterschrift = !!b.KenntnisnahmeUnterschriftExt;
-  b.hatAusbilderUnterschrift = !!b.AusbilderUnterschriftExt;
+  b.hatAusbildungsleiterUnterschrift = !!b.AusbildungsleiterUnterschriftExt;
   delete b.BeurteilerUnterschriftExt;
   delete b.KenntnisnahmeUnterschriftExt;
-  delete b.AusbilderUnterschriftExt;
+  delete b.AusbildungsleiterUnterschriftExt;
   return b;
 }
 
@@ -228,8 +242,8 @@ async function patchNachAbschluss(pool, id, { kriterien, individuelleBeurteilung
                 Note=@note, GespraechAm=@gespr, KorrigiertVon=@von, KorrigiertAm=SYSUTCDATETIME(),
                 KenntnisnahmeVon=NULL, KenntnisnahmeAm=NULL,
                 KenntnisnahmeUnterschriftBild=NULL, KenntnisnahmeUnterschriftExt=NULL,
-                AusbilderBestaetigtVon=NULL, AusbilderBestaetigtAm=NULL,
-                AusbilderUnterschriftBild=NULL, AusbilderUnterschriftExt=NULL,
+                AusbildungsleiterBestaetigtVon=NULL, AusbildungsleiterBestaetigtAm=NULL,
+                AusbildungsleiterUnterschriftBild=NULL, AusbildungsleiterUnterschriftExt=NULL,
                 AktualisiertAm=SYSUTCDATETIME() WHERE Id=@id`);
     await schreibeKriterien(tx, id, kriterien);
     // Mitteilung im selben Transaktions-Rahmen (atomar mit der Korrektur).
@@ -369,8 +383,8 @@ async function listMeineBeurteilbaren(pool, user, azubiOid) {
 }
 
 module.exports = {
-  ladeZuweisung, darfBeurteilen, darfBeurteilungBearbeiten, ermittleAusbildungsleiter,
+  ladeZuweisung, darfBeurteilen, darfBeurteilungBearbeiten, ermittleAusbildungsleiter, ermittleModus,
   getByZuweisung, listByAzubi,
   upsertEntwurf, abschliessen, patchNachAbschluss, kenntnisnahme, ermittleUndErzeugeFaellige,
-  listMeineBeurteilbaren,
+  listMeineBeurteilbaren, ausbildungsleiterBestaetigen,
 };
