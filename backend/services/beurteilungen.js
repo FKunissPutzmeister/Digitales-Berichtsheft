@@ -6,8 +6,8 @@ const { berechne } = require('../../app/js/beurteilung-core.js');
 const { ladeKorrekturKontext } = require('./zugriffContext');
 const { verantwortlichFuerZuweisung, ymd } = require('./zugriff');
 const { aktiveVertreteneEmails } = require('./vertretungen');
-const { listFuerAzubi } = require('./ausbilderAzubis');
 const unterschriftenSvc = require('./unterschriften');
+const berufeSvc = require('./berufe');
 
 const heuteYmd = () => new Date().toISOString().slice(0, 10);
 
@@ -31,29 +31,34 @@ async function darfBeurteilen(user, zuweisung, pool) {
   return verantwortlichFuerZuweisung(user, zuweisung, kontext);
 }
 
-// Datums-UNABHÄNGIGE Prüfung: ist userOid unter den dauerhaften Ausbildern
-// dieses Azubis (dbo.AusbilderAzubis)? Reine Logik, DB-unabhängig testbar —
-// analog zum Muster verantwortlichFuerZuweisung/darfBeurteilen.
-function istDauerhafterAusbilderVon(userOid, ausbilderZeilen) {
-  if (!userOid) return false;
-  return (ausbilderZeilen || []).some(a => a.oid === userOid);
-}
-
-// Ist der Nutzer der dauerhafte Ausbilder DIESES Azubis? admin/developer
-// zählen immer (wie bei darfBeurteilen). user zuerst, analog zu darfBeurteilen.
-async function istDauerhafterAusbilder(user, azubiOid, pool) {
+// Eng: darf NUR der zeitlich zugewiesene Prüfer (E-Mail-Match) ODER admin/
+// developer bearbeiten. Anders als das bestehende, breitere darfBeurteilen
+// (das über verantwortlichFuerZuweisung auch den dauerhaften Ausbilder
+// einschließt) — der darf die Beurteilung zwar ANSEHEN, aber nicht mehr
+// bearbeiten (siehe Design-Spec 2026-08-21). Rein synchron, keine DB nötig.
+function darfBeurteilungBearbeiten(user, zuweisung) {
   if (user.role === 'developer' || user.role === 'admin') return true;
-  const zeilen = await listFuerAzubi(azubiOid);
-  return istDauerhafterAusbilderVon(user.oid, zeilen);
+  if (!zuweisung) return false;
+  const email = (user.email || '').toLowerCase();
+  return !!email && (zuweisung.verantwortlicherEmail || '').toLowerCase() === email;
 }
 
-// Wiederverwendbare Personalunion-Prüfung für Schreibpfade (die Lesepfad-
-// Berechnung steckt bereits in getByZuweisung; dieser Helfer macht dieselbe
-// Prüfung verfügbar, ohne eine ganze Zuweisung laden zu müssen).
-async function berechneAusbilderSchrittEntfaellt(beurteiltVon, azubiOid) {
-  if (!beurteiltVon) return false;
-  const zeilen = await listFuerAzubi(azubiOid);
-  return istDauerhafterAusbilderVon(beurteiltVon, zeilen);
+// Ermittelt den zuständigen Ausbildungsleiter für einen Azubi: dessen Beruf
+// wird über den Berufe-Katalog auf einen Bereich abgebildet, dann wird der
+// (einzige vorgesehene) Nutzer mit IstAusbildungsleiter=1 in diesem Bereich
+// gesucht. null, wenn kein Katalog-Treffer ODER kein passend getaggter
+// Nutzer existiert — beide Fälle werden von den Aufrufern gleich behandelt
+// (dritter Schritt entfällt lautlos, siehe Design-Spec, Abschnitt Randfälle).
+async function ermittleAusbildungsleiter(pool, azubiOid) {
+  const r = await pool.request().input('oid', sql.NVarChar(36), azubiOid)
+    .query('SELECT Beruf FROM dbo.Users WHERE Oid=@oid');
+  const beruf = r.recordset[0]?.Beruf ?? null;
+  const katalog = await berufeSvc.listBerufe();
+  const bereich = berufeSvc.bereichFuerBeruf(beruf, katalog);
+  if (!bereich) return null;
+  const leiter = await pool.request().input('bereich', sql.NVarChar(20), bereich)
+    .query('SELECT TOP 1 Oid FROM dbo.Users WHERE IstAusbildungsleiter=1 AND AusbildungsleiterBereich=@bereich ORDER BY Oid');
+  return leiter.recordset[0]?.Oid ?? null;
 }
 
 async function ladeKriterien(pool, beurteilungId) {
@@ -364,8 +369,8 @@ async function listMeineBeurteilbaren(pool, user, azubiOid) {
 }
 
 module.exports = {
-  ladeZuweisung, darfBeurteilen, getByZuweisung, listByAzubi,
+  ladeZuweisung, darfBeurteilen, darfBeurteilungBearbeiten, ermittleAusbildungsleiter,
+  getByZuweisung, listByAzubi,
   upsertEntwurf, abschliessen, patchNachAbschluss, kenntnisnahme, ermittleUndErzeugeFaellige,
-  listMeineBeurteilbaren, istDauerhafterAusbilderVon, istDauerhafterAusbilder,
-  ausbilderBestaetigen, berechneAusbilderSchrittEntfaellt,
+  listMeineBeurteilbaren,
 };
