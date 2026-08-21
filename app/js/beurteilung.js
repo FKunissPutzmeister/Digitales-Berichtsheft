@@ -216,6 +216,12 @@ function exportBeurteilungPdf(ctx) {
   }).join('');
   const blockSum = block => f1(r.bloecke[block]);
 
+  const signSlot = (rolle, hat, label) => `
+    <div class="sign__slot">
+      <div class="sign__img">${hat ? `<img src="${DB.beurteilungUnterschriftUrl(beurteilung.id, rolle)}" alt="Unterschrift ${esc(label)}">` : ''}</div>
+      <div class="sign__line">${esc(label)}</div>
+    </div>`;
+
   const html = `<!DOCTYPE html><html lang="de"><head><meta charset="UTF-8">
 <title>Beurteilung – ${esc(displayName(azubi?.name || ''))}</title><style>
   * { -webkit-print-color-adjust: exact; print-color-adjust: exact; box-sizing: border-box; }
@@ -235,7 +241,10 @@ function exportBeurteilungPdf(ctx) {
   .fuss .note { font-size:14pt; font-weight:700; }
   .indiv { border:1px solid #999; padding:3mm; margin-top:4mm; min-height:30mm; white-space:pre-wrap; }
   .sign { display:flex; justify-content:space-between; margin-top:16mm; gap:8mm; }
-  .sign div { flex:1; border-top:1px solid #333; padding-top:2mm; font-size:8pt; text-align:center; }
+  .sign__slot { flex:1; display:flex; flex-direction:column; align-items:center; }
+  .sign__img { height:14mm; width:100%; display:flex; align-items:flex-end; justify-content:center; }
+  .sign__img img { max-height:14mm; max-width:100%; }
+  .sign__line { border-top:1px solid #333; padding-top:2mm; font-size:8pt; text-align:center; width:100%; }
   @media print { @page { size:A4; margin:0; } body { background:#fff; } .toolbar { display:none; } .sheet { margin:0; box-shadow:none; } }
 </style></head><body>
   <div class="toolbar"><button type="button" onclick="window.print()">Als PDF speichern / Drucken</button></div>
@@ -263,9 +272,9 @@ function exportBeurteilungPdf(ctx) {
     </div>
     <div><b>Individuelle Beurteilung:</b><div class="indiv">${esc(indiv)}</div></div>
     <div class="sign">
-      <div>Unterschrift des/r Beurteilenden</div>
-      <div>Unterschrift des/r Ausbildungsleiters/-in</div>
-      <div>Unterschrift des/r Auszubildenden</div>
+      ${beurteilung ? signSlot('beurteiler', beurteilung.hatBeurteilerUnterschrift, 'Unterschrift des/r Beurteilenden') : `<div class="sign__slot"><div class="sign__img"></div><div class="sign__line">Unterschrift des/r Beurteilenden</div></div>`}
+      ${beurteilung && !beurteilung.ausbilderSchrittEntfaellt ? signSlot('ausbilder', beurteilung.hatAusbilderUnterschrift, 'Unterschrift des/r Ausbildungsleiters/-in') : `<div class="sign__slot"><div class="sign__img"></div><div class="sign__line">${beurteilung?.ausbilderSchrittEntfaellt ? '' : 'Unterschrift des/r Ausbildungsleiters/-in'}</div></div>`}
+      ${beurteilung ? signSlot('azubi', beurteilung.hatKenntnisnahmeUnterschrift, 'Unterschrift des/r Auszubildenden') : `<div class="sign__slot"><div class="sign__img"></div><div class="sign__line">Unterschrift des/r Auszubildenden</div></div>`}
     </div>
     <p style="margin-top:6mm;font-size:8.5pt">Beurteilungsgespräch durchgeführt und Kopie erhalten am:
       ${gespraech ? esc(DateUtil.formatDate(gespraech)) : '________________'}</p>
