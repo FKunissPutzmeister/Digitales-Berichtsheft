@@ -212,6 +212,10 @@ async function patchNachAbschluss(pool, id, { kriterien, individuelleBeurteilung
       .input('von', sql.NVarChar(36), autorOid)
       .query(`UPDATE dbo.Beurteilungen SET IndividuelleBeurteilung=@indiv, GesamtPunkte=@ges,
                 Note=@note, GespraechAm=@gespr, KorrigiertVon=@von, KorrigiertAm=SYSUTCDATETIME(),
+                KenntnisnahmeVon=NULL, KenntnisnahmeAm=NULL,
+                KenntnisnahmeUnterschriftBild=NULL, KenntnisnahmeUnterschriftExt=NULL,
+                AusbilderBestaetigtVon=NULL, AusbilderBestaetigtAm=NULL,
+                AusbilderUnterschriftBild=NULL, AusbilderUnterschriftExt=NULL,
                 AktualisiertAm=SYSUTCDATETIME() WHERE Id=@id`);
     await schreibeKriterien(tx, id, kriterien);
     // Mitteilung im selben Transaktions-Rahmen (atomar mit der Korrektur).
