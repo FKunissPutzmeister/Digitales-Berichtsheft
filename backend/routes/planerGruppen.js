@@ -72,6 +72,53 @@ router.get('/', async (req, res) => {
   } catch (err) { fehler(req, res, err, 'list'); }
 });
 
+/* Gruppen-Reihenfolge der Plantafel (dbo.PlanerGruppenSortierung, Migration
+   036) – PRO NUTZER, anders als die Gruppen selbst. Muss VOR den /:id-Routen
+   stehen, sonst faengt PUT /:id das "sortierung" als Id ab. */
+const ORDER_MAX_KEYS = 60;                 // mehr Gruppen gibt es auf der Tafel nicht
+const ORDER_MAX_JSON = 2000;               // = NVARCHAR(2000) in Migration 036
+
+function saubereReihenfolge(raw) {
+  if (!Array.isArray(raw)) return null;
+  const keys = [...new Set(raw.map(k => String(k ?? '').trim()).filter(k => k && k.length <= 100))]
+    .slice(0, ORDER_MAX_KEYS);
+  const json = JSON.stringify(keys);
+  return json.length > ORDER_MAX_JSON ? null : { keys, json };
+}
+
+// GET /api/planer-gruppen/sortierung → { reihenfolge: [key] }
+router.get('/sortierung', async (req, res) => {
+  try {
+    const pool = await getPool();
+    const r = await pool.request()
+      .input('oid', sql.NVarChar(36), req.user.oid || '')
+      .query('SELECT Reihenfolge FROM dbo.PlanerGruppenSortierung WHERE BenutzerOid = @oid');
+    let keys = [];
+    if (r.recordset.length) {
+      // Kaputtes JSON darf die Tafel nicht am Laden hindern – dann eben unsortiert.
+      try { const v = JSON.parse(r.recordset[0].Reihenfolge); if (Array.isArray(v)) keys = v; } catch { /* egal */ }
+    }
+    res.json({ reihenfolge: keys });
+  } catch (err) { fehler(req, res, err, 'sortierung-get'); }
+});
+
+// PUT /api/planer-gruppen/sortierung { reihenfolge: [key] }
+router.put('/sortierung', async (req, res) => {
+  const clean = saubereReihenfolge(req.body && req.body.reihenfolge);
+  if (!clean) return res.status(400).json({ error: 'Ungültige Reihenfolge.' });
+  try {
+    const pool = await getPool();
+    await pool.request()
+      .input('oid', sql.NVarChar(36), req.user.oid || '')
+      .input('json', sql.NVarChar(2000), clean.json)
+      .query(`MERGE dbo.PlanerGruppenSortierung AS z
+              USING (SELECT @oid AS BenutzerOid) AS q ON z.BenutzerOid = q.BenutzerOid
+              WHEN MATCHED THEN UPDATE SET Reihenfolge = @json, GeaendertAm = SYSUTCDATETIME()
+              WHEN NOT MATCHED THEN INSERT (BenutzerOid, Reihenfolge) VALUES (@oid, @json);`);
+    res.json({ ok: true });
+  } catch (err) { fehler(req, res, err, 'sortierung-put'); }
+});
+
 // POST /api/planer-gruppen { name, mitglieder?[] } → { id }
 router.post('/', async (req, res) => {
   const name = saubererName(req.body && req.body.name);

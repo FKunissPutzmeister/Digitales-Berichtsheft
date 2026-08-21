@@ -658,17 +658,33 @@ document.addEventListener('DOMContentLoaded', async () => {
   // right:0), sonst {left,top} als Viewport-Koordinaten. Bewusst nur im
   // Speicher — nach F5 sitzt die Kachel wieder am Ausgangsplatz.
   let panelPos = null;
-  const collapsed = new Set();                         // eingeklappte Gruppen (Titel)
+  // Eingeklappte Gruppen (Schluessel, nicht Titel). Anders als die Reihenfolge
+  // bleibt das im Browser: reine Ansichts-Kleinigkeit, dafuer kein Server-Weg.
+  const ZU_LS = 'pt-gruppen-zu';
+  const collapsed = new Set((() => {
+    try { const v = JSON.parse(localStorage.getItem(ZU_LS)); return Array.isArray(v) ? v : []; }
+    catch { return []; }
+  })());
+  const saveCollapsed = () => { try { localStorage.setItem(ZU_LS, JSON.stringify([...collapsed])); } catch {} };
+  // Selbst gezogene Gruppen-Reihenfolge (Liste von Gruppen-Keys). Liegt pro
+  // Nutzer auf dem Server (Migration 036) – ueberlebt damit Browser, Rechner
+  // und geloeschte Browserdaten. Gefuellt aus dem Ladeblock weiter unten.
+  let gruppenOrder = [];
+  const saveGruppenOrder = () => {
+    DB.savePlanerGruppenSortierung(gruppenOrder)
+      .catch(e => console.warn('[planer] Reihenfolge nicht gespeichert:', e.message));
+  };
   let editId = null;                                   // im Modal bearbeitete Zuweisung (null = neu)
   let addPresetAzubiId = null;                         // Vorauswahl beim Anlegen
   let lastUndo = null;                                 // { id, prev:{von,bis} } für Strg+Z
   let switchDir = 0;                                   // AJ-Wechselrichtung fuer das Eingangs-Feedback (+1/-1)
 
   // ── Daten einmal laden (Namen kommen per JOIN mit) ──
-  const [azubisRaw, dhRaw, abteilungenKatalog, alleZuweisungen, gruppenRaw] = await Promise.all([
+  const [azubisRaw, dhRaw, abteilungenKatalog, alleZuweisungen, gruppenRaw, sortierungRaw] = await Promise.all([
     DB.getAzubis(), DB.getDhStudenten(), DB.getAbteilungen(), DB.getAllZuweisungen(),
-    DB.getPlanerGruppen(),
+    DB.getPlanerGruppen(), DB.getPlanerGruppenSortierung(),
   ]);
+  gruppenOrder = Array.isArray(sortierungRaw) ? sortierungRaw : [];
   // Eigene Gruppen (Migration 035): gemeinsam gepflegte, frei benannte Buendel.
   // Nicht im State-Konstanten-Block oben, weil sie nach jeder Aenderung neu
   // vom Server kommen (einzige Quelle der Wahrheit, kein lokales Patchen).
@@ -900,7 +916,93 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Eigene Gruppen bleiben auch leer sichtbar (frisch angelegt oder alle
     // Mitglieder ausgefiltert) – sonst waere eine neue Gruppe unsichtbar und
     // wirkte verloren. Die automatischen verschwinden wie bisher, wenn leer.
-    return [...eigene, ...automatisch];
+    return sortiereGruppen([...eigene, ...automatisch]);
+  }
+
+  /* Gezogene Reihenfolge auf die Gruppenliste legen. Keys, die nicht in der
+     gespeicherten Liste stehen (neu angelegt, erstmals belegt), erben den Rang
+     ihres Vorgaengers und landen dank stabiler Sortierung direkt dahinter –
+     also an ihrem natuerlichen Platz statt am Ende. */
+  function sortiereGruppen(list) {
+    if (!gruppenOrder.length) return list;
+    const rang = new Map(gruppenOrder.map((k, i) => [k, i]));
+    let last = -1;
+    const r = list.map(g => (rang.has(g.key) ? (last = rang.get(g.key)) : last + 0.5));
+    return list.map((g, i) => [g, r[i]]).sort((a, b) => a[1] - b[1]).map(x => x[0]);
+  }
+
+  /* Gruppen umsortieren: Ziehen an der Kopfleiste, ab 5 px Bewegung – darunter
+     bleibt es ein Klick zum Auf-/Zuklappen. Pointer-Events statt der nativen
+     HTML5-Drag-API (dieselbe Mechanik wie beim Balken-Drag weiter unten). Ziel
+     ist der ganze Gruppenblock: obere Haelfte = davor, untere = dahinter. */
+  let grpDrag = null;
+  let grpKlickSperre = false;       // unterdrueckt das Auf-/Zuklappen nach einem Zug
+  function bindGruppenSort(board) {
+    board.querySelectorAll('.pt-grp__head').forEach(head => head.addEventListener('pointerdown', e => {
+      if (e.button != null && e.button !== 0) return;
+      if (e.target.closest('.pt-grp__actions')) return;
+      const grp = head.closest('.pt-grp'); if (!grp) return;
+      // Sperre gehoert immer nur zum unmittelbar folgenden Klick: endete der
+      // Zug ueber einem anderen Kopf, bleibt sie sonst stehen und frisst den
+      // naechsten echten Klick.
+      grpKlickSperre = false;
+      grpDrag = { key: grp.dataset.group, grp, board, startY: e.clientY, aktiv: false, ziel: null, danach: false };
+      window.addEventListener('pointermove', onGrpMove);
+      window.addEventListener('pointerup', onGrpUp);
+      window.addEventListener('pointercancel', onGrpUp);
+    }));
+  }
+  function grpZugStarten() {
+    grpDrag.aktiv = true;
+    grpDrag.grp.classList.add('is-grp-dragging');
+  }
+  function grpMarkenWeg(board) {
+    board.querySelectorAll('.is-drop-before,.is-drop-after')
+      .forEach(el => el.classList.remove('is-drop-before', 'is-drop-after'));
+  }
+  function onGrpMove(e) {
+    if (!grpDrag) return;
+    if (!grpDrag.aktiv) {
+      if (Math.abs(e.clientY - grpDrag.startY) < 5) return;
+      grpZugStarten();
+    }
+    grpMarkenWeg(grpDrag.board);
+    grpDrag.ziel = null;
+    const ziel = [...grpDrag.board.querySelectorAll('.pt-grp')].find(g => {
+      const r = g.getBoundingClientRect();
+      return e.clientY >= r.top && e.clientY <= r.bottom;
+    });
+    if (!ziel || ziel === grpDrag.grp) return;
+    const r = ziel.getBoundingClientRect();
+    grpDrag.danach = e.clientY > r.top + r.height / 2;
+    grpDrag.ziel = ziel.dataset.group;
+    ziel.classList.add(grpDrag.danach ? 'is-drop-after' : 'is-drop-before');
+  }
+  function onGrpUp() {
+    window.removeEventListener('pointermove', onGrpMove);
+    window.removeEventListener('pointerup', onGrpUp);
+    window.removeEventListener('pointercancel', onGrpUp);
+    if (!grpDrag) return;
+    const { key, ziel, danach, grp, board, aktiv } = grpDrag;
+    grpDrag = null;
+    grp.classList.remove('is-grp-dragging');
+    grpMarkenWeg(board);
+    grpKlickSperre = aktiv;         // gezogen: der folgende Klick klappt nicht
+    if (ziel) verschiebeGruppe(key, ziel, danach);
+  }
+  function verschiebeGruppe(key, zielKey, danach) {
+    // Basis ist immer die aktuell gezeigte Reihenfolge – so bleiben Gruppen,
+    // die noch nie gezogen wurden, dort stehen, wo man sie sieht.
+    const keys = gruppierteAzubis().map(g => g.key);
+    const from = keys.indexOf(key);
+    if (from < 0) return;
+    keys.splice(from, 1);
+    const at = keys.indexOf(zielKey);
+    if (at < 0) return;
+    keys.splice(at + (danach ? 1 : 0), 0, key);
+    gruppenOrder = keys;
+    saveGruppenOrder();
+    renderTimeline();
   }
 
   // Gruppen neu vom Server holen und Tafel zeichnen (nach Anlegen/Aendern/Loeschen).
@@ -1295,12 +1397,19 @@ document.addEventListener('DOMContentLoaded', async () => {
     document.getElementById('ptZoneChip')?.addEventListener('click', () => { ajStartYear++; afterAjOrZoom(1); });
 
     // Zeilen-/Gruppen-Events
-    board.querySelectorAll('.pt-grp__toggle').forEach(h => h.addEventListener('click', () => {
+    // Ganze Kopfleiste klappt, nicht nur der Button – nur die Aktions-Icons
+    // (Stift/Papierkorb) sind ausgenommen.
+    board.querySelectorAll('.pt-grp__head').forEach(head => head.addEventListener('click', e => {
+      if (e.target.closest('.pt-grp__actions')) return;
+      if (grpKlickSperre) { grpKlickSperre = false; return; }
+      const h = head.querySelector('.pt-grp__toggle');
       const t = h.dataset.group;
       if (collapsed.has(t)) collapsed.delete(t); else collapsed.add(t);
-      const zu = h.closest('.pt-grp').classList.toggle('is-collapsed');
+      saveCollapsed();
+      const zu = head.closest('.pt-grp').classList.toggle('is-collapsed');
       h.setAttribute('aria-expanded', String(!zu));
     }));
+    bindGruppenSort(board);
     board.querySelectorAll('[data-grp-edit]').forEach(b => b.addEventListener('click', () => {
       openGruppeDialog(planerGruppen.find(g => String(g.id) === b.dataset.grpEdit) || null);
     }));

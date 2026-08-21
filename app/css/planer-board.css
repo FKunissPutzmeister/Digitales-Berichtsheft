@@ -119,9 +119,22 @@
 .pt-month--q1 { background:transparent; }
 
 /* ── Gruppen ── */
-.pt-grp { border-bottom:1px solid var(--pm-grey-200); }
+.pt-grp { position:relative; border-bottom:1px solid var(--pm-grey-200); }
+/* Umsortieren per Drag&Drop: gezogener Block gedimmt, gelbe Kante an der
+   Einfuegestelle. Die Linie ist ein Pseudo-Element mit z-index ueber der
+   Kopfleiste (5) und der Namensspalte (4) – ein inset-Schatten waere von der
+   Kopfzeile ueberdeckt. position:relative ist gefahrlos: alle absoluten
+   Kinder haengen an .pt-track. */
+.pt-grp.is-grp-dragging { opacity:.45; }
+.pt-grp.is-grp-dragging .pt-grp__head { cursor:grabbing; }
+.pt-grp.is-drop-before::after, .pt-grp.is-drop-after::after {
+  content:""; position:absolute; left:0; right:0; height:3px; z-index:9;
+  background:var(--pm-yellow); pointer-events:none;
+}
+.pt-grp.is-drop-before::after { top:-1px; }
+.pt-grp.is-drop-after::after { bottom:-1px; }
 .pt-grp:last-child { border-bottom:0; }
-.pt-grp__head { position:relative; z-index:5; display:flex; align-items:center; height:34px; padding:0; background:var(--pm-grey-50); border:0; border-bottom:1px solid var(--pm-grey-100); user-select:none; width:100%; text-align:left; }
+.pt-grp__head { cursor:pointer; position:relative; z-index:5; display:flex; align-items:center; height:34px; padding:0; background:var(--pm-grey-50); border:0; border-bottom:1px solid var(--pm-grey-100); user-select:none; width:100%; text-align:left; }
 .pt-grp__head:hover { background:var(--pm-grey-100); }
 /* Label bleibt beim Horizontal-Scroll am linken Rand sichtbar (die Fläche
    scrollt mit, nur der Inhalt ist sticky). */

@@ -642,6 +642,17 @@ const DB = {
     await apiFetch(`/planer-gruppen/${id}`, { method: 'DELETE' });
   },
 
+  /* Selbst gezogene Gruppen-Reihenfolge der Plantafel (Migration 036) – pro
+     Nutzer. Faellt sie aus, zeigt die Tafel die Standard-Reihenfolge. */
+  async getPlanerGruppenSortierung() {
+    try { const r = await apiFetch('/planer-gruppen/sortierung'); return Array.isArray(r && r.reihenfolge) ? r.reihenfolge : []; }
+    catch (e) { console.warn('[api] Gruppen-Reihenfolge nicht geladen:', e.message); return []; }
+  },
+
+  async savePlanerGruppenSortierung(reihenfolge) {
+    await apiFetch('/planer-gruppen/sortierung', { method: 'PUT', body: { reihenfolge } });
+  },
+
   /* Vertretungen (Self-Service-Delegation) – meine vergebenen + erhaltenen */
   async getVertretungen() {
     try { return await apiFetch('/vertretungen'); }
