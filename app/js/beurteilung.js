@@ -296,7 +296,7 @@ function exportBeurteilungPdf(ctx) {
     <div><b>Individuelle Beurteilung:</b><div class="indiv">${esc(indiv)}</div></div>
     <div class="sign">
       ${beurteilung ? signSlot('beurteiler', beurteilung.hatBeurteilerUnterschrift, 'Unterschrift des/r Beurteilenden') : `<div class="sign__slot"><div class="sign__img"></div><div class="sign__line">Unterschrift des/r Beurteilenden</div></div>`}
-      ${beurteilung && !beurteilung.ausbilderSchrittEntfaellt ? signSlot('ausbilder', beurteilung.hatAusbilderUnterschrift, 'Unterschrift des/r Ausbildungsleiters/-in') : `<div class="sign__slot"><div class="sign__img"></div><div class="sign__line">${beurteilung?.ausbilderSchrittEntfaellt ? '' : 'Unterschrift des/r Ausbildungsleiters/-in'}</div></div>`}
+      ${beurteilung && !beurteilung.ausbildungsleiterSchrittEntfaellt ? signSlot('ausbildungsleiter', beurteilung.hatAusbildungsleiterUnterschrift, 'Unterschrift des/r Ausbildungsleiters/-in') : `<div class="sign__slot"><div class="sign__img"></div><div class="sign__line">${beurteilung?.ausbildungsleiterSchrittEntfaellt ? '' : 'Unterschrift des/r Ausbildungsleiters/-in'}</div></div>`}
       ${beurteilung ? signSlot('azubi', beurteilung.hatKenntnisnahmeUnterschrift, 'Unterschrift des/r Auszubildenden') : `<div class="sign__slot"><div class="sign__img"></div><div class="sign__line">Unterschrift des/r Auszubildenden</div></div>`}
     </div>
     <p style="margin-top:6mm;font-size:8.5pt">Beurteilungsgespräch durchgeführt und Kopie erhalten am:
