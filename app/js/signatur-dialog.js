@@ -1,10 +1,11 @@
 /* ===================================================================
-   FAHRTGELD-SIGNATUR.JS
-   Signatur-Erstelldialog für die Fahrgelderstattung.
+   SIGNATUR-DIALOG.JS
+   Geteilter Signatur-Erstelldialog (Fahrgelderstattung + Beurteilung).
    Drei Tabs: Zeichnen (Canvas/Pointer), Tippen (Name → Handschrift),
    Hochladen (PNG/JPG). Liefert { dataUrl, extension } an onSave.
    Erzeugung der dataUrl ist der einzige Zweck — Persistenz/Einbettung
-   liegen bei fahrgelderstattung.js bzw. fahrtgeld-core.js.
+   liegen beim jeweiligen Aufrufer (fahrgelderstattung.js bzw.
+   beurteilung.js).
    =================================================================== */
 (function () {
   'use strict';
