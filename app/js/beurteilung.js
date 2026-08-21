@@ -218,7 +218,7 @@ function exportBeurteilungPdf(ctx) {
 
   const signSlot = (rolle, hat, label) => `
     <div class="sign__slot">
-      <div class="sign__img">${hat ? `<img src="${DB.beurteilungUnterschriftUrl(beurteilung.id, rolle)}" alt="Unterschrift ${esc(label)}">` : ''}</div>
+      <div class="sign__img">${hat ? `<img src="${DB.beurteilungUnterschriftUrl(beurteilung.id, rolle)}" alt="Unterschrift ${esc(label)}" onerror="this.style.display='none'">` : ''}</div>
       <div class="sign__line">${esc(label)}</div>
     </div>`;
 
