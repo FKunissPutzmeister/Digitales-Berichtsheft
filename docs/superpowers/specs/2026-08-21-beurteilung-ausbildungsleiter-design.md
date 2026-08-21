@@ -167,7 +167,13 @@ Unterzeichner".
   1. `darfBeurteilungBearbeiten` → `'bearbeiten'`
   2. sonst Azubi-Eigentümer → `'azubi'`
   3. sonst `ermittleAusbildungsleiter(...) === user.oid` UND Beurteilung
-     abgeschlossen UND noch nicht bestätigt → `'ausbildungsleiter'`
+     abgeschlossen UND noch nicht bestätigt UND Personalunion-Schritt NICHT
+     entfallen (`!ausbildungsleiterSchrittEntfaellt`) → `'ausbildungsleiter'`
+     (der Entfällt-Check ist nötig, weil sonst ein Beurteiler, dessen
+     E-Mail nach dem Abschluss von der Zuweisung abweicht — z. B. durch
+     eine nachträgliche Korrektur —, sich selbst ein zweites Mal als
+     Ausbildungsleiter bestätigen könnte; beim Review der Umsetzung
+     entdeckt, siehe Plan-Task 7)
   4. sonst (aber `darfBeurteilen`-Ansichtsrecht erfüllt) → `'ansicht'`
   5. sonst 403 (kein Zugriff)
 

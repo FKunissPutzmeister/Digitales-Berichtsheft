@@ -796,11 +796,15 @@ Direkt nach `ermittleAusbildungsleiter` (Task 5) einfügen:
 // Bestimmt, in welchem der vier Modi das Frontend die Beurteilung anzeigen
 // soll — EINE serverseitige Quelle statt (fehleranfälliger) Client-Heuristik.
 // b = das Ergebnis von getByZuweisung (oder irgendein Objekt mit denselben
-// AzubiOid/Status/AusbildungsleiterBestaetigtAm-Feldern).
+// AzubiOid/Status/AusbildungsleiterBestaetigtAm/ausbildungsleiterSchrittEntfaellt-Feldern).
 async function ermittleModus(user, zuweisung, b, pool) {
   if (darfBeurteilungBearbeiten(user, zuweisung)) return 'bearbeiten';
   if (user.oid === b.AzubiOid) return 'azubi';
-  if (b.Status === 'abgeschlossen' && !b.AusbildungsleiterBestaetigtAm) {
+  // ausbildungsleiterSchrittEntfaellt (Personalunion) MUSS hier mitprüfen:
+  // sonst könnte ein Beurteiler, dessen E-Mail nach dem Abschluss von der
+  // Zuweisung abweicht (z.B. nachträgliche Korrektur), sich selbst ein
+  // zweites Mal als Ausbildungsleiter bestätigen (bei Task-7-Review entdeckt).
+  if (b.Status === 'abgeschlossen' && !b.AusbildungsleiterBestaetigtAm && !b.ausbildungsleiterSchrittEntfaellt) {
     const ausbildungsleiterOid = await ermittleAusbildungsleiter(pool, b.AzubiOid);
     if (ausbildungsleiterOid && ausbildungsleiterOid === user.oid) return 'ausbildungsleiter';
   }
