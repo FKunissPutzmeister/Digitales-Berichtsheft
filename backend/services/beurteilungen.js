@@ -259,24 +259,24 @@ async function kenntnisnahme(pool, id, azubiOid, signatur) {
   }
 }
 
-// Neuer, eigenständiger dritter Schritt: der dauerhafte Ausbilder bestätigt
+// Dritter, eigenständiger Schritt: der zuständige Ausbildungsleiter bestätigt
 // die Beurteilung — unabhängig davon, ob/wann der Azubi seine Kenntnisnahme
 // gegeben hat (keine Reihenfolge-Pflicht, siehe Design-Spec).
-async function ausbilderBestaetigen(pool, id, ausbilderOid, signatur) {
+async function ausbildungsleiterBestaetigen(pool, id, ausbildungsleiterOid, signatur) {
   const sigBytes = signatur ? unterschriftenSvc.dataUrlToBuffer(signatur.dataUrl) : null;
   if (signatur && !sigBytes) throw new Error('Ungültige Unterschrift.');
   unterschriftenSvc.pruefeGroesse(sigBytes);
   const sigExt = signatur ? unterschriftenSvc.normExt(signatur.extension) : null;
   await pool.request()
     .input('id', sql.Int, id)
-    .input('von', sql.NVarChar(36), ausbilderOid)
+    .input('von', sql.NVarChar(36), ausbildungsleiterOid)
     .input('bild', sql.VarBinary(sql.MAX), sigBytes)
     .input('ext', sql.NVarChar(10), sigExt)
-    .query(`UPDATE dbo.Beurteilungen SET AusbilderBestaetigtVon=@von, AusbilderBestaetigtAm=SYSUTCDATETIME(),
-              AusbilderUnterschriftBild=@bild, AusbilderUnterschriftExt=@ext,
+    .query(`UPDATE dbo.Beurteilungen SET AusbildungsleiterBestaetigtVon=@von, AusbildungsleiterBestaetigtAm=SYSUTCDATETIME(),
+              AusbildungsleiterUnterschriftBild=@bild, AusbildungsleiterUnterschriftExt=@ext,
               AktualisiertAm=SYSUTCDATETIME() WHERE Id=@id`);
   if (signatur) {
-    try { await unterschriftenSvc.speichereMeine(pool, ausbilderOid, signatur); }
+    try { await unterschriftenSvc.speichereMeine(pool, ausbildungsleiterOid, signatur); }
     catch (e) { console.error('[beurteilungen] speichereMeine (best effort):', e.message); }
   }
 }
