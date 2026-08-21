@@ -318,6 +318,13 @@ function normalizeBeurteilung(b) {
     korrigiertVon: b.KorrigiertVon ?? null,
     korrigiertAm: b.KorrigiertAm ?? null,
     kriterien: (b.kriterien || []).map(k => ({ kriteriumKey: k.kriteriumKey, punkte: k.punkte })),
+    ausbilderSchrittEntfaellt: !!b.ausbilderSchrittEntfaellt,
+    darfAusbilderBestaetigen: !!b.darfAusbilderBestaetigen,
+    ausbilderBestaetigtVon: b.AusbilderBestaetigtVon ?? null,
+    ausbilderBestaetigtAm: b.AusbilderBestaetigtAm ?? null,
+    hatBeurteilerUnterschrift: !!b.hatBeurteilerUnterschrift,
+    hatKenntnisnahmeUnterschrift: !!b.hatKenntnisnahmeUnterschrift,
+    hatAusbilderUnterschrift: !!b.hatAusbilderUnterschrift,
   };
 }
 
@@ -833,13 +840,25 @@ const DB = {
     const data = await apiFetch('/beurteilungen', { method: 'POST', body: payload });
     return data.id;
   },
-  async abschliessenBeurteilung(id) {
-    await apiFetch(`/beurteilungen/${id}/abschliessen`, { method: 'PATCH' });
+  async abschliessenBeurteilung(id, signatur) {
+    await apiFetch(`/beurteilungen/${id}/abschliessen`, { method: 'PATCH', body: { signatur: signatur || null } });
   },
   async patchBeurteilung(id, payload) {
     await apiFetch(`/beurteilungen/${id}`, { method: 'PATCH', body: payload });
   },
-  async kenntnisnahmeBeurteilung(id) {
-    await apiFetch(`/beurteilungen/${id}/kenntnisnahme`, { method: 'PATCH' });
+  async kenntnisnahmeBeurteilung(id, signatur) {
+    await apiFetch(`/beurteilungen/${id}/kenntnisnahme`, { method: 'PATCH', body: { signatur: signatur || null } });
+  },
+  async ausbilderBestaetigenBeurteilung(id, signatur) {
+    await apiFetch(`/beurteilungen/${id}/ausbilder-bestaetigung`, { method: 'PATCH', body: { signatur: signatur || null } });
+  },
+  beurteilungUnterschriftUrl(beurteilungId, rolle) {
+    return `${API_BASE}/beurteilungen/${beurteilungId}/unterschrift/${rolle}`;
+  },
+  async getMeineUnterschrift() {
+    return await apiFetch('/unterschrift/meine');
+  },
+  async setMeineUnterschrift(signatur) {
+    await apiFetch('/unterschrift/meine', { method: 'PUT', body: signatur });
   },
 };
