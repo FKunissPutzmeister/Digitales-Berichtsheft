@@ -449,8 +449,12 @@ Damit niemand etwas erwartet, was die Anwendung nicht leistet:
   ist kein Archiv. Eine Datenschutz-Informationsseite fehlt in der Anwendung
   weiterhin.
 - **Kein automatischer Abschluss zum Ausbildungsende** (siehe oben).
-- **Keine E-Mail-Benachrichtigungen** — Mitteilungen erscheinen nur in der
-  Anwendung.
+- **E-Mails nur für Einsätze und Beurteilungen.** Eine Zuweisung im
+  Abteilungs-Planer verschickt eine Mail samt Outlook-Termin über den Zeitraum
+  (Änderung aktualisiert ihn, Löschen sagt ihn ab); eine abgeschlossene oder
+  fällige Beurteilung löst eine Erinnerung aus. Alles andere erscheint weiterhin
+  nur in der Anwendung. Ohne `MAIL_FROM` ist der Versand komplett aus, und es
+  gibt kein Abbestellen einzelner Personen.
 - **Backup ohne Oberfläche und ohne Anhänge**, Wiederherstellung nur durch die
   betroffene Person selbst.
 - **Befristete Zuweisungen hängen an E-Mail-Adressen.** Ändert sich eine

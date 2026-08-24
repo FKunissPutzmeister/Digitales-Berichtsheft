@@ -8,6 +8,7 @@ const { verantwortlichFuerZuweisung, ymd } = require('./zugriff');
 const { aktiveVertreteneEmails } = require('./vertretungen');
 const unterschriftenSvc = require('./unterschriften');
 const berufeSvc = require('./berufe');
+const { mailBeurteilung } = require('./mail');
 
 const heuteYmd = () => new Date().toISOString().slice(0, 10);
 
@@ -220,6 +221,10 @@ async function abschliessen(pool, id, autorOid, signatur) {
     try { await unterschriftenSvc.speichereMeine(pool, autorOid, signatur); }
     catch (e) { console.error('[beurteilungen] speichereMeine (best effort):', e.message); }
   }
+  // Mail NACH dem Commit und außerhalb der Transaktion: ein Versandfehler darf
+  // den Abschluss nicht zurückrollen (mailBeurteilung wirft ohnehin nie).
+  await mailBeurteilung(pool, [b.AzubiOid], 'beurteilung_abgeschlossen',
+    { zuweisungId: b.ZuweisungId, azubiOid: b.AzubiOid });
 }
 
 async function patchNachAbschluss(pool, id, { kriterien, individuelleBeurteilung, gespraechAm }, autorOid) {
@@ -252,6 +257,8 @@ async function patchNachAbschluss(pool, id, { kriterien, individuelleBeurteilung
     });
     await tx.commit();
   } catch (e) { await tx.rollback(); throw e; }
+  await mailBeurteilung(pool, [b.AzubiOid], 'beurteilung_abgeschlossen',
+    { zuweisungId: b.ZuweisungId, azubiOid: b.AzubiOid });
 }
 
 async function kenntnisnahme(pool, id, azubiOid, signatur) {
@@ -321,6 +328,11 @@ async function ermittleUndErzeugeFaellige(pool, user) {
     if (!exists.recordset.length) {
       await erzeugeBenachrichtigung(pool, {
         userOid: user.oid, typ: 'beurteilung_faellig', zuweisungId: z.ZuweisungId, fromUserOid: null,
+      });
+      // Genau einmal je (Person, Zuweisung) — der exists-Check oben ist auch die
+      // Sperre gegen wiederholte Erinnerungs-Mails bei jedem Login.
+      await mailBeurteilung(pool, [user.oid], 'beurteilung_faellig', {
+        zuweisungId: z.ZuweisungId, azubiOid: z.AzubiOid, abteilung: z.Abteilung, von: z.Von, bis: z.Bis,
       });
     }
   }

@@ -4,6 +4,7 @@ const { logError } = require('../services/fehlerberichte');
 const { mitVertretern } = require('../services/vertretungen');
 const { ladeKorrekturKontext } = require('../services/zugriffContext');
 const { istZugreifbar, ymd, NACHLAUF_TAGE } = require('../services/zugriff');
+const { mailVersetzung } = require('../services/mail');
 
 // Nur Nutzer mit Planungsrecht dürfen Zuweisungen anlegen/löschen.
 function nurPlaner(req, res, next) {
@@ -56,6 +57,8 @@ async function benachrichtige(pool, empfaengerOids, typ, fromOid) {
                 VALUES (@userOid, @typ, NULL, @fromOid)`);
     } catch (_) { /* best-effort: Mitteilung darf den Vorgang nicht brechen */ }
   }
+  // Dieselbe Empfängermenge nutzt der Mail-/Termin-Versand (mailVersetzung).
+  return ziele;
 }
 
 // GET /api/zuweisungen?azubiOid=...&verantwEmail=...
@@ -161,9 +164,13 @@ router.post('/', nurPlaner, async (req, res) => {
         OUTPUT inserted.Id
         VALUES (@azubiOid, @verantwEmail, @verantwName, @abteilung, @von, @bis)
       `);
-    await benachrichtige(pool, [azubiOid, verantwUser ? verantwUser.oid : null],
+    const neueId = result.recordset[0].Id;
+    const ziele = await benachrichtige(pool, [azubiOid, verantwUser ? verantwUser.oid : null],
       'versetzung_neu', req.user.oid);
-    res.json({ id: result.recordset[0].Id });
+    // Mail + Outlook-Termin an dieselben Empfänger (best-effort, wirft nie).
+    await mailVersetzung(pool, ziele, 'versetzung_neu',
+      { zuweisungId: neueId, azubiOid, abteilung, von, bis });
+    res.json({ id: neueId });
   } catch (err) {
     logError({ quelle: 'backend', nachricht: `[zuweisungen] create: ${err.message}`, stack: err.stack,
       kontext: { route: req.path, methode: req.method }, benutzerOid: req.user && req.user.oid, benutzerName: req.user && req.user.name });
@@ -242,9 +249,13 @@ router.patch('/:id', nurPlaner, async (req, res) => {
     // Azubi + alter UND neuer Verantwortlicher (falls umgehängt) informieren.
     // Für die vorherige E-Mail wird nur die Oid gebraucht — ein zweiter
     // Lookup ist hier legitim, weil er eine andere Person betrifft.
-    await benachrichtige(pool,
+    const ziele = await benachrichtige(pool,
       [row.AzubiOid, verantwUser ? verantwUser.oid : null, (await userForEmail(pool, row.VerantwEmail))?.oid ?? null],
       'versetzung_geaendert', req.user.oid);
+    // Termin-Aktualisierung: gleiche UID, höhere SEQUENCE — Outlook ersetzt den
+    // bestehenden Termin statt einen zweiten anzulegen.
+    await mailVersetzung(pool, ziele, 'versetzung_geaendert',
+      { zuweisungId: id, azubiOid: row.AzubiOid, abteilung, von, bis });
     res.json({ ok: true });
   } catch (err) {
     logError({ quelle: 'backend', nachricht: `[zuweisungen] patch: ${err.message}`, stack: err.stack,
@@ -260,8 +271,10 @@ router.delete('/:id', nurPlaner, async (req, res) => {
     const pool = await getPool();
     const id = Number(req.params.id) || 0;
     // Empfänger VOR dem Löschen merken (danach ist die Zeile weg).
+    // Abteilung/Von/Bis mitlesen: die Termin-Absage braucht Titel und Zeitraum,
+    // und nach dem DELETE ist die Zeile weg.
     const pre = await pool.request().input('id', sql.Int, id)
-      .query('SELECT AzubiOid, VerantwEmail FROM dbo.Zuweisungen WHERE Id = @id');
+      .query('SELECT AzubiOid, VerantwEmail, Abteilung, Von, Bis FROM dbo.Zuweisungen WHERE Id = @id');
     const row = pre.recordset[0];
     // Atomar aufräumen: es gibt KEINEN FK von Beurteilungen/Benachrichtigungen auf
     // Zuweisungen. Ohne dies bliebe eine (ggf. abgeschlossene) Beurteilung als Waise
@@ -282,8 +295,10 @@ router.delete('/:id', nurPlaner, async (req, res) => {
     }
     await tx.commit(); tx = null;
     if (row) {
-      await benachrichtige(pool, [row.AzubiOid, (await userForEmail(pool, row.VerantwEmail))?.oid ?? null],
+      const ziele = await benachrichtige(pool, [row.AzubiOid, (await userForEmail(pool, row.VerantwEmail))?.oid ?? null],
         'versetzung_entfernt', req.user.oid);
+      await mailVersetzung(pool, ziele, 'versetzung_entfernt',
+        { zuweisungId: id, azubiOid: row.AzubiOid, abteilung: row.Abteilung, von: row.Von, bis: row.Bis });
     }
     res.json({ ok: true });
   } catch (err) {
