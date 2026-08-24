@@ -68,7 +68,7 @@ document.addEventListener('DOMContentLoaded', async () => {
           sunday.setDate(sunday.getDate() + 6);
           let tone, typeKey, typeLabel;
           if (w.status === 'freigegeben')    { tone = 'info';    typeKey = 'eingereicht';   typeLabel = 'Eingereicht'; }
-          else if (w.status === 'abgelehnt') { tone = 'er';      typeKey = 'zurueckgegeben'; typeLabel = 'Zurückgegeben'; }
+          else if (w.status === 'abgelehnt') { tone = 'er';      typeKey = 'zurueckgegeben'; typeLabel = 'Zurückgewiesen'; }
           else                               { tone = 'neutral'; typeKey = 'erstgenehmigt';  typeLabel = 'Erstgenehmigt'; }
           items.push({
             ts: sunday.getTime(), tone, typeKey, typeLabel,
@@ -165,10 +165,10 @@ document.addEventListener('DOMContentLoaded', async () => {
       const isErst = b.type === 'erstgenehmigt';
       const tone = isErst ? 'ok' : 'er';
       const typeKey = isErst ? 'erstgenehmigt' : 'zurueckgegeben';
-      const typeLabel = isErst ? 'Erstgenehmigt' : 'Zurückgegeben';
+      const typeLabel = isErst ? 'Erstgenehmigt' : 'Zurückgewiesen';
       return {
         ts: b.timestamp || 0, tone, typeKey, typeLabel,
-        title: isErst ? `KW ${b.kw}/${b.year} erstgenehmigt` : `KW ${b.kw}/${b.year} zurückgegeben`,
+        title: isErst ? `KW ${b.kw}/${b.year} erstgenehmigt` : `KW ${b.kw}/${b.year} zurückgewiesen`,
         meta: relTime(b.timestamp),
         gelesen: !!b.gelesen,
         notifId: b.id,

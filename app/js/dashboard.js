@@ -203,7 +203,7 @@ async function renderAzubiDashboard(user) {
       const kind = wkcardKind(rec);   // ok | fr | er | entwurf | offen
       const lbl = kind === 'ok'      ? 'Genehmigt'
                : kind === 'fr'       ? 'Eingereicht'
-               : kind === 'er'       ? 'Zurückgegeben'
+               : kind === 'er'       ? 'Zurückgewiesen'
                : kind === 'entwurf'  ? 'Entwurf'
                :                       'Offen';
       html += `
@@ -244,7 +244,7 @@ async function renderAzubiDashboard(user) {
           if (woche.status === 'genehmigt')          { kind = 'ok';    lbl = 'Genehmigt'; }
           else if (woche.status === 'erstgenehmigt') { kind = 'fr';    lbl = 'Erstgenehmigt'; }
           else if (woche.status === 'freigegeben')   { kind = 'fr';    lbl = 'Eingereicht'; }
-          else if (woche.status === 'abgelehnt')     { kind = 'er';    lbl = 'Zurückgegeben'; }
+          else if (woche.status === 'abgelehnt')     { kind = 'er';    lbl = 'Zurückgewiesen'; }
           else                                        { kind = 'draft'; lbl = 'Entwurf'; }
         }
 
@@ -312,7 +312,7 @@ async function renderAzubiDashboard(user) {
     const ok = b.type === 'genehmigt' || isErst;
     const title = isErst
       ? `KW ${b.kw}/${b.year} erstgenehmigt`
-      : ok ? `KW ${b.kw}/${b.year} genehmigt` : `KW ${b.kw}/${b.year} zurückgegeben`;
+      : ok ? `KW ${b.kw}/${b.year} genehmigt` : `KW ${b.kw}/${b.year} zurückgewiesen`;
     const prev = (!ok && b.kommentar) ? `<span class="b-mitteilung__preview">${mtEsc(b.kommentar)}</span>` : '';
     return `
           <a class="b-mitteilung${b.gelesen ? '' : ' b-mitteilung--unread'}" href="wochenansicht.html"
@@ -992,7 +992,7 @@ function renderAzubiCard(c, idx) {
           <span class="azubi-card__count">${n} ${n === 1 ? 'Bericht' : 'Berichte'} offen</span>
           <span class="review-item__sep">·</span>
           <span class="azubi-card__wait">${seitText}</span>
-          ${c.abgelehnt > 0 ? `<span class="badge badge--abgelehnt azubi-card__badge">${c.abgelehnt} zurückgegeben</span>` : ''}
+          ${c.abgelehnt > 0 ? `<span class="badge badge--abgelehnt azubi-card__badge">${c.abgelehnt} zurückgewiesen</span>` : ''}
         </div>
         <a class="btn btn-sm azubi-card__cta" href="wochenansicht.html"
            data-goto-azubi="${a.id}" data-goto-kw="${oldest.kw}" data-goto-year="${oldest.year}">
@@ -1402,7 +1402,7 @@ function initBulkActions(queue, currentUser) {
   toolbar.querySelector('[data-bulk-reject]').addEventListener('click', async () => {
     const ids = Array.from(selectedIds);
     if (ids.length === 0) return;
-    const reason = prompt(`Begründung für die Rückgabe von ${ids.length} ${ids.length === 1 ? 'Bericht' : 'Berichten'}:`);
+    const reason = prompt(`Begründung für die Zurückweisung von ${ids.length} ${ids.length === 1 ? 'Bericht' : 'Berichten'}:`);
     if (!reason || !reason.trim()) return;
     const reasonTrim = reason.trim();
     for (const wocheId of ids) {
@@ -1418,7 +1418,7 @@ function initBulkActions(queue, currentUser) {
         fromUserId: currentUser.id, kommentar: reasonTrim,
       });
     }
-    Toast.warning('Zurückgegeben', `${ids.length} ${ids.length === 1 ? 'Bericht' : 'Berichte'} zurückgegeben.`);
+    Toast.warning('Zurückgewiesen', `${ids.length} ${ids.length === 1 ? 'Bericht' : 'Berichte'} zurückgewiesen.`);
     setTimeout(() => window.location.reload(), 700);
   });
 }
@@ -1438,7 +1438,7 @@ function ensureBulkToolbar() {
     </div>
     <div class="bulk-actions-toolbar__actions">
       <button type="button" class="btn btn-ghost btn-sm" data-bulk-clear>Auswahl aufheben</button>
-      <button type="button" class="btn btn-danger btn-sm" data-bulk-reject>Zurückgeben</button>
+      <button type="button" class="btn btn-danger btn-sm" data-bulk-reject>Zurückweisen</button>
       <button type="button" class="btn btn-success btn-sm" data-bulk-approve>Genehmigen</button>
     </div>
   `;
@@ -1460,7 +1460,7 @@ function buildAusbilderMitteilungen(allWochen, beurteilungen = []) {
       sunday.setDate(sunday.getDate() + 6);
       let type, verb;
       if (w.status === 'freigegeben')       { type = 'info';    verb = 'eingereicht'; }
-      else if (w.status === 'abgelehnt')    { type = 'error';   verb = 'zurückgegeben'; }
+      else if (w.status === 'abgelehnt')    { type = 'error';   verb = 'zurückgewiesen'; }
       else if (w.status === 'erstgenehmigt'){ type = 'success'; verb = 'erstgenehmigt'; }
       else                                  { type = 'yellow';  verb = ''; }
       items.push({

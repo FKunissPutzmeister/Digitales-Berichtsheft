@@ -252,7 +252,7 @@ const BerichtsheftExport = (() => {
                       || w.status === 'genehmigt'   || w.status === 'abgelehnt');
     let ausbilderText;
     if (w.status === 'genehmigt')           ausbilderText = `Geprüft und genehmigt${stempelAm ? ` am ${stempelAm}` : ''}`;
-    else if (w.status === 'abgelehnt')      ausbilderText = `Zur Überarbeitung zurückgegeben${stempelAm ? ` am ${stempelAm}` : ''}`;
+    else if (w.status === 'abgelehnt')      ausbilderText = `Zurückgewiesen${stempelAm ? ` am ${stempelAm}` : ''}`;
     else if (w.status === 'erstgenehmigt')  ausbilderText = `Vorgeprüft${stempelAm ? ` am ${stempelAm}` : ''} – Endabnahme ausstehend`;
     else                                    ausbilderText = 'Prüfung ausstehend';
     const mitName = (w.status === 'genehmigt' || w.status === 'abgelehnt' || w.status === 'erstgenehmigt');

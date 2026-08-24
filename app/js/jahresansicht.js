@@ -82,7 +82,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         <div class="legend-item"><div class="week-status-dot week-status-dot--offen" style="flex-shrink:0"></div> Noch nicht eingereicht</div>
         <div class="legend-item"><div class="week-status-dot week-status-dot--freigegeben" style="flex-shrink:0"></div> Eingereicht</div>
         <div class="legend-item"><div class="week-status-dot week-status-dot--genehmigt" style="flex-shrink:0"></div> Genehmigt</div>
-        <div class="legend-item"><div class="week-status-dot week-status-dot--abgelehnt" style="flex-shrink:0"></div> Abgelehnt / Zurückgegeben</div>
+        <div class="legend-item"><div class="week-status-dot week-status-dot--abgelehnt" style="flex-shrink:0"></div> Abgelehnt / Zurückgewiesen</div>
         <div class="legend-item"><div class="legend-dot legend-dot--frei"></div> Wochenende / Frei</div>
       </div>
 
