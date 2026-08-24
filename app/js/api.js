@@ -749,6 +749,18 @@ const DB = {
     await apiFetch(`/wochen/${wocheId}/status`, { method: 'PATCH', body: { status } });
   },
 
+  // Letzten Statuswechsel zurücknehmen (zu früh genehmigt / falsch
+  // zurückgegeben). Der Ziel-Status wird NICHT mitgegeben: welcher Zustand vor
+  // dem Wechsel galt, weiß nur der Server (Wochen.StatusVorher, Migration 037).
+  // Liefert den Status zurück, auf dem die Woche jetzt steht.
+  async undoWocheStatus(wocheId) {
+    if (!Number.isInteger(Number(wocheId)) || Number(wocheId) <= 0) {
+      throw new Error('Die Woche wurde noch nicht gespeichert – Status kann nicht zurückgenommen werden.');
+    }
+    const res = await apiFetch(`/wochen/${wocheId}/status`, { method: 'PATCH', body: { aktion: 'zuruecknehmen' } });
+    return res && res.status ? res.status : null;
+  },
+
   async addKommentar(wocheId, kommentar) {
     await apiFetch(`/wochen/${wocheId}/kommentare`, { method: 'POST', body: kommentar });
   },

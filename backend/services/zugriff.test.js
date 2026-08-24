@@ -345,3 +345,58 @@ test('Azubi kommt über den Status-Automaten nie an eine Genehmigung', () => {
     .flatMap(s => wochenAktionen('azubi', s, 0).map(a => a.zielStatus));
   assert.deepStrictEqual([...new Set(ziele)].sort(), ['freigegeben', 'offen']);
 });
+
+// ── Rücknahme eines Statuswechsels (Migration 037 + RUECKNAHME_TAGE) ──
+// letzte = { statusVorher, endabnahmeDirektVorher, korrigiertAm, jetzt }
+const JETZT = '2026-08-24T10:00:00Z';
+function tageVorher(n) {
+  return new Date(Date.parse(JETZT) - n * 86400000).toISOString();
+}
+function ruecknahmen(rolle, status, flag, letzte) {
+  return wochenAktionen(rolle, status, flag, { jetzt: JETZT, ...letzte })
+    .filter(a => a.aktion === 'zuruecknehmen')
+    .map(a => `${a.zielStatus}:${a.endabnahmeDirekt}`);
+}
+
+test('Ausbilder nimmt die Endabnahme innerhalb der Frist zurück – auf den echten Vorstatus', () => {
+  assert.deepStrictEqual(ruecknahmen('ausbilder', 'genehmigt', 0,
+    { statusVorher: 'erstgenehmigt', endabnahmeDirektVorher: 0, korrigiertAm: tageVorher(3) }),
+    ['erstgenehmigt:0']);
+});
+
+test('Nach 4 Wochen ist die Genehmigung endgültig', () => {
+  assert.deepStrictEqual(ruecknahmen('ausbilder', 'genehmigt', 0,
+    { statusVorher: 'erstgenehmigt', endabnahmeDirektVorher: 0, korrigiertAm: tageVorher(29) }), []);
+  assert.deepStrictEqual(ruecknahmen('ausbilder', 'genehmigt', 0,
+    { statusVorher: 'erstgenehmigt', endabnahmeDirektVorher: 0, korrigiertAm: tageVorher(27) }),
+    ['erstgenehmigt:0']);
+});
+
+test('Rücknahme stellt EndabnahmeDirekt wieder her (zweimal zurückgegebene Woche)', () => {
+  assert.deepStrictEqual(ruecknahmen('ausbilder', 'abgelehnt', 1,
+    { statusVorher: 'freigegeben', endabnahmeDirektVorher: 1, korrigiertAm: tageVorher(1) }),
+    ['freigegeben:1']);
+});
+
+test('Prüfer kommt nicht an die Wechsel des Ausbilders', () => {
+  assert.deepStrictEqual(ruecknahmen('pruefer', 'genehmigt', 0,
+    { statusVorher: 'erstgenehmigt', endabnahmeDirektVorher: 0, korrigiertAm: tageVorher(1) }), []);
+  // 'abgelehnt' mit Flag 1 = vom Ausbilder zurückgegeben
+  assert.deepStrictEqual(ruecknahmen('pruefer', 'abgelehnt', 1,
+    { statusVorher: 'freigegeben', endabnahmeDirektVorher: 0, korrigiertAm: tageVorher(1) }), []);
+  // eigene Erstgenehmigung dagegen schon
+  assert.deepStrictEqual(ruecknahmen('pruefer', 'erstgenehmigt', 0,
+    { statusVorher: 'freigegeben', endabnahmeDirektVorher: 0, korrigiertAm: tageVorher(1) }),
+    ['freigegeben:0']);
+});
+
+test('Ohne gespeicherten Vorstatus (Altbestand) gibt es keine Rücknahme', () => {
+  assert.deepStrictEqual(ruecknahmen('ausbilder', 'genehmigt', 0,
+    { statusVorher: null, endabnahmeDirektVorher: null, korrigiertAm: tageVorher(1) }), []);
+  assert.deepStrictEqual(wochenAktionen('ausbilder', 'genehmigt', 0), []);
+});
+
+test('Azubi bekommt nie eine Rücknahme angeboten', () => {
+  assert.deepStrictEqual(ruecknahmen('azubi', 'abgelehnt', 0,
+    { statusVorher: 'freigegeben', endabnahmeDirektVorher: 0, korrigiertAm: tageVorher(1) }), []);
+});

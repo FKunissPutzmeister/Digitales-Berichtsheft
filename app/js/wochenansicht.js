@@ -630,6 +630,14 @@ document.addEventListener('DOMContentLoaded', async () => {
     const canEndgenehmigen  = aktionen.includes('endgenehmigen');
     const canApprove = canErstgenehmigen || canEndgenehmigen;
     const canReject  = aktionen.includes('zurueckgeben');
+    // Rücknahme des letzten Statuswechsels: der Server bietet sie nur an,
+    // solange der Wechsel keine 4 Wochen alt ist und die eigene Stufe ihn
+    // gesetzt hat (wochenAktionen). Kein Knopf mit Text – ein Pfeil neben dem
+    // Statuswort, weil es der Ausnahmefall „Fehlklick" ist.
+    const canUndo = aktionen.includes('zuruecknehmen');
+    const undoLabel = woche && woche.status === 'genehmigt'     ? 'Genehmigung zurücknehmen'
+                    : woche && woche.status === 'erstgenehmigt' ? 'Erstgenehmigung zurücknehmen'
+                    : 'Zurückweisung zurücknehmen';
     const isReadonly = (isAusbilder && !viewingSelf())
       || (woche && (woche.status === 'freigegeben' || woche.status === 'erstgenehmigt' || woche.status === 'genehmigt'));
     // Freigabe und Rücknahme gehören dem Azubi selbst: viewingSelf() statt
@@ -713,15 +721,19 @@ document.addEventListener('DOMContentLoaded', async () => {
       <div class="week-toolbar"${zeigtStatus ? ` data-status="${woche.status}"` : ''}>
         <div class="week-toolbar__left">
           ${statusHtml}
+          ${canUndo ? `
+            <button class="week-edit-btn week-status-undo" id="undoStatusBtn" type="button" title="${undoLabel}" aria-label="${undoLabel}">
+              <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.2"><polyline points="3 5 3 11 9 11"/><path stroke-linecap="round" stroke-linejoin="round" d="M5.6 15.5a8 8 0 1 0 1.9-8.3L3 11"/></svg>
+            </button>
+          ` : ''}
           ${canApprove ? `
             <button class="btn-approve-circle" id="approveBtn" type="button" title="${canErstgenehmigen ? 'Erstgenehmigen' : 'Genehmigen'}" aria-label="${canErstgenehmigen ? 'Erstgenehmigen' : 'Genehmigen'}">
               <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3" style="width:22px;height:22px"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
             </button>
           ` : ''}
           ${canReject ? `
-            <button class="btn btn-outline btn-reject-subtle" id="rejectBtn" type="button">
-              <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" style="width:16px;height:16px"><path stroke-linecap="round" stroke-linejoin="round" d="M9 14 4 9l5-5"/><path stroke-linecap="round" stroke-linejoin="round" d="M4 9h11a5 5 0 0 1 5 5v1"/></svg>
-              Zurückgeben
+            <button class="btn btn-outline btn-reject-subtle" id="rejectBtn" type="button" title="Zurückweisen" aria-label="Zurückweisen">
+              <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 14 4 9l5-5"/><path stroke-linecap="round" stroke-linejoin="round" d="M4 9h11a5 5 0 0 1 5 5v1"/></svg>
             </button>
           ` : ''}
           ${canWithdraw ? `
@@ -766,11 +778,11 @@ document.addEventListener('DOMContentLoaded', async () => {
 
       ${canReject ? `
       <div class="reject-inline" id="rejectInline" style="display:none">
-        <label class="form-label" for="rejectInlineReason">Begründung für die Rückgabe</label>
+        <label class="form-label" for="rejectInlineReason">Begründung für die Zurückweisung</label>
         <textarea class="form-control" id="rejectInlineReason" rows="3" placeholder="Was soll überarbeitet werden? Der/die Azubi sieht diese Begründung."></textarea>
         <div class="reject-inline__actions">
           <button class="btn btn-ghost" id="rejectInlineCancel" type="button">Abbrechen</button>
-          <button class="btn btn-danger" id="rejectInlineSubmit" type="button">Woche zurückgeben</button>
+          <button class="btn btn-danger" id="rejectInlineSubmit" type="button">Woche zurückweisen</button>
         </div>
       </div>
       ` : ''}
@@ -1262,7 +1274,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   /* getStatusLabel() liefert fuer 'abgelehnt' den Enum-Namen "Abgelehnt".
      Auf dem Wochenblatt heisst die Aktion aber "Zurueckgeben" — hier also
      dasselbe Wort wie auf dem Knopf, der den Zustand ausgeloest hat. */
-  const WOCHEN_STATUS_LABEL = { abgelehnt: 'Zurückgegeben' };
+  const WOCHEN_STATUS_LABEL = { abgelehnt: 'Zurückgewiesen' };
 
   // ── Pflichtfeld-Validierung ───────────────────────────────────────
   function htmlIsEmpty(html) {
@@ -2604,7 +2616,15 @@ document.addEventListener('DOMContentLoaded', async () => {
       // Ohne Zwischenbestätigung freigeben (wie Genehmigen/Zurückgeben): die
       // Pflichtfeld-Prüfung oben ist der eigentliche Schutz, und die Freigabe
       // lässt sich per „Woche bearbeiten" jederzeit zurückziehen.
-      if (!currentWoche) { Toast.warning('Keine Einträge', 'Bitte zuerst Einträge erfassen.'); return; }
+      // Freigeben auf dem FRISCH geladenen Stand, nicht auf currentWoche:
+      // bei einer Woche, die es beim Rendern noch nicht gab (erster Eintrag
+      // der KW), ist currentWoche null — sie entsteht erst durch den
+      // Auto-Save oben. Die Prüfung darauf meldete dann "Keine Einträge",
+      // obwohl alles gefüllt war und die Pflichtfeld-Prüfung sauber durchlief.
+      if (aktuelleWoche && aktuelleWoche.id != null) currentWoche = aktuelleWoche;
+      if (!currentWoche || currentWoche.id == null) {
+        Toast.warning('Keine Einträge', 'Bitte zuerst Einträge erfassen.'); return;
+      }
       await DB.setWocheStatus(currentWoche.id, 'freigegeben');
       Toast.success('Eingereicht', `KW ${currentKW} wurde eingereicht.`);
       render();
@@ -2626,6 +2646,25 @@ document.addEventListener('DOMContentLoaded', async () => {
       }
       if (erst) Toast.success('Erstgenehmigt', `KW ${currentKW} wurde erstgenehmigt und zur Endabnahme weitergeleitet.`);
       else      Toast.success('Genehmigt', `KW ${currentKW} wurde genehmigt.`);
+      render();
+    });
+    // Statuswechsel zurücknehmen: ein Klick, keine Begründung – die kommt beim
+    // anschließenden Zurückgeben. Der Ziel-Status kommt vom Server.
+    document.getElementById('undoStatusBtn')?.addEventListener('click', async () => {
+      const woche = currentWoche;
+      if (!woche) return;
+      let neuerStatus;
+      try {
+        neuerStatus = await DB.undoWocheStatus(woche.id);
+      } catch (err) {
+        // Häufigster Fall: die 4-Wochen-Frist ist inzwischen abgelaufen oder
+        // eine andere Stufe hat den Status weitergedreht (offene Seite).
+        Toast.error('Rücknahme nicht möglich', err.message);
+        render();
+        return;
+      }
+      Toast.success('Zurückgenommen',
+        `KW ${currentKW} steht wieder auf „${WOCHEN_STATUS_LABEL[neuerStatus] || getStatusLabel(neuerStatus)}".`);
       render();
     });
     // Zurückgeben inline (kein Modal): Begründungsfeld direkt einblenden.
@@ -2656,7 +2695,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         userId: woche.azubiId, type: 'abgelehnt', wocheId: woche.id,
         azubiId: woche.azubiId, kw: woche.kw, year: woche.year, fromUserId: user.id,
       });
-      Toast.warning('Zurückgegeben', `KW ${currentKW} wurde zurückgegeben.`);
+      Toast.warning('Zurückgewiesen', `KW ${currentKW} wurde zurückgewiesen.`);
       render();
     });
 

@@ -96,11 +96,30 @@ function darfWocheKorrigieren(user, woche, kontext) {
   return istPeriodenPruefer(user, woche, kontext);
 }
 
+// Frist für die Rücknahme eines Statuswechsels: 4 Wochen ab dem Korrektur-
+// Stempel (KorrigiertAm). Danach ist die Abnahme endgültig — eine Genehmigung,
+// die einen Monat steht, wird nicht mehr per Fehlklick-Korrektur aufgemacht.
+const RUECKNAHME_TAGE = 28;
+
+// Liegt der Korrektur-Stempel noch innerhalb der Rücknahmefrist?
+// jetzt: optional (Tests); Default = aktuelle Zeit.
+function innerhalbRuecknahmefrist(korrigiertAm, jetzt) {
+  if (!korrigiertAm) return false;
+  const stempel = new Date(korrigiertAm).getTime();
+  if (!Number.isFinite(stempel)) return false;
+  const t = (jetzt ? new Date(jetzt) : new Date()).getTime();
+  return t - stempel <= RUECKNAHME_TAGE * 86400000;
+}
+
 // Zweistufiger Genehmigungs-Automat: erlaubte Aktionen für (rolle, status, flag).
 // endabnahmeDirekt=1 ⇒ Prüfer-Stufe übersprungen (nur Ausbilder handelt noch).
 // Jede Aktion trägt ihren Ziel-Status, das Flag DANACH und ob es eine
 // Korrektur (KorrigiertVon/Am stempeln) ist.
-function wochenAktionen(rolle, status, endabnahmeDirekt) {
+//
+// letzte = { statusVorher, endabnahmeDirektVorher, korrigiertAm, jetzt } —
+// der Zustand VOR dem letzten Korrektur-Wechsel (Migration 037). Nur damit
+// entsteht die Aktion 'zuruecknehmen'; fehlt er, ist nichts zurückzunehmen.
+function wochenAktionen(rolle, status, endabnahmeDirekt, letzte) {
   const flag = endabnahmeDirekt ? 1 : 0;
   const out = [];
   if (rolle === 'azubi') {
@@ -117,6 +136,26 @@ function wochenAktionen(rolle, status, endabnahmeDirekt) {
     if (status === 'freigegeben' || status === 'erstgenehmigt') {
       out.push({ aktion: 'endgenehmigen', zielStatus: 'genehmigt', endabnahmeDirekt: 0, korrektur: true });
       out.push({ aktion: 'zurueckgeben',  zielStatus: 'abgelehnt', endabnahmeDirekt: 1, korrektur: true });
+    }
+  }
+
+  // Rücknahme des letzten Statuswechsels (zu früh genehmigt / falsch
+  // zurückgegeben). GENAU EIN Schritt zurück: Ziel ist der gespeicherte
+  // Vorstatus, danach sind die Vorher-Spalten leer — keine Undo-Kette.
+  // Jede Stufe darf nur ihre EIGENEN Wechsel aufmachen: ein Prüfer kommt
+  // damit nie an die Endabnahme des Ausbilders ('genehmigt', und 'abgelehnt'
+  // mit Flag 1 = vom Ausbilder zurückgegeben).
+  if (letzte && letzte.statusVorher && innerhalbRuecknahmefrist(letzte.korrigiertAm, letzte.jetzt)) {
+    const eigenerWechsel =
+      (rolle === 'pruefer'   && (status === 'erstgenehmigt' || (status === 'abgelehnt' && flag === 0))) ||
+      (rolle === 'ausbilder' && (status === 'genehmigt'     ||  status === 'abgelehnt'));
+    if (eigenerWechsel) {
+      out.push({
+        aktion: 'zuruecknehmen',
+        zielStatus: letzte.statusVorher,
+        endabnahmeDirekt: letzte.endabnahmeDirektVorher ? 1 : 0,
+        korrektur: false,
+      });
     }
   }
   return out;
@@ -148,7 +187,7 @@ function schreibGate(vorhanden, { migration = false, wunschStatus } = {}) {
   const gesperrt = GESPERRTE_STATUS.includes(alt);
 
   if (gesperrt && !migration) {
-    return { ok: false, grund: `Woche ist ${alt} und damit schreibgeschützt. Sie muss zuerst zurückgegeben werden.` };
+    return { ok: false, grund: `Woche ist ${alt} und damit schreibgeschützt. Sie muss zuerst zurückgewiesen werden.` };
   }
   // Eine Migration darf über einen importierten Status hinwegschreiben (erneuter
   // Import derselben PDF), aber NIEMALS über eine in DIESER App erteilte Abnahme.
@@ -199,5 +238,6 @@ module.exports = {
   darfWocheKorrigieren, darfWocheSehen,
   verantwortlichFuerZuweisung,
   istPeriodenPruefer, rolleFuerWoche, wochenAktionen,
+  RUECKNAHME_TAGE, innerhalbRuecknahmefrist,
   WOCHEN_STATUS, GESPERRTE_STATUS, schreibGate,
 };

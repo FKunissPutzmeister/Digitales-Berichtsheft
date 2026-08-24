@@ -1074,6 +1074,16 @@ html .week-toolbar[data-status] {
 .week-edit-btn:focus-visible { outline: none; box-shadow: 0 0 0 3px var(--pm-yellow-pale); }
 .week-edit-btn svg { width: 19px; height: 19px; }
 
+/* "Statuswechsel zuruecknehmen": dieselbe randlose Hitbox wie der Stift,
+   aber in der Farbe des Statusblocks daneben (--ws-text) statt Grau — der
+   Pfeil gehoert optisch zum Wort, nicht zur Leiste. Gedaempft, weil es der
+   Ausnahmefall "Fehlklick" ist; volle Farbe erst beim Hover. Die Farbe wird
+   im :hover nochmal gesetzt, weil sonst .week-edit-btn:hover{color:
+   --pm-grey-900} greift (gleiche Spezifitaet, spaetere Regel gewinnt). */
+.week-status-undo { color: var(--ws-text); opacity: .55; }
+.week-status-undo:hover { color: var(--ws-text); opacity: 1; }
+.week-status-undo svg { width: 17px; height: 17px; }
+
 /* ===================================================================
    TAG-LEGENDE & TAGES-VOLLSTÄNDIGKEITSPUNKT
    =================================================================== */
@@ -1456,12 +1466,15 @@ html .week-toolbar[data-status] {
   flex-wrap: wrap;
 }
 
-/* Prüf-Aktionen: Genehmigen als prominenter grüner Haken-im-Kreis (häufig),
-   Zurückgeben dezent transparent daneben (selten → weniger präsent). */
+/* Prüf-Aktionen: zwei gleich große quadratische Knöpfe — Genehmigen grün
+   gefüllt (häufig), Zurückweisen nur umrandet daneben (selten → weniger
+   präsent). Beide ohne Text: die Beschriftung steht in title/aria-label.
+   Rund war der Haken vorher, das las sich als Abzeichen und nicht als
+   Knopf; --r-md ist dieselbe Rundung wie bei allen .btn der App. */
 .btn-approve-circle {
   width: 42px;
   height: 42px;
-  border-radius: 50%;
+  border-radius: var(--r-md);
   border: none;
   background: var(--color-success);
   color: var(--on-inverse-text);
@@ -1476,16 +1489,34 @@ html .week-toolbar[data-status] {
 .btn-approve-circle:active { transform: scale(0.94); }
 .btn-approve-circle:focus-visible { outline: none; box-shadow: 0 0 0 3px rgba(27, 126, 53, 0.3); }
 
-/* Sekundär, aber klar als Button erkennbar (Rand von .btn-outline);
-   färbt sich beim Hover rot, um die Aktion zu signalisieren. */
-.btn.btn-reject-subtle { color: var(--pm-grey-600); }
-.btn.btn-reject-subtle:hover:not(:disabled) {
-  color: var(--color-error);
+/* Zurückweisen: durchgängig rot gefüllt mit weißem Symbol, gleiche
+   Kantenlänge wie der Genehmigen-Knopf — die beiden sind ein Paar aus
+   Ja/Nein. Ein nur umrandeter Knopf, der erst beim Hover Farbe bekommt,
+   liest sich als deaktiviert; ein weißes Symbol auf Vollfläche ist
+   deutlich besser lesbar als ein rotes auf hellem Grund. */
+.btn.btn-reject-subtle {
+  width: 42px;
+  height: 42px;
+  padding: 0;
+  flex-shrink: 0;
+  background: var(--color-error);
   border-color: var(--color-error);
-  background: transparent;
+  color: var(--on-inverse-text);
+}
+.btn.btn-reject-subtle svg { width: 18px; height: 18px; }
+.btn.btn-reject-subtle:hover:not(:disabled) {
+  background: var(--color-error-mid);
+  border-color: var(--color-error-mid);
+  color: var(--on-inverse-text);
 }
 
-/* Inline-Rückgabe (statt Modal): Begründungsfeld klappt unter der Leiste auf. */
+/* Luft zwischen Statuswort und den Prüf-Knöpfen: der --sp-3-Abstand der
+   Leiste klebt die Knöpfe ans Wort, sie wirken dann wie Teil des
+   Statusblocks. Gilt nur für den ERSTEN Knopf nach dem Wort. */
+.week-status + .btn-approve-circle,
+.week-status + .btn.btn-reject-subtle { margin-left: var(--sp-4); }
+
+/* Inline-Zurückweisung (statt Modal): Begründungsfeld klappt unter der Leiste auf. */
 .reject-inline {
   margin-bottom: var(--sp-4);
   padding: var(--sp-4);
@@ -1500,6 +1531,15 @@ html .week-toolbar[data-status] {
   border-color: rgba(255, 255, 255, 0.08);
   background: rgba(255, 255, 255, 0.03);
 }
+/* Das Feld bekommt beim Aufklappen automatisch den Fokus – der gelbe Ring
+   aus .form-control:focus leuchtete deshalb sofort auf, ohne dass jemand
+   hineingeklickt hätte. Hier nur eine ruhige Kante, global bleibt der
+   Ring unangetastet. */
+.reject-inline .form-control:focus {
+  border-color: var(--pm-grey-400);
+  box-shadow: none;
+}
+
 .reject-inline__actions {
   display: flex;
   justify-content: flex-end;

@@ -58,7 +58,8 @@ async function ladeWocheFuerZugriff(pool, wocheId) {
   const r = await pool.request()
     .input('id', sql.Int, wocheId)
     .query(`
-      SELECT w.AzubiOid, w.StartDatum, w.EndDatum, w.Status, w.KorrigiertVon, w.EndabnahmeDirekt,
+      SELECT w.AzubiOid, w.StartDatum, w.EndDatum, w.Status, w.KorrigiertVon, w.KorrigiertAm, w.EndabnahmeDirekt,
+        w.StatusVorher, w.EndabnahmeDirektVorher,
         (SELECT k.UserOid FROM dbo.Kommentare k WHERE k.WocheId = w.Id FOR JSON PATH) AS autorenJson
       FROM dbo.Wochen w WHERE w.Id = @id
     `);
@@ -73,6 +74,11 @@ async function ladeWocheFuerZugriff(pool, wocheId) {
     status: row.Status,
     endabnahmeDirekt: row.EndabnahmeDirekt ? 1 : 0,
     korrigiertVon: row.KorrigiertVon,
+    korrigiertAm: row.KorrigiertAm,
+    // Zustand vor dem letzten Korrektur-Wechsel (Migration 037) – Grundlage
+    // der Aktion 'zuruecknehmen' in wochenAktionen.
+    statusVorher: row.StatusVorher,
+    endabnahmeDirektVorher: row.EndabnahmeDirektVorher ? 1 : 0,
     kommentarAutoren: autoren,
   };
 }

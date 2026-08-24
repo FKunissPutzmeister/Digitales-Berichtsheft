@@ -283,7 +283,7 @@ router.patch('/:id/status', async (req, res) => {
   try {
     const id = wocheIdParam(req, res);
     if (id === null) return;
-    const { status } = req.body;
+    const { status, aktion } = req.body;
     const pool = await getPool();
     const woche = await ladeWocheFuerZugriff(pool, id);
     if (!woche) return res.status(404).json({ error: 'Woche nicht gefunden' });
@@ -291,18 +291,28 @@ router.patch('/:id/status', async (req, res) => {
     const user = req.user;
     const kontext = await ladeKorrekturKontext(pool, user);
     const rolle = rolleFuerWoche(user, woche, kontext);
-    const treffer = wochenAktionen(rolle, woche.status, woche.endabnahmeDirekt)
-      .find(a => a.zielStatus === status);
+    const moeglich = wochenAktionen(rolle, woche.status, woche.endabnahmeDirekt, woche);
+    // Die Rücknahme wird über ihren Aktions-Slug angefordert: ihr Ziel-Status
+    // ist der gespeicherte Vorstatus, den nur der Server kennt.
+    const treffer = aktion
+      ? moeglich.find(a => a.aktion === aktion)
+      : moeglich.find(a => a.zielStatus === status);
     if (!treffer) {
       return res.status(403).json({ error: 'Keine Berechtigung, diesen Status zu setzen.' });
     }
 
     const request = pool.request()
       .input('id',     sql.Int,          id)
-      .input('status', sql.NVarChar(20), status)
+      .input('status', sql.NVarChar(20), treffer.zielStatus)
       .input('flag',   sql.Bit,          treffer.endabnahmeDirekt);
     let setClause = 'Status = @status, EndabnahmeDirekt = @flag';
+    // Vorher-Spalten (Migration 037): nur ein Korrektur-Wechsel legt einen
+    // Rücknahmepunkt an, jede andere Aktion – auch die Rücknahme selbst –
+    // räumt ihn weg. Damit ist immer höchstens EIN Schritt zurück möglich.
     if (treffer.korrektur) {
+      request.input('statusVorher', sql.NVarChar(20), woche.status)
+             .input('flagVorher',   sql.Bit,          woche.endabnahmeDirekt);
+      setClause += ', StatusVorher = @statusVorher, EndabnahmeDirektVorher = @flagVorher';
       request.input('korrigiertVon', sql.NVarChar(36), user.oid);
       // Name mitschreiben (Migration 031): die Gegenzeichnung im
       // Ausbildungsnachweis muss den Prüfer auch dann noch nennen, wenn sein
@@ -310,7 +320,17 @@ router.patch('/:id/status', async (req, res) => {
       request.input('korrigiertVonName', sql.NVarChar(200), user.name ?? null);
       setClause += ', KorrigiertVon = @korrigiertVon, KorrigiertVonName = @korrigiertVonName'
                  + ', KorrigiertAm = SYSUTCDATETIME()';
+    } else {
+      setClause += ', StatusVorher = NULL, EndabnahmeDirektVorher = NULL';
     }
+    // Die Rücknahme lässt den Korrektur-Stempel absichtlich STEHEN: er ist der
+    // Import-Schutz aus schreibGate (eine in dieser App geprüfte Woche darf
+    // keine IHK-PDF überschreiben) und beim Zurückfallen auf 'erstgenehmigt'
+    // die einzige verbliebene Vorprüfungs-Angabe.
+    // ponytail: dadurch nennt der Ausdruck nach dem Zurücknehmen einer
+    // Endabnahme den Ausbilder als Vorprüfer. Wenn das störend wird, braucht
+    // es KorrigiertVonVorher – bis dahin ist die Woche ohnehin auf dem Weg
+    // zurück zum Azubi.
     // Abgabe des Azubis datieren (Migration 028). Ohne diesen Stempel trug der
     // Ausbildungsnachweis nur ein Genehmigungsdatum, aber kein Abgabedatum.
     // Beim Zurückziehen NICHT geleert – ein erneutes Einreichen überschreibt.
@@ -320,7 +340,7 @@ router.patch('/:id/status', async (req, res) => {
     }
     await request.query(`UPDATE dbo.Wochen SET ${setClause} WHERE Id = @id`);
 
-    if (treffer.zielStatus === 'erstgenehmigt') {
+    if (treffer.aktion === 'erstgenehmigen') {
       // Dauerhafte Ausbilder des Azubis über anstehende Endabnahme informieren.
       const rd = await pool.request()
         .input('azubiOid', sql.NVarChar(36), woche.azubiOid)
@@ -336,7 +356,7 @@ router.patch('/:id/status', async (req, res) => {
       }
     }
 
-    res.json({ ok: true });
+    res.json({ ok: true, status: treffer.zielStatus });
   } catch (err) {
     logError({ quelle: 'backend', nachricht: `[wochen] status: ${err.message}`, stack: err.stack,
       kontext: { route: req.path, methode: req.method }, benutzerOid: req.user && req.user.oid, benutzerName: req.user && req.user.name });
@@ -349,7 +369,11 @@ router.patch('/:id/status', async (req, res) => {
 function annotiereWoche(row, user, kontext) {
   const rolle = rolleFuerWoche(user, normWoche(row), kontext);
   row.viewerRolle = rolle;
-  row.erlaubteAktionen = wochenAktionen(rolle, row.Status, row.EndabnahmeDirekt).map(a => a.aktion);
+  row.erlaubteAktionen = wochenAktionen(rolle, row.Status, row.EndabnahmeDirekt, {
+    statusVorher: row.StatusVorher,
+    endabnahmeDirektVorher: row.EndabnahmeDirektVorher,
+    korrigiertAm: row.KorrigiertAm,
+  }).map(a => a.aktion);
   return row;
 }
 
