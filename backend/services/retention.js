@@ -173,7 +173,20 @@ const PHASE_B = [
   },
   { tabelle: 'Beurteilungen', anweisung: 'SET KenntnisnahmeVon = NULL', bedingung: 'KenntnisnahmeVon = @oid' },
   { tabelle: 'Beurteilungen', anweisung: 'SET KorrigiertVon = NULL',    bedingung: 'KorrigiertVon = @oid' },
+  // Bestätigung des dritten Signaturschritts (Migration 035, in Migration 036
+  // von Ausbilder* auf Ausbildungsleiter* umbenannt) — dieselbe Begründung wie
+  // BeurteiltVon/KenntnisnahmeVon/KorrigiertVon oben: nur die OID muss weg.
+  { tabelle: 'Beurteilungen', anweisung: 'SET AusbildungsleiterBestaetigtVon = NULL', bedingung: 'AusbildungsleiterBestaetigtVon = @oid' },
   { tabelle: 'Anhaenge',      anweisung: 'SET HochgeladenVon = NULL',   bedingung: 'HochgeladenVon = @oid' },
+  {
+    // Ersteller einer Planer-Gruppe (Migration 035, Plantafel) — dient laut
+    // Migrationskommentar nur der Nachvollziehbarkeit, kein Besitzer-Gate.
+    // Gleiche Begründung wie Vertretungen.ErstelltVon unten: ein dangling GUID
+    // ist ein pseudonymer Personenbezug.
+    tabelle: 'PlanerGruppen',
+    anweisung: 'SET ErstelltVon = NULL',
+    bedingung: 'ErstelltVon = @oid',
+  },
   {
     tabelle: 'Vertretungen',
     // PHASE_C loescht Vertretungen nur ueber VertretenerOid/VertreterOid. Wer
@@ -204,6 +217,19 @@ const PHASE_C = [
   { tabelle: 'Vertretungen',             bedingung: 'VertretenerOid = @oid OR VertreterOid = @oid' },
   { tabelle: 'McpLog',                   bedingung: 'UserOid = @oid' },
   { tabelle: 'ApiKeys',                  bedingung: 'UserOid = @oid' },
+  // Mitgliedschaft in einer Planer-Gruppe (Migration 035, Plantafel) — eine
+  // Zuordnung wie AusbilderAzubis oben, kein FK auf dbo.Users. Laut
+  // Migrationskommentar "harmlos", weil die Tafel nur bekannte Oids rendert;
+  // für den Löschjob zählt das nicht: eine dangling AzubiOid ist ein
+  // pseudonymer Personenbezug wie überall sonst in diesem Konzept.
+  { tabelle: 'PlanerGruppenMitglieder',  bedingung: 'AzubiOid = @oid' },
+  // Persönliche Sortierung der Plantafel (Migration 036), Primärschlüssel
+  // BenutzerOid — pro Nutzer, kein FK. Analog zu ApiKeys: eigene Kontodaten.
+  { tabelle: 'PlanerGruppenSortierung',  bedingung: 'BenutzerOid = @oid' },
+  // Hinterlegte Unterschrift (Migration 035) — ein Profil-Merkmal wie
+  // UserPhotos, aber OHNE FK/ON DELETE CASCADE auf dbo.Users, muss also hier
+  // explizit stehen (anders als UserPhotos, siehe Kommentar unten).
+  { tabelle: 'Unterschriften',           bedingung: 'Oid = @oid' },
   // Zuletzt. UserPhotos folgt per FK_UserPhotos_Users ON DELETE CASCADE.
   { tabelle: 'Users',                    bedingung: 'Oid = @oid' },
 ];

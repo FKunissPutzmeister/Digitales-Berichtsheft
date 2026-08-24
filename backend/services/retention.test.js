@@ -234,6 +234,23 @@ test('PHASE_B nullt Vertretungen.ErstelltVon - der Ersteller ist sonst nirgends 
   assert.equal(e.bedingung, 'ErstelltVon = @oid');
 });
 
+test('PHASE_B nullt Beurteilungen.AusbildungsleiterBestaetigtVon - dritter Signaturschritt', () => {
+  // Von der retention-Selbstpruefung gefunden: Migration 036 hat die Spalte von
+  // Ausbilder* auf Ausbildungsleiter* umbenannt, der Loeschjob kannte den neuen
+  // Namen nicht.
+  const e = R.PHASE_B.find(x => x.tabelle === 'Beurteilungen' && x.bedingung === 'AusbildungsleiterBestaetigtVon = @oid');
+  assert.ok(e, 'AusbildungsleiterBestaetigtVon fehlt in PHASE_B');
+  assert.equal(e.anweisung, 'SET AusbildungsleiterBestaetigtVon = NULL');
+});
+
+test('PHASE_B nullt PlanerGruppen.ErstelltVon - der Ersteller ist sonst nirgends erfasst', () => {
+  // Von der retention-Selbstpruefung gefunden (Migration 035 Plantafel-Gruppen).
+  const e = R.PHASE_B.find(x => x.tabelle === 'PlanerGruppen');
+  assert.ok(e, 'PlanerGruppen fehlt in PHASE_B');
+  assert.equal(e.anweisung, 'SET ErstelltVon = NULL');
+  assert.equal(e.bedingung, 'ErstelltVon = @oid');
+});
+
 test('PHASE_B: Benachrichtigungen werden nur genullt, nicht geloescht', () => {
   const e = R.PHASE_B.find(x => x.tabelle === 'Benachrichtigungen');
   // Die Zeile gehoert dem Empfaenger: ein Azubi soll seine Mitteilung
@@ -256,6 +273,28 @@ test('PHASE_C: AbteilungVerantwortliche bindet ueber OID UND E-Mail', () => {
   assert.equal(e.bedingung, 'Oid = @oid OR LOWER(Email) = LOWER(@email)');
 });
 
+test('PHASE_C loescht PlanerGruppenMitglieder - von der Selbstpruefung gefunden', () => {
+  // Migration 035 (Plantafel-Gruppen): kein FK auf dbo.Users, laut
+  // Migrationskommentar "harmlos" - fuer den Loeschjob zaehlt das nicht.
+  const e = R.PHASE_C.find(x => x.tabelle === 'PlanerGruppenMitglieder');
+  assert.ok(e, 'PlanerGruppenMitglieder fehlt in PHASE_C');
+  assert.equal(e.bedingung, 'AzubiOid = @oid');
+});
+
+test('PHASE_C loescht PlanerGruppenSortierung - persoenliche Reihenfolge pro Nutzer', () => {
+  const e = R.PHASE_C.find(x => x.tabelle === 'PlanerGruppenSortierung');
+  assert.ok(e, 'PlanerGruppenSortierung fehlt in PHASE_C');
+  assert.equal(e.bedingung, 'BenutzerOid = @oid');
+});
+
+test('PHASE_C loescht Unterschriften - Profil-Merkmal ohne FK/CASCADE auf Users', () => {
+  // Anders als UserPhotos (FK_UserPhotos_Users ON DELETE CASCADE) hat
+  // dbo.Unterschriften (Migration 035) keine Kaskade - muss also explizit stehen.
+  const e = R.PHASE_C.find(x => x.tabelle === 'Unterschriften');
+  assert.ok(e, 'Unterschriften fehlt in PHASE_C');
+  assert.equal(e.bedingung, 'Oid = @oid');
+});
+
 /* ── Selbstprüfung: SPALTEN-granular, nicht tabellen-granular ────
    Eine tabellen-granulare Prüfung ist blind für eine NEUE personenbezogene
    Spalte auf einer bereits bekannten Tabelle — genau so blieb
@@ -271,6 +310,7 @@ test('istBekannteSpalte deckt jede Spalte ab, die eine der drei Phasen anfasst',
     ['Zuweisungen', 'AzubiOid'], ['Zuweisungen', 'VerantwEmail'],
     ['Beurteilungen', 'AzubiOid'], ['Beurteilungen', 'BeurteiltVon'],
     ['Beurteilungen', 'KenntnisnahmeVon'], ['Beurteilungen', 'KorrigiertVon'],
+    ['Beurteilungen', 'AusbildungsleiterBestaetigtVon'],
     ['Anhaenge', 'HochgeladenVon'],
     ['FahrtgeldKonfig', 'AzubiOid'], ['EssTag', 'AzubiOid'],
     ['AusbilderAzubis', 'AzubiOid'], ['AusbilderAzubis', 'AusbilderOid'],
@@ -278,6 +318,8 @@ test('istBekannteSpalte deckt jede Spalte ab, die eine der drei Phasen anfasst',
     ['Vertretungen', 'VertretenerOid'], ['Vertretungen', 'VertreterOid'],
     ['Vertretungen', 'ErstelltVon'],
     ['McpLog', 'UserOid'], ['ApiKeys', 'UserOid'],
+    ['PlanerGruppen', 'ErstelltVon'], ['PlanerGruppenMitglieder', 'AzubiOid'],
+    ['PlanerGruppenSortierung', 'BenutzerOid'], ['Unterschriften', 'Oid'],
     ['Users', 'Oid'],
   ];
   for (const [tabelle, spalte] of ausPhasen) {
