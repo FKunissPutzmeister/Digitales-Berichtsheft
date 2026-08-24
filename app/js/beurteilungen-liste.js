@@ -67,6 +67,19 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   }
 
+  // Von beurteilung.html kommt man per history.back() hierher zurück (z. B.
+  // nach "Abschließen"). Der Browser stellt das Dokument dabei oft aus dem
+  // BFCache wieder her (pageshow mit persisted=true) statt es neu zu laden –
+  // DOMContentLoaded feuert dann NICHT erneut, die Liste zeigt also weiter
+  // den Stand von vor dem Abschließen (gerade abgeschlossene Beurteilung
+  // erscheint fälschlich noch als "Offen"). Deshalb hier gezielt neu laden,
+  // analog zum selben BFCache-Fix in dashboard.js.
+  window.addEventListener('pageshow', (event) => {
+    if (!event.persisted) return;
+    const azubiOid = mitSelector ? document.getElementById('azubiSelect')?.value : undefined;
+    ladeUndZeige(azubiOid);
+  });
+
   if (!mitSelector) {
     await ladeUndZeige();
     return;
