@@ -559,11 +559,13 @@ html.sidebar-init-collapsed .main-wrapper         { margin-left: var(--sidebar-i
   align-items: center;
   justify-content: center;
   padding: 0;
-  border: 1px solid var(--outline, rgba(0,0,0,0.12));
+  /* --surface und --outline gibt es im Projekt nicht – es griff immer der
+     weiße Fallback, im Dark-Theme ein leuchtender weißer Kasten. */
+  border: 1px solid var(--pm-grey-200);
   border-radius: var(--r-md, 10px);
-  background: var(--surface, #fff);
-  color: var(--pm-grey-900, #1a1a1a);
-  box-shadow: var(--shadow-2, 0 2px 8px rgba(0,0,0,0.15));
+  background: var(--pm-white);
+  color: var(--pm-grey-900);
+  box-shadow: var(--shadow-md);
   cursor: pointer;
 }
 .mobile-menu-btn svg { width: 22px; height: 22px; }
@@ -691,10 +693,10 @@ body[data-page="abteilungs-planer"] .main-content,
 body[data-page="profil"] .main-content {
   max-width: min(2200px, 100%);
 }
-/* Fahrgelderstattung: bewusst schmaler (Formular-Charakter) — volle Breite
-   zog Labels/Werte an die Kartenränder auseinander und wirkte „zu eng". */
+/* Fahrgelderstattung: breiter als die Lesegrenze, aber nicht bis zum
+   Ultra-Wide-Cap — die Monatskacheln würden sonst unnötig breit. */
 body[data-page="fahrgelderstattung"] .main-content {
-  max-width: 1080px;
+  max-width: min(1600px, 100%);
 }
 
 body[data-page="dashboard"] .main-content {
@@ -756,8 +758,12 @@ body[data-page="dashboard"] .welcome-hero {
   .sidebar__user { justify-content: center; }
 }
 
-/* ── Responsive: Mobile ── */
-@media (max-width: 768px) {
+/* ── Responsive: Off-Canvas-Schublade ──
+   Erst ab 600 px, nicht schon ab 768: dazwischen ist die Icon-Leiste (68 px)
+   gut bedienbar und der Nutzer sieht seine Navigation weiterhin. Vorher
+   verschwand sie unter 768 px komplett hinter einem Menü-Knopf.
+   Grenze gespiegelt in theme.js (window.PM_SIDEBAR_BP.mobil). */
+@media (max-width: 600px) {
   :root {
     --sidebar-w: 260px;
     --sidebar-icon-w: 260px;
@@ -790,9 +796,13 @@ body[data-page="dashboard"] .welcome-hero {
   .page-header {
     flex-direction: column;
     align-items: stretch;
+    /* Der Menü-Knopf liegt fixiert oben links über dem Inhalt – ohne
+       diesen Einzug verschwindet der Seitentitel darunter. */
+    padding-left: 54px;
   }
   .page-header__actions {
     flex-wrap: wrap;
+    padding-left: 0;
   }
 }
 

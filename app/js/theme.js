@@ -1748,15 +1748,19 @@
      wieder entfernt, sobald die "echte" .collapsed-Klasse gesetzt ist. */
   try {
     var sidebarCollapsed = localStorage.getItem('sidebarCollapsed') === 'true';
-    /* Tablet-Auto-Collapse (769–1280px): beim echten Page-Load startet
-       die Sidebar IMMER eingeklappt — überstimmt eine gespeicherte
-       "offen"-Präferenz. <= 768px greift das Mobile-Off-Canvas-Layout
-       (dort wäre der Marker via .main-wrapper-Margin kontraproduktiv),
-       > 1280px gilt weiterhin nur die Nutzer-Präferenz.
-       Pendant: buildSidebar() in sidebar.js setzt unter derselben
-       Bedingung die echte .collapsed-Klasse auf das <aside>. */
+    /* Auto-Collapse unter 14 Zoll: beim Page-Load startet die Sidebar
+       eingeklappt — überstimmt eine gespeicherte "offen"-Präferenz.
+       1440 als Grenze, weil 14-Zoll-Geräte bei üblicher Skalierung auf
+       1440–1536 CSS-px landen, kleinere auf ≤ 1280.
+       Unterhalb von `mobil` greift das Off-Canvas-Layout (dort wäre der
+       Marker via .main-wrapper-Margin kontraproduktiv).
+       Die Zahlen stehen HIER und nirgends sonst: sidebar.js (echte
+       .collapsed-Klasse) und app.js (Resize + gespeicherte Präferenz)
+       lesen sie von hier. Driften sie auseinander, entsteht genau das
+       Loch, in dem die Sidebar weder Icon-Leiste noch Off-Canvas ist. */
+    window.PM_SIDEBAR_BP = { mobil: 600, autoCollapse: 1440 };
     var tabletAutoCollapse = window.matchMedia &&
-        window.matchMedia('(min-width: 769px) and (max-width: 1280px)').matches;
+        window.matchMedia('(min-width: ' + (window.PM_SIDEBAR_BP.mobil + 1) + 'px) and (max-width: ' + window.PM_SIDEBAR_BP.autoCollapse + 'px)').matches;
     if (sidebarCollapsed || tabletAutoCollapse) {
       html.classList.add('sidebar-init-collapsed');
     }

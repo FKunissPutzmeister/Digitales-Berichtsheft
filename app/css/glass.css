@@ -1419,7 +1419,8 @@ html.sidebar-init-collapsed .main-wrapper          { margin-left: calc(var(--lg-
 html.sidebar-init-collapsed .main-wrapper {
   margin-left: calc(var(--lg-sidebar-w-collapsed) + var(--lg-gap) * 2) !important;
 }
-@media (max-width: 768px) {
+/* Pendant zum Off-Canvas-Block in layout.css – muss dieselbe Grenze haben. */
+@media (max-width: 600px) {
   .main-wrapper {
     margin-left: var(--lg-gap) !important;
     margin-right: var(--lg-gap);

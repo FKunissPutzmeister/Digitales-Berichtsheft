@@ -108,7 +108,7 @@ function buildSidebar(activeNavId) {
 
   document.getElementById(activeNavId)?.classList.add('active');
 
-  /* Tablet-Auto-Collapse (769–1280px): beim echten Page-Load eingeklappt
+  /* Auto-Collapse unter 14 Zoll (769–1440px): beim echten Page-Load eingeklappt
      starten — unabhängig von localStorage('sidebarCollapsed'). Gegenstück
      zum Pre-Paint-Marker html.sidebar-init-collapsed (theme.js); die
      Klasse muss hier synchron sitzen, BEVOR app.js den Marker im
@@ -118,8 +118,9 @@ function buildSidebar(activeNavId) {
      buildSidebar nicht erneut (router.js patcht initPage), der Session-
      Zustand bleibt also erhalten. localStorage wird hier bewusst NICHT
      beschrieben, damit die Desktop-Präferenz unangetastet bleibt. */
+  const bp = window.PM_SIDEBAR_BP || { mobil: 600, autoCollapse: 1440 };  // Quelle: theme.js
   if (window.matchMedia &&
-      window.matchMedia('(min-width: 769px) and (max-width: 1280px)').matches) {
+      window.matchMedia(`(min-width: ${bp.mobil + 1}px) and (max-width: ${bp.autoCollapse}px)`).matches) {
     sidebar.classList.add('collapsed');
   }
 
