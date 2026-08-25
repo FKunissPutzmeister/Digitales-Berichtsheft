@@ -260,13 +260,13 @@ function durchlaufBoardHtml(user, zuw, heute, beurtByZuw = {}, opts = {}) {
       ${stand}
     </div>
     ${heroHtml}
-    <div class="dlb-sec-h"><h2 class="dlb-sec-title">Verlauf</h2></div>
+    ${rows.length ? `<div class="dlb-sec-h"><h2 class="dlb-sec-title">Verlauf</h2></div>
     <div class="dlb-railwrap">
       <button class="dlb-rail-arrow dlb-rail-arrow--l" id="dlbArrowL" type="button" aria-label="Frühere Abteilungen">${CHEV_L}</button>
       <div class="dlb-rail-vp" id="dlbRailVp"><div class="dlb-rail" id="dlbRail"><div class="dlb-rail-base"></div><div class="dlb-rail-prog"></div>${railStops}</div></div>
       <button class="dlb-rail-arrow dlb-rail-arrow--r" id="dlbArrowR" type="button" aria-label="Weitere Abteilungen">${DLB_ICO.chev}</button>
-    </div>
-    ${done.length ? `<div class="dlb-sec-h"><h2 class="dlb-sec-title">Abgeschlossen</h2><span class="dlb-count">${done.length}</span></div>
+    </div>` : ''}
+    ${done.length ? `<div class="dlb-sec-h"><h2 class="dlb-sec-title">Abgeschlossen</h2></div>
     <div class="dlb-done-grid">${done.map(miniCard).join('')}</div>` : ''}
   </div>`;
 }
@@ -604,10 +604,6 @@ async function renderAusbilderDurchlauf(user) {
 document.addEventListener('DOMContentLoaded', async () => {
   const user = await initPage('nav-planer', [{ label: 'Abteilungs-Planer', href: 'abteilungs-planer.html' }]);
   if (!user) return;
-
-  // Vorschau-Feature: außerhalb localhost/Developer-Ansicht Coming-Soon statt
-  // Board (gilt für Azubi-Durchlauf ?mein=1, Ausbilder-Sicht und Planer).
-  if (!previewUnlocked(user.role)) { renderComingSoon('Abteilungsdurchlauf'); return; }
 
   // Über „Abteilungsdurchlauf" (?mein=1) sehen Azubis immer den EIGENEN
   // Durchlauf – auch Planer/Developer, die selbst Azubi sind (Dev-Hybrid).

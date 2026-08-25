@@ -659,7 +659,6 @@
 .dlb-col--now .dlb-col__ico { color: var(--pm-yellow-darker); }
 .dlb-col--plan .dlb-col__ico { color: var(--pm-grey-500); }
 .dlb-col__title { font-family: var(--font-heading); font-weight: var(--fw-bold); font-size: var(--text-sm); color: var(--pm-grey-800); }
-.dlb-count { margin-left: auto; font-size: var(--text-xs); font-weight: 800; min-width: 24px; text-align: center; padding: 3px 9px; border-radius: var(--r-full); background: var(--lane-chip-bg, var(--pm-grey-100)); color: var(--pm-grey-700); font-variant-numeric: tabular-nums; }
 .dlb-col__cards { display: flex; flex-direction: column; gap: 11px; }
 .dlb-col__empty { font-size: var(--text-sm); color: var(--pm-grey-400); padding: 6px 4px 2px; }
 
