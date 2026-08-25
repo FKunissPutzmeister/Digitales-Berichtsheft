@@ -113,6 +113,11 @@
         // die vom Aufrufer via { erwartet: [...] } deklarierten Status – etwa
         // 403 „Kein Zugriff" bei Beurteilungs-Badges, die der Aufrufer
         // ausdrücklich wegfängt und ohne Badge weiterläuft.
+        // Wartungsmodus (503 mit wartung:true, gesetzt in api.js) ist ein
+        // angekündigter Betriebszustand, kein Bug. Während der Wartung würde
+        // ohnehin JEDER Aufruf so enden — der Posteingang liefe voll, und
+        // /api/errors antwortet selbst mit 503, die Meldung käme nie an.
+        if (e && e.wartung === true) throw e;
         if (e && sollStatusMelden(e.status, options && options.erwartet)) {
           melde('frontend', `apiFetch ${path}: ${e.message}`, e.stack,
             { apiPfad: path, methode: ((options && options.method) || 'GET').toUpperCase() });

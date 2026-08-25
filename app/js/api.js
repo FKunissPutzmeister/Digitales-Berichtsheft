@@ -13,6 +13,48 @@ const API_BASE = (window.location.port === '5500')
   ? `http://${window.location.hostname}:3000/api`
   : '/api';
 
+/* ── Wartungsmodus ────────────────────────────────────────────────
+   Das Backend (middleware/wartung.js) beantwortet im Wartungsmodus JEDE
+   API-Anfrage mit 503 und { wartung: true }. Ohne zentrale Behandlung
+   würde eine offene Seite nur in wirre Einzelfehler zerfallen ("konnte
+   nicht laden", "Speichern fehlgeschlagen") — der Nutzer sähe eine
+   kaputte Anwendung statt einer Erklärung.
+
+   Deshalb hier, an der einzigen Stelle, durch die jeder API-Aufruf
+   läuft: eine nicht schließbare Meldung über die Seite legen. Bewusst
+   mit Inline-Styles statt einer CSS-Klasse — die Ebene muss auf JEDER
+   Seite und in JEDEM Theme funktionieren, auch wenn deren Stylesheet
+   gerade nicht geladen werden konnte. */
+let _wartungGezeigt = false;
+function zeigeWartungsmeldung(text) {
+  if (_wartungGezeigt) return;          // nur einmal, egal wie viele Aufrufe scheitern
+  _wartungGezeigt = true;
+  const ebene = document.createElement('div');
+  ebene.setAttribute('role', 'alertdialog');
+  ebene.setAttribute('aria-modal', 'true');
+  ebene.style.cssText = 'position:fixed;inset:0;z-index:99999;display:flex;'
+    + 'align-items:center;justify-content:center;padding:24px;'
+    + 'background:rgba(26,26,26,.55);backdrop-filter:blur(3px);'
+    + 'font-family:system-ui,-apple-system,"Segoe UI",sans-serif;';
+  const karte = document.createElement('div');
+  karte.style.cssText = 'max-width:460px;width:100%;background:#fff;color:#1A1A1A;'
+    + 'border-radius:14px;box-shadow:0 8px 40px rgba(0,0,0,.25);overflow:hidden;';
+  const balken = document.createElement('div');
+  balken.style.cssText = 'height:5px;background:#FFC300;';
+  const inhalt = document.createElement('div');
+  inhalt.style.cssText = 'padding:28px 30px;';
+  const titel = document.createElement('h2');
+  titel.textContent = 'Wartung läuft';
+  titel.style.cssText = 'margin:0 0 10px;font-size:1.2rem;';
+  const absatz = document.createElement('p');
+  absatz.textContent = text || 'Das Berichtsheft ist gerade nicht verfügbar.';
+  absatz.style.cssText = 'margin:0;line-height:1.6;color:#4A4A4A;font-size:.95rem;';
+  inhalt.append(titel, absatz);
+  karte.append(balken, inhalt);
+  ebene.append(karte);
+  (document.body || document.documentElement).append(ebene);
+}
+
 /* ── HTTP-Hilfsfunktionen ─────────────────────────────────────── */
 async function apiFetch(path, options = {}) {
   // Timeout via AbortController: eine hängende Anfrage darf NICHT die ganze Seite
@@ -35,6 +77,14 @@ async function apiFetch(path, options = {}) {
       // Bugs unterscheiden können. Die .message bleibt unverändert.
       const httpErr = new Error(err.error || res.statusText);
       httpErr.status = res.status;
+      // Wartungsmodus: einmalig erklären statt in Einzelfehlern zu zerfallen.
+      // Das Kennzeichen wandert an den Fehler, damit der Fehler-Reporter ihn
+      // NICHT in den Posteingang schreibt — es ist kein Bug, sondern ein
+      // angekündigter Betriebszustand (und /api/errors antwortet ohnehin 503).
+      if (res.status === 503 && err && err.wartung === true) {
+        httpErr.wartung = true;
+        zeigeWartungsmeldung(err.error);
+      }
       throw httpErr;
     }
     return res.json();
@@ -58,6 +108,9 @@ async function apiUpload(path, formData) {
   });
   if (!res.ok) {
     const err = await res.json().catch(() => ({ error: res.statusText }));
+    // Gleiche Behandlung wie in apiFetch: ein Upload mitten im Wartungsfenster
+    // soll die Erklärung zeigen, nicht nur "Hochladen fehlgeschlagen".
+    if (res.status === 503 && err && err.wartung === true) zeigeWartungsmeldung(err.error);
     throw new Error(err.error || res.statusText);
   }
   return res.json();

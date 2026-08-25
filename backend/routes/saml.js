@@ -8,6 +8,7 @@ const router = require('express').Router();
 const { saml, samlConfigured } = require('../config/saml');
 const { parseRoleClaim, upsertUser, getUserByOid, buildReqUser, landingPathForUser } = require('../services/users');
 const { DEV_AUTH_ENABLED } = require('../middleware/auth');
+const { istWartungAktiv } = require('../middleware/wartung');
 
 const LOGIN_PAGE = '/app/index.html';
 
@@ -59,7 +60,14 @@ function guard(req, res, next) {
 // Frontend fragt, ob der Microsoft-Button aktiv sein soll — und ob es den
 // passwortlosen Demo-Login gibt (in Produktion nicht gemountet; die
 // Login-Seite blendet den Demo-Block dann komplett aus).
-router.get('/status', (req, res) => res.json({ configured: samlConfigured, demoLogin: DEV_AUTH_ENABLED }));
+// wartung: einziger Endpunkt, der im Wartungsmodus noch antwortet (siehe
+// middleware/wartung.js) — die Login-Seite erfährt nur hierüber, dass sie
+// statt der Anmeldeknöpfe die Wartungsmeldung zeigen muss.
+router.get('/status', (req, res) => res.json({
+  configured: samlConfigured,
+  demoLogin: DEV_AUTH_ENABLED,
+  wartung: istWartungAktiv(),
+}));
 
 // SP-initiierter Login → Redirect zum Azure-Login.
 router.get('/login', guard, async (req, res) => {

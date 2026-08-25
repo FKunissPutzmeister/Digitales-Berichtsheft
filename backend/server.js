@@ -8,6 +8,7 @@ const FileStore = require('session-file-store')(session);
 const { hardenWrites } = require('./services/session-store');
 const { devAuth, DEV_AUTH_ENABLED } = require('./middleware/auth');
 const { staticGuard } = require('./middleware/static-guard');
+const { istWartungAktiv, wartungsGuard } = require('./middleware/wartung');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -81,6 +82,17 @@ app.use(session({
     maxAge: 1000 * 60 * 60 * 24 * 7,  // 7 Tage
   },
 }));
+
+// ── Wartungsmodus ─────────────────────────────────────────────────
+// WARTUNG=1 sperrt API und MCP mit 503 — für Umzüge/Wartungsfenster, in
+// denen niemand mehr schreiben darf (auch niemand mit offener Sitzung).
+// Steht bewusst VOR den Auth-Endpunkten: sonst bekäme ein nicht
+// angemeldeter Aufrufer ein irreführendes "Nicht angemeldet" statt der
+// Wartungsmeldung. Das statische Frontend bleibt erreichbar, damit die
+// Login-Seite die Meldung anzeigen kann (siehe middleware/wartung.js).
+const WARTUNG_AKTIV = istWartungAktiv();
+app.use(wartungsGuard({ aktiv: WARTUNG_AKTIV }));
+if (WARTUNG_AKTIV) console.warn('[wartung] WARTUNGSMODUS AKTIV — API und MCP antworten mit 503.');
 
 // ── Dev-Auth-Endpunkte (passwortlos!) — NUR außerhalb der Produktion ──────
 // In Produktion authentifiziert ausschließlich SAML-SSO; diese Endpunkte

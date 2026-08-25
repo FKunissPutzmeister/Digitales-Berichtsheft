@@ -143,6 +143,35 @@ body.login-page {
 .login-sso-hint.visible { display: flex; animation: fadeIn var(--t-normal) both; }
 .login-sso-hint svg { width: 14px; height: 14px; flex-shrink: 0; }
 
+/* Wartungsmodus (WARTUNG=1 im Backend). Bewusst kräftiger als der
+   Info-Hinweis darüber: Er ersetzt hier die Anmeldung, statt sie nur zu
+   ergänzen — der Nutzer soll auf einen Blick sehen, dass er nichts falsch
+   gemacht hat und es gerade auch nichts zu versuchen gibt. */
+.login-wartung {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--sp-3);
+  padding: var(--sp-4);
+  background: var(--color-warning-light);
+  border: 1px solid rgba(216, 67, 21, 0.25);
+  border-radius: var(--r-md);
+  color: var(--color-warning);
+  animation: fadeIn var(--t-normal) both;
+}
+.login-wartung svg { width: 20px; height: 20px; flex-shrink: 0; margin-top: 1px; }
+.login-wartung__titel {
+  display: block;
+  margin-bottom: var(--sp-1);
+  font-size: var(--text-sm);
+  font-weight: var(--fw-bold);
+}
+.login-wartung__text {
+  margin: 0;
+  font-size: var(--text-xs);
+  line-height: var(--lh-normal);
+  color: var(--pm-grey-700);
+}
+
 /* „oder"-Trenner */
 .login-divider {
   display: flex;

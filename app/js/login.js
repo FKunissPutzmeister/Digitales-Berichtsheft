@@ -6,13 +6,6 @@ document.addEventListener('DOMContentLoaded', async () => {
   // alle anderen aufs Dashboard.
   const landingFor = (user) => (user && user.role === 'dhstudent') ? 'abteilungsdurchlauf.html' : 'dashboard.html';
 
-  // Bereits eingeloggt?
-  const existing = await DB.fetchCurrentUser();
-  if (existing) {
-    window.location.href = landingFor(existing);
-    return;
-  }
-
   const form = document.getElementById('loginForm');
   const errorBox = document.getElementById('loginError');
   const errorText = document.getElementById('loginErrorText');
@@ -27,6 +20,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     ? `http://${window.location.hostname}:3000/api` : '/api';
   let samlReady = false;
   let demoLogin = false;
+  let wartung = false;
   try {
     const r = await fetch(`${base}/auth/saml/status`, { credentials: 'include' });
     if (!r.ok) console.warn('[saml] status-Endpoint antwortete nicht OK:', r.status);
@@ -34,8 +28,37 @@ document.addEventListener('DOMContentLoaded', async () => {
       const status = await r.json();
       samlReady = status.configured === true;
       demoLogin = status.demoLogin !== false;
+      wartung = status.wartung === true;
     }
   } catch { samlReady = false; }
+
+  // Wartungsmodus (WARTUNG=1 im Backend): Meldung einblenden und ALLE
+  // Anmeldewege entfernen. Der Server weist ohnehin jeden Versuch mit 503
+  // ab — ein sichtbarer Knopf würde nur einen Fehler produzieren, statt zu
+  // erklären, was los ist. Der Demo-Block bleibt unangetastet unsichtbar.
+  if (wartung) {
+    const box = document.getElementById('loginWartung');
+    if (box) box.style.display = 'flex';
+    // "Bitte anmelden" wäre jetzt eine Aufforderung, die ins Leere läuft.
+    const sub = document.querySelector('.login-card__sub');
+    if (sub) sub.textContent = 'Zurzeit nicht verfügbar';
+    for (const el of [msBtn, ssoHint, document.querySelector('.login-divider'),
+                      document.getElementById('loginForm'),
+                      document.getElementById('loginDemo')]) {
+      if (el) el.style.display = 'none';
+    }
+    return;   // nichts weiter verdrahten: es gibt hier nichts mehr zu bedienen
+  }
+
+  // Bereits eingeloggt? Bewusst ERST hier, nach dem Statuscheck: /auth/me
+  // antwortet im Wartungsmodus mit 503, und api.js legt daraufhin seine
+  // Vollbild-Meldung über die Seite. Auf der Login-Seite wäre die doppelt
+  // gemoppelt — der Kasten oben erklärt es bereits und passt ins Layout.
+  const existing = await DB.fetchCurrentUser();
+  if (existing) {
+    window.location.href = landingFor(existing);
+    return;
+  }
 
   msBtn?.addEventListener('click', () => {
     if (samlReady) {
