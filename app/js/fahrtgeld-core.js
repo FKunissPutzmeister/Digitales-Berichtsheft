@@ -22,6 +22,36 @@
   const HEADER_KST_CELL = 'F5';
   const DATEN_VON_ZEILE = 10;
   const DATEN_BIS_ZEILE = 19;
+  const ZEILEN_MERGES = [['A', 'B'], ['C', 'D'], ['E', 'F']];
+
+  /* ── Vorlage verlängern (nur bei Blockunterricht) ────────────────
+     Das Papierformular hat 10 Zeilen. Wer einen ganzen Monat Berufsschule
+     hat, braucht mehr — dann wächst die Tabelle, statt Tage zu schlucken.
+     Bis 10 Tage bleibt die Vorlage unangetastet.
+
+     ExcelJS' duplicateRow() kopiert Stil, Rahmen und Zeilenhöhe und schiebt
+     den Fußblock nach unten — die Verbund-Zellen bleiben dabei aber auf
+     ihren alten Zeilennummern stehen (gemessen: nach Speichern+Laden waren
+     die des Fußblocks ganz verschwunden). Sie werden deshalb unten komplett
+     neu gesetzt. */
+  function verlaengereExcelTabelle(sheet, extra) {
+    sheet.duplicateRow(DATEN_BIS_ZEILE, extra, true);
+    const bisZeile = DATEN_BIS_ZEILE + extra;
+
+    // Alle Merges ab der ersten neuen Zeile lösen …
+    for (const range of [...(sheet.model.merges || [])]) {
+      const zeile = parseInt((range.match(/\d+/) || [0])[0], 10);
+      if (zeile > DATEN_BIS_ZEILE) { try { sheet.unMergeCells(range); } catch (e) { /* war nicht verbunden */ } }
+    }
+    // … und passend zur neuen Geometrie wieder setzen: Datenzeilen, dann die
+    // zwei Fußzeilen, dann die über beide laufende Summen-Zelle.
+    const merge = (r) => ZEILEN_MERGES.forEach(([a, b]) => {
+      try { sheet.mergeCells(`${a}${r}:${b}${r}`); } catch (e) { /* schon verbunden */ }
+    });
+    for (let r = DATEN_BIS_ZEILE + 1; r <= bisZeile + 2; r++) merge(r);
+    try { sheet.mergeCells(`G${bisZeile + 1}:G${bisZeile + 2}`); } catch (e) { /* schon verbunden */ }
+    return bisZeile;
+  }
 
   const MONATE = ['Januar', 'Februar', 'März', 'April', 'Mai', 'Juni',
     'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember'];
@@ -161,8 +191,16 @@
     sheet.getCell(HEADER_PERSNR_CELL).value = `Pers.-Nr.: ${konstanten.persNr || ''}`;
     sheet.getCell(HEADER_KST_CELL).value = `KST: ${konstanten.kst || ''}`;
 
+    // Tabelle nur verlängern, wenn die Tage die 10 Vorlagenzeilen wirklich
+    // überschreiten — sonst bleibt die Vorlage exakt wie sie ist.
+    const anzahlTage = (Array.isArray(zeilen) && zeilen.length) || (schultage || []).length;
+    const extra = Math.max(0, anzahlTage - (DATEN_BIS_ZEILE - DATEN_VON_ZEILE + 1));
+    const bisZeile = extra > 0 ? verlaengereExcelTabelle(sheet, extra) : DATEN_BIS_ZEILE;
+    const summeZeile = bisZeile + 1;
+    const unterschriftZeile = bisZeile + 2;
+
     // Alte Daten-Slots leeren
-    for (let r = DATEN_VON_ZEILE; r <= DATEN_BIS_ZEILE; r++) {
+    for (let r = DATEN_VON_ZEILE; r <= bisZeile; r++) {
       sheet.getCell(`A${r}`).value = null;
       sheet.getCell(`C${r}`).value = null;
       sheet.getCell(`E${r}`).value = null;
@@ -170,7 +208,7 @@
     }
 
     // Zeilen einfügen. Datum als TEXT (numFmt "@") gegen Zeitzonen-Versatz.
-    const slots = DATEN_BIS_ZEILE - DATEN_VON_ZEILE + 1;
+    const slots = bisZeile - DATEN_VON_ZEILE + 1;
     const verwendet = baueEintraege({ zeilen, schultage, konstanten, slots });
     for (let i = 0; i < verwendet.length; i++) {
       const zeile = DATEN_VON_ZEILE + i;
@@ -185,12 +223,12 @@
     // G20-Summe: Formel behalten, aber gecachten Wert überschreiben, sonst zeigt
     // Excel im Schreibschutz den alten Vorlagen-Wert bis "Bearbeiten aktivieren".
     const korrekteSumme = +verwendet.reduce((s, e) => s + (e.betrag || 0), 0).toFixed(2);
-    const g20 = sheet.getCell(`G${DATEN_BIS_ZEILE + 1}`);
-    g20.value = { formula: `SUM(G${DATEN_VON_ZEILE}:G${DATEN_BIS_ZEILE})`, result: korrekteSumme };
+    const summenZelle = sheet.getCell(`G${summeZeile}`);
+    summenZelle.value = { formula: `SUM(G${DATEN_VON_ZEILE}:G${bisZeile})`, result: korrekteSumme };
 
-    // Unterschriftsbereich A21: Datum (Tag der Generierung) unten zentriert.
+    // Unterschriftsbereich: Datum (Tag der Generierung) unten zentriert.
     const heuteFormatiert = heuteDeutsch();
-    const unterschriftCell = sheet.getCell('A21');
+    const unterschriftCell = sheet.getCell(`A${unterschriftZeile}`);
     unterschriftCell.value = konstanten.unterschriftText
       ? `${heuteFormatiert} ${konstanten.unterschriftText}`
       : heuteFormatiert;
@@ -198,7 +236,7 @@
 
     if (unterschriftBytes && unterschriftExtension) {
       const imageId = wb.addImage({ buffer: unterschriftBytes, extension: unterschriftExtension });
-      // Zelle A21:B21 ≈ 197×80 px. Bild zentriert, Aspect-Ratio erhalten, Platz fürs Datum drunter.
+      // Unterschriftszelle ≈ 197×80 px. Bild zentriert, Aspect-Ratio erhalten, Platz fürs Datum drunter.
       const CELL_W_PX = 197, COL_A_W_PX = 80, ZIEL_H_PX = 62, MAX_W_PX = 190;
       const dim = liesBilddimensionen(unterschriftBytes);
       let w = MAX_W_PX, h = ZIEL_H_PX;
@@ -209,14 +247,14 @@
       }
       const xOffsetPx = Math.max(0, Math.round((CELL_W_PX - w) / 2));
       sheet.addImage(imageId, {
-        tl: { col: xOffsetPx / COL_A_W_PX, row: 20.04 },
+        tl: { col: xOffsetPx / COL_A_W_PX, row: unterschriftZeile - 0.96 },
         ext: { width: w, height: h },
         editAs: 'oneCell'
       });
     }
 
-    // Footer: Form-Nummer "F6344-1" o.ä. in Zeile 23–25 entfernen (User will sie weg).
-    for (let r = DATEN_BIS_ZEILE + 3; r <= DATEN_BIS_ZEILE + 5; r++) {
+    // Footer: Form-Nummer "F6344-1" o.ä. unter dem Fußblock entfernen (User will sie weg).
+    for (let r = bisZeile + 3; r <= bisZeile + 5; r++) {
       for (const col of ['A', 'B', 'C', 'D', 'E', 'F', 'G']) {
         const cell = sheet.getCell(`${col}${r}`);
         const v = cell.value;
@@ -230,8 +268,97 @@
       blob,
       dateiname: baueDateiname(konstanten.name, monatKey, 'xlsx'),
       anzahlTage: verwendet.length,
-      ueberzaehlig: Math.max(0, ((zeilen && zeilen.length) || schultage.length) - verwendet.length)
+      ueberzaehlig: Math.max(0, anzahlTage - verwendet.length)
     };
+  }
+
+  /* ── PDF-Geometrie der Vorlage ───────────────────────────────────
+     Aus dem Content-Stream gemessen (die GEZEICHNETEN Rechtecke, nicht die
+     Feld-Positionen — die streuen um bis zu 1,4 pt): die Trennlinien der
+     Tabelle liegen im 19,32-pt-Takt, die letzte Zeile endet auf der dicken
+     Abschlusslinie bei y≈380,3, darunter folgt der Unterschriftsblock.
+     Unter y≈283 ist die Seite leer, es passen also 13 zusätzliche Zeilen —
+     mehr Berufsschultage hat kein Monat. */
+  const PDF_ZEILE_H = 19.32;
+  const PDF_TABELLE_UNTEN = 380.3;
+  const PDF_MUSTER_UNTEN = 399.3;   // Musterzeile mit dünner Linie oben UND unten
+  const PDF_MUSTER_OBEN = 418.6;
+  const PDF_DICKE_UNTEN = 379.4;    // dicke Abschlusslinie als eigene Bande
+  const PDF_DICKE_OBEN = 381.2;
+  const PDF_FUSS_UNTEN = 283;
+  const PDF_FORMCODE_Y = 286;
+  /* Die Kostenstelle steht in der PDF-Vorlage als STATISCHER Text (10000957),
+     nicht in einem Formularfeld — jede erzeugte PDF trug damit eine fremde
+     KST, egal was der Azubi einträgt. Stelle und Schriftgröße aus dem
+     Content-Stream: „/F1 12 Tf … 1 0 0 1 482.14 636.07 Tm". */
+  const PDF_KST_X = 482.14;
+  const PDF_KST_Y = 636.07;
+  const PDF_KST_SIZE = 12;
+
+  /* Statischen Text an einer bekannten Stelle WIRKLICH entfernen, nicht nur
+     weiß übermalen: übermalt bleibt er im Content-Stream stehen und ist per
+     Textsuche, Copy-Paste oder jedem Parser auslesbar. In einem Beleg, der
+     zur Entgeltabrechnung geht, darf keine fremde Angabe drinstehen — auch
+     keine unsichtbare. Entfernt die Zeichenketten des Textblocks, dessen
+     Textmatrix auf (x,y) steht; Gerüst (BT/ET, Tf, Tm) bleibt unangetastet,
+     damit der Stream gültig bleibt. Findet sich nichts (z. B. weil die
+     Vorlage bereinigt wurde), passiert nichts. */
+  function entferneStatischenText(pdfDoc, page, x, y) {
+    const PDFLib = global.PDFLib;
+    const contents = page.node.Contents();
+    if (!contents || typeof contents.size === 'function') return false; // schon zusammengesetzt
+    let roh;
+    try { roh = PDFLib.decodePDFRawStream(contents).decode(); } catch (e) { return false; }
+    let text = '';
+    for (let i = 0; i < roh.length; i++) text += String.fromCharCode(roh[i]);
+
+    const marke = `1 0 0 1 ${x} ${y} Tm`;
+    const start = text.indexOf(marke);
+    if (start === -1) return false;
+    const ende = text.indexOf('ET', start);
+    if (ende === -1) return false;
+    const block = text.slice(start, ende);
+    // Alle Zeichenketten im Block leeren – "(10000957)" → "()"
+    const sauber = block.replace(/\((?:[^()\\]|\\.)*\)/g, '()');
+    if (sauber === block) return false;
+    const neu = text.slice(0, start) + sauber + text.slice(ende);
+
+    const bytes = new Uint8Array(neu.length);
+    for (let i = 0; i < neu.length; i++) bytes[i] = neu.charCodeAt(i) & 0xff;
+    page.node.set(PDFLib.PDFName.of('Contents'), pdfDoc.context.register(pdfDoc.context.flateStream(bytes)));
+    return true;
+  }
+  const PDF_MAX_EXTRA = Math.floor((PDF_FUSS_UNTEN - 24) / PDF_ZEILE_H);
+
+  /* Tabelle verlängern, ohne das Gitter nachzuzeichnen: eine saubere
+     Zeilen-Bande der Vorlage wird als XObject mehrfach gestempelt, die
+     Abschlusslinie und der Unterschriftsblock wandern um dieselbe Höhe nach
+     unten. So bleibt das Original-Formular pixelgenau erhalten. */
+  async function verlaengerePdfSeite({ PDFLib, pdfDoc, page, templateBytes, extra }) {
+    const { PDFDocument, rgb } = PDFLib;
+    const quelle = await PDFDocument.load(templateBytes, { ignoreEncryption: true });
+    const quellSeite = quelle.getPage(0);
+    const breite = page.getWidth();
+    const shift = extra * PDF_ZEILE_H;
+    const bande = (bottom, top) => pdfDoc.embedPage(quellSeite, { left: 0, bottom, right: breite, top });
+
+    const bandZeile = await bande(PDF_MUSTER_UNTEN, PDF_MUSTER_OBEN);
+    const bandDick = await bande(PDF_DICKE_UNTEN, PDF_DICKE_OBEN);
+    const bandFuss = await bande(PDF_FUSS_UNTEN, PDF_DICKE_UNTEN);
+
+    // Abschlusslinie + Unterschriftsblock an der alten Stelle übermalen …
+    page.drawRectangle({
+      x: 0, y: PDF_FUSS_UNTEN, width: breite, height: PDF_DICKE_OBEN - PDF_FUSS_UNTEN,
+      color: rgb(1, 1, 1), borderWidth: 0,
+    });
+    // … zusätzliche Zeilen stempeln …
+    for (let k = 1; k <= extra; k++) {
+      page.drawPage(bandZeile, { x: 0, y: PDF_TABELLE_UNTEN - PDF_ZEILE_H * k });
+    }
+    // … und beides um die gewonnene Höhe tiefer neu setzen.
+    page.drawPage(bandDick, { x: 0, y: PDF_DICKE_UNTEN - shift });
+    page.drawPage(bandFuss, { x: 0, y: PDF_FUSS_UNTEN - shift });
+    return shift;
   }
 
   /* ── PDF-Layout aus geladener pdf-lib-Form klassifizieren ─────── */
@@ -254,17 +381,24 @@
     const name = items.find(i => i.y > 630 && i.y < 660 && i.x < 250) || null;
     const summe = items.find(i => i.y < 370 && i.y > 320 && i.x > 460) || null;
     const auszubildender = items.find(i => i.y < 340 && i.y > 310 && i.x < 200) || null;
+    const spalte = (min, max) => tabelle.filter(i => i.x > min && i.x < max).sort(byY);
+    const datum = spalte(0, 140), von = spalte(140, 290), nach = spalte(290, 460), betrag = spalte(460, 1e4);
+    // Rechteck der jeweils UNTERSTEN Zeile je Spalte – daran richten sich die
+    // zusätzlich gezeichneten Zeilen aus (dieselbe x-Position und Breite).
+    const letzte = (arr) => (arr.length ? arr[arr.length - 1].rect : null);
     return {
       monatJahrField: monatJahr ? monatJahr.fieldName : null,
       persNrField: persNr ? persNr.fieldName : null,
       nameField: name ? name.fieldName : null,
       summeField: summe ? summe.fieldName : null,
+      summeRect: summe ? summe.rect : null,
       auszubildenderField: auszubildender ? auszubildender.fieldName : null,
       auszubildenderRect: auszubildender ? auszubildender.rect : null,
-      datumFields: tabelle.filter(i => i.x > 0 && i.x < 140).sort(byY).map(s => s.fieldName),
-      vonFields: tabelle.filter(i => i.x > 140 && i.x < 290).sort(byY).map(s => s.fieldName),
-      nachFields: tabelle.filter(i => i.x > 290 && i.x < 460).sort(byY).map(s => s.fieldName),
-      betragFields: tabelle.filter(i => i.x > 460).sort(byY).map(s => s.fieldName),
+      datumFields: datum.map(s => s.fieldName),
+      vonFields: von.map(s => s.fieldName),
+      nachFields: nach.map(s => s.fieldName),
+      betragFields: betrag.map(s => s.fieldName),
+      spaltenRects: { datum: letzte(datum), von: letzte(von), nach: letzte(nach), betrag: letzte(betrag) },
     };
   }
 
@@ -296,45 +430,123 @@
     const form = pdfDoc.getForm();
     const layout = klassifiziereLayout(form);
 
-    // Header
+    /* NICHTS aus der Vorlage stehen lassen: erst JEDES Textfeld leeren, dann
+       ausschließlich echte Nutzerdaten setzen. Vorher wurden Name und
+       Pers.-Nr. nur gesetzt, WENN ein Wert vorlag — bei leerem Wert wäre der
+       Vorgabewert der Vorlage im Dokument gelandet. In einem Beleg, der zur
+       Entgeltabrechnung geht, darf keine fremde Angabe auftauchen. */
+    for (const f of form.getFields()) {
+      try { form.getTextField(f.getName()).setText(''); } catch (e) { /* kein Textfeld */ }
+    }
+
+    // Header – unbedingt setzen, leer bleibt leer.
     trySetField(form, layout.monatJahrField, monatLabelKurz(monatKey));
-    if (konstanten.name) trySetField(form, layout.nameField, konstanten.name);
-    if (konstanten.persNr) trySetField(form, layout.persNrField, konstanten.persNr);
+    trySetField(form, layout.nameField, konstanten.name || '');
+    trySetField(form, layout.persNrField, konstanten.persNr || '');
+
+    // Fest einkodierte Kostenstelle aus der Vorlage LÖSCHEN und die echte setzen.
+    const kstSeite = pdfDoc.getPage(0);
+    const geloescht = entferneStatischenText(pdfDoc, kstSeite, PDF_KST_X, PDF_KST_Y);
+    if (!geloescht) {
+      // Rückfall, falls sich der Content-Stream nicht bearbeiten ließ: wenigstens
+      // überdecken. Der Wert bliebe dann allerdings im Dokument auslesbar.
+      console.warn('[fahrtgeld] Statische KST konnte nicht entfernt werden – nur überdeckt.');
+      kstSeite.drawRectangle({
+        x: PDF_KST_X - 2, y: PDF_KST_Y - 1.2, width: 92, height: PDF_KST_SIZE,
+        color: rgb(1, 1, 1), borderWidth: 0,
+      });
+    }
+    if (konstanten.kst) {
+      const kstFont = await pdfDoc.embedFont(PDFLib.StandardFonts.Helvetica);
+      kstSeite.drawText(String(konstanten.kst), {
+        x: PDF_KST_X, y: PDF_KST_Y, size: PDF_KST_SIZE, font: kstFont,
+      });
+    }
 
     // Tabelle: erst leeren, dann befüllen
     const datumFields = layout.datumFields || [];
     const vonFields = layout.vonFields || [];
     const nachFields = layout.nachFields || [];
     const betragFields = layout.betragFields || [];
-    const slots = Math.min(datumFields.length, vonFields.length, nachFields.length, betragFields.length);
-    for (let i = 0; i < slots; i++) {
+    const vorlagenSlots = Math.min(datumFields.length, vonFields.length, nachFields.length, betragFields.length);
+    for (let i = 0; i < vorlagenSlots; i++) {
       trySetField(form, datumFields[i], '');
       trySetField(form, vonFields[i], '');
       trySetField(form, nachFields[i], '');
       trySetField(form, betragFields[i], '');
     }
+
+    // Mehr Berufsschultage als Vorlagenzeilen (Blockunterricht) → Tabelle
+    // verlängern. Bis einschließlich 10 Tage bleibt die Vorlage unangetastet
+    // und die Felder ausfüllbar wie bisher.
+    const anzahlTage = (Array.isArray(zeilen) && zeilen.length) || (schultage || []).length;
+    const extra = Math.max(0, Math.min(anzahlTage - vorlagenSlots, PDF_MAX_EXTRA));
+    const seite = pdfDoc.getPage(0);
+    let shift = 0;
+    if (extra > 0) {
+      shift = await verlaengerePdfSeite({ PDFLib, pdfDoc, page: seite, templateBytes, extra });
+    }
+
+    const slots = vorlagenSlots + extra;
     const verwendet = baueEintraege({ zeilen, schultage, konstanten, slots });
-    for (let i = 0; i < verwendet.length; i++) {
+    for (let i = 0; i < Math.min(verwendet.length, vorlagenSlots); i++) {
       trySetField(form, datumFields[i], verwendet[i].datumText);
       if (verwendet[i].von) trySetField(form, vonFields[i], verwendet[i].von);
       if (verwendet[i].nach) trySetField(form, nachFields[i], verwendet[i].nach);
       if (verwendet[i].betrag > 0) trySetField(form, betragFields[i], verwendet[i].betrag.toFixed(2).replace('.', ','));
     }
 
-    // Summe
     const summe = +verwendet.reduce((s, e) => s + (e.betrag || 0), 0).toFixed(2);
-    trySetField(form, layout.summeField, summe.toFixed(2).replace('.', ','));
-
+    const summeText = summe.toFixed(2).replace('.', ',');
     // Auszubildender-Feld: heutiges Datum (+ optional Unterschrift-Text)
     const ausbildText = konstanten.unterschriftText
       ? `${heuteDeutsch()} ${konstanten.unterschriftText}`
       : heuteDeutsch();
-    trySetField(form, layout.auszubildenderField, ausbildText);
+
+    if (extra === 0) {
+      trySetField(form, layout.summeField, summeText);
+      trySetField(form, layout.auszubildenderField, ausbildText);
+    } else {
+      /* Die gestempelten Zeilen tragen keine Formularfelder → Werte zeichnen.
+         Summen- und Auszubildenden-Feld liegen im verschobenen Fußblock; ihre
+         Widgets kleben als Annotation an der alten (jetzt übermalten) Stelle
+         und würden darüber liegen — also entfernen und ebenfalls zeichnen. */
+      const font = await pdfDoc.embedFont(PDFLib.StandardFonts.Helvetica);
+      const r = layout.spaltenRects;
+      const zeichne = (text, rect, rechtsbuendig, y, size = 9) => {
+        if (!rect || text === '' || text == null) return;
+        const tb = font.widthOfTextAtSize(String(text), size);
+        seite.drawText(String(text), {
+          x: rechtsbuendig ? rect[2] - 2 - tb : rect[0] + 2,
+          y, size, font,
+        });
+      };
+      for (let i = vorlagenSlots; i < verwendet.length; i++) {
+        const y = PDF_TABELLE_UNTEN - PDF_ZEILE_H * (i - vorlagenSlots + 1) + 6.5;
+        zeichne(verwendet[i].datumText, r.datum, false, y);
+        zeichne(verwendet[i].von, r.von, false, y);
+        zeichne(verwendet[i].nach, r.nach, false, y);
+        // linksbündig wie in den Vorlagenzeilen darüber, nicht am Zellrand
+        if (verwendet[i].betrag > 0) zeichne(verwendet[i].betrag.toFixed(2).replace('.', ','), r.betrag, false, y);
+      }
+      for (const feldName of [layout.summeField, layout.auszubildenderField]) {
+        if (!feldName) continue;
+        try { form.removeField(form.getField(feldName)); } catch (e) { /* schon weg */ }
+      }
+      if (layout.summeRect) {
+        const [, sy1, , sy2] = layout.summeRect;
+        zeichne(summeText, layout.summeRect, true, (sy1 + sy2) / 2 - shift - 3, 10);
+      }
+      if (layout.auszubildenderRect) {
+        const [ax1, ay1, ax2] = layout.auszubildenderRect;
+        const tb = font.widthOfTextAtSize(ausbildText, 9);
+        seite.drawText(ausbildText, { x: ax1 + ((ax2 - ax1) - tb) / 2, y: ay1 - shift + 3, size: 9, font });
+      }
+    }
 
     // StrikeOut-Annotationen der Vorlage entfernen (Redaktions-Markierungen).
     try {
-      const page0 = pdfDoc.getPage(0);
-      const annots = page0.node.Annots();
+      const annots = seite.node.Annots();
       if (annots) {
         for (let i = annots.size() - 1; i >= 0; i--) {
           const annotDict = pdfDoc.context.lookup(annots.get(i));
@@ -350,7 +562,8 @@
 
     // Form-Code "F6344-1" (Teil des Content-Streams) mit weißem Rechteck überdecken.
     try {
-      pdfDoc.getPage(0).drawRectangle({ x: 16, y: 286, width: 60, height: 16, color: rgb(1, 1, 1), borderWidth: 0 });
+      // wandert bei verlängerter Tabelle mit dem Fußblock nach unten
+      seite.drawRectangle({ x: 16, y: PDF_FORMCODE_Y - shift, width: 60, height: 16, color: rgb(1, 1, 1), borderWidth: 0 });
     } catch (err) {
       console.warn('[fahrtgeld] Form-Code-Overlay fehlgeschlagen:', err);
     }
@@ -360,10 +573,11 @@
       try {
         const ext = (unterschriftExtension || 'png').toLowerCase();
         const img = ext === 'png' ? await pdfDoc.embedPng(unterschriftBytes) : await pdfDoc.embedJpg(unterschriftBytes);
-        const [fx1, , fx2, fy2] = layout.auszubildenderRect;
+        const [fx1, , fx2, fy2raw] = layout.auszubildenderRect;
+        const fy2 = fy2raw - shift;   // Fußblock ist ggf. nach unten gewandert
         const targetX1 = fx1, targetX2 = fx2;
         const targetY1 = fy2 + 1;
-        const targetY2 = Math.min(fy2 + 40, 366);
+        const targetY2 = Math.min(fy2 + 40, 366 - shift);
         const targetW = targetX2 - targetX1;
         const targetH = Math.max(0, targetY2 - targetY1);
         if (targetH > 4 && img.width > 0 && img.height > 0) {
@@ -389,7 +603,7 @@
       blob,
       dateiname: baueDateiname(konstanten.name, monatKey, 'pdf'),
       anzahlTage: verwendet.length,
-      ueberzaehlig: Math.max(0, ((zeilen && zeilen.length) || schultage.length) - verwendet.length)
+      ueberzaehlig: Math.max(0, anzahlTage - verwendet.length)
     };
   }
 

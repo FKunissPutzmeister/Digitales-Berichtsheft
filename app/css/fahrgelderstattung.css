@@ -5,19 +5,89 @@
    Original-Formular F6344-1 (Logo, Rahmen, Unterschriftsblock).
    =================================================================== */
 
-/* ── Seiten-Layout: Karten mit Luft ──────────────────────────────── */
+/* ── Seiten-Layout ───────────────────────────────────────────────── */
 body[data-page="fahrgelderstattung"] .card {
-  padding: var(--sp-7, 28px) var(--sp-8, 32px);
+  padding: var(--sp-5) var(--sp-6);
 }
-.fg-divider {
+
+/* ── Stammdaten-Kopfzeile ────────────────────────────────────────
+   Kontrolldaten, keine Arbeitsfläche — deshalb eine flache Zeile statt
+   einer Karte. Der gewonnene Platz gehört den Monatskacheln, damit die
+   Seite auf einem 11-Zoll-Schirm ohne Scrollen auskommt. */
+.fg-strip {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--sp-2) var(--sp-4);
+  background: var(--pm-white);
+  border: 1px solid var(--pm-grey-200);
+  border-radius: var(--r-lg);
+  padding: var(--sp-3) var(--sp-5);
+  margin-bottom: var(--sp-4);
+}
+.fg-strip__item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.fg-strip__item + .fg-strip__item {
+  border-left: 1px solid var(--pm-grey-200);
+  padding-left: var(--sp-4);
+}
+.fg-strip__label {
+  font-size: var(--text-xs);
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  color: var(--pm-grey-400);
+  line-height: 1.2;
+}
+.fg-strip__value {
+  font-size: var(--text-base);
+  font-weight: var(--fw-semibold);
+  color: var(--pm-grey-900);
+  line-height: 1.3;
+  white-space: nowrap;
+}
+/* Unterschrift-Vorschau ist selbst der Auslöser zum Neuzeichnen – ein
+   eigener „Ändern"-Button wäre eine Textpille für nichts. */
+.fg-strip__sig {
   border: none;
-  border-top: 1px solid var(--pm-grey-200);
-  margin: var(--sp-6) 0;
+  background: none;
+  padding: 0;
+  margin-top: 1px;
+  cursor: pointer;
+  border-radius: var(--r-sm);
+  line-height: 0;
 }
-body[data-page="fahrgelderstattung"] .profil-data-grid {
-  margin-top: var(--sp-5);
-  gap: var(--sp-5) var(--sp-8);
+.fg-strip__sig img { max-height: 26px; max-width: 110px; display: block; }
+.fg-strip__sig:hover { opacity: .7; }
+.fg-strip__sig:focus-visible { box-shadow: var(--ring-yellow); }
+.fg-strip__actions {
+  margin-left: auto;
+  display: flex;
+  gap: 2px;
+  flex-shrink: 0;
 }
+/* Rahmenlose Icons statt Text-Pillen („AUS DOKUMENT ÜBERNEHMEN"). */
+.fg-iconbtn {
+  width: 32px;
+  height: 32px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: none;
+  border-radius: var(--r-md);
+  color: var(--pm-grey-400);
+  cursor: pointer;
+  transition: background var(--t-fast), color var(--t-fast);
+}
+.fg-iconbtn:hover {
+  background: var(--pm-grey-100);
+  color: var(--pm-grey-900);
+}
+.fg-iconbtn:focus-visible { box-shadow: var(--ring-yellow); }
 
 /* ── Formular-Modal: Labels sitzen eindeutig über ihrem Feld ──────
    .form-group bringt von Haus aus keinen Abstand nach unten mit, dadurch
@@ -37,51 +107,153 @@ body[data-page="fahrgelderstattung"] .profil-data-grid {
   gap: var(--sp-5, 20px) var(--sp-4, 16px);
 }
 
-/* ── Monatsauswahl (better-ess .fahrtgeld-monat-row) ─────────────── */
-.fg-monate {
+/* ── Monatsauswahl: Jahresgruppen mit Kacheln ────────────────────── */
+.fg-card-head {
   display: flex;
-  flex-direction: column;
+  align-items: baseline;
+  justify-content: space-between;
   gap: var(--sp-3);
-  margin-bottom: var(--sp-6);
+  flex-wrap: wrap;
+  margin-bottom: var(--sp-4);
 }
-.fg-monat-row {
+.fg-card-head h2 {
+  margin: 0;
+  font-family: var(--font-heading);
+  font-size: var(--text-lg);
+}
+.fg-card-note {
+  font-size: var(--text-xs);
+  color: var(--pm-grey-400);
+}
+.fg-leer-hinweis {
+  margin: 0 0 var(--sp-4);
+  font-size: var(--text-sm);
+  color: var(--pm-grey-500);
+}
+
+/* Jahrgänge als natives <details>: das laufende Jahr offen, ältere zu.
+   Kein eigener State, kein JS – und die alten Monate blähen die Seite
+   nicht mehr auf drei Bildschirmhöhen auf. */
+.fg-jahr + .fg-jahr { margin-top: var(--sp-4); }
+.fg-jahr__head {
   display: flex;
   align-items: center;
-  gap: var(--sp-4);
-  padding: var(--sp-4) var(--sp-5);
+  gap: var(--sp-3);
+  padding: var(--sp-1) 0;
+  margin-bottom: var(--sp-3);
+  cursor: pointer;
+  list-style: none;
+}
+.fg-jahr__head::-webkit-details-marker { display: none; }
+.fg-jahr__head::before {
+  content: '';
+  width: 7px;
+  height: 7px;
+  flex: none;
+  border-right: 2px solid var(--pm-grey-400);
+  border-bottom: 2px solid var(--pm-grey-400);
+  transform: rotate(-45deg);
+  transition: transform var(--t-fast);
+}
+.fg-jahr[open] > .fg-jahr__head::before { transform: rotate(45deg); }
+.fg-jahr__nr {
+  font-size: var(--text-sm);
+  font-weight: var(--fw-semibold);
+  color: var(--pm-grey-800);
+}
+.fg-jahr__line { flex: 1; height: 1px; background: var(--pm-grey-200); }
+.fg-jahr__sum {
+  font-size: var(--text-xs);
+  color: var(--pm-grey-400);
+  white-space: nowrap;
+}
+
+/* auto-fill statt fester Spaltenzahl: 4 Kacheln auf 11 Zoll, ~7 auf dem
+   großen Monitor — die Breite wird echt genutzt statt nur verteilt. */
+.fg-monate {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: var(--sp-3);
+}
+.fg-monat {
+  position: relative;
+  display: block;
+  padding: var(--sp-3) var(--sp-4);
   border: 1px solid var(--pm-grey-200);
   border-radius: var(--r-md);
-  background: transparent;
   cursor: pointer;
   transition: border-color var(--t-fast), background var(--t-fast);
 }
-.fg-monat-row:hover {
+/* Radio bleibt im DOM (Tastatur, change-Event), ist aber unsichtbar –
+   die Kachel selbst ist die Auswahl. */
+.fg-monat input[type="radio"] {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+.fg-monat:hover {
   border-color: var(--pm-yellow);
   background: var(--pm-yellow-bg);
 }
-.fg-monat-row:has(input:checked) {
+.fg-monat:has(input:checked) {
   border-color: var(--pm-yellow);
   background: var(--pm-yellow-bg);
   box-shadow: 0 0 0 1px var(--pm-yellow) inset;
 }
-.fg-monat-row input[type="radio"] {
-  width: 18px;
-  height: 18px;
-  flex-shrink: 0;
-  accent-color: var(--pm-yellow-darker);
-}
-.fg-monat-row__titel { flex: 1; min-width: 0; }
-.fg-monat-row__name {
+.fg-monat:has(input:focus-visible) { box-shadow: var(--ring-yellow); }
+.fg-monat__name {
+  display: block;
   font-weight: var(--fw-semibold);
-  text-transform: capitalize;
+  font-size: var(--text-base);
+  color: var(--pm-grey-900);
 }
-.fg-monat-row__detail {
-  font-size: var(--text-sm);
+.fg-monat__detail {
+  display: block;
+  font-size: var(--text-xs);
   color: var(--pm-grey-500);
-  margin-top: 2px;
+  margin-top: 1px;
+}
+.fg-monat__betrag {
+  display: block;
+  font-weight: var(--fw-bold);
+  font-size: var(--text-base);
+  color: var(--pm-yellow-darker);
+  margin-top: var(--sp-2);
+}
+/* Laufender Monat ohne Schultage: sichtbar, aber nicht wählbar. */
+.fg-monat--leer { opacity: .5; cursor: default; }
+.fg-monat--leer:hover { border-color: var(--pm-grey-200); background: transparent; }
+.fg-monat--leer .fg-monat__betrag { color: var(--pm-grey-500); }
+
+/* ── Aktionsleiste ───────────────────────────────────────────────── */
+.fg-aktion {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--sp-4);
+  margin-top: var(--sp-4);
+}
+.fg-aktion__summe {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  text-align: right;
+}
+.fg-aktion__wert {
+  font-family: var(--font-heading);
+  font-weight: var(--fw-bold);
+  font-size: var(--text-xl);
+  color: var(--pm-yellow-darker);
+  line-height: 1.1;
 }
 
 /* Grüner Haken: Formular für diesen Monat bereits heruntergeladen */
+.fg-monat .fg-dl-check {
+  position: absolute;
+  top: var(--sp-3);
+  right: var(--sp-3);
+}
 .fg-dl-check {
   display: inline-flex;
   align-items: center;
@@ -218,14 +390,18 @@ body[data-page="fahrgelderstattung"] .profil-data-grid {
   margin-top: 4px;
   padding-top: 3px;
 }
+/* Betrag mittig im freien Feld über der „Summe"-Leiste — rechtsbündig und
+   unten angeschlagen sah aus, als wäre er verrutscht. */
 .fg-sheet__summe-box {
-  justify-content: flex-end;
+  justify-content: flex-start;
 }
 .fg-sheet__summe-wert {
-  text-align: right;
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   font-weight: 700;
   font-size: 14px;
-  min-height: 20px;
 }
 .fg-sheet__summe-label {
   border-top: 1px solid #333;
@@ -251,24 +427,34 @@ body[data-page="fahrgelderstattung"] .profil-data-grid {
   font-size: var(--text-sm);
   font-weight: var(--fw-semibold);
   color: #fff;
-  background: linear-gradient(135deg, #107c41, #1a9956);
-  border: 1px solid #0d6135;
+  background: #107c41;
+  border: none;
   border-radius: var(--r-md);
   cursor: pointer;
-  box-shadow: 0 1px rgba(255,255,255,0.18) inset;
   transition: filter var(--t-fast);
 }
 .fg-dl-btn:hover:not(:disabled) { filter: brightness(1.08); }
 .fg-dl-btn:active:not(:disabled) { filter: brightness(0.95); }
 .fg-dl-btn:disabled { opacity: 0.5; cursor: not-allowed; }
-.fg-dl-btn--pdf {
-  background: linear-gradient(135deg, #b91c1c, #dc2626);
-  border-color: #8b1414;
-}
-.fg-dl-btn img { height: 22px; width: auto; filter: drop-shadow(0 1px 2px rgba(0,0,0,0.3)); }
+.fg-dl-btn--pdf { background: #b91c1c; }
+.fg-dl-btn img { height: 22px; width: auto; }
 .fg-dl-or {
   font-size: var(--text-sm);
   color: var(--pm-grey-400);
   user-select: none;
 }
 
+
+/* ── Schmaler: Anordnung ändert sich, kein Element verschwindet ──── */
+@media (max-width: 900px) {
+  .fg-strip__item + .fg-strip__item {
+    border-left: none;
+    padding-left: 0;
+  }
+  .fg-strip { gap: var(--sp-3) var(--sp-5); }
+}
+@media (max-width: 640px) {
+  .fg-monate { grid-template-columns: repeat(2, 1fr); }
+  .fg-aktion { justify-content: space-between; }
+  .fg-strip__actions { margin-left: auto; }
+}

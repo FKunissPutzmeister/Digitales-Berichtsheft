@@ -13,8 +13,6 @@
 document.addEventListener('DOMContentLoaded', async () => {
   const user = await initPage('nav-fahrgelderstattung', [{ label: 'Fahrgelderstattung', href: 'fahrgelderstattung.html' }]);
   if (!user) return;
-  // Vorschau-Feature: außerhalb localhost/Developer-Ansicht kein Zugriff.
-  if (!previewUnlocked(user.role)) { renderComingSoon('Fahrgelderstattung'); return; }
   document.body.dataset.page = 'fahrgelderstattung';
 
   const main = document.getElementById('mainContent');
@@ -24,8 +22,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     name: 'Name', persNr: 'Personalnummer', kst: 'Kostenstelle',
     vonHaltestelle: 'Strecke von', nachHaltestelle: 'Strecke nach', betragProTag: 'Tagessatz',
   };
-  // Pflichtfelder fürs sinnvolle Ausfüllen (KST ist konstant/vorausgefüllt).
-  const PFLICHT = ['name', 'persNr', 'vonHaltestelle', 'nachHaltestelle', 'betragProTag'];
+  // Alle Stammdaten sind Pflicht – das Formular verlangt jedes Feld. Die
+  // Kostenstelle ist je Azubi verschieden, also weder fest noch vorbelegt.
+  const PFLICHT = ['name', 'persNr', 'kst', 'vonHaltestelle', 'nachHaltestelle', 'betragProTag'];
 
   let konfig = null;     // {name, persNr, kst, vonHaltestelle, nachHaltestelle, betragProTag}
   let monateInfo = [];   // [{ monatKey, tage:[{datum}], summe, ueberzaehlig }]
@@ -40,11 +39,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     try { localStorage.setItem(DL_KEY, JSON.stringify(downloads)); } catch (e) {}
   }
 
-  // Unterschrift (lokal je Azubi, localStorage). Quelle: hochgeladenes Dokument
-  // (Excel auto-extrahiert) oder separates Bild. Wird in die Datei eingebettet.
-  const SIG_KEY = `fahrtgeldUnterschrift_${user.oid || user.id}`;
+  // Unterschrift am KONTO (dbo.Unterschriften, geteilt mit der Beurteilung),
+  // nicht im localStorage: sie ist Pflicht, wäre pro Browser gespeichert aber
+  // auf jedem neuen Rechner weg und würde die Einrichtung erneut auslösen.
+  // Quelle: hochgeladenes Dokument (Excel auto-extrahiert) oder Zeichendialog.
+  const SIG_KEY = `fahrtgeldUnterschrift_${user.oid || user.id}`;  // nur noch Migrationsquelle
   let unterschrift = null;
-  try { unterschrift = JSON.parse(localStorage.getItem(SIG_KEY) || 'null'); } catch (e) { unterschrift = null; }
 
   function arrayBufferToDataUrl(ab, ext) {
     const b = new Uint8Array(ab); let s = '';
@@ -57,9 +57,21 @@ document.addEventListener('DOMContentLoaded', async () => {
     for (let i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
     return arr.buffer;
   }
-  function setSignature(sig) {
+  async function setSignature(sig) {
     unterschrift = sig;
-    try { sig ? localStorage.setItem(SIG_KEY, JSON.stringify(sig)) : localStorage.removeItem(SIG_KEY); } catch (e) {}
+    await DB.setMeineUnterschrift(sig);
+  }
+  async function migriereLokaleUnterschrift() {
+    let lokal = null;
+    try { lokal = JSON.parse(localStorage.getItem(SIG_KEY) || 'null'); } catch (e) { lokal = null; }
+    if (!lokal || !lokal.dataUrl) return;
+    try {
+      await setSignature(lokal);
+      localStorage.removeItem(SIG_KEY);
+    } catch (err) {
+      // Nicht schlimm: der Nutzer zeichnet sie im Zweifel neu.
+      console.warn('Unterschrift-Migration fehlgeschlagen:', err);
+    }
   }
   // "Vorname Nachname" → "Nachname, Vorname" (Format des Formulars).
   function toNachnameVorname(full) {
@@ -87,6 +99,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     tage.sort((a, b) => a.datum.localeCompare(b.datum));
     return tage;
   }
+  // Laufender Monat als lokaler Schlüssel — toISOString() wäre UTC und würde
+  // am Monatsersten in der deutschen Zeitzone noch den Vormonat liefern.
+  function laufenderMonatKey() {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+  }
   function gruppiereNachMonat(schultage) {
     const map = new Map();
     for (const t of schultage) {
@@ -94,13 +112,34 @@ document.addEventListener('DOMContentLoaded', async () => {
       if (!map.has(mk)) map.set(mk, []);
       map.get(mk).push(t);
     }
+    // Laufenden Monat immer zeigen, auch ohne Schultage: sonst steht die Seite
+    // zu Monatsbeginn ohne die Kachel da, die man als Nächstes braucht.
+    const lauf = laufenderMonatKey();
+    if (!map.has(lauf)) map.set(lauf, []);
     return [...map.entries()]
+      // Jeder Tag mit Ort „Schule" zählt — auch ein kompletter Blockmonat.
       .map(([monatKey, tage]) => ({
         monatKey, tage,
-        summe: +(Math.min(tage.length, 10) * (Number(konfig?.betragProTag) || 0)).toFixed(2),
-        ueberzaehlig: tage.length > 10,
+        summe: +(tage.length * (Number(konfig?.betragProTag) || 0)).toFixed(2),
       }))
       .sort((a, b) => b.monatKey.localeCompare(a.monatKey));
+  }
+  /* Monate zu Kalenderjahren bündeln (absteigend, da monateInfo schon so
+     sortiert ist). Das laufende Jahr bleibt offen, ältere sind eingeklappt —
+     die schaut man nach dem Download nicht mehr an. */
+  function gruppiereNachJahr(monate) {
+    const map = new Map();
+    for (const m of monate) {
+      const jahr = m.monatKey.slice(0, 4);
+      if (!map.has(jahr)) map.set(jahr, []);
+      map.get(jahr).push(m);
+    }
+    return [...map.entries()].map(([jahr, liste]) => ({
+      jahr,
+      monate: liste,
+      tage: liste.reduce((s, m) => s + m.tage.length, 0),
+      summe: +liste.reduce((s, m) => s + m.summe, 0).toFixed(2),
+    }));
   }
   function fehlendeFelder(quelle = konfig) {
     return PFLICHT.filter(k => {
@@ -109,10 +148,25 @@ document.addEventListener('DOMContentLoaded', async () => {
       return !v || !String(v).trim();
     });
   }
+  function hatUnterschrift() { return !!(unterschrift && unterschrift.dataUrl); }
+  /* Einrichtung fertig = Stammdaten UND Unterschrift liegen vor. Bewusst
+     getrennt von fehlendeFelder(), sonst würde das Stammdaten-Modal ein Feld
+     anmahnen, das es gar nicht enthält. */
+  function setupFertig() { return fehlendeFelder().length === 0 && hatUnterschrift(); }
   function fmtBetrag(n) { return (Number(n) || 0).toFixed(2).replace('.', ','); }
 
   /* ── Empty-State: Formular anlegen oder bestehendes hochladen ────── */
   function buildEmptyState() {
+    // Stammdaten stehen schon, es fehlt nur die Pflicht-Unterschrift → direkt
+    // danach fragen, statt erst durchs Stammdaten-Modal zu schicken.
+    if (fehlendeFelder().length === 0) {
+      return `
+        <div class="card" style="text-align:center;padding:var(--sp-10,40px) var(--sp-6)">
+          <h2 style="margin:0 0 var(--sp-6);font-family:var(--font-heading);font-size:var(--text-xl)">Unterschrift hinterlegen</h2>
+          <button class="btn btn-primary" id="fg-sig-create" type="button"
+                  style="font-size:var(--text-base);padding:var(--sp-3) var(--sp-7,32px)">Unterschrift erstellen</button>
+        </div>`;
+    }
     const logoBtn = (id, src, label) => `
       <button class="fg-logo-btn" id="${id}" type="button"
         style="display:flex;flex-direction:column;align-items:center;gap:var(--sp-2);padding:var(--sp-4) var(--sp-6);min-width:128px;
@@ -142,105 +196,106 @@ document.addEventListener('DOMContentLoaded', async () => {
       </div>`;
   }
 
-  /* ── Stammdaten + Unterschrift (eine Karte, zwei Sektionen) ─────── */
-  function buildStammdatenCard() {
-    const zeile = (key) => {
-      const v = konfig?.[key];
-      const text = key === 'betragProTag' ? (Number(v) > 0 ? `${fmtBetrag(v)} €` : '') : (v || '');
-      return `
-        <div class="profil-data-item">
-          <div class="profil-data-label">${FELD_LABELS[key]}</div>
-          <div class="profil-data-value">${text ? esc(text) : '<span style="color:var(--warn,#c0392b)">fehlt</span>'}</div>
-        </div>`;
-    };
-    const has = !!(unterschrift && unterschrift.dataUrl);
+  /* ── Stammdaten als Kopfzeile ────────────────────────────────────
+     Kontrolldaten, keine Arbeitsfläche: einmal eingerichtet, danach nur noch
+     angeschaut. Deshalb eine flache Zeile statt einer Karte — der Platz
+     gehört den Monaten. Wird nur gerendert, wenn setupFertig() gilt, es kann
+     also keine Lücke entstehen. */
+  function buildStammdatenZeile() {
+    const feld = (label, wert) => `
+      <div class="fg-strip__item">
+        <span class="fg-strip__label">${label}</span>
+        <span class="fg-strip__value">${esc(wert)}</span>
+      </div>`;
     return `
-      <div class="card" style="margin-bottom:var(--sp-6)">
-        <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:var(--sp-3);flex-wrap:wrap">
-          <div>
-            <h2 style="margin:0 0 var(--sp-1);font-family:var(--font-heading)">Stammdaten</h2>
-            <p class="page-subtitle" style="margin:0">Werden in jede Fahrgelderstattung übernommen.</p>
-          </div>
-          <div style="display:flex;gap:var(--sp-2);flex-shrink:0;flex-wrap:wrap;justify-content:flex-end">
-            <button class="btn btn-outline btn-sm" id="fg-upload-doc" type="button">Aus Dokument übernehmen</button>
-            <button class="btn btn-outline btn-sm" id="fg-edit" type="button">Bearbeiten</button>
-          </div>
+      <div class="fg-strip">
+        ${feld('Name', konfig.name)}
+        ${feld('Pers.-Nr.', konfig.persNr)}
+        ${feld('Kostenstelle', konfig.kst)}
+        ${feld('Strecke', `${konfig.vonHaltestelle} → ${konfig.nachHaltestelle}`)}
+        ${feld('Tagessatz', `${fmtBetrag(konfig.betragProTag)} €`)}
+        <div class="fg-strip__item">
+          <span class="fg-strip__label">Unterschrift</span>
+          <button class="fg-strip__sig" id="fg-sig-create" type="button" title="Unterschrift ändern" aria-label="Unterschrift ändern">
+            <img src="${esc(unterschrift.dataUrl)}" alt="">
+          </button>
         </div>
-        <div class="profil-data-grid">
-          ${['name', 'persNr', 'kst', 'vonHaltestelle', 'nachHaltestelle', 'betragProTag'].map(zeile).join('')}
+        <div class="fg-strip__actions">
+          <button class="fg-iconbtn" id="fg-upload-doc" type="button" title="Aus Dokument übernehmen" aria-label="Aus Dokument übernehmen">${Icon('upload', { size: 17 })}</button>
+          <button class="fg-iconbtn" id="fg-edit" type="button" title="Stammdaten bearbeiten" aria-label="Stammdaten bearbeiten">${Icon('edit', { size: 17 })}</button>
         </div>
-        <hr class="fg-divider">
-        <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:var(--sp-3);flex-wrap:wrap">
-          <div>
-            <h3 style="margin:0 0 var(--sp-1);font-family:var(--font-heading);font-size:var(--text-md)">Unterschrift</h3>
-            <p class="page-subtitle" style="margin:0;max-width:60ch">${has
-              ? 'Wird in jede erzeugte Datei eingefügt (Datum = Erstelltag).'
-              : 'Optional — ohne Unterschrift wird nur das Datum gesetzt.'}</p>
-          </div>
-          <div style="display:flex;gap:var(--sp-2);flex-shrink:0">
-            <button class="btn btn-primary btn-sm" id="fg-sig-create" type="button">${has ? 'Ändern' : 'Unterschrift erstellen'}</button>
-            ${has ? `<button class="btn btn-outline btn-sm" id="fg-sig-remove" type="button">Entfernen</button>` : ''}
-          </div>
-        </div>
-        ${has ? `<div style="margin-top:var(--sp-4);padding:var(--sp-3);background:var(--pm-grey-50,rgba(255,255,255,0.04));border-radius:var(--radius-md,8px);display:inline-block">
-          <img src="${esc(unterschrift.dataUrl)}" alt="Unterschrift" style="max-height:64px;max-width:240px;display:block">
-        </div>` : ''}
       </div>`;
   }
 
   /* ── Monat wählen (better-ess Monat-Rows) ───────────────────────── */
+  // Vorauswahl ist der neueste Monat MIT Schultagen — nicht die ausgegraute
+  // Kachel des laufenden Monats, die man nicht erzeugen kann.
   function aktiverMonat() {
-    return monateInfo.find(m => m.monatKey === selectedMonatKey) || monateInfo[0] || null;
+    return monateInfo.find(m => m.monatKey === selectedMonatKey)
+        || monateInfo.find(m => m.tage.length)
+        || null;
   }
-  function buildMonatCard() {
-    if (!monateInfo.length) {
-      return `
-        <div class="card" style="margin-bottom:var(--sp-6)">
-          <h2 style="margin:0 0 var(--sp-2);font-family:var(--font-heading)">Keine Berufsschultage erkannt</h2>
-          <p class="page-subtitle" style="margin:0 0 var(--sp-4);max-width:60ch">
-            Sobald im Berichtsheft Tage mit dem Ort „Schule" erfasst sind, erscheinen hier die Monate zur Auswahl.
-            Mit „Formular erstellen" siehst du trotzdem schon, wie dein Formular aussehen wird.
-          </p>
-          <button class="btn btn-primary" id="fg-erstellen" type="button">Formular erstellen</button>
-        </div>`;
-    }
-    const aktiv = aktiverMonat();
-    const dlCheck = `
-      <span class="fg-dl-check" data-tooltip="Formular heruntergeladen" aria-label="Formular heruntergeladen" tabindex="0">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>
-      </span>`;
+  const DL_CHECK = `
+    <span class="fg-dl-check" data-tooltip="Formular heruntergeladen" aria-label="Formular heruntergeladen" tabindex="0">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>
+    </span>`;
+
+  function buildMonatKachel(m, aktivKey) {
+    const leer = m.tage.length === 0;                 // laufender Monat ohne Schultage
+    const gewaehlt = !leer && m.monatKey === aktivKey;
     return `
-      <div class="card" style="margin-bottom:var(--sp-6)">
-        <h2 style="margin:0 0 var(--sp-1);font-family:var(--font-heading)">Monat auswählen</h2>
-        <p class="page-subtitle" style="margin:0 0 var(--sp-5);max-width:64ch">
-          Es werden nur Tage mit dem Ort „Schule" gefüllt (max. 10 pro Monat — so viele Zeilen hat das Formular).
-        </p>
-        <div class="fg-monate">
-          ${monateInfo.map(m => `
-            <label class="fg-monat-row">
-              <input type="radio" name="fg-monat" value="${m.monatKey}" ${aktiv && m.monatKey === aktiv.monatKey ? 'checked' : ''}>
-              <span class="fg-monat-row__titel">
-                <span class="fg-monat-row__name">${esc(FahrtgeldCore.formatMonatLabel(m.monatKey))}</span>
-                <span class="fg-monat-row__detail">
-                  ${m.tage.length} Berufsschultag${m.tage.length === 1 ? '' : 'e'} · ${fmtBetrag(m.summe)} €${m.ueberzaehlig ? ` · <span style="color:var(--warn,#c0392b)">${m.tage.length - 10} überzählig (max. 10)</span>` : ''}
-                </span>
-              </span>
-              ${downloads[m.monatKey] ? dlCheck : ''}
-            </label>`).join('')}
+      <label class="fg-monat${leer ? ' fg-monat--leer' : ''}">
+        <input type="radio" name="fg-monat" value="${m.monatKey}" ${leer ? 'disabled' : ''} ${gewaehlt ? 'checked' : ''}>
+        <span class="fg-monat__name">${esc(FahrtgeldCore.formatMonatLabel(m.monatKey).split(' ')[0])}</span>
+        <span class="fg-monat__detail">${leer
+          ? 'noch keine Schultage'
+          : `${m.tage.length} Schultag${m.tage.length === 1 ? '' : 'e'}`}</span>
+        <span class="fg-monat__betrag">${leer ? '—' : `${fmtBetrag(m.summe)} €`}</span>
+        ${downloads[m.monatKey] ? DL_CHECK : ''}
+      </label>`;
+  }
+
+  function buildMonatCard() {
+    const aktiv = aktiverMonat();
+    const laufJahr = laufenderMonatKey().slice(0, 4);
+    const jahre = gruppiereNachJahr(monateInfo);
+    return `
+      <div class="card fg-monate-card">
+        <div class="fg-card-head">
+          <h2>Monat auswählen</h2>
+          <span class="fg-card-note">Tage mit dem Ort „Schule"</span>
         </div>
-        <button class="btn btn-primary" id="fg-erstellen" type="button">Formular erstellen</button>
+        ${aktiv ? '' : `<p class="fg-leer-hinweis">Sobald im Berichtsheft Tage mit dem Ort „Schule" erfasst sind, erscheinen sie hier.</p>`}
+        ${jahre.map(j => `
+          <details class="fg-jahr"${j.jahr === laufJahr ? ' open' : ''}>
+            <summary class="fg-jahr__head">
+              <span class="fg-jahr__nr">${j.jahr}</span>
+              <span class="fg-jahr__line"></span>
+              <span class="fg-jahr__sum">${j.tage} Berufsschultag${j.tage === 1 ? '' : 'e'} · ${fmtBetrag(j.summe)} €</span>
+            </summary>
+            <div class="fg-monate">${j.monate.map(m => buildMonatKachel(m, aktiv && aktiv.monatKey)).join('')}</div>
+          </details>`).join('')}
+      </div>
+      <div class="fg-aktion">
+        ${aktiv ? `<div class="fg-aktion__summe">
+          <span class="fg-strip__label">${esc(FahrtgeldCore.formatMonatLabel(aktiv.monatKey))} · ${aktiv.tage.length} Tage</span>
+          <span class="fg-aktion__wert">${fmtBetrag(aktiv.summe)} €</span>
+        </div>` : ''}
+        <button class="btn btn-primary" id="fg-erstellen" type="button" ${aktiv ? '' : 'disabled'}>Formular erstellen</button>
       </div>`;
   }
 
   /* ── Formular-Vorschau: Papier-Replik des F6344-1 (editierbar) ───── */
   function buildSheet(monat) {
-    const tage = monat ? monat.tage.slice(0, 10) : [];
+    const tage = monat ? monat.tage : [];
     const summe = monat ? monat.summe : 0;
     const heute = new Date();
     const heuteStr = `${String(heute.getDate()).padStart(2, '0')}.${String(heute.getMonth() + 1).padStart(2, '0')}.${heute.getFullYear()}`;
     const isoZuDeutsch = (iso) => { const [y, m, d] = iso.split('-'); return `${d}.${m}.${y}`; };
     const monatLabel = monat ? FahrtgeldCore.formatMonatLabel(monat.monatKey) : '';
-    const zeilen = Array.from({ length: 10 }, (_, i) => {
+    // Das Papierformular hat 10 Zeilen; bei Blockunterricht sind es mehr.
+    // Die Vorschau wächst mit, leere Zeilen füllen auf 10 auf.
+    const zeilen = Array.from({ length: Math.max(10, tage.length) }, (_, i) => {
       const t = tage[i];
       return `
         <tr>
@@ -330,7 +385,8 @@ document.addEventListener('DOMContentLoaded', async () => {
       kst: konfig?.kst || '',
       vonHaltestelle: konfig?.vonHaltestelle || '',
       nachHaltestelle: konfig?.nachHaltestelle || '',
-      betragProTag: (konfig?.betragProTag && Number(konfig.betragProTag) > 0) ? Number(konfig.betragProTag) : '',
+      // immer zwei Nachkommastellen, also "8,30" statt "8,3"
+      betragProTag: Number(konfig?.betragProTag) > 0 ? fmtBetrag(konfig.betragProTag) : '',
     };
   }
   function buildModal() {
@@ -351,11 +407,10 @@ document.addEventListener('DOMContentLoaded', async () => {
             </button>
           </div>
           <div class="modal__body fg-form">
-            <p class="hint" style="margin:0">Name kommt aus deinem Profil, die Kostenstelle ist vorausgefüllt. Strecke und Tagessatz bitte eintragen.</p>
             ${grp('fgm-name', 'Name', v.name, 'maxlength="120" placeholder="Nachname, Vorname"')}
             <div class="fg-form__row">
-              ${grp('fgm-persNr', 'Personalnummer', v.persNr, 'maxlength="20" placeholder="z.B. 123456" inputmode="numeric"')}
-              ${grp('fgm-kst', 'Kostenstelle', v.kst, 'maxlength="20" inputmode="numeric" placeholder="z.B. 10000956"')}
+              ${grp('fgm-persNr', 'Personalnummer', v.persNr, 'maxlength="20" inputmode="numeric"')}
+              ${grp('fgm-kst', 'Kostenstelle', v.kst, 'maxlength="20" inputmode="numeric"')}
             </div>
             <div class="fg-form__row">
               ${grp('fgm-vonHaltestelle', 'Strecke von', v.vonHaltestelle, 'maxlength="120" placeholder="Start-Haltestelle"')}
@@ -363,7 +418,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             </div>
             <div class="form-group" style="max-width:200px">
               <label class="form-label" for="fgm-betragProTag">Tagessatz (€)</label>
-              <input class="form-control" id="fgm-betragProTag" type="text" inputmode="decimal" placeholder="z.B. 8,30" value="${String(v.betragProTag).replace('.', ',')}">
+              <input class="form-control" id="fgm-betragProTag" type="text" inputmode="decimal" placeholder="z.B. 8,30" value="${esc(v.betragProTag)}">
             </div>
           </div>
           <div class="modal__footer">
@@ -376,16 +431,15 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   /* ── Render ──────────────────────────────────────────────────────── */
   function render() {
-    const needsSetup = fehlendeFelder().length > 0;
     main.innerHTML = `
       <div class="page-header" style="margin-bottom:var(--sp-6)">
         <div class="page-header__left">
           <h1 class="page-title">Fahrgelderstattung</h1>
         </div>
       </div>
-      ${needsSetup
-        ? buildEmptyState()
-        : `${buildStammdatenCard()}${buildMonatCard()}${buildVorschauModal()}`}
+      ${setupFertig()
+        ? `${buildStammdatenZeile()}${buildMonatCard()}${buildVorschauModal()}`
+        : buildEmptyState()}
       ${buildModal()}
       <input type="file" id="fg-doc-input" style="display:none"
              accept=".xlsx,.xls,.xlsm,.pdf,application/pdf,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet">
@@ -414,21 +468,23 @@ document.addEventListener('DOMContentLoaded', async () => {
     document.getElementById('fg-upload-pdf')?.addEventListener('click', () => openDoc(ACCEPT_PDF));
     document.getElementById('fg-upload-doc')?.addEventListener('click', () => openDoc(`${ACCEPT_EXCEL},${ACCEPT_PDF}`));
     document.getElementById('fg-doc-input')?.addEventListener('change', (e) => { const f = e.target.files?.[0]; if (f) uploadDokument(f); e.target.value = ''; });
-    document.getElementById('fg-sig-create')?.addEventListener('click', () => {
-      SignaturDialog.open({
-        name: konfig?.name || '',
-        onSave: (sig) => { setSignature(sig); Toast.success('Gespeichert', 'Unterschrift hinterlegt.'); render(); },
-      });
-    });
-    document.getElementById('fg-sig-remove')?.addEventListener('click', () => { setSignature(null); Toast.info('Entfernt', 'Unterschrift entfernt.'); render(); });
+    document.getElementById('fg-sig-create')?.addEventListener('click', oeffneSignatur);
     document.getElementById('fg-gen-xlsx')?.addEventListener('click', () => generate('excel'));
     document.getElementById('fg-gen-pdf')?.addEventListener('click', () => generate('pdf'));
     document.getElementById('fg-erstellen')?.addEventListener('click', oeffneVorschau);
-    // Monatswechsel: Vorschau-Replik austauschen (verwirft dortige Edits).
+    /* Monatswechsel: Aktionsleiste und Vorschau-Replik nachziehen (Letzteres
+       verwirft dortige Edits). Bewusst kein render() — das würde die vom
+       Nutzer aufgeklappten älteren Jahrgänge wieder zuklappen. */
     main.querySelectorAll('input[name="fg-monat"]').forEach(r => r.addEventListener('change', (e) => {
       selectedMonatKey = e.target.value;
+      const m = aktiverMonat();
+      const box = main.querySelector('.fg-aktion__summe');
+      if (box && m) {
+        box.querySelector('.fg-strip__label').textContent = `${FahrtgeldCore.formatMonatLabel(m.monatKey)} · ${m.tage.length} Tage`;
+        box.querySelector('.fg-aktion__wert').textContent = `${fmtBetrag(m.summe)} €`;
+      }
       const sheet = document.getElementById('fg-vorschau-sheet');
-      if (sheet) sheet.innerHTML = buildSheet(aktiverMonat());
+      if (sheet) sheet.innerHTML = buildSheet(m);
     }));
     // Editierbare Zellen: Summe live aus der Betrag-Spalte nachrechnen.
     document.getElementById('fg-vorschau-sheet')?.addEventListener('input', (e) => {
@@ -438,6 +494,29 @@ document.addEventListener('DOMContentLoaded', async () => {
         .reduce((s, tr) => s + parseDeutsch(tr.cells[3].textContent), 0);
       const el = document.getElementById('fg-sheet-summe');
       if (el) el.textContent = fmtBetrag(summe);
+    });
+    // Beträge bleiben zweistellig: "8,5" wird beim Verlassen der Zelle "8,50".
+    document.getElementById('fg-vorschau-sheet')?.addEventListener('focusout', (e) => {
+      const td = e.target.closest && e.target.closest('td[contenteditable]');
+      if (!td || td.cellIndex !== 3) return;
+      const roh = td.textContent.trim();
+      if (roh) td.textContent = fmtBetrag(parseDeutsch(roh));
+    });
+  }
+
+  function oeffneSignatur() {
+    SignaturDialog.open({
+      name: konfig?.name || '',
+      onSave: async (sig) => {
+        try {
+          await setSignature(sig);
+          Toast.success('Gespeichert', 'Unterschrift hinterlegt.');
+          render();
+        } catch (err) {
+          console.error('Unterschrift speichern fehlgeschlagen:', err);
+          Toast.error('Fehler', err.message || 'Unterschrift konnte nicht gespeichert werden.');
+        }
+      },
     });
   }
 
@@ -478,6 +557,9 @@ document.addEventListener('DOMContentLoaded', async () => {
       Modal.closeAll?.();
       Toast.success('Gespeichert', 'Fahrgeld-Stammdaten gespeichert.');
       render();
+      // Unterschrift ist Pflicht: direkt weiterreichen, statt den Nutzer im
+      // halbfertigen Einrichtungs-Screen stehen zu lassen.
+      if (!hatUnterschrift()) oeffneSignatur();
     } catch (err) {
       console.error('Fahrtgeld-Konfig speichern fehlgeschlagen:', err);
       Toast.error('Fehler', err.message || 'Stammdaten konnten nicht gespeichert werden.');
@@ -492,13 +574,11 @@ document.addEventListener('DOMContentLoaded', async () => {
       const ab = await file.arrayBuffer();
       const res = await FahrtgeldCore.extrahiereKonstantenAusTemplate(ab);
       if (!res.ok) { Toast.error('Nicht erkannt', res.fehler || 'Dokument konnte nicht gelesen werden.'); return; }
-      const neu = { ...(konfig || {}), ...res.konstanten };
-      if (!neu.kst) neu.kst = konfig?.kst || ''; // KST nicht automatisch befüllen (PDF/Erstanlage)
-      konfig = neu;
+      konfig = { ...(konfig || {}), ...res.konstanten };
       monateInfo = gruppiereNachMonat(monateInfo.flatMap(m => m.tage));
       let sigHinweis = '';
       if (res.unterschriftAuto) {
-        setSignature({ dataUrl: arrayBufferToDataUrl(res.unterschriftAuto.bytes, res.unterschriftAuto.extension), extension: res.unterschriftAuto.extension });
+        await setSignature({ dataUrl: arrayBufferToDataUrl(res.unterschriftAuto.bytes, res.unterschriftAuto.extension), extension: res.unterschriftAuto.extension });
         sigHinweis = ' inkl. Unterschrift';
       }
       const quelle = res.format === 'pdf' ? 'PDF' : 'Excel';
@@ -508,6 +588,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         await DB.saveFahrtgeldKonfig(konfig);
         render();
         Toast.success('Übernommen', `Daten aus ${quelle} gelesen${sigHinweis} und gespeichert.`);
+        if (!hatUnterschrift()) oeffneSignatur();
       } else {
         // Es fehlen Felder (z. B. KST aus PDF nicht lesbar) → Modal zum Ergänzen.
         render();
@@ -586,12 +667,17 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   /* ── Laden ──────────────────────────────────────────────────────── */
   try {
-    const [k, wochen] = await Promise.all([
+    const [k, wochen, sig] = await Promise.all([
       DB.getFahrtgeldKonfig().catch(() => null),
       DB.getWochenFuerAzubi(user.id).catch(() => []),
+      DB.getMeineUnterschrift().catch(() => null),
     ]);
     konfig = k || null;
+    unterschrift = sig && sig.dataUrl ? sig : null;
     monateInfo = gruppiereNachMonat(sammleSchultage(wochen));
+    // Einmalige Migration: früher lag die Unterschrift nur im localStorage.
+    // Liegt am Konto noch keine, wird die lokale hochgeschoben und entfernt.
+    if (!unterschrift) await migriereLokaleUnterschrift();
   } catch (err) {
     console.error('Fahrgeld-Seite laden fehlgeschlagen:', err);
   }
