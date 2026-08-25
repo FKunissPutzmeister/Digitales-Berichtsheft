@@ -565,6 +565,78 @@ document.addEventListener('DOMContentLoaded', async () => {
     window._spinnerCallback = cb;
   }
 
+  /* Statusblock der Werkzeugleiste: Statuswort plus die Knöpfe, die zu den
+     erlaubten Aktionen gehören. EINE Quelle für render() UND für
+     patchStatusBlock() darunter — nach einer Abnahme wird nur dieser Block
+     getauscht, statt die ganze Seite neu zu bauen (die Woche ist in der
+     Prüfer-Sicht ohnehin schreibgeschützt, es ändert sich sonst nichts).
+     'offen' bleibt wortlos — ein Entwurf braucht keine Zustandsmeldung,
+     das tut der Autospeichern-Hinweis. */
+  function statusBlockHtml(woche) {
+    const status = woche && woche.status;
+    const aktionen = (woche && woche.erlaubteAktionen) || [];
+    const erst = aktionen.includes('erstgenehmigen');
+    const genLabel = erst ? 'Erstgenehmigen' : 'Genehmigen';
+    // Rücknahme bietet der Server nur an, solange der Wechsel keine 4
+    // Wochen alt ist und die eigene Stufe ihn gesetzt hat (wochenAktionen).
+    const undoLabel = status === 'genehmigt'     ? 'Genehmigung zurücknehmen'
+                    : status === 'erstgenehmigt' ? 'Erstgenehmigung zurücknehmen'
+                    : 'Zurückweisung zurücknehmen';
+    return `
+          ${status && status !== 'offen' ? `
+            <span class="week-status">
+              <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.4" aria-hidden="true">${STATUS_ICON[status] || ''}</svg>
+              ${WOCHEN_STATUS_LABEL[status] || getStatusLabel(status)}
+            </span>` : ''}
+          ${aktionen.includes('zuruecknehmen') ? `
+            <button class="week-edit-btn week-status-undo" id="undoStatusBtn" type="button" title="${undoLabel}" aria-label="${undoLabel}">
+              <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.2"><polyline points="3 5 3 11 9 11"/><path stroke-linecap="round" stroke-linejoin="round" d="M5.6 15.5a8 8 0 1 0 1.9-8.3L3 11"/></svg>
+            </button>` : ''}
+          ${erst || aktionen.includes('endgenehmigen') ? `
+            <button class="btn-approve-circle" id="approveBtn" type="button" title="${genLabel}" aria-label="${genLabel}">
+              <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3" style="width:22px;height:22px"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+            </button>` : ''}
+          ${aktionen.includes('zurueckgeben') ? `
+            <button class="btn btn-outline btn-reject-subtle" id="rejectBtn" type="button" title="Zurückweisen" aria-label="Zurückweisen">
+              <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 14 4 9l5-5"/><path stroke-linecap="round" stroke-linejoin="round" d="M4 9h11a5 5 0 0 1 5 5v1"/></svg>
+            </button>` : ''}`;
+  }
+
+  /* Werkzeugleiste an Ort und Stelle auf einen neuen Status bringen:
+     Statuswort, Tönung und Knöpfe tauschen, Handler neu binden. Ersetzt
+     nach Abnahme/Rücknahme den kompletten render()-Durchlauf — der baute
+     die Seite neu (Editoren, Kommentare, Anhänge) und flackerte dabei
+     sichtbar, obwohl sich nur diese vier Zentimeter geändert haben. */
+  /* Nach einem await kann der Nutzer längst woanders sein — KW gewechselt,
+     anderen Azubi gewählt. Dann gehört die Antwort zu einer Woche, die nicht
+     mehr auf dem Schirm ist, und darf die Leiste NICHT mehr anfassen. */
+  function nochAktuell(woche, seq) {
+    return seq === renderSeq && !!currentWoche && currentWoche.id === woche.id;
+  }
+
+  /* Optimistisch umgeschaltet, aber der Server hat nicht mitgespielt: die
+     Leiste zeigt einen Status, den es nicht gibt. Wahrheit vom Server holen —
+     der Grund ist oft, dass eine andere Stufe die Woche weitergedreht hat,
+     dann ist auch der lokale Stand nicht mehr zu gebrauchen. */
+  function statusFehler(titel, err, woche, seq) {
+    Toast.error(titel, err.message);
+    if (nochAktuell(woche, seq)) render();
+  }
+
+  function patchStatusBlock(woche) {
+    const bar = document.querySelector('.week-toolbar');
+    const links = bar && bar.querySelector('.week-toolbar__left');
+    if (!links) return false;
+    const status = woche && woche.status;
+    if (status && status !== 'offen') bar.dataset.status = status;
+    else delete bar.dataset.status;
+    links.querySelectorAll('.week-status, #undoStatusBtn, #approveBtn, #rejectBtn')
+      .forEach(el => el.remove());
+    links.insertAdjacentHTML('afterbegin', statusBlockHtml(woche));
+    bindStatusAktionen();
+    return true;
+  }
+
   async function render(preloadedWoche, reuseCtx) {
     detachAllAutocompletes();
     // Wenn dieser Render durch einen KW-Wechsel ausgelöst wurde, hängen
@@ -625,19 +697,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         </div>`
       : '';
 
-    const aktionen = (woche && woche.erlaubteAktionen) || [];
-    const canErstgenehmigen = aktionen.includes('erstgenehmigen');
-    const canEndgenehmigen  = aktionen.includes('endgenehmigen');
-    const canApprove = canErstgenehmigen || canEndgenehmigen;
-    const canReject  = aktionen.includes('zurueckgeben');
-    // Rücknahme des letzten Statuswechsels: der Server bietet sie nur an,
-    // solange der Wechsel keine 4 Wochen alt ist und die eigene Stufe ihn
-    // gesetzt hat (wochenAktionen). Kein Knopf mit Text – ein Pfeil neben dem
-    // Statuswort, weil es der Ausnahmefall „Fehlklick" ist.
-    const canUndo = aktionen.includes('zuruecknehmen');
-    const undoLabel = woche && woche.status === 'genehmigt'     ? 'Genehmigung zurücknehmen'
-                    : woche && woche.status === 'erstgenehmigt' ? 'Erstgenehmigung zurücknehmen'
-                    : 'Zurückweisung zurücknehmen';
     const isReadonly = (isAusbilder && !viewingSelf())
       || (woche && (woche.status === 'freigegeben' || woche.status === 'erstgenehmigt' || woche.status === 'genehmigt'));
     // Freigabe und Rücknahme gehören dem Azubi selbst: viewingSelf() statt
@@ -670,15 +729,8 @@ document.addEventListener('DOMContentLoaded', async () => {
       return null;
     })();
 
-    /* Der Wochenstatus lebt jetzt in der Werkzeugleiste selbst: sie nimmt die
-       Statusfarbe an und traegt Symbol + Wort. 'offen' bleibt wortlos — ein
-       Entwurf braucht keine Zustandsmeldung, das tut der Autospeichern-Hinweis. */
     const zeigtStatus = !!woche && woche.status !== 'offen';
-    const statusHtml = zeigtStatus ? `
-          <span class="week-status">
-            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.4" aria-hidden="true">${STATUS_ICON[woche.status] || ''}</svg>
-            ${WOCHEN_STATUS_LABEL[woche.status] || getStatusLabel(woche.status)}
-          </span>` : '';
+    const statusHtml = statusBlockHtml(woche);
 
     const azubiSelectorHtml = isAusbilder ? await renderAzubiSelector(azubiId) : '';
 
@@ -721,21 +773,6 @@ document.addEventListener('DOMContentLoaded', async () => {
       <div class="week-toolbar"${zeigtStatus ? ` data-status="${woche.status}"` : ''}>
         <div class="week-toolbar__left">
           ${statusHtml}
-          ${canUndo ? `
-            <button class="week-edit-btn week-status-undo" id="undoStatusBtn" type="button" title="${undoLabel}" aria-label="${undoLabel}">
-              <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.2"><polyline points="3 5 3 11 9 11"/><path stroke-linecap="round" stroke-linejoin="round" d="M5.6 15.5a8 8 0 1 0 1.9-8.3L3 11"/></svg>
-            </button>
-          ` : ''}
-          ${canApprove ? `
-            <button class="btn-approve-circle" id="approveBtn" type="button" title="${canErstgenehmigen ? 'Erstgenehmigen' : 'Genehmigen'}" aria-label="${canErstgenehmigen ? 'Erstgenehmigen' : 'Genehmigen'}">
-              <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3" style="width:22px;height:22px"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
-            </button>
-          ` : ''}
-          ${canReject ? `
-            <button class="btn btn-outline btn-reject-subtle" id="rejectBtn" type="button" title="Zurückweisen" aria-label="Zurückweisen">
-              <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 14 4 9l5-5"/><path stroke-linecap="round" stroke-linejoin="round" d="M4 9h11a5 5 0 0 1 5 5v1"/></svg>
-            </button>
-          ` : ''}
           ${canWithdraw ? `
             <button class="week-edit-btn" id="withdrawBtn" type="button" title="Woche bearbeiten" aria-label="Woche bearbeiten">
               <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 0 0-2 2v11a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2v-5"/><path stroke-linecap="round" stroke-linejoin="round" d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
@@ -776,7 +813,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         </div>
       </div>
 
-      ${canReject ? `
+      ${isAusbilder && !viewingSelf() ? `
       <div class="reject-inline" id="rejectInline" style="display:none">
         <label class="form-label" for="rejectInlineReason">Begründung für die Zurückweisung</label>
         <textarea class="form-control" id="rejectInlineReason" rows="3" placeholder="Was soll überarbeitet werden? Der/die Azubi sieht diese Begründung."></textarea>
@@ -1010,10 +1047,23 @@ document.addEventListener('DOMContentLoaded', async () => {
     commitWeekSwitch(dir);
   }
 
+  // Die Auswahlliste wurde bei JEDEM Render neu geholt – eine Anfrage pro
+  // KW-Wechsel und pro Abnahme. Kurz gecacht statt für die ganze Sitzung:
+  // schnell genug für die Klickstrecke, aber ein frisch angelegter oder
+  // deaktivierter Azubi fehlt höchstens eine Minute, statt bis zum Neuladen.
+  const AZUBI_LISTE_TTL = 60000;
+  let azubiListeCache = null, azubiListeGeholt = 0;
   async function renderAzubiSelector(currentId) {
-    const azubis = user.istReinerPruefer
-      ? [...(pruefungsFenster ? pruefungsFenster.values() : [])].map(p => ({ id: p.azubiOid, name: p.azubiName }))
-      : await DB.getSelectableAzubis();
+    let azubis;
+    if (user.istReinerPruefer) {
+      azubis = [...(pruefungsFenster ? pruefungsFenster.values() : [])].map(p => ({ id: p.azubiOid, name: p.azubiName }));
+    } else {
+      if (!azubiListeCache || Date.now() - azubiListeGeholt > AZUBI_LISTE_TTL) {
+        azubiListeCache = await DB.getSelectableAzubis();
+        azubiListeGeholt = Date.now();
+      }
+      azubis = azubiListeCache;
+    }
     return renderAzubiSelect(azubis, currentId);
   }
 
@@ -2490,6 +2540,105 @@ document.addEventListener('DOMContentLoaded', async () => {
     `;
   }
 
+  /* Prüf-Aktionen (Genehmigen, Zurückweisen öffnen, Rücknahme). Eigene
+     Funktion, weil patchStatusBlock() die Knöpfe neu erzeugt und sie danach
+     wieder Handler brauchen. Wird aus bindEvents() und aus patchStatusBlock()
+     gerufen; die Knöpfe sind jedes Mal frisch, doppelte Listener gibt es nicht.
+     Beide Statuswechsel ziehen NUR die Leiste nach: für den Prüfenden ist die
+     Woche ohnehin schreibgeschützt, ein render() würde die halbe Seite (samt
+     Editoren) für nichts neu bauen. Sieht der Nutzer sein EIGENES Heft
+     (Dev-Hybrid), ändert sich die Schreibsperre mit — dann doch render(). */
+  function bindStatusAktionen() {
+    // Genehmigen ohne Zwischenbestätigung: direkt setzen (keine Modal-Abfrage).
+    // Zweistufige Abnahme bleibt erhalten: erstgenehmigen → 'erstgenehmigt'
+    // (weiter zur Endabnahme, keine Azubi-Mitteilung), sonst → 'genehmigt'.
+    document.getElementById('approveBtn')?.addEventListener('click', async () => {
+      const woche = currentWoche;
+      if (!woche) return;
+      const seq = renderSeq;
+      const erst = (woche.erlaubteAktionen || []).includes('erstgenehmigen');
+      const ziel = erst ? 'erstgenehmigt' : 'genehmigt';
+      // Sofort umschalten, ohne auf den Server zu warten: der Statuswechsel ist
+      // serverseitig geprüft (der Knopf existiert nur, wenn er erlaubt ist).
+      // Aber OHNE Folge-Aktionen zu behaupten — welche danach erlaubt sind,
+      // weiß nur der Server. Ein vorab gezeigter Rücknahme-Pfeil wäre eine
+      // Zusage, die er gleich darauf zurücknimmt; wer ihn im falschen Moment
+      // trifft, bekommt grundlos einen Fehler.
+      patchStatusBlock({ ...woche, status: ziel, erlaubteAktionen: [] });
+      let frisch;
+      try {
+        frisch = await DB.setWocheStatus(woche.id, ziel);
+      } catch (err) {
+        statusFehler('Abnahme fehlgeschlagen', err, woche, seq);
+        return;
+      }
+      if (erst) Toast.success('Erstgenehmigt', `KW ${woche.kw} wurde erstgenehmigt und zur Endabnahme weitergeleitet.`);
+      else      Toast.success('Genehmigt', `KW ${woche.kw} wurde genehmigt.`);
+      // Die Mitteilung ist das Einzige, was den Azubi erreicht — geht sie
+      // verloren, merkt es niemand. Deshalb abwarten und Fehler zeigen. Der
+      // Nutzer wartet dabei auf nichts: die Leiste steht längst richtig.
+      if (!erst) {
+        try {
+          await DB.addBenachrichtigung({
+            userId: woche.azubiId, type: 'genehmigt', wocheId: woche.id,
+            azubiId: woche.azubiId, kw: woche.kw, year: woche.year, fromUserId: user.id,
+          });
+        } catch (err) {
+          Toast.warning('Benachrichtigung nicht zugestellt',
+            `Die Abnahme steht, aber KW ${woche.kw} taucht beim Azubi nicht in den Mitteilungen auf.`);
+        }
+      }
+      if (!nochAktuell(woche, seq)) return;
+      // Ohne frische Woche vom Server (aelteres Backend) waere currentWoche der
+      // ALTE Stand – patchStatusBlock male den alten Status zurueck und die
+      // Abnahme saehe aus, als waere sie nicht passiert. Dann der alte Weg.
+      if (!frisch) { render(); return; }
+      if (viewingSelf()) { render(frisch, true); return; }
+      currentWoche = frisch;
+      if (!patchStatusBlock(currentWoche)) render(currentWoche, true);
+    });
+    // Statuswechsel zurücknehmen: ein Klick, keine Begründung – die kommt beim
+    // anschließenden Zurückweisen. Der Ziel-Status kommt vom Server.
+    document.getElementById('undoStatusBtn')?.addEventListener('click', async () => {
+      const woche = currentWoche;
+      if (!woche) return;
+      const seq = renderSeq;
+      // Sofortige Rückmeldung, dass der Klick angekommen ist — und zugleich die
+      // Sperre gegen den Doppelklick. Mehr geht hier nicht optimistisch:
+      // welcher Status vorher galt, weiß nur der Server.
+      document.getElementById('undoStatusBtn')?.remove();
+      let frisch;
+      try {
+        frisch = await DB.undoWocheStatus(woche.id);
+      } catch (err) {
+        // Häufigster Fall: die 4-Wochen-Frist ist inzwischen abgelaufen oder
+        // eine andere Stufe hat den Status weitergedreht (offene Seite).
+        statusFehler('Rücknahme nicht möglich', err, woche, seq);
+        return;
+      }
+      const neuerStatus = frisch && frisch.status;
+      Toast.success('Zurückgenommen',
+        `KW ${woche.kw} steht wieder auf „${WOCHEN_STATUS_LABEL[neuerStatus] || getStatusLabel(neuerStatus)}".`);
+      if (!nochAktuell(woche, seq)) return;
+      // Ohne frische Woche vom Server (aelteres Backend) waere currentWoche der
+      // ALTE Stand – patchStatusBlock male den alten Status zurueck und die
+      // Abnahme saehe aus, als waere sie nicht passiert. Dann der alte Weg.
+      if (!frisch) { render(); return; }
+      if (viewingSelf()) { render(frisch, true); return; }
+      currentWoche = frisch;
+      if (!patchStatusBlock(currentWoche)) render(currentWoche, true);
+    });
+    // Zurückweisen inline (kein Modal): Begründungsfeld direkt einblenden.
+    document.getElementById('rejectBtn')?.addEventListener('click', () => {
+      const panel = document.getElementById('rejectInline');
+      const ta = document.getElementById('rejectInlineReason');
+      if (!panel) return;
+      if (ta) ta.value = '';
+      panel.style.display = '';  // '' → Stylesheet greift (.reject-inline{display:flex}); nicht 'block' (verlöre gap)
+      ta?.focus();
+    });
+  }
+
   function bindEvents(woche, azubiId, berichtTyp, monday) {
     // Aktuellen Stand für die einmalig gebundenen Shell-Handler aktualisieren.
     currentWoche = woche;
@@ -2625,57 +2774,12 @@ document.addEventListener('DOMContentLoaded', async () => {
       if (!currentWoche || currentWoche.id == null) {
         Toast.warning('Keine Einträge', 'Bitte zuerst Einträge erfassen.'); return;
       }
-      await DB.setWocheStatus(currentWoche.id, 'freigegeben');
+      const frisch = await DB.setWocheStatus(currentWoche.id, 'freigegeben');
       Toast.success('Eingereicht', `KW ${currentKW} wurde eingereicht.`);
-      render();
+      render(frisch, true);
     });
 
-    // Genehmigen ohne Zwischenbestätigung: direkt setzen (keine Modal-Abfrage).
-    // Zweistufige Abnahme bleibt erhalten: erstgenehmigen → 'erstgenehmigt'
-    // (weiter zur Endabnahme, keine Azubi-Mitteilung), sonst → 'genehmigt'.
-    document.getElementById('approveBtn')?.addEventListener('click', async () => {
-      const woche = currentWoche;
-      if (!woche) return;
-      const erst = (woche.erlaubteAktionen || []).includes('erstgenehmigen');
-      await DB.setWocheStatus(woche.id, erst ? 'erstgenehmigt' : 'genehmigt');
-      if (!erst) {
-        await DB.addBenachrichtigung({
-          userId: woche.azubiId, type: 'genehmigt', wocheId: woche.id,
-          azubiId: woche.azubiId, kw: woche.kw, year: woche.year, fromUserId: user.id,
-        });
-      }
-      if (erst) Toast.success('Erstgenehmigt', `KW ${currentKW} wurde erstgenehmigt und zur Endabnahme weitergeleitet.`);
-      else      Toast.success('Genehmigt', `KW ${currentKW} wurde genehmigt.`);
-      render();
-    });
-    // Statuswechsel zurücknehmen: ein Klick, keine Begründung – die kommt beim
-    // anschließenden Zurückgeben. Der Ziel-Status kommt vom Server.
-    document.getElementById('undoStatusBtn')?.addEventListener('click', async () => {
-      const woche = currentWoche;
-      if (!woche) return;
-      let neuerStatus;
-      try {
-        neuerStatus = await DB.undoWocheStatus(woche.id);
-      } catch (err) {
-        // Häufigster Fall: die 4-Wochen-Frist ist inzwischen abgelaufen oder
-        // eine andere Stufe hat den Status weitergedreht (offene Seite).
-        Toast.error('Rücknahme nicht möglich', err.message);
-        render();
-        return;
-      }
-      Toast.success('Zurückgenommen',
-        `KW ${currentKW} steht wieder auf „${WOCHEN_STATUS_LABEL[neuerStatus] || getStatusLabel(neuerStatus)}".`);
-      render();
-    });
-    // Zurückgeben inline (kein Modal): Begründungsfeld direkt einblenden.
-    document.getElementById('rejectBtn')?.addEventListener('click', () => {
-      const panel = document.getElementById('rejectInline');
-      const ta = document.getElementById('rejectInlineReason');
-      if (!panel) return;
-      if (ta) ta.value = '';
-      panel.style.display = '';  // '' → Stylesheet greift (.reject-inline{display:flex}); nicht 'block' (verlöre gap)
-      ta?.focus();
-    });
+    bindStatusAktionen();
     document.getElementById('rejectInlineCancel')?.addEventListener('click', () => {
       const panel = document.getElementById('rejectInline');
       if (panel) panel.style.display = 'none';
@@ -2686,17 +2790,54 @@ document.addEventListener('DOMContentLoaded', async () => {
       const reason = (document.getElementById('rejectInlineReason')?.value || '').trim();
       if (!reason) { Toast.error('Pflichtfeld', 'Bitte eine Begründung eingeben.'); return; }
       const datum = new Date().toLocaleDateString('de-DE');
-      // 'abgelehnt'-Kommentar = Datenquelle für das Rückgabe-Banner (oben).
-      await DB.addKommentar(woche.id, { userId: user.id, text: reason, datum, typ: 'abgelehnt' });
-      // Zusätzlich als regulärer Kommentar in den Thread (Verlauf bleibt erhalten).
-      await DB.addKommentar(woche.id, { userId: user.id, text: reason, datum, typ: 'ausbilder' });
-      await DB.setWocheStatus(woche.id, 'abgelehnt');
-      await DB.addBenachrichtigung({
-        userId: woche.azubiId, type: 'abgelehnt', wocheId: woche.id,
-        azubiId: woche.azubiId, kw: woche.kw, year: woche.year, fromUserId: user.id,
-      });
-      Toast.warning('Zurückgewiesen', `KW ${currentKW} wurde zurückgewiesen.`);
-      render();
+      const seq = renderSeq;
+      // Panel zu und Leiste sofort umschalten; der Neuaufbau danach bringt
+      // nur noch den Kommentar in die Liste. Ohne Folge-Aktionen zu behaupten
+      // (s. Abnahme oben) — die bringt die Antwort.
+      const panel = document.getElementById('rejectInline');
+      if (panel) panel.style.display = 'none';
+      patchStatusBlock({ ...woche, status: 'abgelehnt', erlaubteAktionen: [] });
+      // Der Status zuerst, dann die Begründung. Andersherum stünde nach einem
+      // Fehlschlag eine Zurückweisungs-Begründung an einer Woche, die gar nicht
+      // zurückgewiesen ist — und der Azubi läse eine Rüge zu einer Abgabe, die
+      // noch offen beim Prüfer liegt. Der Server verlangt für den Wechsel
+      // keinen Kommentar (services/zugriff.js), die Reihenfolge ist frei.
+      let frisch;
+      try {
+        frisch = await DB.setWocheStatus(woche.id, 'abgelehnt');
+      } catch (err) {
+        Toast.error('Zurückweisen fehlgeschlagen', err.message);
+        // Kein render(): das würde die getippte Begründung wegwerfen. Leiste
+        // auf den echten Stand zurück, Panel samt Text wieder auf.
+        if (nochAktuell(woche, seq)) {
+          patchStatusBlock(woche);
+          if (panel) panel.style.display = '';
+        }
+        return;
+      }
+      Toast.warning('Zurückgewiesen', `KW ${woche.kw} wurde zurückgewiesen.`);
+      // Beide Kommentare parallel: der 'abgelehnt'-Typ ist die Datenquelle für
+      // die Begründung, der 'ausbilder'-Typ hält den Verlauf im Thread.
+      try {
+        await Promise.all([
+          DB.addKommentar(woche.id, { userId: user.id, text: reason, datum, typ: 'abgelehnt' }),
+          DB.addKommentar(woche.id, { userId: user.id, text: reason, datum, typ: 'ausbilder' }),
+        ]);
+      } catch (err) {
+        Toast.error('Begründung nicht gespeichert',
+          'Die Woche ist zurückgewiesen, aber ohne Begründung. Bitte als Kommentar nachtragen.');
+      }
+      try {
+        await DB.addBenachrichtigung({
+          userId: woche.azubiId, type: 'abgelehnt', wocheId: woche.id,
+          azubiId: woche.azubiId, kw: woche.kw, year: woche.year, fromUserId: user.id,
+        });
+      } catch (err) {
+        Toast.warning('Benachrichtigung nicht zugestellt',
+          `Die Zurückweisung steht, aber KW ${woche.kw} taucht beim Azubi nicht in den Mitteilungen auf.`);
+      }
+      if (!nochAktuell(woche, seq)) return;
+      render(frisch, true);
     });
 
     document.getElementById('addCommentBtn')?.addEventListener('click', () => {
@@ -2739,10 +2880,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     // „Woche bearbeiten" bestätigen – Freigabe zurückziehen.
     document.getElementById('withdrawConfirmBtn')?.addEventListener('click', async () => {
       if (!currentWoche) return;
-      await DB.setWocheStatus(currentWoche.id, 'offen');
+      const frisch = await DB.setWocheStatus(currentWoche.id, 'offen');
       Modal.closeAll();
       Toast.info('Bearbeitung freigegeben', `KW ${currentKW} kann wieder bearbeitet werden.`);
-      render();
+      render(frisch, true);
     });
 
     // (Freigeben läuft ohne Zwischenbestätigung direkt im releaseBtnBottom-Handler.)

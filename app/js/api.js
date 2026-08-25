@@ -810,19 +810,23 @@ const DB = {
     if (!Number.isInteger(Number(wocheId)) || Number(wocheId) <= 0) {
       throw new Error('Die Woche wurde noch nicht gespeichert – Status kann nicht gesetzt werden.');
     }
-    await apiFetch(`/wochen/${wocheId}/status`, { method: 'PATCH', body: { status } });
+    // Antwort enthält den frischen, annotierten Stand der Woche – der
+    // Aufrufer rendert damit direkt weiter, statt getWoche() zu rufen
+    // (das die GANZE Wochenliste des Azubis holt).
+    const res = await apiFetch(`/wochen/${wocheId}/status`, { method: 'PATCH', body: { status } });
+    return res && res.woche ? normalizeWoche(res.woche) : null;
   },
 
   // Letzten Statuswechsel zurücknehmen (zu früh genehmigt / falsch
   // zurückgegeben). Der Ziel-Status wird NICHT mitgegeben: welcher Zustand vor
   // dem Wechsel galt, weiß nur der Server (Wochen.StatusVorher, Migration 037).
-  // Liefert den Status zurück, auf dem die Woche jetzt steht.
+  // Liefert die frische Woche zurück (Status + erlaubte Aktionen).
   async undoWocheStatus(wocheId) {
     if (!Number.isInteger(Number(wocheId)) || Number(wocheId) <= 0) {
       throw new Error('Die Woche wurde noch nicht gespeichert – Status kann nicht zurückgenommen werden.');
     }
     const res = await apiFetch(`/wochen/${wocheId}/status`, { method: 'PATCH', body: { aktion: 'zuruecknehmen' } });
-    return res && res.status ? res.status : null;
+    return res && res.woche ? normalizeWoche(res.woche) : null;
   },
 
   async addKommentar(wocheId, kommentar) {

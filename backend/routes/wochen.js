@@ -60,22 +60,12 @@ router.get('/:id', async (req, res) => {
     const id = wocheIdParam(req, res);
     if (id === null) return;
     const pool = await getPool();
-    const result = await pool.request()
-      .input('id', sql.Int, id)
-      .query(`
-        SELECT w.*,
-          (SELECT * FROM dbo.Tage t WHERE t.WocheId = w.Id FOR JSON PATH) AS tageJson,
-          (SELECT * FROM dbo.Kommentare k WHERE k.WocheId = w.Id FOR JSON PATH) AS kommentareJson
-        FROM dbo.Wochen w WHERE w.Id = @id
-      `);
-    if (!result.recordset[0]) return res.status(404).json({ error: 'Woche nicht gefunden' });
-    const woche = parseWoche(result.recordset[0]);
-
     const kontext = await ladeKorrekturKontext(pool, req.user);
+    const woche = await ladeWocheAnnotiert(pool, id, req.user, kontext);
+    if (!woche) return res.status(404).json({ error: 'Woche nicht gefunden' });
     if (!darfWocheSehen(req.user, normWoche(woche), kontext)) {
       return res.status(403).json({ error: 'Keine Berechtigung für diese Woche' });
     }
-    annotiereWoche(woche, req.user, kontext);
     res.json(woche);
   } catch (err) {
     logError({ quelle: 'backend', nachricht: `[wochen] get/:id: ${err.message}`, stack: err.stack,
@@ -356,13 +346,32 @@ router.patch('/:id/status', async (req, res) => {
       }
     }
 
-    res.json({ ok: true, status: treffer.zielStatus });
+    // Frischen Stand mitgeben: das Frontend rendert damit direkt weiter,
+    // ohne die Wochenliste erneut zu holen (spürbar beim Genehmigen).
+    const frisch = await ladeWocheAnnotiert(pool, id, user, kontext);
+    res.json({ ok: true, status: treffer.zielStatus, woche: frisch });
   } catch (err) {
     logError({ quelle: 'backend', nachricht: `[wochen] status: ${err.message}`, stack: err.stack,
       kontext: { route: req.path, methode: req.method }, benutzerOid: req.user && req.user.oid, benutzerName: req.user && req.user.name });
     res.status(500).json({ error: err.message });
   }
 });
+
+// Eine einzelne Woche samt Tagen, Kommentaren und Betrachter-Sicht laden.
+// Die Status-Route gibt damit den frischen Stand direkt zurück, statt das
+// Frontend die komplette Wochenliste des Azubis nachladen zu lassen.
+async function ladeWocheAnnotiert(pool, id, user, kontext) {
+  const r = await pool.request()
+    .input('id', sql.Int, id)
+    .query(`
+      SELECT w.*,
+        (SELECT * FROM dbo.Tage t WHERE t.WocheId = w.Id FOR JSON PATH) AS tageJson,
+        (SELECT * FROM dbo.Kommentare k WHERE k.WocheId = w.Id FOR JSON PATH) AS kommentareJson
+      FROM dbo.Wochen w WHERE w.Id = @id
+    `);
+  if (!r.recordset[0]) return null;
+  return annotiereWoche(parseWoche(r.recordset[0]), user, kontext);
+}
 
 // Reichert eine parseWoche-Zeile mit der Betrachter-Sicht an:
 // viewerRolle + erlaubteAktionen (Aktions-Slugs) für das aktuelle Frontend.
