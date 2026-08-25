@@ -290,7 +290,12 @@ async function renderAzubiDashboard(user) {
   // Glocke, nicht über diese KW-zentrische Liste.
   const mtItems = (await DB.getBenachrichtigungenFuerUser(user.id))
     .filter(b => !String(b.type || '').startsWith('versetzung_') && b.type !== 'genehmigt');
-  const mtUnread = mtItems.filter(b => !b.gelesen).length;
+  // „Neu" = seit dem letzten Aufruf hereingekommen (s. MitteilungenNeu in
+  // app.js). Der Marker wird nach dem Rendern gesetzt → beim nächsten Laden
+  // ist die Kachel abgetragen, ohne dass etwas angeklickt werden muss.
+  const mtSeen = MitteilungenNeu.fuer('azubi');
+  const mtNeu = b => mtSeen.istNeu(`n${b.id}`);
+  const mtUnread = mtItems.filter(mtNeu).length;
   const mtNotifHtml = mtItems.slice(0, 6).map(b => {
     // Beurteilungs-Mitteilungen (kein KW/Jahr) korrekt beschriften + auf den
     // Beurteilungsbogen verlinken statt in den zurückgegeben-Zweig zu fallen.
@@ -298,14 +303,14 @@ async function renderAzubiDashboard(user) {
       const faellig = b.type === 'beurteilung_faellig';
       const btitle = faellig ? 'Beurteilung fällig' : 'Neue Beurteilung liegt vor';
       return `
-          <a class="b-mitteilung${b.gelesen ? '' : ' b-mitteilung--unread'}" href="beurteilung.html?zuw=${encodeURIComponent(b.zuweisungId || '')}"
+          <a class="b-mitteilung${mtNeu(b) ? ' b-mitteilung--unread' : ''}" href="beurteilung.html?zuw=${encodeURIComponent(b.zuweisungId || '')}"
              data-notif-id="${b.id}" data-zuw="${b.zuweisungId || ''}">
             <span class="b-mitteilung__icon b-mitteilung__icon--${faellig ? 'er' : 'ok'}">${faellig ? MT_ICON_ER : MT_ICON_OK}</span>
             <span class="b-mitteilung__body">
               <span class="b-mitteilung__title">${btitle}</span>
               <span class="b-mitteilung__meta">${mtRelTime(b.timestamp)}</span>
             </span>
-            ${b.gelesen ? '' : '<span class="b-mitteilung__dot" aria-hidden="true"></span>'}
+            ${mtNeu(b) ? '<span class="b-mitteilung__dot" aria-hidden="true"></span>' : ''}
           </a>`;
     }
     const isErst = b.type === 'erstgenehmigt';
@@ -315,7 +320,7 @@ async function renderAzubiDashboard(user) {
       : ok ? `KW ${b.kw}/${b.year} genehmigt` : `KW ${b.kw}/${b.year} zurückgewiesen`;
     const prev = (!ok && b.kommentar) ? `<span class="b-mitteilung__preview">${mtEsc(b.kommentar)}</span>` : '';
     return `
-          <a class="b-mitteilung${b.gelesen ? '' : ' b-mitteilung--unread'}" href="wochenansicht.html"
+          <a class="b-mitteilung${mtNeu(b) ? ' b-mitteilung--unread' : ''}" href="wochenansicht.html"
              data-notif-id="${b.id}" data-kw="${b.kw}" data-year="${b.year}"${b.azubiId ? ` data-azubi="${b.azubiId}"` : ''}>
             <span class="b-mitteilung__icon b-mitteilung__icon--${ok ? 'ok' : 'er'}">${ok ? MT_ICON_OK : MT_ICON_ER}</span>
             <span class="b-mitteilung__body">
@@ -323,7 +328,7 @@ async function renderAzubiDashboard(user) {
               <span class="b-mitteilung__meta">${mtRelTime(b.timestamp)}</span>
               ${prev}
             </span>
-            ${b.gelesen ? '' : '<span class="b-mitteilung__dot" aria-hidden="true"></span>'}
+            ${mtNeu(b) ? '<span class="b-mitteilung__dot" aria-hidden="true"></span>' : ''}
           </a>`;
   }).join('');
   const mtEmptyHtml = !mtNotifHtml
@@ -416,6 +421,9 @@ async function renderAzubiDashboard(user) {
       });
     }
   });
+
+  // Die Kachel steht – damit gilt der Feed als gesehen.
+  mtSeen.merken(mtItems.map(b => `n${b.id}`));
 
   // Mitteilungszentrale: Klick markiert die Benachrichtigung als gelesen und
   // springt zur betroffenen Woche (eigenes Handling, weil mark-read VOR der

@@ -71,6 +71,7 @@ document.addEventListener('DOMContentLoaded', async () => {
           else if (w.status === 'abgelehnt') { tone = 'er';      typeKey = 'zurueckgegeben'; typeLabel = 'Zurückgewiesen'; }
           else                               { tone = 'neutral'; typeKey = 'erstgenehmigt';  typeLabel = 'Erstgenehmigt'; }
           items.push({
+            key: `w${a.id}-${w.year}-${w.kw}-${w.status}`,
             ts: sunday.getTime(), tone, typeKey, typeLabel,
             title: `<strong>${esc(azName)}</strong>: KW ${w.kw}`,
             meta: `KW ${w.kw}/${w.year}`,
@@ -85,6 +86,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         const d = new Date(b.abgeschlossenAm);
         const note = b.note != null ? ` · Note ${b.note.toLocaleString('de-DE')}` : '';
         items.push({
+          key: `b${b.zuweisungId}`,
           ts: isNaN(d) ? 0 : d.getTime(), tone: 'neutral', typeKey: 'beurteilung', typeLabel: 'Beurteilung',
           title: `<strong>${esc(azName)}</strong>: Beurteilung abgeschlossen${note}`,
           meta: isNaN(d) ? '' : d.toLocaleDateString('de-DE'),
@@ -127,12 +129,12 @@ document.addEventListener('DOMContentLoaded', async () => {
       const t = VERWALTUNG_TYPEN[b.type];
       const typeKey = b.type.split('_')[0];   // versetzung | vertretung | beurteilung | loeschung
       return {
+        key: `n${b.id}`,
         ts: b.timestamp || 0, tone: t.tone, typeKey, typeLabel: t.label,
         // titel darf eine Funktion sein (Text mit Daten der Mitteilung);
         // esc() bleibt in jedem Fall die letzte Station vor dem DOM.
         title: esc(typeof t.titel === 'function' ? t.titel(b) : t.titel),
         meta: relTime(b.timestamp),
-        gelesen: !!b.gelesen,
         notifId: b.id,
         href: t.href ? t.href(b) : 'abteilungs-planer.html',
         nav: null,
@@ -150,13 +152,13 @@ document.addEventListener('DOMContentLoaded', async () => {
       if (b.type === 'beurteilung_abgeschlossen' || b.type === 'beurteilung_faellig') {
         const faellig = b.type === 'beurteilung_faellig';
         return {
+          key: `n${b.id}`,
           ts: b.timestamp || 0,
           tone: faellig ? 'info' : 'ok',
           typeKey: 'beurteilung',
           typeLabel: 'Beurteilung',
           title: faellig ? 'Beurteilung fällig' : 'Neue Beurteilung liegt vor',
           meta: relTime(b.timestamp),
-          gelesen: !!b.gelesen,
           notifId: b.id,
           href: `beurteilung.html?zuw=${encodeURIComponent(b.zuweisungId || '')}`,
           nav: null,
@@ -167,10 +169,10 @@ document.addEventListener('DOMContentLoaded', async () => {
       const typeKey = isErst ? 'erstgenehmigt' : 'zurueckgegeben';
       const typeLabel = isErst ? 'Erstgenehmigt' : 'Zurückgewiesen';
       return {
+        key: `n${b.id}`,
         ts: b.timestamp || 0, tone, typeKey, typeLabel,
         title: isErst ? `KW ${b.kw}/${b.year} erstgenehmigt` : `KW ${b.kw}/${b.year} zurückgewiesen`,
         meta: relTime(b.timestamp),
-        gelesen: !!b.gelesen,
         notifId: b.id,
         href: 'wochenansicht.html',
         nav: { gotoKW: String(b.kw), gotoYear: String(b.year), ...(b.azubiId ? { gotoAzubiId: b.azubiId } : {}) },
@@ -218,18 +220,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     return (ia === -1 ? 99 : ia) - (ib === -1 ? 99 : ib);
   });
 
-  // „Neu seit letztem Besuch": Einträge, die neuer sind als der letzte Aufruf
-  // dieser Seite, bekommen einen sanften Hinweis. Der Marker wird beim Laden
-  // sofort aktualisiert → beim nächsten Öffnen/Refresh sind sie „gesehen" und
-  // der Hinweis verschwindet. Rein clientseitig (localStorage), pro Rolle.
-  const SEEN_KEY = `mitteilungenLastSeen:${isAzubi ? 'azubi' : 'ausbilder'}`;
-  let lastSeen = 0;
-  try { lastSeen = Number(localStorage.getItem(SEEN_KEY)) || 0; } catch (_) { /* ignore */ }
-  items.forEach(it => { it.isNew = (it.ts || 0) > lastSeen; });
-  try {
-    const maxTs = items.reduce((m, it) => Math.max(m, it.ts || 0), 0);
-    localStorage.setItem(SEEN_KEY, String(Math.max(Date.now(), maxTs)));
-  } catch (_) { /* ignore */ }
+  // „Neu seit letztem Besuch" (s. MitteilungenNeu in app.js). Der Marker wird
+  // beim Laden sofort weitergesetzt → beim nächsten Öffnen/Refresh sind die
+  // Einträge gesehen und der Hinweis verschwindet, ohne dass geklickt wurde.
+  const gesehen = MitteilungenNeu.fuer(isAzubi ? 'azubi' : 'ausbilder');
+  items.forEach(it => { it.isNew = gesehen.istNeu(it.key); });
+  gesehen.merken(items.map(it => it.key));
 
   main.innerHTML = `
     <div class="page-header">
@@ -250,7 +246,7 @@ document.addEventListener('DOMContentLoaded', async () => {
           ${isAzubi ? `
           <select class="form-control mt-toolbar__select" id="mtRead" aria-label="Nach Status filtern">
             <option value="">Alle</option>
-            <option value="unread">Nur ungelesen</option>
+            <option value="unread">Nur neue</option>
           </select>` : ''}
         </div>
         <div class="mt-count" id="mtCount"></div>
@@ -259,7 +255,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     </div>`;
 
   function itemHtml(it) {
-    const unread = it.gelesen === false;
+    const unread = it.isNew;
     const chipTone = it.tone === 'ok' ? 'ok' : it.tone === 'er' ? 'er' : it.tone === 'info' ? 'info' : '';
     const azubiMeta = it.azubiName ? `<span>·</span><span>${esc(it.azubiName)}</span>` : '';
     const navData = it.nav
@@ -284,7 +280,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const q = query.trim().toLowerCase();
     return items.filter(it => {
       if (typeFilter && it.typeKey !== typeFilter) return false;
-      if (readFilter === 'unread' && it.gelesen !== false) return false;
+      if (readFilter === 'unread' && !it.isNew) return false;
       if (q) {
         const hay = (it.title + ' ' + (it.azubiName || '') + ' ' + (it.meta || '')).toLowerCase();
         if (!hay.includes(q)) return false;

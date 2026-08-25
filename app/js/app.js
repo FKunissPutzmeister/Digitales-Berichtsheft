@@ -186,10 +186,26 @@ async function initLayout(activeNavId) {
     document.body.appendChild(menuBtn);
   }
 
+  const bp = window.PM_SIDEBAR_BP || { mobil: 600, autoCollapse: 1440 };  // Quelle: theme.js
   const isCollapsed = localStorage.getItem('sidebarCollapsed') === 'true';
-  if (isCollapsed && window.innerWidth > 768) {
+  if (isCollapsed && window.innerWidth > bp.mobil) {
     sidebar?.classList.add('collapsed');
   }
+
+  /* Auto-Collapse auch beim RESIZE, nicht nur beim Laden. Vorher wertete
+     allein buildSidebar() die Breite einmalig aus: wer sein Fenster kleiner
+     zog, behielt die breite Sidebar, bis das Off-Canvas-Layout übernahm –
+     es sah aus, als klappe sie „viel zu spät" ein. localStorage wird hier
+     bewusst NICHT beschrieben; oberhalb der Grenze gilt wieder die
+     gespeicherte Nutzer-Präferenz. */
+  const autoQuery = window.matchMedia(
+    `(min-width: ${bp.mobil + 1}px) and (max-width: ${bp.autoCollapse}px)`);
+  const wendeAutoCollapseAn = () => {
+    if (!sidebar) return;
+    if (autoQuery.matches) sidebar.classList.add('collapsed');
+    else sidebar.classList.toggle('collapsed', localStorage.getItem('sidebarCollapsed') === 'true');
+  };
+  autoQuery.addEventListener('change', wendeAutoCollapseAn);
 
   // Synchron-Marker aus dem <head>-Skript wieder entfernen, NACHDEM
   // die echte .collapsed-Klasse auf dem <aside> liegt. Dadurch wechseln
@@ -963,6 +979,39 @@ function setPersistedAzubiId(id) {
     else localStorage.removeItem(AZUBI_VIEW_STORAGE_KEY);
   } catch (e) { /* Speicher nicht verfügbar → nur für diese Sitzung */ }
 }
+
+/* „Neu" bei Mitteilungen heißt: seit dem letzten Aufruf dazugekommen.
+   Ansehen genügt – wer die Seite neu lädt oder verlässt, hat sie gesehen.
+   Rein clientseitig, pro Rolle getrennt, damit Hybrid-Nutzer ihre Azubi- und
+   ihre Ausbilder-Mitteilungen unabhängig voneinander abtragen.
+
+   Gemerkt wird die IDENTITÄT der gesehenen Mitteilungen, nicht ein Zeitstand.
+   Ein Zeitstand scheitert an der Ausbilder-Liste: die datiert ihre Einträge
+   auf den Sonntag der gemeldeten Woche, und wer die laufende Woche am
+   Mittwoch einreicht, erzeugt einen Eintrag mit Datum in der Zukunft. Der
+   Zeitstand wäre danach entweder monatelang vorgespult (und der Hinweis tot)
+   oder der Eintrag bliebe bei jedem Aufruf aufs Neue „neu". */
+const MitteilungenNeu = {
+  _key(rolle) { return `mitteilungenGesehen:${rolle}`; },
+  _MAX: 300,   // beschnitten, damit der Eintrag nicht unbegrenzt wächst
+  /* Liest den Stand EINMAL und gibt Prüfung + Wegschreiben zurück, damit das
+     Rendern nicht gegen den frisch gesetzten Stand läuft. */
+  fuer(rolle) {
+    const key = this._key(rolle), grenze = this._MAX;
+    let gesehen = [];
+    try { gesehen = JSON.parse(localStorage.getItem(key)) || []; }
+    catch (e) { /* ohne localStorage bleibt alles „neu" */ }
+    const bekannt = new Set(gesehen);
+    return {
+      istNeu: id => id != null && !bekannt.has(String(id)),
+      merken(ids) {
+        const alle = gesehen.concat(ids.filter(i => i != null).map(String));
+        const behalten = [...new Set(alle)].slice(-grenze);
+        try { localStorage.setItem(key, JSON.stringify(behalten)); } catch (e) { /* egal */ }
+      },
+    };
+  },
+};
 
 /* Auto-Enhancement: bei Seitenload und bei dynamisch eingefügten Selects */
 const _pmSelectMutationObserver = new MutationObserver(mutations => {
