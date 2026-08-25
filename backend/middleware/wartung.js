@@ -41,6 +41,27 @@ function istWartungAktiv(env = process.env) {
   return String(env.WARTUNG == null ? '' : env.WARTUNG).trim() === '1';
 }
 
+/* Optionales Umzugsziel (WARTUNG_URL). Gesetzt heißt: Diese Instanz ist
+   nicht vorübergehend abgeschaltet, sondern dauerhaft umgezogen — die
+   Meldung nennt dann die neue Adresse und das Frontend macht einen Link
+   daraus. Deshalb steht die Adresse in der .env und nicht im Code: Der
+   Produktivserver läuft aus demselben Repo und soll bei einem künftigen
+   Wartungsfenster nicht auf sich selbst verweisen.
+
+   Nur http(s): Der Wert wird als Link gerendert, ein "javascript:"-Ziel
+   wäre Skript-Ausführung über die Konfiguration. */
+function wartungsUrl(env = process.env) {
+  const u = String(env.WARTUNG_URL == null ? '' : env.WARTUNG_URL).trim();
+  return /^https?:\/\/\S+$/i.test(u) ? u : null;
+}
+
+function wartungsMeldung(env = process.env) {
+  const url = wartungsUrl(env);
+  if (!url) return MELDUNG;
+  return `Das Digitale Berichtsheft ist umgezogen. Du erreichst es ab sofort unter ${url} — `
+    + 'alle Daten sind vollständig übernommen. Bitte aktualisiere dein Lesezeichen.';
+}
+
 /* true = diese Anfrage im Wartungsmodus abweisen. */
 function istGesperrterPfad(pfad) {
   const p = String(pfad == null ? '' : pfad).toLowerCase();
@@ -51,14 +72,19 @@ function istGesperrterPfad(pfad) {
 /* Express-Middleware-Fabrik. `aktiv` wird beim Start ausgewertet und
    übergeben, damit der Zustand pro Prozess feststeht (und der Test ihn
    ohne Umweg über process.env setzen kann). */
-function wartungsGuard({ aktiv } = {}) {
+function wartungsGuard({ aktiv, meldung, url } = {}) {
+  const text = meldung || MELDUNG;
+  const ziel = url || null;
   return function guard(req, res, next) {
     if (!aktiv || !istGesperrterPfad(req.path)) return next();
     // Retry-After hält Zwischenspeicher und Suchindizes davon ab, den
     // 503 als dauerhaften Zustand zu behandeln (3600 s = eine Stunde).
     res.set('Retry-After', '3600');
-    res.status(503).json({ error: MELDUNG, wartung: true });
+    res.status(503).json({ error: text, wartung: true, url: ziel });
   };
 }
 
-module.exports = { istWartungAktiv, istGesperrterPfad, wartungsGuard, MELDUNG };
+module.exports = {
+  istWartungAktiv, istGesperrterPfad, wartungsGuard,
+  wartungsUrl, wartungsMeldung, MELDUNG,
+};

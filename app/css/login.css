@@ -171,6 +171,18 @@ body.login-page {
   line-height: var(--lh-normal);
   color: var(--pm-grey-700);
 }
+/* Link auf die neue Adresse (nur bei dauerhaftem Umzug). Als Block mit
+   Abstand darüber, damit er nicht im Fließtext untergeht — er ist hier
+   die einzige Handlung, die dem Nutzer noch offensteht. */
+.login-wartung__link {
+  display: inline-block;
+  margin-top: var(--sp-3);
+  font-size: var(--text-sm);
+  font-weight: var(--fw-bold);
+  color: var(--color-warning);
+  word-break: break-all;
+}
+.login-wartung__link[hidden] { display: none; }
 
 /* „oder"-Trenner */
 .login-divider {

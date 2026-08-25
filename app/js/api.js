@@ -26,7 +26,7 @@ const API_BASE = (window.location.port === '5500')
    Seite und in JEDEM Theme funktionieren, auch wenn deren Stylesheet
    gerade nicht geladen werden konnte. */
 let _wartungGezeigt = false;
-function zeigeWartungsmeldung(text) {
+function zeigeWartungsmeldung(text, url) {
   if (_wartungGezeigt) return;          // nur einmal, egal wie viele Aufrufe scheitern
   _wartungGezeigt = true;
   const ebene = document.createElement('div');
@@ -44,12 +44,23 @@ function zeigeWartungsmeldung(text) {
   const inhalt = document.createElement('div');
   inhalt.style.cssText = 'padding:28px 30px;';
   const titel = document.createElement('h2');
-  titel.textContent = 'Wartung läuft';
+  titel.textContent = url ? 'Das Berichtsheft ist umgezogen' : 'Wartung läuft';
   titel.style.cssText = 'margin:0 0 10px;font-size:1.2rem;';
   const absatz = document.createElement('p');
   absatz.textContent = text || 'Das Berichtsheft ist gerade nicht verfügbar.';
   absatz.style.cssText = 'margin:0;line-height:1.6;color:#4A4A4A;font-size:.95rem;';
   inhalt.append(titel, absatz);
+  // Dauerhafter Umzug: die neue Adresse anklickbar anbieten. Das Backend
+  // lässt nur http(s) als WARTUNG_URL durch (middleware/wartung.js), ein
+  // "javascript:"-Ziel kann hier also nicht ankommen.
+  if (url) {
+    const link = document.createElement('a');
+    link.href = url;
+    link.textContent = String(url).replace(/^https?:\/\//i, '');
+    link.style.cssText = 'display:inline-block;margin-top:16px;font-weight:700;'
+      + 'font-size:1rem;color:#1A1A1A;word-break:break-all;';
+    inhalt.append(link);
+  }
   karte.append(balken, inhalt);
   ebene.append(karte);
   (document.body || document.documentElement).append(ebene);
@@ -83,7 +94,7 @@ async function apiFetch(path, options = {}) {
       // angekündigter Betriebszustand (und /api/errors antwortet ohnehin 503).
       if (res.status === 503 && err && err.wartung === true) {
         httpErr.wartung = true;
-        zeigeWartungsmeldung(err.error);
+        zeigeWartungsmeldung(err.error, err.url);
       }
       throw httpErr;
     }
@@ -110,7 +121,7 @@ async function apiUpload(path, formData) {
     const err = await res.json().catch(() => ({ error: res.statusText }));
     // Gleiche Behandlung wie in apiFetch: ein Upload mitten im Wartungsfenster
     // soll die Erklärung zeigen, nicht nur "Hochladen fehlgeschlagen".
-    if (res.status === 503 && err && err.wartung === true) zeigeWartungsmeldung(err.error);
+    if (res.status === 503 && err && err.wartung === true) zeigeWartungsmeldung(err.error, err.url);
     throw new Error(err.error || res.statusText);
   }
   return res.json();

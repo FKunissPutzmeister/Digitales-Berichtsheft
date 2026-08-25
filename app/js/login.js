@@ -21,6 +21,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   let samlReady = false;
   let demoLogin = false;
   let wartung = false;
+  let wartungUrl = null;
   try {
     const r = await fetch(`${base}/auth/saml/status`, { credentials: 'include' });
     if (!r.ok) console.warn('[saml] status-Endpoint antwortete nicht OK:', r.status);
@@ -29,6 +30,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       samlReady = status.configured === true;
       demoLogin = status.demoLogin !== false;
       wartung = status.wartung === true;
+      wartungUrl = typeof status.wartungUrl === 'string' ? status.wartungUrl : null;
     }
   } catch { samlReady = false; }
 
@@ -42,6 +44,26 @@ document.addEventListener('DOMContentLoaded', async () => {
     // "Bitte anmelden" wäre jetzt eine Aufforderung, die ins Leere läuft.
     const sub = document.querySelector('.login-card__sub');
     if (sub) sub.textContent = 'Zurzeit nicht verfügbar';
+
+    // Dauerhafter Umzug: andere Aussage als bei einem Wartungsfenster — hier
+    // soll der Nutzer nicht später wiederkommen, sondern jetzt woanders hin.
+    if (wartungUrl) {
+      const titel = document.getElementById('loginWartungTitel');
+      const text = document.getElementById('loginWartungText');
+      const link = document.getElementById('loginWartungLink');
+      if (sub) sub.textContent = 'Umgezogen';
+      if (titel) titel.textContent = 'Das Berichtsheft ist umgezogen';
+      if (text) {
+        text.textContent = 'Diese Adresse wird nicht mehr verwendet. Alle Daten sind '
+          + 'vollständig übernommen — bitte melde dich ab sofort hier an und aktualisiere '
+          + 'dein Lesezeichen.';
+      }
+      if (link) {
+        link.href = wartungUrl;                 // Backend lässt nur http(s) durch
+        link.textContent = wartungUrl.replace(/^https?:\/\//i, '');
+        link.hidden = false;
+      }
+    }
     for (const el of [msBtn, ssoHint, document.querySelector('.login-divider'),
                       document.getElementById('loginForm'),
                       document.getElementById('loginDemo')]) {

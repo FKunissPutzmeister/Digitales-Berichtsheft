@@ -16,7 +16,8 @@
    Reine Logik: kein Server, kein Netz. */
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { istWartungAktiv, istGesperrterPfad, wartungsGuard } = require('./wartung.js');
+const { istWartungAktiv, istGesperrterPfad, wartungsGuard,
+        wartungsUrl, wartungsMeldung, MELDUNG } = require('./wartung.js');
 
 /* ── Schalter ──────────────────────────────────────────────────── */
 
@@ -27,6 +28,41 @@ test('wartung: nur WARTUNG=1 schaltet ein', () => {
   assert.equal(istWartungAktiv({ WARTUNG: '' }), false);
   assert.equal(istWartungAktiv({ WARTUNG: '0' }), false);
   assert.equal(istWartungAktiv({ WARTUNG: 'true' }), false, 'bewusst nur "1"');
+});
+
+/* ── Umzugsziel (optional) ─────────────────────────────────────── */
+
+test('wartung: ohne WARTUNG_URL bleibt es bei der allgemeinen Meldung', () => {
+  assert.equal(wartungsUrl({}), null);
+  assert.equal(wartungsMeldung({}), MELDUNG);
+});
+
+test('wartung: mit WARTUNG_URL wird daraus eine Umzugsmeldung', () => {
+  const env = { WARTUNG_URL: 'https://berichtsheft.jumbo.net' };
+  assert.equal(wartungsUrl(env), 'https://berichtsheft.jumbo.net');
+  const m = wartungsMeldung(env);
+  assert.notEqual(m, MELDUNG);
+  assert.ok(m.includes('https://berichtsheft.jumbo.net'), 'die Adresse steht in der Meldung');
+});
+
+test('wartung: nur http(s) wird als Ziel akzeptiert', () => {
+  // Die Adresse wird im Frontend als anklickbarer Link gerendert. Ein
+  // "javascript:"-Ziel waere damit eine Skript-Ausfuehrung ueber die .env —
+  // unwahrscheinlich, aber der Filter kostet nichts.
+  assert.equal(wartungsUrl({ WARTUNG_URL: 'javascript:alert(1)' }), null);
+  assert.equal(wartungsUrl({ WARTUNG_URL: 'data:text/html,<script>' }), null);
+  assert.equal(wartungsUrl({ WARTUNG_URL: 'berichtsheft.jumbo.net' }), null, 'ohne Schema kein Link');
+  assert.equal(wartungsUrl({ WARTUNG_URL: '  https://a.b  ' }), 'https://a.b', 'getrimmt');
+  assert.equal(wartungsUrl({ WARTUNG_URL: 'http://a.b' }), 'http://a.b');
+});
+
+test('wartung: der Guard gibt das Umzugsziel mit heraus', () => {
+  const guard = wartungsGuard({ aktiv: true, meldung: 'Umgezogen nach X.', url: 'https://x.y' });
+  const res = fakeRes();
+  guard({ path: '/api/wochen', method: 'GET' }, res, () => {});
+  assert.equal(res.body.wartung, true);
+  assert.equal(res.body.error, 'Umgezogen nach X.');
+  assert.equal(res.body.url, 'https://x.y');
 });
 
 /* ── Welche Pfade gesperrt werden ──────────────────────────────── */

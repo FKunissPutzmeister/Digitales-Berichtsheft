@@ -8,7 +8,7 @@ const FileStore = require('session-file-store')(session);
 const { hardenWrites } = require('./services/session-store');
 const { devAuth, DEV_AUTH_ENABLED } = require('./middleware/auth');
 const { staticGuard } = require('./middleware/static-guard');
-const { istWartungAktiv, wartungsGuard } = require('./middleware/wartung');
+const { istWartungAktiv, wartungsGuard, wartungsUrl, wartungsMeldung } = require('./middleware/wartung');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -90,9 +90,14 @@ app.use(session({
 // angemeldeter Aufrufer ein irreführendes "Nicht angemeldet" statt der
 // Wartungsmeldung. Das statische Frontend bleibt erreichbar, damit die
 // Login-Seite die Meldung anzeigen kann (siehe middleware/wartung.js).
+// WARTUNG_URL (optional) macht daraus eine dauerhafte Umzugsmeldung mit
+// Link auf die neue Adresse — so bleibt der alte Server als Wegweiser stehen.
 const WARTUNG_AKTIV = istWartungAktiv();
-app.use(wartungsGuard({ aktiv: WARTUNG_AKTIV }));
-if (WARTUNG_AKTIV) console.warn('[wartung] WARTUNGSMODUS AKTIV — API und MCP antworten mit 503.');
+app.use(wartungsGuard({ aktiv: WARTUNG_AKTIV, meldung: wartungsMeldung(), url: wartungsUrl() }));
+if (WARTUNG_AKTIV) {
+  console.warn('[wartung] WARTUNGSMODUS AKTIV — API und MCP antworten mit 503.'
+    + (wartungsUrl() ? ` Umzugsziel: ${wartungsUrl()}` : ''));
+}
 
 // ── Dev-Auth-Endpunkte (passwortlos!) — NUR außerhalb der Produktion ──────
 // In Produktion authentifiziert ausschließlich SAML-SSO; diese Endpunkte

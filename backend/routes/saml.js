@@ -8,7 +8,7 @@ const router = require('express').Router();
 const { saml, samlConfigured } = require('../config/saml');
 const { parseRoleClaim, upsertUser, getUserByOid, buildReqUser, landingPathForUser } = require('../services/users');
 const { DEV_AUTH_ENABLED } = require('../middleware/auth');
-const { istWartungAktiv } = require('../middleware/wartung');
+const { istWartungAktiv, wartungsUrl } = require('../middleware/wartung');
 
 const LOGIN_PAGE = '/app/index.html';
 
@@ -67,6 +67,8 @@ router.get('/status', (req, res) => res.json({
   configured: samlConfigured,
   demoLogin: DEV_AUTH_ENABLED,
   wartung: istWartungAktiv(),
+  // Gesetzt = dauerhaft umgezogen; die Login-Seite macht daraus einen Link.
+  wartungUrl: wartungsUrl(),
 }));
 
 // SP-initiierter Login → Redirect zum Azure-Login.
