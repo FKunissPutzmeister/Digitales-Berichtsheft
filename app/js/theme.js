@@ -1817,7 +1817,10 @@
        wird per id verhindert.
      • theme.js läuft im <head> → bei fehlendem document.body auf
        DOMContentLoaded verschieben (once). */
-  var TESTPHASE_BADGE = true;   // zum Deaktivieren nach der Testphase auf false setzen
+  // false seit dem Umzug auf den Produktivserver (berichtsheft.jumbo.net) —
+  // die Testphase ist damit beendet. Der Rest des Blocks bleibt stehen: bei
+  // einem kuenftigen Testfenster genuegt es, hier wieder true zu setzen.
+  var TESTPHASE_BADGE = false;
   var testphaseDeferred = false;
   function ensureTestphaseBadge() {
     if (!TESTPHASE_BADGE) return;
