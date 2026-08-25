@@ -43,6 +43,16 @@ function computeDeactivations(dbManagedUsers, aktivOids) {
   return (dbManagedUsers || []).filter((u) => !active.has(u.oid)).map((u) => u.oid);
 }
 
+// aktivOids: aktuelle Entra-Gruppenmitglieder, die sonst auf Aktiv=1
+// zurückgesetzt würden. manuellDeaktivierteOids: wer in der Nutzerverwaltung
+// von Hand deaktiviert wurde (Migration 038) — diese OIDs bleiben ausgenommen,
+// sonst hebelt der nächste Sync-Lauf die manuelle Sperre sofort wieder aus.
+// Reaktivierung ist dann nur noch über einen erneuten manuellen Patch möglich.
+function filterReaktivierung(aktivOids, manuellDeaktivierteOids) {
+  const manuell = new Set(manuellDeaktivierteOids || []);
+  return (aktivOids || []).filter((oid) => !manuell.has(oid));
+}
+
 function syncConfigured(env = process.env) {
   const { GRAPH_TENANT_ID, GRAPH_CLIENT_ID, GRAPH_CLIENT_SECRET } = env;
   const { groupRoleMap, managedRoles } = buildGroupRoleMap(env);
@@ -56,7 +66,7 @@ function syncConfigured(env = process.env) {
   };
 }
 
-const { upsertUser, listUsers, listManagedUsers, setUsersAktiv, getUserByOid, buildReqUser } = require('./users');
+const { upsertUser, listUsers, listManagedUsers, setUsersAktiv, listManuellDeaktivierteOids, getUserByOid, buildReqUser } = require('./users');
 const { upsertPhoto, deletePhoto } = require('./userPhotos');
 const { syncAutoZuordnung } = require('./ausbilderAzubis');
 
@@ -203,7 +213,10 @@ async function runSync(env = process.env) {
       await upsertUser({ oid: u.oid, name: u.name, email: u.email, role: u.role, beruf: berufAusJobtitle(u.jobTitle), berichtTyp: berichtTypAusDepartment(u.department), letzterLogin: false });
     }
     const aktivOids = members.map((u) => u.oid);
-    await setUsersAktiv(aktivOids, true);
+    // Manuell deaktivierte Konten (Nutzerverwaltung, Migration 038) NICHT
+    // automatisch reaktivieren, auch wenn sie noch Gruppenmitglied sind.
+    const manuellDeaktiviert = await listManuellDeaktivierteOids(aktivOids);
+    await setUsersAktiv(filterReaktivierung(aktivOids, manuellDeaktiviert), true);
     const dbManaged = await listManagedUsers(cfg.managedRoles);
     const stale = computeDeactivations(dbManaged, aktivOids);
     await setUsersAktiv(stale, false);
@@ -249,7 +262,7 @@ function berichtTypAusDepartment(department) {
 }
 
 module.exports = {
-  buildGroupRoleMap, resolveMembers, computeDeactivations, syncConfigured, getGraphToken, fetchGroupMembers,
+  buildGroupRoleMap, resolveMembers, computeDeactivations, filterReaktivierung, syncConfigured, getGraphToken, fetchGroupMembers,
   fetchUserPhoto, syncUserPhotos, fetchUserManager, syncAusbilderZuordnungen, runSync,
   berufAusJobtitle, berichtTypAusDepartment,
 };

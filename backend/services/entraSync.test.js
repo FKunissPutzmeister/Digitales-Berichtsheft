@@ -58,6 +58,17 @@ test('computeDeactivations: leere Eingaben → leer', () => {
   assert.deepEqual(S.computeDeactivations([{ oid: 'A', role: 'azubi' }], []), ['A']);
 });
 
+// Migration 038: manuell deaktivierte Konten dürfen der Sync NICHT über
+// setUsersAktiv(..., true) zurücksetzen, auch wenn sie noch Gruppenmitglied sind.
+test('filterReaktivierung: nimmt manuell deaktivierte OIDs aus der Reaktivierung aus', () => {
+  assert.deepEqual(S.filterReaktivierung(['A', 'B', 'C'], ['B']), ['A', 'C']);
+});
+
+test('filterReaktivierung: leere Eingaben → unverändert bzw. leer', () => {
+  assert.deepEqual(S.filterReaktivierung(['A', 'B'], []), ['A', 'B']);
+  assert.deepEqual(S.filterReaktivierung([], ['A']), []);
+});
+
 test('syncConfigured: vollständig → configured true, Default-Intervall 6', () => {
   const c = S.syncConfigured(ENV);
   assert.equal(c.configured, true);

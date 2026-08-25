@@ -2,7 +2,7 @@
 process.env.NODE_ENV = 'test';
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { parseRoleClaim, buildReqUser, validateUserPatch, landingPathForUser, setUsersAktiv, updateUserProfile } = require('./users');
+const { parseRoleClaim, buildReqUser, validateUserPatch, landingPathForUser, setUsersAktiv, updateUserProfile, listManuellDeaktivierteOids } = require('./users');
 
 const ROLE_URI = 'http://schemas.microsoft.com/ws/2008/06/identity/claims/role';
 
@@ -121,6 +121,11 @@ test('buildReqUser: aktiv=false wird durchgereicht', () => {
   assert.equal(u.aktiv, false);
 });
 
+test('buildReqUser: manuellDeaktiviert wird durchgereicht (Default false)', () => {
+  assert.equal(buildReqUser({ Oid: 'g6', Role: 'azubi' }).manuellDeaktiviert, false);
+  assert.equal(buildReqUser({ Oid: 'g6', Role: 'azubi', ManuellDeaktiviert: true }).manuellDeaktiviert, true);
+});
+
 test('landingPathForUser: dhstudent → Abteilungsdurchlauf, sonst Dashboard', () => {
   assert.equal(landingPathForUser(buildReqUser({ Oid: 'g5', Role: 'dhstudent' })), '/app/abteilungsdurchlauf.html');
   assert.equal(landingPathForUser(buildReqUser({ Oid: 'g1', Role: 'azubi' })), '/app/dashboard.html');
@@ -141,7 +146,7 @@ function fakePool() {
       const inputs = {};
       const api = {
         input(name, _typ, val) { inputs[name] = val; return api; },
-        query(text) { calls.push({ sql: text, inputs }); return Promise.resolve({ rowsAffected: [1] }); },
+        query(text) { calls.push({ sql: text, inputs }); return Promise.resolve({ rowsAffected: [1], recordset: [] }); },
       };
       return api;
     },
@@ -179,6 +184,23 @@ test('setUsersAktiv: leere Liste macht keinen DB-Aufruf', async () => {
   assert.equal(pool.calls.length, 0);
 });
 
+test('listManuellDeaktivierteOids: filtert auf ManuellDeaktiviert=1 innerhalb der OID-Liste', async () => {
+  const pool = fakePool();
+  await listManuellDeaktivierteOids(['g1', 'g2'], pool);
+
+  const { sql: text, inputs } = pool.calls[0];
+  assert.match(text, /ManuellDeaktiviert = 1/);
+  assert.match(text, /Oid IN \(@o0,@o1\)/);
+  assert.equal(inputs.o0, 'g1');
+  assert.equal(inputs.o1, 'g2');
+});
+
+test('listManuellDeaktivierteOids: leere Liste macht keinen DB-Aufruf', async () => {
+  const pool = fakePool();
+  assert.deepEqual(await listManuellDeaktivierteOids([], pool), []);
+  assert.equal(pool.calls.length, 0);
+});
+
 test('updateUserProfile: manuelles Deaktivieren stempelt InaktivSeit ebenfalls', async () => {
   const pool = fakePool();
   await updateUserProfile('g1', { aktiv: false }, pool);
@@ -205,6 +227,25 @@ test('updateUserProfile: ohne aktiv-Feld wird InaktivSeit nicht angefasst', asyn
   const { sql: text } = pool.calls[0];
   assert.match(text, /Beruf = @beruf/);
   assert.ok(!/InaktivSeit/.test(text), 'InaktivSeit darf hier nicht vorkommen');
+});
+
+// Migration 038: manuelle Deaktivierung muss den Entra-Sync ausbremsen können
+// (siehe entraSync.filterReaktivierung) — dafür braucht es dieses Flag.
+test('updateUserProfile: manuelles Deaktivieren setzt ManuellDeaktiviert', async () => {
+  const pool = fakePool();
+  await updateUserProfile('g1', { aktiv: false }, pool);
+
+  const { sql: text } = pool.calls[0];
+  assert.match(text, /ManuellDeaktiviert = CASE WHEN @aktiv = 0 THEN 1 ELSE 0 END/);
+});
+
+test('updateUserProfile: manuelles Reaktivieren löscht ManuellDeaktiviert wieder', async () => {
+  const pool = fakePool();
+  await updateUserProfile('g1', { aktiv: true }, pool);
+
+  const { sql: text, inputs } = pool.calls[0];
+  assert.equal(inputs.aktiv, true);
+  assert.match(text, /ManuellDeaktiviert = CASE WHEN @aktiv = 0 THEN 1 ELSE 0 END/);
 });
 
 test('validateUserPatch akzeptiert loeschsperreBis', () => {

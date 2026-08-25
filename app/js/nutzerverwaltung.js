@@ -244,6 +244,13 @@ document.addEventListener('DOMContentLoaded', async () => {
       } else {
         hinweis.textContent = `Inaktiv seit ${seit} · endgültige Löschung am ${zielS}`;
       }
+      // Manuelle Deaktivierung (Migration 038) übersteht den Entra-Sync auch
+      // bei gruppen-verwalteten Rollen (Prüfer/Azubi/DH-Student) — sonst würde
+      // der nächste Lauf Aktiv=1 sofort wieder herstellen, solange die Person
+      // noch Gruppenmitglied ist. Ohne diesen Hinweis wirkt das überraschend.
+      if (u.manuellDeaktiviert) {
+        hinweis.textContent += ' · manuell deaktiviert — wird vom Entra-Sync nicht automatisch reaktiviert';
+      }
     }
 
     /* Dauerhafte Ausbilder nur bei Azubis (inkl. getaggter Azubis, z.B. Developer+Azubi) */

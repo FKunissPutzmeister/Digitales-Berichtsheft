@@ -79,6 +79,10 @@ function buildReqUser(row) {
     // optionale Sperre. Die Nutzerverwaltung zeigt daraus das Löschdatum.
     inaktivSeit:     row.InaktivSeit ? new Date(row.InaktivSeit).toISOString() : null,
     loeschsperreBis: toDay(row.LoeschsperreBis),
+    // Manuelle Deaktivierung (Migration 038): nimmt den Account vom Entra-Sync
+    // aus, solange er noch Mitglied seiner Gruppe ist — sonst würde der nächste
+    // Lauf Aktiv=1 sofort wieder herstellen. Siehe entraSync.filterReaktivierung.
+    manuellDeaktiviert: !!row.ManuellDeaktiviert,
   };
 }
 
@@ -242,6 +246,10 @@ async function updateUserProfile(oid, fields, poolOverride) {
   // NULL und das Konto würde nie fällig. Gleiche CASE/COALESCE-Semantik dort.
   if ('aktiv' in fields) {
     sets.push('InaktivSeit = CASE WHEN @aktiv = 0 THEN COALESCE(InaktivSeit, SYSUTCDATETIME()) ELSE NULL END');
+    // ManuellDeaktiviert (Migration 038): markiert eine Deaktivierung als von
+    // Hand gesetzt, damit der Entra-Sync sie nicht überschreibt (siehe
+    // entraSync.filterReaktivierung). Reaktivieren löscht das Flag wieder.
+    sets.push('ManuellDeaktiviert = CASE WHEN @aktiv = 0 THEN 1 ELSE 0 END');
   }
   sets.push('AktualisiertAm = SYSUTCDATETIME()');
   await r.query(`UPDATE dbo.Users SET ${sets.join(', ')} WHERE Oid = @oid`);
@@ -256,6 +264,18 @@ async function listManagedUsers(roles) {
   const params = roles.map((role, i) => { r.input(`r${i}`, sql.NVarChar(20), role); return `@r${i}`; });
   const res = await r.query(`SELECT Oid, Role FROM dbo.Users WHERE Aktiv = 1 AND Role IN (${params.join(',')}) AND (Email IS NULL OR Email NOT LIKE @demo)`);
   return res.recordset.map((x) => ({ oid: x.Oid, role: x.Role }));
+}
+
+// Welche der übergebenen OIDs sind manuell deaktiviert (Migration 038)?
+// Für den Entra-Sync: diese OIDs dürfen NICHT automatisch reaktiviert werden,
+// auch wenn sie noch Mitglied ihrer Entra-Gruppe sind. No-op bei leerer Liste.
+async function listManuellDeaktivierteOids(oids, poolOverride) {
+  if (!oids || !oids.length) return [];
+  const pool = poolOverride || await getPool();
+  const r = pool.request();
+  const params = oids.map((oid, i) => { r.input(`o${i}`, sql.NVarChar(36), oid); return `@o${i}`; });
+  const res = await r.query(`SELECT Oid FROM dbo.Users WHERE ManuellDeaktiviert = 1 AND Oid IN (${params.join(',')})`);
+  return res.recordset.map((x) => x.Oid);
 }
 
 // Aktiv-Flag für eine OID-Liste setzen (parametrisiert). No-op bei leerer Liste.
@@ -282,5 +302,5 @@ async function setUsersAktiv(oids, aktiv, poolOverride) {
 module.exports = {
   parseRoleClaim, buildReqUser, landingPathForUser, validateUserPatch, canUseDevView,
   upsertUser, getUserByOid, getUserByEmail, listUsers, updateUserProfile,
-  listManagedUsers, setUsersAktiv,
+  listManagedUsers, setUsersAktiv, listManuellDeaktivierteOids,
 };
