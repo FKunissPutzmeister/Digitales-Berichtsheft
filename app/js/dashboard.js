@@ -1526,6 +1526,10 @@ const VERWALTUNG_MT_TYPEN = {
                                href: b => `beurteilung.html?zuw=${encodeURIComponent(b.zuweisungId || '')}` },
   beurteilung_abgeschlossen: { type: 'success', titel: 'Beurteilung abgeschlossen',
                                href: b => `beurteilung.html?zuw=${encodeURIComponent(b.zuweisungId || '')}` },
+  kurzfeedback_faellig:       { type: 'error',   titel: 'Kurzfeedback fällig',
+                               href: b => `beurteilung.html?zuw=${encodeURIComponent(b.zuweisungId || '')}` },
+  kurzfeedback_abgeschlossen: { type: 'success', titel: 'Kurzfeedback abgeschlossen',
+                               href: b => `beurteilung.html?zuw=${encodeURIComponent(b.zuweisungId || '')}` },
   // Retention-Job: ein Konto wird in höchstens 30 Tagen endgültig gelöscht.
   // Der Betroffene steht in FromUserOid — sein Konto ist inaktiv und in der
   // Nutzerliste nicht sichtbar, deshalb gehört der Name in den Titel. Er kommt

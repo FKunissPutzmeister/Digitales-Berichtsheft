@@ -111,6 +111,10 @@ document.addEventListener('DOMContentLoaded', async () => {
                                  href: b => `beurteilung.html?zuw=${encodeURIComponent(b.zuweisungId || '')}` },
     beurteilung_abgeschlossen: { tone: 'ok',      label: 'Beurteilung', titel: 'Beurteilung abgeschlossen',
                                  href: b => `beurteilung.html?zuw=${encodeURIComponent(b.zuweisungId || '')}` },
+    kurzfeedback_faellig:      { tone: 'er',      label: 'Beurteilung', titel: 'Kurzfeedback fällig',
+                                 href: b => `beurteilung.html?zuw=${encodeURIComponent(b.zuweisungId || '')}` },
+    kurzfeedback_abgeschlossen: { tone: 'ok',     label: 'Beurteilung', titel: 'Kurzfeedback abgeschlossen',
+                                 href: b => `beurteilung.html?zuw=${encodeURIComponent(b.zuweisungId || '')}` },
     // Spiegelt VERWALTUNG_MT_TYPEN in dashboard.js — fehlt der Typ hier,
     // rendert die Mitteilung auf dieser Seite leer, ohne Fehlermeldung.
     // Der Name des betroffenen (inaktiven, in der Nutzerliste unsichtbaren)
