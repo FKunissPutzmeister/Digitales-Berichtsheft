@@ -434,30 +434,40 @@ html[data-theme="papier"] * {
    hineinragt. :nth-child(3n+…) zyklisch statt einer festen Rotation für
    ALLE Karten — sonst wirkt es wie ein mechanisch wiederholtes Muster
    statt "zufällig hingelegt".
-   WICHTIG: dashboard.css:1654 hat bereits `.bento .b-tile:hover {
+   WICHTIG #1: dashboard.css:1654 hat bereits `.bento .b-tile:hover {
    transform: translateY(-2px); }` — das WÜRDE die Rotation beim Hover
    ersetzen (nicht kombinieren) und die Karte sichtbar "geradeschnappen"
    lassen. Die :hover-Overrides hier kombinieren deshalb explizit
    rotate() + translateY() pro Variante.
+   WICHTIG #2 (im Live-Test gefunden): jede .b-tile trägt zusätzlich die
+   Klasse .animate-fade-in (base.css) — eine CSS-Animation mit
+   animation-fill-mode:both, deren Endzustand transform:translateY(0)
+   setzt. Per Spezifikation gewinnt eine aktive/gefüllte Animation gegen
+   JEDE normale (nicht-!important) Deklaration, unabhängig von
+   Spezifität — die Rotation wurde dadurch komplett unsichtbar
+   (Computed Style: identity matrix), obwohl die Regel nachweislich als
+   einzige matchende transform-Regel im CSSOM auftauchte. Deshalb hier
+   bewusst !important auf transform, analog zum Cursor-Vorgehen weiter
+   oben in dieser Datei.
    =================================================================== */
 [data-theme="papier"] .bento .b-tile:nth-child(3n+1) {
-  transform: rotate(-1.2deg);
+  transform: rotate(-1.2deg) !important;
   box-shadow: 2px 3px 6px rgba(90, 60, 20, 0.20);
 }
 [data-theme="papier"] .bento .b-tile:nth-child(3n+2) {
-  transform: rotate(0.8deg);
+  transform: rotate(0.8deg) !important;
   box-shadow: 2px 3px 6px rgba(90, 60, 20, 0.20);
 }
 [data-theme="papier"] .bento .b-tile:nth-child(3n+3) {
-  transform: rotate(-0.5deg);
+  transform: rotate(-0.5deg) !important;
   box-shadow: 2px 3px 6px rgba(90, 60, 20, 0.20);
 }
 [data-theme="papier"] .bento .b-tile:nth-child(3n+1):hover {
-  transform: rotate(-1.2deg) translateY(-2px);
+  transform: rotate(-1.2deg) translateY(-2px) !important;
 }
 [data-theme="papier"] .bento .b-tile:nth-child(3n+2):hover {
-  transform: rotate(0.8deg) translateY(-2px);
+  transform: rotate(0.8deg) translateY(-2px) !important;
 }
 [data-theme="papier"] .bento .b-tile:nth-child(3n+3):hover {
-  transform: rotate(-0.5deg) translateY(-2px);
+  transform: rotate(-0.5deg) translateY(-2px) !important;
 }

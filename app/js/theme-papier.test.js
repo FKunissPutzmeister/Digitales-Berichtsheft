@@ -115,5 +115,9 @@ test('Papierheft-Retro: Dashboard-Karten rotieren zyklisch (3 Varianten) und ble
   assert.match(css, /\[data-theme="papier"\] \.bento \.b-tile:nth-child\(3n\+3\)/);
   // Hover muss die Rotation MITNEHMEN, nicht durch reines translateY ersetzen
   // (siehe Plan: sonst "springt" die Karte beim Hover gerade).
-  assert.match(css, /\[data-theme="papier"\] \.bento \.b-tile:nth-child\(3n\+1\):hover \{[\s\S]*?transform: rotate\(-1\.2deg\) translateY\(-2px\);/);
+  // !important ist hier bewusst nötig — .animate-fade-in (base.css) ist eine
+  // CSS-Animation mit fill-mode:both, deren transform:translateY(0)-Endwert
+  // sonst jede normale Deklaration unabhängig von Spezifität überstimmt
+  // (im Live-Test gefunden, siehe theme-papier.css Kommentar an dieser Stelle).
+  assert.match(css, /\[data-theme="papier"\] \.bento \.b-tile:nth-child\(3n\+1\):hover \{[\s\S]*?transform: rotate\(-1\.2deg\) translateY\(-2px\) !important;/);
 });
