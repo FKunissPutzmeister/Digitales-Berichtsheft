@@ -142,26 +142,39 @@ async function schreibeKriterien(tx, beurteilungId, kriterien) {
   }
 }
 
-async function upsertEntwurf(pool, { zuweisungId, azubiOid, kriterien, individuelleBeurteilung, gespraechAm }) {
-  const calc = rechne(kriterien);
+async function upsertEntwurf(pool, {
+  zuweisungId, azubiOid, typ, kriterien, individuelleBeurteilung, gespraechAm,
+  kurzfeedbackEindruck, kurzfeedbackAuffaelligkeiten, kurzfeedbackEmpfehlung,
+}) {
+  // Punkte/Note nur berechnen, wenn Kriterien mitgeschickt wurden (grosse
+  // Beurteilung) — beim Kurzfeedback bleiben GesamtPunkte/Note NULL, ohne
+  // dass diese Funktion selbst zwischen den beiden Typen unterscheiden muss:
+  // jede Seite schickt ohnehin nur ihre eigenen Felder (siehe Route).
+  const calc = (kriterien && kriterien.length) ? rechne(kriterien) : { gesamt: null, note: null };
   const tx = new sql.Transaction(pool);
   await tx.begin();
   try {
     const up = await new sql.Request(tx)
       .input('zid', sql.Int, zuweisungId)
       .input('oid', sql.NVarChar(36), azubiOid)
+      .input('typ', sql.NVarChar(10), typ || 'gross')
       .input('indiv', sql.NVarChar(sql.MAX), individuelleBeurteilung ?? null)
       .input('ges', sql.Decimal(5, 2), calc.gesamt)
       .input('note', sql.Decimal(2, 1), calc.note)
       .input('gespr', sql.Date, gespraechAm || null)
+      .input('kfEindruck', sql.NVarChar(sql.MAX), kurzfeedbackEindruck ?? null)
+      .input('kfAuff', sql.NVarChar(sql.MAX), kurzfeedbackAuffaelligkeiten ?? null)
+      .input('kfEmpf', sql.NVarChar(sql.MAX), kurzfeedbackEmpfehlung ?? null)
       .query(`
         MERGE dbo.Beurteilungen AS t
         USING (SELECT @zid AS ZuweisungId) AS s ON t.ZuweisungId = s.ZuweisungId
         WHEN MATCHED THEN UPDATE SET
-          IndividuelleBeurteilung=@indiv, GesamtPunkte=@ges, Note=@note,
-          GespraechAm=@gespr, AktualisiertAm=SYSUTCDATETIME()
-        WHEN NOT MATCHED THEN INSERT (ZuweisungId, AzubiOid, Status, IndividuelleBeurteilung, GesamtPunkte, Note, GespraechAm)
-          VALUES (@zid, @oid, 'entwurf', @indiv, @ges, @note, @gespr)
+          IndividuelleBeurteilung=@indiv, GesamtPunkte=@ges, Note=@note, GespraechAm=@gespr,
+          KurzfeedbackEindruck=@kfEindruck, KurzfeedbackAuffaelligkeiten=@kfAuff, KurzfeedbackEmpfehlung=@kfEmpf,
+          AktualisiertAm=SYSUTCDATETIME()
+        WHEN NOT MATCHED THEN INSERT (ZuweisungId, AzubiOid, Status, Typ, IndividuelleBeurteilung, GesamtPunkte, Note, GespraechAm,
+          KurzfeedbackEindruck, KurzfeedbackAuffaelligkeiten, KurzfeedbackEmpfehlung)
+          VALUES (@zid, @oid, 'entwurf', @typ, @indiv, @ges, @note, @gespr, @kfEindruck, @kfAuff, @kfEmpf)
         OUTPUT inserted.Id;
       `);
     const id = up.recordset[0].Id;
