@@ -892,6 +892,81 @@ git commit -m "feat(beurteilung): Kurzfeedback-Mitteilungstypen in allen drei Re
 Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>"
 ```
 
+- [ ] **Step 6: Azubi-eigene Mitteilungs-Feeds (weiterer Nachtrag, schwerwiegender als die DH-Lücke)**
+
+**Nachtrag (zweiter Code-Review-Fund zu diesem Task):** Neben den 3 Render-Maps
+gibt es zwei weitere, UNABHÄNGIGE Stellen mit fest verdrahteten
+`if (b.type === 'beurteilung_abgeschlossen' || b.type === 'beurteilung_faellig')`-
+Sonderfällen — nicht map-basiert, sondern inline in der Azubi-eigenen
+Mitteilungs-Darstellung. Ohne diese Ergänzung bekäme JEDER Azubi bei JEDEM
+abgeschlossenen Kurzfeedback (nicht nur DH-Studenten, nicht nur ein Rand­fall)
+eine **falsch beschriftete** Mitteilung ("KW undefined/undefined
+zurückgewiesen" statt "Neues Kurzfeedback liegt vor") mit falschem Icon und
+falschem Link (`wochenansicht.html` statt `beurteilung.html`) — schwerwiegender
+als das stille Leerbleiben, das die vorigen Schritte behoben haben.
+
+**`app/js/dashboard.js`** — den Bedingungsblock um Zeile 302 (Azubi-Dashboard,
+Mitteilungszentrale-Kachel) ersetzen:
+
+```js
+    if (b.type === 'beurteilung_abgeschlossen' || b.type === 'beurteilung_faellig'
+        || b.type === 'kurzfeedback_abgeschlossen' || b.type === 'kurzfeedback_faellig') {
+      const faellig = b.type === 'beurteilung_faellig' || b.type === 'kurzfeedback_faellig';
+      const istKurz = b.type.startsWith('kurzfeedback_');
+      const btitle = istKurz
+        ? (faellig ? 'Kurzfeedback fällig' : 'Neues Kurzfeedback liegt vor')
+        : (faellig ? 'Beurteilung fällig' : 'Neue Beurteilung liegt vor');
+      return `
+          <a class="b-mitteilung${mtNeu(b) ? ' b-mitteilung--unread' : ''}" href="beurteilung.html?zuw=${encodeURIComponent(b.zuweisungId || '')}"
+             data-notif-id="${b.id}" data-zuw="${b.zuweisungId || ''}">
+            <span class="b-mitteilung__icon b-mitteilung__icon--${faellig ? 'er' : 'ok'}">${faellig ? MT_ICON_ER : MT_ICON_OK}</span>
+            <span class="b-mitteilung__body">
+              <span class="b-mitteilung__title">${btitle}</span>
+              <span class="b-mitteilung__meta">${mtRelTime(b.timestamp)}</span>
+            </span>
+            ${mtNeu(b) ? '<span class="b-mitteilung__dot" aria-hidden="true"></span>' : ''}
+          </a>`;
+    }
+```
+
+**`app/js/mitteilungen.js`** — den Bedingungsblock in `buildAzubiItems()` um
+Zeile 156 ersetzen:
+
+```js
+      if (b.type === 'beurteilung_abgeschlossen' || b.type === 'beurteilung_faellig'
+          || b.type === 'kurzfeedback_abgeschlossen' || b.type === 'kurzfeedback_faellig') {
+        const faellig = b.type === 'beurteilung_faellig' || b.type === 'kurzfeedback_faellig';
+        const istKurz = b.type.startsWith('kurzfeedback_');
+        return {
+          key: `n${b.id}`,
+          ts: b.timestamp || 0,
+          tone: faellig ? 'info' : 'ok',
+          typeKey: istKurz ? 'kurzfeedback' : 'beurteilung',
+          typeLabel: istKurz ? 'Kurzfeedback' : 'Beurteilung',
+          title: istKurz
+            ? (faellig ? 'Kurzfeedback fällig' : 'Neues Kurzfeedback liegt vor')
+            : (faellig ? 'Beurteilung fällig' : 'Neue Beurteilung liegt vor'),
+          meta: relTime(b.timestamp),
+          notifId: b.id,
+          href: `beurteilung.html?zuw=${encodeURIComponent(b.zuweisungId || '')}`,
+          nav: null,
+        };
+      }
+```
+
+- [ ] **Step 7: Syntax-Check + Commit**
+
+```bash
+node -c app/js/dashboard.js && node -c app/js/mitteilungen.js
+```
+
+```bash
+git add app/js/dashboard.js app/js/mitteilungen.js
+git commit -m "fix(beurteilung): Kurzfeedback in Azubi-eigenen Mitteilungs-Feeds korrekt beschriftet
+
+Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>"
+```
+
 ---
 
 ### Task 10: `api.js` — `Typ` + Kurzfeedback-Felder ans Frontend durchreichen
