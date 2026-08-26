@@ -244,7 +244,10 @@
           <div><span class="beurt__label">Zeitraum</span><div class="beurt__val">${esc(kopf.zeitraum)}</div></div>
           <div><span class="beurt__label">Beurteilende/-r</span><div class="beurt__val">${esc(kopf.beurteilende)}</div></div>
           <div><span class="beurt__label">Ausbildungs-/Studienberuf</span><div class="beurt__val">${esc(kopf.beruf)}</div></div>
-          <button type="button" class="btn btn-ghost btn-sm beurt__katalog-btn" id="beurtKatalogBtn">Kriterienkatalog</button>
+          <div class="beurt__referenzen">
+            <button type="button" class="btn btn-ghost btn-sm beurt__ref-btn" id="beurtKatalogBtn"><span aria-hidden="true">📖</span> Kriterienkatalog</button>
+            <button type="button" class="btn btn-ghost btn-sm beurt__ref-btn" id="beurtNotenBtn"><span aria-hidden="true">🎯</span> IHK-Notenschlüssel</button>
+          </div>
         </div>
         <div class="beurt-tablewrap">
           <table class="beurt-table">
@@ -323,6 +326,7 @@
     refresh();
 
     document.getElementById('beurtKatalogBtn')?.addEventListener('click', openKatalogModal);
+    document.getElementById('beurtNotenBtn')?.addEventListener('click', openNotenschluesselModal);
 
     return {
       refresh,
@@ -359,7 +363,44 @@
     ov.classList.add('open');
   }
 
-  const api = { KRITERIEN, BLOECKE, BLOCK_LABELS, STUFEN, PUNKTE_ZU_NOTE, clampPunkte, stufeFuerPunkte, noteFuerPunkte, formatPunkteGruppe, notenschluesselZeilen, berechne, renderForm, openKatalogModal };
+  // Baut die <tr>-Zeilen der Notenschlüssel-Tabelle; "Bereich der Note" wird
+  // über zusammengehörige Stufen (1-6) per rowspan zusammengefasst, wie im Original.
+  function notenschluesselTableHtml() {
+    const zeilen = notenschluesselZeilen();
+    return zeilen.map((z, i) => {
+      const isFirstOfStufe = i === 0 || zeilen[i - 1].stufe !== z.stufe;
+      const rowspan = isFirstOfStufe ? zeilen.filter(x => x.stufe === z.stufe).length : 0;
+      return `
+        <tr>
+          <td>${fmtNote(z.note)}</td>
+          <td>${esc(z.punkteLabel)}</td>
+          ${isFirstOfStufe ? `<td rowspan="${rowspan}">${esc(z.verbal)}</td>` : ''}
+        </tr>`;
+    }).join('');
+  }
+
+  function openNotenschluesselModal() {
+    let ov = document.getElementById('beurtNotenModal');
+    if (!ov) {
+      ov = document.createElement('div');
+      ov.id = 'beurtNotenModal';
+      ov.className = 'modal-overlay';
+      ov.innerHTML = `<div class="modal modal--lg"><div class="modal__header"><h2 class="modal__title">IHK-Notenschlüssel</h2>
+        <button class="modal__close" type="button" data-modal-close aria-label="Schließen">×</button></div>
+        <div class="modal__body beurt-noten">
+          <table class="beurt-noten__table">
+            <thead><tr><th>Schulnote</th><th>Punkte</th><th>Bereich der Note</th></tr></thead>
+            <tbody>${notenschluesselTableHtml()}</tbody>
+          </table>
+          <a class="beurt-noten__pdf-link" href="/templates/ihk-notenschluessel.pdf" target="_blank" rel="noopener">Original-PDF öffnen ↗</a>
+        </div></div>`;
+      document.body.appendChild(ov);
+      ov.addEventListener('click', e => { if (e.target === ov || e.target.closest('[data-modal-close]')) ov.classList.remove('open'); });
+    }
+    ov.classList.add('open');
+  }
+
+  const api = { KRITERIEN, BLOECKE, BLOCK_LABELS, STUFEN, PUNKTE_ZU_NOTE, clampPunkte, stufeFuerPunkte, noteFuerPunkte, formatPunkteGruppe, notenschluesselZeilen, berechne, renderForm, openKatalogModal, openNotenschluesselModal };
   if (typeof module !== 'undefined' && module.exports) module.exports = api; // Node/Tests/Backend
   root.Beurteilung = Object.assign(root.Beurteilung || {}, api);             // Browser
 })(typeof window !== 'undefined' ? window : globalThis);
