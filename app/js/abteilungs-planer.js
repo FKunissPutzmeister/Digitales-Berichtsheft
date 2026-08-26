@@ -95,6 +95,11 @@ function dlbBeurtBlock(z, b, statusKey, ausbilderMode = false) {
     return `${info}<a class="btn btn-outline btn-sm dlb-beurt-open" href="beurteilung.html?zuw=${z.id}">${entwurf ? 'Entwurf öffnen' : 'Beurteilung anlegen'}</a>`;
   }
   if (b && b.status === 'abgeschlossen') {
+    if (b.typ === 'kurz') {
+      return `
+        <div class="dlb-beurt dlb-beurt--done">${DLB_ICO.check} Kurzfeedback abgeschlossen</div>
+        <a class="btn btn-outline btn-sm dlb-beurt-open" href="beurteilung.html?zuw=${z.id}">Öffnen</a>`;
+    }
     const note = b.note != null ? b.note.toLocaleString('de-DE', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) : '–';
     const pkt = b.gesamtPunkte != null ? Math.round(b.gesamtPunkte) : null;
     return `
