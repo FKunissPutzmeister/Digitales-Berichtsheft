@@ -332,3 +332,54 @@ html[data-theme="papier"],
 html[data-theme="papier"] * {
   cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='34' height='34'%3E%3Cpath d='M17 3 L27 13 L18 30 L16 30 L7 13 Z' fill='%23c9a227' stroke='%237a5c12' stroke-width='1.3'/%3E%3Ccircle cx='17' cy='13' r='2' fill='none' stroke='%234a3610' stroke-width='1'/%3E%3Cline x1='17' y1='15' x2='17' y2='27' stroke='%234a3610' stroke-width='1'/%3E%3C/svg%3E") 17 30, auto !important;
 }
+
+/* ===================================================================
+   6 · WOCHENWECHSEL – Eck-Umblättern statt Slide
+   -------------------------------------------------------------------
+   Ersetzt NUR die "leaving"-Slide-Animation aus wochenansicht.css
+   (.week-pane--leaving[data-dir]) durch einen Eck-Curl (clip-path-
+   Sweep + mitlaufender Schlagschatten über filter:drop-shadow, folgt
+   automatisch der aktuellen Schnittkante). "next" startet oben rechts,
+   "prev" spiegelbildlich unten links — eigenes, gespiegeltes Keyframe-
+   Set statt animation-direction:reverse (eine zeitlich rückwärts
+   abgespielte "leaving"-Animation würde am Ende wieder sichtbar statt
+   verschwunden enden, das wäre falsch).
+   Timing bewusst an die bestehenden 220ms/260ms-JS-Konstanten in
+   wochenansicht.js gebunden (transitionedRender räumt den Klon nach
+   260ms hart weg) — NICHT die ~1200ms aus dem ursprünglichen
+   Brainstorm-Mockup, sonst wird der Klon mitten in der Animation
+   abgeschnitten.
+   Die "entering"-Pane bleibt bewusst unverändert (Spring-Slide) — sie
+   wird nicht abgeschnitten, nur die "leaving"-Seite bekommt den Curl.
+   Kanvas-Lichtkante: siehe PMPaperCurl in js/theme.js, aufgerufen aus
+   wochenansicht.js direkt nach der Klon-Erzeugung.
+   =================================================================== */
+@keyframes papier-week-curl-next {
+  0%   { clip-path: polygon(0% 0%, 100% 0%, 100% 100%, 0% 100%); }
+  20%  { clip-path: polygon(0% 0%, 72% 0%, 100% 20%, 100% 100%, 0% 100%); }
+  45%  { clip-path: polygon(0% 0%, 38% 0%, 100% 55%, 100% 100%, 0% 100%); }
+  70%  { clip-path: polygon(0% 0%, 10% 0%, 100% 85%, 100% 100%, 0% 100%); }
+  100% { clip-path: polygon(0% 100%, 0% 100%, 0% 100%, 0% 100%); }
+}
+@keyframes papier-week-curl-prev {
+  0%   { clip-path: polygon(0% 0%, 100% 0%, 100% 100%, 0% 100%); }
+  20%  { clip-path: polygon(0% 0%, 100% 0%, 100% 100%, 28% 100%, 0% 80%); }
+  45%  { clip-path: polygon(0% 0%, 100% 0%, 100% 100%, 62% 100%, 0% 45%); }
+  70%  { clip-path: polygon(0% 0%, 100% 0%, 100% 100%, 90% 100%, 0% 15%); }
+  100% { clip-path: polygon(100% 0%, 100% 0%, 100% 0%, 100% 0%); }
+}
+[data-theme="papier"] .week-pane--leaving[data-dir="next"] {
+  animation: papier-week-curl-next 220ms ease-in both;
+  filter: drop-shadow(-5px 6px 9px rgba(61, 44, 20, 0.4));
+}
+[data-theme="papier"] .week-pane--leaving[data-dir="prev"] {
+  animation: papier-week-curl-prev 220ms ease-in both;
+  filter: drop-shadow(5px -6px 9px rgba(61, 44, 20, 0.4));
+}
+@media (prefers-reduced-motion: reduce) {
+  [data-theme="papier"] .week-pane--leaving[data-dir="next"],
+  [data-theme="papier"] .week-pane--leaving[data-dir="prev"] {
+    animation: none;
+    filter: none;
+  }
+}

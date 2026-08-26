@@ -57,3 +57,16 @@ test('Papierheft-Retro: goldener Federspitzen-Cursor ist gesetzt', () => {
   assert.match(css, /cursor:\s*url\("data:image\/svg\+xml,/);
   assert.match(css, /%23c9a227/i); // Gold-Füllung der Feder, URL-encodiert
 });
+
+test('Papierheft-Retro: Eck-Curl-Keyframes für beide Wochenwechsel-Richtungen', () => {
+  const css = fs.readFileSync(CSS_PATH, 'utf8');
+  assert.match(css, /@keyframes papier-week-curl-next/);
+  assert.match(css, /@keyframes papier-week-curl-prev/);
+  assert.match(css, /\[data-theme="papier"\] \.week-pane--leaving\[data-dir="next"\] \{[\s\S]*?animation: papier-week-curl-next 220ms/);
+  assert.match(css, /\[data-theme="papier"\] \.week-pane--leaving\[data-dir="prev"\] \{[\s\S]*?animation: papier-week-curl-prev 220ms/);
+});
+
+test('Papierheft-Retro: Curl respektiert prefers-reduced-motion', () => {
+  const css = fs.readFileSync(CSS_PATH, 'utf8');
+  assert.match(css, /@media \(prefers-reduced-motion: reduce\) \{[\s\S]*?\[data-theme="papier"\] \.week-pane--leaving\[data-dir="next"\][\s\S]*?animation: none;/);
+});
