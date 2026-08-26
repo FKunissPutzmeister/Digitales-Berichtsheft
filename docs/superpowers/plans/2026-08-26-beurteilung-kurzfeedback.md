@@ -276,25 +276,38 @@ async function upsertEntwurf(pool, {
   zuweisungId, azubiOid, typ, kriterien, individuelleBeurteilung, gespraechAm,
   kurzfeedbackEindruck, kurzfeedbackAuffaelligkeiten, kurzfeedbackEmpfehlung,
 }) {
-  // Punkte/Note nur berechnen, wenn Kriterien mitgeschickt wurden (grosse
-  // Beurteilung) — beim Kurzfeedback bleiben GesamtPunkte/Note NULL, ohne
-  // dass diese Funktion selbst zwischen den beiden Typen unterscheiden muss:
-  // jede Seite schickt ohnehin nur ihre eigenen Felder (siehe Route).
-  const calc = (kriterien && kriterien.length) ? rechne(kriterien) : { gesamt: null, note: null };
+  // Der bereits gespeicherte Typ (falls die Zuweisung schon eine Beurteilungen-
+  // Zeile hat) ist IMMER autoritativ dafür, welches Feld-Set geschrieben wird —
+  // NICHT der übergebene `typ`-Parameter. Das verhindert, dass ein
+  // fehlerhafter oder böswilliger Aufruf mit BEIDEN Feld-Sets gleichzeitig
+  // (kriterien UND Kurzfeedback-Text) einen bestehenden Datensatz
+  // verunreinigt — z.B. würde sonst ein Aufruf mit `kriterien` gegen ein
+  // Typ='kurz'-Datensatz stillschweigend GesamtPunkte/Note setzen, obwohl der
+  // Datensatz laut seinem eigenen Typ gar keine Note haben soll. Nur für
+  // einen brandneuen Datensatz zählt der übergebene `typ` (die Route
+  // ermittelt ihn dafür frisch aus der Zuweisungsdauer).
+  const bestehend = await pool.request().input('zid', sql.Int, zuweisungId)
+    .query('SELECT Typ FROM dbo.Beurteilungen WHERE ZuweisungId=@zid');
+  const effektiverTyp = bestehend.recordset[0]?.Typ || typ || 'gross';
+  const kriterienEffektiv = effektiverTyp === 'gross' ? kriterien : undefined;
+  const kfEindruckEffektiv = effektiverTyp === 'kurz' ? kurzfeedbackEindruck : undefined;
+  const kfAuffEffektiv = effektiverTyp === 'kurz' ? kurzfeedbackAuffaelligkeiten : undefined;
+  const kfEmpfEffektiv = effektiverTyp === 'kurz' ? kurzfeedbackEmpfehlung : undefined;
+  const calc = (kriterienEffektiv && kriterienEffektiv.length) ? rechne(kriterienEffektiv) : { gesamt: null, note: null };
   const tx = new sql.Transaction(pool);
   await tx.begin();
   try {
     const up = await new sql.Request(tx)
       .input('zid', sql.Int, zuweisungId)
       .input('oid', sql.NVarChar(36), azubiOid)
-      .input('typ', sql.NVarChar(10), typ || 'gross')
+      .input('typ', sql.NVarChar(10), effektiverTyp)
       .input('indiv', sql.NVarChar(sql.MAX), individuelleBeurteilung ?? null)
       .input('ges', sql.Decimal(5, 2), calc.gesamt)
       .input('note', sql.Decimal(2, 1), calc.note)
       .input('gespr', sql.Date, gespraechAm || null)
-      .input('kfEindruck', sql.NVarChar(sql.MAX), kurzfeedbackEindruck ?? null)
-      .input('kfAuff', sql.NVarChar(sql.MAX), kurzfeedbackAuffaelligkeiten ?? null)
-      .input('kfEmpf', sql.NVarChar(sql.MAX), kurzfeedbackEmpfehlung ?? null)
+      .input('kfEindruck', sql.NVarChar(sql.MAX), kfEindruckEffektiv ?? null)
+      .input('kfAuff', sql.NVarChar(sql.MAX), kfAuffEffektiv ?? null)
+      .input('kfEmpf', sql.NVarChar(sql.MAX), kfEmpfEffektiv ?? null)
       .query(`
         MERGE dbo.Beurteilungen AS t
         USING (SELECT @zid AS ZuweisungId) AS s ON t.ZuweisungId = s.ZuweisungId
@@ -308,7 +321,7 @@ async function upsertEntwurf(pool, {
         OUTPUT inserted.Id;
       `);
     const id = up.recordset[0].Id;
-    await schreibeKriterien(tx, id, kriterien);
+    await schreibeKriterien(tx, id, kriterienEffektiv);
     await tx.commit();
     return id;
   } catch (e) { await tx.rollback(); throw e; }
@@ -317,7 +330,11 @@ async function upsertEntwurf(pool, {
 
 Hinweis: `Typ` wird NUR beim `INSERT` gesetzt, nicht beim `UPDATE` — ein bestehender
 Datensatz behält seinen einmal vergebenen Typ für immer (siehe Design-Spec §8,
-"kein nachträglicher Typwechsel").
+"kein nachträglicher Typwechsel"). Der Vorab-Read auf `Typ` ist eine bewusste
+Härtung (Ergebnis des Code-Reviews zu diesem Task): sie stellt sicher, dass die
+serverseitige Wahrheit über den Typ NIE aus dem Anfrage-Body kippen kann, auch
+nicht durch einen fehlerhaften oder manipulierten Request mit beiden Feld-Sets
+gleichzeitig.
 
 - [ ] **Step 2: Syntax-Check**
 
