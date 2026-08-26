@@ -126,3 +126,10 @@ test('IHK-Notenschlüssel-PDF liegt als Asset im Projekt', () => {
   assert.ok(fs.existsSync(pdfPath), `Erwartet: ${pdfPath}`);
   assert.ok(fs.statSync(pdfPath).size > 0, 'PDF-Datei ist leer');
 });
+
+test('IHK-Notenschlüssel-PDF-Link im Modal ist relativ (kein führender Slash)', () => {
+  const src = fs.readFileSync(path.join(__dirname, 'beurteilung-core.js'), 'utf8');
+  const match = src.match(/href="([^"]*ihk-notenschluessel\.pdf)"/);
+  assert.ok(match, 'PDF-Link nicht gefunden');
+  assert.ok(!match[1].startsWith('/'), `Href sollte relativ sein (kein führender Slash), war: ${match[1]}`);
+});

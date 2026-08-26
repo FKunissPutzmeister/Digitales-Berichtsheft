@@ -392,7 +392,7 @@
             <thead><tr><th>Schulnote</th><th>Punkte</th><th>Bereich der Note</th></tr></thead>
             <tbody>${notenschluesselTableHtml()}</tbody>
           </table>
-          <a class="beurt-noten__pdf-link" href="/templates/ihk-notenschluessel.pdf" target="_blank" rel="noopener">Original-PDF öffnen ↗</a>
+          <a class="beurt-noten__pdf-link" href="templates/ihk-notenschluessel.pdf" target="_blank" rel="noopener">Original-PDF öffnen ↗</a>
         </div></div>`;
       document.body.appendChild(ov);
       ov.addEventListener('click', e => { if (e.target === ov || e.target.closest('[data-modal-close]')) ov.classList.remove('open'); });
