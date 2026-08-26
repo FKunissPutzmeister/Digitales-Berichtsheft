@@ -216,16 +216,30 @@ async function erzeugeBenachrichtigung(runner, { userOid, typ, zuweisungId, from
             VALUES (@userOid,@typ,@zid,@from)`);
 }
 
+const mailTypAbgeschlossen = (typ) => (typ === 'kurz' ? 'kurzfeedback_abgeschlossen' : 'beurteilung_abgeschlossen');
+const mailTypFaellig = (typ) => (typ === 'kurz' ? 'kurzfeedback_faellig' : 'beurteilung_faellig');
+
+// Empfänger für das "abgeschlossen"-Signal: immer der Azubi; beim
+// Kurzfeedback zusätzlich die zuständige Ausbildungsleitung (rein
+// informativ — anders als bei der großen Beurteilung gibt es dafür keinen
+// eigenen Bestätigungsschritt, siehe Design-Spec §5).
+async function ermittleAbschlussEmpfaenger(pool, b) {
+  if (b.Typ !== 'kurz') return [b.AzubiOid];
+  const ausbildungsleiterOid = await ermittleAusbildungsleiter(pool, b.AzubiOid);
+  return [b.AzubiOid, ausbildungsleiterOid].filter(Boolean);
+}
+
 async function abschliessen(pool, id, autorOid, signatur) {
   const cur = await pool.request().input('id', sql.Int, id)
-    .query('SELECT Id, ZuweisungId, AzubiOid FROM dbo.Beurteilungen WHERE Id=@id');
+    .query('SELECT Id, ZuweisungId, AzubiOid, Typ FROM dbo.Beurteilungen WHERE Id=@id');
   const b = cur.recordset[0];
   if (!b) throw new Error('Beurteilung nicht gefunden.');
   const sigBytes = signatur ? unterschriftenSvc.dataUrlToBuffer(signatur.dataUrl) : null;
   if (signatur && !sigBytes) throw new Error('Ungültige Unterschrift.');
   unterschriftenSvc.pruefeGroesse(sigBytes);
   const sigExt = signatur ? unterschriftenSvc.normExt(signatur.extension) : null;
-  // Status-Update UND Azubi-Mitteilung atomar: schlägt der Benachrichtigungs-
+  const empfaengerOids = await ermittleAbschlussEmpfaenger(pool, b);
+  // Status-Update UND Mitteilungen atomar: schlägt ein Benachrichtigungs-
   // INSERT fehl (z.B. CHECK-Constraint), wird auch der Abschluss zurückgerollt –
   // kein stiller Zustand "abgeschlossen ohne Mitteilung".
   const tx = new sql.Transaction(pool);
@@ -241,9 +255,11 @@ async function abschliessen(pool, id, autorOid, signatur) {
                 BeurteilerUnterschriftBild=@bild, BeurteilerUnterschriftExt=@ext,
                 AktualisiertAm=SYSUTCDATETIME()
               WHERE Id=@id`);
-    await erzeugeBenachrichtigung(tx, {
-      userOid: b.AzubiOid, typ: 'beurteilung_abgeschlossen', zuweisungId: b.ZuweisungId, fromUserOid: autorOid,
-    });
+    for (const empfOid of empfaengerOids) {
+      await erzeugeBenachrichtigung(tx, {
+        userOid: empfOid, typ: mailTypAbgeschlossen(b.Typ), zuweisungId: b.ZuweisungId, fromUserOid: autorOid,
+      });
+    }
     await tx.commit();
   } catch (e) { await tx.rollback(); throw e; }
   // Persönliche Standard-Unterschrift aktualisieren — best effort, AUSSERHALB
@@ -255,16 +271,27 @@ async function abschliessen(pool, id, autorOid, signatur) {
   }
   // Mail NACH dem Commit und außerhalb der Transaktion: ein Versandfehler darf
   // den Abschluss nicht zurückrollen (mailBeurteilung wirft ohnehin nie).
-  await mailBeurteilung(pool, [b.AzubiOid], 'beurteilung_abgeschlossen',
+  await mailBeurteilung(pool, empfaengerOids, mailTypAbgeschlossen(b.Typ),
     { zuweisungId: b.ZuweisungId, azubiOid: b.AzubiOid });
 }
 
-async function patchNachAbschluss(pool, id, { kriterien, individuelleBeurteilung, gespraechAm }, autorOid) {
+async function patchNachAbschluss(pool, id, {
+  kriterien, individuelleBeurteilung, gespraechAm,
+  kurzfeedbackEindruck, kurzfeedbackAuffaelligkeiten, kurzfeedbackEmpfehlung,
+}, autorOid) {
   const cur = await pool.request().input('id', sql.Int, id)
-    .query('SELECT Id, ZuweisungId, AzubiOid FROM dbo.Beurteilungen WHERE Id=@id');
+    .query('SELECT Id, ZuweisungId, AzubiOid, Typ FROM dbo.Beurteilungen WHERE Id=@id');
   const b = cur.recordset[0];
   if (!b) throw new Error('Beurteilung nicht gefunden.');
-  const calc = rechne(kriterien);
+  // b.Typ ist bereits geladen und für eine bestehende Zeile immer autoritativ
+  // (Typ ist nach Anlage unveränderlich) — kein Vorab-Read nötig wie bei
+  // upsertEntwurf, dort existierte die Zeile zum Zeitpunkt des Reads evtl. noch nicht.
+  const kriterienEffektiv = b.Typ === 'gross' ? kriterien : undefined;
+  const kfEindruckEffektiv = b.Typ === 'kurz' ? kurzfeedbackEindruck : undefined;
+  const kfAuffEffektiv = b.Typ === 'kurz' ? kurzfeedbackAuffaelligkeiten : undefined;
+  const kfEmpfEffektiv = b.Typ === 'kurz' ? kurzfeedbackEmpfehlung : undefined;
+  const calc = (kriterienEffektiv && kriterienEffektiv.length) ? rechne(kriterienEffektiv) : { gesamt: null, note: null };
+  const empfaengerOids = await ermittleAbschlussEmpfaenger(pool, b);
   const tx = new sql.Transaction(pool);
   await tx.begin();
   try {
@@ -274,22 +301,28 @@ async function patchNachAbschluss(pool, id, { kriterien, individuelleBeurteilung
       .input('ges', sql.Decimal(5, 2), calc.gesamt)
       .input('note', sql.Decimal(2, 1), calc.note)
       .input('gespr', sql.Date, gespraechAm || null)
+      .input('kfEindruck', sql.NVarChar(sql.MAX), kfEindruckEffektiv ?? null)
+      .input('kfAuff', sql.NVarChar(sql.MAX), kfAuffEffektiv ?? null)
+      .input('kfEmpf', sql.NVarChar(sql.MAX), kfEmpfEffektiv ?? null)
       .input('von', sql.NVarChar(36), autorOid)
       .query(`UPDATE dbo.Beurteilungen SET IndividuelleBeurteilung=@indiv, GesamtPunkte=@ges,
-                Note=@note, GespraechAm=@gespr, KorrigiertVon=@von, KorrigiertAm=SYSUTCDATETIME(),
+                Note=@note, GespraechAm=@gespr,
+                KurzfeedbackEindruck=@kfEindruck, KurzfeedbackAuffaelligkeiten=@kfAuff, KurzfeedbackEmpfehlung=@kfEmpf,
+                KorrigiertVon=@von, KorrigiertAm=SYSUTCDATETIME(),
                 KenntnisnahmeVon=NULL, KenntnisnahmeAm=NULL,
                 KenntnisnahmeUnterschriftBild=NULL, KenntnisnahmeUnterschriftExt=NULL,
                 AusbildungsleiterBestaetigtVon=NULL, AusbildungsleiterBestaetigtAm=NULL,
                 AusbildungsleiterUnterschriftBild=NULL, AusbildungsleiterUnterschriftExt=NULL,
                 AktualisiertAm=SYSUTCDATETIME() WHERE Id=@id`);
-    await schreibeKriterien(tx, id, kriterien);
-    // Mitteilung im selben Transaktions-Rahmen (atomar mit der Korrektur).
-    await erzeugeBenachrichtigung(tx, {
-      userOid: b.AzubiOid, typ: 'beurteilung_abgeschlossen', zuweisungId: b.ZuweisungId, fromUserOid: autorOid,
-    });
+    await schreibeKriterien(tx, id, kriterienEffektiv);
+    for (const empfOid of empfaengerOids) {
+      await erzeugeBenachrichtigung(tx, {
+        userOid: empfOid, typ: mailTypAbgeschlossen(b.Typ), zuweisungId: b.ZuweisungId, fromUserOid: autorOid,
+      });
+    }
     await tx.commit();
   } catch (e) { await tx.rollback(); throw e; }
-  await mailBeurteilung(pool, [b.AzubiOid], 'beurteilung_abgeschlossen',
+  await mailBeurteilung(pool, empfaengerOids, mailTypAbgeschlossen(b.Typ),
     { zuweisungId: b.ZuweisungId, azubiOid: b.AzubiOid });
 }
 
