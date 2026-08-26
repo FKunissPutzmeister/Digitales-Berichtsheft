@@ -2,6 +2,8 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const B = require('./beurteilung-core.js');
+const fs = require('node:fs');
+const path = require('node:path');
 
 test('KRITERIEN hat 10 Einträge in Blöcken 3/3/4', () => {
   assert.equal(B.KRITERIEN.length, 10);
@@ -117,4 +119,10 @@ test('notenschluesselZeilen: Reihenfolge ist absteigend nach Note (1,0 zuerst)',
   for (let i = 1; i < zeilen.length; i++) {
     assert.ok(zeilen[i].note >= zeilen[i - 1].note, `Notenwerte müssen aufsteigend sein bei Index ${i}`);
   }
+});
+
+test('IHK-Notenschlüssel-PDF liegt als Asset im Projekt', () => {
+  const pdfPath = path.join(__dirname, '..', 'templates', 'ihk-notenschluessel.pdf');
+  assert.ok(fs.existsSync(pdfPath), `Erwartet: ${pdfPath}`);
+  assert.ok(fs.statSync(pdfPath).size > 0, 'PDF-Datei ist leer');
 });
