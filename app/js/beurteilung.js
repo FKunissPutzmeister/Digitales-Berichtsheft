@@ -150,11 +150,11 @@ function renderActions(ctx) {
           id = await DB.saveBeurteilungEntwurf({ zuweisungId: zuweisung.id, ...st });
           if (abgeschlossen) {
             await DB.patchBeurteilung(id, st);
-            Toast.success('Aktualisiert', 'Kurzfeedback wurde aktualisiert (Azubi wird informiert).');
+            Toast.success('Aktualisiert', 'Kurzfeedback wurde aktualisiert (Azubi und Ausbildungsleitung werden benachrichtigt).');
           } else {
             // Kein Signatur-Dialog beim Kurzfeedback (siehe Design-Spec §10, Out of Scope).
             await DB.abschliessenBeurteilung(id, null);
-            Toast.success('Abgeschlossen', 'Kurzfeedback abgeschlossen. Der Azubi wurde benachrichtigt.');
+            Toast.success('Abgeschlossen', 'Kurzfeedback abgeschlossen. Azubi und Ausbildungsleitung wurden benachrichtigt.');
           }
           setTimeout(back, 800);
         } catch (e) { Toast.error('Fehler', e.message); }
