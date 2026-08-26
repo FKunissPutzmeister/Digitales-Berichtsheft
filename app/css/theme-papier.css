@@ -315,3 +315,20 @@ html[data-theme="papier"] { color-scheme: light; }
   border-color: var(--pm-grey-300);
   box-shadow: none;
 }
+
+/* ===================================================================
+   5 · CURSOR – goldene Federspitze
+   -------------------------------------------------------------------
+   Kite-Form mit Luftloch + Mittelschlitz (die zwei Merkmale, an denen
+   eine Füllerfeder auch in Cursor-Größe erkennbar bleibt). Canvas
+   34×34, Hotspot an der Spitze (17, 30). Erster cursor:url()-Einsatz
+   im Projekt — kein bestehendes Muster zu befolgen, deshalb per
+   Universalselektor + !important (wie schon
+   ".sidebar__theme-toggle { display: none !important; }" in
+   themes.css) erzwungen, statt gegen jede einzelne Komponenten-
+   Spezifität einzeln anzutreten.
+   =================================================================== */
+html[data-theme="papier"],
+html[data-theme="papier"] * {
+  cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='34' height='34'%3E%3Cpath d='M17 3 L27 13 L18 30 L16 30 L7 13 Z' fill='%23c9a227' stroke='%237a5c12' stroke-width='1.3'/%3E%3Ccircle cx='17' cy='13' r='2' fill='none' stroke='%234a3610' stroke-width='1'/%3E%3Cline x1='17' y1='15' x2='17' y2='27' stroke='%234a3610' stroke-width='1'/%3E%3C/svg%3E") 17 30, auto !important;
+}

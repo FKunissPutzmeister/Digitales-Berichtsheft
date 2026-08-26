@@ -51,3 +51,9 @@ test('Papierheft-Retro: Primär- und Destruktiv-Buttons bekommen sichtbaren, han
   assert.match(css, /\[data-theme="papier"\] \.btn-primary \{[\s\S]*?border-radius: 3px 7px 4px 8px \/ 6px 4px 8px 3px;/);
   assert.match(css, /\[data-theme="papier"\] \.btn-danger \{[\s\S]*?border-radius: 6px 3px 8px 4px \/ 4px 8px 3px 6px;/);
 });
+
+test('Papierheft-Retro: goldener Federspitzen-Cursor ist gesetzt', () => {
+  const css = fs.readFileSync(CSS_PATH, 'utf8');
+  assert.match(css, /cursor:\s*url\("data:image\/svg\+xml,/);
+  assert.match(css, /%23c9a227/i); // Gold-Füllung der Feder, URL-encodiert
+});
