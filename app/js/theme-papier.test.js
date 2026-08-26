@@ -69,12 +69,27 @@ test('Papierheft-Retro: Cursor ist als Feder erkennbar UND nach rechts geschwung
   // Hatching (mehrere <line>-Paare) ist das eigentliche Erkennungsmerkmal.
   const lineCount = (css.match(/%3Cline /g) || []).length;
   assert.ok(lineCount >= 10, `Erwarte mindestens 10 Barben-Linien im Cursor-SVG, gefunden: ${lineCount}`);
-  assert.match(css, /"\)\s*12 44,\s*auto !important;/); // Hotspot an der Kielspitze
+  assert.match(css, /"\)\s*12 45,\s*auto !important;/); // Hotspot an der (jetzt auf die Nib verschobenen) Spitze
   // "Nach rechts geschwungen": der Kiel-Pfad muss die Spitze klar nach
   // rechts UND oben verlassen (nicht mehr eine gerade vertikale Linie wie
   // in der ersten Version) — Kiel-Pfad endet spürbar rechts vom Hotspot.
   const spinePath = css.match(/M12 44 C6 37,3 23,9 12 C14 5,21 1,29 0/);
   assert.ok(spinePath, 'Kiel-Pfad mit Rechtskurve nicht gefunden');
+});
+
+test('Papierheft-Retro: Feder hat eine kleine schwarze Spitze (Nib)', () => {
+  // Live-Feedback: "gib der Feder noch eine kleine schwarze Spitze" — ein
+  // kleines schwarzes Dreieck an der Kielspitze simuliert die Metallfeder.
+  const css = fs.readFileSync(CSS_PATH, 'utf8');
+  assert.match(css, /%23000000/); // Schwarz-Füllung der Nib, URL-encodiert
+  assert.match(css, /M9\.5 40 L14\.5 40 L12 45\.5 Z/); // kleines Dreieck an der Spitze
+  // Muss NACH den Barben-Linien im SVG stehen, damit es über den
+  // Federkiel-Auslauf gemalt wird, nicht darunter verschwindet.
+  const svgMatch = css.match(/cursor:\s*url\("data:image\/svg\+xml,[^"]*"\)/);
+  assert.ok(svgMatch, 'Cursor-SVG nicht gefunden');
+  const lastLineIndex = svgMatch[0].lastIndexOf('%3Cline ');
+  const nibIndex = svgMatch[0].indexOf('%3Cpath d=\'M9.5 40');
+  assert.ok(nibIndex > lastLineIndex, 'Nib-Dreieck muss nach den Barben-Linien gezeichnet werden');
 });
 
 test('Papierheft-Retro: Eck-Curl-Keyframes für beide Wochenwechsel-Richtungen', () => {

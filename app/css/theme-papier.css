@@ -341,10 +341,17 @@ html[data-theme="papier"] { color-scheme: light; }
    gebogenen Kiel herum aufgebaut (Außenkante/Kurvenaußenseite weiter
    ausladend als die Innenkante) und die 5 Barben-Paare fächern jeweils
    senkrecht zur lokalen Kiel-Richtung – nicht mehr parallel wie bei der
-   geraden Version. Canvas 40×46, Hotspot an der Kielspitze (12, 44).
-   Füllung Weiß (#fff) mit warmgrauem Federkiel-Ton als Kontur (kein
-   reines Schwarz – wirkt auf dem dunklen Sidebar-Braun sonst zu hart),
-   das reicht als Kontur auf Pergament wie auf der dunklen Sidebar.
+   geraden Version. Canvas 40×46. Füllung Weiß (#fff) mit warmgrauem
+   Federkiel-Ton als Kontur (kein reines Schwarz – wirkt auf dem dunklen
+   Sidebar-Braun sonst zu hart), das reicht als Kontur auf Pergament wie
+   auf der dunklen Sidebar.
+   Kleine schwarze Spitze (Nutzer-Feedback): ein kleines schwarzes Dreieck
+   direkt an der Kielspitze simuliert die Metallfeder-Nib, mit der man
+   tatsächlich schreibt – steht bewusst als LETZTES Element im SVG (malt
+   über den Federkiel-Auslauf) und ragt einen Hauch (1,5px) über die
+   ursprüngliche Federspitze hinaus, damit sie als eigenes Element lesbar
+   bleibt statt im Kiel zu verschwinden. Hotspot dadurch auf die neue,
+   tiefere Spitze der Nib verschoben (12, 45).
    Wie zuvor per Universalselektor + !important erzwungen (wie schon
    ".sidebar__theme-toggle { display: none !important; }" in
    themes.css), statt gegen jede Komponenten-Spezifität einzeln
@@ -352,7 +359,7 @@ html[data-theme="papier"] { color-scheme: light; }
    =================================================================== */
 html[data-theme="papier"],
 html[data-theme="papier"] * {
-  cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='40' height='46'%3E%3Cpath d='M12 44 C3 37,-1 22,6 11 C11 4,19 -1,29 -2 Q34 -2,36 3 C33 8,28 14,23 19 C17 25,12 31,15 39 Q13 42,12 44 Z' fill='%23ffffff' stroke='%239a8a6a' stroke-width='1'/%3E%3Cpath d='M12 44 C6 37,3 23,9 12 C14 5,21 1,29 0' fill='none' stroke='%23b0a483' stroke-width='0.8'/%3E%3Cline x1='11' y1='38' x2='14' y2='37' stroke='%23b0a483' stroke-width='0.7'/%3E%3Cline x1='11' y1='38' x2='7' y2='34' stroke='%23b0a483' stroke-width='0.7'/%3E%3Cline x1='9' y1='29' x2='17' y2='27' stroke='%23b0a483' stroke-width='0.7'/%3E%3Cline x1='9' y1='29' x2='5' y2='26' stroke='%23b0a483' stroke-width='0.7'/%3E%3Cline x1='10' y1='20' x2='19' y2='17' stroke='%23b0a483' stroke-width='0.7'/%3E%3Cline x1='10' y1='20' x2='6' y2='18' stroke='%23b0a483' stroke-width='0.7'/%3E%3Cline x1='14' y1='12' x2='22' y2='9' stroke='%23b0a483' stroke-width='0.7'/%3E%3Cline x1='14' y1='12' x2='10' y2='10' stroke='%23b0a483' stroke-width='0.7'/%3E%3Cline x1='20' y1='4' x2='27' y2='1' stroke='%23b0a483' stroke-width='0.7'/%3E%3Cline x1='20' y1='4' x2='17' y2='2' stroke='%23b0a483' stroke-width='0.7'/%3E%3C/svg%3E") 12 44, auto !important;
+  cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='40' height='46'%3E%3Cpath d='M12 44 C3 37,-1 22,6 11 C11 4,19 -1,29 -2 Q34 -2,36 3 C33 8,28 14,23 19 C17 25,12 31,15 39 Q13 42,12 44 Z' fill='%23ffffff' stroke='%239a8a6a' stroke-width='1'/%3E%3Cpath d='M12 44 C6 37,3 23,9 12 C14 5,21 1,29 0' fill='none' stroke='%23b0a483' stroke-width='0.8'/%3E%3Cline x1='11' y1='38' x2='14' y2='37' stroke='%23b0a483' stroke-width='0.7'/%3E%3Cline x1='11' y1='38' x2='7' y2='34' stroke='%23b0a483' stroke-width='0.7'/%3E%3Cline x1='9' y1='29' x2='17' y2='27' stroke='%23b0a483' stroke-width='0.7'/%3E%3Cline x1='9' y1='29' x2='5' y2='26' stroke='%23b0a483' stroke-width='0.7'/%3E%3Cline x1='10' y1='20' x2='19' y2='17' stroke='%23b0a483' stroke-width='0.7'/%3E%3Cline x1='10' y1='20' x2='6' y2='18' stroke='%23b0a483' stroke-width='0.7'/%3E%3Cline x1='14' y1='12' x2='22' y2='9' stroke='%23b0a483' stroke-width='0.7'/%3E%3Cline x1='14' y1='12' x2='10' y2='10' stroke='%23b0a483' stroke-width='0.7'/%3E%3Cline x1='20' y1='4' x2='27' y2='1' stroke='%23b0a483' stroke-width='0.7'/%3E%3Cline x1='20' y1='4' x2='17' y2='2' stroke='%23b0a483' stroke-width='0.7'/%3E%3Cpath d='M9.5 40 L14.5 40 L12 45.5 Z' fill='%23000000'/%3E%3C/svg%3E") 12 45, auto !important;
 }
 
 /* ===================================================================
