@@ -88,3 +88,33 @@ test('formatPunkteGruppe formatiert wie im Original-PDF', () => {
   assert.equal(B.formatPunkteGruppe([28, 27, 26, 25, 24, 23]), '23 - 28');
   assert.equal(B.formatPunkteGruppe([5, 4, 3, 2, 1, 0]), '0 - 5');
 });
+
+test('notenschluesselZeilen: Stichproben gegen das Original-PDF', () => {
+  const zeilen = B.notenschluesselZeilen();
+  const byNote = Object.fromEntries(zeilen.map(z => [z.note, z]));
+
+  assert.equal(byNote[1.0].punkteLabel, '100');
+  assert.equal(byNote[1.0].verbal, 'sehr gut');
+
+  assert.equal(byNote[1.1].punkteLabel, '98 + 99');
+  assert.equal(byNote[3.9].punkteLabel, '59 + 60');
+  assert.equal(byNote[3.9].verbal, 'ausreichend');
+
+  assert.equal(byNote[5.0].punkteLabel, '38 - 40');
+  assert.equal(byNote[5.0].verbal, 'mangelhaft');
+
+  assert.equal(byNote[5.6].punkteLabel, '23 - 28');
+  assert.equal(byNote[5.6].verbal, 'ungenügend');
+
+  assert.equal(byNote[6.0].punkteLabel, '0 - 5');
+  assert.equal(byNote[6.0].verbal, 'ungenügend');
+});
+
+test('notenschluesselZeilen: Reihenfolge ist absteigend nach Note (1,0 zuerst)', () => {
+  const zeilen = B.notenschluesselZeilen();
+  assert.equal(zeilen[0].note, 1.0);
+  assert.equal(zeilen[zeilen.length - 1].note, 6.0);
+  for (let i = 1; i < zeilen.length; i++) {
+    assert.ok(zeilen[i].note >= zeilen[i - 1].note, `Notenwerte müssen aufsteigend sein bei Index ${i}`);
+  }
+});

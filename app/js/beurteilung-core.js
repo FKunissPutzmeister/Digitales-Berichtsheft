@@ -151,6 +151,27 @@
     return `${punkte[punkte.length - 1]} - ${punkte[0]}`;
   }
 
+  // Gruppiert PUNKTE_ZU_NOTE (Index = Punkte 0..100) nach Notenwert.
+  // PUNKTE_ZU_NOTE ist mit steigenden Punkten monoton fallend in der Note
+  // (verifiziert), d.h. jede Notengruppe ist ein zusammenhängender Punktebereich.
+  function notenschluesselZeilen() {
+    const byNote = new Map(); // note -> Punkte absteigend
+    for (let p = 100; p >= 0; p--) {
+      const note = PUNKTE_ZU_NOTE[p];
+      if (!byNote.has(note)) byNote.set(note, []);
+      byNote.get(note).push(p);
+    }
+    return [...byNote.entries()].map(([note, punkte]) => {
+      const stufe = stufeFuerPunkte(punkte[0]);
+      return {
+        note,
+        punkteLabel: formatPunkteGruppe(punkte),
+        stufe,
+        verbal: STUFEN.find(s => s.stufe === stufe).verbal,
+      };
+    });
+  }
+
   // punkteByKey: { key: number|null }. Block-Ø über die FESTE Kriterienzahl.
   function berechne(punkteByKey) {
     punkteByKey = punkteByKey || {};
@@ -338,7 +359,7 @@
     ov.classList.add('open');
   }
 
-  const api = { KRITERIEN, BLOECKE, BLOCK_LABELS, STUFEN, PUNKTE_ZU_NOTE, clampPunkte, stufeFuerPunkte, noteFuerPunkte, formatPunkteGruppe, berechne, renderForm, openKatalogModal };
+  const api = { KRITERIEN, BLOECKE, BLOCK_LABELS, STUFEN, PUNKTE_ZU_NOTE, clampPunkte, stufeFuerPunkte, noteFuerPunkte, formatPunkteGruppe, notenschluesselZeilen, berechne, renderForm, openKatalogModal };
   if (typeof module !== 'undefined' && module.exports) module.exports = api; // Node/Tests/Backend
   root.Beurteilung = Object.assign(root.Beurteilung || {}, api);             // Browser
 })(typeof window !== 'undefined' ? window : globalThis);
