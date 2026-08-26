@@ -276,38 +276,25 @@ async function upsertEntwurf(pool, {
   zuweisungId, azubiOid, typ, kriterien, individuelleBeurteilung, gespraechAm,
   kurzfeedbackEindruck, kurzfeedbackAuffaelligkeiten, kurzfeedbackEmpfehlung,
 }) {
-  // Der bereits gespeicherte Typ (falls die Zuweisung schon eine Beurteilungen-
-  // Zeile hat) ist IMMER autoritativ dafür, welches Feld-Set geschrieben wird —
-  // NICHT der übergebene `typ`-Parameter. Das verhindert, dass ein
-  // fehlerhafter oder böswilliger Aufruf mit BEIDEN Feld-Sets gleichzeitig
-  // (kriterien UND Kurzfeedback-Text) einen bestehenden Datensatz
-  // verunreinigt — z.B. würde sonst ein Aufruf mit `kriterien` gegen ein
-  // Typ='kurz'-Datensatz stillschweigend GesamtPunkte/Note setzen, obwohl der
-  // Datensatz laut seinem eigenen Typ gar keine Note haben soll. Nur für
-  // einen brandneuen Datensatz zählt der übergebene `typ` (die Route
-  // ermittelt ihn dafür frisch aus der Zuweisungsdauer).
-  const bestehend = await pool.request().input('zid', sql.Int, zuweisungId)
-    .query('SELECT Typ FROM dbo.Beurteilungen WHERE ZuweisungId=@zid');
-  const effektiverTyp = bestehend.recordset[0]?.Typ || typ || 'gross';
-  const kriterienEffektiv = effektiverTyp === 'gross' ? kriterien : undefined;
-  const kfEindruckEffektiv = effektiverTyp === 'kurz' ? kurzfeedbackEindruck : undefined;
-  const kfAuffEffektiv = effektiverTyp === 'kurz' ? kurzfeedbackAuffaelligkeiten : undefined;
-  const kfEmpfEffektiv = effektiverTyp === 'kurz' ? kurzfeedbackEmpfehlung : undefined;
-  const calc = (kriterienEffektiv && kriterienEffektiv.length) ? rechne(kriterienEffektiv) : { gesamt: null, note: null };
+  // Punkte/Note nur berechnen, wenn Kriterien mitgeschickt wurden (grosse
+  // Beurteilung) — beim Kurzfeedback bleiben GesamtPunkte/Note NULL, ohne
+  // dass diese Funktion selbst zwischen den beiden Typen unterscheiden muss:
+  // jede Seite schickt ohnehin nur ihre eigenen Felder (siehe Route).
+  const calc = (kriterien && kriterien.length) ? rechne(kriterien) : { gesamt: null, note: null };
   const tx = new sql.Transaction(pool);
   await tx.begin();
   try {
     const up = await new sql.Request(tx)
       .input('zid', sql.Int, zuweisungId)
       .input('oid', sql.NVarChar(36), azubiOid)
-      .input('typ', sql.NVarChar(10), effektiverTyp)
+      .input('typ', sql.NVarChar(10), typ || 'gross')
       .input('indiv', sql.NVarChar(sql.MAX), individuelleBeurteilung ?? null)
       .input('ges', sql.Decimal(5, 2), calc.gesamt)
       .input('note', sql.Decimal(2, 1), calc.note)
       .input('gespr', sql.Date, gespraechAm || null)
-      .input('kfEindruck', sql.NVarChar(sql.MAX), kfEindruckEffektiv ?? null)
-      .input('kfAuff', sql.NVarChar(sql.MAX), kfAuffEffektiv ?? null)
-      .input('kfEmpf', sql.NVarChar(sql.MAX), kfEmpfEffektiv ?? null)
+      .input('kfEindruck', sql.NVarChar(sql.MAX), kurzfeedbackEindruck ?? null)
+      .input('kfAuff', sql.NVarChar(sql.MAX), kurzfeedbackAuffaelligkeiten ?? null)
+      .input('kfEmpf', sql.NVarChar(sql.MAX), kurzfeedbackEmpfehlung ?? null)
       .query(`
         MERGE dbo.Beurteilungen AS t
         USING (SELECT @zid AS ZuweisungId) AS s ON t.ZuweisungId = s.ZuweisungId
@@ -321,7 +308,7 @@ async function upsertEntwurf(pool, {
         OUTPUT inserted.Id;
       `);
     const id = up.recordset[0].Id;
-    await schreibeKriterien(tx, id, kriterienEffektiv);
+    await schreibeKriterien(tx, id, kriterien);
     await tx.commit();
     return id;
   } catch (e) { await tx.rollback(); throw e; }
@@ -330,11 +317,7 @@ async function upsertEntwurf(pool, {
 
 Hinweis: `Typ` wird NUR beim `INSERT` gesetzt, nicht beim `UPDATE` — ein bestehender
 Datensatz behält seinen einmal vergebenen Typ für immer (siehe Design-Spec §8,
-"kein nachträglicher Typwechsel"). Der Vorab-Read auf `Typ` ist eine bewusste
-Härtung (Ergebnis des Code-Reviews zu diesem Task): sie stellt sicher, dass die
-serverseitige Wahrheit über den Typ NIE aus dem Anfrage-Body kippen kann, auch
-nicht durch einen fehlerhaften oder manipulierten Request mit beiden Feld-Sets
-gleichzeitig.
+"kein nachträglicher Typwechsel").
 
 - [ ] **Step 2: Syntax-Check**
 
@@ -432,7 +415,11 @@ async function abschliessen(pool, id, autorOid, signatur) {
 
 Empfänger werden EINMAL vor der Transaktion ermittelt (reiner Lesezugriff über
 `ermittleAusbildungsleiter`, braucht einen Pool/Request — keine Transaktion) und
-danach für Mitteilung UND Mail wiederverwendet. Ersetze die komplette Funktion:
+danach für Mitteilung UND Mail wiederverwendet. Wie in `upsertEntwurf` (siehe
+Task 4, dortige Härtung) entscheidet der bereits gespeicherte `Typ` — hier
+`b.Typ`, ohnehin schon geladen, also KEINE zusätzliche Abfrage nötig — welches
+Feld-Set geschrieben wird, nicht welche Felder der Aufrufer zufällig mitschickt.
+Ersetze die komplette Funktion:
 
 ```js
 async function patchNachAbschluss(pool, id, {
@@ -443,7 +430,14 @@ async function patchNachAbschluss(pool, id, {
     .query('SELECT Id, ZuweisungId, AzubiOid, Typ FROM dbo.Beurteilungen WHERE Id=@id');
   const b = cur.recordset[0];
   if (!b) throw new Error('Beurteilung nicht gefunden.');
-  const calc = (kriterien && kriterien.length) ? rechne(kriterien) : { gesamt: null, note: null };
+  // b.Typ ist bereits geladen und für eine bestehende Zeile immer autoritativ
+  // (Typ ist nach Anlage unveränderlich) — kein Vorab-Read nötig wie bei
+  // upsertEntwurf, dort existierte die Zeile zum Zeitpunkt des Reads evtl. noch nicht.
+  const kriterienEffektiv = b.Typ === 'gross' ? kriterien : undefined;
+  const kfEindruckEffektiv = b.Typ === 'kurz' ? kurzfeedbackEindruck : undefined;
+  const kfAuffEffektiv = b.Typ === 'kurz' ? kurzfeedbackAuffaelligkeiten : undefined;
+  const kfEmpfEffektiv = b.Typ === 'kurz' ? kurzfeedbackEmpfehlung : undefined;
+  const calc = (kriterienEffektiv && kriterienEffektiv.length) ? rechne(kriterienEffektiv) : { gesamt: null, note: null };
   const empfaengerOids = await ermittleAbschlussEmpfaenger(pool, b);
   const tx = new sql.Transaction(pool);
   await tx.begin();
@@ -454,9 +448,9 @@ async function patchNachAbschluss(pool, id, {
       .input('ges', sql.Decimal(5, 2), calc.gesamt)
       .input('note', sql.Decimal(2, 1), calc.note)
       .input('gespr', sql.Date, gespraechAm || null)
-      .input('kfEindruck', sql.NVarChar(sql.MAX), kurzfeedbackEindruck ?? null)
-      .input('kfAuff', sql.NVarChar(sql.MAX), kurzfeedbackAuffaelligkeiten ?? null)
-      .input('kfEmpf', sql.NVarChar(sql.MAX), kurzfeedbackEmpfehlung ?? null)
+      .input('kfEindruck', sql.NVarChar(sql.MAX), kfEindruckEffektiv ?? null)
+      .input('kfAuff', sql.NVarChar(sql.MAX), kfAuffEffektiv ?? null)
+      .input('kfEmpf', sql.NVarChar(sql.MAX), kfEmpfEffektiv ?? null)
       .input('von', sql.NVarChar(36), autorOid)
       .query(`UPDATE dbo.Beurteilungen SET IndividuelleBeurteilung=@indiv, GesamtPunkte=@ges,
                 Note=@note, GespraechAm=@gespr,
@@ -467,7 +461,7 @@ async function patchNachAbschluss(pool, id, {
                 AusbildungsleiterBestaetigtVon=NULL, AusbildungsleiterBestaetigtAm=NULL,
                 AusbildungsleiterUnterschriftBild=NULL, AusbildungsleiterUnterschriftExt=NULL,
                 AktualisiertAm=SYSUTCDATETIME() WHERE Id=@id`);
-    await schreibeKriterien(tx, id, kriterien);
+    await schreibeKriterien(tx, id, kriterienEffektiv);
     for (const empfOid of empfaengerOids) {
       await erzeugeBenachrichtigung(tx, {
         userOid: empfOid, typ: mailTypAbgeschlossen(b.Typ), zuweisungId: b.ZuweisungId, fromUserOid: autorOid,
@@ -490,6 +484,82 @@ Expected: kein Output.
 ```bash
 git add backend/services/beurteilungen.js
 git commit -m "feat(beurteilung): Kurzfeedback-Empfaenger (Azubi+Ausbildungsleitung) bei Abschluss/Korrektur
+
+Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>"
+```
+
+---
+
+### Task 5b: DB-Migration — Benachrichtigungs-Typen für Kurzfeedback
+
+**Nachtrag (Code-Review-Fund zu Task 5):** `dbo.Benachrichtigungen` trägt einen
+CHECK-Constraint `CK_Benachrichtigungen_Typ` (zuletzt neu aufgesetzt in
+`db/migrations/032_benachrichtigungen_loeschtyp.sql`), der die ERLAUBTEN
+`Typ`-Werte auf eine feste Liste einschränkt. Diese Liste kennt
+`beurteilung_faellig`/`beurteilung_abgeschlossen` bereits (Migration 016),
+aber NICHT die in Task 5 neu eingeführten `kurzfeedback_faellig`/
+`kurzfeedback_abgeschlossen`. Ohne diese Migration schlägt jeder
+`erzeugeBenachrichtigung()`-Aufruf für ein Kurzfeedback mit einer
+CHECK-Constraint-Verletzung fehl — die gesamte Kurzfeedback-Abschluss-/
+Korrektur-Funktionalität aus Task 5 wäre gegen die echte DB nicht lauffähig.
+Übersehen in der ursprünglichen Design-Spec und im Plan; hier nachgezogen,
+BEVOR Task 6 den zweiten Aufrufer (`ermittleUndErzeugeFaellige`) fertigstellt,
+der denselben Constraint träfe.
+
+**Files:**
+- Create: `db/migrations/040_benachrichtigungen_kurzfeedbacktypen.sql`
+
+- [ ] **Step 1: Migration schreiben**
+
+```sql
+-- ============================================================
+-- Migration 040 – Benachrichtigungs-Typen für Kurzfeedback
+-- Ausführen gegen: Berichtsheft_Dev
+--
+-- CK_Benachrichtigungen_Typ (siehe Migration 032) kennt die neuen Typen
+-- 'kurzfeedback_faellig'/'kurzfeedback_abgeschlossen' noch nicht — ohne diese
+-- Migration schlägt jeder erzeugeBenachrichtigung()-Aufruf mit einem dieser
+-- Typen (siehe Kurzfeedback-Feature, Design-Spec
+-- 2026-08-26-beurteilung-kurzfeedback-design.md) mit einer CHECK-Constraint-
+-- Verletzung fehl. Basiert auf Migration 032 (11 Typen). Idempotent.
+-- ============================================================
+
+IF EXISTS (SELECT 1 FROM sys.check_constraints
+           WHERE name = 'CK_Benachrichtigungen_Typ'
+             AND parent_object_id = OBJECT_ID('dbo.Benachrichtigungen'))
+BEGIN
+  ALTER TABLE dbo.Benachrichtigungen DROP CONSTRAINT CK_Benachrichtigungen_Typ;
+  PRINT 'CK_Benachrichtigungen_Typ (alt) entfernt.';
+END
+ELSE PRINT 'CK_Benachrichtigungen_Typ existierte nicht - wird erstmals eingefuehrt.';
+
+ALTER TABLE dbo.Benachrichtigungen ADD CONSTRAINT CK_Benachrichtigungen_Typ
+  CHECK (Typ IN ('genehmigt','abgelehnt','erstgenehmigt',
+                 'beurteilung_faellig','beurteilung_abgeschlossen',
+                 'kurzfeedback_faellig','kurzfeedback_abgeschlossen',
+                 'versetzung_neu','versetzung_geaendert','versetzung_entfernt',
+                 'vertretung_neu','vertretung_beendet',
+                 'loeschung_geplant'));
+PRINT 'CK_Benachrichtigungen_Typ angelegt (13 Typen, inkl. Kurzfeedback).';
+```
+
+- [ ] **Step 2: Gegen die lokale Dev-Datenbank ausführen (manuell, wie Task 1)**
+
+Nur Kuniß kann das einspielen (keine DDL-Rechte auf dem Dev-DB-Account).
+Verifikation danach:
+
+```sql
+SELECT definition FROM sys.check_constraints
+WHERE name = 'CK_Benachrichtigungen_Typ' AND parent_object_id = OBJECT_ID('dbo.Benachrichtigungen');
+```
+
+Erwartet: Definition enthält `'kurzfeedback_faellig'` und `'kurzfeedback_abgeschlossen'`.
+
+- [ ] **Step 3: Commit**
+
+```bash
+git add db/migrations/040_benachrichtigungen_kurzfeedbacktypen.sql
+git commit -m "fix(beurteilung): CK_Benachrichtigungen_Typ um Kurzfeedback-Typen erweitert
 
 Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>"
 ```
@@ -772,25 +842,52 @@ Nach dem Eintrag `beurteilung_abgeschlossen` (Zeile 1527-1528) einfügen:
 
 - [ ] **Step 2: `mitteilungen.js` — `VERWALTUNG_TYPEN` erweitern**
 
-Nach dem Eintrag `beurteilung_abgeschlossen` (Zeile 112-113) einfügen:
+Nach dem Eintrag `beurteilung_abgeschlossen` (Zeile 112-113) einfügen. `label`
+bewusst `'Kurzfeedback'` statt `'Beurteilung'` (Korrektur aus dem Code-Review zu
+diesem Task): `mitteilungen.js` leitet aus dem `Typ`-Präfix einen eigenen
+`typeKey` ab (`'kurzfeedback'` vs. `'beurteilung'`) und baut daraus u.a. den
+Filter-Dropdown — zwei verschiedene `typeKey`s mit demselben `label`-Text hätten
+zwei nicht unterscheidbare "Beurteilung"-Einträge im Filter erzeugt, die
+unterschiedliche Ergebnismengen filtern:
 
 ```js
-    kurzfeedback_faellig:      { tone: 'er',      label: 'Beurteilung', titel: 'Kurzfeedback fällig',
+    kurzfeedback_faellig:      { tone: 'er',      label: 'Kurzfeedback', titel: 'Kurzfeedback fällig',
                                  href: b => `beurteilung.html?zuw=${encodeURIComponent(b.zuweisungId || '')}` },
-    kurzfeedback_abgeschlossen: { tone: 'ok',     label: 'Beurteilung', titel: 'Kurzfeedback abgeschlossen',
+    kurzfeedback_abgeschlossen: { tone: 'ok',     label: 'Kurzfeedback', titel: 'Kurzfeedback abgeschlossen',
                                  href: b => `beurteilung.html?zuw=${encodeURIComponent(b.zuweisungId || '')}` },
 ```
 
-- [ ] **Step 3: Syntax-Check**
+- [ ] **Step 3: `dh-mitteilungen.js` — dritte, bisher übersehene Render-Map ergänzen**
 
-Run: `node -c app/js/dashboard.js && node -c app/js/mitteilungen.js`
+**Nachtrag (Code-Review-Fund):** Es gibt eine DRITTE Stelle mit demselben
+"unbekannter Typ rendert lautlos leer"-Verhalten: die Glocke in der
+DH-Studenten-Topbar (`app/js/dh-mitteilungen.js`, eigene `TYPEN`-Map, unabhängig
+von den beiden obigen). DH-Studenten haben eigene Abteilungsdurchläufe, die
+ebenfalls kurz genug für Kurzfeedback sein können (`ermittleTyp` unterscheidet
+nicht nach Rolle) — ohne diese Ergänzung bekäme ein DH-Student bei einem kurzen
+Durchlauf ein unsichtbares `kurzfeedback_abgeschlossen`-Signal. NUR
+`kurzfeedback_abgeschlossen` nötig — DH-Studenten sind nie die beurteilende
+Person, `kurzfeedback_faellig` erreicht sie nie (siehe bestehender Kommentar in
+der Datei: nur `beurteilung_abgeschlossen` ist für sie relevant, kein
+`beurteilung_faellig`-Eintrag existiert dort).
+
+Nach dem Eintrag `beurteilung_abgeschlossen` in der `TYPEN`-Konstante einfügen:
+
+```js
+    kurzfeedback_abgeschlossen: { tone: 'ok',   label: 'Kurzfeedback', titel: 'Neues Kurzfeedback liegt vor',
+                                 href: (b) => `beurteilung.html?zuw=${encodeURIComponent(b.zuweisungId || '')}` },
+```
+
+- [ ] **Step 4: Syntax-Check**
+
+Run: `node -c app/js/dashboard.js && node -c app/js/mitteilungen.js && node -c app/js/dh-mitteilungen.js`
 Expected: kein Output.
 
-- [ ] **Step 4: Commit**
+- [ ] **Step 5: Commit**
 
 ```bash
-git add app/js/dashboard.js app/js/mitteilungen.js
-git commit -m "feat(beurteilung): Kurzfeedback-Mitteilungstypen in beiden Render-Maps
+git add app/js/dashboard.js app/js/mitteilungen.js app/js/dh-mitteilungen.js
+git commit -m "feat(beurteilung): Kurzfeedback-Mitteilungstypen in allen drei Render-Maps
 
 Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>"
 ```
