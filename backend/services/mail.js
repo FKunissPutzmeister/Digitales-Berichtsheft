@@ -176,18 +176,25 @@ async function mailVersetzung(pool, oids, typ, ctx) {
   }
 }
 
-/* Beurteilungs-Reminder. typ: 'beurteilung_abgeschlossen' (an den Azubi) oder
-   'beurteilung_faellig' (an die beurteilende Person).
+const BEURTEILUNG_MAIL_TITEL = {
+  beurteilung_faellig:        'Beurteilung fällig',
+  beurteilung_abgeschlossen:  'Neue Beurteilung liegt vor',
+  kurzfeedback_faellig:       'Kurzfeedback fällig',
+  kurzfeedback_abgeschlossen: 'Neues Kurzfeedback liegt vor',
+};
+
+/* Beurteilungs-Reminder. typ: 'beurteilung_abgeschlossen'/'kurzfeedback_abgeschlossen'
+   (an Azubi bzw. Azubi+Ausbildungsleitung) oder 'beurteilung_faellig'/
+   'kurzfeedback_faellig' (an die beurteilende Person).
    ctx: { zuweisungId, azubiOid?, abteilung?, von?, bis? } */
 async function mailBeurteilung(pool, oids, typ, ctx = {}) {
   if (!mailConfig().configured) return false;
-  const faellig = typ === 'beurteilung_faellig';
   try {
     const users = await ladeEmpfaenger(pool, [...(oids || []), ctx.azubiOid]);
     const to = (oids || []).map((o) => users.get(o) && users.get(o).email).filter(Boolean);
     if (!to.length) return false;
     const azubi = anzeigeName(users.get(ctx.azubiOid) ? users.get(ctx.azubiOid).name : '');
-    const titel = faellig ? 'Beurteilung fällig' : 'Neue Beurteilung liegt vor';
+    const titel = BEURTEILUNG_MAIL_TITEL[typ] || 'Beurteilung';
     const html = huelle(titel, [
       azubi ? ['Azubi', azubi] : null,
       ctx.abteilung ? ['Abteilung', ctx.abteilung] : null,
