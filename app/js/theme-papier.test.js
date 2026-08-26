@@ -78,3 +78,13 @@ test('Papierheft-Retro: PMPaperCurl-Engine + paintWeekCurl-API existieren in the
   assert.match(js, /var PMPaperCurl = \(function \(\) \{/);
   assert.match(js, /paintWeekCurl: function \(canvas, dir\) \{/);
 });
+
+test('Papierheft-Retro: wochenansicht.js erzeugt Curl-Canvas nur für papier-Theme (theme-gated, additiv)', () => {
+  const js = fs.readFileSync(WOCHENANSICHT_JS_PATH, 'utf8');
+  assert.match(js, /window\.PMTheme && window\.PMTheme\.getCustom\(\) === 'papier'/);
+  assert.match(js, /window\.PMTheme\.paintWeekCurl\(curlCanvas, dir\)/);
+  // Bestehende Zeilen müssen unverändert bleiben — stichprobenartig prüfen,
+  // dass der ursprüngliche Klon-Code noch exakt so da steht wie vorher.
+  assert.match(js, /clone\.classList\.add\('week-pane--leaving'\);/);
+  assert.match(js, /stage\.appendChild\(clone\);/);
+});

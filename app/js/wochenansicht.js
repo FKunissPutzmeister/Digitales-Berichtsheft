@@ -932,6 +932,27 @@ document.addEventListener('DOMContentLoaded', async () => {
       clone.style.left  = (rect.left - mwRect.left) + 'px';
       clone.style.width = rect.width + 'px';
       stage.appendChild(clone);
+
+      // Papier-Theme: schlanke Lichtkanten-Canvas als weiteres Stage-Kind,
+      // wird beim bestehenden `stage.remove()`-Cleanup unten (260 ms)
+      // automatisch mit entfernt — kein eigener Cleanup-Code nötig. Für
+      // alle anderen Themes bleibt dieser Block ein no-op (weder Canvas
+      // noch FX-Aufruf).
+      if (window.PMTheme && window.PMTheme.getCustom() === 'papier') {
+        const curlCanvas = document.createElement('canvas');
+        curlCanvas.className = 'week-pane-curl-fx';
+        curlCanvas.width = Math.round(rect.width);
+        curlCanvas.height = Math.round(rect.height);
+        curlCanvas.style.position = 'absolute';
+        curlCanvas.style.left = clone.style.left;
+        curlCanvas.style.top = '0';
+        curlCanvas.style.width = rect.width + 'px';
+        curlCanvas.style.height = rect.height + 'px';
+        curlCanvas.style.pointerEvents = 'none';
+        stage.appendChild(curlCanvas);
+        window.PMTheme.paintWeekCurl(curlCanvas, dir);
+      }
+
       document.body.appendChild(stage);
       pane.style.opacity = '0';
     }
