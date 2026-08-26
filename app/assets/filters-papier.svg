@@ -9,8 +9,21 @@
     <feTurbulence type="fractalNoise" baseFrequency="0.018 0.028" numOctaves="2" seed="7" result="noise"/>
     <feDisplacementMap in="SourceGraphic" in2="noise" scale="4" xChannelSelector="R" yChannelSelector="G"/>
   </filter>
-  <filter id="roughen-fine" x="-30%" y="-30%" width="160%" height="160%">
-    <feTurbulence type="fractalNoise" baseFrequency="0.06 0.09" numOctaves="2" seed="11" result="noise"/>
-    <feDisplacementMap in="SourceGraphic" in2="noise" scale="1.6" xChannelSelector="R" yChannelSelector="G"/>
+  <!-- roughen-fine wurde nach Live-Feedback ("Icons wirken nicht
+       handgezeichnet") von einer einzelnen, kaum sichtbaren Verzerrung
+       (scale 1.6) auf einen Doppelstrich-Skizzen-Effekt umgestellt:
+       zwei UNABHÄNGIG verzerrte Kopien (unterschiedlicher seed) werden
+       übereinandergelegt (feMerge) – klassischer "Rough.js"/xkcd-Look,
+       weil zwei leicht versetzte Konturen viel eindeutiger als "von
+       Hand nachgezogen" gelesen werden als eine einzelne verwackelte. -->
+  <filter id="roughen-fine" x="-50%" y="-50%" width="200%" height="200%">
+    <feTurbulence type="fractalNoise" baseFrequency="0.09 0.15" numOctaves="2" seed="11" result="noise1"/>
+    <feDisplacementMap in="SourceGraphic" in2="noise1" scale="3.4" xChannelSelector="R" yChannelSelector="G" result="sketch1"/>
+    <feTurbulence type="fractalNoise" baseFrequency="0.11 0.17" numOctaves="2" seed="29" result="noise2"/>
+    <feDisplacementMap in="SourceGraphic" in2="noise2" scale="3.4" xChannelSelector="R" yChannelSelector="G" result="sketch2"/>
+    <feMerge>
+      <feMergeNode in="sketch2"/>
+      <feMergeNode in="sketch1"/>
+    </feMerge>
   </filter>
 </svg>

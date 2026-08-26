@@ -137,27 +137,41 @@ html[data-theme="papier"] { color-scheme: light; }
   --lg-edge:           rgba(0, 0, 0, 0.30);
   --lg-spec:           rgba(255, 248, 230, 0.35);
   --lg-spec-soft:      rgba(255, 248, 230, 0.14);
+
+  /* App-Hintergrundbild – siehe docs/ios-touch-verhalten.md ("Der
+     Hintergrund liegt auf einer eigenen Ebene"): body:not(.login-page)
+     UND html::before (glass.css) lesen BEIDE dieselben drei Tokens, damit
+     die iOS-Spiegelebene (html::before, fängt das Nachlaufen der
+     Browserleisten ab) automatisch mitzieht. Ein Theme, das stattdessen
+     body direkt überschreibt (frühere Version dieser Datei), speist
+     html::before NICHT mit und lässt bei ein-/ausfahrenden iOS-Leisten
+     kurz das generische Default-Bild aufblitzen — deshalb hier bewusst
+     NUR Tokens setzen, keine eigene body-Regel.
+     --app-bg-vignette bleibt "none": das Foto bringt seine eigene
+     Alterungs-Vignette (dunkle Ecken, Foxing) schon mit, eine zweite
+     Vignette darüber hätte die Ecken doppelt verdunkelt. */
+  --app-bg-image:    url("../assets/papier-bg.jpg");
+  --app-bg-overlay:  linear-gradient(180deg, rgba(233, 217, 179, 0.08), rgba(224, 199, 148, 0.16));
+  --app-bg-vignette: none;
+  /* Randfarbe für den auf iOS unbemalbaren Streifen hinterm Home-Indikator
+     (siehe Doku) – an der Bildunterkante gemessen (#D19F56), nicht geraten,
+     sonst wieder der helle Balken aus demselben Dokument. */
+  --app-bg-base:     #D19F56;
 }
 
 /* ===================================================================
-   2 · GRUNDFLÄCHE – Sepia-Pergament, keine Karo-/Heftlinien
+   2 · GRUNDFLÄCHE – Foto einer vergilbten Pergamentseite
    -------------------------------------------------------------------
-   Statische Textur (kein Animations-/FX-Layer nötig): mehrere radiale
-   Alterungsflecken (Foxing) über einem Sepia-Gradient. Die Ambient-
-   Pseudo-Layer aus glass.css (body::before/::after) bleiben für dieses
-   Theme ungenutzt und werden ausgeblendet.
+   Die eigentliche Textur kommt jetzt als echtes Foto über die drei
+   --app-bg-*-Tokens oben (Abschnitt 1) – body:not(.login-page) UND
+   html::before (beide glass.css) rendern es automatisch, kein eigener
+   Selektor hier nötig. Die Ambient-Pseudo-Layer aus glass.css
+   (body::before/::after – zwei weiche Brand-Farb-"Lichtquellen" fürs
+   Glass-Look) passen nicht zum Foto-Hintergrund und werden ausgeblendet.
    =================================================================== */
 [data-theme="papier"] body::before,
 [data-theme="papier"] body::after {
   display: none;
-}
-
-[data-theme="papier"] body:not(.login-page) {
-  background:
-    radial-gradient(ellipse at 15% 20%, rgba(120, 80, 30, 0.10) 0%, transparent 35%),
-    radial-gradient(ellipse at 80% 70%, rgba(120, 80, 30, 0.12) 0%, transparent 40%),
-    radial-gradient(ellipse at 60% 15%, rgba(90, 60, 20, 0.08) 0%, transparent 30%),
-    linear-gradient(180deg, #E9D9B3 0%, #E3D1A5 100%);
 }
 
 /* ===================================================================
@@ -317,20 +331,26 @@ html[data-theme="papier"] { color-scheme: light; }
 }
 
 /* ===================================================================
-   5 · CURSOR – goldene Federspitze
+   5 · CURSOR – goldene Schreibfeder
    -------------------------------------------------------------------
-   Kite-Form mit Luftloch + Mittelschlitz (die zwei Merkmale, an denen
-   eine Füllerfeder auch in Cursor-Größe erkennbar bleibt). Canvas
-   34×34, Hotspot an der Spitze (17, 30). Erster cursor:url()-Einsatz
-   im Projekt — kein bestehendes Muster zu befolgen, deshalb per
-   Universalselektor + !important (wie schon
-   ".sidebar__theme-toggle { display: none !important; }" in
-   themes.css) erzwungen, statt gegen jede einzelne Komponenten-
-   Spezifität einzeln anzutreten.
+   Ersetzt die frühere Kite-Form (zu abstrakt, im Live-Test nicht klar
+   als Feder erkannt) durch eine echte, lang gezogene Federkontur: ein
+   spitz zulaufendes Federblatt (deutlich höher als breit – eine
+   gestauchte Form las sich im Vergleichs-Rendering eher als Blatt/Tropfen
+   denn als Feder), ein Kiel (Rachis) von der Spitze bis zum Federkopf,
+   und 7 Paar diagonale Federäste (Barben) vom Kiel bis nah an beide
+   Ränder. Das durchgehende Fischgräten-Strichmuster ist das eigentliche
+   Erkennungsmerkmal. Canvas 30×48, Hotspot an der Kielspitze (13, 45)
+   (die "Schreibspitze" der Feder). Farbgebung unverändert (Gold +
+   dunkler Federkiel-Ton) – siehe Test "goldener Federspitzen-Cursor ist
+   gesetzt". Wie zuvor per Universalselektor + !important erzwungen (wie
+   schon ".sidebar__theme-toggle { display: none !important; }" in
+   themes.css), statt gegen jede Komponenten-Spezifität einzeln
+   anzutreten.
    =================================================================== */
 html[data-theme="papier"],
 html[data-theme="papier"] * {
-  cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='34' height='34'%3E%3Cpath d='M17 3 L27 13 L18 30 L16 30 L7 13 Z' fill='%23c9a227' stroke='%237a5c12' stroke-width='1.3'/%3E%3Ccircle cx='17' cy='13' r='2' fill='none' stroke='%234a3610' stroke-width='1'/%3E%3Cline x1='17' y1='15' x2='17' y2='27' stroke='%234a3610' stroke-width='1'/%3E%3C/svg%3E") 17 30, auto !important;
+  cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='30' height='48'%3E%3Cpath d='M13 45 C7 39,4 27,6 15 C7 8,10 3,13.5 1.5 C17 3,20 8,21 15 C23 27,20 39,14 44 Z' fill='%23c9a227' stroke='%237a5c12' stroke-width='1'/%3E%3Cpath d='M13 45 C12 34,12 20,13 4' fill='none' stroke='%234a3610' stroke-width='0.9'/%3E%3Cline x1='12.3' y1='40' x2='18.3' y2='36' stroke='%234a3610' stroke-width='0.7'/%3E%3Cline x1='12.3' y1='40' x2='7.3' y2='36' stroke='%234a3610' stroke-width='0.7'/%3E%3Cline x1='12' y1='34' x2='20' y2='30' stroke='%234a3610' stroke-width='0.7'/%3E%3Cline x1='12' y1='34' x2='6' y2='30' stroke='%234a3610' stroke-width='0.7'/%3E%3Cline x1='11.8' y1='28' x2='20.8' y2='24' stroke='%234a3610' stroke-width='0.7'/%3E%3Cline x1='11.8' y1='28' x2='5.3' y2='24' stroke='%234a3610' stroke-width='0.7'/%3E%3Cline x1='11.8' y1='22' x2='20.8' y2='18' stroke='%234a3610' stroke-width='0.7'/%3E%3Cline x1='11.8' y1='22' x2='5.3' y2='18' stroke='%234a3610' stroke-width='0.7'/%3E%3Cline x1='12' y1='16' x2='20.5' y2='12' stroke='%234a3610' stroke-width='0.7'/%3E%3Cline x1='12' y1='16' x2='6' y2='12' stroke='%234a3610' stroke-width='0.7'/%3E%3Cline x1='12.3' y1='10' x2='18.3' y2='6' stroke='%234a3610' stroke-width='0.7'/%3E%3Cline x1='12.3' y1='10' x2='7.3' y2='6' stroke='%234a3610' stroke-width='0.7'/%3E%3Cline x1='12.8' y1='5' x2='15.8' y2='2' stroke='%234a3610' stroke-width='0.7'/%3E%3Cline x1='12.8' y1='5' x2='10.3' y2='2' stroke='%234a3610' stroke-width='0.7'/%3E%3C/svg%3E") 13 45, auto !important;
 }
 
 /* ===================================================================
@@ -471,3 +491,93 @@ html[data-theme="papier"] * {
 [data-theme="papier"] .bento .b-tile:nth-child(3n+3):hover {
   transform: rotate(-0.5deg) translateY(-2px) !important;
 }
+
+/* ===================================================================
+   10 · WOCHEN-KACHELN – "Schatzkarte": schräg, ungleiche Ecken, zerrissener Rand
+   -------------------------------------------------------------------
+   Die eigentlichen Schreib-Kacheln (.wochen-kachel, wochenansicht.js:1973
+   – Betrieb/Schule-Editor pro Tag, NICHT die toten .day-card-Regeln weiter
+   oben in wochenansicht.css, siehe deren eigener Kommentar "wird von
+   KEINEM aktuellen Template mehr erzeugt"). Drei Bausteine, alle am
+   eigentlichen Karteninhalt vorbei (Text bleibt exakt lesbar/rechteckig):
+
+   1. Leichte Drehung (≤1.4°, wie schon bei den Dashboard-Karten in
+      Abschnitt 9 – gleiche Begründung, gleicher !important-Grund unten).
+   2. Ungleiche Eckenradien (Slash-Syntax, wie bei den Buttons in
+      Abschnitt 4) statt der einheitlichen --r-xl aus wochenansicht.css.
+   3. Eine zweite, weiter gedrehte Fläche dahinter (::before) mit
+      gezacktem clip-path – simuliert ein zerrissenes Pergamentblatt, das
+      unter der eigentlichen (weiterhin rechteckigen, tippbaren) Kachel
+      hervorschaut. Läuft NICHT über den echten Inhalt: die Kachel selbst
+      hat einen opaken Papierton-Hintergrund (--pm-white), der den
+      Überlappungsbereich abdeckt – nur der Rand außerhalb der Kachel
+      (inset: -7px) wird sichtbar. z-index:-1 bleibt dabei innerhalb DER
+      Kachel, weil .wochen-kachel bereits `contain: layout` trägt
+      (wochenansicht.css:670) – das erzeugt selbst einen Stacking-
+      Context, sonst könnte die Zackenfläche hinter FREMDE Nachbar-
+      Kacheln rutschen statt nur hinter die eigene.
+      pointer-events:none, damit der überstehende Rand keine Klicks auf
+      Nachbarelementen abfängt.
+      WICHTIG (im Live-Test gefunden, Bug): .wochen-kachel ist extrem
+      breit-flach (voller Content-Breite, ~1250×300px), keine quadratische
+      Kachel wie die Dashboard-Karten. Ein erster Entwurf mit rein
+      prozentualen clip-path-Punkten (z.B. "18% 0%") ergab bei diesem
+      Seitenverhältnis KEINE kleinen Einkerbungen, sondern lange
+      diagonale Keile quer über die ganze Kachel – ein Prozentschritt in
+      der Breite ist hier ein Vielfaches an Pixeln verglichen mit
+      demselben Schritt in der Höhe. Fix: die "Tiefe" jedes Zacks (die
+      Achse senkrecht zur jeweiligen Kante) steht jetzt in FESTEN
+      Pixelwerten (5–11px), nur die Position ENTLANG der Kante bleibt
+      prozentual – dadurch bleibt der Zack-Rand unabhängig vom
+      Seitenverhältnis immer dünn, egal wie breit oder schmal die Kachel
+      gerade ist (auf-/zugeklappt, responsive Breakpoints).
+   Drei zyklische Varianten (:nth-child(3n+…), wie Abschnitt 9) mit
+   jeweils eigenem Rotations-, Radius- UND Zack-Muster, sonst wirkt die
+   "Schatzkarte" wie ein mechanisch wiederholter Stempel statt einzeln
+   hingelegter Blätter. .wochen-kacheln (wochenansicht.js:1851) enthält
+   ausschließlich .wochen-kachel-Kinder desselben Tags – nth-child zählt
+   hier also sauber synchron zu den Dashboard-Karten.
+   !important auf transform aus demselben Grund wie Abschnitt 9: jede
+   .wochen-kachel trägt `animation: fadeIn … both` (base.css) UND wird
+   – siehe wochenansicht.css:1715 – während des KW-Wechsels per
+   `.week-pane--leaving/--entering .wochen-kachel { animation: none; }`
+   wieder abgeschaltet; außerhalb dieses kurzen Fensters gewinnt die
+   fadeIn-Animation (translateY(0)-Endwert) sonst gegen jede normale
+   Deklaration, unabhängig von Spezifität.
+   =================================================================== */
+[data-theme="papier"] .wochen-kachel {
+  position: relative;
+  border-radius: 3px 22px 6px 26px / 16px 4px 20px 3px;
+  transform: rotate(-0.9deg) !important;
+  box-shadow: 3px 5px 12px rgba(90, 60, 20, 0.26), var(--shadow-sm);
+}
+[data-theme="papier"] .wochen-kachel::before {
+  content: "";
+  position: absolute;
+  inset: -7px;
+  z-index: -1;
+  pointer-events: none;
+  background: linear-gradient(160deg, #DCC99C 0%, #C9AF7E 100%);
+  clip-path: polygon(0px 9px, 22% 0px, 100% 7px, calc(100% - 7px) 32%, 100% 100%, 68% calc(100% - 9px), 24% 100%, 0px calc(100% - 11px), 5px 48%);
+  transform: rotate(1.7deg);
+  box-shadow: 0 6px 16px rgba(90, 60, 20, 0.30);
+}
+[data-theme="papier"] .wochen-kachel:nth-child(3n+2) {
+  border-radius: 22px 4px 26px 6px / 4px 16px 3px 20px;
+  transform: rotate(0.7deg) !important;
+}
+[data-theme="papier"] .wochen-kachel:nth-child(3n+2)::before {
+  clip-path: polygon(0px 6px, 15% 0px, 46% 5px, 78% 0px, 100% 9px, calc(100% - 8px) 40%, 100% 72%, calc(100% - 6px) 100%, 60% calc(100% - 7px), 32% 100%, 0px calc(100% - 9px));
+  transform: rotate(-1.5deg);
+}
+[data-theme="papier"] .wochen-kachel:nth-child(3n+3) {
+  border-radius: 5px 18px 4px 24px / 14px 5px 18px 4px;
+  transform: rotate(-0.5deg) !important;
+}
+[data-theme="papier"] .wochen-kachel:nth-child(3n+3)::before {
+  clip-path: polygon(0px 11px, 28% 0px, 58% 6px, 86% 0px, 100% 8px, calc(100% - 5px) 45%, 100% 85%, calc(100% - 9px) 100%, 65% calc(100% - 6px), 20% 100%, 0px calc(100% - 8px));
+  transform: rotate(1.1deg);
+}
+/* Kein prefers-reduced-motion-Block nötig: die Drehung ist eine
+   statische Deklaration, keine Animation/Transition – es gibt hier
+   nichts zu reduzieren (bewusst geprüft, nicht vergessen). */
