@@ -6,6 +6,8 @@ const path = require('node:path');
 
 const FONT_DIR = path.join(__dirname, '..', 'assets', 'fonts');
 const CSS_PATH = path.join(__dirname, '..', 'css', 'theme-papier.css');
+const THEME_JS_PATH = path.join(__dirname, 'theme.js');
+const WOCHENANSICHT_JS_PATH = path.join(__dirname, 'wochenansicht.js');
 
 test('Papierheft-Retro: alle vier Webfont-Dateien liegen vor und sind nicht leer', () => {
   for (const name of ['unifraktur-maguntia.woff2', 'eb-garamond-400.woff2', 'eb-garamond-600.woff2', 'eb-garamond-400italic.woff2']) {
@@ -69,4 +71,10 @@ test('Papierheft-Retro: Eck-Curl-Keyframes für beide Wochenwechsel-Richtungen',
 test('Papierheft-Retro: Curl respektiert prefers-reduced-motion', () => {
   const css = fs.readFileSync(CSS_PATH, 'utf8');
   assert.match(css, /@media \(prefers-reduced-motion: reduce\) \{[\s\S]*?\[data-theme="papier"\] \.week-pane--leaving\[data-dir="next"\][\s\S]*?animation: none;/);
+});
+
+test('Papierheft-Retro: PMPaperCurl-Engine + paintWeekCurl-API existieren in theme.js', () => {
+  const js = fs.readFileSync(THEME_JS_PATH, 'utf8');
+  assert.match(js, /var PMPaperCurl = \(function \(\) \{/);
+  assert.match(js, /paintWeekCurl: function \(canvas, dir\) \{/);
 });

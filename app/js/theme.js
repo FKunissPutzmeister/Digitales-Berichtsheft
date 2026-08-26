@@ -805,6 +805,50 @@
     return { start: start, stop: stop };
   })();
 
+  /* ── Papier-FX: Canvas-Lichtkante fürs Eck-Umblättern ─────────────
+     Kein Dauerloop wie die übrigen FX-Engines (Nebel/Schnee) — läuft nur
+     für die Dauer einer einzelnen Wochenwechsel-Animation (~220ms), dann
+     endet die Schleife von selbst. Gemalt wird KEIN Seiteninhalt (ein
+     Machbarkeits-Spike ergab: DOM-Rasterung über SVG-foreignObject
+     scheitert am echten App-Markup, das nie valides XHTML ist), sondern
+     nur ein schmales, diagonal wanderndes Lichtband über dem CSS-
+     clip-path-Falz (theme-papier.css §6), das die Krümmung zusätzlich
+     zum reinen box-shadow verkauft. */
+  var PMPaperCurl = (function () {
+    var reduceMotion = !!(window.matchMedia &&
+      window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+
+    function paint(canvas, dir) {
+      if (reduceMotion || !canvas) return;
+      var ctx = canvas.getContext('2d');
+      var w = canvas.width, h = canvas.height;
+      var duration = 220;
+      var start = null;
+
+      function frame(now) {
+        if (start === null) start = now;
+        var t = Math.min(1, (now - start) / duration);
+        ctx.clearRect(0, 0, w, h);
+        var pos = dir === 'prev' ? (1 - t) : t;
+        var cx = dir === 'prev' ? pos * w : (1 - pos) * w;
+        var cy = dir === 'prev' ? (1 - pos) * h : pos * h;
+        var alpha = 0.45 * Math.sin(Math.PI * t);
+        if (alpha > 0.01) {
+          var grad = ctx.createLinearGradient(cx - 70, cy - 70, cx + 70, cy + 70);
+          grad.addColorStop(0, 'rgba(255,248,230,0)');
+          grad.addColorStop(0.5, 'rgba(255,248,230,' + alpha.toFixed(3) + ')');
+          grad.addColorStop(1, 'rgba(255,248,230,0)');
+          ctx.fillStyle = grad;
+          ctx.fillRect(0, 0, w, h);
+        }
+        if (t < 1) requestAnimationFrame(frame);
+      }
+      requestAnimationFrame(frame);
+    }
+
+    return { paint: paint };
+  })();
+
   /* ── Christmas-FX: Canvas-Schneefall-Engine ───────────────────────
      Wind-getragene, DICKE Flocken in geringer Dichte (leicht). Anders als
      PMIcelandFX (opakes Schnee-Sturm-Bild) zeichnet diese Engine auf ein
@@ -1646,6 +1690,15 @@
     /** Aktives Custom-Design oder null. */
     getCustom: function () {
       return readStoredCustom();
+    },
+
+    /** Lichtkanten-Effekt fürs Papierheft-Umblättern (no-op außerhalb
+        des papier-Themes, selbst-schützend falls je aus Versehen ohne
+        vorherigen Theme-Check aufgerufen) — von wochenansicht.js beim
+        Wochenwechsel aufgerufen. */
+    paintWeekCurl: function (canvas, dir) {
+      if (readStoredCustom() !== 'papier') return;
+      PMPaperCurl.paint(canvas, dir);
     },
 
     /** Silk-Farbvarianten (für UI-Aufbau) + aktive Farbe/Hue. */
