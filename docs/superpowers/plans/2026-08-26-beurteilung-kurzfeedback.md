@@ -1206,6 +1206,34 @@ git commit -m "feat(beurteilung): Kurzfeedback-Formular + vereinfachte Aktionsle
 Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>"
 ```
 
+- [ ] **Step 8: Nachtrag (Code-Review-Fund) — Toast-Text untertreibt den Empfängerkreis**
+
+Beide Kurzfeedback-Toasts sagen nur "der Azubi" — tatsächlich gehen Abschluss/
+Korrektur-Mails an Azubi UND Ausbildungsleitung (siehe Task 5,
+`ermittleAbschlussEmpfaenger`). Zwei Toast-Texte in `app/js/beurteilung.js`
+korrigieren:
+
+```js
+            Toast.success('Aktualisiert', 'Kurzfeedback wurde aktualisiert (Azubi und Ausbildungsleitung werden benachrichtigt).');
+```
+
+```js
+            Toast.success('Abgeschlossen', 'Kurzfeedback abgeschlossen. Azubi und Ausbildungsleitung wurden benachrichtigt.');
+```
+
+Syntax-Check + Commit:
+
+```bash
+node -c app/js/beurteilung.js
+```
+
+```bash
+git add app/js/beurteilung.js
+git commit -m "fix(beurteilung): Kurzfeedback-Toast nennt Azubi UND Ausbildungsleitung
+
+Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>"
+```
+
 ---
 
 ### Task 12: `beurteilungen-liste.js` — Kurzfeedback-Badge
