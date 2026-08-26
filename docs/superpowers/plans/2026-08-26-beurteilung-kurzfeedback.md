@@ -1276,6 +1276,46 @@ git commit -m "feat(beurteilung): Kurzfeedback-Badge in der Beurteilungen-Liste
 Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>"
 ```
 
+- [ ] **Step 4: Nachtrag (Code-Review-Fund) — Badges überlappen**
+
+**Bug im obigen Snippet selbst:** `.durchlauf-card__badge` ist `position:absolute;
+top/right` (fest für GENAU einen Badge in der Ecke vorgesehen, siehe
+`app/css/abteilungs-planer.css`, Kommentar über der Regel). Zwei Geschwister-
+Badges mit derselben Klasse landen exakt übereinander — betrifft JEDE
+Kurzfeedback-Karte (offen UND abgeschlossen), kein Rand­fall. Fix: der
+Kurzfeedback-Badge bekommt NICHT die `durchlauf-card__badge`-Klasse (keine
+absolute Positionierung), sondern fließt inline in der Namens-/Abteilungszeile
+mit — `.badge` ist bereits `display:inline-flex` und dafür ohne weitere CSS
+geeignet.
+
+Ersetze den `listWrap.innerHTML`-Block erneut:
+
+```js
+    listWrap.innerHTML = `${hinweis}<div class="durchlauf-list">${gefiltert.map(b => `
+      <div class="durchlauf-card durchlauf-card--clickable" data-zuw="${b.zuweisungId}" role="button" tabindex="0">
+        <span class="badge ${b.status === 'abgeschlossen' ? 'badge--genehmigt' : 'badge--grey'} durchlauf-card__badge">
+          ${b.status === 'abgeschlossen' ? 'Abgeschlossen' : 'Offen'}
+        </span>
+        <div class="durchlauf-card__abt">${escapeHtml(displayName(b.azubiName))}${b.abteilung ? ' · ' + escapeHtml(b.abteilung) : ''}${b.typ === 'kurz' ? ' <span class="badge badge--freigegeben">Kurzfeedback</span>' : ''}</div>
+        <div class="durchlauf-card__zeit">${DateUtil.formatDate(b.von)} – ${DateUtil.formatDate(b.bis)}</div>
+      </div>
+    `).join('')}</div>`;
+```
+
+Syntax-Check + Commit + kurzer visueller Check (Kachel mit UND ohne
+Kurzfeedback-Badge nebeneinander betrachten, offen UND abgeschlossen):
+
+```bash
+node -c app/js/beurteilungen-liste.js
+```
+
+```bash
+git add app/js/beurteilungen-liste.js
+git commit -m "fix(beurteilung): Kurzfeedback-Badge ueberlappt nicht mehr mit Status-Badge
+
+Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>"
+```
+
 ---
 
 ### Task 13: `abteilungs-planer.js` — Kurzfeedback-Variante der Abschluss-Kachel
