@@ -22,3 +22,9 @@ test('Papierheft-Retro: theme-papier.css existiert und referenziert beide Font-F
   assert.match(css, /EB Garamond/);
   assert.match(css, /\[data-theme="papier"\]/);
 });
+
+test('Papierheft-Retro: theme-papier.css setzt eigene erstgenehmigt-Statusfarbe (kein Violett-Fallback)', () => {
+  const css = fs.readFileSync(CSS_PATH, 'utf8');
+  assert.match(css, /--status-erstgenehmigt-bg:/);
+  assert.match(css, /--status-erstgenehmigt:/);
+});
