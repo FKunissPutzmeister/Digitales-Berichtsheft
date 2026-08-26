@@ -107,3 +107,13 @@ test('Papierheft-Retro: Logo wird per content:url() getauscht + gewackelt', () =
   assert.match(css, /content: url\("\.\.\/assets\/logo-papier\.png"\);/);
   assert.match(css, /filter: url\("\.\.\/assets\/filters-papier\.svg#roughen"\);/);
 });
+
+test('Papierheft-Retro: Dashboard-Karten rotieren zyklisch (3 Varianten) und bleiben es beim Hover', () => {
+  const css = fs.readFileSync(CSS_PATH, 'utf8');
+  assert.match(css, /\[data-theme="papier"\] \.bento \.b-tile:nth-child\(3n\+1\)/);
+  assert.match(css, /\[data-theme="papier"\] \.bento \.b-tile:nth-child\(3n\+2\)/);
+  assert.match(css, /\[data-theme="papier"\] \.bento \.b-tile:nth-child\(3n\+3\)/);
+  // Hover muss die Rotation MITNEHMEN, nicht durch reines translateY ersetzen
+  // (siehe Plan: sonst "springt" die Karte beim Hover gerade).
+  assert.match(css, /\[data-theme="papier"\] \.bento \.b-tile:nth-child\(3n\+1\):hover \{[\s\S]*?transform: rotate\(-1\.2deg\) translateY\(-2px\);/);
+});
