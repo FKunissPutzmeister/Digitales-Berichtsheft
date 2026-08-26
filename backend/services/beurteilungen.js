@@ -2,7 +2,7 @@
 /* Persistenz + Logik für Beurteilungsbögen. Rechenkern wird aus dem
    Frontend-Kernmodul WIEDERVERWENDET (eine Wahrheit für die Mathematik). */
 const { getPool, sql } = require('../db/connection');
-const { berechne } = require('../../app/js/beurteilung-core.js');
+const { berechne, ermittleTyp } = require('../../app/js/beurteilung-core.js');
 const { ladeKorrekturKontext } = require('./zugriffContext');
 const { verantwortlichFuerZuweisung, ymd } = require('./zugriff');
 const { aktiveVertreteneEmails } = require('./vertretungen');
@@ -86,7 +86,8 @@ async function ladeKriterien(pool, beurteilungId) {
 async function getByZuweisung(pool, zuweisungId) {
   const r = await pool.request()
     .input('zid', sql.Int, zuweisungId)
-    .query(`SELECT Id, ZuweisungId, AzubiOid, Status, IndividuelleBeurteilung, GesamtPunkte, Note,
+    .query(`SELECT Id, ZuweisungId, AzubiOid, Status, Typ, IndividuelleBeurteilung, GesamtPunkte, Note,
+              KurzfeedbackEindruck, KurzfeedbackAuffaelligkeiten, KurzfeedbackEmpfehlung,
               GespraechAm, BeurteiltVon, AbgeschlossenAm, KenntnisnahmeVon, KenntnisnahmeAm,
               KorrigiertVon, KorrigiertAm, ErstelltAm, AktualisiertAm,
               BeurteilerUnterschriftExt, KenntnisnahmeUnterschriftExt,
@@ -116,7 +117,7 @@ async function getByZuweisung(pool, zuweisungId) {
 async function listByAzubi(pool, azubiOid) {
   const r = await pool.request()
     .input('oid', sql.NVarChar(36), azubiOid)
-    .query('SELECT ZuweisungId, Status, Note, GesamtPunkte, AbgeschlossenAm FROM dbo.Beurteilungen WHERE AzubiOid = @oid');
+    .query('SELECT ZuweisungId, Status, Typ, Note, GesamtPunkte, AbgeschlossenAm FROM dbo.Beurteilungen WHERE AzubiOid = @oid');
   return r.recordset;
 }
 
@@ -376,7 +377,7 @@ async function listMeineBeurteilbaren(pool, user, azubiOid) {
 
   const result = await r.query(`
     SELECT z.Id AS ZuweisungId, z.AzubiOid, z.Abteilung, z.Von, z.Bis, u.Name AS AzubiName,
-           b.Status AS BeurteilungStatus
+           b.Status AS BeurteilungStatus, b.Typ AS BeurteilungTyp
     FROM dbo.Zuweisungen z
     JOIN dbo.Users u ON u.Oid = z.AzubiOid
     LEFT JOIN dbo.Beurteilungen b ON b.ZuweisungId = z.Id
@@ -391,11 +392,15 @@ async function listMeineBeurteilbaren(pool, user, azubiOid) {
     von: ymd(row.Von),
     bis: ymd(row.Bis),
     status: row.BeurteilungStatus === 'abgeschlossen' ? 'abgeschlossen' : 'offen',
+    // Solange noch keine Beurteilungen-Zeile existiert (Typ ist dann NULL aus
+    // dem LEFT JOIN), aus den Zuweisungsdaten selbst ableiten — so zeigt die
+    // Liste den erwarteten Prozess auch VOR der ersten Entwurf-Anlage.
+    typ: row.BeurteilungTyp || ermittleTyp(row.Von, row.Bis),
   }));
 }
 
 module.exports = {
-  ladeZuweisung, darfBeurteilen, darfBeurteilungBearbeiten, ermittleAusbildungsleiter, ermittleModus,
+  ladeZuweisung, darfBeurteilen, darfBeurteilungBearbeiten, ermittleAusbildungsleiter, ermittleModus, ermittleTyp,
   getByZuweisung, listByAzubi,
   upsertEntwurf, abschliessen, patchNachAbschluss, kenntnisnahme, ermittleUndErzeugeFaellige,
   listMeineBeurteilbaren, ausbildungsleiterBestaetigen,
