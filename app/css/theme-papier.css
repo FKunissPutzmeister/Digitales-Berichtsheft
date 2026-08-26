@@ -337,18 +337,23 @@ html[data-theme="papier"] * {
    6 · WOCHENWECHSEL – Eck-Umblättern statt Slide
    -------------------------------------------------------------------
    Ersetzt NUR die "leaving"-Slide-Animation aus wochenansicht.css
-   (.week-pane--leaving[data-dir]) durch einen Eck-Curl (clip-path-
-   Sweep + mitlaufender Schlagschatten über filter:drop-shadow, folgt
-   automatisch der aktuellen Schnittkante). "next" startet oben rechts,
-   "prev" spiegelbildlich unten links — eigenes, gespiegeltes Keyframe-
-   Set statt animation-direction:reverse (eine zeitlich rückwärts
-   abgespielte "leaving"-Animation würde am Ende wieder sichtbar statt
-   verschwunden enden, das wäre falsch).
+   (.week-pane--leaving[data-dir]) durch einen Eck-Curl (reiner clip-path-
+   Sweep). "next" startet oben rechts, "prev" spiegelbildlich unten links
+   — eigenes, gespiegeltes Keyframe-Set statt animation-direction:reverse
+   (eine zeitlich rückwärts abgespielte "leaving"-Animation würde am Ende
+   wieder sichtbar statt verschwunden enden, das wäre falsch).
    Timing bewusst an die bestehenden 220ms/260ms-JS-Konstanten in
    wochenansicht.js gebunden (transitionedRender räumt den Klon nach
    260ms hart weg) — NICHT die ~1200ms aus dem ursprünglichen
    Brainstorm-Mockup, sonst wird der Klon mitten in der Animation
    abgeschnitten.
+   KEIN filter:drop-shadow hier (bewusst weggelassen, nicht vergessen):
+   in Kombination mit dem animierten clip-path INNERHALB des
+   overflow:hidden-Stage-Containers (wochenansicht.css .week-pane-anim-
+   stage) rendert Edge/Chromium das komplette Element unsichtbar, obwohl
+   alle Computed Styles korrekt sind — real reproduziert und isoliert
+   verifiziert (Screenshot mit/ohne filter verglichen). Die Tiefenwirkung
+   kommt stattdessen ausschließlich über die Canvas-Lichtkante.
    Die "entering"-Pane bleibt bewusst unverändert (Spring-Slide) — sie
    wird nicht abgeschnitten, nur die "leaving"-Seite bekommt den Curl.
    Kanvas-Lichtkante: siehe PMPaperCurl in js/theme.js, aufgerufen aus
@@ -370,16 +375,13 @@ html[data-theme="papier"] * {
 }
 [data-theme="papier"] .week-pane--leaving[data-dir="next"] {
   animation: papier-week-curl-next 220ms ease-in both;
-  filter: drop-shadow(-5px 6px 9px rgba(61, 44, 20, 0.4));
 }
 [data-theme="papier"] .week-pane--leaving[data-dir="prev"] {
   animation: papier-week-curl-prev 220ms ease-in both;
-  filter: drop-shadow(5px -6px 9px rgba(61, 44, 20, 0.4));
 }
 @media (prefers-reduced-motion: reduce) {
   [data-theme="papier"] .week-pane--leaving[data-dir="next"],
   [data-theme="papier"] .week-pane--leaving[data-dir="prev"] {
     animation: none;
-    filter: none;
   }
 }

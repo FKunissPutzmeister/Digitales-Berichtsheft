@@ -829,9 +829,11 @@
         if (start === null) start = now;
         var t = Math.min(1, (now - start) / duration);
         ctx.clearRect(0, 0, w, h);
-        var pos = dir === 'prev' ? (1 - t) : t;
-        var cx = dir === 'prev' ? pos * w : (1 - pos) * w;
-        var cy = dir === 'prev' ? (1 - pos) * h : pos * h;
+        // next: Lichtband wandert oben-rechts (t=0) -> unten-links (t=1),
+        // spiegelbildlich zum Curl. prev: unten-links (t=0) -> oben-rechts
+        // (t=1) - genau umgekehrt, wie der gespiegelte Curl selbst auch.
+        var cx = dir === 'prev' ? t * w : (1 - t) * w;
+        var cy = dir === 'prev' ? (1 - t) * h : t * h;
         var alpha = 0.45 * Math.sin(Math.PI * t);
         if (alpha > 0.01) {
           var grad = ctx.createLinearGradient(cx - 70, cy - 70, cx + 70, cy + 70);
