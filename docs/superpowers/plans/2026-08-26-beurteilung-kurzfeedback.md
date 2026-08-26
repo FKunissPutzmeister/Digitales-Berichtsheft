@@ -1361,6 +1361,58 @@ git commit -m "feat(beurteilung): Kurzfeedback-Kachel ohne Noten-Anzeige im Abte
 Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>"
 ```
 
+- [ ] **Step 4: Nachtrag (Code-Review-Fund) — `miniCard` zeigt fälschlich "offen" für abgeschlossenes Kurzfeedback**
+
+**Bug:** `miniCard()` (Verlaufs-Übersicht, "Abgeschlossen"-Kacheln) leitet ihr
+"offen"-Badge allein aus `grade` ab — `grade` ist für `Typ='kurz'` immer `null`
+(kein Notenkonzept), also zeigt eine bereits abgeschlossene Kurzfeedback-Kachel
+fälschlich das "offen"-Badge, obwohl der Klick auf dieselbe Kachel zur
+Detailseite mit "Kurzfeedback abgeschlossen" führt — direkter Widerspruch
+zwischen Übersicht und Detail.
+
+Ersetze `miniCard`:
+
+```js
+  function miniCard(r) {
+    const z = r.z;
+    const b = beurtByZuw[z.id];
+    const abgeschlossen = !!(b && b.status === 'abgeschlossen');
+    const istKurz = abgeschlossen && b.typ === 'kurz';
+    const grade = (abgeschlossen && !istKurz && b.note != null)
+      ? b.note.toLocaleString('de-DE', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) : null;
+    return `<a class="dlb-mini-card" href="${detailHref(z)}" style="--edge:${colorFor(z.abteilung)}">
+      <div class="dlb-mini-card__top">
+        <div class="dlb-mini-card__body">
+          <div class="dlb-mini-card__t">${escHtml(z.abteilung || '–')}</div>
+          <div class="dlb-mini-card__date">${DLB_ICO.cal}${DateUtil.formatDate(z.von)} – ${z.bis ? DateUtil.formatDate(z.bis) : 'offen'}</div>
+        </div>
+        ${grade ? `<div class="dlb-grade"><span class="dlb-grade__val">${grade}</span><span class="dlb-grade__cap">Note</span></div>` : ''}
+      </div>
+      <div class="dlb-mini-card__foot">
+        <span class="dlb-ap"><span class="dlb-avatar" style="background:${colorFor(z.abteilung)};color:#fff">${dlbAvatarHTML(z.verantwName, z.verantwOid)}</span><span class="dlb-ap__name">${escHtml(z.verantwName || '–')}</span></span>
+        ${grade ? '' : (istKurz ? `<span class="dlb-beurt dlb-beurt--done">${DLB_ICO.check}Kurzfeedback</span>` : `<span class="dlb-beurt dlb-beurt--open">${DLB_ICO.circle}offen</span>`)}
+      </div>
+    </a>`;
+  }
+```
+
+`stopHtml` (Verlaufs-Rail) zeigt bei fehlender Note bewusst das neutrale
+"beendet" statt "offen" — dort ist NICHTS irreführend, deshalb bewusst NICHT
+angefasst (Scope-Entscheidung, kein Bug).
+
+Syntax-Check + Commit:
+
+```bash
+node -c app/js/abteilungs-planer.js
+```
+
+```bash
+git add app/js/abteilungs-planer.js
+git commit -m "fix(beurteilung): miniCard zeigt Kurzfeedback nicht mehr faelschlich als offen
+
+Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>"
+```
+
 ---
 
 ### Task 14: Manuelle End-to-End-Verifikation
