@@ -24,12 +24,19 @@ async function ladeZuweisung(pool, zuweisungId) {
   };
 }
 
-// Darf der Nutzer die Beurteilung dieser Zuweisung bearbeiten?
+// Darf der Nutzer die Beurteilung dieser Zuweisung ANSEHEN? Breiter als
+// darfBeurteilungBearbeiten: zusätzlich dauerhafter Ausbilder UND (neu) die
+// zuständige Ausbildungsleitung — beide dürfen nur ansehen, nicht bearbeiten.
+// Ohne den Ausbildungsleiter-Zusatz würde der direkte Mail-/Mitteilungs-Link
+// aus dem Kurzfeedback-Abschluss (siehe ermittleAbschlussEmpfaenger) bei ihr
+// regelmäßig in 403 laufen.
 async function darfBeurteilen(user, zuweisung, pool) {
   if (!zuweisung) return false;
   if (user.role === 'developer' || user.role === 'admin') return true;
   const kontext = await ladeKorrekturKontext(pool, user);
-  return verantwortlichFuerZuweisung(user, zuweisung, kontext);
+  if (verantwortlichFuerZuweisung(user, zuweisung, kontext)) return true;
+  const ausbildungsleiterOid = await ermittleAusbildungsleiter(pool, zuweisung.azubiOid);
+  return !!ausbildungsleiterOid && ausbildungsleiterOid === user.oid;
 }
 
 // Eng: darf NUR der zeitlich zugewiesene Prüfer (E-Mail-Match) ODER admin/
