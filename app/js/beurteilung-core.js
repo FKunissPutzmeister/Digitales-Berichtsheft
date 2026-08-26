@@ -143,6 +143,19 @@
   function stufeFuerPunkte(p) { p = clampPunkte(p); for (const s of STUFEN) if (p >= s.min) return s.stufe; return 6; }
   function noteFuerPunkte(p) { return PUNKTE_ZU_NOTE[clampPunkte(p)]; }
 
+  // Schwelle für den vereinfachten "Kurzfeedback"-Prozess (siehe Design-Spec
+  // 2026-08-26-beurteilung-kurzfeedback-design.md): Zuweisungen bis
+  // einschließlich 14 Tage bekommen statt der großen Beurteilung 3 freie
+  // Leitfragen ohne Note. von/bis: Date-Objekte ODER 'YYYY-MM-DD'-Strings
+  // (Backend liefert SQL-Date-Objekte, Frontend meist Strings — new Date()
+  // versteht beide). Ohne von/bis konservativ 'gross' (voller Prozess).
+  const MS_PRO_TAG = 24 * 60 * 60 * 1000;
+  function ermittleTyp(von, bis) {
+    if (!von || !bis) return 'gross';
+    const tage = Math.round((new Date(bis) - new Date(von)) / MS_PRO_TAG) + 1; // inklusive
+    return tage <= 14 ? 'kurz' : 'gross';
+  }
+
   // punkte: absteigend sortiertes Array (z.B. [99,98] oder [40,39,38]).
   // Formatierung exakt wie im IHK-Original: 1 Wert -> Zahl, 2 -> "X + Y", 3+ -> "X - Y".
   function formatPunkteGruppe(punkte) {
@@ -400,7 +413,7 @@
     ov.classList.add('open');
   }
 
-  const api = { KRITERIEN, BLOECKE, BLOCK_LABELS, STUFEN, PUNKTE_ZU_NOTE, clampPunkte, stufeFuerPunkte, noteFuerPunkte, formatPunkteGruppe, notenschluesselZeilen, berechne, renderForm, openKatalogModal, openNotenschluesselModal };
+  const api = { KRITERIEN, BLOECKE, BLOCK_LABELS, STUFEN, PUNKTE_ZU_NOTE, clampPunkte, stufeFuerPunkte, noteFuerPunkte, formatPunkteGruppe, notenschluesselZeilen, ermittleTyp, berechne, renderForm, openKatalogModal, openNotenschluesselModal };
   if (typeof module !== 'undefined' && module.exports) module.exports = api; // Node/Tests/Backend
   root.Beurteilung = Object.assign(root.Beurteilung || {}, api);             // Browser
 })(typeof window !== 'undefined' ? window : globalThis);
