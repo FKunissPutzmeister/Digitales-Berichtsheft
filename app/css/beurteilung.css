@@ -43,7 +43,8 @@
   font-weight: var(--fw-medium);
   color: var(--pm-grey-900);
 }
-.beurt__katalog-btn { grid-column: 1 / -1; justify-self: start; margin-top: var(--sp-1); }
+.beurt__referenzen { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: var(--sp-3); margin-top: var(--sp-1); }
+.beurt__ref-btn { display: inline-flex; align-items: center; gap: var(--sp-2); }
 
 /* ── Kriterien-Tabelle ── */
 .beurt-tablewrap { overflow-x: auto; margin: 0; }
@@ -201,6 +202,35 @@
   font-size: var(--text-sm);
 }
 .katalog-krit__stufen li { line-height: var(--lh-snug); }
+
+/* ── IHK-Notenschlüssel-Modal ── */
+.beurt-noten__table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--text-sm);
+  margin-bottom: var(--sp-4);
+}
+.beurt-noten__table th,
+.beurt-noten__table td {
+  border: 1px solid var(--pm-grey-200);
+  padding: var(--sp-2) var(--sp-3);
+  text-align: left;
+  vertical-align: middle;
+}
+.beurt-noten__table thead th {
+  background: var(--pm-grey-50);
+  color: var(--pm-grey-700);
+  font-weight: var(--fw-bold);
+}
+.beurt-noten__pdf-link {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-1);
+  color: var(--pm-yellow-darker);
+  font-weight: var(--fw-medium);
+  font-size: var(--text-sm);
+}
+.beurt-noten__pdf-link:hover { text-decoration: underline; }
 
 /* ── DH-Variante: einspaltiger Kopf (kompakter) ── */
 .beurt-page--dh .beurt__kopf { grid-template-columns: 1fr; }
