@@ -1454,3 +1454,79 @@ Als Prüfer/Ausbilder (passwortloser Demo-Login, `.demo`-Konto) einloggen und:
 
 Bei Abweichungen: zurück zum jeweiligen Task, Code korrigieren, Schritt 3 wiederholen.
 Kein Commit in diesem Task (reine Verifikation).
+
+Live-Verifikation gegen einen echten Server/DB konnte in dieser Session NICHT
+durchgeführt werden (kein `.env`/DB-Zugriff im isolierten Worktree, Migrationen
+039+040 sind mangels DDL-Rechten noch nicht gegen die Dev-DB eingespielt). Statt
+dessen als Ersatzverifikation durchgeführt und grün: `node -c` auf allen 11
+geänderten Dateien, volle `node --test`-Suite (19/19 grün, inkl. aller neuen
+Kurzfeedback-Tests). Echte Browser-E2E gegen `localhost:3000` steht noch aus,
+sobald die Migrationen eingespielt sind.
+
+---
+
+### Task 15: Backend — Ausbildungsleitung darf Kurzfeedback ansehen
+
+**Nachtrag (finaler Gesamt-Code-Review-Fund):** Die Kurzfeedback-Mail/-Mitteilung
+schickt der Ausbildungsleitung einen direkten Link auf die Beurteilungsseite
+(`beurteilung.html?zuw=...`, Task 5). Der Ansehen-Zugriff dahinter
+(`svc.darfBeurteilen()`, genutzt in `GET /api/beurteilungen` UND
+`GET /api/beurteilungen/:id/unterschrift/:rolle`) prüft aber nur
+`verantwortlichFuerZuweisung()` — dauerhafter Ausbilder (`AusbilderAzubis`)
+ODER zeitlich zugewiesener Prüfer (`VerantwEmail`) — und kennt die
+Ausbildungsleiter-Rolle (`ermittleAusbildungsleiter()`, bereits im selben File
+vorhanden) überhaupt nicht. `ermittleModus()`s eigener Ausbildungsleiter-Zweig
+wird nie erreicht, weil die Route schon vorher mit 403 antwortet. Das ist eine
+VORBESTEHENDE Lücke aus dem Ausbildungsleiter-Feature (2026-08-21) — aber DIESER
+Plan macht sie erstmals aktiv: jede abgeschlossene Kurzfeedback-Beurteilung
+schickt der Ausbildungsleitung genau diesen Link, der bei ihr routinemäßig in
+403 läuft, sofern sie nicht zufällig auch dauerhafter Ausbilder oder
+VerantwEmail-Empfänger für denselben Azubi ist.
+
+**Files:**
+- Modify: `backend/services/beurteilungen.js:27-33` (`darfBeurteilen`)
+
+- [ ] **Step 1: `darfBeurteilen` um Ausbildungsleiter-Zugriff erweitern**
+
+Ersetze die Funktion:
+
+```js
+// Darf der Nutzer die Beurteilung dieser Zuweisung ANSEHEN? Breiter als
+// darfBeurteilungBearbeiten: zusätzlich dauerhafter Ausbilder UND (neu) die
+// zuständige Ausbildungsleitung — beide dürfen nur ansehen, nicht bearbeiten.
+// Ohne den Ausbildungsleiter-Zusatz würde der direkte Mail-/Mitteilungs-Link
+// aus dem Kurzfeedback-Abschluss (siehe ermittleAbschlussEmpfaenger) bei ihr
+// regelmäßig in 403 laufen.
+async function darfBeurteilen(user, zuweisung, pool) {
+  if (!zuweisung) return false;
+  if (user.role === 'developer' || user.role === 'admin') return true;
+  const kontext = await ladeKorrekturKontext(pool, user);
+  if (verantwortlichFuerZuweisung(user, zuweisung, kontext)) return true;
+  const ausbildungsleiterOid = await ermittleAusbildungsleiter(pool, zuweisung.azubiOid);
+  return !!ausbildungsleiterOid && ausbildungsleiterOid === user.oid;
+}
+```
+
+Hinweis: `zuweisung.azubiOid` — `ladeZuweisung()` (dieselbe Datei) liefert das
+Feld bereits unter genau diesem camelCase-Namen, keine Anpassung an anderer
+Stelle nötig. `ermittleAusbildungsleiter` steht bereits vor `darfBeurteilen`
+in derselben Datei (keine neue Importzeile nötig).
+
+- [ ] **Step 2: Syntax-Check**
+
+Run: `node -c backend/services/beurteilungen.js`
+Expected: kein Output.
+
+- [ ] **Step 3: Commit**
+
+```bash
+git add backend/services/beurteilungen.js
+git commit -m "fix(beurteilung): Ausbildungsleitung darf Kurzfeedback/Beurteilung ansehen
+
+Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>"
+```
+
+**Out of Scope (bewusst):** `darfBeurteilungBearbeiten` bleibt unverändert eng
+(nur zeitlich zugewiesener Prüfer, siehe Design-Spec 2026-08-21) — die
+Ausbildungsleitung soll weiterhin nur ansehen, nicht bearbeiten können. Diese
+Änderung betrifft ausschließlich den Ansehen-Pfad.
