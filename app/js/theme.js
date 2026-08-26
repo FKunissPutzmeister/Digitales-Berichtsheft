@@ -26,7 +26,7 @@
 (function () {
   var STORAGE_KEY = 'theme';        // Standard-Modus: 'light' | 'dark'
   var CUSTOM_KEY  = 'customTheme';  // Custom-Design oder nicht gesetzt
-  var CUSTOM_THEMES = ['hyperspace', 'cmd', 'candy', 'silk', 'halloween', 'christmas'];
+  var CUSTOM_THEMES = ['hyperspace', 'cmd', 'candy', 'silk', 'halloween', 'christmas', 'papier'];
   var html = document.documentElement;
 
   /* ── Perf-Lite: Software-Rendering erkennen ───────────────────────

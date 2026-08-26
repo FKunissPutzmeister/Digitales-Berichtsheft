@@ -1,0 +1,201 @@
+/* ===================================================================
+   THEME-PAPIER.CSS – Papierheft-Retro: vergilbtes Pergament-Manuskript
+   -------------------------------------------------------------------
+   Wird von jeder HTML-Seite als eigenes <link>-Stylesheet DIREKT VOR
+   themes.css geladen (dort liegen die geteilten Blöcke: #pmThemeFX-
+   Basis, Modal-FX-Pause, prefers-reduced-motion, print).
+   Diese Datei gehört EXKLUSIV dem Papierheft-Retro-Theme.
+
+   Phase 1 (dieses File): Grundfläche + Typografie + Token-Remap.
+   Buttons/Status-Chips, Federspitzen-Cursor, Eck-Curl-Umblättern beim
+   Wochenwechsel, handgezeichnetes Logo und Sidebar-Icons im
+   Gravur-Stil folgen als separate Phasen (siehe Spec-Dokument
+   docs/superpowers/specs/2026-08-26-papierheft-retro-theme-design.md).
+
+   Kein #pmThemeFX-Canvas, keine body::before/::after-Ambient-Animation
+   – die Grundfläche ist bewusst statisch (Pergament altert nicht live).
+   =================================================================== */
+
+@font-face {
+  font-family: 'Unifraktur Maguntia';
+  src: url('../assets/fonts/unifraktur-maguntia.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'EB Garamond';
+  src: url('../assets/fonts/eb-garamond-400.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'EB Garamond';
+  src: url('../assets/fonts/eb-garamond-600.woff2') format('woff2');
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'EB Garamond';
+  src: url('../assets/fonts/eb-garamond-400italic.woff2') format('woff2');
+  font-weight: 400;
+  font-style: italic;
+  font-display: swap;
+}
+
+html[data-theme="papier"] { color-scheme: light; }
+
+/* ===================================================================
+   1 · TOKEN-BLOCK – Sepia-Pergament + Indigo-Tinte
+   =================================================================== */
+[data-theme="papier"] {
+  /* Typografie: Überschriften Blackletter, Fließtext klassischer Buchdruck */
+  --font-heading: 'Unifraktur Maguntia', Georgia, 'Times New Roman', serif;
+  --font-body:    'EB Garamond', Georgia, 'Times New Roman', serif;
+
+  /* Akzent: Indigo-Tinte ersetzt das Marken-Gelb */
+  --pm-yellow:          #2C3A5C;
+  --pm-yellow-dark:     #22304C;
+  --pm-yellow-darker:   #1C2740;
+  --pm-yellow-light:    #4A5C8A;
+  --pm-yellow-pale:     rgba(44, 58, 92, 0.22);
+  --pm-yellow-bg:       rgba(44, 58, 92, 0.10);
+  --on-yellow-text:     #F0E8D2;
+
+  /* Status-Streifen "Tag fertig": gedämpftes Waldgrün statt neutralem Grün */
+  --color-status-done:  #4E7D4E;
+
+  /* Grau-Skala → warmes Sepia-Pergament (Karten = Papierton,
+     dunkelster Wert 900 = tiefe Tinte für Headings/Strong-Text) */
+  --pm-white:           #E9D9B3;   /* Karten / Modal / Form-Control = Papierton */
+  --pm-grey-50:         #E3D1A5;   /* Body-Hintergrund, etwas dunkler */
+  --pm-grey-100:        #DCC99C;   /* sub-surface / Hover-BG */
+  --pm-grey-200:        #CBB583;   /* Default-Borders */
+  --pm-grey-300:        #B9A06A;   /* stärkere Borders / Icons */
+  --pm-grey-400:        #96835C;   /* Mute (≥ 4.5:1 auf Papierton) */
+  --pm-grey-500:        #7A6B4A;   /* Sekundär-Text */
+  --pm-grey-600:        #6B5436;   /* Sekundär-Text (emphasized) */
+  --pm-grey-700:        #5A4429;   /* Body-Text */
+  --pm-grey-800:        #4A3620;   /* Strong-Text */
+  --pm-grey-900:        #3D2C14;   /* Headings, tiefste Tinte */
+
+  /* Status-Tints als Overlays, passend zu den in der Spec entschiedenen
+     Chip-Farben (Genehmigt=Waldgrün, Abgelehnt=Wachssiegel-Rot,
+     Offen=Ocker/Braun); Info/Freigegeben aus der Indigo-Akzentfamilie
+     abgeleitet (in der Spec nicht separat entschieden). */
+  --color-success-light: rgba(60, 110, 60, 0.18);
+  --color-error-light:   rgba(122, 42, 28, 0.20);
+  --color-info-light:    rgba(44, 58, 92, 0.16);
+  --color-warning-light: rgba(90, 70, 30, 0.18);
+  --color-error-mid:     #7A2A1C;
+  --color-info-mid:      #2C3A5C;
+  --status-offen-bg:        rgba(90, 70, 30, 0.18);
+  --status-freigegeben-bg:  rgba(44, 58, 92, 0.18);
+  --status-genehmigt-bg:    rgba(60, 110, 60, 0.18);
+  --status-abgelehnt-bg:    rgba(122, 42, 28, 0.20);
+
+  /* Sepia-getönte Schatten statt neutralem Blauschwarz */
+  --shadow-xs:  0 1px 2px rgba(90, 60, 20, 0.10);
+  --shadow-sm:  0 1px 2px rgba(90, 60, 20, 0.10), 0 1px 3px rgba(90, 60, 20, 0.14);
+  --shadow-md:  0 2px 4px rgba(90, 60, 20, 0.10), 0 4px 12px rgba(90, 60, 20, 0.16);
+  --shadow-lg:  0 4px 8px rgba(90, 60, 20, 0.12), 0 12px 28px rgba(90, 60, 20, 0.20);
+  --shadow-xl:  0 8px 16px rgba(90, 60, 20, 0.14), 0 24px 48px rgba(90, 60, 20, 0.26);
+  --shadow-yellow:    0 4px 16px rgba(44, 58, 92, 0.28);
+  --shadow-yellow-lg: 0 8px 32px rgba(44, 58, 92, 0.36);
+
+  /* Inverse Surfaces / Topbar / Overlay */
+  --sidebar-bg:           #3D2C14;
+  --inverse-surface:      #3D2C14;
+  --inverse-surface-soft: #4A3620;
+  --inverse-surface-mid:  #5A4429;
+  --topbar-bg-glass:      rgba(233, 217, 179, 0.85);
+  --surface-overlay:      rgba(61, 44, 20, 0.40);
+
+  /* Glass-Token (glass.css) – Pergament-getöntes Glas */
+  --glass-bg:           rgba(233, 217, 179, 0.65);
+  --glass-bg-strong:    rgba(233, 217, 179, 0.85);
+  --glass-bg-tint:      rgba(220, 201, 156, 0.55);
+  --glass-border:       rgba(185, 160, 106, 0.55);
+  --glass-border-soft:  rgba(90, 60, 20, 0.10);
+  --glass-highlight:    rgba(255, 248, 230, 0.55);
+  --ambient-yellow:     rgba(44, 58, 92, 0.08);
+  --ambient-yellow-2:   rgba(122, 42, 28, 0.05);
+  --ambient-neutral:    rgba(122, 100, 60, 0.08);
+
+  /* Liquid-Glass-Pill-Token (Floating Sidebar) */
+  --lg-tint:           rgba(233, 217, 179, 0.62);
+  --lg-tint-strong:    rgba(233, 217, 179, 0.85);
+  --lg-tint-soft:      rgba(233, 217, 179, 0.42);
+  --lg-tint-warm:      rgba(220, 201, 156, 0.50);
+  --lg-sidebar:        rgba(61, 44, 20, 0.88);
+  --lg-border:         rgba(185, 160, 106, 0.45);
+  --lg-border-soft:    rgba(185, 160, 106, 0.22);
+  --lg-edge:           rgba(0, 0, 0, 0.30);
+  --lg-spec:           rgba(255, 248, 230, 0.35);
+  --lg-spec-soft:      rgba(255, 248, 230, 0.14);
+}
+
+/* ===================================================================
+   2 · GRUNDFLÄCHE – Sepia-Pergament, keine Karo-/Heftlinien
+   -------------------------------------------------------------------
+   Statische Textur (kein Animations-/FX-Layer nötig): mehrere radiale
+   Alterungsflecken (Foxing) über einem Sepia-Gradient. Die Ambient-
+   Pseudo-Layer aus glass.css (body::before/::after) bleiben für dieses
+   Theme ungenutzt und werden ausgeblendet.
+   =================================================================== */
+[data-theme="papier"] body::before,
+[data-theme="papier"] body::after {
+  display: none;
+}
+
+[data-theme="papier"] body:not(.login-page) {
+  background:
+    radial-gradient(ellipse at 15% 20%, rgba(120, 80, 30, 0.10) 0%, transparent 35%),
+    radial-gradient(ellipse at 80% 70%, rgba(120, 80, 30, 0.12) 0%, transparent 40%),
+    radial-gradient(ellipse at 60% 15%, rgba(90, 60, 20, 0.08) 0%, transparent 30%),
+    linear-gradient(180deg, #E9D9B3 0%, #E3D1A5 100%);
+}
+
+/* ===================================================================
+   3 · SIDEBAR-TEXTKONTRAST + DASHBOARD-GLASKARTEN
+   -------------------------------------------------------------------
+   Zwei Stellen im bestehenden CSS hängen hart an konkreten Themes
+   ([data-theme="dark"]) bzw. an fixen Weiß-Werten und erben deshalb
+   NICHT automatisch aus dem Token-Block oben – erst beim echten
+   Rendern sichtbar geworden (visuelle Prüfung, Task 8):
+
+   • .sidebar__link/.active (glass.css) fällt ohne eigenen Eintrag auf
+     --pm-grey-700 bzw. --pm-yellow zurück – beides dunkle Töne, auf
+     dem ebenfalls dunklen --sidebar-bg praktisch unlesbar.
+   • .b-tile--glass (dashboard.css) ist ein hartcodiertes weißes Glas
+     (rgba(255,255,255,…)), nur für [data-theme="dark"] gespiegelt –
+     Custom-Themes wie candy erben das unverändert (dort tolerierbar,
+     weil dort nicht die Kernaussage), für papier aber ein direkter
+     Bruch mit dem Pergament-Grundflächen-Ziel dieser Phase.
+   Weitere hartcodierte Weiß-Stellen an anderen Seiten sind wahrscheinlich
+   (dashboard.css ist groß) – die werden iterativ in Folge-Phasen
+   nachgezogen, sobald sie beim Testen auffallen, nicht pauschal
+   vorab gejagt.
+   =================================================================== */
+[data-theme="papier"] .sidebar__link {
+  color: rgba(233, 217, 179, 0.72);
+}
+[data-theme="papier"] .sidebar__link:hover {
+  color: #F0E8D2;
+}
+[data-theme="papier"] .sidebar__link.active {
+  color: #E9D9B3;
+  background: rgba(233, 217, 179, 0.14);
+}
+
+[data-theme="papier"] .b-tile--glass {
+  background: linear-gradient(180deg, rgba(233, 217, 179, 0.85) 0%, rgba(233, 217, 179, 0.65) 100%);
+  border: 1px solid rgba(185, 160, 106, 0.55);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 248, 230, 0.55),
+    inset 0 -1px 0 rgba(90, 60, 20, 0.10),
+    0 1px 2px rgba(90, 60, 20, 0.10),
+    0 12px 32px -8px rgba(90, 60, 20, 0.20);
+}

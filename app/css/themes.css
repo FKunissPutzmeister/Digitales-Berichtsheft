@@ -80,6 +80,7 @@ html[data-theme="hyperspace"] .sidebar__theme-toggle,
 html[data-theme="cmd"]        .sidebar__theme-toggle,
 html[data-theme="candy"]      .sidebar__theme-toggle,
 html[data-theme="christmas"]  .sidebar__theme-toggle,
+html[data-theme="papier"]     .sidebar__theme-toggle,
 html[data-skin]               .sidebar__theme-toggle {
   display: none !important;
 }

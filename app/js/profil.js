@@ -38,6 +38,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     { id: 'silk',       name: 'Silk',       sub: 'Liquid Glass · futuristisch' },
     { id: 'cmd',        name: 'CMD',        sub: 'Terminal, Grün auf Schwarz' },
     { id: 'candy',      name: 'Candy Land', sub: 'Pastell & Regenbogen' },
+    { id: 'papier',     name: 'Papierheft', sub: 'Vergilbtes Pergament-Manuskript' },
     { id: 'halloween',  name: 'Halloween',  sub: 'Geisterhaus & Nebel' },
     { id: 'christmas',  name: 'Christmas',  sub: 'Verschneit & festlich' },
   ].filter(d => isDeveloper || !SEASONAL_DESIGNS.includes(d.id));
