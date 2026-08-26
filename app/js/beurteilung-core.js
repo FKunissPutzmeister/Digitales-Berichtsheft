@@ -143,6 +143,14 @@
   function stufeFuerPunkte(p) { p = clampPunkte(p); for (const s of STUFEN) if (p >= s.min) return s.stufe; return 6; }
   function noteFuerPunkte(p) { return PUNKTE_ZU_NOTE[clampPunkte(p)]; }
 
+  // punkte: absteigend sortiertes Array (z.B. [99,98] oder [40,39,38]).
+  // Formatierung exakt wie im IHK-Original: 1 Wert -> Zahl, 2 -> "X + Y", 3+ -> "X - Y".
+  function formatPunkteGruppe(punkte) {
+    if (punkte.length === 1) return String(punkte[0]);
+    if (punkte.length === 2) return `${punkte[1]} + ${punkte[0]}`;
+    return `${punkte[punkte.length - 1]} - ${punkte[0]}`;
+  }
+
   // punkteByKey: { key: number|null }. Block-Ø über die FESTE Kriterienzahl.
   function berechne(punkteByKey) {
     punkteByKey = punkteByKey || {};
@@ -330,7 +338,7 @@
     ov.classList.add('open');
   }
 
-  const api = { KRITERIEN, BLOECKE, BLOCK_LABELS, STUFEN, PUNKTE_ZU_NOTE, clampPunkte, stufeFuerPunkte, noteFuerPunkte, berechne, renderForm, openKatalogModal };
+  const api = { KRITERIEN, BLOECKE, BLOCK_LABELS, STUFEN, PUNKTE_ZU_NOTE, clampPunkte, stufeFuerPunkte, noteFuerPunkte, formatPunkteGruppe, berechne, renderForm, openKatalogModal };
   if (typeof module !== 'undefined' && module.exports) module.exports = api; // Node/Tests/Backend
   root.Beurteilung = Object.assign(root.Beurteilung || {}, api);             // Browser
 })(typeof window !== 'undefined' ? window : globalThis);

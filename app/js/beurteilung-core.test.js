@@ -80,3 +80,11 @@ test('berechne: kaufmännische Rundung (Gesamt 82,5 -> 83)', () => {
   assert.equal(r.gesamt, 82.5);
   assert.equal(r.note, B.noteFuerPunkte(83)); // Math.round(82.5)=83 -> 2,2
 });
+
+test('formatPunkteGruppe formatiert wie im Original-PDF', () => {
+  assert.equal(B.formatPunkteGruppe([100]), '100');
+  assert.equal(B.formatPunkteGruppe([99, 98]), '98 + 99');
+  assert.equal(B.formatPunkteGruppe([40, 39, 38]), '38 - 40');
+  assert.equal(B.formatPunkteGruppe([28, 27, 26, 25, 24, 23]), '23 - 28');
+  assert.equal(B.formatPunkteGruppe([5, 4, 3, 2, 1, 0]), '0 - 5');
+});
