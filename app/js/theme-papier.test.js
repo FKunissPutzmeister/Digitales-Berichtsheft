@@ -154,6 +154,22 @@ test('Papierheft-Retro: Wochen-Kacheln (Schreib-Flächen) sind wie Schatzkarten-
   assert.match(css, /\[data-theme="papier"\] \.wochen-kachel::before \{[\s\S]*?pointer-events: none;/);
 });
 
+test('Papierheft-Retro: Wochen-Kacheln haben einen versengten Rand (nicht nur ausgefranst)', () => {
+  // Nach Live-Feedback mit Referenzbild ("wie eine echte Schatzkarte") von
+  // ein paar kleinen Kerben auf einen durchgehend ausgefransten UND dunkel
+  // eingebrannten Rand umgestellt — drei gestaffelte innere Schlagschatten
+  // (eng/dunkel bis breit/weich) simulieren das Versengte.
+  const css = fs.readFileSync(CSS_PATH, 'utf8');
+  const beforeBlock = css.match(/\[data-theme="papier"\] \.wochen-kachel::before \{[\s\S]*?\n\}/);
+  assert.ok(beforeBlock, '.wochen-kachel::before-Regel nicht gefunden');
+  const block = beforeBlock[0];
+  const insetShadowCount = (block.match(/inset 0 0 /g) || []).length;
+  assert.ok(insetShadowCount >= 3, `Erwarte mindestens 3 gestaffelte innere Schlagschatten, gefunden: ${insetShadowCount}`);
+  // Rundum ausgefranst statt nur ein paar Kerben: deutlich mehr clip-path-Punkte.
+  const pointCount = (block.match(/,/g) || []).length;
+  assert.ok(pointCount >= 18, `Erwarte einen deutlich ausgefransteren Umriss (≥18 Punkte), gefunden: ${pointCount}`);
+});
+
 test('Papierheft-Retro: Logo wird per content:url() getauscht + gewackelt', () => {
   const css = fs.readFileSync(CSS_PATH, 'utf8');
   assert.match(css, /\[data-theme="papier"\] \.sidebar__logo-mark,/);

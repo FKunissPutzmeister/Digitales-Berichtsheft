@@ -493,7 +493,7 @@ html[data-theme="papier"] * {
 }
 
 /* ===================================================================
-   10 · WOCHEN-KACHELN – "Schatzkarte": schräg, ungleiche Ecken, zerrissener Rand
+   10 · WOCHEN-KACHELN – "Schatzkarte": angesengtes, zerrissenes Pergament
    -------------------------------------------------------------------
    Die eigentlichen Schreib-Kacheln (.wochen-kachel, wochenansicht.js:1973
    – Betrieb/Schule-Editor pro Tag, NICHT die toten .day-card-Regeln weiter
@@ -506,13 +506,15 @@ html[data-theme="papier"] * {
    2. Ungleiche Eckenradien (Slash-Syntax, wie bei den Buttons in
       Abschnitt 4) statt der einheitlichen --r-xl aus wochenansicht.css.
    3. Eine zweite, weiter gedrehte Fläche dahinter (::before) mit
-      gezacktem clip-path – simuliert ein zerrissenes Pergamentblatt, das
-      unter der eigentlichen (weiterhin rechteckigen, tippbaren) Kachel
-      hervorschaut. Läuft NICHT über den echten Inhalt: die Kachel selbst
-      hat einen opaken Papierton-Hintergrund (--pm-white), der den
-      Überlappungsbereich abdeckt – nur der Rand außerhalb der Kachel
-      (inset: -7px) wird sichtbar. z-index:-1 bleibt dabei innerhalb DER
-      Kachel, weil .wochen-kachel bereits `contain: layout` trägt
+      gezacktem clip-path UND dunkel eingebranntem Rand – simuliert ein
+      zerrissenes, am Rand versengtes Pergamentblatt (Referenzbild vom
+      Nutzer: durchgehend unregelmäßig ausgefranster Rand + dunkle
+      "Brandflecken" ringsum, nicht nur ein paar kleine Kerben). Läuft
+      NICHT über den echten Inhalt: die Kachel selbst hat einen opaken
+      Papierton-Hintergrund (--pm-white), der den Überlappungsbereich
+      abdeckt – nur der Rand außerhalb der Kachel (inset: -14px) wird
+      sichtbar. z-index:-1 bleibt dabei innerhalb DER Kachel, weil
+      .wochen-kachel bereits `contain: layout` trägt
       (wochenansicht.css:670) – das erzeugt selbst einen Stacking-
       Context, sonst könnte die Zackenfläche hinter FREMDE Nachbar-
       Kacheln rutschen statt nur hinter die eigene.
@@ -526,11 +528,18 @@ html[data-theme="papier"] * {
       diagonale Keile quer über die ganze Kachel – ein Prozentschritt in
       der Breite ist hier ein Vielfaches an Pixeln verglichen mit
       demselben Schritt in der Höhe. Fix: die "Tiefe" jedes Zacks (die
-      Achse senkrecht zur jeweiligen Kante) steht jetzt in FESTEN
-      Pixelwerten (5–11px), nur die Position ENTLANG der Kante bleibt
-      prozentual – dadurch bleibt der Zack-Rand unabhängig vom
-      Seitenverhältnis immer dünn, egal wie breit oder schmal die Kachel
-      gerade ist (auf-/zugeklappt, responsive Breakpoints).
+      Achse senkrecht zur jeweiligen Kante) steht in FESTEN Pixelwerten
+      (2–20px, ca. 20 Punkte rundum für einen wirklich ausgefransten
+      Umriss statt nur ein paar Kerben), nur die Position ENTLANG der
+      Kante bleibt prozentual – dadurch bleibt der Zack-Rand unabhängig
+      vom Seitenverhältnis immer im Rahmen, egal wie breit oder schmal
+      die Kachel gerade ist (auf-/zugeklappt, responsive Breakpoints).
+      Die "Brandflecken" kommen aus zwei Teilen, die sich beide am
+      geclippten (also bereits ausgefransten) Umriss orientieren: zwei
+      unregelmäßig platzierte radiale Verlaufsflecken im Hintergrund
+      UND – der eigentliche Effekt – drei gestaffelte innere Schlagschatten
+      (klein/scharf bis breit/weich), die sich am Rand der geclippten
+      Form konzentrieren und wie versengtes Papier wirken.
    Drei zyklische Varianten (:nth-child(3n+…), wie Abschnitt 9) mit
    jeweils eigenem Rotations-, Radius- UND Zack-Muster, sonst wirkt die
    "Schatzkarte" wie ein mechanisch wiederholter Stempel statt einzeln
@@ -554,20 +563,41 @@ html[data-theme="papier"] * {
 [data-theme="papier"] .wochen-kachel::before {
   content: "";
   position: absolute;
-  inset: -7px;
+  inset: -14px;
   z-index: -1;
   pointer-events: none;
-  background: linear-gradient(160deg, #DCC99C 0%, #C9AF7E 100%);
-  clip-path: polygon(0px 9px, 22% 0px, 100% 7px, calc(100% - 7px) 32%, 100% 100%, 68% calc(100% - 9px), 24% 100%, 0px calc(100% - 11px), 5px 48%);
+  background:
+    radial-gradient(ellipse at 18% 22%, rgba(110, 60, 15, 0.30) 0%, transparent 45%),
+    radial-gradient(ellipse at 84% 76%, rgba(110, 60, 15, 0.28) 0%, transparent 48%),
+    linear-gradient(160deg, #DCC99C 0%, #B89968 100%);
+  clip-path: polygon(
+    0% 3px, 9% 14px, 18% 6px, 27% 19px, 36% 2px, 45% 11px, 55% 17px, 64% 4px, 73% 20px, 82% 8px, 91% 15px, 100% 5px,
+    calc(100% - 14px) 20%, calc(100% - 4px) 40%, calc(100% - 18px) 60%, calc(100% - 7px) 80%,
+    100% calc(100% - 9px), 91% calc(100% - 2px), 82% calc(100% - 16px), 73% calc(100% - 5px), 64% calc(100% - 20px), 55% calc(100% - 8px), 45% calc(100% - 3px), 36% calc(100% - 18px), 27% calc(100% - 6px), 18% calc(100% - 13px), 9% calc(100% - 4px), 0% calc(100% - 11px),
+    6px 80%, 17px 60%, 3px 40%, 15px 20%
+  );
   transform: rotate(1.7deg);
-  box-shadow: 0 6px 16px rgba(90, 60, 20, 0.30);
+  /* Versengter Rand: drei gestaffelte innere Schlagschatten (eng/dunkel
+     bis breit/weich) statt einem einzelnen – ergibt einen weichen
+     Verlauf von fast schwarz direkt am (gezackten!) Rand zu warmem Braun
+     weiter innen, genau wie am Referenzbild. */
+  box-shadow:
+    inset 0 0 3px 1px rgba(35, 18, 6, 0.60),
+    inset 0 0 9px 3px rgba(70, 38, 12, 0.50),
+    inset 0 0 20px 7px rgba(100, 58, 18, 0.32),
+    0 6px 16px rgba(90, 60, 20, 0.30);
 }
 [data-theme="papier"] .wochen-kachel:nth-child(3n+2) {
   border-radius: 22px 4px 26px 6px / 4px 16px 3px 20px;
   transform: rotate(0.7deg) !important;
 }
 [data-theme="papier"] .wochen-kachel:nth-child(3n+2)::before {
-  clip-path: polygon(0px 6px, 15% 0px, 46% 5px, 78% 0px, 100% 9px, calc(100% - 8px) 40%, 100% 72%, calc(100% - 6px) 100%, 60% calc(100% - 7px), 32% 100%, 0px calc(100% - 9px));
+  clip-path: polygon(
+    0% 6px, 9% 17px, 18% 3px, 27% 20px, 36% 9px, 45% 2px, 55% 14px, 64% 7px, 73% 18px, 82% 4px, 91% 11px, 100% 8px,
+    calc(100% - 8px) 20%, calc(100% - 19px) 40%, calc(100% - 5px) 60%, calc(100% - 16px) 80%,
+    100% calc(100% - 4px), 91% calc(100% - 13px), 82% calc(100% - 2px), 73% calc(100% - 19px), 64% calc(100% - 6px), 55% calc(100% - 15px), 45% calc(100% - 3px), 36% calc(100% - 17px), 27% calc(100% - 8px), 18% calc(100% - 20px), 9% calc(100% - 5px), 0% calc(100% - 10px),
+    14px 80%, 3px 60%, 18px 40%, 6px 20%
+  );
   transform: rotate(-1.5deg);
 }
 [data-theme="papier"] .wochen-kachel:nth-child(3n+3) {
@@ -575,7 +605,12 @@ html[data-theme="papier"] * {
   transform: rotate(-0.5deg) !important;
 }
 [data-theme="papier"] .wochen-kachel:nth-child(3n+3)::before {
-  clip-path: polygon(0px 11px, 28% 0px, 58% 6px, 86% 0px, 100% 8px, calc(100% - 5px) 45%, 100% 85%, calc(100% - 9px) 100%, 65% calc(100% - 6px), 20% 100%, 0px calc(100% - 8px));
+  clip-path: polygon(
+    0% 11px, 9% 2px, 18% 18px, 27% 5px, 36% 15px, 45% 8px, 55% 3px, 64% 20px, 73% 6px, 82% 13px, 91% 4px, 100% 17px,
+    calc(100% - 17px) 20%, calc(100% - 4px) 40%, calc(100% - 20px) 60%, calc(100% - 9px) 80%,
+    100% calc(100% - 2px), 91% calc(100% - 16px), 82% calc(100% - 6px), 73% calc(100% - 20px), 64% calc(100% - 3px), 55% calc(100% - 12px), 45% calc(100% - 7px), 36% calc(100% - 19px), 27% calc(100% - 4px), 18% calc(100% - 15px), 9% calc(100% - 8px), 0% calc(100% - 5px),
+    4px 80%, 19px 60%, 7px 40%, 14px 20%
+  );
   transform: rotate(1.1deg);
 }
 /* Kein prefers-reduced-motion-Block nötig: die Drehung ist eine
