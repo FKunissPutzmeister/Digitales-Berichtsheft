@@ -100,3 +100,10 @@ test('Papierheft-Retro: Logo-Asset + Filter-SVG liegen vor', () => {
   assert.match(svg, /id="roughen-fine"/);
   assert.match(svg, /feDisplacementMap/);
 });
+
+test('Papierheft-Retro: Logo wird per content:url() getauscht + gewackelt', () => {
+  const css = fs.readFileSync(CSS_PATH, 'utf8');
+  assert.match(css, /\[data-theme="papier"\] \.sidebar__logo-mark,/);
+  assert.match(css, /content: url\("\.\.\/assets\/logo-papier\.png"\);/);
+  assert.match(css, /filter: url\("\.\.\/assets\/filters-papier\.svg#roughen"\);/);
+});

@@ -385,3 +385,41 @@ html[data-theme="papier"] * {
     animation: none;
   }
 }
+
+/* ===================================================================
+   7 · LOGO – Putzmeister-Marke, Tinte auf Pergament, handgezeichnet
+   -------------------------------------------------------------------
+   Gleiches Muster wie theme-candy.css:870-879: content:url() tauscht nur
+   unter [data-theme="papier"] das <img>-Bitmap der Marke; alle anderen
+   Themes behalten das Original. Form/Silhouette bleibt vollständig
+   erhalten — nur Farbe (Tinte statt Marken-Gelb/Grau) und Kontur (Wackel-
+   Filter statt digital glatt) ändern sich.
+   Asset: assets/logo-papier.png — aus assets/logo-candy.png per 2-Farben-
+   Remap erzeugt (Hintergrund→transparent statt Pink, Marke→#3D2C14),
+   pixelverifiziert (Rand-Alpha 0, Mitte-Alpha 255).
+   KEINE zweite "Geister"-Kopie (siehe Plan-Dokument, Scope-Entscheidung
+   1) — <img> unterstützt generierte ::before/::after-Inhalte nicht
+   zuverlässig browserübergreifend.
+   =================================================================== */
+[data-theme="papier"] .sidebar__logo-mark,
+[data-theme="papier"] .login-card__mark,
+[data-theme="papier"] .dh-topbar__logo {
+  content: url("../assets/logo-papier.png");
+  filter: url("../assets/filters-papier.svg#roughen");
+}
+
+/* ===================================================================
+   8 · SIDEBAR-ICONS – dezenter Gravur-Wackel
+   -------------------------------------------------------------------
+   Icons bleiben die bestehenden Solar-Icon-Set-Formen aus js/icons.js
+   (AUTO-GENERIERT, nicht von Hand redrawn — siehe Plan-Dokument, Scope-
+   Entscheidung 2) — nur der Wackel-Filter (feinere Variante als das Logo,
+   passend zur kleineren Größe) gibt ihnen einen "handgraviert" wirkenden
+   Kontur-Jitter. Farbe bewusst NICHT verändert: die Icons erben bereits
+   über currentColor die in Phase 1 (Task 8) korrigierte helle
+   Pergament-Farbe von .sidebar__link — ein hartes #5A4A1E hier würde den
+   dort behobenen Dunkel-auf-Dunkel-Kontrastfehler wieder herstellen.
+   =================================================================== */
+[data-theme="papier"] .sidebar__link-icon {
+  filter: url("../assets/filters-papier.svg#roughen-fine");
+}
