@@ -54,20 +54,27 @@ test('Papierheft-Retro: Primär- und Destruktiv-Buttons bekommen sichtbaren, han
   assert.match(css, /\[data-theme="papier"\] \.btn-danger \{[\s\S]*?border-radius: 6px 3px 8px 4px \/ 4px 8px 3px 6px;/);
 });
 
-test('Papierheft-Retro: goldener Federspitzen-Cursor ist gesetzt', () => {
+test('Papierheft-Retro: weißer Federspitzen-Cursor ist gesetzt', () => {
+  // Nach Live-Feedback von Gold auf Weiß umgestellt.
   const css = fs.readFileSync(CSS_PATH, 'utf8');
   assert.match(css, /cursor:\s*url\("data:image\/svg\+xml,/);
-  assert.match(css, /%23c9a227/i); // Gold-Füllung der Feder, URL-encodiert
+  assert.match(css, /%23ffffff/i); // Weiß-Füllung der Feder, URL-encodiert
+  assert.doesNotMatch(css, /%23c9a227/i); // die alte Gold-Füllung darf nicht mehr da sein
 });
 
-test('Papierheft-Retro: Cursor ist als Feder erkennbar (Barben-Strichmuster, nicht nur eine Kite-Silhouette)', () => {
+test('Papierheft-Retro: Cursor ist als Feder erkennbar UND nach rechts geschwungen', () => {
   const css = fs.readFileSync(CSS_PATH, 'utf8');
   // Nach Live-Feedback ("Mauszeiger in eine Feder ändern") von der reinen
   // Kite-Form auf eine Fahne + Kiel + Barben-Hatching umgestellt — das
   // Hatching (mehrere <line>-Paare) ist das eigentliche Erkennungsmerkmal.
   const lineCount = (css.match(/%3Cline /g) || []).length;
   assert.ok(lineCount >= 10, `Erwarte mindestens 10 Barben-Linien im Cursor-SVG, gefunden: ${lineCount}`);
-  assert.match(css, /"\)\s*13 45,\s*auto !important;/); // Hotspot an der Kielspitze
+  assert.match(css, /"\)\s*12 44,\s*auto !important;/); // Hotspot an der Kielspitze
+  // "Nach rechts geschwungen": der Kiel-Pfad muss die Spitze klar nach
+  // rechts UND oben verlassen (nicht mehr eine gerade vertikale Linie wie
+  // in der ersten Version) — Kiel-Pfad endet spürbar rechts vom Hotspot.
+  const spinePath = css.match(/M12 44 C6 37,3 23,9 12 C14 5,21 1,29 0/);
+  assert.ok(spinePath, 'Kiel-Pfad mit Rechtskurve nicht gefunden');
 });
 
 test('Papierheft-Retro: Eck-Curl-Keyframes für beide Wochenwechsel-Richtungen', () => {
@@ -152,6 +159,29 @@ test('Papierheft-Retro: Wochen-Kacheln (Schreib-Flächen) sind wie Schatzkarten-
   assert.match(css, /\[data-theme="papier"\] \.wochen-kachel:nth-child\(3n\+3\)/);
   // Backing-Fläche darf keine Klicks abfangen.
   assert.match(css, /\[data-theme="papier"\] \.wochen-kachel::before \{[\s\S]*?pointer-events: none;/);
+});
+
+test('Papierheft-Retro: Kachel selbst (nicht nur die Fläche dahinter) hat einen echten gezackten Umriss', () => {
+  // Live-Feedback: "warum nur ein Overlay statt die Form der Kachel selbst
+  // anzupassen" — clip-path jetzt zusätzlich direkt auf .wochen-kachel,
+  // in allen drei zyklischen Varianten, aber flach genug (max. 8px) um
+  // innerhalb des kleinsten Innenabstands (12px, --sp-3) zu bleiben.
+  const css = fs.readFileSync(CSS_PATH, 'utf8');
+  const baseBlock = css.match(/\[data-theme="papier"\] \.wochen-kachel \{[\s\S]*?\n\}/);
+  assert.ok(baseBlock, '.wochen-kachel-Basisregel nicht gefunden');
+  assert.match(baseBlock[0], /clip-path: polygon\(/);
+  const variant2Block = css.match(/\[data-theme="papier"\] \.wochen-kachel:nth-child\(3n\+2\) \{[\s\S]*?\n\}/);
+  const variant3Block = css.match(/\[data-theme="papier"\] \.wochen-kachel:nth-child\(3n\+3\) \{[\s\S]*?\n\}/);
+  assert.ok(variant2Block && /clip-path: polygon\(/.test(variant2Block[0]), 'Variante 3n+2 hat keinen eigenen clip-path');
+  assert.ok(variant3Block && /clip-path: polygon\(/.test(variant3Block[0]), 'Variante 3n+3 hat keinen eigenen clip-path');
+  // Sicherheits-Obergrenze: kein Zack tiefer als 8px (sonst Risiko, echten
+  // Inhalt oder das schwebende Tabellen-Zellenmenü anzuschneiden, siehe
+  // Kommentar in Abschnitt 10). NUR den clip-path-Wert selbst prüfen, nicht
+  // den ganzen Regel-Block (der box-shadow enthält auch px-Werte >8).
+  const clipPathValue = baseBlock[0].match(/clip-path: polygon\(([\s\S]*?)\);/)[1];
+  const allDepths = [...clipPathValue.matchAll(/(\d+)px/g)].map(m => Number(m[1]));
+  assert.ok(allDepths.length > 0, 'keine px-Zacktiefen im clip-path gefunden');
+  assert.ok(allDepths.every(d => d <= 8), `Zack-Tiefe über 8px gefunden: ${allDepths.filter(d => d > 8)}`);
 });
 
 test('Papierheft-Retro: Wochen-Kacheln haben einen versengten Rand (nicht nur ausgefranst)', () => {

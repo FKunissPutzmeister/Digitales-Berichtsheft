@@ -331,26 +331,28 @@ html[data-theme="papier"] { color-scheme: light; }
 }
 
 /* ===================================================================
-   5 · CURSOR – goldene Schreibfeder
+   5 · CURSOR – weiße, nach rechts geschwungene Schreibfeder
    -------------------------------------------------------------------
-   Ersetzt die frühere Kite-Form (zu abstrakt, im Live-Test nicht klar
-   als Feder erkannt) durch eine echte, lang gezogene Federkontur: ein
-   spitz zulaufendes Federblatt (deutlich höher als breit – eine
-   gestauchte Form las sich im Vergleichs-Rendering eher als Blatt/Tropfen
-   denn als Feder), ein Kiel (Rachis) von der Spitze bis zum Federkopf,
-   und 7 Paar diagonale Federäste (Barben) vom Kiel bis nah an beide
-   Ränder. Das durchgehende Fischgräten-Strichmuster ist das eigentliche
-   Erkennungsmerkmal. Canvas 30×48, Hotspot an der Kielspitze (13, 45)
-   (die "Schreibspitze" der Feder). Farbgebung unverändert (Gold +
-   dunkler Federkiel-Ton) – siehe Test "goldener Federspitzen-Cursor ist
-   gesetzt". Wie zuvor per Universalselektor + !important erzwungen (wie
-   schon ".sidebar__theme-toggle { display: none !important; }" in
+   Nutzer-Feedback: Feder soll WEISS sein (statt Gold) und nach RECHTS
+   geschwungen statt gerade/aufrecht – wie eine Feder mitten in einer
+   Schreibbewegung, nicht wie ein aufrecht stehender Stift. Kiel (Rachis)
+   folgt jetzt selbst einer Rechtskurve (zwei Bézier-Segmente von der
+   Spitze nach oben-rechts), die Fahne ist asymmetrisch um diesen
+   gebogenen Kiel herum aufgebaut (Außenkante/Kurvenaußenseite weiter
+   ausladend als die Innenkante) und die 5 Barben-Paare fächern jeweils
+   senkrecht zur lokalen Kiel-Richtung – nicht mehr parallel wie bei der
+   geraden Version. Canvas 40×46, Hotspot an der Kielspitze (12, 44).
+   Füllung Weiß (#fff) mit warmgrauem Federkiel-Ton als Kontur (kein
+   reines Schwarz – wirkt auf dem dunklen Sidebar-Braun sonst zu hart),
+   das reicht als Kontur auf Pergament wie auf der dunklen Sidebar.
+   Wie zuvor per Universalselektor + !important erzwungen (wie schon
+   ".sidebar__theme-toggle { display: none !important; }" in
    themes.css), statt gegen jede Komponenten-Spezifität einzeln
    anzutreten.
    =================================================================== */
 html[data-theme="papier"],
 html[data-theme="papier"] * {
-  cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='30' height='48'%3E%3Cpath d='M13 45 C7 39,4 27,6 15 C7 8,10 3,13.5 1.5 C17 3,20 8,21 15 C23 27,20 39,14 44 Z' fill='%23c9a227' stroke='%237a5c12' stroke-width='1'/%3E%3Cpath d='M13 45 C12 34,12 20,13 4' fill='none' stroke='%234a3610' stroke-width='0.9'/%3E%3Cline x1='12.3' y1='40' x2='18.3' y2='36' stroke='%234a3610' stroke-width='0.7'/%3E%3Cline x1='12.3' y1='40' x2='7.3' y2='36' stroke='%234a3610' stroke-width='0.7'/%3E%3Cline x1='12' y1='34' x2='20' y2='30' stroke='%234a3610' stroke-width='0.7'/%3E%3Cline x1='12' y1='34' x2='6' y2='30' stroke='%234a3610' stroke-width='0.7'/%3E%3Cline x1='11.8' y1='28' x2='20.8' y2='24' stroke='%234a3610' stroke-width='0.7'/%3E%3Cline x1='11.8' y1='28' x2='5.3' y2='24' stroke='%234a3610' stroke-width='0.7'/%3E%3Cline x1='11.8' y1='22' x2='20.8' y2='18' stroke='%234a3610' stroke-width='0.7'/%3E%3Cline x1='11.8' y1='22' x2='5.3' y2='18' stroke='%234a3610' stroke-width='0.7'/%3E%3Cline x1='12' y1='16' x2='20.5' y2='12' stroke='%234a3610' stroke-width='0.7'/%3E%3Cline x1='12' y1='16' x2='6' y2='12' stroke='%234a3610' stroke-width='0.7'/%3E%3Cline x1='12.3' y1='10' x2='18.3' y2='6' stroke='%234a3610' stroke-width='0.7'/%3E%3Cline x1='12.3' y1='10' x2='7.3' y2='6' stroke='%234a3610' stroke-width='0.7'/%3E%3Cline x1='12.8' y1='5' x2='15.8' y2='2' stroke='%234a3610' stroke-width='0.7'/%3E%3Cline x1='12.8' y1='5' x2='10.3' y2='2' stroke='%234a3610' stroke-width='0.7'/%3E%3C/svg%3E") 13 45, auto !important;
+  cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='40' height='46'%3E%3Cpath d='M12 44 C3 37,-1 22,6 11 C11 4,19 -1,29 -2 Q34 -2,36 3 C33 8,28 14,23 19 C17 25,12 31,15 39 Q13 42,12 44 Z' fill='%23ffffff' stroke='%239a8a6a' stroke-width='1'/%3E%3Cpath d='M12 44 C6 37,3 23,9 12 C14 5,21 1,29 0' fill='none' stroke='%23b0a483' stroke-width='0.8'/%3E%3Cline x1='11' y1='38' x2='14' y2='37' stroke='%23b0a483' stroke-width='0.7'/%3E%3Cline x1='11' y1='38' x2='7' y2='34' stroke='%23b0a483' stroke-width='0.7'/%3E%3Cline x1='9' y1='29' x2='17' y2='27' stroke='%23b0a483' stroke-width='0.7'/%3E%3Cline x1='9' y1='29' x2='5' y2='26' stroke='%23b0a483' stroke-width='0.7'/%3E%3Cline x1='10' y1='20' x2='19' y2='17' stroke='%23b0a483' stroke-width='0.7'/%3E%3Cline x1='10' y1='20' x2='6' y2='18' stroke='%23b0a483' stroke-width='0.7'/%3E%3Cline x1='14' y1='12' x2='22' y2='9' stroke='%23b0a483' stroke-width='0.7'/%3E%3Cline x1='14' y1='12' x2='10' y2='10' stroke='%23b0a483' stroke-width='0.7'/%3E%3Cline x1='20' y1='4' x2='27' y2='1' stroke='%23b0a483' stroke-width='0.7'/%3E%3Cline x1='20' y1='4' x2='17' y2='2' stroke='%23b0a483' stroke-width='0.7'/%3E%3C/svg%3E") 12 44, auto !important;
 }
 
 /* ===================================================================
@@ -505,7 +507,28 @@ html[data-theme="papier"] * {
       Abschnitt 9 – gleiche Begründung, gleicher !important-Grund unten).
    2. Ungleiche Eckenradien (Slash-Syntax, wie bei den Buttons in
       Abschnitt 4) statt der einheitlichen --r-xl aus wochenansicht.css.
-   3. Eine zweite, weiter gedrehte Fläche dahinter (::before) mit
+   3. ECHTER gezackter Umriss auf der Kachel selbst (clip-path direkt auf
+      .wochen-kachel, nicht nur auf der Fläche dahinter) – Nutzer-Feedback:
+      "warum nur ein Overlay statt die Form der Kachel selbst anzupassen".
+      Bewusst FLACH (2–8px Zack-Tiefe): .wochen-kachel__header hat 16px
+      Innenabstand oben/unten (--sp-4), 20px links/rechts (--sp-5); die
+      schmalste Innenabstand-Stelle im ganzen Baum ist 12px (--sp-3,
+      Footer) – 8px Maximaltiefe bleibt damit an JEDER Kante innerhalb
+      des Innenabstands und trifft nie Titel-Text, Toolbar-Icons oder
+      Zeichenzähler. Auch tiefer geprüft und wieder verworfen: das
+      schwebende quill-table-better-Zellenmenü wird per JS als DOM-Kind
+      IN .wochen-kachel eingehängt (nicht in document.body), und
+      .wochen-kachel trägt bereits `contain: layout` (wochenansicht.css:670,
+      aus anderem Grund, siehe unten) – das macht .wochen-kachel zum
+      Containing Block für das Menü, UND clip-path erzeugt selbst einen
+      Stacking-Context, der dessen Rendering mit-clippt. Live an Edge
+      geprüft (echte Tabelle eingefügt, Zellenmenü ausgelöst) – bei 2–8px
+      bleibt es unbeschnitten, weil es im nicht gezackten Innenbereich
+      liegt; ein tieferer Zack direkt an der Stelle, an der das Menü
+      erscheint, würde es abschneiden – exakt der Bug, wegen dem
+      `overflow:hidden` hier früher schon einmal entfernt wurde (T11,
+      Bug 2, siehe .wochen-kachel-Regel weiter oben in dieser Datei).
+   4. Eine zweite, weiter gedrehte Fläche dahinter (::before) mit
       gezacktem clip-path UND dunkel eingebranntem Rand – simuliert ein
       zerrissenes, am Rand versengtes Pergamentblatt (Referenzbild vom
       Nutzer: durchgehend unregelmäßig ausgefranster Rand + dunkle
@@ -557,7 +580,29 @@ html[data-theme="papier"] * {
 [data-theme="papier"] .wochen-kachel {
   position: relative;
   border-radius: 3px 22px 6px 26px / 16px 4px 20px 3px;
+  /* Die Kachel selbst bekommt jetzt einen ECHTEN gezackten Umriss (nicht
+     nur die dekorative Fläche dahinter) – Nutzer-Feedback: "warum nur ein
+     Overlay statt die Form der Kachel selbst anzupassen". Absichtlich
+     FLACH (2–8px) statt so tief wie ::before unten: .wochen-kachel__header
+     hat 16px Innenabstand oben/unten (--sp-4), 20px links/rechts (--sp-5),
+     die schmalste Innenabstand-Stelle im ganzen Kachel-Baum ist 12px
+     (--sp-3, Footer). 8px Maximaltiefe bleibt damit an JEDER Kante sicher
+     innerhalb des Innenabstands – trifft nie den "Betrieb"/"Schule"-Titel,
+     die Toolbar-Icons oder den Zeichenzähler. Live an Edge geprüft (echte
+     Tabelle eingefügt, schwebendes quill-table-better-Zellenmenü ausgelöst
+     UND direkt an die zugeklappte Kachel-Kante gestellt) – bleibt
+     unbeschnitten, weil das Menü immer im nicht gezackten Innenbereich
+     liegt. Tiefer als 8px würde dieses Sicherheitspolster aufbrauchen. */
+  clip-path: polygon(
+    0% 2px, 12% 7px, 25% 3px, 38% 8px, 50% 2px, 62% 6px, 75% 4px, 88% 8px, 100% 3px,
+    calc(100% - 7px) 25%, calc(100% - 3px) 50%, calc(100% - 6px) 75%,
+    100% calc(100% - 4px), 88% calc(100% - 2px), 75% calc(100% - 8px), 62% calc(100% - 3px), 50% calc(100% - 7px), 38% calc(100% - 2px), 25% calc(100% - 5px), 12% calc(100% - 3px), 0% calc(100% - 6px),
+    3px 75%, 8px 50%, 2px 25%
+  );
   transform: rotate(-0.9deg) !important;
+  /* clip-path clippt in allen aktuellen Browsern auch box-shadow mit – der
+     Schatten folgt dadurch jetzt ebenfalls dem gezackten Umriss, kein
+     Nebeneffekt zum Beheben. */
   box-shadow: 3px 5px 12px rgba(90, 60, 20, 0.26), var(--shadow-sm);
 }
 [data-theme="papier"] .wochen-kachel::before {
@@ -589,6 +634,12 @@ html[data-theme="papier"] * {
 }
 [data-theme="papier"] .wochen-kachel:nth-child(3n+2) {
   border-radius: 22px 4px 26px 6px / 4px 16px 3px 20px;
+  clip-path: polygon(
+    0% 3px, 12% 8px, 25% 2px, 38% 6px, 50% 4px, 62% 8px, 75% 2px, 88% 5px, 100% 4px,
+    calc(100% - 4px) 25%, calc(100% - 8px) 50%, calc(100% - 3px) 75%,
+    100% calc(100% - 2px), 88% calc(100% - 6px), 75% calc(100% - 3px), 62% calc(100% - 8px), 50% calc(100% - 2px), 38% calc(100% - 7px), 25% calc(100% - 3px), 12% calc(100% - 6px), 0% calc(100% - 5px),
+    8px 75%, 2px 50%, 6px 25%
+  );
   transform: rotate(0.7deg) !important;
 }
 [data-theme="papier"] .wochen-kachel:nth-child(3n+2)::before {
@@ -602,6 +653,12 @@ html[data-theme="papier"] * {
 }
 [data-theme="papier"] .wochen-kachel:nth-child(3n+3) {
   border-radius: 5px 18px 4px 24px / 14px 5px 18px 4px;
+  clip-path: polygon(
+    0% 5px, 12% 2px, 25% 8px, 38% 3px, 50% 7px, 62% 2px, 75% 6px, 88% 4px, 100% 8px,
+    calc(100% - 8px) 25%, calc(100% - 2px) 50%, calc(100% - 6px) 75%,
+    100% calc(100% - 3px), 88% calc(100% - 7px), 75% calc(100% - 2px), 62% calc(100% - 8px), 50% calc(100% - 4px), 38% calc(100% - 6px), 25% calc(100% - 2px), 12% calc(100% - 5px), 0% calc(100% - 3px),
+    2px 75%, 7px 50%, 4px 25%
+  );
   transform: rotate(-0.5deg) !important;
 }
 [data-theme="papier"] .wochen-kachel:nth-child(3n+3)::before {
