@@ -60,6 +60,16 @@ test('Papierheft-Retro: goldener Federspitzen-Cursor ist gesetzt', () => {
   assert.match(css, /%23c9a227/i); // Gold-Füllung der Feder, URL-encodiert
 });
 
+test('Papierheft-Retro: Cursor ist als Feder erkennbar (Barben-Strichmuster, nicht nur eine Kite-Silhouette)', () => {
+  const css = fs.readFileSync(CSS_PATH, 'utf8');
+  // Nach Live-Feedback ("Mauszeiger in eine Feder ändern") von der reinen
+  // Kite-Form auf eine Fahne + Kiel + Barben-Hatching umgestellt — das
+  // Hatching (mehrere <line>-Paare) ist das eigentliche Erkennungsmerkmal.
+  const lineCount = (css.match(/%3Cline /g) || []).length;
+  assert.ok(lineCount >= 10, `Erwarte mindestens 10 Barben-Linien im Cursor-SVG, gefunden: ${lineCount}`);
+  assert.match(css, /"\)\s*13 45,\s*auto !important;/); // Hotspot an der Kielspitze
+});
+
 test('Papierheft-Retro: Eck-Curl-Keyframes für beide Wochenwechsel-Richtungen', () => {
   const css = fs.readFileSync(CSS_PATH, 'utf8');
   assert.match(css, /@keyframes papier-week-curl-next/);
@@ -99,6 +109,49 @@ test('Papierheft-Retro: Logo-Asset + Filter-SVG liegen vor', () => {
   assert.match(svg, /id="roughen"/);
   assert.match(svg, /id="roughen-fine"/);
   assert.match(svg, /feDisplacementMap/);
+});
+
+test('Papierheft-Retro: roughen-fine ist ein Doppelstrich-Skizzeneffekt (feMerge aus zwei unabhängig verzerrten Kopien)', () => {
+  // Nach Live-Feedback ("Icons wirken nicht handgezeichnet") von einer
+  // einzelnen kaum sichtbaren Verzerrung auf zwei überlagerte, unterschiedlich
+  // verzerrte Kopien umgestellt (Rough.js/xkcd-Prinzip) — deutlich sichtbarer.
+  const filterPath = path.join(__dirname, '..', 'assets', 'filters-papier.svg');
+  const svg = fs.readFileSync(filterPath, 'utf8');
+  const roughenFineBlock = svg.match(/<filter id="roughen-fine"[\s\S]*?<\/filter>/);
+  assert.ok(roughenFineBlock, 'roughen-fine-Filter nicht gefunden');
+  const block = roughenFineBlock[0];
+  assert.equal((block.match(/feTurbulence/g) || []).length, 2, 'erwarte zwei unabhängige feTurbulence-Durchläufe');
+  assert.match(block, /feMerge/);
+});
+
+test('Papierheft-Retro: Foto-Hintergrund ersetzt den alten Verlauf (über die geteilten --app-bg-*-Tokens, nicht per body-Override)', () => {
+  // Wichtig: NICHT body direkt überschreiben (das speist die iOS-
+  // Spiegelebene html::before aus glass.css nicht mit, siehe
+  // docs/ios-touch-verhalten.md) — stattdessen dieselben Tokens setzen,
+  // die glass.css an body:not(.login-page) UND html::before durchreicht.
+  const bgPath = path.join(__dirname, '..', 'assets', 'papier-bg.jpg');
+  assert.ok(fs.existsSync(bgPath), `Erwartet: ${bgPath}`);
+  assert.ok(fs.statSync(bgPath).size > 20000, 'papier-bg.jpg ist verdächtig klein');
+  const css = fs.readFileSync(CSS_PATH, 'utf8');
+  assert.match(css, /--app-bg-image:\s*url\("\.\.\/assets\/papier-bg\.jpg"\);/);
+  assert.match(css, /--app-bg-base:\s*#[0-9A-Fa-f]{6};/);
+  // Die alte direkte body-Regel darf nicht wieder auftauchen.
+  assert.doesNotMatch(css, /\[data-theme="papier"\]\s+body:not\(\.login-page\)\s*\{/);
+});
+
+test('Papierheft-Retro: Wochen-Kacheln (Schreib-Flächen) sind wie Schatzkarten-Blätter verformt', () => {
+  // .wochen-kachel ist die tatsächlich gerenderte Schreib-Kachel
+  // (wochenansicht.js:1973) — NICHT die toten .day-card-Regeln, die laut
+  // eigenem Kommentar in wochenansicht.css von keinem Template mehr erzeugt
+  // werden.
+  const css = fs.readFileSync(CSS_PATH, 'utf8');
+  assert.match(css, /\[data-theme="papier"\] \.wochen-kachel \{[\s\S]*?transform: rotate\(-0\.9deg\) !important;/);
+  assert.match(css, /\[data-theme="papier"\] \.wochen-kachel::before \{[\s\S]*?clip-path: polygon\(/);
+  // Drei zyklische Varianten, wie bei den Dashboard-Karten (Abschnitt 9).
+  assert.match(css, /\[data-theme="papier"\] \.wochen-kachel:nth-child\(3n\+2\)/);
+  assert.match(css, /\[data-theme="papier"\] \.wochen-kachel:nth-child\(3n\+3\)/);
+  // Backing-Fläche darf keine Klicks abfangen.
+  assert.match(css, /\[data-theme="papier"\] \.wochen-kachel::before \{[\s\S]*?pointer-events: none;/);
 });
 
 test('Papierheft-Retro: Logo wird per content:url() getauscht + gewackelt', () => {
