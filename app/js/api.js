@@ -228,23 +228,6 @@ function normalizeUser(oid, u) {
   return { ...u, id: oid, oid, initials, berichtTyp };
 }
 
-/* ── Kleiner, abgesprochener Kollegen-Streich (temporär) ──────────
-   Nur lokaler Dev-Server, nur ein einziger Account, rein optisch.
-   Komplett entfernen: diese Funktion + ihre 2 Aufrufstellen unten
-   löschen, dazu js/joke-overlay.js und app/img/_joke/. */
-function _maybeStreich(user) {
-  try {
-    const isLocal = ['localhost', '127.0.0.1'].includes(location.hostname);
-    if (!isLocal || !user) return;
-    if ((user.email || '').toLowerCase() !== 'florian.kern@putzmeister.com') return;
-    if (document.getElementById('joke-overlay-script')) return;
-    const s = document.createElement('script');
-    s.id = 'joke-overlay-script';
-    s.src = 'js/joke-overlay.js';
-    document.head.appendChild(s);
-  } catch { /* Streich darf nie den echten Betrieb stören */ }
-}
-
 function normalizeTag(t) {
   return {
     id: t.Id,
@@ -516,7 +499,6 @@ const DB = {
       const data = await apiFetch('/auth/me');
       _currentUser = normalizeUser(data.user.oid, data.user);
       cacheUserRole(_currentUser.role);
-      _maybeStreich(_currentUser);
       return _currentUser;
     } catch {
       _currentUser = null;
@@ -532,7 +514,6 @@ const DB = {
     });
     _currentUser = normalizeUser(data.user.oid, data.user);
     cacheUserRole(_currentUser.role);
-    _maybeStreich(_currentUser);
     return _currentUser;
   },
 
