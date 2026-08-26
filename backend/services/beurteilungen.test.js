@@ -27,3 +27,16 @@ test('darfBeurteilungBearbeiten: dauerhafter Ausbilder bekommt KEINE Bearbeiten-
   const dauerhafterAusbilder = { role: 'pruefer', email: 'dauerhafter.ausbilder@firma.de' };
   assert.equal(B.darfBeurteilungBearbeiten(dauerhafterAusbilder, zuw), false);
 });
+
+// node:test's test() akzeptiert async-Callbacks nativ (awaitet das Promise) —
+// kein zweiter require/alias nötig, das oben bereits importierte `test` reicht.
+test('ermittleModus: Typ=kurz liefert nur bearbeiten/ansicht, nie azubi/ausbildungsleiter', async () => {
+  const zuwEditable = { verantwortlicherEmail: 'pruefer@firma.de' };
+  const pruefer = { role: 'pruefer', email: 'pruefer@firma.de', oid: 'pruefer-oid' };
+  const azubi = { role: 'azubi', email: 'azubi@firma.de', oid: 'azubi-oid' };
+  const bKurz = { Typ: 'kurz', AzubiOid: 'azubi-oid', Status: 'abgeschlossen', AusbildungsleiterBestaetigtAm: null, ausbildungsleiterSchrittEntfaellt: false };
+
+  // pool wird im kurz-Kurzschluss nie angefasst -> {} genügt als Fake.
+  assert.equal(await B.ermittleModus(pruefer, zuwEditable, bKurz, {}), 'bearbeiten');
+  assert.equal(await B.ermittleModus(azubi, zuwEditable, bKurz, {}), 'ansicht');
+});

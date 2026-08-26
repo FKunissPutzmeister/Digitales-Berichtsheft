@@ -68,6 +68,9 @@ async function ermittleAusbildungsleiter(pool, azubiOid) {
 // AzubiOid/Status/AusbildungsleiterBestaetigtAm-Feldern).
 async function ermittleModus(user, zuweisung, b, pool) {
   if (darfBeurteilungBearbeiten(user, zuweisung)) return 'bearbeiten';
+  // Kurzfeedback hat keinen Kenntnisnahme- und keinen Ausbildungsleiter-
+  // Schritt (siehe Design-Spec §5) — jeder Nicht-Bearbeiter sieht nur an.
+  if (b.Typ === 'kurz') return 'ansicht';
   if (user.oid === b.AzubiOid) return 'azubi';
   if (b.Status === 'abgeschlossen' && !b.AusbildungsleiterBestaetigtAm && !b.ausbildungsleiterSchrittEntfaellt) {
     const ausbildungsleiterOid = await ermittleAusbildungsleiter(pool, b.AzubiOid);
@@ -385,24 +388,27 @@ async function ermittleUndErzeugeFaellige(pool, user) {
       WHERE z.VerantwEmail IN (${params.join(',')}) AND z.Bis IS NOT NULL AND z.Bis < @heute AND b.Id IS NULL
       ORDER BY z.Bis DESC`);
   for (const z of r.recordset) {
+    const benachrichtigungTyp = mailTypFaellig(ermittleTyp(z.Von, z.Bis));
     const exists = await pool.request()
       .input('userOid', sql.NVarChar(36), user.oid)
+      .input('typ', sql.NVarChar(40), benachrichtigungTyp)
       .input('zid', sql.Int, z.ZuweisungId)
       .query(`SELECT TOP 1 Id FROM dbo.Benachrichtigungen
-              WHERE UserOid=@userOid AND Typ='beurteilung_faellig' AND ZuweisungId=@zid`);
+              WHERE UserOid=@userOid AND Typ=@typ AND ZuweisungId=@zid`);
     if (!exists.recordset.length) {
       await erzeugeBenachrichtigung(pool, {
-        userOid: user.oid, typ: 'beurteilung_faellig', zuweisungId: z.ZuweisungId, fromUserOid: null,
+        userOid: user.oid, typ: benachrichtigungTyp, zuweisungId: z.ZuweisungId, fromUserOid: null,
       });
-      // Genau einmal je (Person, Zuweisung) — der exists-Check oben ist auch die
+      // Genau einmal je (Person, Zuweisung, Typ) — der exists-Check oben ist auch die
       // Sperre gegen wiederholte Erinnerungs-Mails bei jedem Login.
-      await mailBeurteilung(pool, [user.oid], 'beurteilung_faellig', {
+      await mailBeurteilung(pool, [user.oid], benachrichtigungTyp, {
         zuweisungId: z.ZuweisungId, azubiOid: z.AzubiOid, abteilung: z.Abteilung, von: z.Von, bis: z.Bis,
       });
     }
   }
   return r.recordset.map(z => ({
     zuweisungId: z.ZuweisungId, abteilung: z.Abteilung, von: z.Von, bis: z.Bis, azubiOid: z.AzubiOid,
+    typ: ermittleTyp(z.Von, z.Bis),
   }));
 }
 
