@@ -29,6 +29,8 @@
     versetzung_entfernt:       { tone: 'er',   label: 'Abteilung',   titel: 'Abteilung entfernt',            href: () => 'abteilungsdurchlauf.html' },
     beurteilung_abgeschlossen: { tone: 'ok',   label: 'Beurteilung', titel: 'Neue Beurteilung liegt vor',
                                  href: (b) => `beurteilung.html?zuw=${encodeURIComponent(b.zuweisungId || '')}` },
+    kurzfeedback_abgeschlossen: { tone: 'ok',   label: 'Kurzfeedback', titel: 'Neues Kurzfeedback liegt vor',
+                                 href: (b) => `beurteilung.html?zuw=${encodeURIComponent(b.zuweisungId || '')}` },
   };
 
   function relTime(ts) {
