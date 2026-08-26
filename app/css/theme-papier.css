@@ -157,3 +157,45 @@ html[data-theme="papier"] { color-scheme: light; }
     radial-gradient(ellipse at 60% 15%, rgba(90, 60, 20, 0.08) 0%, transparent 30%),
     linear-gradient(180deg, #E9D9B3 0%, #E3D1A5 100%);
 }
+
+/* ===================================================================
+   3 · SIDEBAR-TEXTKONTRAST + DASHBOARD-GLASKARTEN
+   -------------------------------------------------------------------
+   Zwei Stellen im bestehenden CSS hängen hart an konkreten Themes
+   ([data-theme="dark"]) bzw. an fixen Weiß-Werten und erben deshalb
+   NICHT automatisch aus dem Token-Block oben – erst beim echten
+   Rendern sichtbar geworden (visuelle Prüfung, Task 8):
+
+   • .sidebar__link/.active (glass.css) fällt ohne eigenen Eintrag auf
+     --pm-grey-700 bzw. --pm-yellow zurück – beides dunkle Töne, auf
+     dem ebenfalls dunklen --sidebar-bg praktisch unlesbar.
+   • .b-tile--glass (dashboard.css) ist ein hartcodiertes weißes Glas
+     (rgba(255,255,255,…)), nur für [data-theme="dark"] gespiegelt –
+     Custom-Themes wie candy erben das unverändert (dort tolerierbar,
+     weil dort nicht die Kernaussage), für papier aber ein direkter
+     Bruch mit dem Pergament-Grundflächen-Ziel dieser Phase.
+   Weitere hartcodierte Weiß-Stellen an anderen Seiten sind wahrscheinlich
+   (dashboard.css ist groß) – die werden iterativ in Folge-Phasen
+   nachgezogen, sobald sie beim Testen auffallen, nicht pauschal
+   vorab gejagt.
+   =================================================================== */
+[data-theme="papier"] .sidebar__link {
+  color: rgba(233, 217, 179, 0.72);
+}
+[data-theme="papier"] .sidebar__link:hover {
+  color: #F0E8D2;
+}
+[data-theme="papier"] .sidebar__link.active {
+  color: #E9D9B3;
+  background: rgba(233, 217, 179, 0.14);
+}
+
+[data-theme="papier"] .b-tile--glass {
+  background: linear-gradient(180deg, rgba(233, 217, 179, 0.85) 0%, rgba(233, 217, 179, 0.65) 100%);
+  border: 1px solid rgba(185, 160, 106, 0.55);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 248, 230, 0.55),
+    inset 0 -1px 0 rgba(90, 60, 20, 0.10),
+    0 1px 2px rgba(90, 60, 20, 0.10),
+    0 12px 32px -8px rgba(90, 60, 20, 0.20);
+}
