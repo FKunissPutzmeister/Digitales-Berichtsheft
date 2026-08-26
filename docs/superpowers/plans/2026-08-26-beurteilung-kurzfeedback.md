@@ -1439,8 +1439,8 @@ Als Prüfer/Ausbilder (passwortloser Demo-Login, `.demo`-Konto) einloggen und:
    3 Textfelder statt der 10-Kriterien-Tabelle, kein "Als PDF"-Button.
 2. Alle 3 Felder befüllen, "Entwurf speichern" klicken — erwartet: Toast
    "Gespeichert", kein Fehler in der Browser-Konsole.
-3. "Abschließen" klicken — erwartet: Toast "Kurzfeedback abgeschlossen. Der
-   Azubi wurde benachrichtigt.", KEIN Signatur-Dialog erscheint.
+3. "Abschließen" klicken — erwartet: Toast "Kurzfeedback abgeschlossen. Azubi
+   und Ausbildungsleitung wurden benachrichtigt.", KEIN Signatur-Dialog erscheint.
 4. Zur Liste `beurteilungen.html` navigieren — erwartet: der Eintrag zeigt
    sowohl "Abgeschlossen" als auch das Badge "Kurzfeedback".
 5. Als der betroffene Azubi einloggen, `abteilungs-planer.html` (Detailansicht
