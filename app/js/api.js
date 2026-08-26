@@ -228,23 +228,6 @@ function normalizeUser(oid, u) {
   return { ...u, id: oid, oid, initials, berichtTyp };
 }
 
-/* ── Kleiner, abgesprochener Streich (temporär) ───────────────────
-   Nur lokaler Dev-Server, nur der Demo-Account florian.kern.demo,
-   rein optisch. Komplett entfernen: diese Funktion + ihre 2 Aufruf-
-   stellen unten löschen, dazu js/joke-peek.js und app/img/_joke/. */
-function _maybeJokePeek(user) {
-  try {
-    const isLocal = ['localhost', '127.0.0.1'].includes(location.hostname);
-    if (!isLocal || !user) return;
-    if ((user.email || '').toLowerCase() !== 'florian.kern.demo@putzmeister.com') return;
-    if (document.getElementById('joke-peek-script')) return;
-    const s = document.createElement('script');
-    s.id = 'joke-peek-script';
-    s.src = 'js/joke-peek.js';
-    document.head.appendChild(s);
-  } catch { /* Streich darf nie den echten Betrieb stören */ }
-}
-
 function normalizeTag(t) {
   return {
     id: t.Id,
@@ -516,7 +499,6 @@ const DB = {
       const data = await apiFetch('/auth/me');
       _currentUser = normalizeUser(data.user.oid, data.user);
       cacheUserRole(_currentUser.role);
-      _maybeJokePeek(_currentUser);
       return _currentUser;
     } catch {
       _currentUser = null;
@@ -532,7 +514,6 @@ const DB = {
     });
     _currentUser = normalizeUser(data.user.oid, data.user);
     cacheUserRole(_currentUser.role);
-    _maybeJokePeek(_currentUser);
     return _currentUser;
   },
 
