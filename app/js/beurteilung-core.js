@@ -250,7 +250,7 @@
           <table class="beurt-table">
             <thead><tr><th>Beurteilungskriterien</th>
               <th>Beurteilungsstufen<br><span class="beurt-th-sub">1&nbsp;=&nbsp;100–92 … 6&nbsp;=&nbsp;29–0</span></th>
-              <th>Punkte</th></tr></thead>
+              <th>Punkte<br><span class="beurt-th-sub">frei wählbar, unabhängig von der Stufe</span></th></tr></thead>
             ${blockHtml('A', punkteByKey, editable)}
             ${blockHtml('B', punkteByKey, editable)}
             ${blockHtml('C', punkteByKey, editable)}
