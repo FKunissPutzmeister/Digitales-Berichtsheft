@@ -28,3 +28,8 @@ test('Papierheft-Retro: theme-papier.css setzt eigene erstgenehmigt-Statusfarbe 
   assert.match(css, /--status-erstgenehmigt-bg:/);
   assert.match(css, /--status-erstgenehmigt:/);
 });
+
+test('Papierheft-Retro: Buttons verlieren Versalien-Look (kein uppercase mehr)', () => {
+  const css = fs.readFileSync(CSS_PATH, 'utf8');
+  assert.match(css, /\[data-theme="papier"\]\s+\.btn\s*\{[^}]*text-transform:\s*none/s);
+});

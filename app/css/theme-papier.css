@@ -201,3 +201,117 @@ html[data-theme="papier"] { color-scheme: light; }
     0 1px 2px rgba(90, 60, 20, 0.10),
     0 12px 32px -8px rgba(90, 60, 20, 0.20);
 }
+
+/* ===================================================================
+   4 · BUTTONS – Federstrich (leise Aktionen) + gerahmt (Primär/Destruktiv)
+   -------------------------------------------------------------------
+   Basis-Button (components.css) ist modernes Versal-Chip-Label (uppercase,
+   0.75rem, 0.06em Sperrung) — passt nicht zum Manuskript-Ton, wird hier für
+   ALLE Varianten auf die Fließtext-Schrift umgestellt. Die eigentliche
+   Formensprache trennt sich danach in zwei Gruppen:
+   • "Leise" Aktionen (secondary/outline/outline-yellow/ghost/success):
+     Federstrich-Unterstreichung statt Kasten. Der Trick: der Rahmen bleibt
+     transparent (components.css hat `border: 2px solid transparent` fest
+     im Box-Modell — den NICHT anfassen, sonst verschiebt sich die Höhe),
+     die Linie kommt stattdessen über einen `inset box-shadow` unten dran.
+   • Primär (.btn-primary) und destruktiv (.btn-danger): sichtbarer,
+     handgezeichneter Rahmen mit vier ungleichen Eckenradien (Slash-Syntax),
+     Werte aus dem gebilligten Brainstorm-Mockup übernommen — bewusst KEIN
+     neuer Formentwurf an dieser Stelle.
+   .b-btn-primary (Bento-Dashboard-CTA) bleibt unangetastet: erbt bereits
+   passabel aus --pm-grey-900/#fff, ist eine eigene Pillen-Komponente außerhalb
+   dieses Systems (siehe Plan-Dokument, "Explicitly out of scope").
+   =================================================================== */
+[data-theme="papier"] .btn {
+  font-family: var(--font-body);
+  font-weight: 600;
+  text-transform: none;
+  font-size: 0.85rem;
+  letter-spacing: 0.01em;
+}
+
+/* ── Leise Aktionen: Federstrich statt Kasten ── */
+[data-theme="papier"] .btn-secondary,
+[data-theme="papier"] .btn-outline,
+[data-theme="papier"] .btn-outline-yellow,
+[data-theme="papier"] .btn-ghost,
+[data-theme="papier"] .btn-success {
+  background: transparent;
+  border-color: transparent;
+  border-radius: 0;
+  box-shadow: inset 0 -1.5px 0 0 var(--pm-grey-500);
+  color: var(--pm-grey-700);
+}
+[data-theme="papier"] .btn-secondary:hover:not(:disabled),
+[data-theme="papier"] .btn-outline:hover:not(:disabled),
+[data-theme="papier"] .btn-outline-yellow:hover:not(:disabled),
+[data-theme="papier"] .btn-ghost:hover:not(:disabled),
+[data-theme="papier"] .btn-success:hover:not(:disabled) {
+  background: rgba(90, 68, 41, 0.06);
+  box-shadow: inset 0 -2.5px 0 0 var(--pm-grey-700);
+  color: var(--pm-grey-900);
+}
+[data-theme="papier"] .btn-secondary:focus-visible,
+[data-theme="papier"] .btn-outline:focus-visible,
+[data-theme="papier"] .btn-outline-yellow:focus-visible,
+[data-theme="papier"] .btn-ghost:focus-visible,
+[data-theme="papier"] .btn-success:focus-visible {
+  outline: 1px dotted var(--pm-grey-700);
+  outline-offset: 3px;
+  box-shadow: inset 0 -1.5px 0 0 var(--pm-grey-700);
+}
+[data-theme="papier"] .btn-secondary:disabled,
+[data-theme="papier"] .btn-outline:disabled,
+[data-theme="papier"] .btn-outline-yellow:disabled,
+[data-theme="papier"] .btn-ghost:disabled,
+[data-theme="papier"] .btn-success:disabled {
+  box-shadow: inset 0 -1px 0 0 var(--pm-grey-300);
+  color: var(--pm-grey-400);
+}
+
+/* ── Primär: sichtbarer, handgezeichneter Rahmen (Indigo-Tinte) ── */
+[data-theme="papier"] .btn-primary {
+  background: rgba(44, 58, 92, 0.08);
+  color: var(--pm-yellow);
+  border: 1.5px solid var(--pm-yellow);
+  border-radius: 3px 7px 4px 8px / 6px 4px 8px 3px;
+  box-shadow: inset 0 0 0 1px rgba(44, 58, 92, 0.15);
+}
+[data-theme="papier"] .btn-primary:hover:not(:disabled) {
+  background: rgba(44, 58, 92, 0.16);
+  border-color: var(--pm-yellow-dark);
+  box-shadow: inset 0 0 0 1px rgba(44, 58, 92, 0.25);
+}
+[data-theme="papier"] .btn-primary:focus-visible {
+  outline: none;
+  box-shadow: inset 0 0 0 1px rgba(44, 58, 92, 0.15), 0 0 0 3px rgba(44, 58, 92, 0.25);
+}
+[data-theme="papier"] .btn-primary:disabled {
+  background: transparent;
+  color: var(--pm-grey-400);
+  border-color: var(--pm-grey-300);
+  box-shadow: none;
+}
+
+/* ── Destruktiv: sichtbarer, handgezeichneter Rahmen (Rot-Tinte) ── */
+[data-theme="papier"] .btn-danger {
+  background: rgba(122, 42, 28, 0.08);
+  color: var(--color-error-mid);
+  border: 1.5px solid var(--color-error-mid);
+  border-radius: 6px 3px 8px 4px / 4px 8px 3px 6px;
+  box-shadow: inset 0 0 0 1px rgba(122, 42, 28, 0.15);
+}
+[data-theme="papier"] .btn-danger:hover:not(:disabled) {
+  background: rgba(122, 42, 28, 0.16);
+  box-shadow: inset 0 0 0 1px rgba(122, 42, 28, 0.25);
+}
+[data-theme="papier"] .btn-danger:focus-visible {
+  outline: none;
+  box-shadow: inset 0 0 0 1px rgba(122, 42, 28, 0.15), 0 0 0 3px rgba(122, 42, 28, 0.25);
+}
+[data-theme="papier"] .btn-danger:disabled {
+  background: transparent;
+  color: var(--pm-grey-400);
+  border-color: var(--pm-grey-300);
+  box-shadow: none;
+}
