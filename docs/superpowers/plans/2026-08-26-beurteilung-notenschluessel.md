@@ -103,7 +103,29 @@ cd "/c/Dev/Digitales-Berichtsheft" && node --test app/js/beurteilung-core.test.j
 
 Expected: PASS (alle Tests inkl. des neuen)
 
-- [ ] **Step 5: Commit**
+**Korrektur (nachträglich, während der Ausführung entdeckt):** `module.exports = api` bedeutet,
+dass `B.formatPunkteGruppe` in den Tests nur existiert, wenn die Funktion Teil von `api` ist —
+ohne Export in diesem Task schlägt der Test in Step 4 zwingend fehl. Die ursprüngliche Planung,
+den Export erst in Task 3 nachzuholen, war fehlerhaft. Richtig ist:
+
+- [ ] **Step 5: Funktion exportieren (nötig, damit der Test in Step 4 grün wird)**
+
+In `app/js/beurteilung-core.js`, die `api`-Zeile ändern von:
+
+```js
+  const api = { KRITERIEN, BLOECKE, BLOCK_LABELS, STUFEN, PUNKTE_ZU_NOTE, clampPunkte, stufeFuerPunkte, noteFuerPunkte, berechne, renderForm, openKatalogModal };
+```
+
+zu:
+
+```js
+  const api = { KRITERIEN, BLOECKE, BLOCK_LABELS, STUFEN, PUNKTE_ZU_NOTE, clampPunkte, stufeFuerPunkte, noteFuerPunkte, formatPunkteGruppe, berechne, renderForm, openKatalogModal };
+```
+
+(Reihenfolge der Steps in der Praxis: Step 3 Implementierung + Step 5 Export gehören zusammen
+vor Step 4 Testlauf — sonst schlägt Step 4 fehl. Beim Ausführen also Step 3 und Step 5 vor Step 4.)
+
+- [ ] **Step 6: Commit**
 
 ```bash
 git add app/js/beurteilung-core.js app/js/beurteilung-core.test.js
@@ -191,29 +213,34 @@ In `app/js/beurteilung-core.js`, direkt nach der neuen `formatPunkteGruppe`-Funk
   }
 ```
 
-- [ ] **Step 4: Test ausführen, Erfolg bestätigen**
+**Korrektur (siehe Task 2):** `module.exports = api` bedeutet, dass `B.notenschluesselZeilen`
+in den Tests nur existiert, wenn die Funktion Teil von `api` ist. Der Export (Step 4) muss daher
+**vor** dem Testlauf in Step 5 erfolgen, nicht danach.
+
+- [ ] **Step 4: Neue Funktion exportieren (nötig, damit der Test grün wird)**
+
+In `app/js/beurteilung-core.js`, die `api`-Zeile ändern von (Stand nach Task 2, bereits mit
+`formatPunkteGruppe`):
+
+```js
+  const api = { KRITERIEN, BLOECKE, BLOCK_LABELS, STUFEN, PUNKTE_ZU_NOTE, clampPunkte, stufeFuerPunkte, noteFuerPunkte, formatPunkteGruppe, berechne, renderForm, openKatalogModal };
+```
+
+zu:
+
+```js
+  const api = { KRITERIEN, BLOECKE, BLOCK_LABELS, STUFEN, PUNKTE_ZU_NOTE, clampPunkte, stufeFuerPunkte, noteFuerPunkte, formatPunkteGruppe, notenschluesselZeilen, berechne, renderForm, openKatalogModal };
+```
+
+(`openNotenschluesselModal` existiert erst ab Task 5 und wird dort per eigener Änderung an dieser Zeile ergänzt.)
+
+- [ ] **Step 5: Test ausführen, Erfolg bestätigen**
 
 ```bash
 cd "/c/Dev/Digitales-Berichtsheft" && node --test app/js/beurteilung-core.test.js
 ```
 
 Expected: PASS (alle Tests)
-
-- [ ] **Step 5: Neue Funktionen exportieren**
-
-In `app/js/beurteilung-core.js`, die `api`-Zeile (Definition von `const api = { ... }`) ändern von:
-
-```js
-  const api = { KRITERIEN, BLOECKE, BLOCK_LABELS, STUFEN, PUNKTE_ZU_NOTE, clampPunkte, stufeFuerPunkte, noteFuerPunkte, berechne, renderForm, openKatalogModal };
-```
-
-zu:
-
-```js
-  const api = { KRITERIEN, BLOECKE, BLOCK_LABELS, STUFEN, PUNKTE_ZU_NOTE, clampPunkte, stufeFuerPunkte, noteFuerPunkte, berechne, renderForm, openKatalogModal, formatPunkteGruppe, notenschluesselZeilen };
-```
-
-(`openNotenschluesselModal` existiert erst ab Task 5 und wird dort per eigener Änderung an dieser Zeile ergänzt.)
 
 - [ ] **Step 6: Commit**
 
@@ -346,16 +373,16 @@ Direkt nach der Funktion `openKatalogModal()` (nach deren schließender `}`) ein
 
 - [ ] **Step 4: `openNotenschluesselModal` exportieren**
 
-In `app/js/beurteilung-core.js`, die `api`-Zeile (aus Task 3 Step 5) ändern von:
+In `app/js/beurteilung-core.js`, die `api`-Zeile (Stand nach Task 3 Step 4) ändern von:
 
 ```js
-  const api = { KRITERIEN, BLOECKE, BLOCK_LABELS, STUFEN, PUNKTE_ZU_NOTE, clampPunkte, stufeFuerPunkte, noteFuerPunkte, berechne, renderForm, openKatalogModal, formatPunkteGruppe, notenschluesselZeilen };
+  const api = { KRITERIEN, BLOECKE, BLOCK_LABELS, STUFEN, PUNKTE_ZU_NOTE, clampPunkte, stufeFuerPunkte, noteFuerPunkte, formatPunkteGruppe, notenschluesselZeilen, berechne, renderForm, openKatalogModal };
 ```
 
 zu:
 
 ```js
-  const api = { KRITERIEN, BLOECKE, BLOCK_LABELS, STUFEN, PUNKTE_ZU_NOTE, clampPunkte, stufeFuerPunkte, noteFuerPunkte, berechne, renderForm, openKatalogModal, formatPunkteGruppe, notenschluesselZeilen, openNotenschluesselModal };
+  const api = { KRITERIEN, BLOECKE, BLOCK_LABELS, STUFEN, PUNKTE_ZU_NOTE, clampPunkte, stufeFuerPunkte, noteFuerPunkte, formatPunkteGruppe, notenschluesselZeilen, berechne, renderForm, openKatalogModal, openNotenschluesselModal };
 ```
 
 - [ ] **Step 5: Syntax + Tests prüfen**
