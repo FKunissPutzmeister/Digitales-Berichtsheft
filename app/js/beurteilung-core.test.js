@@ -112,7 +112,7 @@ test('notenschluesselZeilen: Stichproben gegen das Original-PDF', () => {
   assert.equal(byNote[6.0].verbal, 'ungenügend');
 });
 
-test('notenschluesselZeilen: Reihenfolge ist absteigend nach Note (1,0 zuerst)', () => {
+test('notenschluesselZeilen: Reihenfolge ist aufsteigend nach Note (1,0 zuerst)', () => {
   const zeilen = B.notenschluesselZeilen();
   assert.equal(zeilen[0].note, 1.0);
   assert.equal(zeilen[zeilen.length - 1].note, 6.0);
