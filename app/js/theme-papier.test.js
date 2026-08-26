@@ -33,3 +33,21 @@ test('Papierheft-Retro: Buttons verlieren Versalien-Look (kein uppercase mehr)',
   const css = fs.readFileSync(CSS_PATH, 'utf8');
   assert.match(css, /\[data-theme="papier"\]\s+\.btn\s*\{[^}]*text-transform:\s*none/s);
 });
+
+test('Papierheft-Retro: leise Buttons bekommen Federstrich (kein Kasten)', () => {
+  const css = fs.readFileSync(CSS_PATH, 'utf8');
+  // .btn-ghost steht in einer Mehrfach-Selektor-Liste (zusammen mit
+  // .btn-secondary/.btn-outline/.btn-outline-yellow/.btn-success), deshalb
+  // NICHT ".btn-ghost {" direkt matchen (das gibt es so nicht) — stattdessen
+  // Selektor-Präsenz und die Federstrich-Deklaration getrennt prüfen.
+  assert.match(css, /\[data-theme="papier"\]\s+\.btn-ghost[,\s]/);
+  assert.match(css, /box-shadow:\s*inset 0 -1\.5px 0 0 var\(--pm-grey-500\);/);
+});
+
+test('Papierheft-Retro: Primär- und Destruktiv-Buttons bekommen sichtbaren, handgezeichneten Rahmen', () => {
+  const css = fs.readFileSync(CSS_PATH, 'utf8');
+  // .btn-primary/.btn-danger sind hier Einzel-Selektor-Blöcke (kein Komma-
+  // Selektor wie oben), deshalb DARF hier direkt "Selektor {...}" geprüft werden.
+  assert.match(css, /\[data-theme="papier"\] \.btn-primary \{[\s\S]*?border-radius: 3px 7px 4px 8px \/ 6px 4px 8px 3px;/);
+  assert.match(css, /\[data-theme="papier"\] \.btn-danger \{[\s\S]*?border-radius: 6px 3px 8px 4px \/ 4px 8px 3px 6px;/);
+});
