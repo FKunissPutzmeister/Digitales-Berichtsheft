@@ -88,3 +88,22 @@ test('Papierheft-Retro: wochenansicht.js erzeugt Curl-Canvas nur für papier-The
   assert.match(js, /clone\.classList\.add\('week-pane--leaving'\);/);
   assert.match(js, /stage\.appendChild\(clone\);/);
 });
+
+test('Papierheft-Retro: Logo-Asset + Filter-SVG liegen vor', () => {
+  const logoPath = path.join(__dirname, '..', 'assets', 'logo-papier.png');
+  const filterPath = path.join(__dirname, '..', 'assets', 'filters-papier.svg');
+  assert.ok(fs.existsSync(logoPath), `Erwartet: ${logoPath}`);
+  assert.ok(fs.statSync(logoPath).size > 1000, 'logo-papier.png ist verdächtig klein');
+  assert.ok(fs.existsSync(filterPath), `Erwartet: ${filterPath}`);
+  const svg = fs.readFileSync(filterPath, 'utf8');
+  assert.match(svg, /id="roughen"/);
+  assert.match(svg, /id="roughen-fine"/);
+  assert.match(svg, /feDisplacementMap/);
+});
+
+test('Papierheft-Retro: Logo wird per content:url() getauscht + gewackelt', () => {
+  const css = fs.readFileSync(CSS_PATH, 'utf8');
+  assert.match(css, /\[data-theme="papier"\] \.sidebar__logo-mark,/);
+  assert.match(css, /content: url\("\.\.\/assets\/logo-papier\.png"\);/);
+  assert.match(css, /filter: url\("\.\.\/assets\/filters-papier\.svg#roughen"\);/);
+});
