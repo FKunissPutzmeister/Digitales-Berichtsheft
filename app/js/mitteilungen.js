@@ -111,6 +111,10 @@ document.addEventListener('DOMContentLoaded', async () => {
                                  href: b => `beurteilung.html?zuw=${encodeURIComponent(b.zuweisungId || '')}` },
     beurteilung_abgeschlossen: { tone: 'ok',      label: 'Beurteilung', titel: 'Beurteilung abgeschlossen',
                                  href: b => `beurteilung.html?zuw=${encodeURIComponent(b.zuweisungId || '')}` },
+    kurzfeedback_faellig:      { tone: 'er',      label: 'Kurzfeedback', titel: 'Kurzfeedback fällig',
+                                 href: b => `beurteilung.html?zuw=${encodeURIComponent(b.zuweisungId || '')}` },
+    kurzfeedback_abgeschlossen: { tone: 'ok',     label: 'Kurzfeedback', titel: 'Kurzfeedback abgeschlossen',
+                                 href: b => `beurteilung.html?zuw=${encodeURIComponent(b.zuweisungId || '')}` },
     // Spiegelt VERWALTUNG_MT_TYPEN in dashboard.js — fehlt der Typ hier,
     // rendert die Mitteilung auf dieser Seite leer, ohne Fehlermeldung.
     // Der Name des betroffenen (inaktiven, in der Nutzerliste unsichtbaren)
@@ -149,15 +153,19 @@ document.addEventListener('DOMContentLoaded', async () => {
       // Beurteilungs-Mitteilungen haben kein KW/Jahr (WocheId=NULL) und verlinken
       // auf den Beurteilungsbogen – nicht auf die Wochenansicht. Ohne diesen Fall
       // fielen sie in den zurueckgegeben-Zweig ("KW null/null zurückgegeben").
-      if (b.type === 'beurteilung_abgeschlossen' || b.type === 'beurteilung_faellig') {
-        const faellig = b.type === 'beurteilung_faellig';
+      if (b.type === 'beurteilung_abgeschlossen' || b.type === 'beurteilung_faellig'
+          || b.type === 'kurzfeedback_abgeschlossen' || b.type === 'kurzfeedback_faellig') {
+        const faellig = b.type === 'beurteilung_faellig' || b.type === 'kurzfeedback_faellig';
+        const istKurz = b.type.startsWith('kurzfeedback_');
         return {
           key: `n${b.id}`,
           ts: b.timestamp || 0,
           tone: faellig ? 'info' : 'ok',
-          typeKey: 'beurteilung',
-          typeLabel: 'Beurteilung',
-          title: faellig ? 'Beurteilung fällig' : 'Neue Beurteilung liegt vor',
+          typeKey: istKurz ? 'kurzfeedback' : 'beurteilung',
+          typeLabel: istKurz ? 'Kurzfeedback' : 'Beurteilung',
+          title: istKurz
+            ? (faellig ? 'Kurzfeedback fällig' : 'Neues Kurzfeedback liegt vor')
+            : (faellig ? 'Beurteilung fällig' : 'Neue Beurteilung liegt vor'),
           meta: relTime(b.timestamp),
           notifId: b.id,
           href: `beurteilung.html?zuw=${encodeURIComponent(b.zuweisungId || '')}`,

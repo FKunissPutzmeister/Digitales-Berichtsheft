@@ -133,3 +133,15 @@ test('IHK-Notenschlüssel-PDF-Link im Modal ist relativ (kein führender Slash)'
   assert.ok(match, 'PDF-Link nicht gefunden');
   assert.ok(!match[1].startsWith('/'), `Href sollte relativ sein (kein führender Slash), war: ${match[1]}`);
 });
+
+test('ermittleTyp: <=14 Tage (inklusive beider Enden) -> kurz, sonst gross', () => {
+  assert.equal(B.ermittleTyp('2026-01-01', '2026-01-13'), 'kurz');   // 13 Tage
+  assert.equal(B.ermittleTyp('2026-01-01', '2026-01-14'), 'kurz');   // 14 Tage (Grenzfall)
+  assert.equal(B.ermittleTyp('2026-01-01', '2026-01-15'), 'gross');  // 15 Tage
+});
+
+test('ermittleTyp: ohne von/bis -> gross (konservativer Default)', () => {
+  assert.equal(B.ermittleTyp(null, '2026-01-14'), 'gross');
+  assert.equal(B.ermittleTyp('2026-01-01', null), 'gross');
+  assert.equal(B.ermittleTyp(null, null), 'gross');
+});

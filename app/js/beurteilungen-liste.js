@@ -46,7 +46,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         <span class="badge ${b.status === 'abgeschlossen' ? 'badge--genehmigt' : 'badge--grey'} durchlauf-card__badge">
           ${b.status === 'abgeschlossen' ? 'Abgeschlossen' : 'Offen'}
         </span>
-        <div class="durchlauf-card__abt">${escapeHtml(displayName(b.azubiName))}${b.abteilung ? ' · ' + escapeHtml(b.abteilung) : ''}</div>
+        <div class="durchlauf-card__abt">${escapeHtml(displayName(b.azubiName))}${b.abteilung ? ' · ' + escapeHtml(b.abteilung) : ''}${b.typ === 'kurz' ? ' <span class="badge badge--freigegeben">Kurzfeedback</span>' : ''}</div>
         <div class="durchlauf-card__zeit">${DateUtil.formatDate(b.von)} – ${DateUtil.formatDate(b.bis)}</div>
       </div>
     `).join('')}</div>`;

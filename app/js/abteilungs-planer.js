@@ -95,6 +95,11 @@ function dlbBeurtBlock(z, b, statusKey, ausbilderMode = false) {
     return `${info}<a class="btn btn-outline btn-sm dlb-beurt-open" href="beurteilung.html?zuw=${z.id}">${entwurf ? 'Entwurf öffnen' : 'Beurteilung anlegen'}</a>`;
   }
   if (b && b.status === 'abgeschlossen') {
+    if (b.typ === 'kurz') {
+      return `
+        <div class="dlb-beurt dlb-beurt--done">${DLB_ICO.check} Kurzfeedback abgeschlossen</div>
+        <a class="btn btn-outline btn-sm dlb-beurt-open" href="beurteilung.html?zuw=${z.id}">Öffnen</a>`;
+    }
     const note = b.note != null ? b.note.toLocaleString('de-DE', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) : '–';
     const pkt = b.gesamtPunkte != null ? Math.round(b.gesamtPunkte) : null;
     return `
@@ -236,7 +241,9 @@ function durchlaufBoardHtml(user, zuw, heute, beurtByZuw = {}, opts = {}) {
   function miniCard(r) {
     const z = r.z;
     const b = beurtByZuw[z.id];
-    const grade = (b && b.status === 'abgeschlossen' && b.note != null)
+    const abgeschlossen = !!(b && b.status === 'abgeschlossen');
+    const istKurz = abgeschlossen && b.typ === 'kurz';
+    const grade = (abgeschlossen && !istKurz && b.note != null)
       ? b.note.toLocaleString('de-DE', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) : null;
     return `<a class="dlb-mini-card" href="${detailHref(z)}" style="--edge:${colorFor(z.abteilung)}">
       <div class="dlb-mini-card__top">
@@ -248,7 +255,7 @@ function durchlaufBoardHtml(user, zuw, heute, beurtByZuw = {}, opts = {}) {
       </div>
       <div class="dlb-mini-card__foot">
         <span class="dlb-ap"><span class="dlb-avatar" style="background:${colorFor(z.abteilung)};color:#fff">${dlbAvatarHTML(z.verantwName, z.verantwOid)}</span><span class="dlb-ap__name">${escHtml(z.verantwName || '–')}</span></span>
-        ${grade ? '' : `<span class="dlb-beurt dlb-beurt--open">${DLB_ICO.circle}offen</span>`}
+        ${grade ? '' : (istKurz ? `<span class="dlb-beurt dlb-beurt--done">${DLB_ICO.check}Kurzfeedback</span>` : `<span class="dlb-beurt dlb-beurt--open">${DLB_ICO.circle}offen</span>`)}
       </div>
     </a>`;
   }

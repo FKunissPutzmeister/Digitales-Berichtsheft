@@ -389,6 +389,10 @@ function normalizeBeurteilung(b) {
     azubiId: b.AzubiOid,
     status: b.Status,
     individuelleBeurteilung: b.IndividuelleBeurteilung ?? '',
+    typ: b.Typ || 'gross',
+    kurzfeedbackEindruck: b.KurzfeedbackEindruck ?? '',
+    kurzfeedbackAuffaelligkeiten: b.KurzfeedbackAuffaelligkeiten ?? '',
+    kurzfeedbackEmpfehlung: b.KurzfeedbackEmpfehlung ?? '',
     gesamtPunkte: b.GesamtPunkte != null ? Number(b.GesamtPunkte) : null,
     note: b.Note != null ? Number(b.Note) : null,
     gespraechAm: toDateStr(b.GespraechAm),
@@ -954,7 +958,7 @@ const DB = {
     const data = await apiFetch(`/beurteilungen?azubiOid=${encodeURIComponent(azubiOid)}`,
       { erwartet: [403, 404] });
     return data.map(b => ({
-      zuweisungId: b.ZuweisungId, status: b.Status,
+      zuweisungId: b.ZuweisungId, status: b.Status, typ: b.Typ || 'gross',
       note: b.Note != null ? Number(b.Note) : null,
       gesamtPunkte: b.GesamtPunkte != null ? Number(b.GesamtPunkte) : null,
       abgeschlossenAm: b.AbgeschlossenAm ?? null,

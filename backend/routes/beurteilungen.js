@@ -89,12 +89,17 @@ router.get('/meine', async (req, res) => {
 router.post('/', async (req, res) => {
   try {
     const pool = await getPool();
-    const { zuweisungId, kriterien, individuelleBeurteilung, gespraechAm } = req.body;
+    const {
+      zuweisungId, kriterien, individuelleBeurteilung, gespraechAm,
+      kurzfeedbackEindruck, kurzfeedbackAuffaelligkeiten, kurzfeedbackEmpfehlung,
+    } = req.body;
     const zuw = await svc.ladeZuweisung(pool, Number(zuweisungId));
     if (!zuw) return res.status(404).json({ error: 'Zuweisung nicht gefunden.' });
     if (!svc.darfBeurteilungBearbeiten(req.user, zuw)) return res.status(403).json({ error: 'Kein Beurteilungsrecht.' });
     const id = await svc.upsertEntwurf(pool, {
-      zuweisungId: zuw.id, azubiOid: zuw.azubiOid, kriterien, individuelleBeurteilung, gespraechAm,
+      zuweisungId: zuw.id, azubiOid: zuw.azubiOid, typ: svc.ermittleTyp(zuw.von, zuw.bis),
+      kriterien, individuelleBeurteilung, gespraechAm,
+      kurzfeedbackEindruck, kurzfeedbackAuffaelligkeiten, kurzfeedbackEmpfehlung,
     });
     res.json({ id });
   } catch (err) {
@@ -137,8 +142,14 @@ router.patch('/:id/abschliessen', async (req, res) => {
 router.patch('/:id', async (req, res) => {
   try {
     const ctx = await ladeUndAutorisiere(req, res); if (!ctx) return;
-    const { kriterien, individuelleBeurteilung, gespraechAm } = req.body;
-    await svc.patchNachAbschluss(ctx.pool, ctx.b.Id, { kriterien, individuelleBeurteilung, gespraechAm }, req.user.oid);
+    const {
+      kriterien, individuelleBeurteilung, gespraechAm,
+      kurzfeedbackEindruck, kurzfeedbackAuffaelligkeiten, kurzfeedbackEmpfehlung,
+    } = req.body;
+    await svc.patchNachAbschluss(ctx.pool, ctx.b.Id, {
+      kriterien, individuelleBeurteilung, gespraechAm,
+      kurzfeedbackEindruck, kurzfeedbackAuffaelligkeiten, kurzfeedbackEmpfehlung,
+    }, req.user.oid);
     res.json({ ok: true });
   } catch (err) {
     logError({ quelle: 'backend', nachricht: `[beurteilungen] patch: ${err.message}`, stack: err.stack,

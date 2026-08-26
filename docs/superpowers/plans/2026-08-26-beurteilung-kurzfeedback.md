@@ -415,7 +415,11 @@ async function abschliessen(pool, id, autorOid, signatur) {
 
 Empfänger werden EINMAL vor der Transaktion ermittelt (reiner Lesezugriff über
 `ermittleAusbildungsleiter`, braucht einen Pool/Request — keine Transaktion) und
-danach für Mitteilung UND Mail wiederverwendet. Ersetze die komplette Funktion:
+danach für Mitteilung UND Mail wiederverwendet. Wie in `upsertEntwurf` (siehe
+Task 4, dortige Härtung) entscheidet der bereits gespeicherte `Typ` — hier
+`b.Typ`, ohnehin schon geladen, also KEINE zusätzliche Abfrage nötig — welches
+Feld-Set geschrieben wird, nicht welche Felder der Aufrufer zufällig mitschickt.
+Ersetze die komplette Funktion:
 
 ```js
 async function patchNachAbschluss(pool, id, {
@@ -426,7 +430,14 @@ async function patchNachAbschluss(pool, id, {
     .query('SELECT Id, ZuweisungId, AzubiOid, Typ FROM dbo.Beurteilungen WHERE Id=@id');
   const b = cur.recordset[0];
   if (!b) throw new Error('Beurteilung nicht gefunden.');
-  const calc = (kriterien && kriterien.length) ? rechne(kriterien) : { gesamt: null, note: null };
+  // b.Typ ist bereits geladen und für eine bestehende Zeile immer autoritativ
+  // (Typ ist nach Anlage unveränderlich) — kein Vorab-Read nötig wie bei
+  // upsertEntwurf, dort existierte die Zeile zum Zeitpunkt des Reads evtl. noch nicht.
+  const kriterienEffektiv = b.Typ === 'gross' ? kriterien : undefined;
+  const kfEindruckEffektiv = b.Typ === 'kurz' ? kurzfeedbackEindruck : undefined;
+  const kfAuffEffektiv = b.Typ === 'kurz' ? kurzfeedbackAuffaelligkeiten : undefined;
+  const kfEmpfEffektiv = b.Typ === 'kurz' ? kurzfeedbackEmpfehlung : undefined;
+  const calc = (kriterienEffektiv && kriterienEffektiv.length) ? rechne(kriterienEffektiv) : { gesamt: null, note: null };
   const empfaengerOids = await ermittleAbschlussEmpfaenger(pool, b);
   const tx = new sql.Transaction(pool);
   await tx.begin();
@@ -437,9 +448,9 @@ async function patchNachAbschluss(pool, id, {
       .input('ges', sql.Decimal(5, 2), calc.gesamt)
       .input('note', sql.Decimal(2, 1), calc.note)
       .input('gespr', sql.Date, gespraechAm || null)
-      .input('kfEindruck', sql.NVarChar(sql.MAX), kurzfeedbackEindruck ?? null)
-      .input('kfAuff', sql.NVarChar(sql.MAX), kurzfeedbackAuffaelligkeiten ?? null)
-      .input('kfEmpf', sql.NVarChar(sql.MAX), kurzfeedbackEmpfehlung ?? null)
+      .input('kfEindruck', sql.NVarChar(sql.MAX), kfEindruckEffektiv ?? null)
+      .input('kfAuff', sql.NVarChar(sql.MAX), kfAuffEffektiv ?? null)
+      .input('kfEmpf', sql.NVarChar(sql.MAX), kfEmpfEffektiv ?? null)
       .input('von', sql.NVarChar(36), autorOid)
       .query(`UPDATE dbo.Beurteilungen SET IndividuelleBeurteilung=@indiv, GesamtPunkte=@ges,
                 Note=@note, GespraechAm=@gespr,
@@ -450,7 +461,7 @@ async function patchNachAbschluss(pool, id, {
                 AusbildungsleiterBestaetigtVon=NULL, AusbildungsleiterBestaetigtAm=NULL,
                 AusbildungsleiterUnterschriftBild=NULL, AusbildungsleiterUnterschriftExt=NULL,
                 AktualisiertAm=SYSUTCDATETIME() WHERE Id=@id`);
-    await schreibeKriterien(tx, id, kriterien);
+    await schreibeKriterien(tx, id, kriterienEffektiv);
     for (const empfOid of empfaengerOids) {
       await erzeugeBenachrichtigung(tx, {
         userOid: empfOid, typ: mailTypAbgeschlossen(b.Typ), zuweisungId: b.ZuweisungId, fromUserOid: autorOid,
@@ -473,6 +484,82 @@ Expected: kein Output.
 ```bash
 git add backend/services/beurteilungen.js
 git commit -m "feat(beurteilung): Kurzfeedback-Empfaenger (Azubi+Ausbildungsleitung) bei Abschluss/Korrektur
+
+Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>"
+```
+
+---
+
+### Task 5b: DB-Migration — Benachrichtigungs-Typen für Kurzfeedback
+
+**Nachtrag (Code-Review-Fund zu Task 5):** `dbo.Benachrichtigungen` trägt einen
+CHECK-Constraint `CK_Benachrichtigungen_Typ` (zuletzt neu aufgesetzt in
+`db/migrations/032_benachrichtigungen_loeschtyp.sql`), der die ERLAUBTEN
+`Typ`-Werte auf eine feste Liste einschränkt. Diese Liste kennt
+`beurteilung_faellig`/`beurteilung_abgeschlossen` bereits (Migration 016),
+aber NICHT die in Task 5 neu eingeführten `kurzfeedback_faellig`/
+`kurzfeedback_abgeschlossen`. Ohne diese Migration schlägt jeder
+`erzeugeBenachrichtigung()`-Aufruf für ein Kurzfeedback mit einer
+CHECK-Constraint-Verletzung fehl — die gesamte Kurzfeedback-Abschluss-/
+Korrektur-Funktionalität aus Task 5 wäre gegen die echte DB nicht lauffähig.
+Übersehen in der ursprünglichen Design-Spec und im Plan; hier nachgezogen,
+BEVOR Task 6 den zweiten Aufrufer (`ermittleUndErzeugeFaellige`) fertigstellt,
+der denselben Constraint träfe.
+
+**Files:**
+- Create: `db/migrations/040_benachrichtigungen_kurzfeedbacktypen.sql`
+
+- [ ] **Step 1: Migration schreiben**
+
+```sql
+-- ============================================================
+-- Migration 040 – Benachrichtigungs-Typen für Kurzfeedback
+-- Ausführen gegen: Berichtsheft_Dev
+--
+-- CK_Benachrichtigungen_Typ (siehe Migration 032) kennt die neuen Typen
+-- 'kurzfeedback_faellig'/'kurzfeedback_abgeschlossen' noch nicht — ohne diese
+-- Migration schlägt jeder erzeugeBenachrichtigung()-Aufruf mit einem dieser
+-- Typen (siehe Kurzfeedback-Feature, Design-Spec
+-- 2026-08-26-beurteilung-kurzfeedback-design.md) mit einer CHECK-Constraint-
+-- Verletzung fehl. Basiert auf Migration 032 (11 Typen). Idempotent.
+-- ============================================================
+
+IF EXISTS (SELECT 1 FROM sys.check_constraints
+           WHERE name = 'CK_Benachrichtigungen_Typ'
+             AND parent_object_id = OBJECT_ID('dbo.Benachrichtigungen'))
+BEGIN
+  ALTER TABLE dbo.Benachrichtigungen DROP CONSTRAINT CK_Benachrichtigungen_Typ;
+  PRINT 'CK_Benachrichtigungen_Typ (alt) entfernt.';
+END
+ELSE PRINT 'CK_Benachrichtigungen_Typ existierte nicht - wird erstmals eingefuehrt.';
+
+ALTER TABLE dbo.Benachrichtigungen ADD CONSTRAINT CK_Benachrichtigungen_Typ
+  CHECK (Typ IN ('genehmigt','abgelehnt','erstgenehmigt',
+                 'beurteilung_faellig','beurteilung_abgeschlossen',
+                 'kurzfeedback_faellig','kurzfeedback_abgeschlossen',
+                 'versetzung_neu','versetzung_geaendert','versetzung_entfernt',
+                 'vertretung_neu','vertretung_beendet',
+                 'loeschung_geplant'));
+PRINT 'CK_Benachrichtigungen_Typ angelegt (13 Typen, inkl. Kurzfeedback).';
+```
+
+- [ ] **Step 2: Gegen die lokale Dev-Datenbank ausführen (manuell, wie Task 1)**
+
+Nur Kuniß kann das einspielen (keine DDL-Rechte auf dem Dev-DB-Account).
+Verifikation danach:
+
+```sql
+SELECT definition FROM sys.check_constraints
+WHERE name = 'CK_Benachrichtigungen_Typ' AND parent_object_id = OBJECT_ID('dbo.Benachrichtigungen');
+```
+
+Erwartet: Definition enthält `'kurzfeedback_faellig'` und `'kurzfeedback_abgeschlossen'`.
+
+- [ ] **Step 3: Commit**
+
+```bash
+git add db/migrations/040_benachrichtigungen_kurzfeedbacktypen.sql
+git commit -m "fix(beurteilung): CK_Benachrichtigungen_Typ um Kurzfeedback-Typen erweitert
 
 Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>"
 ```
@@ -755,25 +842,127 @@ Nach dem Eintrag `beurteilung_abgeschlossen` (Zeile 1527-1528) einfügen:
 
 - [ ] **Step 2: `mitteilungen.js` — `VERWALTUNG_TYPEN` erweitern**
 
-Nach dem Eintrag `beurteilung_abgeschlossen` (Zeile 112-113) einfügen:
+Nach dem Eintrag `beurteilung_abgeschlossen` (Zeile 112-113) einfügen. `label`
+bewusst `'Kurzfeedback'` statt `'Beurteilung'` (Korrektur aus dem Code-Review zu
+diesem Task): `mitteilungen.js` leitet aus dem `Typ`-Präfix einen eigenen
+`typeKey` ab (`'kurzfeedback'` vs. `'beurteilung'`) und baut daraus u.a. den
+Filter-Dropdown — zwei verschiedene `typeKey`s mit demselben `label`-Text hätten
+zwei nicht unterscheidbare "Beurteilung"-Einträge im Filter erzeugt, die
+unterschiedliche Ergebnismengen filtern:
 
 ```js
-    kurzfeedback_faellig:      { tone: 'er',      label: 'Beurteilung', titel: 'Kurzfeedback fällig',
+    kurzfeedback_faellig:      { tone: 'er',      label: 'Kurzfeedback', titel: 'Kurzfeedback fällig',
                                  href: b => `beurteilung.html?zuw=${encodeURIComponent(b.zuweisungId || '')}` },
-    kurzfeedback_abgeschlossen: { tone: 'ok',     label: 'Beurteilung', titel: 'Kurzfeedback abgeschlossen',
+    kurzfeedback_abgeschlossen: { tone: 'ok',     label: 'Kurzfeedback', titel: 'Kurzfeedback abgeschlossen',
                                  href: b => `beurteilung.html?zuw=${encodeURIComponent(b.zuweisungId || '')}` },
 ```
 
-- [ ] **Step 3: Syntax-Check**
+- [ ] **Step 3: `dh-mitteilungen.js` — dritte, bisher übersehene Render-Map ergänzen**
 
-Run: `node -c app/js/dashboard.js && node -c app/js/mitteilungen.js`
+**Nachtrag (Code-Review-Fund):** Es gibt eine DRITTE Stelle mit demselben
+"unbekannter Typ rendert lautlos leer"-Verhalten: die Glocke in der
+DH-Studenten-Topbar (`app/js/dh-mitteilungen.js`, eigene `TYPEN`-Map, unabhängig
+von den beiden obigen). DH-Studenten haben eigene Abteilungsdurchläufe, die
+ebenfalls kurz genug für Kurzfeedback sein können (`ermittleTyp` unterscheidet
+nicht nach Rolle) — ohne diese Ergänzung bekäme ein DH-Student bei einem kurzen
+Durchlauf ein unsichtbares `kurzfeedback_abgeschlossen`-Signal. NUR
+`kurzfeedback_abgeschlossen` nötig — DH-Studenten sind nie die beurteilende
+Person, `kurzfeedback_faellig` erreicht sie nie (siehe bestehender Kommentar in
+der Datei: nur `beurteilung_abgeschlossen` ist für sie relevant, kein
+`beurteilung_faellig`-Eintrag existiert dort).
+
+Nach dem Eintrag `beurteilung_abgeschlossen` in der `TYPEN`-Konstante einfügen:
+
+```js
+    kurzfeedback_abgeschlossen: { tone: 'ok',   label: 'Kurzfeedback', titel: 'Neues Kurzfeedback liegt vor',
+                                 href: (b) => `beurteilung.html?zuw=${encodeURIComponent(b.zuweisungId || '')}` },
+```
+
+- [ ] **Step 4: Syntax-Check**
+
+Run: `node -c app/js/dashboard.js && node -c app/js/mitteilungen.js && node -c app/js/dh-mitteilungen.js`
 Expected: kein Output.
 
-- [ ] **Step 4: Commit**
+- [ ] **Step 5: Commit**
+
+```bash
+git add app/js/dashboard.js app/js/mitteilungen.js app/js/dh-mitteilungen.js
+git commit -m "feat(beurteilung): Kurzfeedback-Mitteilungstypen in allen drei Render-Maps
+
+Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>"
+```
+
+- [ ] **Step 6: Azubi-eigene Mitteilungs-Feeds (weiterer Nachtrag, schwerwiegender als die DH-Lücke)**
+
+**Nachtrag (zweiter Code-Review-Fund zu diesem Task):** Neben den 3 Render-Maps
+gibt es zwei weitere, UNABHÄNGIGE Stellen mit fest verdrahteten
+`if (b.type === 'beurteilung_abgeschlossen' || b.type === 'beurteilung_faellig')`-
+Sonderfällen — nicht map-basiert, sondern inline in der Azubi-eigenen
+Mitteilungs-Darstellung. Ohne diese Ergänzung bekäme JEDER Azubi bei JEDEM
+abgeschlossenen Kurzfeedback (nicht nur DH-Studenten, nicht nur ein Rand­fall)
+eine **falsch beschriftete** Mitteilung ("KW undefined/undefined
+zurückgewiesen" statt "Neues Kurzfeedback liegt vor") mit falschem Icon und
+falschem Link (`wochenansicht.html` statt `beurteilung.html`) — schwerwiegender
+als das stille Leerbleiben, das die vorigen Schritte behoben haben.
+
+**`app/js/dashboard.js`** — den Bedingungsblock um Zeile 302 (Azubi-Dashboard,
+Mitteilungszentrale-Kachel) ersetzen:
+
+```js
+    if (b.type === 'beurteilung_abgeschlossen' || b.type === 'beurteilung_faellig'
+        || b.type === 'kurzfeedback_abgeschlossen' || b.type === 'kurzfeedback_faellig') {
+      const faellig = b.type === 'beurteilung_faellig' || b.type === 'kurzfeedback_faellig';
+      const istKurz = b.type.startsWith('kurzfeedback_');
+      const btitle = istKurz
+        ? (faellig ? 'Kurzfeedback fällig' : 'Neues Kurzfeedback liegt vor')
+        : (faellig ? 'Beurteilung fällig' : 'Neue Beurteilung liegt vor');
+      return `
+          <a class="b-mitteilung${mtNeu(b) ? ' b-mitteilung--unread' : ''}" href="beurteilung.html?zuw=${encodeURIComponent(b.zuweisungId || '')}"
+             data-notif-id="${b.id}" data-zuw="${b.zuweisungId || ''}">
+            <span class="b-mitteilung__icon b-mitteilung__icon--${faellig ? 'er' : 'ok'}">${faellig ? MT_ICON_ER : MT_ICON_OK}</span>
+            <span class="b-mitteilung__body">
+              <span class="b-mitteilung__title">${btitle}</span>
+              <span class="b-mitteilung__meta">${mtRelTime(b.timestamp)}</span>
+            </span>
+            ${mtNeu(b) ? '<span class="b-mitteilung__dot" aria-hidden="true"></span>' : ''}
+          </a>`;
+    }
+```
+
+**`app/js/mitteilungen.js`** — den Bedingungsblock in `buildAzubiItems()` um
+Zeile 156 ersetzen:
+
+```js
+      if (b.type === 'beurteilung_abgeschlossen' || b.type === 'beurteilung_faellig'
+          || b.type === 'kurzfeedback_abgeschlossen' || b.type === 'kurzfeedback_faellig') {
+        const faellig = b.type === 'beurteilung_faellig' || b.type === 'kurzfeedback_faellig';
+        const istKurz = b.type.startsWith('kurzfeedback_');
+        return {
+          key: `n${b.id}`,
+          ts: b.timestamp || 0,
+          tone: faellig ? 'info' : 'ok',
+          typeKey: istKurz ? 'kurzfeedback' : 'beurteilung',
+          typeLabel: istKurz ? 'Kurzfeedback' : 'Beurteilung',
+          title: istKurz
+            ? (faellig ? 'Kurzfeedback fällig' : 'Neues Kurzfeedback liegt vor')
+            : (faellig ? 'Beurteilung fällig' : 'Neue Beurteilung liegt vor'),
+          meta: relTime(b.timestamp),
+          notifId: b.id,
+          href: `beurteilung.html?zuw=${encodeURIComponent(b.zuweisungId || '')}`,
+          nav: null,
+        };
+      }
+```
+
+- [ ] **Step 7: Syntax-Check + Commit**
+
+```bash
+node -c app/js/dashboard.js && node -c app/js/mitteilungen.js
+```
 
 ```bash
 git add app/js/dashboard.js app/js/mitteilungen.js
-git commit -m "feat(beurteilung): Kurzfeedback-Mitteilungstypen in beiden Render-Maps
+git commit -m "fix(beurteilung): Kurzfeedback in Azubi-eigenen Mitteilungs-Feeds korrekt beschriftet
 
 Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>"
 ```
@@ -1017,6 +1206,34 @@ git commit -m "feat(beurteilung): Kurzfeedback-Formular + vereinfachte Aktionsle
 Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>"
 ```
 
+- [ ] **Step 8: Nachtrag (Code-Review-Fund) — Toast-Text untertreibt den Empfängerkreis**
+
+Beide Kurzfeedback-Toasts sagen nur "der Azubi" — tatsächlich gehen Abschluss/
+Korrektur-Mails an Azubi UND Ausbildungsleitung (siehe Task 5,
+`ermittleAbschlussEmpfaenger`). Zwei Toast-Texte in `app/js/beurteilung.js`
+korrigieren:
+
+```js
+            Toast.success('Aktualisiert', 'Kurzfeedback wurde aktualisiert (Azubi und Ausbildungsleitung werden benachrichtigt).');
+```
+
+```js
+            Toast.success('Abgeschlossen', 'Kurzfeedback abgeschlossen. Azubi und Ausbildungsleitung wurden benachrichtigt.');
+```
+
+Syntax-Check + Commit:
+
+```bash
+node -c app/js/beurteilung.js
+```
+
+```bash
+git add app/js/beurteilung.js
+git commit -m "fix(beurteilung): Kurzfeedback-Toast nennt Azubi UND Ausbildungsleitung
+
+Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>"
+```
+
 ---
 
 ### Task 12: `beurteilungen-liste.js` — Kurzfeedback-Badge
@@ -1055,6 +1272,46 @@ Expected: kein Output.
 ```bash
 git add app/js/beurteilungen-liste.js
 git commit -m "feat(beurteilung): Kurzfeedback-Badge in der Beurteilungen-Liste
+
+Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>"
+```
+
+- [ ] **Step 4: Nachtrag (Code-Review-Fund) — Badges überlappen**
+
+**Bug im obigen Snippet selbst:** `.durchlauf-card__badge` ist `position:absolute;
+top/right` (fest für GENAU einen Badge in der Ecke vorgesehen, siehe
+`app/css/abteilungs-planer.css`, Kommentar über der Regel). Zwei Geschwister-
+Badges mit derselben Klasse landen exakt übereinander — betrifft JEDE
+Kurzfeedback-Karte (offen UND abgeschlossen), kein Rand­fall. Fix: der
+Kurzfeedback-Badge bekommt NICHT die `durchlauf-card__badge`-Klasse (keine
+absolute Positionierung), sondern fließt inline in der Namens-/Abteilungszeile
+mit — `.badge` ist bereits `display:inline-flex` und dafür ohne weitere CSS
+geeignet.
+
+Ersetze den `listWrap.innerHTML`-Block erneut:
+
+```js
+    listWrap.innerHTML = `${hinweis}<div class="durchlauf-list">${gefiltert.map(b => `
+      <div class="durchlauf-card durchlauf-card--clickable" data-zuw="${b.zuweisungId}" role="button" tabindex="0">
+        <span class="badge ${b.status === 'abgeschlossen' ? 'badge--genehmigt' : 'badge--grey'} durchlauf-card__badge">
+          ${b.status === 'abgeschlossen' ? 'Abgeschlossen' : 'Offen'}
+        </span>
+        <div class="durchlauf-card__abt">${escapeHtml(displayName(b.azubiName))}${b.abteilung ? ' · ' + escapeHtml(b.abteilung) : ''}${b.typ === 'kurz' ? ' <span class="badge badge--freigegeben">Kurzfeedback</span>' : ''}</div>
+        <div class="durchlauf-card__zeit">${DateUtil.formatDate(b.von)} – ${DateUtil.formatDate(b.bis)}</div>
+      </div>
+    `).join('')}</div>`;
+```
+
+Syntax-Check + Commit + kurzer visueller Check (Kachel mit UND ohne
+Kurzfeedback-Badge nebeneinander betrachten, offen UND abgeschlossen):
+
+```bash
+node -c app/js/beurteilungen-liste.js
+```
+
+```bash
+git add app/js/beurteilungen-liste.js
+git commit -m "fix(beurteilung): Kurzfeedback-Badge ueberlappt nicht mehr mit Status-Badge
 
 Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>"
 ```
@@ -1104,6 +1361,58 @@ git commit -m "feat(beurteilung): Kurzfeedback-Kachel ohne Noten-Anzeige im Abte
 Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>"
 ```
 
+- [ ] **Step 4: Nachtrag (Code-Review-Fund) — `miniCard` zeigt fälschlich "offen" für abgeschlossenes Kurzfeedback**
+
+**Bug:** `miniCard()` (Verlaufs-Übersicht, "Abgeschlossen"-Kacheln) leitet ihr
+"offen"-Badge allein aus `grade` ab — `grade` ist für `Typ='kurz'` immer `null`
+(kein Notenkonzept), also zeigt eine bereits abgeschlossene Kurzfeedback-Kachel
+fälschlich das "offen"-Badge, obwohl der Klick auf dieselbe Kachel zur
+Detailseite mit "Kurzfeedback abgeschlossen" führt — direkter Widerspruch
+zwischen Übersicht und Detail.
+
+Ersetze `miniCard`:
+
+```js
+  function miniCard(r) {
+    const z = r.z;
+    const b = beurtByZuw[z.id];
+    const abgeschlossen = !!(b && b.status === 'abgeschlossen');
+    const istKurz = abgeschlossen && b.typ === 'kurz';
+    const grade = (abgeschlossen && !istKurz && b.note != null)
+      ? b.note.toLocaleString('de-DE', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) : null;
+    return `<a class="dlb-mini-card" href="${detailHref(z)}" style="--edge:${colorFor(z.abteilung)}">
+      <div class="dlb-mini-card__top">
+        <div class="dlb-mini-card__body">
+          <div class="dlb-mini-card__t">${escHtml(z.abteilung || '–')}</div>
+          <div class="dlb-mini-card__date">${DLB_ICO.cal}${DateUtil.formatDate(z.von)} – ${z.bis ? DateUtil.formatDate(z.bis) : 'offen'}</div>
+        </div>
+        ${grade ? `<div class="dlb-grade"><span class="dlb-grade__val">${grade}</span><span class="dlb-grade__cap">Note</span></div>` : ''}
+      </div>
+      <div class="dlb-mini-card__foot">
+        <span class="dlb-ap"><span class="dlb-avatar" style="background:${colorFor(z.abteilung)};color:#fff">${dlbAvatarHTML(z.verantwName, z.verantwOid)}</span><span class="dlb-ap__name">${escHtml(z.verantwName || '–')}</span></span>
+        ${grade ? '' : (istKurz ? `<span class="dlb-beurt dlb-beurt--done">${DLB_ICO.check}Kurzfeedback</span>` : `<span class="dlb-beurt dlb-beurt--open">${DLB_ICO.circle}offen</span>`)}
+      </div>
+    </a>`;
+  }
+```
+
+`stopHtml` (Verlaufs-Rail) zeigt bei fehlender Note bewusst das neutrale
+"beendet" statt "offen" — dort ist NICHTS irreführend, deshalb bewusst NICHT
+angefasst (Scope-Entscheidung, kein Bug).
+
+Syntax-Check + Commit:
+
+```bash
+node -c app/js/abteilungs-planer.js
+```
+
+```bash
+git add app/js/abteilungs-planer.js
+git commit -m "fix(beurteilung): miniCard zeigt Kurzfeedback nicht mehr faelschlich als offen
+
+Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>"
+```
+
 ---
 
 ### Task 14: Manuelle End-to-End-Verifikation
@@ -1130,8 +1439,8 @@ Als Prüfer/Ausbilder (passwortloser Demo-Login, `.demo`-Konto) einloggen und:
    3 Textfelder statt der 10-Kriterien-Tabelle, kein "Als PDF"-Button.
 2. Alle 3 Felder befüllen, "Entwurf speichern" klicken — erwartet: Toast
    "Gespeichert", kein Fehler in der Browser-Konsole.
-3. "Abschließen" klicken — erwartet: Toast "Kurzfeedback abgeschlossen. Der
-   Azubi wurde benachrichtigt.", KEIN Signatur-Dialog erscheint.
+3. "Abschließen" klicken — erwartet: Toast "Kurzfeedback abgeschlossen. Azubi
+   und Ausbildungsleitung wurden benachrichtigt.", KEIN Signatur-Dialog erscheint.
 4. Zur Liste `beurteilungen.html` navigieren — erwartet: der Eintrag zeigt
    sowohl "Abgeschlossen" als auch das Badge "Kurzfeedback".
 5. Als der betroffene Azubi einloggen, `abteilungs-planer.html` (Detailansicht
@@ -1145,3 +1454,79 @@ Als Prüfer/Ausbilder (passwortloser Demo-Login, `.demo`-Konto) einloggen und:
 
 Bei Abweichungen: zurück zum jeweiligen Task, Code korrigieren, Schritt 3 wiederholen.
 Kein Commit in diesem Task (reine Verifikation).
+
+Live-Verifikation gegen einen echten Server/DB konnte in dieser Session NICHT
+durchgeführt werden (kein `.env`/DB-Zugriff im isolierten Worktree, Migrationen
+039+040 sind mangels DDL-Rechten noch nicht gegen die Dev-DB eingespielt). Statt
+dessen als Ersatzverifikation durchgeführt und grün: `node -c` auf allen 11
+geänderten Dateien, volle `node --test`-Suite (19/19 grün, inkl. aller neuen
+Kurzfeedback-Tests). Echte Browser-E2E gegen `localhost:3000` steht noch aus,
+sobald die Migrationen eingespielt sind.
+
+---
+
+### Task 15: Backend — Ausbildungsleitung darf Kurzfeedback ansehen
+
+**Nachtrag (finaler Gesamt-Code-Review-Fund):** Die Kurzfeedback-Mail/-Mitteilung
+schickt der Ausbildungsleitung einen direkten Link auf die Beurteilungsseite
+(`beurteilung.html?zuw=...`, Task 5). Der Ansehen-Zugriff dahinter
+(`svc.darfBeurteilen()`, genutzt in `GET /api/beurteilungen` UND
+`GET /api/beurteilungen/:id/unterschrift/:rolle`) prüft aber nur
+`verantwortlichFuerZuweisung()` — dauerhafter Ausbilder (`AusbilderAzubis`)
+ODER zeitlich zugewiesener Prüfer (`VerantwEmail`) — und kennt die
+Ausbildungsleiter-Rolle (`ermittleAusbildungsleiter()`, bereits im selben File
+vorhanden) überhaupt nicht. `ermittleModus()`s eigener Ausbildungsleiter-Zweig
+wird nie erreicht, weil die Route schon vorher mit 403 antwortet. Das ist eine
+VORBESTEHENDE Lücke aus dem Ausbildungsleiter-Feature (2026-08-21) — aber DIESER
+Plan macht sie erstmals aktiv: jede abgeschlossene Kurzfeedback-Beurteilung
+schickt der Ausbildungsleitung genau diesen Link, der bei ihr routinemäßig in
+403 läuft, sofern sie nicht zufällig auch dauerhafter Ausbilder oder
+VerantwEmail-Empfänger für denselben Azubi ist.
+
+**Files:**
+- Modify: `backend/services/beurteilungen.js:27-33` (`darfBeurteilen`)
+
+- [ ] **Step 1: `darfBeurteilen` um Ausbildungsleiter-Zugriff erweitern**
+
+Ersetze die Funktion:
+
+```js
+// Darf der Nutzer die Beurteilung dieser Zuweisung ANSEHEN? Breiter als
+// darfBeurteilungBearbeiten: zusätzlich dauerhafter Ausbilder UND (neu) die
+// zuständige Ausbildungsleitung — beide dürfen nur ansehen, nicht bearbeiten.
+// Ohne den Ausbildungsleiter-Zusatz würde der direkte Mail-/Mitteilungs-Link
+// aus dem Kurzfeedback-Abschluss (siehe ermittleAbschlussEmpfaenger) bei ihr
+// regelmäßig in 403 laufen.
+async function darfBeurteilen(user, zuweisung, pool) {
+  if (!zuweisung) return false;
+  if (user.role === 'developer' || user.role === 'admin') return true;
+  const kontext = await ladeKorrekturKontext(pool, user);
+  if (verantwortlichFuerZuweisung(user, zuweisung, kontext)) return true;
+  const ausbildungsleiterOid = await ermittleAusbildungsleiter(pool, zuweisung.azubiOid);
+  return !!ausbildungsleiterOid && ausbildungsleiterOid === user.oid;
+}
+```
+
+Hinweis: `zuweisung.azubiOid` — `ladeZuweisung()` (dieselbe Datei) liefert das
+Feld bereits unter genau diesem camelCase-Namen, keine Anpassung an anderer
+Stelle nötig. `ermittleAusbildungsleiter` steht bereits vor `darfBeurteilen`
+in derselben Datei (keine neue Importzeile nötig).
+
+- [ ] **Step 2: Syntax-Check**
+
+Run: `node -c backend/services/beurteilungen.js`
+Expected: kein Output.
+
+- [ ] **Step 3: Commit**
+
+```bash
+git add backend/services/beurteilungen.js
+git commit -m "fix(beurteilung): Ausbildungsleitung darf Kurzfeedback/Beurteilung ansehen
+
+Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>"
+```
+
+**Out of Scope (bewusst):** `darfBeurteilungBearbeiten` bleibt unverändert eng
+(nur zeitlich zugewiesener Prüfer, siehe Design-Spec 2026-08-21) — die
+Ausbildungsleitung soll weiterhin nur ansehen, nicht bearbeiten können. Diese
+Änderung betrifft ausschließlich den Ansehen-Pfad.

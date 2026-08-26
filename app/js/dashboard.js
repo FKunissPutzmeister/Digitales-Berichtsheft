@@ -299,9 +299,13 @@ async function renderAzubiDashboard(user) {
   const mtNotifHtml = mtItems.slice(0, 6).map(b => {
     // Beurteilungs-Mitteilungen (kein KW/Jahr) korrekt beschriften + auf den
     // Beurteilungsbogen verlinken statt in den zurückgegeben-Zweig zu fallen.
-    if (b.type === 'beurteilung_abgeschlossen' || b.type === 'beurteilung_faellig') {
-      const faellig = b.type === 'beurteilung_faellig';
-      const btitle = faellig ? 'Beurteilung fällig' : 'Neue Beurteilung liegt vor';
+    if (b.type === 'beurteilung_abgeschlossen' || b.type === 'beurteilung_faellig'
+        || b.type === 'kurzfeedback_abgeschlossen' || b.type === 'kurzfeedback_faellig') {
+      const faellig = b.type === 'beurteilung_faellig' || b.type === 'kurzfeedback_faellig';
+      const istKurz = b.type.startsWith('kurzfeedback_');
+      const btitle = istKurz
+        ? (faellig ? 'Kurzfeedback fällig' : 'Neues Kurzfeedback liegt vor')
+        : (faellig ? 'Beurteilung fällig' : 'Neue Beurteilung liegt vor');
       return `
           <a class="b-mitteilung${mtNeu(b) ? ' b-mitteilung--unread' : ''}" href="beurteilung.html?zuw=${encodeURIComponent(b.zuweisungId || '')}"
              data-notif-id="${b.id}" data-zuw="${b.zuweisungId || ''}">
@@ -1525,6 +1529,10 @@ const VERWALTUNG_MT_TYPEN = {
   beurteilung_faellig:       { type: 'error',   titel: 'Beurteilung fällig',
                                href: b => `beurteilung.html?zuw=${encodeURIComponent(b.zuweisungId || '')}` },
   beurteilung_abgeschlossen: { type: 'success', titel: 'Beurteilung abgeschlossen',
+                               href: b => `beurteilung.html?zuw=${encodeURIComponent(b.zuweisungId || '')}` },
+  kurzfeedback_faellig:       { type: 'error',   titel: 'Kurzfeedback fällig',
+                               href: b => `beurteilung.html?zuw=${encodeURIComponent(b.zuweisungId || '')}` },
+  kurzfeedback_abgeschlossen: { type: 'success', titel: 'Kurzfeedback abgeschlossen',
                                href: b => `beurteilung.html?zuw=${encodeURIComponent(b.zuweisungId || '')}` },
   // Retention-Job: ein Konto wird in höchstens 30 Tagen endgültig gelöscht.
   // Der Betroffene steht in FromUserOid — sein Konto ist inaktiv und in der

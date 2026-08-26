@@ -2,7 +2,7 @@
 /* Persistenz + Logik für Beurteilungsbögen. Rechenkern wird aus dem
    Frontend-Kernmodul WIEDERVERWENDET (eine Wahrheit für die Mathematik). */
 const { getPool, sql } = require('../db/connection');
-const { berechne } = require('../../app/js/beurteilung-core.js');
+const { berechne, ermittleTyp } = require('../../app/js/beurteilung-core.js');
 const { ladeKorrekturKontext } = require('./zugriffContext');
 const { verantwortlichFuerZuweisung, ymd } = require('./zugriff');
 const { aktiveVertreteneEmails } = require('./vertretungen');
@@ -24,12 +24,19 @@ async function ladeZuweisung(pool, zuweisungId) {
   };
 }
 
-// Darf der Nutzer die Beurteilung dieser Zuweisung bearbeiten?
+// Darf der Nutzer die Beurteilung dieser Zuweisung ANSEHEN? Breiter als
+// darfBeurteilungBearbeiten: zusätzlich dauerhafter Ausbilder UND (neu) die
+// zuständige Ausbildungsleitung — beide dürfen nur ansehen, nicht bearbeiten.
+// Ohne den Ausbildungsleiter-Zusatz würde der direkte Mail-/Mitteilungs-Link
+// aus dem Kurzfeedback-Abschluss (siehe ermittleAbschlussEmpfaenger) bei ihr
+// regelmäßig in 403 laufen.
 async function darfBeurteilen(user, zuweisung, pool) {
   if (!zuweisung) return false;
   if (user.role === 'developer' || user.role === 'admin') return true;
   const kontext = await ladeKorrekturKontext(pool, user);
-  return verantwortlichFuerZuweisung(user, zuweisung, kontext);
+  if (verantwortlichFuerZuweisung(user, zuweisung, kontext)) return true;
+  const ausbildungsleiterOid = await ermittleAusbildungsleiter(pool, zuweisung.azubiOid);
+  return !!ausbildungsleiterOid && ausbildungsleiterOid === user.oid;
 }
 
 // Eng: darf NUR der zeitlich zugewiesene Prüfer (E-Mail-Match) ODER admin/
@@ -68,6 +75,9 @@ async function ermittleAusbildungsleiter(pool, azubiOid) {
 // AzubiOid/Status/AusbildungsleiterBestaetigtAm-Feldern).
 async function ermittleModus(user, zuweisung, b, pool) {
   if (darfBeurteilungBearbeiten(user, zuweisung)) return 'bearbeiten';
+  // Kurzfeedback hat keinen Kenntnisnahme- und keinen Ausbildungsleiter-
+  // Schritt (siehe Design-Spec §5) — jeder Nicht-Bearbeiter sieht nur an.
+  if (b.Typ === 'kurz') return 'ansicht';
   if (user.oid === b.AzubiOid) return 'azubi';
   if (b.Status === 'abgeschlossen' && !b.AusbildungsleiterBestaetigtAm && !b.ausbildungsleiterSchrittEntfaellt) {
     const ausbildungsleiterOid = await ermittleAusbildungsleiter(pool, b.AzubiOid);
@@ -86,7 +96,8 @@ async function ladeKriterien(pool, beurteilungId) {
 async function getByZuweisung(pool, zuweisungId) {
   const r = await pool.request()
     .input('zid', sql.Int, zuweisungId)
-    .query(`SELECT Id, ZuweisungId, AzubiOid, Status, IndividuelleBeurteilung, GesamtPunkte, Note,
+    .query(`SELECT Id, ZuweisungId, AzubiOid, Status, Typ, IndividuelleBeurteilung, GesamtPunkte, Note,
+              KurzfeedbackEindruck, KurzfeedbackAuffaelligkeiten, KurzfeedbackEmpfehlung,
               GespraechAm, BeurteiltVon, AbgeschlossenAm, KenntnisnahmeVon, KenntnisnahmeAm,
               KorrigiertVon, KorrigiertAm, ErstelltAm, AktualisiertAm,
               BeurteilerUnterschriftExt, KenntnisnahmeUnterschriftExt,
@@ -116,7 +127,7 @@ async function getByZuweisung(pool, zuweisungId) {
 async function listByAzubi(pool, azubiOid) {
   const r = await pool.request()
     .input('oid', sql.NVarChar(36), azubiOid)
-    .query('SELECT ZuweisungId, Status, Note, GesamtPunkte, AbgeschlossenAm FROM dbo.Beurteilungen WHERE AzubiOid = @oid');
+    .query('SELECT ZuweisungId, Status, Typ, Note, GesamtPunkte, AbgeschlossenAm FROM dbo.Beurteilungen WHERE AzubiOid = @oid');
   return r.recordset;
 }
 
@@ -141,30 +152,61 @@ async function schreibeKriterien(tx, beurteilungId, kriterien) {
   }
 }
 
-async function upsertEntwurf(pool, { zuweisungId, azubiOid, kriterien, individuelleBeurteilung, gespraechAm }) {
-  const calc = rechne(kriterien);
+async function upsertEntwurf(pool, {
+  zuweisungId, azubiOid, typ, kriterien, individuelleBeurteilung, gespraechAm,
+  kurzfeedbackEindruck, kurzfeedbackAuffaelligkeiten, kurzfeedbackEmpfehlung,
+}) {
+  // Punkte/Note nur berechnen, wenn Kriterien mitgeschickt wurden (grosse
+  // Beurteilung) — beim Kurzfeedback bleiben GesamtPunkte/Note NULL, ohne
+  // dass diese Funktion selbst zwischen den beiden Typen unterscheiden muss:
+  // jede Seite schickt ohnehin nur ihre eigenen Felder (siehe Route).
+  //
+  // Härtung: der BEREITS GESPEICHERTE Typ eines bestehenden Datensatzes ist
+  // maßgeblich dafür, welches Feld-Set geschrieben wird — nicht das frisch
+  // übergebene `typ`-Argument. Ohne diesen Vorab-Read könnte ein Request, der
+  // (versehentlich oder absichtlich) sowohl `kriterien` als auch die 3
+  // `kurzfeedback*`-Felder mitschickt, bei einem UPDATE das jeweils "falsche"
+  // Set mitschreiben — z.B. bei einem Typ='kurz'-Datensatz echte
+  // GesamtPunkte/Note berechnen und BeurteilungKriterien-Zeilen anlegen,
+  // obwohl dessen eigener Typ das widerspricht. Für einen neuen Datensatz
+  // (kein bestehend.recordset[0]) fällt effektiverTyp auf das übergebene
+  // `typ` zurück — unverändertes Verhalten wie zuvor.
+  const bestehend = await pool.request().input('zid', sql.Int, zuweisungId)
+    .query('SELECT Typ FROM dbo.Beurteilungen WHERE ZuweisungId=@zid');
+  const effektiverTyp = bestehend.recordset[0]?.Typ || typ || 'gross';
+  const kriterienEffektiv = effektiverTyp === 'gross' ? kriterien : undefined;
+  const kfEindruckEffektiv = effektiverTyp === 'kurz' ? kurzfeedbackEindruck : undefined;
+  const kfAuffEffektiv = effektiverTyp === 'kurz' ? kurzfeedbackAuffaelligkeiten : undefined;
+  const kfEmpfEffektiv = effektiverTyp === 'kurz' ? kurzfeedbackEmpfehlung : undefined;
+  const calc = (kriterienEffektiv && kriterienEffektiv.length) ? rechne(kriterienEffektiv) : { gesamt: null, note: null };
   const tx = new sql.Transaction(pool);
   await tx.begin();
   try {
     const up = await new sql.Request(tx)
       .input('zid', sql.Int, zuweisungId)
       .input('oid', sql.NVarChar(36), azubiOid)
+      .input('typ', sql.NVarChar(10), effektiverTyp)
       .input('indiv', sql.NVarChar(sql.MAX), individuelleBeurteilung ?? null)
       .input('ges', sql.Decimal(5, 2), calc.gesamt)
       .input('note', sql.Decimal(2, 1), calc.note)
       .input('gespr', sql.Date, gespraechAm || null)
+      .input('kfEindruck', sql.NVarChar(sql.MAX), kfEindruckEffektiv ?? null)
+      .input('kfAuff', sql.NVarChar(sql.MAX), kfAuffEffektiv ?? null)
+      .input('kfEmpf', sql.NVarChar(sql.MAX), kfEmpfEffektiv ?? null)
       .query(`
         MERGE dbo.Beurteilungen AS t
         USING (SELECT @zid AS ZuweisungId) AS s ON t.ZuweisungId = s.ZuweisungId
         WHEN MATCHED THEN UPDATE SET
-          IndividuelleBeurteilung=@indiv, GesamtPunkte=@ges, Note=@note,
-          GespraechAm=@gespr, AktualisiertAm=SYSUTCDATETIME()
-        WHEN NOT MATCHED THEN INSERT (ZuweisungId, AzubiOid, Status, IndividuelleBeurteilung, GesamtPunkte, Note, GespraechAm)
-          VALUES (@zid, @oid, 'entwurf', @indiv, @ges, @note, @gespr)
+          IndividuelleBeurteilung=@indiv, GesamtPunkte=@ges, Note=@note, GespraechAm=@gespr,
+          KurzfeedbackEindruck=@kfEindruck, KurzfeedbackAuffaelligkeiten=@kfAuff, KurzfeedbackEmpfehlung=@kfEmpf,
+          AktualisiertAm=SYSUTCDATETIME()
+        WHEN NOT MATCHED THEN INSERT (ZuweisungId, AzubiOid, Status, Typ, IndividuelleBeurteilung, GesamtPunkte, Note, GespraechAm,
+          KurzfeedbackEindruck, KurzfeedbackAuffaelligkeiten, KurzfeedbackEmpfehlung)
+          VALUES (@zid, @oid, 'entwurf', @typ, @indiv, @ges, @note, @gespr, @kfEindruck, @kfAuff, @kfEmpf)
         OUTPUT inserted.Id;
       `);
     const id = up.recordset[0].Id;
-    await schreibeKriterien(tx, id, kriterien);
+    await schreibeKriterien(tx, id, kriterienEffektiv);
     await tx.commit();
     return id;
   } catch (e) { await tx.rollback(); throw e; }
@@ -184,16 +226,30 @@ async function erzeugeBenachrichtigung(runner, { userOid, typ, zuweisungId, from
             VALUES (@userOid,@typ,@zid,@from)`);
 }
 
+const mailTypAbgeschlossen = (typ) => (typ === 'kurz' ? 'kurzfeedback_abgeschlossen' : 'beurteilung_abgeschlossen');
+const mailTypFaellig = (typ) => (typ === 'kurz' ? 'kurzfeedback_faellig' : 'beurteilung_faellig');
+
+// Empfänger für das "abgeschlossen"-Signal: immer der Azubi; beim
+// Kurzfeedback zusätzlich die zuständige Ausbildungsleitung (rein
+// informativ — anders als bei der großen Beurteilung gibt es dafür keinen
+// eigenen Bestätigungsschritt, siehe Design-Spec §5).
+async function ermittleAbschlussEmpfaenger(pool, b) {
+  if (b.Typ !== 'kurz') return [b.AzubiOid];
+  const ausbildungsleiterOid = await ermittleAusbildungsleiter(pool, b.AzubiOid);
+  return [b.AzubiOid, ausbildungsleiterOid].filter(Boolean);
+}
+
 async function abschliessen(pool, id, autorOid, signatur) {
   const cur = await pool.request().input('id', sql.Int, id)
-    .query('SELECT Id, ZuweisungId, AzubiOid FROM dbo.Beurteilungen WHERE Id=@id');
+    .query('SELECT Id, ZuweisungId, AzubiOid, Typ FROM dbo.Beurteilungen WHERE Id=@id');
   const b = cur.recordset[0];
   if (!b) throw new Error('Beurteilung nicht gefunden.');
   const sigBytes = signatur ? unterschriftenSvc.dataUrlToBuffer(signatur.dataUrl) : null;
   if (signatur && !sigBytes) throw new Error('Ungültige Unterschrift.');
   unterschriftenSvc.pruefeGroesse(sigBytes);
   const sigExt = signatur ? unterschriftenSvc.normExt(signatur.extension) : null;
-  // Status-Update UND Azubi-Mitteilung atomar: schlägt der Benachrichtigungs-
+  const empfaengerOids = await ermittleAbschlussEmpfaenger(pool, b);
+  // Status-Update UND Mitteilungen atomar: schlägt ein Benachrichtigungs-
   // INSERT fehl (z.B. CHECK-Constraint), wird auch der Abschluss zurückgerollt –
   // kein stiller Zustand "abgeschlossen ohne Mitteilung".
   const tx = new sql.Transaction(pool);
@@ -209,9 +265,11 @@ async function abschliessen(pool, id, autorOid, signatur) {
                 BeurteilerUnterschriftBild=@bild, BeurteilerUnterschriftExt=@ext,
                 AktualisiertAm=SYSUTCDATETIME()
               WHERE Id=@id`);
-    await erzeugeBenachrichtigung(tx, {
-      userOid: b.AzubiOid, typ: 'beurteilung_abgeschlossen', zuweisungId: b.ZuweisungId, fromUserOid: autorOid,
-    });
+    for (const empfOid of empfaengerOids) {
+      await erzeugeBenachrichtigung(tx, {
+        userOid: empfOid, typ: mailTypAbgeschlossen(b.Typ), zuweisungId: b.ZuweisungId, fromUserOid: autorOid,
+      });
+    }
     await tx.commit();
   } catch (e) { await tx.rollback(); throw e; }
   // Persönliche Standard-Unterschrift aktualisieren — best effort, AUSSERHALB
@@ -223,16 +281,27 @@ async function abschliessen(pool, id, autorOid, signatur) {
   }
   // Mail NACH dem Commit und außerhalb der Transaktion: ein Versandfehler darf
   // den Abschluss nicht zurückrollen (mailBeurteilung wirft ohnehin nie).
-  await mailBeurteilung(pool, [b.AzubiOid], 'beurteilung_abgeschlossen',
+  await mailBeurteilung(pool, empfaengerOids, mailTypAbgeschlossen(b.Typ),
     { zuweisungId: b.ZuweisungId, azubiOid: b.AzubiOid });
 }
 
-async function patchNachAbschluss(pool, id, { kriterien, individuelleBeurteilung, gespraechAm }, autorOid) {
+async function patchNachAbschluss(pool, id, {
+  kriterien, individuelleBeurteilung, gespraechAm,
+  kurzfeedbackEindruck, kurzfeedbackAuffaelligkeiten, kurzfeedbackEmpfehlung,
+}, autorOid) {
   const cur = await pool.request().input('id', sql.Int, id)
-    .query('SELECT Id, ZuweisungId, AzubiOid FROM dbo.Beurteilungen WHERE Id=@id');
+    .query('SELECT Id, ZuweisungId, AzubiOid, Typ FROM dbo.Beurteilungen WHERE Id=@id');
   const b = cur.recordset[0];
   if (!b) throw new Error('Beurteilung nicht gefunden.');
-  const calc = rechne(kriterien);
+  // b.Typ ist bereits geladen und für eine bestehende Zeile immer autoritativ
+  // (Typ ist nach Anlage unveränderlich) — kein Vorab-Read nötig wie bei
+  // upsertEntwurf, dort existierte die Zeile zum Zeitpunkt des Reads evtl. noch nicht.
+  const kriterienEffektiv = b.Typ === 'gross' ? kriterien : undefined;
+  const kfEindruckEffektiv = b.Typ === 'kurz' ? kurzfeedbackEindruck : undefined;
+  const kfAuffEffektiv = b.Typ === 'kurz' ? kurzfeedbackAuffaelligkeiten : undefined;
+  const kfEmpfEffektiv = b.Typ === 'kurz' ? kurzfeedbackEmpfehlung : undefined;
+  const calc = (kriterienEffektiv && kriterienEffektiv.length) ? rechne(kriterienEffektiv) : { gesamt: null, note: null };
+  const empfaengerOids = await ermittleAbschlussEmpfaenger(pool, b);
   const tx = new sql.Transaction(pool);
   await tx.begin();
   try {
@@ -242,22 +311,28 @@ async function patchNachAbschluss(pool, id, { kriterien, individuelleBeurteilung
       .input('ges', sql.Decimal(5, 2), calc.gesamt)
       .input('note', sql.Decimal(2, 1), calc.note)
       .input('gespr', sql.Date, gespraechAm || null)
+      .input('kfEindruck', sql.NVarChar(sql.MAX), kfEindruckEffektiv ?? null)
+      .input('kfAuff', sql.NVarChar(sql.MAX), kfAuffEffektiv ?? null)
+      .input('kfEmpf', sql.NVarChar(sql.MAX), kfEmpfEffektiv ?? null)
       .input('von', sql.NVarChar(36), autorOid)
       .query(`UPDATE dbo.Beurteilungen SET IndividuelleBeurteilung=@indiv, GesamtPunkte=@ges,
-                Note=@note, GespraechAm=@gespr, KorrigiertVon=@von, KorrigiertAm=SYSUTCDATETIME(),
+                Note=@note, GespraechAm=@gespr,
+                KurzfeedbackEindruck=@kfEindruck, KurzfeedbackAuffaelligkeiten=@kfAuff, KurzfeedbackEmpfehlung=@kfEmpf,
+                KorrigiertVon=@von, KorrigiertAm=SYSUTCDATETIME(),
                 KenntnisnahmeVon=NULL, KenntnisnahmeAm=NULL,
                 KenntnisnahmeUnterschriftBild=NULL, KenntnisnahmeUnterschriftExt=NULL,
                 AusbildungsleiterBestaetigtVon=NULL, AusbildungsleiterBestaetigtAm=NULL,
                 AusbildungsleiterUnterschriftBild=NULL, AusbildungsleiterUnterschriftExt=NULL,
                 AktualisiertAm=SYSUTCDATETIME() WHERE Id=@id`);
-    await schreibeKriterien(tx, id, kriterien);
-    // Mitteilung im selben Transaktions-Rahmen (atomar mit der Korrektur).
-    await erzeugeBenachrichtigung(tx, {
-      userOid: b.AzubiOid, typ: 'beurteilung_abgeschlossen', zuweisungId: b.ZuweisungId, fromUserOid: autorOid,
-    });
+    await schreibeKriterien(tx, id, kriterienEffektiv);
+    for (const empfOid of empfaengerOids) {
+      await erzeugeBenachrichtigung(tx, {
+        userOid: empfOid, typ: mailTypAbgeschlossen(b.Typ), zuweisungId: b.ZuweisungId, fromUserOid: autorOid,
+      });
+    }
     await tx.commit();
   } catch (e) { await tx.rollback(); throw e; }
-  await mailBeurteilung(pool, [b.AzubiOid], 'beurteilung_abgeschlossen',
+  await mailBeurteilung(pool, empfaengerOids, mailTypAbgeschlossen(b.Typ),
     { zuweisungId: b.ZuweisungId, azubiOid: b.AzubiOid });
 }
 
@@ -320,24 +395,27 @@ async function ermittleUndErzeugeFaellige(pool, user) {
       WHERE z.VerantwEmail IN (${params.join(',')}) AND z.Bis IS NOT NULL AND z.Bis < @heute AND b.Id IS NULL
       ORDER BY z.Bis DESC`);
   for (const z of r.recordset) {
+    const benachrichtigungTyp = mailTypFaellig(ermittleTyp(z.Von, z.Bis));
     const exists = await pool.request()
       .input('userOid', sql.NVarChar(36), user.oid)
+      .input('typ', sql.NVarChar(40), benachrichtigungTyp)
       .input('zid', sql.Int, z.ZuweisungId)
       .query(`SELECT TOP 1 Id FROM dbo.Benachrichtigungen
-              WHERE UserOid=@userOid AND Typ='beurteilung_faellig' AND ZuweisungId=@zid`);
+              WHERE UserOid=@userOid AND Typ=@typ AND ZuweisungId=@zid`);
     if (!exists.recordset.length) {
       await erzeugeBenachrichtigung(pool, {
-        userOid: user.oid, typ: 'beurteilung_faellig', zuweisungId: z.ZuweisungId, fromUserOid: null,
+        userOid: user.oid, typ: benachrichtigungTyp, zuweisungId: z.ZuweisungId, fromUserOid: null,
       });
-      // Genau einmal je (Person, Zuweisung) — der exists-Check oben ist auch die
+      // Genau einmal je (Person, Zuweisung, Typ) — der exists-Check oben ist auch die
       // Sperre gegen wiederholte Erinnerungs-Mails bei jedem Login.
-      await mailBeurteilung(pool, [user.oid], 'beurteilung_faellig', {
+      await mailBeurteilung(pool, [user.oid], benachrichtigungTyp, {
         zuweisungId: z.ZuweisungId, azubiOid: z.AzubiOid, abteilung: z.Abteilung, von: z.Von, bis: z.Bis,
       });
     }
   }
   return r.recordset.map(z => ({
     zuweisungId: z.ZuweisungId, abteilung: z.Abteilung, von: z.Von, bis: z.Bis, azubiOid: z.AzubiOid,
+    typ: ermittleTyp(z.Von, z.Bis),
   }));
 }
 
@@ -376,7 +454,7 @@ async function listMeineBeurteilbaren(pool, user, azubiOid) {
 
   const result = await r.query(`
     SELECT z.Id AS ZuweisungId, z.AzubiOid, z.Abteilung, z.Von, z.Bis, u.Name AS AzubiName,
-           b.Status AS BeurteilungStatus
+           b.Status AS BeurteilungStatus, b.Typ AS BeurteilungTyp
     FROM dbo.Zuweisungen z
     JOIN dbo.Users u ON u.Oid = z.AzubiOid
     LEFT JOIN dbo.Beurteilungen b ON b.ZuweisungId = z.Id
@@ -391,11 +469,15 @@ async function listMeineBeurteilbaren(pool, user, azubiOid) {
     von: ymd(row.Von),
     bis: ymd(row.Bis),
     status: row.BeurteilungStatus === 'abgeschlossen' ? 'abgeschlossen' : 'offen',
+    // Solange noch keine Beurteilungen-Zeile existiert (Typ ist dann NULL aus
+    // dem LEFT JOIN), aus den Zuweisungsdaten selbst ableiten — so zeigt die
+    // Liste den erwarteten Prozess auch VOR der ersten Entwurf-Anlage.
+    typ: row.BeurteilungTyp || ermittleTyp(row.Von, row.Bis),
   }));
 }
 
 module.exports = {
-  ladeZuweisung, darfBeurteilen, darfBeurteilungBearbeiten, ermittleAusbildungsleiter, ermittleModus,
+  ladeZuweisung, darfBeurteilen, darfBeurteilungBearbeiten, ermittleAusbildungsleiter, ermittleModus, ermittleTyp,
   getByZuweisung, listByAzubi,
   upsertEntwurf, abschliessen, patchNachAbschluss, kenntnisnahme, ermittleUndErzeugeFaellige,
   listMeineBeurteilbaren, ausbildungsleiterBestaetigen,

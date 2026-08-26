@@ -53,20 +53,31 @@ document.addEventListener('DOMContentLoaded', async () => {
   const statusAbg = beurteilung?.status === 'abgeschlossen';
   const statusLabel = statusAbg ? 'Abgeschlossen' : (beurteilung ? 'Entwurf' : (editable ? 'Neu' : 'Offen'));
   const statusBadge = statusAbg ? 'badge--genehmigt' : (beurteilung ? 'badge--yellow' : 'badge--grey');
+  // Typ ist ab dem ersten gespeicherten Entwurf serverseitig fix (beurteilung.typ);
+  // vor der ersten Anlage wird er clientseitig aus der Zuweisungsdauer abgeleitet
+  // (identische Regel wie das Backend — siehe ermittleTyp in beurteilung-core.js).
+  const typ = beurteilung?.typ || window.Beurteilung.ermittleTyp(zuweisung.von, zuweisung.bis);
   main.innerHTML = `
     <div class="page-header">
-      <h1 class="page-title">Beurteilungsbogen</h1>
+      <h1 class="page-title">${typ === 'kurz' ? 'Kurzfeedback' : 'Beurteilungsbogen'}</h1>
       <span class="badge ${statusBadge}">${statusLabel}</span>
     </div>
     <div id="beurtFormHost"></div>
     <div class="beurt-actions" id="beurtActions"></div>`;
 
-  const form = window.Beurteilung.renderForm(document.getElementById('beurtFormHost'), {
-    kopf, punkteByKey, individuell: beurteilung?.individuelleBeurteilung || '',
-    gespraechAm: beurteilung?.gespraechAm || '', editable,
-  });
+  const form = typ === 'kurz'
+    ? renderKurzfeedbackForm(document.getElementById('beurtFormHost'), {
+        kopf, editable,
+        eindruck: beurteilung?.kurzfeedbackEindruck || '',
+        auffaelligkeiten: beurteilung?.kurzfeedbackAuffaelligkeiten || '',
+        empfehlung: beurteilung?.kurzfeedbackEmpfehlung || '',
+      })
+    : window.Beurteilung.renderForm(document.getElementById('beurtFormHost'), {
+        kopf, punkteByKey, individuell: beurteilung?.individuelleBeurteilung || '',
+        gespraechAm: beurteilung?.gespraechAm || '', editable,
+      });
 
-  renderActions({ user, zuweisung, beurteilung, azubi, editable, form, back }); // defined in Tasks 9–10
+  renderActions({ user, zuweisung, beurteilung, azubi, editable, form, typ, back });
 });
 
 // Lädt Zuweisung (via Azubi-Liste), bestehende Beurteilung, Azubi-User und leitet den Modus ab.
@@ -103,7 +114,7 @@ async function resolveZuweisung(zuweisungId) {
 // 'bearbeiten' (Prüfer) / 'azubi' / 'ausbildungsleiter' / 'ansicht' (u.a.
 // der dauerhafte Ausbilder — nur Drucken, keine Aktionen).
 function renderActions(ctx) {
-  const { zuweisung, beurteilung, editable, form, user, back } = ctx;
+  const { zuweisung, beurteilung, editable, form, user, back, typ } = ctx;
   const host = document.getElementById('beurtActions');
   if (!host) return;
   let id = beurteilung?.id || null;
@@ -115,6 +126,42 @@ function renderActions(ctx) {
 
   if (modus === 'bearbeiten') {
     const abgeschlossen = status === 'abgeschlossen';
+
+    if (typ === 'kurz') {
+      host.innerHTML = `
+        <button class="btn btn-secondary" id="beurtSave">Entwurf speichern</button>
+        <button class="btn btn-primary" id="beurtFinish">${abgeschlossen ? 'Änderungen speichern' : 'Abschließen'}</button>`;
+
+      document.getElementById('beurtSave').addEventListener('click', async () => {
+        try {
+          const st = form.getState();
+          id = await DB.saveBeurteilungEntwurf({ zuweisungId: zuweisung.id, ...st });
+          Toast.success('Gespeichert', 'Entwurf wurde gespeichert.');
+        } catch (e) { Toast.error('Fehler', e.message); }
+      });
+
+      document.getElementById('beurtFinish').addEventListener('click', async () => {
+        const st = form.getState();
+        if (!st.kurzfeedbackEindruck.trim() || !st.kurzfeedbackAuffaelligkeiten.trim() || !st.kurzfeedbackEmpfehlung.trim()) {
+          Toast.error('Unvollständig', 'Bitte alle drei Fragen beantworten.');
+          return;
+        }
+        try {
+          id = await DB.saveBeurteilungEntwurf({ zuweisungId: zuweisung.id, ...st });
+          if (abgeschlossen) {
+            await DB.patchBeurteilung(id, st);
+            Toast.success('Aktualisiert', 'Kurzfeedback wurde aktualisiert (Azubi und Ausbildungsleitung werden benachrichtigt).');
+          } else {
+            // Kein Signatur-Dialog beim Kurzfeedback (siehe Design-Spec §10, Out of Scope).
+            await DB.abschliessenBeurteilung(id, null);
+            Toast.success('Abgeschlossen', 'Kurzfeedback abgeschlossen. Azubi und Ausbildungsleitung wurden benachrichtigt.');
+          }
+          setTimeout(back, 800);
+        } catch (e) { Toast.error('Fehler', e.message); }
+      });
+      return;
+    }
+
     host.innerHTML = `
       <button class="btn btn-ghost" id="beurtPdf">Als PDF</button>
       <button class="btn btn-secondary" id="beurtSave">Entwurf speichern</button>
@@ -210,7 +257,10 @@ function renderActions(ctx) {
     return;
   }
 
-  // modus === 'ansicht' (u.a. der dauerhafte Ausbilder): nur Drucken.
+  // modus === 'ansicht' (u.a. der dauerhafte Ausbilder, oder Azubi/
+  // Ausbildungsleitung beim Kurzfeedback): nur Drucken — außer beim
+  // Kurzfeedback, das hat keinen PDF-Export (siehe Design-Spec §10).
+  if (typ === 'kurz') { host.innerHTML = ''; return; }
   host.innerHTML = `<button class="btn btn-ghost" id="beurtPdf">Als PDF</button>`;
   document.getElementById('beurtPdf').addEventListener('click', () => exportBeurteilungPdf(ctx));
 }
@@ -308,4 +358,47 @@ function exportBeurteilungPdf(ctx) {
   const win = window.open('', '_blank');
   if (!win) { Toast.error('Pop-up blockiert', 'Bitte Pop-ups erlauben und erneut versuchen.'); return; }
   win.document.open(); win.document.write(html); win.document.close();
+}
+
+// Rendert die 3 Leitfragen des Kurzfeedback-Prozesses (Zuweisungen <= 14
+// Tage, siehe Design-Spec 2026-08-26-beurteilung-kurzfeedback-design.md).
+// Bewusst KEIN Bezug zu beurteilung-core.js/KRITERIEN — reiner Freitext ohne
+// Berechnung, daher direkt hier statt im geteilten Kernmodul.
+const KURZFEEDBACK_FRAGEN = [
+  { key: 'eindruck', label: 'Wie hat sich der Azubi eingebracht (Motivation, Auftreten)?' },
+  { key: 'auffaelligkeiten', label: 'Besondere Auffälligkeiten – positiv oder negativ?' },
+  { key: 'empfehlung', label: 'Empfehlung für den weiteren Ausbildungsverlauf?' },
+];
+
+function renderKurzfeedbackForm(container, opts) {
+  const o = opts || {};
+  const editable = !!o.editable;
+  const dis = editable ? '' : 'disabled';
+  const esc = window.escapeHtml;
+  const kopf = o.kopf || {};
+
+  container.innerHTML = `
+    <div class="beurt beurt--kurz">
+      <div class="beurt__kopf">
+        <div><span class="beurt__label">Name</span><div class="beurt__val">${esc(kopf.name)}</div></div>
+        <div><span class="beurt__label">Abteilung</span><div class="beurt__val">${esc(kopf.abteilung)}</div></div>
+        <div><span class="beurt__label">Zeitraum</span><div class="beurt__val">${esc(kopf.zeitraum)}</div></div>
+        <div><span class="beurt__label">Beurteilende/-r</span><div class="beurt__val">${esc(kopf.beurteilende)}</div></div>
+      </div>
+      ${KURZFEEDBACK_FRAGEN.map(f => `
+        <div class="beurt-indiv">
+          <label class="beurt__label" for="kf_${f.key}">${esc(f.label)}</label>
+          <textarea id="kf_${f.key}" class="form-control" rows="4" ${dis}>${esc(o[f.key] || '')}</textarea>
+        </div>`).join('')}
+    </div>`;
+
+  return {
+    getState() {
+      return {
+        kurzfeedbackEindruck: document.getElementById('kf_eindruck')?.value || '',
+        kurzfeedbackAuffaelligkeiten: document.getElementById('kf_auffaelligkeiten')?.value || '',
+        kurzfeedbackEmpfehlung: document.getElementById('kf_empfehlung')?.value || '',
+      };
+    },
+  };
 }
