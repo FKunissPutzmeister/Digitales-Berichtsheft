@@ -1110,33 +1110,54 @@ html[data-theme="papier"] * {
 [data-theme="papier"] .sidebar__logo-text {
   transition: max-width var(--pgm-speed) var(--pgm-ease),
               opacity calc(var(--pgm-speed) * .45) var(--pgm-ease) calc(var(--pgm-speed) * .55);
+  /* display:flex/flex-direction: siehe Wortmarken-Kommentar weiter
+     unten -- hier mitgesetzt, damit .sidebar__logo-text nicht zweimal
+     im Selektor auftaucht (zwei Regeln fuer denselben Selektor lassen
+     sich leicht uebersehen, wenn man nur an einer Stelle sucht). */
+  display: flex;
+  flex-direction: column;
 }
 [data-theme="papier"] .sidebar.collapsed .sidebar__logo-text {
   transition: max-width var(--pgm-speed) var(--pgm-ease),
               opacity calc(var(--pgm-speed) * .3) var(--pgm-ease) 0ms;
 }
 
-/* ── Wortmarke: nur noch "Berichtsheft", in der bisherigen "Putzmeister"-
-   Schrift ──
-   Nutzer-Wunsch: aus "Putzmeister Berichtsheft" wird nur "Berichtsheft",
-   geschrieben wie bisher "Putzmeister" (große Pinyon-Script-Feder-
-   schrift). Markup (sidebar.js) bleibt für ALLE Themes unangetastet --
-   .sidebar__logo-name trägt weiterhin den Text "Putzmeister", .sidebar__
-   logo-sub weiterhin "Berichtsheft" (u.a. wegen Screenreadern: die
-   Marke soll nicht app-weit umbenannt werden, nur die Papier-Ansicht).
-   Deshalb hier rein visuell: .sidebar__logo-name (oben, "Putzmeister")
-   ausgeblendet, .sidebar__logo-sub (unten, "Berichtsheft") übernimmt
-   1:1 dessen bisherige Schrift/Farbe/Größe (glass.css:1123-1129) --
-   rutscht dadurch automatisch an die jetzt freie Stelle nach oben. */
-[data-theme="papier"] .sidebar__logo-name {
-  display: none;
-}
+/* ── Wortmarke: "Berichtsheft" groß + "PUTZMEISTER" als Unterzeile ──
+   NEUFASSUNG V2 (Nutzer-Wunsch nach V1 "nur Berichtsheft"): "Berichtsheft"
+   etwas größer, darunter "PUTZMEISTER" in der kleinen, gesperrten
+   Versal-Optik der Sidebar-Rubriken-Labels (.sidebar__section-label,
+   glass.css:1166-1176 -- 10px, 700, 0.14em Sperrung, Kapitälchen, gedeckte
+   --pm-grey-500-Tinte) – exakt der vom Nutzer per Bildausschnitt
+   referenzierte Stil.
+   Markup (sidebar.js) bleibt für ALLE Themes unangetastet: .sidebar__
+   logo-name trägt weiterhin den Text "Putzmeister" (Groß-/Kleinschreibung
+   wie im Quellcode), .sidebar__logo-sub weiterhin "Berichtsheft" – die
+   Marke wird nicht app-weit umbenannt, nur die Papier-Ansicht liest sie
+   um. "PUTZMEISTER" in Versalien kommt daher NICHT aus neuem Text,
+   sondern aus text-transform:uppercase auf dem vorhandenen "Putzmeister".
+   Reihenfolge im DOM ist Putzmeister→Berichtsheft, gewünscht ist
+   Berichtsheft→PUTZMEISTER – deshalb .sidebar__logo-text weiter oben
+   (bei der Label-Transition, wo der Selektor schon einmal auftaucht)
+   explizit auf Flex+column gestellt (Basis ist nur `display:block`,
+   glass.css:1118) und die visuelle Reihenfolge hier über `order`
+   gedreht, statt das Markup anzufassen. */
 [data-theme="papier"] .sidebar__logo-sub {
+  order: 1;
   font-family: var(--font-heading);
   font-weight: 700;
-  font-size: 15px;
+  font-size: 19px;
   letter-spacing: -0.01em;
   color: var(--pm-grey-900);
+}
+[data-theme="papier"] .sidebar__logo-name {
+  order: 2;
+  display: block;
+  font-family: var(--font-body);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--pm-grey-500);
 }
 
 /* ── Kopf-/Fußinhalt aus der Rollen-Zone heraus rücken ──

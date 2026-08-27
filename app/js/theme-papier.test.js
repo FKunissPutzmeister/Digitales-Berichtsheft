@@ -494,22 +494,41 @@ test('Papierheft-Retro: Toggle-Button wird zum Wachssiegel (bestehendes Element,
   assert.match(collapsed, /radial-gradient\(circle at 50% 55%, #9B4030 0%, var\(--color-error-mid\) 55%, #4E1A11 100%\);/);
 });
 
-test('Papierheft-Retro: Wortmarke zeigt nur noch "Berichtsheft", in der bisherigen "Putzmeister"-Schrift', () => {
-  // Nutzer-Wunsch: aus "Putzmeister Berichtsheft" wird nur "Berichtsheft",
-  // geschrieben wie bisher "Putzmeister" (grosse Pinyon-Script-Federschrift).
-  // Markup bleibt fuer ALLE Themes unangetastet (sidebar.js nicht
-  // geaendert) -- rein visuell: .sidebar__logo-name ("Putzmeister")
-  // ausgeblendet, .sidebar__logo-sub ("Berichtsheft") uebernimmt dessen
-  // bisherige Schrift/Farbe/Groesse (glass.css:1123-1129).
+test('Papierheft-Retro: Wortmarke -- "Berichtsheft" gross oben, "PUTZMEISTER" als gesperrte Unterzeile', () => {
+  // NEUFASSUNG V2 (Nutzer-Wunsch nach V1 "nur Berichtsheft"): "Berichtsheft"
+  // etwas groesser, darunter "PUTZMEISTER" im Stil der Sidebar-Rubriken-
+  // Labels (.sidebar__section-label: 10px, 700, 0.14em Sperrung, Versalien,
+  // gedeckte --pm-grey-500-Tinte) -- vom Nutzer per Bildausschnitt
+  // referenzierter Stil. Markup bleibt fuer ALLE Themes unangetastet
+  // (sidebar.js nicht geaendert): "PUTZMEISTER" kommt aus
+  // text-transform:uppercase auf dem vorhandenen "Putzmeister"-Text, kein
+  // neuer String. Visuelle Reihenfolge (Berichtsheft oben, PUTZMEISTER
+  // unten) laeuft ueber Flex+order, weil das DOM andersherum steht
+  // (Putzmeister vor Berichtsheft).
   const css = readCss();
-  assert.match(css, /\[data-theme="papier"\] \.sidebar__logo-name \{\s*\n\s*display: none;\s*\n\}/);
+  // .sidebar__logo-text hat nur EINEN Regel-Block fuer papier (die
+  // Label-Transition-Regel weiter oben in der Datei traegt jetzt auch
+  // display/flex-direction) -- absichtlich nicht doppelt, siehe Kommentar
+  // in der CSS-Datei.
+  const container = css.match(/\[data-theme="papier"\] \.sidebar__logo-text \{[\s\S]*?\n\}/)[0];
+  assert.match(container, /display: flex;/);
+  assert.match(container, /flex-direction: column;/);
   const sub = css.match(/\[data-theme="papier"\] \.sidebar__logo-sub \{[\s\S]*?\n\}/)[0];
+  assert.match(sub, /order: 1;/);
   assert.match(sub, /font-family: var\(--font-heading\);/);
-  assert.match(sub, /font-weight: 700;/);
-  assert.match(sub, /font-size: 15px;/);
+  assert.match(sub, /font-size: 19px;/);
   assert.match(sub, /color: var\(--pm-grey-900\);/);
+  const name = css.match(/\[data-theme="papier"\] \.sidebar__logo-name \{[\s\S]*?\n\}/)[0];
+  assert.match(name, /order: 2;/);
+  assert.match(name, /display: block;/);
+  assert.match(name, /font-family: var\(--font-body\);/);
+  assert.match(name, /font-size: 10px;/);
+  assert.match(name, /letter-spacing: 0\.14em;/);
+  assert.match(name, /text-transform: uppercase;/);
+  assert.match(name, /color: var\(--pm-grey-500\);/);
   // sidebar.js darf NICHT angefasst worden sein -- beide Texte bleiben
-  // im Markup fuer alle anderen Themes erhalten.
+  // im Markup fuer alle anderen Themes erhalten, "PUTZMEISTER" ist reine
+  // CSS-Grossschreibung, kein neuer/korrigierter String im Markup.
   const js = fs.readFileSync(SIDEBAR_JS_PATH, 'utf8');
   assert.match(js, />Putzmeister<\/span>/);
   assert.match(js, />Berichtsheft<\/span>/);
