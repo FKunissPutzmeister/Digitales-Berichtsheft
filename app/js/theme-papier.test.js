@@ -161,58 +161,48 @@ test('Papierheft-Retro: Foto-Hintergrund ersetzt den alten Verlauf (über die ge
   assert.doesNotMatch(css, /\[data-theme="papier"\]\s+body:not\(\.login-page\)\s*\{/);
 });
 
-test('Papierheft-Retro: Wochen-Kacheln (Schreib-Flächen) sind wie Schatzkarten-Blätter verformt', () => {
+test('Papierheft-Retro: Wochen-Kacheln (Schreib-Flächen) haben einen gezackten Schatzkarten-Rand', () => {
   // .wochen-kachel ist die tatsächlich gerenderte Schreib-Kachel
   // (wochenansicht.js:1973) — NICHT die toten .day-card-Regeln, die laut
   // eigenem Kommentar in wochenansicht.css von keinem Template mehr erzeugt
   // werden.
+  // Nach Live-Feedback mit Referenzbild von einem "angesengten"
+  // clip-path-Entwurf auf einen gleichmäßig gezackten mask-image-Rand
+  // umgestellt (siehe Kommentar in Abschnitt 10 der CSS-Datei).
   const css = fs.readFileSync(CSS_PATH, 'utf8');
   assert.match(css, /\[data-theme="papier"\] \.wochen-kachel \{[\s\S]*?transform: rotate\(-0\.9deg\) !important;/);
-  assert.match(css, /\[data-theme="papier"\] \.wochen-kachel::before \{[\s\S]*?clip-path: polygon\(/);
-  // Drei zyklische Varianten, wie bei den Dashboard-Karten (Abschnitt 9).
-  assert.match(css, /\[data-theme="papier"\] \.wochen-kachel:nth-child\(3n\+2\)/);
-  assert.match(css, /\[data-theme="papier"\] \.wochen-kachel:nth-child\(3n\+3\)/);
+  assert.match(css, /\[data-theme="papier"\] \.wochen-kachel \{[\s\S]*?mask-image:/);
+  assert.match(css, /\[data-theme="papier"\] \.wochen-kachel::before \{[\s\S]*?mask-image:/);
+  // Drei zyklische Varianten, wie bei den Dashboard-Karten (Abschnitt 9) —
+  // nur die Drehung unterscheidet sie, das Kerbenmuster ist überall gleich.
+  assert.match(css, /\[data-theme="papier"\] \.wochen-kachel:nth-child\(3n\+2\) \{\s*\n\s*transform: rotate\(0\.7deg\) !important;/);
+  assert.match(css, /\[data-theme="papier"\] \.wochen-kachel:nth-child\(3n\+3\) \{\s*\n\s*transform: rotate\(-0\.5deg\) !important;/);
   // Backing-Fläche darf keine Klicks abfangen.
   assert.match(css, /\[data-theme="papier"\] \.wochen-kachel::before \{[\s\S]*?pointer-events: none;/);
 });
 
-test('Papierheft-Retro: Kachel selbst (nicht nur die Fläche dahinter) hat einen echten gezackten Umriss', () => {
-  // Live-Feedback: "warum nur ein Overlay statt die Form der Kachel selbst
-  // anzupassen" — clip-path jetzt zusätzlich direkt auf .wochen-kachel,
-  // in allen drei zyklischen Varianten, aber flach genug (max. 8px) um
-  // innerhalb des kleinsten Innenabstands (12px, --sp-3) zu bleiben.
+test('Papierheft-Retro: Kerben-Radius bleibt sicher innerhalb des kleinsten Innenabstands (kein Zellenmenü-Clipping)', () => {
+  // mask erzeugt wie clip-path einen eigenen Stacking-Context und würde das
+  // schwebende quill-table-better-Zellenmenü mit-clippen, wenn der Radius zu
+  // groß wird (siehe Kommentar in Abschnitt 10). Sicherheits-Obergrenze: 10px,
+  // sicher unter der schmalsten Innenabstand-Stelle im Baum (12px, --sp-3).
   const css = fs.readFileSync(CSS_PATH, 'utf8');
-  const baseBlock = css.match(/\[data-theme="papier"\] \.wochen-kachel \{[\s\S]*?\n\}/);
-  assert.ok(baseBlock, '.wochen-kachel-Basisregel nicht gefunden');
-  assert.match(baseBlock[0], /clip-path: polygon\(/);
-  const variant2Block = css.match(/\[data-theme="papier"\] \.wochen-kachel:nth-child\(3n\+2\) \{[\s\S]*?\n\}/);
-  const variant3Block = css.match(/\[data-theme="papier"\] \.wochen-kachel:nth-child\(3n\+3\) \{[\s\S]*?\n\}/);
-  assert.ok(variant2Block && /clip-path: polygon\(/.test(variant2Block[0]), 'Variante 3n+2 hat keinen eigenen clip-path');
-  assert.ok(variant3Block && /clip-path: polygon\(/.test(variant3Block[0]), 'Variante 3n+3 hat keinen eigenen clip-path');
-  // Sicherheits-Obergrenze: kein Zack tiefer als 8px (sonst Risiko, echten
-  // Inhalt oder das schwebende Tabellen-Zellenmenü anzuschneiden, siehe
-  // Kommentar in Abschnitt 10). NUR den clip-path-Wert selbst prüfen, nicht
-  // den ganzen Regel-Block (der box-shadow enthält auch px-Werte >8).
-  const clipPathValue = baseBlock[0].match(/clip-path: polygon\(([\s\S]*?)\);/)[1];
-  const allDepths = [...clipPathValue.matchAll(/(\d+)px/g)].map(m => Number(m[1]));
-  assert.ok(allDepths.length > 0, 'keine px-Zacktiefen im clip-path gefunden');
-  assert.ok(allDepths.every(d => d <= 8), `Zack-Tiefe über 8px gefunden: ${allDepths.filter(d => d > 8)}`);
+  const baseBlock = css.match(/\[data-theme="papier"\] \.wochen-kachel \{[\s\S]*?\n\}/)[0];
+  const radii = [...baseBlock.matchAll(/transparent (\d+)px, black (\d+)px/g)].flatMap(m => [Number(m[1]), Number(m[2])]);
+  assert.ok(radii.length > 0, 'keine mask-Radien in der Basisregel gefunden');
+  assert.ok(radii.every(r => r <= 10), `Kerben-Radius über 10px gefunden: ${radii.filter(r => r > 10)}`);
 });
 
-test('Papierheft-Retro: Wochen-Kacheln haben einen versengten Rand (nicht nur ausgefranst)', () => {
-  // Nach Live-Feedback mit Referenzbild ("wie eine echte Schatzkarte") von
-  // ein paar kleinen Kerben auf einen durchgehend ausgefransten UND dunkel
-  // eingebrannten Rand umgestellt — drei gestaffelte innere Schlagschatten
-  // (eng/dunkel bis breit/weich) simulieren das Versengte.
+test('Papierheft-Retro: Dunkle Kontur-Fläche hinter der Kachel nutzt dieselbe Kachelgröße (kein Versatz) für konzentrische Kerben', () => {
+  // Erster Entwurf mit einem größeren, versetzten (inset:-Npx) Backing hatte
+  // eine ungleichmäßig dicke Kontur zur Folge (Phasenverschiebung des
+  // Kerbenmusters) — jetzt exakt dieselbe Position (inset: 0), nur ein
+  // kleinerer Kerben-Radius, damit die dunkle Fläche ringsum gleichmäßig
+  // hervorlugt.
   const css = fs.readFileSync(CSS_PATH, 'utf8');
-  const beforeBlock = css.match(/\[data-theme="papier"\] \.wochen-kachel::before \{[\s\S]*?\n\}/);
-  assert.ok(beforeBlock, '.wochen-kachel::before-Regel nicht gefunden');
-  const block = beforeBlock[0];
-  const insetShadowCount = (block.match(/inset 0 0 /g) || []).length;
-  assert.ok(insetShadowCount >= 3, `Erwarte mindestens 3 gestaffelte innere Schlagschatten, gefunden: ${insetShadowCount}`);
-  // Rundum ausgefranst statt nur ein paar Kerben: deutlich mehr clip-path-Punkte.
-  const pointCount = (block.match(/,/g) || []).length;
-  assert.ok(pointCount >= 18, `Erwarte einen deutlich ausgefransteren Umriss (≥18 Punkte), gefunden: ${pointCount}`);
+  const beforeBlock = css.match(/\[data-theme="papier"\] \.wochen-kachel::before \{[\s\S]*?\n\}/)[0];
+  assert.match(beforeBlock, /inset: 0;/);
+  assert.match(beforeBlock, /background: var\(--pm-grey-900\);/);
 });
 
 test('Papierheft-Retro: Logo wird per content:url() getauscht + gewackelt', () => {
