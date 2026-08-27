@@ -1043,7 +1043,14 @@ html[data-theme="papier"] * {
    .sidebar.collapsed-spezifische Regel (glass.css:1366-1370 strippt dort
    gezielt Hintergrund/Rahmen/Schatten auf "nackter Pfeil" – ohne die
    eigene .collapsed-Regel höherer Spezifität würde das Siegel beim
-   Einklappen verschwinden). */
+   Einklappen verschwinden).
+   `transform: translateY(6px)` (Nutzer-Feedback: "Button etwas weiter
+   unten platzieren"): .sidebar__header zentriert den Toggle per
+   align-items:center vertikal auf Höhe des Logos -- der Versatz sitzt
+   deshalb im Toggle selbst statt am Header, damit Logo/Wortmarke exakt
+   an ihrer Position bleiben. Muss in :hover/:active MITGEFÜHRT werden,
+   da transform dort komplett ersetzt (nicht addiert) wird -- sonst
+   springt das Siegel beim Hover/Klick kurz zurück auf die alte Höhe. */
 [data-theme="papier"] .sidebar__toggle {
   width: 34px;
   height: 34px;
@@ -1054,6 +1061,7 @@ html[data-theme="papier"] * {
   border-radius: 47% 53% 51% 49% / 52% 47% 53% 48%;
   box-shadow: 0 3px 9px rgba(0, 0, 0, .55), inset 0 -2px 4px rgba(0, 0, 0, .42),
               inset 0 2px 3px rgba(255, 190, 160, .22);
+  transform: translateY(6px);
   transition: transform 240ms var(--pgm-ease), filter 240ms var(--pgm-ease);
 }
 [data-theme="papier"] .sidebar__toggle:hover {
@@ -1061,10 +1069,10 @@ html[data-theme="papier"] * {
     radial-gradient(circle at 34% 28%, rgba(255, 220, 200, .42), transparent 46%),
     radial-gradient(circle at 50% 55%, #9B4030 0%, var(--color-error-mid) 55%, #4E1A11 100%);
   filter: brightness(1.12);
-  transform: scale(1.07);
+  transform: translateY(6px) scale(1.07);
   color: #F2E2C8;
 }
-[data-theme="papier"] .sidebar__toggle:active { transform: scale(.94); }
+[data-theme="papier"] .sidebar__toggle:active { transform: translateY(6px) scale(.94); }
 [data-theme="papier"] .sidebar__toggle:focus-visible {
   outline: 2px solid var(--pm-yellow);
   outline-offset: 3px;
@@ -1106,6 +1114,29 @@ html[data-theme="papier"] * {
 [data-theme="papier"] .sidebar.collapsed .sidebar__logo-text {
   transition: max-width var(--pgm-speed) var(--pgm-ease),
               opacity calc(var(--pgm-speed) * .3) var(--pgm-ease) 0ms;
+}
+
+/* ── Wortmarke: nur noch "Berichtsheft", in der bisherigen "Putzmeister"-
+   Schrift ──
+   Nutzer-Wunsch: aus "Putzmeister Berichtsheft" wird nur "Berichtsheft",
+   geschrieben wie bisher "Putzmeister" (große Pinyon-Script-Feder-
+   schrift). Markup (sidebar.js) bleibt für ALLE Themes unangetastet --
+   .sidebar__logo-name trägt weiterhin den Text "Putzmeister", .sidebar__
+   logo-sub weiterhin "Berichtsheft" (u.a. wegen Screenreadern: die
+   Marke soll nicht app-weit umbenannt werden, nur die Papier-Ansicht).
+   Deshalb hier rein visuell: .sidebar__logo-name (oben, "Putzmeister")
+   ausgeblendet, .sidebar__logo-sub (unten, "Berichtsheft") übernimmt
+   1:1 dessen bisherige Schrift/Farbe/Größe (glass.css:1123-1129) --
+   rutscht dadurch automatisch an die jetzt freie Stelle nach oben. */
+[data-theme="papier"] .sidebar__logo-name {
+  display: none;
+}
+[data-theme="papier"] .sidebar__logo-sub {
+  font-family: var(--font-heading);
+  font-weight: 700;
+  font-size: 15px;
+  letter-spacing: -0.01em;
+  color: var(--pm-grey-900);
 }
 
 /* ── Kopf-/Fußinhalt aus der Rollen-Zone heraus rücken ──

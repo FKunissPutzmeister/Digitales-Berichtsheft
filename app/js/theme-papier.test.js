@@ -468,12 +468,23 @@ test('Papierheft-Retro: Toggle-Button wird zum Wachssiegel (bestehendes Element,
   // Einbau-Dokument 3.4: #sidebarToggle NICHT ersetzen (State/
   // localStorage/aria haengen daran) -- nur Verlauf + organischer
   // Blob-border-radius aus dem Mockup, Position bleibt unangetastet
-  // (keine top/right/left/bottom-Deklaration hier).
+  // (keine top/right/left/bottom-Deklaration hier). Vertikaler Versatz
+  // (Nutzer-Wunsch: "Button etwas weiter unten platzieren") laeuft
+  // bewusst ueber transform:translateY statt top/position, damit die
+  // obige Aussage "Position bleibt unangetastet" fachlich stimmt --
+  // der Toggle bleibt im normalen Layoutfluss, nur optisch verschoben.
   const css = readCss();
   const base = css.match(/\[data-theme="papier"\] \.sidebar__toggle \{[\s\S]*?\n\}/)[0];
   assert.match(base, /border-radius: 47% 53% 51% 49% \/ 52% 47% 53% 48%;/);
   assert.match(base, /radial-gradient\(circle at 50% 55%, #9B4030 0%, var\(--color-error-mid\) 55%, #4E1A11 100%\);/);
   assert.doesNotMatch(base, /\btop:|(?<!-webkit-)\bright:|\bleft:|\bbottom:/);
+  assert.match(base, /transform: translateY\(6px\);/);
+  // Hover/Active ersetzen transform komplett (nicht additiv) -- der
+  // Versatz muss dort explizit mitgefuehrt werden, sonst springt das
+  // Siegel beim Hover/Klick kurz auf die alte Hoehe zurueck.
+  const hover = css.match(/\[data-theme="papier"\] \.sidebar__toggle:hover \{[\s\S]*?\n\}/)[0];
+  assert.match(hover, /transform: translateY\(6px\) scale\(1\.07\);/);
+  assert.match(css, /\[data-theme="papier"\] \.sidebar__toggle:active \{ transform: translateY\(6px\) scale\(\.94\); \}/);
   // Muss auch im eingeklappten Zustand erhalten bleiben -- glass.css
   // strippt dort per .sidebar.collapsed .sidebar__toggle gezielt
   // Hintergrund/Rahmen/Schatten auf einen nackten Pfeil; ohne eigene
@@ -481,6 +492,27 @@ test('Papierheft-Retro: Toggle-Button wird zum Wachssiegel (bestehendes Element,
   // verschwinden.
   const collapsed = css.match(/\[data-theme="papier"\] \.sidebar\.collapsed \.sidebar__toggle,\n\[data-theme="papier"\] \.sidebar\.collapsed \.sidebar__toggle:hover \{[\s\S]*?\n\}/)[0];
   assert.match(collapsed, /radial-gradient\(circle at 50% 55%, #9B4030 0%, var\(--color-error-mid\) 55%, #4E1A11 100%\);/);
+});
+
+test('Papierheft-Retro: Wortmarke zeigt nur noch "Berichtsheft", in der bisherigen "Putzmeister"-Schrift', () => {
+  // Nutzer-Wunsch: aus "Putzmeister Berichtsheft" wird nur "Berichtsheft",
+  // geschrieben wie bisher "Putzmeister" (grosse Pinyon-Script-Federschrift).
+  // Markup bleibt fuer ALLE Themes unangetastet (sidebar.js nicht
+  // geaendert) -- rein visuell: .sidebar__logo-name ("Putzmeister")
+  // ausgeblendet, .sidebar__logo-sub ("Berichtsheft") uebernimmt dessen
+  // bisherige Schrift/Farbe/Groesse (glass.css:1123-1129).
+  const css = readCss();
+  assert.match(css, /\[data-theme="papier"\] \.sidebar__logo-name \{\s*\n\s*display: none;\s*\n\}/);
+  const sub = css.match(/\[data-theme="papier"\] \.sidebar__logo-sub \{[\s\S]*?\n\}/)[0];
+  assert.match(sub, /font-family: var\(--font-heading\);/);
+  assert.match(sub, /font-weight: 700;/);
+  assert.match(sub, /font-size: 15px;/);
+  assert.match(sub, /color: var\(--pm-grey-900\);/);
+  // sidebar.js darf NICHT angefasst worden sein -- beide Texte bleiben
+  // im Markup fuer alle anderen Themes erhalten.
+  const js = fs.readFileSync(SIDEBAR_JS_PATH, 'utf8');
+  assert.match(js, />Putzmeister<\/span>/);
+  assert.match(js, />Berichtsheft<\/span>/);
 });
 
 test('Papierheft-Retro: Kopf-/Fußinhalt rueckt aus der Rollen-Zone heraus (liegt unter/ueber den Zylindern)', () => {
