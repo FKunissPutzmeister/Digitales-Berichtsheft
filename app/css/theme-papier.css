@@ -203,6 +203,11 @@ html[data-theme="papier"] { color-scheme: light; }
                                   (siehe Abschnitt 11 unten, Punkt 4) */
   --pgm-speed:       400ms;
   --pgm-ease: cubic-bezier(.4, 0, .2, 1);
+  /* Starkes Tinte-Schwarz fuer die Nav-Link-Schrift (Nutzer-Wunsch,
+     Abschnitt 3) -- deutlich dunkler als die --pm-grey-900-Sepiatinte,
+     aber kein reines #000000: der leichte Warmton haelt es als Tinte
+     auf Pergament erkennbar statt digital-schwarz. */
+  --pgm-ink-black:    #120F0A;
 }
 
 /* ===================================================================
@@ -226,14 +231,20 @@ html[data-theme="papier"] { color-scheme: light; }
    • .sidebar__link/.active (glass.css) braucht für papier einen eigenen
      Eintrag – seit Abschnitt 11 (Schriftrollen-Navigation) ist der
      Sidebar-Grund helles Pergament (--pm-white), nicht mehr die vorher
-     dunkel getönte Glas-Pille. Tinte statt heller Schrift: --pm-grey-
-     700/-900 (Sepia-Skala, Abschnitt 1) statt der früheren hellen
-     Cremewerte, die für den (jetzt entfernten) dunklen Hintergrund
-     gedacht waren. Der aktive Link bekommt statt eines deckenden
+     dunkel getönte Glas-Pille. Tinte statt heller Schrift: ursprünglich
+     --pm-grey-700/-900 (Sepia-Skala, Abschnitt 1), nach Nutzer-Feedback
+     ("Schrift auf der Nav-Liste in einem starken Schwarz, wie es mit
+     schwarzer Tinte aussehen würde") ersetzt durch --pgm-ink-black
+     (Abschnitt 1) – deutlich dunkler/neutraler als --pm-grey-900
+     (#3D2C14, spürbar braun), aber bewusst nicht reines #000: ein Hauch
+     Wärme bleibt, sonst wirkt es wie digitaler Text statt echter Tinte
+     auf Pergament. Der aktive Link bekommt statt eines deckenden
      Hintergrundblocks einen dezenten Indigo-Verlauf + einen kleinen
      Wachs-Punkt am Rand (wie eine Randnotiz im Manuskript) – 1:1 aus
      docs/mockups/schriftrolle-nav.html (.roll__link.is-active)
-     übernommen, siehe Einbau-Dokument Abschnitt 5.
+     übernommen, siehe Einbau-Dokument Abschnitt 5; bleibt bewusst
+     Indigo statt Schwarz, das ist ein eigenständiges Zustands-Signal,
+     kein Fließtext.
    • .b-tile--glass (dashboard.css) ist ein hartcodiertes weißes Glas
      (rgba(255,255,255,…)), nur für [data-theme="dark"] gespiegelt –
      Custom-Themes wie candy erben das unverändert (dort tolerierbar,
@@ -245,11 +256,11 @@ html[data-theme="papier"] { color-scheme: light; }
    vorab gejagt.
    =================================================================== */
 [data-theme="papier"] .sidebar__link {
-  color: var(--pm-grey-700);
+  color: var(--pgm-ink-black);
 }
 [data-theme="papier"] .sidebar__link:hover {
   background: rgba(90, 68, 41, 0.10);
-  color: var(--pm-grey-900);
+  color: var(--pgm-ink-black);
 }
 [data-theme="papier"] .sidebar__link.active {
   color: var(--pm-yellow);

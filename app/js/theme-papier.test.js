@@ -336,6 +336,10 @@ test('Papierheft-Retro: Schriftrollen-Navigation -- Geometrie-Token (--pgm-*) im
   assert.match(tokenBlock, /--pgm-tear-h:\s*44px;/);
   assert.match(tokenBlock, /--pgm-speed:\s*400ms;/);
   assert.match(tokenBlock, /--pgm-ease: cubic-bezier\(\.4, 0, \.2, 1\);/);
+  // Starkes Tinte-Schwarz fuer die Nav-Link-Schrift (Nutzer-Wunsch:
+  // "wie es mit schwarzer Tinte aussehen wuerde") -- kein reines
+  // #000000, ein Hauch Warmton haelt es als Tinte statt digital-schwarz.
+  assert.match(tokenBlock, /--pgm-ink-black:\s*#120F0A;/);
 });
 
 test('Papierheft-Retro: .sidebar selbst verliert die Glas-Pillen-Optik (Form kommt jetzt vom Blatt)', () => {
@@ -500,10 +504,13 @@ test('Papierheft-Retro: Sidebar-Links -- Tinte statt heller Schrift, aktiver Lin
   // Seit der Schriftrollen-Navigation ist der Sidebar-Grund helles
   // Pergament, nicht mehr dunkel getoentes Glas -- die alten hellen
   // Cremewerte (aus Abschnitt 3, fuer den frueheren dunklen Hintergrund
-  // gedacht) waeren jetzt unlesbar.
+  // gedacht) waeren jetzt unlesbar. Nutzer-Feedback danach: die Nav-
+  // Schrift soll "in einem starken Schwarz, wie es mit schwarzer Tinte
+  // aussehen wuerde" erscheinen -- --pm-grey-700/-900 (Sepia, spuerbar
+  // braun) ersetzt durch das eigene --pgm-ink-black-Token.
   const css = readCss();
-  assert.match(css, /\[data-theme="papier"\] \.sidebar__link \{\s*\n\s*color: var\(--pm-grey-700\);\s*\n\}/);
-  assert.match(css, /\[data-theme="papier"\] \.sidebar__link:hover \{\s*\n\s*background: rgba\(90, 68, 41, 0\.10\);\s*\n\s*color: var\(--pm-grey-900\);\s*\n\}/);
+  assert.match(css, /\[data-theme="papier"\] \.sidebar__link \{\s*\n\s*color: var\(--pgm-ink-black\);\s*\n\}/);
+  assert.match(css, /\[data-theme="papier"\] \.sidebar__link:hover \{\s*\n\s*background: rgba\(90, 68, 41, 0\.10\);\s*\n\s*color: var\(--pgm-ink-black\);\s*\n\}/);
   const active = css.match(/\[data-theme="papier"\] \.sidebar__link\.active \{[\s\S]*?\n\}/)[0];
   assert.match(active, /color: var\(--pm-yellow\);/);
   assert.match(active, /font-weight: 600;/);
