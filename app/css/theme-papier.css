@@ -510,6 +510,57 @@ html[data-theme="papier"] * {
    oben in wochenansicht.css, siehe deren eigener Kommentar "wird von
    KEINEM aktuellen Template mehr erzeugt").
 
+   NEUFASSUNG #6 (Nutzer-Feedback: "du veränderst nur das Overlay, ich
+   verlange, dass du die Kachel in die man reinschreibt von der Form
+   veränderst – das Overlay soll nur die Vergilbung darstellen"):
+   TATSÄCHLICHER BUG gefunden, kein reines Meinungsverschiedenheit-Thema.
+   Der bisherige Ansatz (Maske + Vergilbung beide auf ::before, während
+   .wochen-kachel selbst `background: transparent` bekam) war architek-
+   tonisch richtig gedacht – griff aber NICHT, weil eine spezifischere
+   Basisregel weiter oben in wochenansicht.css
+   (`body[data-page="wochenansicht"] .wochen-kachel`, Zeile ~2743,
+   Spezifität 0-2-1) meine Regel hier
+   (`[data-theme="papier"] .wochen-kachel`, Spezifität 0-2-0) STILL
+   überschrieb: die echte Kachel blieb ein stinknormales, unmaskiertes,
+   opakes weißes Rechteck. Sichtbar war nur, was der drop-shadow-Filter
+   von ::before ÜBER den Kachelrand hinaus ins Seiten-Hintergrundbild
+   malte – exakt der "nur Overlay"-Effekt, den der Nutzer zu Recht
+   bemängelt hat.
+   FIX: Selektor um `body[data-page="wochenansicht"]` ERWEITERT (siehe
+   unten), damit meine Regel gewinnt. JETZT trägt die echte
+   .wochen-kachel selbst Maske + Grundfarbe + Tinten-Kontur-Filter – der
+   Editor-Kopf/-Toolbar/-Text ist laut Basis-Design (wochenansicht.css:
+   2756 `body[data-page="wochenansicht"] .wochen-kachel__header {
+   background: transparent }`) OHNEHIN transparent und teilt sich einen
+   gemeinsamen Grund mit der Kachel – die Kachelform verformt jetzt also
+   wirklich den gesamten sichtbaren Inhalt, nicht nur einen Hintergrund
+   dahinter. `::before` bleibt EXKLUSIV für die Vergilbung (reiner
+   Verlauf, kein mask/fill mehr nötig – wird automatisch vom
+   Eltern-Mask mitgeschnitten, da Pseudo-Elemente Teil des geclippten
+   Renderings ihres Elements sind).
+
+   SICHERHEIT NEU BEWERTET UND IM LIVE-TEST KORRIGIERT: weil die Maske
+   jetzt auf der ECHTEN, interaktiven .wochen-kachel liegt (nicht mehr
+   nur auf einem Hintergrund-Layer), clippt sie auch echten Inhalt.
+   Erster Versuch (v6-Ecktiefen 1:1 von der Overlay-Fassung übernommen,
+   55-65 Einheiten an ALLEN vier Ecken) schnitt live sichtbar Text ab:
+   Live vermessen (getBoundingClientRect) sitzt das Titel-Label
+   ("Betrieb"/"Schule", .wochen-kachel__title) nur 16px links / 36px
+   oben vom Kachelrand, der Zeichenzähler (.day-card__char-count,
+   "X / 7.000 Zeichen") nur 20px links / 12px unten – beide deutlich
+   näher am Rand als die 55-65-Einheiten-Ecktiefe (bei ~1.3x realer
+   Skalierung ≈ 70-85px). Fix: NUR die Ecken oben-links und unten-links
+   (wo IMMER dieser Fixtext sitzt) auf ~12-14 Einheiten reduziert –
+   sicher unter den gemessenen Rändern, mit Puffer. Oben-rechts und
+   unten-rechts (kein Fixtext dort, nur ggf. Fließtext, der die Kachel
+   nie bis zur letzten Zeile füllt) bleiben bei den dramatischen
+   55-65/110 Einheiten. Ergebnis liest sich stimmig: links wirkt die
+   Kachel wie ein aufgerollter Schriftrollen-Rand (Rollen-Streifen +
+   flache Ecken), rechts wie abgerissen/verwittert.
+   Zusätzlich live an Edge mit eingefügten Tabellen nahe allen vier
+   Ecken + beiden Kanten-Scheren-Schnitten geprüft – das schwebende
+   quill-table-better-Zellenmenü bleibt überall unbeschnitten.
+
    NEUFASSUNG #5 (Nutzer-Feedback: "wo ist die Verformung??" – mit
    Screenshot der oberen rechten Ecke, die bei realer Bildschirmgröße
    praktisch glatt wirkte). Ursache: NEUFASSUNG #4 hatte die dramatische
@@ -591,13 +642,19 @@ html[data-theme="papier"] * {
    fadeIn-Animation (translateY(0)-Endwert) sonst gegen jede normale
    Deklaration, unabhängig von Spezifität.
    =================================================================== */
-[data-theme="papier"] .wochen-kachel {
+[data-theme="papier"] body[data-page="wochenansicht"] .wochen-kachel {
   position: relative;
   isolation: isolate;
   overflow: visible;
-  background: transparent;
+  background: var(--pm-white);
   border: none;
   box-shadow: none;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1200 300' preserveAspectRatio='none'%3E%3Cpath fill='white' fill-rule='evenodd' d='M14 0 L120 14 L216 26 L312 11 L408 24 L504 16 L600 22 L696 27 L792 13 L888 21 L984 15 L1080 25 L1152 12 L1145 0 L1160.2 5 L1155.9 27.3 L1177 27 L1175.7 46.6 L1193.8 49 L1200 62 L1184 78 L1145 102 L1194 108 L1182 138 L1174 174 L1197 198 L1175.9 215.6 L1146.3 212.9 L1129.1 239.7 L1098.6 235.1 L1081.4 261.9 L1048.7 251.8 L1029.9 274.9 L999.5 270.4 L980.8 293.5 L955 300 L852 280 L756 288 L660 275 L552 284 L360 292 L336 245 L216 280 L14 300 L9.2 298.5 L9 291.7 L2.2 292.5 L0 288 L6 222 L8 180 L6 138 L8 90 L0 12 Z'/%3E%3C/svg%3E") center / 100% 100% no-repeat;
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1200 300' preserveAspectRatio='none'%3E%3Cpath fill='white' fill-rule='evenodd' d='M14 0 L120 14 L216 26 L312 11 L408 24 L504 16 L600 22 L696 27 L792 13 L888 21 L984 15 L1080 25 L1152 12 L1145 0 L1160.2 5 L1155.9 27.3 L1177 27 L1175.7 46.6 L1193.8 49 L1200 62 L1184 78 L1145 102 L1194 108 L1182 138 L1174 174 L1197 198 L1175.9 215.6 L1146.3 212.9 L1129.1 239.7 L1098.6 235.1 L1081.4 261.9 L1048.7 251.8 L1029.9 274.9 L999.5 270.4 L980.8 293.5 L955 300 L852 280 L756 288 L660 275 L552 284 L360 292 L336 245 L216 280 L14 300 L9.2 298.5 L9 291.7 L2.2 292.5 L0 288 L6 222 L8 180 L6 138 L8 90 L0 12 Z'/%3E%3C/svg%3E") center / 100% 100% no-repeat;
+  filter:
+    drop-shadow(0 0 1px rgba(43, 28, 13, 0.85))
+    drop-shadow(0 0 1.5px rgba(43, 28, 13, 0.5))
+    drop-shadow(3px 5px 8px rgba(90, 60, 20, 0.22));
   transform: rotate(-0.9deg) !important;
 }
 [data-theme="papier"] .wochen-kachel::before {
@@ -606,19 +663,14 @@ html[data-theme="papier"] * {
   inset: 0;
   z-index: -1;
   pointer-events: none;
-  border-radius: inherit;
+  /* NUR NOCH Vergilbung – kein mask/fill mehr nötig, wird automatisch
+     vom Mask des Eltern-Elements (.wochen-kachel selbst, s.o.)
+     mitgeschnitten. */
   background:
     linear-gradient(to right, rgba(150, 108, 45, 0.42), transparent 60px),
     linear-gradient(to left, rgba(150, 108, 45, 0.42), transparent 60px),
     linear-gradient(to bottom, rgba(150, 108, 45, 0.42), transparent 60px),
-    linear-gradient(to top, rgba(150, 108, 45, 0.42), transparent 60px),
-    var(--pm-white);
-  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1200 300' preserveAspectRatio='none'%3E%3Cpath fill='white' fill-rule='evenodd' d='M62 0 L120 14 L216 26 L312 11 L408 24 L504 16 L600 22 L696 27 L792 13 L888 21 L984 15 L1080 25 L1152 12 L1145 0 L1160.2 5 L1155.9 27.3 L1177 27 L1175.7 46.6 L1193.8 49 L1200 62 L1184 78 L1145 102 L1194 108 L1182 138 L1174 174 L1197 198 L1175.9 215.6 L1146.3 212.9 L1129.1 239.7 L1098.6 235.1 L1081.4 261.9 L1048.7 251.8 L1029.9 274.9 L999.5 270.4 L980.8 293.5 L955 300 L852 280 L756 288 L660 275 L552 284 L360 292 L336 245 L216 280 L62 300 L57.1 284.5 L34.5 288 L35.1 266.6 L15.2 267.2 L13.1 248.7 L0 242 L10 264 L22 222 L12 180 L24 138 L8 90 L18 48 L0 58 Z'/%3E%3C/svg%3E") center / 100% 100% no-repeat;
-  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1200 300' preserveAspectRatio='none'%3E%3Cpath fill='white' fill-rule='evenodd' d='M62 0 L120 14 L216 26 L312 11 L408 24 L504 16 L600 22 L696 27 L792 13 L888 21 L984 15 L1080 25 L1152 12 L1145 0 L1160.2 5 L1155.9 27.3 L1177 27 L1175.7 46.6 L1193.8 49 L1200 62 L1184 78 L1145 102 L1194 108 L1182 138 L1174 174 L1197 198 L1175.9 215.6 L1146.3 212.9 L1129.1 239.7 L1098.6 235.1 L1081.4 261.9 L1048.7 251.8 L1029.9 274.9 L999.5 270.4 L980.8 293.5 L955 300 L852 280 L756 288 L660 275 L552 284 L360 292 L336 245 L216 280 L62 300 L57.1 284.5 L34.5 288 L35.1 266.6 L15.2 267.2 L13.1 248.7 L0 242 L10 264 L22 222 L12 180 L24 138 L8 90 L18 48 L0 58 Z'/%3E%3C/svg%3E") center / 100% 100% no-repeat;
-  filter:
-    drop-shadow(0 0 1px rgba(43, 28, 13, 0.85))
-    drop-shadow(0 0 1.5px rgba(43, 28, 13, 0.5))
-    drop-shadow(3px 5px 8px rgba(90, 60, 20, 0.22));
+    linear-gradient(to top, rgba(150, 108, 45, 0.42), transparent 60px);
 }
 [data-theme="papier"] .wochen-kachel::after {
   content: "";

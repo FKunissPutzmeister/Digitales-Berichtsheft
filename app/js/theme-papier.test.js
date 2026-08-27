@@ -161,24 +161,30 @@ test('Papierheft-Retro: Foto-Hintergrund ersetzt den alten Verlauf (über die ge
   assert.doesNotMatch(css, /\[data-theme="papier"\]\s+body:not\(\.login-page\)\s*\{/);
 });
 
-test('Papierheft-Retro: Wochen-Kacheln bleiben selbst unmaskiert – die sichtbare Papierfläche liegt auf ::before (Halloween-Login-Karten-Technik)', () => {
+test('Papierheft-Retro: die ECHTE .wochen-kachel trägt die Form (nicht nur ein Overlay dahinter)', () => {
   // .wochen-kachel ist die tatsächlich gerenderte Schreib-Kachel
   // (wochenansicht.js:1973) — NICHT die toten .day-card-Regeln, die laut
   // eigenem Kommentar in wochenansicht.css von keinem Template mehr erzeugt
   // werden.
-  // Nach Live-Feedback ("Vergilbung nicht sichtbar, Scheren-Einschnitte kamen
-  // nicht rüber – orientiere dich an der Login-Kachel des Halloween-Themes")
-  // Architektur-Wechsel: clip-path direkt auf .wochen-kachel (siehe
-  // Git-Historie) ersetzt durch dieselbe Technik wie
-  // theme-halloween.css .login-card – die sichtbare Fläche liegt auf einem
-  // ::before-Backing, .wochen-kachel selbst bleibt unmaskiertes Rechteck.
+  // Nutzer-Feedback: "du veränderst nur das Overlay ... ich verlange, dass
+  // du die Kachel von der Form veränderst". Bug gefunden: eine spezifischere
+  // Basisregel (`body[data-page="wochenansicht"] .wochen-kachel`,
+  // wochenansicht.css:2743, Spezifität 0-2-1) überschrieb bislang jede
+  // `[data-theme="papier"] .wochen-kachel`-Regel (Spezifität 0-2-0) still-
+  // schweigend zurück auf ein opakes, unmaskiertes Rechteck — deshalb der
+  // reine "Overlay"-Effekt. Selektor hier deshalb um
+  // `body[data-page="wochenansicht"]` erweitert, damit er tatsächlich
+  // gewinnt (siehe Kommentar in Abschnitt 10 der CSS-Datei).
   const css = fs.readFileSync(CSS_PATH, 'utf8');
-  const baseBlock = css.match(/\[data-theme="papier"\] \.wochen-kachel \{[\s\S]*?\n\}/)[0];
-  assert.doesNotMatch(baseBlock, /clip-path/);
-  assert.doesNotMatch(baseBlock, /mask:/);
-  assert.match(baseBlock, /background: transparent;/);
+  const SEL = '\\[data-theme="papier"\\] body\\[data-page="wochenansicht"\\] \\.wochen-kachel';
+  const baseBlock = css.match(new RegExp(SEL + ' \\{[\\s\\S]*?\\n\\}'))[0];
+  assert.match(baseBlock, /background: var\(--pm-white\);/);
   assert.match(baseBlock, /border: none;/);
   assert.match(baseBlock, /isolation: isolate;/);
+  assert.match(baseBlock, /mask: url\("data:image\/svg\+xml,/);
+  assert.match(baseBlock, /-webkit-mask: url\("data:image\/svg\+xml,/);
+  assert.match(baseBlock, /fill-rule='evenodd'/);
+  assert.match(baseBlock, /filter:\s*\n\s*drop-shadow\(0 0 1px rgba\(43, 28, 13, 0\.85\)\)\s*\n\s*drop-shadow\(0 0 1\.5px rgba\(43, 28, 13, 0\.5\)\)\s*\n\s*drop-shadow\(3px 5px 8px rgba\(90, 60, 20, 0\.22\)\);/);
   assert.match(baseBlock, /transform: rotate\(-0\.9deg\) !important;/);
   // Drei zyklische Varianten, wie bei den Dashboard-Karten (Abschnitt 9) —
   // nur die Drehung unterscheidet sie, die Rissform ist überall gleich.
@@ -186,42 +192,39 @@ test('Papierheft-Retro: Wochen-Kacheln bleiben selbst unmaskiert – die sichtba
   assert.match(css, /\[data-theme="papier"\] \.wochen-kachel:nth-child\(3n\+3\) \{\s*\n\s*transform: rotate\(-0\.5deg\) !important;/);
 });
 
-test('Papierheft-Retro: ::before trägt die SVG-Mask (Riss + Scheren-Schnitte), Tinten-Kontur und sichtbare Vergilbung', () => {
-  // Ein evenodd-SVG-Pfad zeichnet die Außenkontur (Riss + abgerissene Ecke
-  // unten rechts + drei Scheren-Schnitte). z-index:-1 hält das Backing
-  // HINTER dem echten Kachel-Inhalt, pointer-events:none macht es
-  // garantiert nicht-interaktiv.
+test('Papierheft-Retro: ::before ist NUR NOCH die Vergilbung (kein eigenes Mask/Fill mehr)', () => {
+  // Nutzer-Feedback: "das Overlay soll nur die Vergilbung darstellen" —
+  // die Rissform liegt jetzt komplett auf der echten .wochen-kachel (s.o.),
+  // ::before hat keinen eigenen Zweck mehr außer der Farbverlauf-Tönung.
+  // Sie wird automatisch vom Mask des Eltern-Elements mitgeschnitten
+  // (Pseudo-Elemente sind Teil des geclippten Renderings ihres Elements).
   const css = fs.readFileSync(CSS_PATH, 'utf8');
   const beforeBlock = css.match(/\[data-theme="papier"\] \.wochen-kachel::before \{[\s\S]*?\n\}/)[0];
   assert.match(beforeBlock, /z-index: -1;/);
   assert.match(beforeBlock, /pointer-events: none;/);
-  assert.match(beforeBlock, /mask: url\("data:image\/svg\+xml,/);
-  assert.match(beforeBlock, /-webkit-mask: url\("data:image\/svg\+xml,/);
-  assert.match(beforeBlock, /fill-rule='evenodd'/);
+  assert.doesNotMatch(beforeBlock, /mask:/);
+  assert.doesNotMatch(beforeBlock, /filter:/);
   // Vergilbung "vom Rand nach innen": vier Linear-Gradients (einer pro
-  // Kante, feste 60px), statt der vorigen Ellipse, die bei diesem extrem
-  // breiten Seitenverhältnis links/rechts kaum ankam (siehe Kommentar in
-  // Abschnitt 10 der CSS-Datei).
+  // Kante, feste 60px).
   assert.match(beforeBlock, /linear-gradient\(to right, rgba\(150, 108, 45, 0\.42\), transparent 60px\)/);
   assert.match(beforeBlock, /linear-gradient\(to left, rgba\(150, 108, 45, 0\.42\), transparent 60px\)/);
   assert.match(beforeBlock, /linear-gradient\(to bottom, rgba\(150, 108, 45, 0\.42\), transparent 60px\)/);
   assert.match(beforeBlock, /linear-gradient\(to top, rgba\(150, 108, 45, 0\.42\), transparent 60px\)/);
-  // Tinten-Kontur + Abheben von der Seite, wie zuvor über drop-shadow.
-  assert.match(beforeBlock, /filter:\s*\n\s*drop-shadow\(0 0 1px rgba\(43, 28, 13, 0\.85\)\)\s*\n\s*drop-shadow\(0 0 1\.5px rgba\(43, 28, 13, 0\.5\)\)\s*\n\s*drop-shadow\(3px 5px 8px rgba\(90, 60, 20, 0\.22\)\);/);
 });
 
-test('Papierheft-Retro: SVG-Mask-Pfad hat auf ALLEN VIER Ecken eine abgerissene, franzige Diagonale', () => {
-  // Nutzer-Feedback: "wo ist die Verformung??" — mit Referenzbild einer
-  // ansonsten glatten oberen rechten Ecke. Vorherige Fassung hatte die
-  // abgerissene Ecke nur unten rechts; die anderen drei Ecken waren nur
-  // von der 1-8-Einheiten-Grundrauheit betroffen und dadurch bei realer
-  // Bildschirmgröße praktisch unsichtbar. Jetzt bekommt JEDE Ecke eine
-  // franzige Diagonale (unten rechts bleibt mit ~110 Einheiten am
-  // dramatischsten, die übrigen drei moderater ~55-65 Einheiten), nach
-  // demselben Monoton-mit-Jitter-Verfahren (kein Sägezahn-Zurückspringen
-  // zum alten Rand, siehe Kommentar in Abschnitt 10 der CSS-Datei).
+test('Papierheft-Retro: SVG-Mask-Pfad hat dramatische Risse oben-rechts/unten-rechts, aber sichere flache Ecken oben-links/unten-links (schneidet dort echten Text nicht ab)', () => {
+  // Nutzer-Feedback: "wo ist die Verformung??" — die erste Fassung mit
+  // gleich tiefen (55-65 Einheiten) Ecken an ALLEN vier Ecken schnitt im
+  // Live-Test aber echten Inhalt ab: Live vermessen sitzt das Titel-Label
+  // ("Betrieb"/"Schule") nur 16px links/36px oben vom Kachelrand, der
+  // Zeichenzähler nur 20px links/12px unten — beide näher am Rand als die
+  // damalige Ecktiefe. Fix: NUR oben-links/unten-links (wo dieser Fixtext
+  // IMMER sitzt) auf ~12-14 Einheiten reduziert; oben-rechts/unten-rechts
+  // (kein Fixtext dort) bleiben dramatisch (siehe Kommentar in Abschnitt 10
+  // der CSS-Datei, "NEUFASSUNG #6").
   const css = fs.readFileSync(CSS_PATH, 'utf8');
-  const beforeBlock = css.match(/\[data-theme="papier"\] \.wochen-kachel::before \{[\s\S]*?\n\}/)[0];
+  const SEL = '\\[data-theme="papier"\\] body\\[data-page="wochenansicht"\\] \\.wochen-kachel';
+  const beforeBlock = css.match(new RegExp(SEL + ' \\{[\\s\\S]*?\\n\\}'))[0];
   const maskUrl = beforeBlock.match(/mask: url\("([^"]+)"\)/)[1];
   const dAttr = decodeURIComponent(maskUrl).match(/d='([^']+)'/)[1];
   // Kein separater Loch-Teilpfad (keine zweite "M" mitten im Pfad).
@@ -236,18 +239,16 @@ test('Papierheft-Retro: SVG-Mask-Pfad hat auf ALLEN VIER Ecken eine abgerissene,
   for (const [x, y] of tornPoints) {
     assert.ok(x <= 1197 && y >= 190, `Punkt liegt zu nah am ursprünglichen Rand: ${x},${y}`);
   }
-  // Alle vier Ecken müssen Koordinaten enthalten, die deutlich (>40
-  // Einheiten) von ihrer jeweiligen Bildecke entfernt liegen — sonst
-  // wäre die Ecke wieder nur mit der Grundrauheit texturiert.
-  const cornerDistances = {
-    'oben links': Math.min(...points.map(([x, y]) => Math.hypot(x - 0, y - 0))),
-    'oben rechts': Math.min(...points.map(([x, y]) => Math.hypot(x - 1200, y - 0))),
-    'unten rechts': Math.min(...points.map(([x, y]) => Math.hypot(x - 1200, y - 300))),
-    'unten links': Math.min(...points.map(([x, y]) => Math.hypot(x - 0, y - 300))),
-  };
-  for (const [ecke, dist] of Object.entries(cornerDistances)) {
-    assert.ok(dist >= 30, `Ecke "${ecke}" hat keinen Punkt weit genug vom Bildeck entfernt (${dist.toFixed(1)} < 30)`);
-  }
+  // Oben-rechts bleibt dramatisch (>40 Einheiten vom Bildeck entfernt).
+  const distTR = Math.min(...points.map(([x, y]) => Math.hypot(x - 1200, y - 0)));
+  assert.ok(distTR >= 30, `Ecke "oben rechts" nicht mehr dramatisch genug (${distTR.toFixed(1)} < 30)`);
+  // Oben-links/unten-links bleiben SICHER FLACH (< 20 Einheiten vom
+  // Bildeck), damit Titel-Label bzw. Zeichenzähler nicht abgeschnitten
+  // werden — das ist hier bewusst eine OBERGRENZE, keine Untergrenze.
+  const distTL = Math.min(...points.map(([x, y]) => Math.hypot(x - 0, y - 0)));
+  const distBL = Math.min(...points.map(([x, y]) => Math.hypot(x - 0, y - 300)));
+  assert.ok(distTL <= 20, `Ecke "oben links" reicht zu tief, riskiert Titel-Label abzuschneiden (${distTL.toFixed(1)} > 20)`);
+  assert.ok(distBL <= 20, `Ecke "unten links" reicht zu tief, riskiert Zeichenzähler abzuschneiden (${distBL.toFixed(1)} > 20)`);
   // Grundrauheit deutlich erhöht (10-28 statt 1-8 Einheiten) — stichprobenartig
   // die ersten Punkte der oberen Kante prüfen (kein 1-8er-Wert mehr).
   const topEdgeDepths = points.slice(1, 13).map(([, y]) => y);
