@@ -23,6 +23,20 @@
   font-style: normal;
   font-display: swap;
 }
+/* Testphase (Nutzer-Wunsch: "Pinyon Script ausprobieren, wie es im
+   Berichtsheft wirkt"): ersetzt Unifraktur Maguntia NUR bei
+   --font-heading (Kachel-Titel "Betrieb"/"Schule", Seitenüberschriften).
+   --font-body bleibt EB Garamond – im Schriftproben-Vergleich
+   (scratchpad feder-schriftproben.html) war Pinyon Script für ganze
+   Fließtext-Absätze als grenzwertig eingestuft (feine Haarlinien bei
+   Bildschirmgröße), für kurze Titel dagegen der stärkste Kandidat. */
+@font-face {
+  font-family: 'Pinyon Script';
+  src: url('../assets/fonts/pinyon-script.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
 @font-face {
   font-family: 'EB Garamond';
   src: url('../assets/fonts/eb-garamond-400.woff2') format('woff2');
@@ -51,8 +65,9 @@ html[data-theme="papier"] { color-scheme: light; }
    1 · TOKEN-BLOCK – Sepia-Pergament + Indigo-Tinte
    =================================================================== */
 [data-theme="papier"] {
-  /* Typografie: Überschriften Blackletter, Fließtext klassischer Buchdruck */
-  --font-heading: 'Unifraktur Maguntia', Georgia, 'Times New Roman', serif;
+  /* Typografie: Überschriften Feder-Kanzleischrift (Testphase, siehe
+     @font-face-Kommentar oben), Fließtext klassischer Buchdruck */
+  --font-heading: 'Pinyon Script', 'Unifraktur Maguntia', Georgia, 'Times New Roman', serif;
   --font-body:    'EB Garamond', Georgia, 'Times New Roman', serif;
 
   /* Akzent: Indigo-Tinte ersetzt das Marken-Gelb */

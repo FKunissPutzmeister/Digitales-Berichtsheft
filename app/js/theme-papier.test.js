@@ -9,20 +9,33 @@ const CSS_PATH = path.join(__dirname, '..', 'css', 'theme-papier.css');
 const THEME_JS_PATH = path.join(__dirname, 'theme.js');
 const WOCHENANSICHT_JS_PATH = path.join(__dirname, 'wochenansicht.js');
 
-test('Papierheft-Retro: alle vier Webfont-Dateien liegen vor und sind nicht leer', () => {
-  for (const name of ['unifraktur-maguntia.woff2', 'eb-garamond-400.woff2', 'eb-garamond-600.woff2', 'eb-garamond-400italic.woff2']) {
+test('Papierheft-Retro: alle fünf Webfont-Dateien liegen vor und sind nicht leer', () => {
+  for (const name of ['unifraktur-maguntia.woff2', 'eb-garamond-400.woff2', 'eb-garamond-600.woff2', 'eb-garamond-400italic.woff2', 'pinyon-script.woff2']) {
     const p = path.join(FONT_DIR, name);
     assert.ok(fs.existsSync(p), `Erwartet: ${p}`);
     assert.ok(fs.statSync(p).size > 1000, `${name} ist verdächtig klein`);
   }
 });
 
-test('Papierheft-Retro: theme-papier.css existiert und referenziert beide Font-Familien', () => {
+test('Papierheft-Retro: theme-papier.css existiert und referenziert alle Font-Familien', () => {
   assert.ok(fs.existsSync(CSS_PATH), `Erwartet: ${CSS_PATH}`);
   const css = fs.readFileSync(CSS_PATH, 'utf8');
   assert.match(css, /Unifraktur Maguntia/);
   assert.match(css, /EB Garamond/);
   assert.match(css, /\[data-theme="papier"\]/);
+});
+
+test('Papierheft-Retro: Testphase Pinyon Script bei Überschriften (Nutzer-Wunsch "ausprobieren, wie es wirkt")', () => {
+  // --font-heading bekommt Pinyon Script als primäre Schrift, mit
+  // Unifraktur Maguntia als Fallback (falls die Testphase wieder
+  // rückgängig gemacht wird, reicht das Entfernen von 'Pinyon Script'
+  // aus der font-family-Liste). --font-body bleibt EB Garamond – im
+  // Schriftproben-Vergleich (scratchpad feder-schriftproben.html) war
+  // Pinyon Script für ganze Fließtext-Absätze grenzwertig eingestuft.
+  const css = fs.readFileSync(CSS_PATH, 'utf8');
+  assert.match(css, /--font-heading:\s*'Pinyon Script',\s*'Unifraktur Maguntia',/);
+  assert.match(css, /--font-body:\s*'EB Garamond',/);
+  assert.match(css, /@font-face\s*\{\s*\n\s*font-family:\s*'Pinyon Script';\s*\n\s*src:\s*url\('\.\.\/assets\/fonts\/pinyon-script\.woff2'\)/);
 });
 
 test('Papierheft-Retro: theme-papier.css setzt eigene erstgenehmigt-Statusfarbe (kein Violett-Fallback)', () => {
