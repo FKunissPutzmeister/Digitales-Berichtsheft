@@ -10,6 +10,14 @@ const THEME_JS_PATH = path.join(__dirname, 'theme.js');
 const WOCHENANSICHT_JS_PATH = path.join(__dirname, 'wochenansicht.js');
 const SIDEBAR_JS_PATH = path.join(__dirname, 'sidebar.js');
 
+// Normalisiert CRLF->LF beim Lesen: git (core.autocrlf) wandelt Zeilenenden
+// je nach Checkout/Merge-Pfad um -- Regexes hier mit literalem \n zwischen
+// verketteten Selektoren (z.B. ".a,\n.b { ... }") matchen sonst nur in
+// manchen Checkouts (Worktree vs. Haupt-Checkout nach Merge beobachtet).
+function readCss() {
+  return fs.readFileSync(CSS_PATH, 'utf8').replace(/\r\n/g, '\n');
+}
+
 test('Papierheft-Retro: alle fünf Webfont-Dateien liegen vor und sind nicht leer', () => {
   for (const name of ['unifraktur-maguntia.woff2', 'eb-garamond-400.woff2', 'eb-garamond-600.woff2', 'eb-garamond-400italic.woff2', 'pinyon-script.woff2']) {
     const p = path.join(FONT_DIR, name);
@@ -20,7 +28,7 @@ test('Papierheft-Retro: alle fünf Webfont-Dateien liegen vor und sind nicht lee
 
 test('Papierheft-Retro: theme-papier.css existiert und referenziert alle Font-Familien', () => {
   assert.ok(fs.existsSync(CSS_PATH), `Erwartet: ${CSS_PATH}`);
-  const css = fs.readFileSync(CSS_PATH, 'utf8');
+  const css = readCss();
   assert.match(css, /Unifraktur Maguntia/);
   assert.match(css, /EB Garamond/);
   assert.match(css, /\[data-theme="papier"\]/);
@@ -33,25 +41,25 @@ test('Papierheft-Retro: Testphase Pinyon Script bei Überschriften (Nutzer-Wunsc
   // aus der font-family-Liste). --font-body bleibt EB Garamond – im
   // Schriftproben-Vergleich (scratchpad feder-schriftproben.html) war
   // Pinyon Script für ganze Fließtext-Absätze grenzwertig eingestuft.
-  const css = fs.readFileSync(CSS_PATH, 'utf8');
+  const css = readCss();
   assert.match(css, /--font-heading:\s*'Pinyon Script',\s*'Unifraktur Maguntia',/);
   assert.match(css, /--font-body:\s*'EB Garamond',/);
   assert.match(css, /@font-face\s*\{\s*\n\s*font-family:\s*'Pinyon Script';\s*\n\s*src:\s*url\('\.\.\/assets\/fonts\/pinyon-script\.woff2'\)/);
 });
 
 test('Papierheft-Retro: theme-papier.css setzt eigene erstgenehmigt-Statusfarbe (kein Violett-Fallback)', () => {
-  const css = fs.readFileSync(CSS_PATH, 'utf8');
+  const css = readCss();
   assert.match(css, /--status-erstgenehmigt-bg:/);
   assert.match(css, /--status-erstgenehmigt:/);
 });
 
 test('Papierheft-Retro: Buttons verlieren Versalien-Look (kein uppercase mehr)', () => {
-  const css = fs.readFileSync(CSS_PATH, 'utf8');
+  const css = readCss();
   assert.match(css, /\[data-theme="papier"\]\s+\.btn\s*\{[^}]*text-transform:\s*none/s);
 });
 
 test('Papierheft-Retro: leise Buttons bekommen Federstrich (kein Kasten)', () => {
-  const css = fs.readFileSync(CSS_PATH, 'utf8');
+  const css = readCss();
   // .btn-ghost steht in einer Mehrfach-Selektor-Liste (zusammen mit
   // .btn-secondary/.btn-outline/.btn-outline-yellow/.btn-success), deshalb
   // NICHT ".btn-ghost {" direkt matchen (das gibt es so nicht) — stattdessen
@@ -61,7 +69,7 @@ test('Papierheft-Retro: leise Buttons bekommen Federstrich (kein Kasten)', () =>
 });
 
 test('Papierheft-Retro: Primär- und Destruktiv-Buttons bekommen sichtbaren, handgezeichneten Rahmen', () => {
-  const css = fs.readFileSync(CSS_PATH, 'utf8');
+  const css = readCss();
   // .btn-primary/.btn-danger sind hier Einzel-Selektor-Blöcke (kein Komma-
   // Selektor wie oben), deshalb DARF hier direkt "Selektor {...}" geprüft werden.
   assert.match(css, /\[data-theme="papier"\] \.btn-primary \{[\s\S]*?border-radius: 3px 7px 4px 8px \/ 6px 4px 8px 3px;/);
@@ -70,14 +78,14 @@ test('Papierheft-Retro: Primär- und Destruktiv-Buttons bekommen sichtbaren, han
 
 test('Papierheft-Retro: weißer Federspitzen-Cursor ist gesetzt', () => {
   // Nach Live-Feedback von Gold auf Weiß umgestellt.
-  const css = fs.readFileSync(CSS_PATH, 'utf8');
+  const css = readCss();
   assert.match(css, /cursor:\s*url\("data:image\/svg\+xml,/);
   assert.match(css, /%23ffffff/i); // Weiß-Füllung der Feder, URL-encodiert
   assert.doesNotMatch(css, /%23c9a227/i); // die alte Gold-Füllung darf nicht mehr da sein
 });
 
 test('Papierheft-Retro: Cursor ist als Feder erkennbar UND nach rechts geschwungen', () => {
-  const css = fs.readFileSync(CSS_PATH, 'utf8');
+  const css = readCss();
   // Nach Live-Feedback ("Mauszeiger in eine Feder ändern") von der reinen
   // Kite-Form auf eine Fahne + Kiel + Barben-Hatching umgestellt — das
   // Hatching (mehrere <line>-Paare) ist das eigentliche Erkennungsmerkmal.
@@ -94,7 +102,7 @@ test('Papierheft-Retro: Cursor ist als Feder erkennbar UND nach rechts geschwung
 test('Papierheft-Retro: Feder hat eine kleine schwarze Spitze (Nib)', () => {
   // Live-Feedback: "gib der Feder noch eine kleine schwarze Spitze" — ein
   // kleines schwarzes Dreieck an der Kielspitze simuliert die Metallfeder.
-  const css = fs.readFileSync(CSS_PATH, 'utf8');
+  const css = readCss();
   assert.match(css, /%23000000/); // Schwarz-Füllung der Nib, URL-encodiert
   assert.match(css, /M9\.5 40 L14\.5 40 L12 45\.5 Z/); // kleines Dreieck an der Spitze
   // Muss NACH den Barben-Linien im SVG stehen, damit es über den
@@ -107,7 +115,7 @@ test('Papierheft-Retro: Feder hat eine kleine schwarze Spitze (Nib)', () => {
 });
 
 test('Papierheft-Retro: Eck-Curl-Keyframes für beide Wochenwechsel-Richtungen', () => {
-  const css = fs.readFileSync(CSS_PATH, 'utf8');
+  const css = readCss();
   assert.match(css, /@keyframes papier-week-curl-next/);
   assert.match(css, /@keyframes papier-week-curl-prev/);
   assert.match(css, /\[data-theme="papier"\] \.week-pane--leaving\[data-dir="next"\] \{[\s\S]*?animation: papier-week-curl-next 220ms/);
@@ -115,7 +123,7 @@ test('Papierheft-Retro: Eck-Curl-Keyframes für beide Wochenwechsel-Richtungen',
 });
 
 test('Papierheft-Retro: Curl respektiert prefers-reduced-motion', () => {
-  const css = fs.readFileSync(CSS_PATH, 'utf8');
+  const css = readCss();
   assert.match(css, /@media \(prefers-reduced-motion: reduce\) \{[\s\S]*?\[data-theme="papier"\] \.week-pane--leaving\[data-dir="next"\][\s\S]*?animation: none;/);
 });
 
@@ -168,7 +176,7 @@ test('Papierheft-Retro: Foto-Hintergrund ersetzt den alten Verlauf (über die ge
   const bgPath = path.join(__dirname, '..', 'assets', 'papier-bg.jpg');
   assert.ok(fs.existsSync(bgPath), `Erwartet: ${bgPath}`);
   assert.ok(fs.statSync(bgPath).size > 20000, 'papier-bg.jpg ist verdächtig klein');
-  const css = fs.readFileSync(CSS_PATH, 'utf8');
+  const css = readCss();
   assert.match(css, /--app-bg-image:\s*url\("\.\.\/assets\/papier-bg\.jpg"\);/);
   assert.match(css, /--app-bg-base:\s*#[0-9A-Fa-f]{6};/);
   // Die alte direkte body-Regel darf nicht wieder auftauchen.
@@ -189,7 +197,7 @@ test('Papierheft-Retro: die ECHTE .wochen-kachel trägt die Form (nicht nur ein 
   // reine "Overlay"-Effekt. Selektor hier deshalb um
   // `body[data-page="wochenansicht"]` erweitert, damit er tatsächlich
   // gewinnt (siehe Kommentar in Abschnitt 10 der CSS-Datei).
-  const css = fs.readFileSync(CSS_PATH, 'utf8');
+  const css = readCss();
   const SEL = '\\[data-theme="papier"\\] body\\[data-page="wochenansicht"\\] \\.wochen-kachel';
   const baseBlock = css.match(new RegExp(SEL + ' \\{[\\s\\S]*?\\n\\}'))[0];
   assert.match(baseBlock, /background: var\(--pm-white\);/);
@@ -212,7 +220,7 @@ test('Papierheft-Retro: ::before ist NUR NOCH die Vergilbung (kein eigenes Mask/
   // ::before hat keinen eigenen Zweck mehr außer der Farbverlauf-Tönung.
   // Sie wird automatisch vom Mask des Eltern-Elements mitgeschnitten
   // (Pseudo-Elemente sind Teil des geclippten Renderings ihres Elements).
-  const css = fs.readFileSync(CSS_PATH, 'utf8');
+  const css = readCss();
   const beforeBlock = css.match(/\[data-theme="papier"\] \.wochen-kachel::before \{[\s\S]*?\n\}/)[0];
   assert.match(beforeBlock, /z-index: -1;/);
   assert.match(beforeBlock, /pointer-events: none;/);
@@ -234,7 +242,7 @@ test('Papierheft-Retro: SVG-Mask-Pfad ist nochmal dezenter (NEUFASSUNG #8) – R
   // links (Fixtext-Schutz: Titel-Label 16px/36px, Zeichenzähler
   // 20px/12px vom Rand, live vermessen) bleiben weiterhin sicher flach
   // (siehe Kommentar in Abschnitt 10 der CSS-Datei).
-  const css = fs.readFileSync(CSS_PATH, 'utf8');
+  const css = readCss();
   const SEL = '\\[data-theme="papier"\\] body\\[data-page="wochenansicht"\\] \\.wochen-kachel';
   const beforeBlock = css.match(new RegExp(SEL + ' \\{[\\s\\S]*?\\n\\}'))[0];
   const maskUrl = beforeBlock.match(/mask: url\("([^"]+)"\)/)[1];
@@ -279,7 +287,7 @@ test('Papierheft-Retro: Schriftrollen-Kante am linken Rand läuft über die voll
   // durchgehender Streifen über die GESAMTE linke Kante, mit gebändertem
   // Verlauf (Andeutung eines aufgerollten Papier-Zylinders) + Schatten
   // nach rechts.
-  const css = fs.readFileSync(CSS_PATH, 'utf8');
+  const css = readCss();
   const afterBlock = css.match(/\[data-theme="papier"\] \.wochen-kachel::after \{[\s\S]*?\n\}/)[0];
   assert.match(afterBlock, /top: 0;/);
   assert.match(afterBlock, /left: 0;/);
@@ -292,14 +300,14 @@ test('Papierheft-Retro: Schriftrollen-Kante am linken Rand läuft über die voll
 });
 
 test('Papierheft-Retro: Logo wird per content:url() getauscht + gewackelt', () => {
-  const css = fs.readFileSync(CSS_PATH, 'utf8');
+  const css = readCss();
   assert.match(css, /\[data-theme="papier"\] \.sidebar__logo-mark,/);
   assert.match(css, /content: url\("\.\.\/assets\/logo-papier\.png"\);/);
   assert.match(css, /filter: url\("\.\.\/assets\/filters-papier\.svg#roughen"\);/);
 });
 
 test('Papierheft-Retro: Dashboard-Karten rotieren zyklisch (3 Varianten) und bleiben es beim Hover', () => {
-  const css = fs.readFileSync(CSS_PATH, 'utf8');
+  const css = readCss();
   assert.match(css, /\[data-theme="papier"\] \.bento \.b-tile:nth-child\(3n\+1\)/);
   assert.match(css, /\[data-theme="papier"\] \.bento \.b-tile:nth-child\(3n\+2\)/);
   assert.match(css, /\[data-theme="papier"\] \.bento \.b-tile:nth-child\(3n\+3\)/);
@@ -318,7 +326,7 @@ test('Papierheft-Retro: Schriftrollen-Navigation -- Geometrie-Token (--pgm-*) im
   // --pgm- (Farben brauchen KEINE eigenen Token, siehe Testfall zum
   // Kommentar unten: die Mockup-Palette deckt sich mit den bestehenden
   // --pm-*-Token).
-  const css = fs.readFileSync(CSS_PATH, 'utf8');
+  const css = readCss();
   const tokenBlock = css.match(/\[data-theme="papier"\] \{[\s\S]*?\n\}/)[0];
   assert.match(tokenBlock, /--pgm-cap-h:\s*29px;/);
   assert.match(tokenBlock, /--pgm-core-w:\s*11px;/);
@@ -336,7 +344,7 @@ test('Papierheft-Retro: .sidebar selbst verliert die Glas-Pillen-Optik (Form kom
   // backdrop-filter der Pille neutralisiert, Hintergrund transparent
   // (sonst schiene die alte dunkle Pillenfarbe durch die echten
   // Transparenz-Lücken der Risskante statt des Fotos dahinter).
-  const css = fs.readFileSync(CSS_PATH, 'utf8');
+  const css = readCss();
   const block = css.match(/\[data-theme="papier"\] \.sidebar \{[\s\S]*?\n\}/)[0];
   assert.match(block, /overflow: visible;/);
   assert.match(block, /border-radius: 0;/);
@@ -355,7 +363,7 @@ test('Papierheft-Retro: .sidebar selbst verliert die Glas-Pillen-Optik (Form kom
 });
 
 test('Papierheft-Retro: .sidebar__scroll-Wrapper existiert nur fuer papier, alle anderen Themes unberuehrt', () => {
-  const css = fs.readFileSync(CSS_PATH, 'utf8');
+  const css = readCss();
   // Unscoped Basisregel gilt global (theme-papier.css laedt auf JEDER
   // Seite) -- ohne data-theme-Praefix macht sie den Wrapper fuer alle
   // anderen Themes wirkungslos, Einbau-Dokument Abschnitt 4.
@@ -371,7 +379,7 @@ test('Papierheft-Retro: .sidebar__scroll-Wrapper existiert nur fuer papier, alle
 });
 
 test('Papierheft-Retro: Blatt (.sidebar__scroll-sheet) hat echte Risskanten per SVG-Maske + Alterungs-Textur', () => {
-  const css = fs.readFileSync(CSS_PATH, 'utf8');
+  const css = readCss();
   const block = css.match(/\[data-theme="papier"\] \.sidebar__scroll-sheet \{[\s\S]*?\n\}/)[0];
   // Drei Mask-Layer: Risskachel links/rechts (repeat-y) + Vollflaeche
   // Mitte (no-repeat) -- Compositing "add" vereinigt sie automatisch.
@@ -400,7 +408,7 @@ test('Papierheft-Retro: Zylinder oben/unten (.sidebar__scroll-cap) ragen seitlic
   // Element haengen (mask-image beschneidet Kinder/Pseudo-Elemente mit)
   // -- Blatt und Kappen sind deshalb getrennte Elemente, keine
   // Pseudo-Elemente voneinander.
-  const css = fs.readFileSync(CSS_PATH, 'utf8');
+  const css = readCss();
   const shared = css.match(/\[data-theme="papier"\] \.sidebar__scroll-cap \{[\s\S]*?\n\}/)[0];
   assert.match(shared, /left: -7px;/);
   assert.match(shared, /right: -7px;/);
@@ -427,7 +435,7 @@ test('Papierheft-Retro: dunkle Kernenden der Zylinder sind auf min(...,22%) gede
   // abgenommenen 11px/6px greift die Deckelung selbst nicht (Notiz im
   // CSS-Kommentar), bleibt aber als Sicherung stehen -- NICHT
   // wegkuerzen, weil sie "nichts tut".
-  const css = fs.readFileSync(CSS_PATH, 'utf8');
+  const css = readCss();
   const core = css.match(/\[data-theme="papier"\] \.sidebar__scroll-cap::before,\n\[data-theme="papier"\] \.sidebar__scroll-cap::after \{[\s\S]*?\n\}/)[0];
   assert.match(core, /width: min\(var\(--pgm-core-w\), 22%\);/);
   assert.match(core, /border-radius: 50%;/);
@@ -442,7 +450,7 @@ test('Papierheft-Retro: Seitenrolle (.sidebar__scroll-curl) ist nur im eingeklap
   // Deckt die rechte Risskante ab statt die (nicht animierbare)
   // Mask-Maske umzuschalten -- ein Pergament, das sich einrollt, verdeckt
   // seinen eigenen Rand ohnehin, statt ihn auszutauschen.
-  const css = fs.readFileSync(CSS_PATH, 'utf8');
+  const css = readCss();
   const block = css.match(/\[data-theme="papier"\] \.sidebar__scroll-curl \{[\s\S]*?\n\}/)[0];
   assert.match(block, /width: 0;/);
   assert.match(block, /opacity: 0;/);
@@ -457,7 +465,7 @@ test('Papierheft-Retro: Toggle-Button wird zum Wachssiegel (bestehendes Element,
   // localStorage/aria haengen daran) -- nur Verlauf + organischer
   // Blob-border-radius aus dem Mockup, Position bleibt unangetastet
   // (keine top/right/left/bottom-Deklaration hier).
-  const css = fs.readFileSync(CSS_PATH, 'utf8');
+  const css = readCss();
   const base = css.match(/\[data-theme="papier"\] \.sidebar__toggle \{[\s\S]*?\n\}/)[0];
   assert.match(base, /border-radius: 47% 53% 51% 49% \/ 52% 47% 53% 48%;/);
   assert.match(base, /radial-gradient\(circle at 50% 55%, #9B4030 0%, var\(--color-error-mid\) 55%, #4E1A11 100%\);/);
@@ -476,7 +484,7 @@ test('Papierheft-Retro: Sidebar-Links -- Tinte statt heller Schrift, aktiver Lin
   // Pergament, nicht mehr dunkel getoentes Glas -- die alten hellen
   // Cremewerte (aus Abschnitt 3, fuer den frueheren dunklen Hintergrund
   // gedacht) waeren jetzt unlesbar.
-  const css = fs.readFileSync(CSS_PATH, 'utf8');
+  const css = readCss();
   assert.match(css, /\[data-theme="papier"\] \.sidebar__link \{\s*\n\s*color: var\(--pm-grey-700\);\s*\n\}/);
   assert.match(css, /\[data-theme="papier"\] \.sidebar__link:hover \{\s*\n\s*background: rgba\(90, 68, 41, 0\.10\);\s*\n\s*color: var\(--pm-grey-900\);\s*\n\}/);
   const active = css.match(/\[data-theme="papier"\] \.sidebar__link\.active \{[\s\S]*?\n\}/)[0];
@@ -498,7 +506,7 @@ test('Papierheft-Retro: Labels blenden beim Ein-/Ausklappen asymmetrisch aus (ke
   // (Delay ~55% der Laufzeit), Einklappen -> Text geht FRUEH weg (~30%,
   // kein Delay). Es zaehlt immer die Transition der ZIELREGEL, deshalb
   // reicht das Delay in der Basisregel.
-  const css = fs.readFileSync(CSS_PATH, 'utf8');
+  const css = readCss();
   const linkOpen = css.match(/\[data-theme="papier"\] \.sidebar__link-label \{[\s\S]*?\n\}/)[0];
   assert.match(linkOpen, /opacity calc\(var\(--pgm-speed\) \* \.45\) var\(--pgm-ease\) calc\(var\(--pgm-speed\) \* \.55\);/);
   const linkShut = css.match(/\[data-theme="papier"\] \.sidebar\.collapsed \.sidebar__link-label \{[\s\S]*?\n\}/)[0];
@@ -511,7 +519,7 @@ test('Papierheft-Retro: eingeklappter Tooltip bekommt Pergament-Optik statt Glas
   // Kein neues Tooltip-System -- die App hat mit setupSidebarTooltips()
   // (sidebar.js) bereits einen JS-positionierten Mechanismus, der
   // data-tooltip automatisch aus dem Label-Text pflegt. Hier nur Optik.
-  const css = fs.readFileSync(CSS_PATH, 'utf8');
+  const css = readCss();
   const block = css.match(/\[data-theme="papier"\] \.sidebar-tooltip \{[\s\S]*?\n\}/)[0];
   assert.match(block, /background: linear-gradient\(170deg, #F3E6C6, var\(--pm-grey-100\)\);/);
   assert.match(block, /color: var\(--pm-grey-900\);/);
@@ -523,7 +531,7 @@ test('Papierheft-Retro: Auftritts-Animation nur beim echten ersten Laden (is-ent
   // Ablauf des eigenen animation-delay auf dem Startwert fest -- die
   // Klasse .is-entering (von sidebar.js gesetzt/entfernt) macht das Gate
   // explizit.
-  const css = fs.readFileSync(CSS_PATH, 'utf8');
+  const css = readCss();
   assert.match(css, /@keyframes papier-scroll-unfurl \{/);
   assert.match(css, /@keyframes papier-scroll-ink-in \{/);
   const sheetAnim = css.match(/\[data-theme="papier"\] \.sidebar\.is-entering \.sidebar__scroll-sheet \{[\s\S]*?\n\}/)[0];
