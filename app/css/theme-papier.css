@@ -147,16 +147,26 @@ html[data-theme="papier"] { color-scheme: light; }
      html::before NICHT mit und lässt bei ein-/ausfahrenden iOS-Leisten
      kurz das generische Default-Bild aufblitzen — deshalb hier bewusst
      NUR Tokens setzen, keine eigene body-Regel.
+     Bild getauscht (Nutzer-Vorgabe, Datei "retro-paper-background.png"
+     trotz Namens tatsächlich eine dunkle Holztisch-Textur, keine
+     Pergament-Seite – so übernommen, deutlich dunkler als das vorige
+     Foto). Als papier-bg.jpg re-encodiert (Qualität 85, ~280KB statt
+     2,4MB PNG), Dateiname/Pfad bewusst unverändert gelassen, damit
+     kein anderer Verweis in der Codebase angepasst werden muss.
      --app-bg-vignette bleibt "none": das Foto bringt seine eigene
-     Alterungs-Vignette (dunkle Ecken, Foxing) schon mit, eine zweite
-     Vignette darüber hätte die Ecken doppelt verdunkelt. */
+     Vignette (dunkle Ecken, warmes Licht mittig-links/rechts) schon
+     mit, eine zweite Vignette darüber hätte die Ecken doppelt
+     verdunkelt. */
   --app-bg-image:    url("../assets/papier-bg.jpg");
   --app-bg-overlay:  linear-gradient(180deg, rgba(233, 217, 179, 0.08), rgba(224, 199, 148, 0.16));
   --app-bg-vignette: none;
   /* Randfarbe für den auf iOS unbemalbaren Streifen hinterm Home-Indikator
-     (siehe Doku) – an der Bildunterkante gemessen (#D19F56), nicht geraten,
-     sonst wieder der helle Balken aus demselben Dokument. */
-  --app-bg-base:     #D19F56;
+     (siehe Doku) – an der Bildunterkante gemessen (#0D0703, nicht
+     geraten, sonst wieder der helle Balken aus demselben Dokument) –
+     neu gemessen nach dem Bildtausch (Mittelwert über 12 Stichproben an
+     der unteren Bildkante), da das neue Foto deutlich dunkler ist als
+     das vorige (#D19F56). */
+  --app-bg-base:     #0D0703;
 }
 
 /* ===================================================================
@@ -510,6 +520,17 @@ html[data-theme="papier"] * {
    oben in wochenansicht.css, siehe deren eigener Kommentar "wird von
    KEINEM aktuellen Template mehr erzeugt").
 
+   NEUFASSUNG #7 (Nutzer-Feedback nach NEUFASSUNG #6: "jetzt hast dus
+   verstanden, allerdings ist das etwas zu viel des Guten – mach das
+   zerrissene etwas subtiler"): alle Riss-/Kerben-Tiefen ggü. #6 grob
+   HALBIERT, Positionen (x/y-Prozentsätze der Punkte) unverändert:
+   Grundrauheit 5-14 statt 10-28 Einheiten, Scheren-Schnitte 28 statt 55,
+   Ecke oben-rechts ~28 statt 55-65, Ecke unten-rechts (die auffälligste)
+   ~55 statt 110 Reichweite. Die beiden textnahen Ecken oben-links/
+   unten-links (Fixtext-Schutz, siehe NEUFASSUNG #6) blieben ohnehin
+   schon flach, hier nur noch geringfügig reduziert (~8-9 statt 12-14).
+   Erzeugt via Skript (scratchpad gen-svg-mask-v8.js).
+
    NEUFASSUNG #6 (Nutzer-Feedback: "du veränderst nur das Overlay, ich
    verlange, dass du die Kachel in die man reinschreibt von der Form
    veränderst – das Overlay soll nur die Vergilbung darstellen"):
@@ -649,8 +670,8 @@ html[data-theme="papier"] * {
   background: var(--pm-white);
   border: none;
   box-shadow: none;
-  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1200 300' preserveAspectRatio='none'%3E%3Cpath fill='white' fill-rule='evenodd' d='M14 0 L120 14 L216 26 L312 11 L408 24 L504 16 L600 22 L696 27 L792 13 L888 21 L984 15 L1080 25 L1152 12 L1145 0 L1160.2 5 L1155.9 27.3 L1177 27 L1175.7 46.6 L1193.8 49 L1200 62 L1184 78 L1145 102 L1194 108 L1182 138 L1174 174 L1197 198 L1175.9 215.6 L1146.3 212.9 L1129.1 239.7 L1098.6 235.1 L1081.4 261.9 L1048.7 251.8 L1029.9 274.9 L999.5 270.4 L980.8 293.5 L955 300 L852 280 L756 288 L660 275 L552 284 L360 292 L336 245 L216 280 L14 300 L9.2 298.5 L9 291.7 L2.2 292.5 L0 288 L6 222 L8 180 L6 138 L8 90 L0 12 Z'/%3E%3C/svg%3E") center / 100% 100% no-repeat;
-  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1200 300' preserveAspectRatio='none'%3E%3Cpath fill='white' fill-rule='evenodd' d='M14 0 L120 14 L216 26 L312 11 L408 24 L504 16 L600 22 L696 27 L792 13 L888 21 L984 15 L1080 25 L1152 12 L1145 0 L1160.2 5 L1155.9 27.3 L1177 27 L1175.7 46.6 L1193.8 49 L1200 62 L1184 78 L1145 102 L1194 108 L1182 138 L1174 174 L1197 198 L1175.9 215.6 L1146.3 212.9 L1129.1 239.7 L1098.6 235.1 L1081.4 261.9 L1048.7 251.8 L1029.9 274.9 L999.5 270.4 L980.8 293.5 L955 300 L852 280 L756 288 L660 275 L552 284 L360 292 L336 245 L216 280 L14 300 L9.2 298.5 L9 291.7 L2.2 292.5 L0 288 L6 222 L8 180 L6 138 L8 90 L0 12 Z'/%3E%3C/svg%3E") center / 100% 100% no-repeat;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1200 300' preserveAspectRatio='none'%3E%3Cpath fill='white' fill-rule='evenodd' d='M9 0 L120 7 L216 13 L312 6 L408 12 L504 8 L600 11 L696 14 L792 7 L888 11 L984 8 L1080 13 L1152 6 L1172 0 L1179.6 2.5 L1177.6 13.7 L1188.2 13.5 L1187.7 23.3 L1196.8 24.5 L1200 31 L1192 78 L1172 102 L1197 108 L1191 138 L1187 174 L1197 249 L1183.4 259.1 L1165.6 259 L1154 273.7 L1135.7 272.7 L1124.1 287.3 L1104.7 283.6 L1091.9 295.5 L1076 300 L852 290 L756 294 L660 288 L552 292 L384 296 L360 272 L240 290 L9 300 L6.1 298.7 L5.8 294.5 L1.6 294.7 L0 292 L3 222 L4 180 L3 138 L4 90 L0 8 Z'/%3E%3C/svg%3E") center / 100% 100% no-repeat;
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1200 300' preserveAspectRatio='none'%3E%3Cpath fill='white' fill-rule='evenodd' d='M9 0 L120 7 L216 13 L312 6 L408 12 L504 8 L600 11 L696 14 L792 7 L888 11 L984 8 L1080 13 L1152 6 L1172 0 L1179.6 2.5 L1177.6 13.7 L1188.2 13.5 L1187.7 23.3 L1196.8 24.5 L1200 31 L1192 78 L1172 102 L1197 108 L1191 138 L1187 174 L1197 249 L1183.4 259.1 L1165.6 259 L1154 273.7 L1135.7 272.7 L1124.1 287.3 L1104.7 283.6 L1091.9 295.5 L1076 300 L852 290 L756 294 L660 288 L552 292 L384 296 L360 272 L240 290 L9 300 L6.1 298.7 L5.8 294.5 L1.6 294.7 L0 292 L3 222 L4 180 L3 138 L4 90 L0 8 Z'/%3E%3C/svg%3E") center / 100% 100% no-repeat;
   filter:
     drop-shadow(0 0 1px rgba(43, 28, 13, 0.85))
     drop-shadow(0 0 1.5px rgba(43, 28, 13, 0.5))
