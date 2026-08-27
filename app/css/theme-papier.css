@@ -502,65 +502,66 @@ html[data-theme="papier"] * {
 }
 
 /* ===================================================================
-   10 · WOCHEN-KACHELN – "Schatzkarte": gezackter Schatzkarten-Rand
+   10 · WOCHEN-KACHELN – "Schatzkarte": zerrissener Rand + eingerollte Ecke
    -------------------------------------------------------------------
    Die eigentlichen Schreib-Kacheln (.wochen-kachel, wochenansicht.js:1973
    – Betrieb/Schule-Editor pro Tag, NICHT die toten .day-card-Regeln weiter
    oben in wochenansicht.css, siehe deren eigener Kommentar "wird von
    KEINEM aktuellen Template mehr erzeugt").
 
-   NEUFASSUNG (Nutzer-Feedback mit Referenzbild einer Schatzkarte): das
-   vorherige "angesengte" Design mit dunklen Brandflecken/Gradient-Mix
-   ("diese 2 Farbkombinationen") gefiel nicht – ersetzt durch einen
-   gleichmäßig gezackten Rand nach dem Vorbild der Referenz: durchgehend
-   runde, briefmarkenartige Auskerbungen rundum, EINE Papierfarbe
-   (--pm-white, wie die Kachel ohnehin schon hat) statt Farbflecken, plus
-   ein dünner dunkler Konturstrich statt Brandschatten.
+   NEUFASSUNG #2 (Nutzer-Feedback mit neuem Referenzbild einer Schatzkarte):
+   der vorherige gleichmäßig-briefmarkenartige Rand (mask-image, siehe
+   Git-Historie) traf nicht die Vorlage – das neue Referenzbild zeigt einen
+   UNREGELMÄSSIG zerrissenen Rand ("etwas kaputt an den Seiten") UND eine
+   eingerollte obere linke Ecke. Beides jetzt umgesetzt:
 
-   Technik-Wechsel: clip-path (gerade Liniensegmente, siehe Git-Historie
-   dieser Datei) kann keine RUNDEN Kerben zeichnen, nur eckige. Für einen
-   Rand aus runden Halbkreis-Auskerbungen, der sich – wichtig bei dieser
-   extrem breiten Kachel (~1250×300px, siehe frühere Kommentare in der
-   Historie zum Seitenverhältnis-Problem) – bei JEDER Breite von selbst
-   gleichmäßig wiederholt: `mask-image` mit VIER Radial-Gradient-Ebenen
-   (eine pro Kante, `mask-size` erzwingt die Kachelgröße, `mask-repeat`
-   wiederholt sie automatisch so oft wie nötig – kein Seitenverhältnis-
-   Problem wie bei festen clip-path-Punkten, weil der Browser die Anzahl
-   der Wiederholungen selbst berechnet). `mask-composite: intersect`
-   verknüpft alle vier Kanten-Ebenen so, dass JEDE einzelne Auskerbung
-   (unabhängig von welcher Kante) den Bereich dort transparent schneidet.
+   1) ZERRISSENER RAND: `clip-path: polygon(...)` mit 42 handgesetzten
+      Punkten, ungleichmäßige Biss-Tiefe 1–8px (keine Wiederholung wie
+      beim vorherigen mask-Muster). Gemischte Einheiten (% entlang der
+      langen Achse, feste px für die Biss-Tiefe) – das WEICHE Problem aus
+      der Git-Historie: bei reinen %-Werten verzerren sich Kerben auf
+      dieser extrem breiten Kachel (~1250×300px) zu langen Diagonalschnitten
+      statt kleiner Kerben. Erzeugt via Skript
+      (siehe scratchpad gen-torn-corner-polygon.js), nicht von Hand
+      getippt – 42 Punkte sind fehleranfällig für Tippfehler.
 
-   ZWEI Ebenen mit IDENTISCHEM Kerbenmuster (gleiche 24px-Kachelgröße,
-   gleiche Position), nur mit leicht unterschiedlichem Kerben-Radius:
-   • ::before (dahinter, dunkle Tinte --pm-grey-900): Radius 7/8px –
-     etwas WENIGER ausgekerbt, bleibt dadurch an jeder Stelle ein paar
-     Pixel größer als die Kachel darüber.
-   • .wochen-kachel selbst (davor, eigene --pm-white-Fläche): Radius
-     9/10px – etwas MEHR ausgekerbt.
-   Weil beide Ebenen exakt dieselbe Position/Kachelgröße nutzen (kein
-   Versatz wie beim alten inset:-14px-Ansatz), bleiben die Kerben beider
-   Ebenen konzentrisch – die dunkle Ebene lugt dadurch ringsum als
-   gleichmäßig ~2px breite Kontur hervor, statt (wie ein erster Versuch
-   mit versetzten Kacheln zeigte) an einer Seite dicker als an der
-   anderen zu wirken.
-   SICHERHEIT (wie beim vorherigen clip-path-Ansatz, siehe Git-Historie):
-   `mask` erzeugt – genau wie `clip-path` – einen eigenen Stacking-Context
-   und schneidet damit auch das schwebende quill-table-better-Zellenmenü
-   mit, das als DOM-Kind in .wochen-kachel hängt (nicht in document.body)
-   und wegen `contain: layout` (wochenansicht.css:670) diese Kachel als
-   Containing Block hat. 10px Maximalradius bleibt sicher unter der
-   schmalsten Innenabstand-Stelle im Baum (12px, --sp-3, Footer) – live
-   an Edge mit eingefügter Tabelle + ausgelöstem Zellenmenü geprüft,
-   bleibt unbeschnitten.
-   `-webkit-mask-*` zusätzlich zu den unpräfixten Eigenschaften gesetzt
-   (Chromium/Edge braucht das teils für volle Kompatibilität), reine
-   Vorsichtsmaßnahme – im Live-Test reichte bereits die unpräfixte
-   Variante allein.
-   Drehung (≤1.4°, wie bei den Dashboard-Karten in Abschnitt 9) bleibt
-   als einziges Unterscheidungsmerkmal zwischen den drei zyklischen
-   Varianten erhalten – das Kerbenmuster selbst ist bewusst überall
-   GLEICH (die Referenz zeigt einen gleichmäßigen Rand, kein
-   Zufallsmuster wie beim vorherigen "zerrissenen" Entwurf).
+   2) EINGEROLLTE ECKE OBEN LINKS: der Polygon-Pfad schneidet die Ecke
+      selbst diagonal ab (26px), statt sie wie die übrigen drei Ecken nur
+      leicht anzureißen. ::after füllt genau diese fehlende Dreiecksfläche
+      mit einer hellen Papier-Rückseite (Verlauf) + Schlagschatten – der
+      klassische "Eselsohr"-Trick, hier aber als echte Aussparung in der
+      tatsächlichen Kachelform (nicht nur als Overlay obendrauf).
+      26px ist bewusst DEUTLICH tiefer als die 8px-Sicherheitsgrenze der
+      übrigen Kanten (siehe Punkt 3) – sicher, weil dieser Eckbereich
+      IMMER vom Kachel-Header (.wochen-kachel__header, wochenansicht.css:705,
+      eigener grauer Hintergrund + padding) belegt ist, niemals vom Editor.
+
+   3) TINTEN-KONTUR + SCHATTEN ÜBER `filter: drop-shadow(...)` statt
+      box-shadow/zweiter Mask-Ebene: drop-shadow zeichnet exakt entlang der
+      tatsächlich gerenderten (bereits geclippten) Silhouette und wird
+      selbst NICHT vom eigenen clip-path abgeschnitten (im Gegensatz zu
+      box-shadow, das als Teil der geclippten Box gilt). Zwei dünne
+      dunkle drop-shadows (Tinten-Kontur) + ein weicher warmer
+      drop-shadow (Abheben von der Seite) – ersetzt die vorherige
+      zweite ::before-Mask-Ebene, die für ein UNREGELMÄSSIGES Polygon
+      ohnehin nur mit fehleranfälliger Normalenvektor-Berechnung pro
+      Punkt nachgebildet werden könnte.
+
+   SICHERHEIT (unverändert aus der Git-Historie): `clip-path` erzeugt einen
+   eigenen Stacking-Context und schneidet damit auch das schwebende
+   quill-table-better-Zellenmenü mit, das als DOM-Kind in .wochen-kachel
+   hängt (nicht in document.body) und wegen `contain: layout`
+   (wochenansicht.css:670) diese Kachel als Containing Block hat. Entlang
+   der vier Kanten (NICHT der eingerollten Ecke, siehe Punkt 2) bleibt die
+   Biss-Tiefe bei maximal 8px, sicher unter der schmalsten
+   Innenabstand-Stelle im Baum (12px, --sp-3, Footer) – live an Edge mit
+   eingefügter Tabelle + ausgelöstem Zellenmenü geprüft, bleibt
+   unbeschnitten. `filter` selbst clippt nichts (nur `clip-path`/`mask`
+   tun das) und ändert daran nichts.
+
+   Drehung (≤1.4°, wie bei den Dashboard-Karten in Abschnitt 9) bleibt wie
+   zuvor das einzige Unterscheidungsmerkmal zwischen den drei zyklischen
+   Varianten – die Rissform selbst ist überall gleich.
    !important auf transform aus demselben Grund wie Abschnitt 9: jede
    .wochen-kachel trägt `animation: fadeIn … both` (base.css) UND wird
    – siehe wochenansicht.css:1715 – während des KW-Wechsels per
@@ -571,52 +572,70 @@ html[data-theme="papier"] * {
    =================================================================== */
 [data-theme="papier"] .wochen-kachel {
   position: relative;
-  mask-image:
-    radial-gradient(circle at 12px 0, transparent 9px, black 10px),
-    radial-gradient(circle at 12px 100%, transparent 9px, black 10px),
-    radial-gradient(circle at 0 12px, transparent 9px, black 10px),
-    radial-gradient(circle at 100% 12px, transparent 9px, black 10px);
-  mask-size: 24px 100%, 24px 100%, 100% 24px, 100% 24px;
-  mask-repeat: repeat-x, repeat-x, repeat-y, repeat-y;
-  mask-position: top left, bottom left, top left, top right;
-  mask-composite: intersect, intersect, intersect;
-  -webkit-mask-image:
-    radial-gradient(circle at 12px 0, transparent 9px, black 10px),
-    radial-gradient(circle at 12px 100%, transparent 9px, black 10px),
-    radial-gradient(circle at 0 12px, transparent 9px, black 10px),
-    radial-gradient(circle at 100% 12px, transparent 9px, black 10px);
-  -webkit-mask-size: 24px 100%, 24px 100%, 100% 24px, 100% 24px;
-  -webkit-mask-repeat: repeat-x, repeat-x, repeat-y, repeat-y;
-  -webkit-mask-position: top left, bottom left, top left, top right;
-  -webkit-mask-composite: source-in, source-in, source-in;
+  clip-path: polygon(
+    38px 0px,
+    8% 3px,
+    15% 7px,
+    22% 1px,
+    30% 8px,
+    38% 2px,
+    46% 5px,
+    55% 8px,
+    63% 3px,
+    71% 6px,
+    80% 1px,
+    88% 7px,
+    95% 4px,
+    calc(100% - 4px) 8%,
+    calc(100% - 8px) 20%,
+    calc(100% - 2px) 32%,
+    calc(100% - 6px) 44%,
+    calc(100% - 3px) 56%,
+    calc(100% - 7px) 68%,
+    calc(100% - 1px) 80%,
+    calc(100% - 5px) 92%,
+    95% calc(100% - 5px),
+    88% calc(100% - 2px),
+    80% calc(100% - 7px),
+    71% calc(100% - 3px),
+    63% calc(100% - 8px),
+    55% calc(100% - 4px),
+    46% calc(100% - 6px),
+    38% calc(100% - 1px),
+    30% calc(100% - 7px),
+    22% calc(100% - 3px),
+    15% calc(100% - 8px),
+    8% calc(100% - 2px),
+    6px 92%,
+    2px 80%,
+    8px 68%,
+    4px 56%,
+    7px 44%,
+    1px 32%,
+    5px 20%,
+    4px 16%,
+    0px 38px
+  );
+  filter:
+    drop-shadow(0 0 1px rgba(43, 28, 13, 0.85))
+    drop-shadow(0 0 1.5px rgba(43, 28, 13, 0.5))
+    drop-shadow(3px 5px 8px rgba(90, 60, 20, 0.22));
   transform: rotate(-0.9deg) !important;
-  box-shadow: 3px 5px 12px rgba(90, 60, 20, 0.20), var(--shadow-sm);
 }
-[data-theme="papier"] .wochen-kachel::before {
+[data-theme="papier"] .wochen-kachel::after {
   content: "";
   position: absolute;
-  inset: 0;
-  z-index: -1;
+  top: 0;
+  left: 0;
+  width: 46px;
+  height: 46px;
+  z-index: 2;
   pointer-events: none;
-  background: var(--pm-grey-900);
-  mask-image:
-    radial-gradient(circle at 12px 0, transparent 7px, black 8px),
-    radial-gradient(circle at 12px 100%, transparent 7px, black 8px),
-    radial-gradient(circle at 0 12px, transparent 7px, black 8px),
-    radial-gradient(circle at 100% 12px, transparent 7px, black 8px);
-  mask-size: 24px 100%, 24px 100%, 100% 24px, 100% 24px;
-  mask-repeat: repeat-x, repeat-x, repeat-y, repeat-y;
-  mask-position: top left, bottom left, top left, top right;
-  mask-composite: intersect, intersect, intersect;
-  -webkit-mask-image:
-    radial-gradient(circle at 12px 0, transparent 7px, black 8px),
-    radial-gradient(circle at 12px 100%, transparent 7px, black 8px),
-    radial-gradient(circle at 0 12px, transparent 7px, black 8px),
-    radial-gradient(circle at 100% 12px, transparent 7px, black 8px);
-  -webkit-mask-size: 24px 100%, 24px 100%, 100% 24px, 100% 24px;
-  -webkit-mask-repeat: repeat-x, repeat-x, repeat-y, repeat-y;
-  -webkit-mask-position: top left, bottom left, top left, top right;
-  -webkit-mask-composite: source-in, source-in, source-in;
+  clip-path: polygon(0 0, 100% 0, 0 100%);
+  background:
+    linear-gradient(135deg, transparent 40%, rgba(43, 28, 13, 0.18) 55%, transparent 68%),
+    linear-gradient(135deg, var(--pm-grey-100) 0%, var(--pm-grey-50) 50%, var(--pm-white) 100%);
+  box-shadow: 3px 3px 6px rgba(43, 28, 13, 0.4);
 }
 [data-theme="papier"] .wochen-kachel:nth-child(3n+2) {
   transform: rotate(0.7deg) !important;
