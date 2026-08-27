@@ -510,6 +510,23 @@ html[data-theme="papier"] * {
    oben in wochenansicht.css, siehe deren eigener Kommentar "wird von
    KEINEM aktuellen Template mehr erzeugt").
 
+   NEUFASSUNG #5 (Nutzer-Feedback: "wo ist die Verformung??" – mit
+   Screenshot der oberen rechten Ecke, die bei realer Bildschirmgröße
+   praktisch glatt wirkte). Ursache: NEUFASSUNG #4 hatte die dramatische
+   Verformung nur an vier GEZIELTEN Stellen (Rolle links, Riss unten
+   rechts, 2 Scheren-Schnitte) – die übrige Kontur hatte nur 1-8
+   Einheiten Grundrauheit, bei ~1150px realer Kachelbreite praktisch
+   unsichtbar. Auf Nachfrage bestätigt: Verformung soll RUNDUM sichtbar
+   sein, nicht nur an einzelnen Akzenten. Deshalb:
+   • Grundrauheit auf 10-28 Einheiten erhöht (statt 1-8) – jetzt auch
+     ohne Zoom klar als Zacken erkennbar.
+   • ALLE VIER Ecken bekommen jetzt eine abgerissene, franzige Diagonale
+     (zuvor nur unten rechts) – unten rechts bleibt mit ~110 Einheiten
+     die dramatischste, die übrigen drei moderater (~55-65 Einheiten),
+     nach demselben Monoton-mit-Jitter-Verfahren wie unten rechts (siehe
+     Punkt 3 unten).
+   Erzeugt via Skript (scratchpad gen-svg-mask-v6.js).
+
    NEUFASSUNG #4 (Nutzer-Feedback nach Screenshot-Review, zwei
    Referenzbilder: der Halloween-Login-Screenshot + eine abgerissene
    Kartenecke): drei konkrete Korrekturen.
@@ -596,8 +613,8 @@ html[data-theme="papier"] * {
     linear-gradient(to bottom, rgba(150, 108, 45, 0.42), transparent 60px),
     linear-gradient(to top, rgba(150, 108, 45, 0.42), transparent 60px),
     var(--pm-white);
-  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1200 300' preserveAspectRatio='none'%3E%3Cpath fill='white' fill-rule='evenodd' d='M0 0 L96 3 L180 7 L264 1 L360 8 L456 2 L552 5 L660 8 L756 3 L852 6 L960 1 L1056 7 L1140 4 L1196 24 L1192 60 L1145 102 L1197 108 L1194 132 L1197 168 L1193 204 L1197 198 L1175.9 215.6 L1146.3 212.9 L1129.1 239.7 L1098.6 235.1 L1081.4 261.9 L1048.7 251.8 L1029.9 274.9 L999.5 270.4 L980.8 293.5 L955 300 L852 297 L756 292 L660 296 L552 294 L288 297 L264 245 L180 297 L96 292 L2 276 L8 240 L4 204 L7 132 L1 96 L5 60 L4 48 Z'/%3E%3C/svg%3E") center / 100% 100% no-repeat;
-  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1200 300' preserveAspectRatio='none'%3E%3Cpath fill='white' fill-rule='evenodd' d='M0 0 L96 3 L180 7 L264 1 L360 8 L456 2 L552 5 L660 8 L756 3 L852 6 L960 1 L1056 7 L1140 4 L1196 24 L1192 60 L1145 102 L1197 108 L1194 132 L1197 168 L1193 204 L1197 198 L1175.9 215.6 L1146.3 212.9 L1129.1 239.7 L1098.6 235.1 L1081.4 261.9 L1048.7 251.8 L1029.9 274.9 L999.5 270.4 L980.8 293.5 L955 300 L852 297 L756 292 L660 296 L552 294 L288 297 L264 245 L180 297 L96 292 L2 276 L8 240 L4 204 L7 132 L1 96 L5 60 L4 48 Z'/%3E%3C/svg%3E") center / 100% 100% no-repeat;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1200 300' preserveAspectRatio='none'%3E%3Cpath fill='white' fill-rule='evenodd' d='M62 0 L120 14 L216 26 L312 11 L408 24 L504 16 L600 22 L696 27 L792 13 L888 21 L984 15 L1080 25 L1152 12 L1145 0 L1160.2 5 L1155.9 27.3 L1177 27 L1175.7 46.6 L1193.8 49 L1200 62 L1184 78 L1145 102 L1194 108 L1182 138 L1174 174 L1197 198 L1175.9 215.6 L1146.3 212.9 L1129.1 239.7 L1098.6 235.1 L1081.4 261.9 L1048.7 251.8 L1029.9 274.9 L999.5 270.4 L980.8 293.5 L955 300 L852 280 L756 288 L660 275 L552 284 L360 292 L336 245 L216 280 L62 300 L57.1 284.5 L34.5 288 L35.1 266.6 L15.2 267.2 L13.1 248.7 L0 242 L10 264 L22 222 L12 180 L24 138 L8 90 L18 48 L0 58 Z'/%3E%3C/svg%3E") center / 100% 100% no-repeat;
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1200 300' preserveAspectRatio='none'%3E%3Cpath fill='white' fill-rule='evenodd' d='M62 0 L120 14 L216 26 L312 11 L408 24 L504 16 L600 22 L696 27 L792 13 L888 21 L984 15 L1080 25 L1152 12 L1145 0 L1160.2 5 L1155.9 27.3 L1177 27 L1175.7 46.6 L1193.8 49 L1200 62 L1184 78 L1145 102 L1194 108 L1182 138 L1174 174 L1197 198 L1175.9 215.6 L1146.3 212.9 L1129.1 239.7 L1098.6 235.1 L1081.4 261.9 L1048.7 251.8 L1029.9 274.9 L999.5 270.4 L980.8 293.5 L955 300 L852 280 L756 288 L660 275 L552 284 L360 292 L336 245 L216 280 L62 300 L57.1 284.5 L34.5 288 L35.1 266.6 L15.2 267.2 L13.1 248.7 L0 242 L10 264 L22 222 L12 180 L24 138 L8 90 L18 48 L0 58 Z'/%3E%3C/svg%3E") center / 100% 100% no-repeat;
   filter:
     drop-shadow(0 0 1px rgba(43, 28, 13, 0.85))
     drop-shadow(0 0 1.5px rgba(43, 28, 13, 0.5))

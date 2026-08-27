@@ -210,13 +210,16 @@ test('Papierheft-Retro: ::before trägt die SVG-Mask (Riss + Scheren-Schnitte), 
   assert.match(beforeBlock, /filter:\s*\n\s*drop-shadow\(0 0 1px rgba\(43, 28, 13, 0\.85\)\)\s*\n\s*drop-shadow\(0 0 1\.5px rgba\(43, 28, 13, 0\.5\)\)\s*\n\s*drop-shadow\(3px 5px 8px rgba\(90, 60, 20, 0\.22\)\);/);
 });
 
-test('Papierheft-Retro: SVG-Mask-Pfad enthält eine abgerissene Ecke unten rechts UND genau drei tiefe Scheren-Schnitt-Kerben', () => {
-  // Nutzer-Feedback (mit Referenzbild einer abgerissenen Kartenecke): eine
-  // Ecke soll aussehen, als wäre ein Stück herausgerissen worden — eine
-  // grobe, franzige Diagonale statt eines glatten Schnitts. Punkte wandern
-  // MONOTON von der rechten zur unteren Kante mit wechselndem Jitter
-  // (kein Sägezahn-Zurückspringen zum alten Rand, siehe Kommentar in
-  // Abschnitt 10 der CSS-Datei).
+test('Papierheft-Retro: SVG-Mask-Pfad hat auf ALLEN VIER Ecken eine abgerissene, franzige Diagonale', () => {
+  // Nutzer-Feedback: "wo ist die Verformung??" — mit Referenzbild einer
+  // ansonsten glatten oberen rechten Ecke. Vorherige Fassung hatte die
+  // abgerissene Ecke nur unten rechts; die anderen drei Ecken waren nur
+  // von der 1-8-Einheiten-Grundrauheit betroffen und dadurch bei realer
+  // Bildschirmgröße praktisch unsichtbar. Jetzt bekommt JEDE Ecke eine
+  // franzige Diagonale (unten rechts bleibt mit ~110 Einheiten am
+  // dramatischsten, die übrigen drei moderater ~55-65 Einheiten), nach
+  // demselben Monoton-mit-Jitter-Verfahren (kein Sägezahn-Zurückspringen
+  // zum alten Rand, siehe Kommentar in Abschnitt 10 der CSS-Datei).
   const css = fs.readFileSync(CSS_PATH, 'utf8');
   const beforeBlock = css.match(/\[data-theme="papier"\] \.wochen-kachel::before \{[\s\S]*?\n\}/)[0];
   const maskUrl = beforeBlock.match(/mask: url\("([^"]+)"\)/)[1];
@@ -225,24 +228,33 @@ test('Papierheft-Retro: SVG-Mask-Pfad enthält eine abgerissene Ecke unten recht
   const subpathStarts = (dAttr.match(/ M/g) || []).length;
   assert.equal(subpathStarts, 0, 'Erwarte EINEN durchgehenden Pfad, keine separaten Loch-Teilpfade');
   const points = dAttr.slice(1, -2).split(' L').map(p => p.split(' ').map(Number));
-  // Abgerissene Ecke unten rechts: die Punkte müssen monoton weiter nach
-  // unten-links wandern (x fällt, y steigt), keine Rückkehr in Richtung
-  // des ursprünglichen Rands (x=1200/y=0-Bereich).
+  // Die dramatische Ecke unten rechts (~110 Einheiten) bleibt wie zuvor.
   const tornStart = points.findIndex(([x, y]) => x === 1197 && y === 198);
   const tornEnd = points.findIndex(([x, y]) => x === 955 && y === 300);
-  assert.ok(tornStart > -1 && tornEnd > tornStart, 'Abgerissene-Ecke-Diagonale nicht gefunden');
-  // Der senkrechte Jitter (±4-14 Einheiten) lässt einzelne Punkte lokal
-  // leicht schwanken (das ist die gewollte franzige Optik) — entscheidend
-  // ist, dass KEIN Punkt in die Nähe des ursprünglichen, unbeschädigten
-  // Rands zurückspringt (x nahe 1200 oder y nahe 0).
+  assert.ok(tornStart > -1 && tornEnd > tornStart, 'Abgerissene-Ecke-Diagonale (unten rechts) nicht gefunden');
   const tornPoints = points.slice(tornStart, tornEnd + 1);
   for (const [x, y] of tornPoints) {
     assert.ok(x <= 1197 && y >= 190, `Punkt liegt zu nah am ursprünglichen Rand: ${x},${y}`);
   }
-  // Drei Scheren-Schnitte: Koordinaten, die 55 Einheiten von der
-  // jeweiligen Kante entfernt liegen (rechts, unten links vom Riss).
-  const cutPoints = points.filter(([x, y]) => x === 1145 || x === 264 && y === 245);
-  assert.ok(cutPoints.length >= 2, `Erwarte mindestens 2 Scheren-Schnitt-Punkte (55 Einheiten tief), gefunden: ${cutPoints.length}`);
+  // Alle vier Ecken müssen Koordinaten enthalten, die deutlich (>40
+  // Einheiten) von ihrer jeweiligen Bildecke entfernt liegen — sonst
+  // wäre die Ecke wieder nur mit der Grundrauheit texturiert.
+  const cornerDistances = {
+    'oben links': Math.min(...points.map(([x, y]) => Math.hypot(x - 0, y - 0))),
+    'oben rechts': Math.min(...points.map(([x, y]) => Math.hypot(x - 1200, y - 0))),
+    'unten rechts': Math.min(...points.map(([x, y]) => Math.hypot(x - 1200, y - 300))),
+    'unten links': Math.min(...points.map(([x, y]) => Math.hypot(x - 0, y - 300))),
+  };
+  for (const [ecke, dist] of Object.entries(cornerDistances)) {
+    assert.ok(dist >= 30, `Ecke "${ecke}" hat keinen Punkt weit genug vom Bildeck entfernt (${dist.toFixed(1)} < 30)`);
+  }
+  // Grundrauheit deutlich erhöht (10-28 statt 1-8 Einheiten) — stichprobenartig
+  // die ersten Punkte der oberen Kante prüfen (kein 1-8er-Wert mehr).
+  const topEdgeDepths = points.slice(1, 13).map(([, y]) => y);
+  assert.ok(topEdgeDepths.every(d => d >= 10), `Grundrauheit oben zu flach: ${topEdgeDepths}`);
+  // Zwei Scheren-Schnitte bleiben (rechte + untere Kante, 55 Einheiten).
+  const cutPoints = points.filter(([x, y]) => (x === 1145 && y === 102) || (x === 336 && y === 245));
+  assert.equal(cutPoints.length, 2, `Erwarte genau 2 Scheren-Schnitt-Punkte (55 Einheiten tief), gefunden: ${cutPoints.length}`);
 });
 
 test('Papierheft-Retro: Schriftrollen-Kante am linken Rand läuft über die volle Kachelhöhe', () => {
