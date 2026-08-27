@@ -7,6 +7,13 @@ function buildSidebar(activeNavId) {
   if (!sidebar) return;
 
   sidebar.innerHTML = `
+    <div class="sidebar__scroll" aria-hidden="true">
+      <div class="sidebar__scroll-sheet"></div>
+      <div class="sidebar__scroll-cap sidebar__scroll-cap--top"></div>
+      <div class="sidebar__scroll-cap sidebar__scroll-cap--bottom"></div>
+      <div class="sidebar__scroll-curl"></div>
+    </div>
+
     <div class="sidebar__header">
       <div class="sidebar__logo-wrap">
         <img src="../Corporate Design/Digital Logo_png/Social Logo/200 x 200 px.png"
@@ -107,6 +114,25 @@ function buildSidebar(activeNavId) {
   `;
 
   document.getElementById(activeNavId)?.classList.add('active');
+
+  /* Auftritts-Animation der Schriftrollen-Navigation (nur Theme "papier",
+     siehe theme-papier.css Abschnitt 11 "Auftritt beim Laden") – reines
+     CSS-Gate über eine Klasse, die hier gesetzt und nach Ablauf wieder
+     entfernt wird. Läuft absichtlich NUR hier in buildSidebar(), nicht
+     zusätzlich an SPA-Routenwechseln: buildSidebar() läuft nachweislich
+     nur beim echten Seiten-Laden (router.js patcht initPage und lässt
+     es bei internen Navigationen aus, siehe Kommentar unten bei
+     "SPA-Navigationen durchlaufen buildSidebar nicht erneut") – das
+     Sidebar-DOM übersteht jede interne Navigation unverändert, die
+     Animation kann also gar nicht ungewollt erneut abgespielt werden.
+     --i pro Kind von Kopf/Nav/Fuß steuert die gestaffelte
+     Tinte-erscheint-Animation (40ms Versatz pro Element, siehe CSS). */
+  if (document.documentElement.getAttribute('data-theme') === 'papier') {
+    sidebar.classList.add('is-entering');
+    sidebar.querySelectorAll('.sidebar__header > *, .sidebar__nav > *, .sidebar__footer > *')
+      .forEach((el, i) => el.style.setProperty('--i', i));
+    setTimeout(() => sidebar.classList.remove('is-entering'), 1700);
+  }
 
   /* Auto-Collapse unter 14 Zoll (769–1440px): beim echten Page-Load eingeklappt
      starten — unabhängig von localStorage('sidebarCollapsed'). Gegenstück

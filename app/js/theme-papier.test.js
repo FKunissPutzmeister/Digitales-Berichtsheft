@@ -8,6 +8,7 @@ const FONT_DIR = path.join(__dirname, '..', 'assets', 'fonts');
 const CSS_PATH = path.join(__dirname, '..', 'css', 'theme-papier.css');
 const THEME_JS_PATH = path.join(__dirname, 'theme.js');
 const WOCHENANSICHT_JS_PATH = path.join(__dirname, 'wochenansicht.js');
+const SIDEBAR_JS_PATH = path.join(__dirname, 'sidebar.js');
 
 test('Papierheft-Retro: alle fünf Webfont-Dateien liegen vor und sind nicht leer', () => {
   for (const name of ['unifraktur-maguntia.woff2', 'eb-garamond-400.woff2', 'eb-garamond-600.woff2', 'eb-garamond-400italic.woff2', 'pinyon-script.woff2']) {
@@ -311,63 +312,252 @@ test('Papierheft-Retro: Dashboard-Karten rotieren zyklisch (3 Varianten) und ble
   assert.match(css, /\[data-theme="papier"\] \.bento \.b-tile:nth-child\(3n\+1\):hover \{[\s\S]*?transform: rotate\(-1\.2deg\) translateY\(-2px\) !important;/);
 });
 
-test('Papierheft-Retro: Nav-Leiste hat aufgerollte Schriftrollen-Enden oben (::before) und unten (::after)', () => {
-  // Nutzer-Wunsch (mit Referenzbild einer aufgerollten Testament-
-  // Schriftrolle): der Rand der Sidebar soll wie eine aufgerollte
-  // Pergamentrolle wirken, oben UND unten, angepasst auf die tatsächliche
-  // Breite der Nav-Leiste. NEUFASSUNG V3: die Kontur selbst ist jetzt
-  // gewellt (SVG-Maske), nicht mehr nur ein rechteckiges Band mit
-  // farblichem Verlauf -- Nutzer-Feedback: "das ist nicht die Umsetzung
-  // nach welcher ich gefragt habe [...] du hast auch die Erlaubnis, die
-  // Kacheln und alle Elemente komplett neu zu bauen".
+test('Papierheft-Retro: Schriftrollen-Navigation -- Geometrie-Token (--pgm-*) im Token-Block', () => {
+  // Werte-Block aus docs/mockups/schriftrolle-nav-einbau.md Abschnitt 1,
+  // vom Nutzer im Mockup abgenommen -- 1:1 uebernommen, praefigiert mit
+  // --pgm- (Farben brauchen KEINE eigenen Token, siehe Testfall zum
+  // Kommentar unten: die Mockup-Palette deckt sich mit den bestehenden
+  // --pm-*-Token).
   const css = fs.readFileSync(CSS_PATH, 'utf8');
-  const beforeBlock = css.match(/\[data-theme="papier"\] \.sidebar::before \{[\s\S]*?\n\}/)[0];
-  const afterBlock = css.match(/\[data-theme="papier"\] \.sidebar::after \{[\s\S]*?\n\}/)[0];
-  const wavePath = "M0,0 L248,0 L248,32 C240,42 226,50 210,47 C194,44 184,36 165,39 C148,42 140,50 120,50 C100,50 92,42 75,39 C58,36 48,44 30,47 C20,49 8,42 0,32 Z";
-  const wavePathEscaped = wavePath.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  // left:0; right:0 statt fester Breite -> folgt automatisch der
-  // tatsächlichen Sidebar-Breite in beiden Zuständen (aus-/eingeklappt).
-  for (const block of [beforeBlock, afterBlock]) {
-    assert.match(block, /left: 0;/);
-    assert.match(block, /right: 0;/);
-    assert.doesNotMatch(block, /width:/);
-    assert.match(block, /pointer-events: none;/);
-    assert.match(block, /z-index: 0;/);
-    assert.match(block, /height: 58px;/);
-    // Echte Form statt reines Farbband: SVG-Maske mit gewellter Kontur,
-    // preserveAspectRatio="none" + mask-size:100% 100% -- skaliert
-    // automatisch auf die tatsächliche (aus-/eingeklappte) Breite, exakt
-    // wie bei der Wochen-Kachel-Maske (Abschnitt 10).
-    const maskRegex = new RegExp(
-      `viewBox='0 0 248 58' preserveAspectRatio='none'%3E%3Cpath fill='white' d='${wavePathEscaped}'`
-    );
-    assert.match(block, /mask: url\("data:image\/svg\+xml,/);
-    assert.match(block, /-webkit-mask: url\("data:image\/svg\+xml,/);
-    assert.match(block, maskRegex);
-    assert.match(block, /center \/ 100% 100% no-repeat;/);
-    // Dezenter Knick-Schatten an beiden äußeren Kanten (deutet die im
-    // Referenzbild sichtbaren dunklen Rollen-Kernenden an) -- klein +
-    // wenig deckend, eine erste größere/deckendere Version wirkte wie
-    // zwei "Augen" statt wie ein Schatten (per Screenshot verworfen).
-    assert.match(block, /radial-gradient\(ellipse 9px 24px at 0% 58%, rgba\(10, 5, 2, 0\.65\), transparent 75%\),/);
-    assert.match(block, /radial-gradient\(ellipse 9px 24px at 100% 58%, rgba\(10, 5, 2, 0\.65\), transparent 75%\),/);
-    // Ring-Wicklungslinien + Zylinder-Rundungsverlauf (aus V2 übernommen).
-    assert.match(block, /repeating-linear-gradient\(\s*\n\s*180deg,\s*\n\s*rgba\(0, 0, 0, 0\.20\) 0px,\s*\n\s*rgba\(0, 0, 0, 0\.20\) 1px,\s*\n\s*transparent 1px,\s*\n\s*transparent 4px\s*\n\s*\),/);
-    assert.match(block, /linear-gradient\(\s*\n\s*180deg,\s*\n\s*#1a0f06 0%,\s*\n\s*#3d2a14 10%,\s*\n\s*#6b4a24 25%,\s*\n\s*#caa268 40%,\s*\n\s*#f4e2b8 48%,\s*\n\s*#e8d3a3 55%,\s*\n\s*#b8935c 68%,\s*\n\s*#6b4a24 82%,\s*\n\s*#3d2a14 94%,\s*\n\s*#1a0f06 100%\s*\n\s*\);/);
-    assert.match(block, /box-shadow: 0 5px 12px rgba\(0, 0, 0, 0\.65\);/);
-  }
-  assert.match(beforeBlock, /top: 0;/);
-  // KEIN bottom:0 fuer ::after: Render-Bug in diesem fixed +
-  // backdrop-filter + isolation:isolate + overflow:hidden-Container
-  // (per Playwright mit Testfarben + DOM-weitem Farb-Scan zweifelsfrei
-  // nachgewiesen -- bottom:0 wurde von Edge/Chromium sichtbar am OBEREN
-  // statt unteren Rand gemalt, trotz korrektem getComputedStyle). Fix:
-  // top: calc(100% - <Hoehe>) statt bottom:0, siehe CSS-Kommentar.
-  assert.doesNotMatch(afterBlock, /bottom: 0;/);
-  assert.match(afterBlock, /top: calc\(100% - 58px\);/);
-  // ::after ist dieselbe Maske wie ::before, gespiegelt via
-  // transform:scaleY(-1) statt eines eigenen SVG-Pfads -- spart einen
-  // zweiten Pfad und garantiert exakte Symmetrie. Der Transform kippt
-  // auch box-shadow mit, "0 5px 12px" wird visuell zu "0 -5px 12px".
-  assert.match(afterBlock, /transform: scaleY\(-1\);/);
+  const tokenBlock = css.match(/\[data-theme="papier"\] \{[\s\S]*?\n\}/)[0];
+  assert.match(tokenBlock, /--pgm-cap-h:\s*29px;/);
+  assert.match(tokenBlock, /--pgm-core-w:\s*11px;/);
+  assert.match(tokenBlock, /--pgm-core-w-shut:\s*6px;/);
+  assert.match(tokenBlock, /--pgm-curl-w:\s*16px;/);
+  assert.match(tokenBlock, /--pgm-tear-w:\s*11px;/);
+  assert.match(tokenBlock, /--pgm-tear-h:\s*44px;/);
+  assert.match(tokenBlock, /--pgm-speed:\s*400ms;/);
+  assert.match(tokenBlock, /--pgm-ease: cubic-bezier\(\.4, 0, \.2, 1\);/);
+});
+
+test('Papierheft-Retro: .sidebar selbst verliert die Glas-Pillen-Optik (Form kommt jetzt vom Blatt)', () => {
+  // Einbau-Dokument 3.2/3.3: overflow:visible (lässt die überstehenden
+  // Zylinder-Enden sichtbar werden), border-radius/border/box-shadow/
+  // backdrop-filter der Pille neutralisiert, Hintergrund transparent
+  // (sonst schiene die alte dunkle Pillenfarbe durch die echten
+  // Transparenz-Lücken der Risskante statt des Fotos dahinter).
+  const css = fs.readFileSync(CSS_PATH, 'utf8');
+  const block = css.match(/\[data-theme="papier"\] \.sidebar \{[\s\S]*?\n\}/)[0];
+  assert.match(block, /overflow: visible;/);
+  assert.match(block, /border-radius: 0;/);
+  assert.match(block, /border: none;/);
+  assert.match(block, /background: transparent;/);
+  assert.match(block, /backdrop-filter: none;/);
+  assert.match(block, /-webkit-backdrop-filter: none;/);
+  assert.match(block, /box-shadow: none;/);
+  // Die alte rechteckige Farbband-Loesung (drei Vorfassungen) haengte an
+  // .sidebar::after -- die gibt es fuer papier nicht mehr, die Form
+  // kommt jetzt komplett aus .sidebar__scroll-*.
+  assert.doesNotMatch(css, /\[data-theme="papier"\] \.sidebar::after \{/);
+  // Der duenne Glas-Lichtreflex der Pille (glass.css:1086) passt nicht
+  // zur Papier-Optik -- die Zylinder-Kappen uebernehmen diese Rolle.
+  assert.match(css, /\[data-theme="papier"\] \.sidebar::before \{\s*\n\s*display: none;\s*\n\}/);
+});
+
+test('Papierheft-Retro: .sidebar__scroll-Wrapper existiert nur fuer papier, alle anderen Themes unberuehrt', () => {
+  const css = fs.readFileSync(CSS_PATH, 'utf8');
+  // Unscoped Basisregel gilt global (theme-papier.css laedt auf JEDER
+  // Seite) -- ohne data-theme-Praefix macht sie den Wrapper fuer alle
+  // anderen Themes wirkungslos, Einbau-Dokument Abschnitt 4.
+  assert.match(css, /\n\.sidebar__scroll \{ display: none; \}/);
+  const block = css.match(/\[data-theme="papier"\] \.sidebar__scroll \{[\s\S]*?\n\}/)[0];
+  assert.match(block, /display: block;/);
+  assert.match(block, /position: absolute;/);
+  assert.match(block, /inset: 0;/);
+  // Ueberstimmt .sidebar > * { z-index: 1 } (glass.css:295), damit die
+  // Dekoration HINTER dem echten Inhalt (Header/Nav/Footer) liegt.
+  assert.match(block, /z-index: 0;/);
+  assert.match(block, /pointer-events: none;/);
+});
+
+test('Papierheft-Retro: Blatt (.sidebar__scroll-sheet) hat echte Risskanten per SVG-Maske + Alterungs-Textur', () => {
+  const css = fs.readFileSync(CSS_PATH, 'utf8');
+  const block = css.match(/\[data-theme="papier"\] \.sidebar__scroll-sheet \{[\s\S]*?\n\}/)[0];
+  // Drei Mask-Layer: Risskachel links/rechts (repeat-y) + Vollflaeche
+  // Mitte (no-repeat) -- Compositing "add" vereinigt sie automatisch.
+  assert.match(block, /--tear-l: url\("data:image\/svg\+xml,%3Csvg[\s\S]*?viewBox='0 0 13 46' preserveAspectRatio='none'/);
+  assert.match(block, /--tear-r: url\("data:image\/svg\+xml,%3Csvg[\s\S]*?viewBox='0 0 13 46' preserveAspectRatio='none'/);
+  assert.match(block, /mask-repeat: repeat-y, repeat-y, no-repeat;/);
+  // Groesse haengt an --pgm-tear-w/--pgm-tear-h, NICHT an 100% -- sonst
+  // wuerde die Wellenlaenge des Risses an die (auf iOS nicht konstante)
+  // Sidebar-Hoehe koppeln (Einbau-Dokument, Punkt 6.4).
+  assert.match(block, /mask-size: var\(--pgm-tear-w\) var\(--pgm-tear-h\), var\(--pgm-tear-w\) var\(--pgm-tear-h\), calc\(100% - var\(--pgm-tear-w\) \* 2\) 100%;/);
+  assert.doesNotMatch(block, /mask-size: 100% 100%/);
+  // Papierkorn als feTurbulence-Rauschen, NICHT als gekreuzte
+  // repeating-linear-gradients (Einbau-Dokument, Punkt 6.5 -- zwei
+  // Linienraster ergeben zwangslaeufig ein regelmaessiges Karo).
+  assert.match(block, /feTurbulence type='fractalNoise' baseFrequency='0\.9' numOctaves='4' stitchTiles='stitch'/);
+  // Altersflecken + Randverdunkelung + Grundton (Palette deckt sich mit
+  // den bestehenden --pm-*-Token, siehe Einbau-Dokument Abschnitt 5 --
+  // keine neuen Farb-Token noetig).
+  assert.match(block, /radial-gradient\(ellipse 62px 92px at 18% 20%, rgba\(150, 110, 50, \.13\), transparent 70%\),/);
+  assert.match(block, /linear-gradient\( 90deg, rgba\(120, 85, 35, \.38\) 0, rgba\(120, 85, 35, 0\) 28px\),/);
+  assert.match(block, /linear-gradient\(170deg, #EFE0BE 0%, var\(--pm-white\) 30%, var\(--pm-grey-100\) 72%, #D2BC8B 100%\);/);
+});
+
+test('Papierheft-Retro: Zylinder oben/unten (.sidebar__scroll-cap) ragen seitlich ueber + sind Geschwister der Maske', () => {
+  // Einbau-Dokument 3.1: Maske und Zylinder duerfen NICHT am selben
+  // Element haengen (mask-image beschneidet Kinder/Pseudo-Elemente mit)
+  // -- Blatt und Kappen sind deshalb getrennte Elemente, keine
+  // Pseudo-Elemente voneinander.
+  const css = fs.readFileSync(CSS_PATH, 'utf8');
+  const shared = css.match(/\[data-theme="papier"\] \.sidebar__scroll-cap \{[\s\S]*?\n\}/)[0];
+  assert.match(shared, /left: -7px;/);
+  assert.match(shared, /right: -7px;/);
+  assert.match(shared, /height: var\(--pgm-cap-h\);/);
+  assert.match(shared, /border-radius: 9px \/ 50%;/);
+  assert.match(shared, /repeating-linear-gradient\(180deg, rgba\(60, 35, 10, \.16\) 0 1px, transparent 1px 5px\),/);
+  assert.match(shared, /#f4e2b8 48%, #e8d3a3 56%, #b8935c 70%, #6b4a24 84%,/);
+  assert.doesNotMatch(shared, /mask/);
+
+  assert.match(css, /\[data-theme="papier"\] \.sidebar__scroll-cap--top \{ top: 0; \}/);
+  const bottom = css.match(/\[data-theme="papier"\] \.sidebar__scroll-cap--bottom \{[\s\S]*?\n\}/)[0];
+  // KEIN bottom:0 -- derselbe Render-Bug wie in den drei Vorfassungen
+  // (bottom:0 auf position:absolute in diesem Container wird von
+  // Edge/Chromium fehlerhaft am OBEREN statt unteren Rand gemalt),
+  // Workaround bewusst beibehalten obwohl backdrop-filter jetzt weg ist.
+  assert.doesNotMatch(bottom, /bottom:\s*0/);
+  assert.match(bottom, /top: calc\(100% - var\(--pgm-cap-h\)\);/);
+  assert.match(bottom, /transform: scaleY\(-1\);/);
+});
+
+test('Papierheft-Retro: dunkle Kernenden der Zylinder sind auf min(...,22%) gedeckelt + schrumpfen eingeklappt', () => {
+  // Einbau-Dokument, Punkt 6.3: eine feste Pixelbreite liesse den
+  // Zylinder bei schmaler Sidebar zur Hantel werden. Bei den
+  // abgenommenen 11px/6px greift die Deckelung selbst nicht (Notiz im
+  // CSS-Kommentar), bleibt aber als Sicherung stehen -- NICHT
+  // wegkuerzen, weil sie "nichts tut".
+  const css = fs.readFileSync(CSS_PATH, 'utf8');
+  const core = css.match(/\[data-theme="papier"\] \.sidebar__scroll-cap::before,\n\[data-theme="papier"\] \.sidebar__scroll-cap::after \{[\s\S]*?\n\}/)[0];
+  assert.match(core, /width: min\(var\(--pgm-core-w\), 22%\);/);
+  assert.match(core, /border-radius: 50%;/);
+  assert.match(core, /radial-gradient\(ellipse at 50% 50%, #0d0703 0%, #2a1a0a 44%, rgba\(42, 26, 10, 0\) 74%\),/);
+  assert.match(css, /\[data-theme="papier"\] \.sidebar__scroll-cap::before \{ left: 0; \}/);
+  assert.match(css, /\[data-theme="papier"\] \.sidebar__scroll-cap::after  \{ right: 0; \}/);
+  const collapsedCore = css.match(/\[data-theme="papier"\] \.sidebar\.collapsed \.sidebar__scroll-cap::before,\n\[data-theme="papier"\] \.sidebar\.collapsed \.sidebar__scroll-cap::after \{[\s\S]*?\n\}/)[0];
+  assert.match(collapsedCore, /width: min\(var\(--pgm-core-w-shut\), 22%\);/);
+});
+
+test('Papierheft-Retro: Seitenrolle (.sidebar__scroll-curl) ist nur im eingeklappten Zustand sichtbar', () => {
+  // Deckt die rechte Risskante ab statt die (nicht animierbare)
+  // Mask-Maske umzuschalten -- ein Pergament, das sich einrollt, verdeckt
+  // seinen eigenen Rand ohnehin, statt ihn auszutauschen.
+  const css = fs.readFileSync(CSS_PATH, 'utf8');
+  const block = css.match(/\[data-theme="papier"\] \.sidebar__scroll-curl \{[\s\S]*?\n\}/)[0];
+  assert.match(block, /width: 0;/);
+  assert.match(block, /opacity: 0;/);
+  assert.match(block, /border-radius: 50% \/ 8px;/);
+  const collapsedBlock = css.match(/\[data-theme="papier"\] \.sidebar\.collapsed \.sidebar__scroll-curl \{[\s\S]*?\n\}/)[0];
+  assert.match(collapsedBlock, /width: var\(--pgm-curl-w\);/);
+  assert.match(collapsedBlock, /opacity: 1;/);
+});
+
+test('Papierheft-Retro: Toggle-Button wird zum Wachssiegel (bestehendes Element, nur Optik neu)', () => {
+  // Einbau-Dokument 3.4: #sidebarToggle NICHT ersetzen (State/
+  // localStorage/aria haengen daran) -- nur Verlauf + organischer
+  // Blob-border-radius aus dem Mockup, Position bleibt unangetastet
+  // (keine top/right/left/bottom-Deklaration hier).
+  const css = fs.readFileSync(CSS_PATH, 'utf8');
+  const base = css.match(/\[data-theme="papier"\] \.sidebar__toggle \{[\s\S]*?\n\}/)[0];
+  assert.match(base, /border-radius: 47% 53% 51% 49% \/ 52% 47% 53% 48%;/);
+  assert.match(base, /radial-gradient\(circle at 50% 55%, #9B4030 0%, var\(--color-error-mid\) 55%, #4E1A11 100%\);/);
+  assert.doesNotMatch(base, /\btop:|(?<!-webkit-)\bright:|\bleft:|\bbottom:/);
+  // Muss auch im eingeklappten Zustand erhalten bleiben -- glass.css
+  // strippt dort per .sidebar.collapsed .sidebar__toggle gezielt
+  // Hintergrund/Rahmen/Schatten auf einen nackten Pfeil; ohne eigene
+  // hoeher-spezifische Regel wuerde das Siegel beim Einklappen
+  // verschwinden.
+  const collapsed = css.match(/\[data-theme="papier"\] \.sidebar\.collapsed \.sidebar__toggle,\n\[data-theme="papier"\] \.sidebar\.collapsed \.sidebar__toggle:hover \{[\s\S]*?\n\}/)[0];
+  assert.match(collapsed, /radial-gradient\(circle at 50% 55%, #9B4030 0%, var\(--color-error-mid\) 55%, #4E1A11 100%\);/);
+});
+
+test('Papierheft-Retro: Sidebar-Links -- Tinte statt heller Schrift, aktiver Link mit Wachs-Punkt', () => {
+  // Seit der Schriftrollen-Navigation ist der Sidebar-Grund helles
+  // Pergament, nicht mehr dunkel getoentes Glas -- die alten hellen
+  // Cremewerte (aus Abschnitt 3, fuer den frueheren dunklen Hintergrund
+  // gedacht) waeren jetzt unlesbar.
+  const css = fs.readFileSync(CSS_PATH, 'utf8');
+  assert.match(css, /\[data-theme="papier"\] \.sidebar__link \{\s*\n\s*color: var\(--pm-grey-700\);\s*\n\}/);
+  assert.match(css, /\[data-theme="papier"\] \.sidebar__link:hover \{\s*\n\s*background: rgba\(90, 68, 41, 0\.10\);\s*\n\s*color: var\(--pm-grey-900\);\s*\n\}/);
+  const active = css.match(/\[data-theme="papier"\] \.sidebar__link\.active \{[\s\S]*?\n\}/)[0];
+  assert.match(active, /color: var\(--pm-yellow\);/);
+  assert.match(active, /font-weight: 600;/);
+  assert.match(active, /background: linear-gradient\(90deg, rgba\(44, 58, 92, 0\.13\), rgba\(44, 58, 92, 0\.02\)\);/);
+  // Wachs-Punkt statt deckendem Block -- left NICHT negativ, weil
+  // .sidebar__nav overflow-x:hidden hat (glass.css:1159) und einen
+  // negativen Wert zur Haelfte abschneiden wuerde.
+  const dot = css.match(/\[data-theme="papier"\] \.sidebar__link\.active::before \{[\s\S]*?\n\}/)[0];
+  assert.match(dot, /content: "";/);
+  assert.match(dot, /left: 2px;/);
+  assert.doesNotMatch(dot, /left: -/);
+  assert.match(dot, /background: var\(--color-error-mid\);/);
+});
+
+test('Papierheft-Retro: Labels blenden beim Ein-/Ausklappen asymmetrisch aus (kein senkrechtes Anschneiden)', () => {
+  // Einbau-Dokument, Punkt 6.2: Aufklappen -> Text kommt SPAET zurueck
+  // (Delay ~55% der Laufzeit), Einklappen -> Text geht FRUEH weg (~30%,
+  // kein Delay). Es zaehlt immer die Transition der ZIELREGEL, deshalb
+  // reicht das Delay in der Basisregel.
+  const css = fs.readFileSync(CSS_PATH, 'utf8');
+  const linkOpen = css.match(/\[data-theme="papier"\] \.sidebar__link-label \{[\s\S]*?\n\}/)[0];
+  assert.match(linkOpen, /opacity calc\(var\(--pgm-speed\) \* \.45\) var\(--pgm-ease\) calc\(var\(--pgm-speed\) \* \.55\);/);
+  const linkShut = css.match(/\[data-theme="papier"\] \.sidebar\.collapsed \.sidebar__link-label \{[\s\S]*?\n\}/)[0];
+  assert.match(linkShut, /opacity calc\(var\(--pgm-speed\) \* \.3\) var\(--pgm-ease\) 0ms;/);
+  const logoOpen = css.match(/\[data-theme="papier"\] \.sidebar__logo-text \{[\s\S]*?\n\}/)[0];
+  assert.match(logoOpen, /opacity calc\(var\(--pgm-speed\) \* \.45\) var\(--pgm-ease\) calc\(var\(--pgm-speed\) \* \.55\);/);
+});
+
+test('Papierheft-Retro: eingeklappter Tooltip bekommt Pergament-Optik statt Glas-Kapsel', () => {
+  // Kein neues Tooltip-System -- die App hat mit setupSidebarTooltips()
+  // (sidebar.js) bereits einen JS-positionierten Mechanismus, der
+  // data-tooltip automatisch aus dem Label-Text pflegt. Hier nur Optik.
+  const css = fs.readFileSync(CSS_PATH, 'utf8');
+  const block = css.match(/\[data-theme="papier"\] \.sidebar-tooltip \{[\s\S]*?\n\}/)[0];
+  assert.match(block, /background: linear-gradient\(170deg, #F3E6C6, var\(--pm-grey-100\)\);/);
+  assert.match(block, /color: var\(--pm-grey-900\);/);
+  assert.match(block, /backdrop-filter: none;/);
+});
+
+test('Papierheft-Retro: Auftritts-Animation nur beim echten ersten Laden (is-entering-Gate)', () => {
+  // animation-fill-mode:both haelt ein Element sonst rueckwaerts bis zum
+  // Ablauf des eigenen animation-delay auf dem Startwert fest -- die
+  // Klasse .is-entering (von sidebar.js gesetzt/entfernt) macht das Gate
+  // explizit.
+  const css = fs.readFileSync(CSS_PATH, 'utf8');
+  assert.match(css, /@keyframes papier-scroll-unfurl \{/);
+  assert.match(css, /@keyframes papier-scroll-ink-in \{/);
+  const sheetAnim = css.match(/\[data-theme="papier"\] \.sidebar\.is-entering \.sidebar__scroll-sheet \{[\s\S]*?\n\}/)[0];
+  assert.match(sheetAnim, /animation: papier-scroll-unfurl 900ms var\(--pgm-ease\) both;/);
+  const inkIn = css.match(/\[data-theme="papier"\] \.sidebar\.is-entering \.sidebar__header > \*,\n\[data-theme="papier"\] \.sidebar\.is-entering \.sidebar__nav > \*,\n\[data-theme="papier"\] \.sidebar\.is-entering \.sidebar__footer > \* \{[\s\S]*?\n\}/)[0];
+  assert.match(inkIn, /animation: papier-scroll-ink-in 520ms var\(--pgm-ease\) both;/);
+  // Gestaffelt per --i (von sidebar.js pro Element gesetzt).
+  assert.match(inkIn, /animation-delay: calc\(620ms \+ 40ms \* var\(--i, 0\)\);/);
+  // prefers-reduced-motion schaltet auch die neuen Animationen ab.
+  assert.match(css, /@media \(prefers-reduced-motion: reduce\) \{\s*\n\s*\[data-theme="papier"\] \.sidebar\.is-entering \.sidebar__scroll-sheet,/);
+});
+
+test('Papierheft-Retro: sidebar.js baut den .sidebar__scroll-Block als erstes Element vor dem Header', () => {
+  // Markup-Quelle ist NICHT 14 HTML-Dateien (Einbau-Dokument geht davon
+  // aus) -- 13 der 14 Sidebar-Shells sind ein leeres <aside id="sidebar">,
+  // dessen Inhalt ausschliesslich buildSidebar() per innerHTML erzeugt.
+  // Der Wrapper steht deshalb einmalig hier, nicht in jeder HTML-Datei.
+  const js = fs.readFileSync(SIDEBAR_JS_PATH, 'utf8');
+  const template = js.match(/sidebar\.innerHTML = `([\s\S]*?)`;/)[1];
+  const scrollIdx = template.indexOf('sidebar__scroll"');
+  const headerIdx = template.indexOf('sidebar__header"');
+  assert.ok(scrollIdx > -1, 'sidebar__scroll-Wrapper fehlt im Template');
+  assert.ok(headerIdx > -1, 'sidebar__header fehlt im Template');
+  assert.ok(scrollIdx < headerIdx, 'sidebar__scroll muss VOR sidebar__header stehen');
+  assert.match(template, /<div class="sidebar__scroll-sheet"><\/div>/);
+  assert.match(template, /<div class="sidebar__scroll-cap sidebar__scroll-cap--top"><\/div>/);
+  assert.match(template, /<div class="sidebar__scroll-cap sidebar__scroll-cap--bottom"><\/div>/);
+  assert.match(template, /<div class="sidebar__scroll-curl"><\/div>/);
+});
+
+test('Papierheft-Retro: sidebar.js gated die Auftritts-Animation auf Theme "papier" und staffelt per --i', () => {
+  const js = fs.readFileSync(SIDEBAR_JS_PATH, 'utf8');
+  assert.match(js, /document\.documentElement\.getAttribute\('data-theme'\) === 'papier'/);
+  assert.match(js, /sidebar\.classList\.add\('is-entering'\)/);
+  assert.match(js, /setProperty\('--i', i\)/);
+  assert.match(js, /setTimeout\(\(\) => sidebar\.classList\.remove\('is-entering'\), 1700\)/);
 });

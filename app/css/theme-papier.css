@@ -182,6 +182,27 @@ html[data-theme="papier"] { color-scheme: light; }
      der unteren Bildkante), da das neue Foto deutlich dunkler ist als
      das vorige (#D19F56). */
   --app-bg-base:     #0D0703;
+
+  /* Schriftrollen-Navigation (Abschnitt 11) – reine Geometrie, keine
+     Farben: die Palette deckt sich 1:1 mit den --pm-*-Token oben (im
+     Mockup docs/mockups/schriftrolle-nav.html als eigene
+     --paper/--ink-900/-700/-500/--gold/--indigo/--wax-Namen geführt, siehe
+     Einbau-Dokument docs/mockups/schriftrolle-nav-einbau.md Abschnitt 5)
+     – deshalb hier nur die dort vom Nutzer abgenommenen Maße
+     (Werte-Block, Einbau-Dokument Abschnitt 1), präfigiert mit --pgm-,
+     damit sie sich nicht mit generischen Sidebar-Token beißen.
+     --w-open/--w-shut aus dem Mockup werden bewusst NICHT übernommen
+     (Einbau-Dokument Abschnitt 1): die App hat eigene, von allen Themes
+     geteilte Breiten (--lg-sidebar-w/-collapsed, glass.css:974-975). */
+  --pgm-cap-h:        29px;   /* Dicke der waagerechten Zylinder */
+  --pgm-core-w:       11px;   /* dunkle Kernenden, aufgeklappt */
+  --pgm-core-w-shut:   6px;   /* dunkle Kernenden, eingeklappt */
+  --pgm-curl-w:       16px;   /* Breite der senkrechten Seitenrolle */
+  --pgm-tear-w:       11px;   /* Tiefe der Risskante */
+  --pgm-tear-h:       44px;   /* Wellenlänge der Risskante, bewusst FEST
+                                  (siehe Abschnitt 11 unten, Punkt 4) */
+  --pgm-speed:       400ms;
+  --pgm-ease: cubic-bezier(.4, 0, .2, 1);
 }
 
 /* ===================================================================
@@ -202,14 +223,17 @@ html[data-theme="papier"] { color-scheme: light; }
 /* ===================================================================
    3 · SIDEBAR-TEXTKONTRAST + DASHBOARD-GLASKARTEN
    -------------------------------------------------------------------
-   Zwei Stellen im bestehenden CSS hängen hart an konkreten Themes
-   ([data-theme="dark"]) bzw. an fixen Weiß-Werten und erben deshalb
-   NICHT automatisch aus dem Token-Block oben – erst beim echten
-   Rendern sichtbar geworden (visuelle Prüfung, Task 8):
-
-   • .sidebar__link/.active (glass.css) fällt ohne eigenen Eintrag auf
-     --pm-grey-700 bzw. --pm-yellow zurück – beides dunkle Töne, auf
-     dem ebenfalls dunklen --sidebar-bg praktisch unlesbar.
+   • .sidebar__link/.active (glass.css) braucht für papier einen eigenen
+     Eintrag – seit Abschnitt 11 (Schriftrollen-Navigation) ist der
+     Sidebar-Grund helles Pergament (--pm-white), nicht mehr die vorher
+     dunkel getönte Glas-Pille. Tinte statt heller Schrift: --pm-grey-
+     700/-900 (Sepia-Skala, Abschnitt 1) statt der früheren hellen
+     Cremewerte, die für den (jetzt entfernten) dunklen Hintergrund
+     gedacht waren. Der aktive Link bekommt statt eines deckenden
+     Hintergrundblocks einen dezenten Indigo-Verlauf + einen kleinen
+     Wachs-Punkt am Rand (wie eine Randnotiz im Manuskript) – 1:1 aus
+     docs/mockups/schriftrolle-nav.html (.roll__link.is-active)
+     übernommen, siehe Einbau-Dokument Abschnitt 5.
    • .b-tile--glass (dashboard.css) ist ein hartcodiertes weißes Glas
      (rgba(255,255,255,…)), nur für [data-theme="dark"] gespiegelt –
      Custom-Themes wie candy erben das unverändert (dort tolerierbar,
@@ -221,14 +245,35 @@ html[data-theme="papier"] { color-scheme: light; }
    vorab gejagt.
    =================================================================== */
 [data-theme="papier"] .sidebar__link {
-  color: rgba(233, 217, 179, 0.72);
+  color: var(--pm-grey-700);
 }
 [data-theme="papier"] .sidebar__link:hover {
-  color: #F0E8D2;
+  background: rgba(90, 68, 41, 0.10);
+  color: var(--pm-grey-900);
 }
 [data-theme="papier"] .sidebar__link.active {
-  color: #E9D9B3;
-  background: rgba(233, 217, 179, 0.14);
+  color: var(--pm-yellow);
+  font-weight: 600;
+  background: linear-gradient(90deg, rgba(44, 58, 92, 0.13), rgba(44, 58, 92, 0.02));
+  box-shadow: none;
+}
+/* Wachs-Punkt statt Balken – eine gedruckte Randnotiz, bleibt auch
+   eingeklappt sichtbar. `left` NICHT negativ: .sidebar__nav hat
+   overflow-x:hidden (nötig, damit Labels beim Einklappen sauber
+   weglaufen, glass.css:1159) – ein negativer Wert würde den Punkt zur
+   Hälfte abschneiden. Überschreibt glass.css:1197
+   (".sidebar__link::before { content: none; }"). */
+[data-theme="papier"] .sidebar__link.active::before {
+  content: "";
+  position: absolute;
+  left: 2px;
+  top: 50%;
+  width: 7px;
+  height: 7px;
+  margin-top: -3.5px;
+  border-radius: 50%;
+  background: var(--color-error-mid);
+  box-shadow: 0 0 0 2px rgba(122, 42, 28, 0.22);
 }
 
 [data-theme="papier"] .b-tile--glass {
@@ -470,9 +515,8 @@ html[data-theme="papier"] * {
    Entscheidung 2) — nur der Wackel-Filter (feinere Variante als das Logo,
    passend zur kleineren Größe) gibt ihnen einen "handgraviert" wirkenden
    Kontur-Jitter. Farbe bewusst NICHT verändert: die Icons erben bereits
-   über currentColor die in Phase 1 (Task 8) korrigierte helle
-   Pergament-Farbe von .sidebar__link — ein hartes #5A4A1E hier würde den
-   dort behobenen Dunkel-auf-Dunkel-Kontrastfehler wieder herstellen.
+   über currentColor die in Abschnitt 3 gesetzte Tinten-Farbe von
+   .sidebar__link.
    =================================================================== */
 [data-theme="papier"] .sidebar__link-icon {
   filter: url("../assets/filters-papier.svg#roughen-fine");
@@ -749,164 +793,358 @@ html[data-theme="papier"] * {
    nichts zu reduzieren (bewusst geprüft, nicht vergessen). */
 
 /* ===================================================================
-   11 · NAV-LEISTE – aufgerollte Schriftrollen-Enden oben + unten
+   11 · NAV-LEISTE – Schriftrollen-Navigation (Übergabe aus Mockup)
    -------------------------------------------------------------------
-   Nutzer-Wunsch (mit Referenzbild einer aufgerollten Testament-Schrift-
-   rolle): der Rand der Sidebar soll wie eine aufgerollte Pergamentrolle
-   wirken – oben UND unten, auf die tatsächliche Breite der Nav-Leiste
-   angepasst.
+   ERSETZT VOLLSTÄNDIG drei frühere Fassungen (rechteckiges Farbband,
+   Zylinder-Verlauf, gewellte Maske am Sidebar-Rand) – alle drei blieben
+   reine Verzierung AN der bestehenden Glas-Pille, nie eine echte
+   Formänderung. Nutzer-Feedback dazu unmissverständlich: "Wie machen
+   das jetzt anders. Bitte verwerf das Design [...] nimm die Bausteine,
+   die in docs/mockups/schriftrolle-nav-einbau.md beschrieben sind."
 
-   NEUFASSUNG V3 – ECHTE FORM STATT REIN FARBLICHEM BAND: die ersten
-   beiden Fassungen (sanfter Token-Verlauf, dann ein kräftigerer
-   Zylinder-Verlauf) blieben beides RECHTECKIGE Bänder mit gerader Kante
-   – das liest sich nie als Rolle, egal wie kräftig der Farbverlauf ist,
-   weil die SILHOUETTE flach bleibt. Nutzer-Feedback dazu: "das ist
-   nicht die Umsetzung nach welcher ich gefragt habe [...] du hast auch
-   die Erlaubnis, die Kacheln und alle Elemente komplett neu zu bauen".
-   Also: genau wie bei der Wochen-Kachel (Abschnitt 10) trägt jetzt
-   `mask`/`-webkit-mask` (SVG-Pfad, `preserveAspectRatio="none"` +
-   `mask-size: 100% 100%`, skaliert automatisch auf die tatsächliche
-   Breite – aus-/eingeklappt) die FORM selbst: eine ungleichmäßig
-   gewellte Kontur (drei sanfte Wellenberge/-täler statt einer geraden
-   Linie), die dort in die flache Sidebar-Fläche übergeht, wo aufgerolltes
-   Pergament unregelmäßig in die flache Bahn ausläuft – abgeleitet direkt
-   aus dem vom Nutzer gelieferten Referenzbild (Schriftrolle mit
-   wellig-organischer Rollenkante, nicht gerade).
-   Per Playwright-Mockup (scroll-cap-v1/v2.html, echte 248px-Breite)
-   mit dem Nutzer NICHT mehr rückgefragt (Feedback-Müdigkeit nach
-   mehreren Runden), sondern direkt selbst iteriert und visuell
-   verifiziert, bevor es hier übernommen wurde.
+   Verbindliche Referenz für Form, Farbe UND Verhalten ist
+   docs/mockups/schriftrolle-nav.html; das Einbau-Dokument
+   docs/mockups/schriftrolle-nav-einbau.md beschreibt nur, was sich beim
+   Übertragen ändert. Diese Sektion ist die Umsetzung von dessen
+   Abschnitt 4 "Variante A" (Markup-Block je Seite) UND Abschnitt 5
+   (Umbenennungstabelle Mockup → App).
 
-   ZWEI Ebenen im `background` (innerhalb der Maske):
-     1. Zwei `radial-gradient`s an den äußeren Kanten (0%/100% x) –
-        dezenter dunkler Knick-Schatten, deutet die im Referenzbild
-        sichtbaren dunklen "Kernenden" an (dort, wo die Papierrolle an
-        ihren Spitzen zuläuft/das Rollenende sichtbar wird). Bewusst
-        klein + wenig deckend (9×24px, Alpha 0.65) – erste Version mit
-        größerem, deckenderem Radius (22×30px, Alpha 0.85) wirkte wie
-        zwei "Augen" statt wie ein Schatten, per Screenshot verworfen.
-     2. `repeating-linear-gradient` (enge 4px-Teilung, Ring-Wicklungs-
-        linien) + `linear-gradient` (dunkel→hell→dunkel, Zylinder-
-        Rundung) – unverändert aus V2 übernommen, hat sich bewährt.
+   MARKUP-QUELLE IST NICHT 14 HTML-DATEIEN: Das Einbau-Dokument geht von
+   14 einzelnen `<aside class="sidebar">`-Blöcken aus – tatsächlich ist
+   die Sidebar auf 13 der 14 Seiten ein LEERES `<aside id="sidebar">`,
+   dessen Inhalt ausschließlich `app/js/sidebar.js` → `buildSidebar()`
+   per `innerHTML` erzeugt (auch auf dashboard.html, dessen statischer
+   Markup-Rest im Quelltext beim echten Laden sofort überschrieben wird
+   – toter Code, hier nicht angefasst). Der `.sidebar__scroll`-Block aus
+   Variante A steht deshalb NICHT 14× im HTML, sondern EINMALIG als
+   erstes Element im Template-String von `buildSidebar()`. Gleiches gilt
+   für die Auftritts-Animation (Punkt 6.1 im Einbau-Dokument): weil
+   `buildSidebar()` nachweislich nur beim echten Seiten-Laden läuft
+   (`router.js` patcht `initPage` und lässt es bei SPA-internen
+   Navigationen aus, Kommentar sidebar.js:111-120 "SPA-Navigationen
+   durchlaufen buildSidebar nicht erneut"), reicht ein einfacher
+   Klassen-Zusatz+Timeout DORT, ohne Rücksicht auf Routenwechsel nehmen
+   zu müssen – das Sidebar-DOM überlebt jede interne Navigation
+   unverändert.
 
-   `::after` (unten) ist NICHT einfach eine gespiegelte Kopie mit
-   eigenem SVG-Pfad, sondern dieselbe Maske wie `::before` PLUS
-   `transform: scaleY(-1)` – spart einen zweiten Pfad und garantiert,
-   dass beide Enden exakt symmetrisch aussehen. `transform-origin`
-   bleibt Standard (Element-Mitte), das dreht nur den INHALT/die Maske
-   innerhalb der bereits positionierten Box, verschiebt die Box selbst
-   nicht – kollidiert also nicht mit der `top:calc(...)`-Positionierung
-   unten (siehe Render-Bug-Notiz).
+   TOOLTIP IM EINGEKLAPPTEN ZUSTAND: das Mockup baut dafür ein eigenes
+   `.roll__link::after`-Pergament-Fähnchen. Nicht übernommen – die App
+   hat dafür bereits einen fertigen, robusteren Mechanismus
+   (`setupSidebarTooltips()`, sidebar.js:158-217: JS-positioniertes
+   `.sidebar-tooltip`-Element, `data-tooltip` wird automatisch aus dem
+   Label-Text gepflegt). Hier nur ein Farb-Feinschliff für dessen
+   Pergament-Optik (siehe unten), keine Parallel-Implementierung.
 
-   Höhe jetzt 58px (vorher 38px) – die Wellenkontur braucht mehr
-   vertikalen Raum, um organisch zu wirken, statt wie ein schmaler
-   Streifen mit Zacken. Reicht entsprechend weiter in den Kopf-/
-   Fußbereich hinein als zuvor; das ist gewollt (siehe oben: die Rolle
-   soll ein klar eigenständiges, deutlich sichtbares Objekt sein).
+   ARCHITEKTUR (Einbau-Dokument Abschnitt 3.1): Maske (Risskante) und
+   Zylinder dürfen nicht am selben Element hängen, weil `mask-image` das
+   Element samt alle Kinder/Pseudo-Elemente beschneidet. Deshalb bleiben
+   Blatt (`.sidebar__scroll-sheet`, maskiert) und Zylinder
+   (`.sidebar__scroll-cap`, unmaskiert) Geschwister – genau wie im
+   Mockup `.roll__sheet`/`.roll__cap`.
+   =================================================================== */
 
-   `left:0; right:0` (nicht feste Breite) + `mask-size: 100% 100%` mit
-   `preserveAspectRatio="none"` zusammen erfüllen weiterhin "angepasst
-   auf die Breite der Nav-Leiste" in BEIDEN Zuständen (ausgeklappt
-   --sidebar-w, eingeklappt --sidebar-icon-w, layout.css:434) – bei
-   76px Breite quetscht sich die Welle enger zusammen, bleibt aber als
-   Rollenkontur erkennbar (live per Playwright im eingeklappten Zustand
-   geprüft).
-
-   z-index bleibt 0 (hinter dem eigentlichen Inhalt,
-   `.sidebar > * { z-index: 1 }`, glass.css:295) – NICHT höher gesetzt,
-   sonst würde die Rolle Logo bzw. Avatar überdecken. Kopf- und
-   Fußbereich haben weiterhin keinen eigenen Hintergrund (siehe
-   .sidebar__header/.sidebar__footer in layout.css), lassen die Rolle
-   also sichtbar durchscheinen.
-   `.sidebar { overflow: hidden; }` (glass.css:1055, aktive "Floating
-   Glass Pill"-Regel) bleibt unangetastet – die Wellenkontur liegt
-   komplett innerhalb der abgerundeten Sidebar-Box, kein Überstand nach
-   links/rechts.
-
-   RENDER-BUG `bottom: 0` (per Playwright entdeckt, NICHT im Inspector
-   sichtbar, gilt unverändert auch für diese Fassung): `::after` mit
-   `position:absolute; bottom:0;` innerhalb dieser Sidebar
-   (`position:fixed` + `backdrop-filter:blur(...)` +
-   `isolation:isolate` + `overflow:hidden`, glass.css ab Zeile 1034)
-   wird von Edge/Chromium fehlerhaft gemalt: `getComputedStyle` meldet
-   korrekt `bottom: 0px`, sichtbar erscheint das Element aber deckend AM
-   OBEREN Rand. Per Testfarben (::before blau, ::after rot) + DOM-weitem
-   Farb-Scan zweifelsfrei bestätigt. Fix bleibt: `top:
-   calc(100% - <Höhe>)` statt `bottom: 0` (siehe `::before`, das von
-   Anfang an `top: 0` nutzt und nie betroffen war). Bei einer Anpassung
-   der Bandhöhe MUSS der `calc()`-Wert hier manuell mitgeführt werden
-   (keine automatische Kopplung an `height`). */
+/* ── .sidebar selbst: Glas-Pille für papier neutralisieren ──
+   Die Form kommt ab jetzt aus der Riss-Maske des Blatts, nicht mehr aus
+   der Pille (Einbau-Dokument 3.3). overflow:visible lässt die ±7px
+   überstehenden Zylinder-Enden (siehe .sidebar__scroll-cap) sichtbar
+   werden – bewusste Abweichung von der sonst geltenden Regel "overflow:
+   hidden bleibt unangetastet" aus den verworfenen Vorfassungen, die sich
+   auf die alte, innenliegende Wellenkontur bezog. Platz ist da: die
+   Pille sitzt ohnehin --lg-gap (16px) vom Viewport-Rand entfernt.
+   background:transparent ist wichtig: sonst schiene die alte dunkle
+   Pillenfarbe (--lg-sidebar) durch die echt-transparenten Risskanten
+   des Blatts statt des Foto-Hintergrunds dahinter. */
+[data-theme="papier"] .sidebar {
+  overflow: visible;
+  border-radius: 0;
+  border: none;
+  background: transparent;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  box-shadow: none;
+}
+/* Specular-Lichtkante der Glas-Pille (glass.css:1086) passt nicht zur
+   Papier-Optik – die Zylinder-Kappen übernehmen deren Rolle. */
 [data-theme="papier"] .sidebar::before {
+  display: none;
+}
+
+/* ── Wrapper: unsichtbar für alle anderen Themes ── */
+.sidebar__scroll { display: none; }
+[data-theme="papier"] .sidebar__scroll {
+  display: block;
+  position: absolute;
+  inset: 0;
+  z-index: 0;              /* überstimmt .sidebar > * { z-index: 1 }, glass.css:295 */
+  pointer-events: none;
+}
+
+/* ── Blatt: Pergamentfläche + echte Transparenz an gerissenen Kanten ──
+   Drei Mask-Layer (Compositing-Default "add", vereinigen sich also):
+   Risskachel links (repeat-y), Risskachel rechts (repeat-y),
+   Vollfläche in der Mitte (no-repeat) – 1:1 aus .roll__sheet im Mockup.
+   `--pgm-tear-h` bleibt FEST statt an die Sidebar-Höhe gekoppelt
+   (Einbau-Dokument, Punkt 6.4): ein `mask-size` von 100% würde die
+   Wellenlänge des Risses an die (auf iOS nicht konstante, siehe
+   docs/ios-touch-verhalten.md) Sidebar-Höhe koppeln – kurze Rolle würde
+   grob zackig, lange fein, und der Riss würde beim Scrollen "wandern". */
+[data-theme="papier"] .sidebar__scroll-sheet {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+
+  --tear-l: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 13 46' preserveAspectRatio='none'%3E%3Cpath fill='%23fff' d='M13 0 H7 C4.5 5 8 9 5 13 C2.4 17 6.8 21 4.4 25 C2 29 6.4 33 5 37 C3.8 40.5 7.8 43 7 46 H13 Z'/%3E%3C/svg%3E");
+  --tear-r: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 13 46' preserveAspectRatio='none'%3E%3Cpath fill='%23fff' d='M0 0 H6 C8.5 5 5 9 8 13 C10.6 17 6.2 21 8.6 25 C11 29 6.6 33 8 37 C9.2 40.5 5.2 43 6 46 H0 Z'/%3E%3C/svg%3E");
+
+  -webkit-mask-image: var(--tear-l), var(--tear-r), linear-gradient(#000, #000);
+          mask-image: var(--tear-l), var(--tear-r), linear-gradient(#000, #000);
+  -webkit-mask-repeat: repeat-y, repeat-y, no-repeat;
+          mask-repeat: repeat-y, repeat-y, no-repeat;
+  -webkit-mask-position: left top, right top, var(--pgm-tear-w) top;
+          mask-position: left top, right top, var(--pgm-tear-w) top;
+  -webkit-mask-size: var(--pgm-tear-w) var(--pgm-tear-h), var(--pgm-tear-w) var(--pgm-tear-h), calc(100% - var(--pgm-tear-w) * 2) 100%;
+          mask-size: var(--pgm-tear-w) var(--pgm-tear-h), var(--pgm-tear-w) var(--pgm-tear-h), calc(100% - var(--pgm-tear-w) * 2) 100%;
+
+  background:
+    /* Altersflecken (Stockflecken) */
+    radial-gradient(ellipse 62px 92px at 18% 20%, rgba(150, 110, 50, .13), transparent 70%),
+    radial-gradient(ellipse 84px 62px at 84% 58%, rgba(150, 110, 50, .11), transparent 70%),
+    radial-gradient(ellipse 44px 54px at 36% 86%, rgba(120,  85, 35, .10), transparent 70%),
+    /* Papierkorn als feTurbulence-Rauschen, NICHT als gekreuzte
+       repeating-linear-gradients (Einbau-Dokument, Punkt 6.5): zwei
+       Linienraster ergeben zwangsläufig ein regelmäßiges Karo, das
+       Pergament sähe aus wie Millimeterpapier. Rauschen ist
+       unregelmäßig – also das, was Papierfaser tatsächlich ist.
+       stitchTiles='stitch' macht die 200px-Kachel nahtlos. */
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='p'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='200' height='200' filter='url(%23p)' opacity='0.17'/%3E%3C/svg%3E"),
+    /* Randverdunkelung zu den Risskanten hin – das verkauft "alt" */
+    linear-gradient( 90deg, rgba(120, 85, 35, .38) 0, rgba(120, 85, 35, 0) 28px),
+    linear-gradient(270deg, rgba(120, 85, 35, .38) 0, rgba(120, 85, 35, 0) 28px),
+    /* Grundton */
+    linear-gradient(170deg, #EFE0BE 0%, var(--pm-white) 30%, var(--pm-grey-100) 72%, #D2BC8B 100%);
+}
+
+/* ── Zylinder oben/unten ──
+   ±7px Überstand seitlich (das Blatt ist exakt sidebar-breit, die Rolle
+   ragt bewusst darüber hinaus – braucht .sidebar { overflow: visible }
+   von oben). border-radius elliptisch: rundet die überstehenden Enden
+   zu einem Rundstab-Ansatz ab. */
+[data-theme="papier"] .sidebar__scroll-cap {
+  position: absolute;
+  left: -7px;
+  right: -7px;
+  height: var(--pgm-cap-h);
+  z-index: 3;
+  border-radius: 9px / 50%;
+  background:
+    /* aufgewickelte Papierlagen */
+    repeating-linear-gradient(180deg, rgba(60, 35, 10, .16) 0 1px, transparent 1px 5px),
+    /* Wölbung des Zylinders: heller Streifen = Glanzkante */
+    linear-gradient(180deg,
+      #1a0f06  0%, #3d2a14  8%, #6b4a24 22%, #caa268 38%,
+      #f4e2b8 48%, #e8d3a3 56%, #b8935c 70%, #6b4a24 84%,
+      #3d2a14 94%, #1a0f06 100%);
+  box-shadow: 0 6px 14px rgba(0, 0, 0, .55), inset 0 0 0 1px rgba(0, 0, 0, .30);
+}
+[data-theme="papier"] .sidebar__scroll-cap--top { top: 0; }
+/* NICHT bottom:0 -- Render-Bug (per Playwright entdeckt, NICHT im
+   Inspector sichtbar): `position:absolute; bottom:0;` wird innerhalb
+   dieser Sidebar (`position:fixed` + vormals `backdrop-filter` +
+   `isolation` + `overflow:hidden`) von Edge/Chromium fehlerhaft AM
+   OBEREN statt unteren Rand gemalt, trotz korrektem getComputedStyle
+   (per Testfarben + DOM-weitem Farb-Scan zweifelsfrei nachgewiesen, drei
+   Fassungen zurück). `.sidebar` verliert `backdrop-filter` jetzt zwar
+   (Ursache damit entfallen) – der Workaround kostet nichts und der Bug
+   war schwer zu erkennen, deshalb sicherheitshalber beibehalten:
+   `top: calc(100% - var(--pgm-cap-h))` statt `bottom: 0`. Ändert sich
+   `--pgm-cap-h`, zieht `calc()` automatisch mit. */
+[data-theme="papier"] .sidebar__scroll-cap--bottom {
+  top: calc(100% - var(--pgm-cap-h));
+  transform: scaleY(-1);   /* spiegelt Wölbung UND Schlagschatten: der
+                               Schatten fällt dadurch nach oben auf das
+                               Blatt, das über der Rolle liegt. */
+}
+
+/* Dunkle Kernenden. min(…, 22%) statt reiner Pixelbreite (Einbau-
+   Dokument, Punkt 6.3): so behält der Zylinder bei JEDER Breite
+   mindestens 56% Mitte – bei den hier abgenommenen 11px/6px greift die
+   Deckelung selbst nicht (11px gegen ~57px Grenze bei 248px Breite,
+   6px gegen ~20px bei 76px), bleibt aber als Sicherung stehen, falls
+   --pgm-core-w später einmal vergrößert wird. NICHT wegkürzen, weil sie
+   "nichts tut". */
+[data-theme="papier"] .sidebar__scroll-cap::before,
+[data-theme="papier"] .sidebar__scroll-cap::after {
   content: "";
   position: absolute;
   top: 0;
-  left: 0;
-  right: 0;
-  height: 58px;
-  z-index: 0;
-  pointer-events: none;
-  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 248 58' preserveAspectRatio='none'%3E%3Cpath fill='white' d='M0,0 L248,0 L248,32 C240,42 226,50 210,47 C194,44 184,36 165,39 C148,42 140,50 120,50 C100,50 92,42 75,39 C58,36 48,44 30,47 C20,49 8,42 0,32 Z'/%3E%3C/svg%3E") center / 100% 100% no-repeat;
-  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 248 58' preserveAspectRatio='none'%3E%3Cpath fill='white' d='M0,0 L248,0 L248,32 C240,42 226,50 210,47 C194,44 184,36 165,39 C148,42 140,50 120,50 C100,50 92,42 75,39 C58,36 48,44 30,47 C20,49 8,42 0,32 Z'/%3E%3C/svg%3E") center / 100% 100% no-repeat;
+  bottom: 0;
+  width: min(var(--pgm-core-w), 22%);
+  border-radius: 50%;
+  transition: width var(--pgm-speed) var(--pgm-ease);
   background:
-    radial-gradient(ellipse 9px 24px at 0% 58%, rgba(10, 5, 2, 0.65), transparent 75%),
-    radial-gradient(ellipse 9px 24px at 100% 58%, rgba(10, 5, 2, 0.65), transparent 75%),
-    repeating-linear-gradient(
-      180deg,
-      rgba(0, 0, 0, 0.20) 0px,
-      rgba(0, 0, 0, 0.20) 1px,
-      transparent 1px,
-      transparent 4px
-    ),
-    linear-gradient(
-      180deg,
-      #1a0f06 0%,
-      #3d2a14 10%,
-      #6b4a24 25%,
-      #caa268 40%,
-      #f4e2b8 48%,
-      #e8d3a3 55%,
-      #b8935c 68%,
-      #6b4a24 82%,
-      #3d2a14 94%,
-      #1a0f06 100%
-    );
-  box-shadow: 0 5px 12px rgba(0, 0, 0, 0.65);
+    radial-gradient(ellipse at 50% 50%, #0d0703 0%, #2a1a0a 44%, rgba(42, 26, 10, 0) 74%),
+    linear-gradient(180deg, rgba(0, 0, 0, .55), rgba(0, 0, 0, .10) 48%, rgba(0, 0, 0, .65));
 }
-[data-theme="papier"] .sidebar::after {
-  content: "";
+[data-theme="papier"] .sidebar__scroll-cap::before { left: 0; }
+[data-theme="papier"] .sidebar__scroll-cap::after  { right: 0; }
+[data-theme="papier"] .sidebar.collapsed .sidebar__scroll-cap::before,
+[data-theme="papier"] .sidebar.collapsed .sidebar__scroll-cap::after {
+  width: min(var(--pgm-core-w-shut), 22%);
+}
+
+/* ── Seitenrolle: nur eingeklappt ──
+   Deckt die rechte Risskante ab, statt die Maske umzuschalten
+   (mask-image ist nicht animierbar – ein harter Sprung "gerissen" auf
+   "gerade" mitten in der Breitenanimation wäre falsch; ein Pergament,
+   das sich einrollt, verdeckt seinen Rand ohnehin, statt ihn
+   auszutauschen). Bewusst in Pergamenttönen statt den kräftigen
+   Braun-/Goldwerten der waagerechten Zylinder – bei nur 16px Breite las
+   sich derselbe Verlauf als glänzender Messingstab statt als
+   eingerolltes Papier. */
+[data-theme="papier"] .sidebar__scroll-curl {
   position: absolute;
-  /* NICHT bottom:0 -- Render-Bug, siehe Kommentar oberhalb von ::before. */
-  top: calc(100% - 58px);
-  left: 0;
+  top: 0;
   right: 0;
-  height: 58px;
-  z-index: 0;
-  pointer-events: none;
-  transform: scaleY(-1);
-  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 248 58' preserveAspectRatio='none'%3E%3Cpath fill='white' d='M0,0 L248,0 L248,32 C240,42 226,50 210,47 C194,44 184,36 165,39 C148,42 140,50 120,50 C100,50 92,42 75,39 C58,36 48,44 30,47 C20,49 8,42 0,32 Z'/%3E%3C/svg%3E") center / 100% 100% no-repeat;
-  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 248 58' preserveAspectRatio='none'%3E%3Cpath fill='white' d='M0,0 L248,0 L248,32 C240,42 226,50 210,47 C194,44 184,36 165,39 C148,42 140,50 120,50 C100,50 92,42 75,39 C58,36 48,44 30,47 C20,49 8,42 0,32 Z'/%3E%3C/svg%3E") center / 100% 100% no-repeat;
+  height: 100%;
+  width: 0;
+  z-index: 2;
+  opacity: 0;
+  border-radius: 50% / 8px;
   background:
-    radial-gradient(ellipse 9px 24px at 0% 58%, rgba(10, 5, 2, 0.65), transparent 75%),
-    radial-gradient(ellipse 9px 24px at 100% 58%, rgba(10, 5, 2, 0.65), transparent 75%),
-    repeating-linear-gradient(
-      180deg,
-      rgba(0, 0, 0, 0.20) 0px,
-      rgba(0, 0, 0, 0.20) 1px,
-      transparent 1px,
-      transparent 4px
-    ),
-    linear-gradient(
-      180deg,
-      #1a0f06 0%,
-      #3d2a14 10%,
-      #6b4a24 25%,
-      #caa268 40%,
-      #f4e2b8 48%,
-      #e8d3a3 55%,
-      #b8935c 68%,
-      #6b4a24 82%,
-      #3d2a14 94%,
-      #1a0f06 100%
-    );
-  box-shadow: 0 5px 12px rgba(0, 0, 0, 0.65);
+    repeating-linear-gradient(90deg, rgba(60, 35, 10, .14) 0 1px, transparent 1px 6px),
+    linear-gradient(90deg,
+      rgba(58, 38, 14, .55)  0%, #C9AE79 20%, #EFE0BE 46%,
+      #DCC393 66%, #96733F 88%, #3A2510 100%);
+  box-shadow: -9px 0 18px rgba(0, 0, 0, .45), inset 0 0 0 1px rgba(0, 0, 0, .25);
+  transition: width var(--pgm-speed) var(--pgm-ease),
+              opacity calc(var(--pgm-speed) * .55) var(--pgm-ease);
+}
+[data-theme="papier"] .sidebar.collapsed .sidebar__scroll-curl {
+  width: var(--pgm-curl-w);
+  opacity: 1;
+}
+
+/* ── Toggle: Wachssiegel statt neutralem Glas-Kreis ──
+   Bestehendes Element (#sidebarToggle, State/localStorage/aria hängen
+   daran) bleibt an Ort und Stelle (Einbau-Dokument 3.4) – nur Verlauf
+   und der organische Blob-border-radius aus .roll__knob im Mockup
+   werden übernommen. Zwei Overrides nötig: die Basisregel UND die
+   .sidebar.collapsed-spezifische Regel (glass.css:1366-1370 strippt dort
+   gezielt Hintergrund/Rahmen/Schatten auf "nackter Pfeil" – ohne die
+   eigene .collapsed-Regel höherer Spezifität würde das Siegel beim
+   Einklappen verschwinden). */
+[data-theme="papier"] .sidebar__toggle {
+  width: 34px;
+  height: 34px;
+  color: #F2E2C8;
+  background:
+    radial-gradient(circle at 34% 28%, rgba(255, 220, 200, .42), transparent 46%),
+    radial-gradient(circle at 50% 55%, #9B4030 0%, var(--color-error-mid) 55%, #4E1A11 100%);
+  border-radius: 47% 53% 51% 49% / 52% 47% 53% 48%;
+  box-shadow: 0 3px 9px rgba(0, 0, 0, .55), inset 0 -2px 4px rgba(0, 0, 0, .42),
+              inset 0 2px 3px rgba(255, 190, 160, .22);
+  transition: transform 240ms var(--pgm-ease), filter 240ms var(--pgm-ease);
+}
+[data-theme="papier"] .sidebar__toggle:hover {
+  background:
+    radial-gradient(circle at 34% 28%, rgba(255, 220, 200, .42), transparent 46%),
+    radial-gradient(circle at 50% 55%, #9B4030 0%, var(--color-error-mid) 55%, #4E1A11 100%);
+  filter: brightness(1.12);
+  transform: scale(1.07);
+  color: #F2E2C8;
+}
+[data-theme="papier"] .sidebar__toggle:active { transform: scale(.94); }
+[data-theme="papier"] .sidebar__toggle:focus-visible {
+  outline: 2px solid var(--pm-yellow);
+  outline-offset: 3px;
+}
+[data-theme="papier"] .sidebar.collapsed .sidebar__toggle,
+[data-theme="papier"] .sidebar.collapsed .sidebar__toggle:hover {
+  background:
+    radial-gradient(circle at 34% 28%, rgba(255, 220, 200, .42), transparent 46%),
+    radial-gradient(circle at 50% 55%, #9B4030 0%, var(--color-error-mid) 55%, #4E1A11 100%);
+  border-color: transparent;
+  box-shadow: 0 3px 9px rgba(0, 0, 0, .55), inset 0 -2px 4px rgba(0, 0, 0, .42),
+              inset 0 2px 3px rgba(255, 190, 160, .22);
+  color: #F2E2C8;
+}
+
+/* ── Label-Ausblenden: asymmetrische Verzögerung (Einbau-Dokument 6.2) ──
+   Aufklappen: Text kommt SPÄT zurück (Verzögerung ~55% der Laufzeit) –
+   erst wenn die overflow-Kante ihn nicht mehr anschneidet. Einklappen:
+   Text geht FRÜH weg (~30% der Laufzeit, keine Verzögerung) – sonst
+   schiebt sich die Kante mitten durch noch sichtbare Buchstaben, die
+   Labels wirken senkrecht abgeschnitten statt auszublenden. Es zählt
+   immer die Transition der ZIELREGEL: beim Aufklappen (Klasse
+   `.collapsed` entfernt) gilt die Basisregel unten, beim Einklappen die
+   `.collapsed`-Regel – deshalb reicht es, die Verzögerung nur in der
+   Basisregel zu setzen. Überschreibt glass.css:1233/1120 (dort ohne
+   Delay, symmetrisch) NICHT nebenher, sondern gezielt für papier. */
+[data-theme="papier"] .sidebar__link-label {
+  transition: max-width var(--pgm-speed) var(--pgm-ease),
+              opacity calc(var(--pgm-speed) * .45) var(--pgm-ease) calc(var(--pgm-speed) * .55);
+}
+[data-theme="papier"] .sidebar.collapsed .sidebar__link-label {
+  transition: max-width var(--pgm-speed) var(--pgm-ease),
+              opacity calc(var(--pgm-speed) * .3) var(--pgm-ease) 0ms;
+}
+[data-theme="papier"] .sidebar__logo-text {
+  transition: max-width var(--pgm-speed) var(--pgm-ease),
+              opacity calc(var(--pgm-speed) * .45) var(--pgm-ease) calc(var(--pgm-speed) * .55);
+}
+[data-theme="papier"] .sidebar.collapsed .sidebar__logo-text {
+  transition: max-width var(--pgm-speed) var(--pgm-ease),
+              opacity calc(var(--pgm-speed) * .3) var(--pgm-ease) 0ms;
+}
+
+/* ── Tooltip im eingeklappten Zustand: Pergament-Fähnchen statt Glas ──
+   Kein neues Element (siehe Sektions-Kopf oben) – nur eine
+   Pergament-Optik für das bereits vorhandene .sidebar-tooltip
+   (sidebar.js: setupSidebarTooltips). */
+[data-theme="papier"] .sidebar-tooltip {
+  background: linear-gradient(170deg, #F3E6C6, var(--pm-grey-100));
+  border: 1px solid var(--pm-grey-200);
+  color: var(--pm-grey-900);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, .45);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+[data-theme="papier"] .sidebar-tooltip::before {
+  background: #F3E6C6;
+}
+
+/* ── Auftritt beim Laden: das Blatt rollt sich auf ──
+   Nur beim echten ersten Seiten-Laden (siehe Architektur-Hinweis am
+   Sektions-Kopf oben) – die Klasse `.is-entering` wird von
+   buildSidebar() gesetzt und nach Ablauf wieder entfernt
+   (animation-fill-mode:both hält sonst rückwärts bis zum Ende des
+   eigenen animation-delay auf dem Startwert fest; ohne das Gate bliebe
+   die Navigation bei jedem echten Neuladen kurz unsichtbar – hier
+   unkritisch, weil es dank buildSidebar()/router.js ohnehin nur einmal
+   pro echtem Laden passiert, aber die Klasse macht die Absicht
+   explizit und bietet einen Haken zum gezielten Abschalten). */
+@keyframes papier-scroll-unfurl {
+  from { clip-path: inset(calc(50% - var(--pgm-cap-h) / 2) 0 calc(50% - var(--pgm-cap-h) / 2) 0); }
+  to   { clip-path: inset(0 0 0 0); }
+}
+@keyframes papier-scroll-ink-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: none; }
+}
+[data-theme="papier"] .sidebar.is-entering .sidebar__scroll-sheet {
+  animation: papier-scroll-unfurl 900ms var(--pgm-ease) both;
+}
+[data-theme="papier"] .sidebar.is-entering .sidebar__header > *,
+[data-theme="papier"] .sidebar.is-entering .sidebar__nav > *,
+[data-theme="papier"] .sidebar.is-entering .sidebar__footer > * {
+  animation: papier-scroll-ink-in 520ms var(--pgm-ease) both;
+  animation-delay: calc(620ms + 40ms * var(--i, 0));
+}
+@media (prefers-reduced-motion: reduce) {
+  [data-theme="papier"] .sidebar.is-entering .sidebar__scroll-sheet,
+  [data-theme="papier"] .sidebar.is-entering .sidebar__header > *,
+  [data-theme="papier"] .sidebar.is-entering .sidebar__nav > *,
+  [data-theme="papier"] .sidebar.is-entering .sidebar__footer > * {
+    animation: none;
+  }
 }
