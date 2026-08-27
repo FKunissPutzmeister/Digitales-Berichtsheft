@@ -327,18 +327,24 @@ test('Papierheft-Retro: Nav-Leiste hat aufgerollte Schriftrollen-Enden oben (::b
     assert.doesNotMatch(block, /width:/);
     assert.match(block, /pointer-events: none;/);
     assert.match(block, /z-index: 0;/);
-    // Gebänderter Verlauf aus den bestehenden Sidebar-Tinte-Tokens (keine
-    // neuen Farbwerte) simuliert die Rundung eines Rollstabs. --pm-grey-300
-    // (statt der ersten, zu schwachen --pm-grey-500/-400) als Lichtkante:
-    // die Sidebar ist eine transluzente Glass-Pille (glass.css:1046,
-    // background:var(--lg-sidebar) mit Alpha + backdrop-filter) – der
-    // erste, schwächere Kontrast ging dort optisch unter, siehe Kommentar
-    // in Abschnitt 11 der CSS-Datei.
-    assert.match(block, /linear-gradient\(\s*\n\s*180deg,\s*\n\s*var\(--inverse-surface\) 0%,\s*\n\s*var\(--inverse-surface-mid\) 18%,\s*\n\s*var\(--pm-grey-300\) 50%,\s*\n\s*var\(--inverse-surface-mid\) 82%,\s*\n\s*var\(--inverse-surface\) 100%\s*\n\s*\);/);
+    assert.match(block, /height: 38px;/);
+    // NEUFASSUNG V2: die erste Fassung (einzelner sanfter Token-Verlauf)
+    // sah live nur wie ein schwacher Lichtschimmer aus, nicht wie eine
+    // Pergamentrolle (Nutzer-Reklamation per Screenshot). Jetzt zwei
+    // kombinierte Hintergrund-Ebenen: feine Ringlinien (Wicklungsschichten)
+    // + ein stark kontrastierter Zylinder-Verlauf (Glanzstreifen mittig).
+    // Literale Hex-Werte statt Sidebar-Tinte-Tokens: mit dem Nutzer per
+    // Playwright-Mockup (Kandidat D von 4) genau an diesen Werten
+    // abgestimmt, siehe Kommentar in Abschnitt 11 der CSS-Datei.
+    assert.match(block, /repeating-linear-gradient\(\s*\n\s*180deg,\s*\n\s*rgba\(0, 0, 0, 0\.22\) 0px,\s*\n\s*rgba\(0, 0, 0, 0\.22\) 1px,\s*\n\s*transparent 1px,\s*\n\s*transparent 4px\s*\n\s*\),/);
+    assert.match(block, /linear-gradient\(\s*\n\s*180deg,\s*\n\s*#1a0f06 0%,\s*\n\s*#3d2a14 12%,\s*\n\s*#6b4a24 28%,\s*\n\s*#caa268 42%,\s*\n\s*#f4e2b8 48%,\s*\n\s*#caa268 54%,\s*\n\s*#6b4a24 68%,\s*\n\s*#3d2a14 84%,\s*\n\s*#1a0f06 100%\s*\n\s*\);/);
   }
   assert.match(beforeBlock, /top: 0;/);
   assert.match(afterBlock, /bottom: 0;/);
-  // Naht-Schatten zeigt jeweils vom Rollen-Ende weg zur flachen Fläche.
-  assert.match(beforeBlock, /box-shadow: 0 3px 7px rgba\(0, 0, 0, 0\.45\);/);
-  assert.match(afterBlock, /box-shadow: 0 -3px 7px rgba\(0, 0, 0, 0\.45\);/);
+  // Naht-Schatten + harte Trennlinie zeigen jeweils vom Rollen-Ende weg
+  // zur flachen Fläche, damit der Übergang Rolle -> Seite klar sichtbar ist.
+  assert.match(beforeBlock, /box-shadow: 0 5px 12px rgba\(0, 0, 0, 0\.65\);/);
+  assert.match(beforeBlock, /border-bottom: 1px solid rgba\(0, 0, 0, 0\.55\);/);
+  assert.match(afterBlock, /box-shadow: 0 -5px 12px rgba\(0, 0, 0, 0\.65\);/);
+  assert.match(afterBlock, /border-top: 1px solid rgba\(0, 0, 0, 0\.55\);/);
 });

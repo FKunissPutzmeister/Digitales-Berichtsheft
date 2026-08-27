@@ -781,47 +781,83 @@ html[data-theme="papier"] * {
    Höhe 30px bewusst kleiner als der Logo-Mark (36px, glass.css:1110)
    UND als der Footer-Innenabstand (--sp-4=16px, layout.css:256) – das
    Band bleibt ein klar abgesetztes "Ende der Rolle" am äußersten Rand,
-   statt mittig durch Logo oder Avatar zu laufen. Farbverlauf aus den
-   bereits vorhandenen Sidebar-Tinte-Tokens (--inverse-surface/-mid,
-   Abschnitt 1) + --pm-grey-300 als Lichtkante – simuliert die Rundung
-   eines hölzernen Rollstabs, keine neuen Farbwerte nötig.
-   ERSTER KONTRAST (--pm-grey-500, 26px) ZU SCHWACH: die tatsächlich
-   aktive Sidebar-Regel ist NICHT layout.css:19 (volle Höhe, opak),
-   sondern die spätere "Floating Glass Pill" in glass.css ab Zeile 1034
-   (`background: var(--lg-sidebar)` – für Papier
+   statt mittig durch Logo oder Avatar zu laufen.
+
+   NEUFASSUNG V2 (nach Nutzer-Screenshot-Reklamation "das ist nicht die
+   Umsetzung nach welcher ich gefragt habe"): die erste Fassung (ein
+   einzelner sanfter Tinte→Lichtkante→Tinte-Verlauf aus den vorhandenen
+   Sidebar-Tinte-Tokens) sah live nur wie ein schwacher Lichtschimmer
+   aus, NICHT wie eine aufgerollte Pergamentrolle – bestätigt per
+   Playwright-Screenshot (computed style war korrekt angewendet, das
+   Problem war rein gestalterisch: ein glatter Verlauf allein liest
+   sich nicht als Zylinder). Per Playwright-Mockup (roll-candidates.html,
+   4 Kandidaten A–D in echter 248px-Sidebarbreite gerendert) mit dem
+   Nutzer abgestimmt: Kandidat D gewählt – zwei kombinierte
+   Hintergrund-Ebenen statt einer:
+     1. `repeating-linear-gradient` mit enger 4px-Teilung – feine
+        parallele Ringlinien, simulieren die sichtbaren Wicklungs-
+        schichten einer aufgerollten Pergamentbahn.
+     2. `linear-gradient` mit STARKEM Kontrast (fast schwarz an den
+        Rändern → helle Cremefarbe in der Mitte, 6 Zwischenstopps) –
+        simuliert die 3D-Rundung eines Zylinders (Glanzstreifen mittig
+        wie Licht auf einem Rundstab), deutlich kräftiger als die alte
+        Token-Palette es hergab.
+   Bewusst NEUE, literale Hex-Werte statt der Sidebar-Tinte-Tokens
+   (--inverse-surface/-mid, --pm-grey-300): die Mockup-Abstimmung mit
+   dem Nutzer bezog sich auf genau diese Werte, eine spätere Token-
+   Angleichung würde den abgenommenen Kontrast wieder verwässern.
+   Grund für den ursprünglich zu schwachen Kontrast bleibt gültig: die
+   tatsächlich aktive Sidebar-Regel ist NICHT layout.css:19 (volle
+   Höhe, opak), sondern die spätere "Floating Glass Pill" in glass.css
+   ab Zeile 1034 (`background: var(--lg-sidebar)` – für Papier
    `rgba(61, 44, 20, 0.88)`, PLUS `backdrop-filter: blur(...)`) – eine
-   transluzente Pille, die das unscharfe Foto dahinter durchscheinen
-   lässt. Vor diesem bereits unruhigen, leicht durchscheinenden
-   Hintergrund ging die erste, dezente Bande unten optisch unter (oben,
-   direkt hinter dem satt gefüllten Logo, war sie noch erkennbar) – live
-   an Edge mit Größenvergleichs-Screenshots von oben und unten
-   bestätigt. Jetzt 30px/--pm-grey-300 sowie kräftigerer Naht-Schatten
-   (7px/0.45 statt 6px/0.35). z-index bleibt 0 (hinter dem eigentlichen
-   Inhalt, `.sidebar > * { z-index: 1 }`, glass.css:295) – NICHT höher
-   gesetzt, sonst würde das Band Logo bzw. Avatar überdecken.
+   transluzente Pille vor unscharfem Fotohintergrund, die einen sanften
+   Verlauf optisch verschluckt. Höhe jetzt 38px (vorher 30px) für mehr
+   Raum für die Ring-Textur – reicht minimal in den oberen Rand des
+   Logo-Marks (padding-top 18px, Logo 36px hoch) bzw. den Footer-
+   Innenabstand hinein, was gewünscht ist: die Rolle soll wie ein
+   eigenständiges Element VOR dem Kopf-/Fußbereich wirken, nicht nur
+   als Randlinie. z-index bleibt 0 (hinter dem eigentlichen Inhalt,
+   `.sidebar > * { z-index: 1 }`, glass.css:295) – NICHT höher gesetzt,
+   sonst würde das Band Logo bzw. Avatar überdecken.
    `.sidebar { overflow: hidden; }` (sowohl layout.css:33 als auch die
    aktive Pillen-Regel glass.css:1055) bleibt unangetastet – die Bänder
    liegen komplett INNERHALB der (bei der Pille: abgerundeten)
    Sidebar-Box, kein Überstand nach links/rechts wie bei über den Rand
-   hinausragenden Walzen. */
+   hinausragenden Walzen. `left:0; right:0` (nicht feste Breite) bleibt
+   unverändert – folgt automatisch der tatsächlichen Sidebar-Breite in
+   beiden Zuständen (ausgeklappt/eingeklappt). */
 [data-theme="papier"] .sidebar::before {
   content: "";
   position: absolute;
   top: 0;
   left: 0;
   right: 0;
-  height: 30px;
+  height: 38px;
   z-index: 0;
   pointer-events: none;
-  background: linear-gradient(
-    180deg,
-    var(--inverse-surface) 0%,
-    var(--inverse-surface-mid) 18%,
-    var(--pm-grey-300) 50%,
-    var(--inverse-surface-mid) 82%,
-    var(--inverse-surface) 100%
-  );
-  box-shadow: 0 3px 7px rgba(0, 0, 0, 0.45);
+  background:
+    repeating-linear-gradient(
+      180deg,
+      rgba(0, 0, 0, 0.22) 0px,
+      rgba(0, 0, 0, 0.22) 1px,
+      transparent 1px,
+      transparent 4px
+    ),
+    linear-gradient(
+      180deg,
+      #1a0f06 0%,
+      #3d2a14 12%,
+      #6b4a24 28%,
+      #caa268 42%,
+      #f4e2b8 48%,
+      #caa268 54%,
+      #6b4a24 68%,
+      #3d2a14 84%,
+      #1a0f06 100%
+    );
+  box-shadow: 0 5px 12px rgba(0, 0, 0, 0.65);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.55);
 }
 [data-theme="papier"] .sidebar::after {
   content: "";
@@ -829,16 +865,29 @@ html[data-theme="papier"] * {
   bottom: 0;
   left: 0;
   right: 0;
-  height: 30px;
+  height: 38px;
   z-index: 0;
   pointer-events: none;
-  background: linear-gradient(
-    180deg,
-    var(--inverse-surface) 0%,
-    var(--inverse-surface-mid) 18%,
-    var(--pm-grey-300) 50%,
-    var(--inverse-surface-mid) 82%,
-    var(--inverse-surface) 100%
-  );
-  box-shadow: 0 -3px 7px rgba(0, 0, 0, 0.45);
+  background:
+    repeating-linear-gradient(
+      180deg,
+      rgba(0, 0, 0, 0.22) 0px,
+      rgba(0, 0, 0, 0.22) 1px,
+      transparent 1px,
+      transparent 4px
+    ),
+    linear-gradient(
+      180deg,
+      #1a0f06 0%,
+      #3d2a14 12%,
+      #6b4a24 28%,
+      #caa268 42%,
+      #f4e2b8 48%,
+      #caa268 54%,
+      #6b4a24 68%,
+      #3d2a14 84%,
+      #1a0f06 100%
+    );
+  box-shadow: 0 -5px 12px rgba(0, 0, 0, 0.65);
+  border-top: 1px solid rgba(0, 0, 0, 0.55);
 }
