@@ -315,10 +315,16 @@ test('Papierheft-Retro: Nav-Leiste hat aufgerollte Schriftrollen-Enden oben (::b
   // Nutzer-Wunsch (mit Referenzbild einer aufgerollten Testament-
   // Schriftrolle): der Rand der Sidebar soll wie eine aufgerollte
   // Pergamentrolle wirken, oben UND unten, angepasst auf die tatsächliche
-  // Breite der Nav-Leiste (nicht so breit wie im Referenzbild).
+  // Breite der Nav-Leiste. NEUFASSUNG V3: die Kontur selbst ist jetzt
+  // gewellt (SVG-Maske), nicht mehr nur ein rechteckiges Band mit
+  // farblichem Verlauf -- Nutzer-Feedback: "das ist nicht die Umsetzung
+  // nach welcher ich gefragt habe [...] du hast auch die Erlaubnis, die
+  // Kacheln und alle Elemente komplett neu zu bauen".
   const css = fs.readFileSync(CSS_PATH, 'utf8');
   const beforeBlock = css.match(/\[data-theme="papier"\] \.sidebar::before \{[\s\S]*?\n\}/)[0];
   const afterBlock = css.match(/\[data-theme="papier"\] \.sidebar::after \{[\s\S]*?\n\}/)[0];
+  const wavePath = "M0,0 L248,0 L248,32 C240,42 226,50 210,47 C194,44 184,36 165,39 C148,42 140,50 120,50 C100,50 92,42 75,39 C58,36 48,44 30,47 C20,49 8,42 0,32 Z";
+  const wavePathEscaped = wavePath.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   // left:0; right:0 statt fester Breite -> folgt automatisch der
   // tatsächlichen Sidebar-Breite in beiden Zuständen (aus-/eingeklappt).
   for (const block of [beforeBlock, afterBlock]) {
@@ -327,17 +333,28 @@ test('Papierheft-Retro: Nav-Leiste hat aufgerollte Schriftrollen-Enden oben (::b
     assert.doesNotMatch(block, /width:/);
     assert.match(block, /pointer-events: none;/);
     assert.match(block, /z-index: 0;/);
-    assert.match(block, /height: 38px;/);
-    // NEUFASSUNG V2: die erste Fassung (einzelner sanfter Token-Verlauf)
-    // sah live nur wie ein schwacher Lichtschimmer aus, nicht wie eine
-    // Pergamentrolle (Nutzer-Reklamation per Screenshot). Jetzt zwei
-    // kombinierte Hintergrund-Ebenen: feine Ringlinien (Wicklungsschichten)
-    // + ein stark kontrastierter Zylinder-Verlauf (Glanzstreifen mittig).
-    // Literale Hex-Werte statt Sidebar-Tinte-Tokens: mit dem Nutzer per
-    // Playwright-Mockup (Kandidat D von 4) genau an diesen Werten
-    // abgestimmt, siehe Kommentar in Abschnitt 11 der CSS-Datei.
-    assert.match(block, /repeating-linear-gradient\(\s*\n\s*180deg,\s*\n\s*rgba\(0, 0, 0, 0\.22\) 0px,\s*\n\s*rgba\(0, 0, 0, 0\.22\) 1px,\s*\n\s*transparent 1px,\s*\n\s*transparent 4px\s*\n\s*\),/);
-    assert.match(block, /linear-gradient\(\s*\n\s*180deg,\s*\n\s*#1a0f06 0%,\s*\n\s*#3d2a14 12%,\s*\n\s*#6b4a24 28%,\s*\n\s*#caa268 42%,\s*\n\s*#f4e2b8 48%,\s*\n\s*#caa268 54%,\s*\n\s*#6b4a24 68%,\s*\n\s*#3d2a14 84%,\s*\n\s*#1a0f06 100%\s*\n\s*\);/);
+    assert.match(block, /height: 58px;/);
+    // Echte Form statt reines Farbband: SVG-Maske mit gewellter Kontur,
+    // preserveAspectRatio="none" + mask-size:100% 100% -- skaliert
+    // automatisch auf die tatsächliche (aus-/eingeklappte) Breite, exakt
+    // wie bei der Wochen-Kachel-Maske (Abschnitt 10).
+    const maskRegex = new RegExp(
+      `viewBox='0 0 248 58' preserveAspectRatio='none'%3E%3Cpath fill='white' d='${wavePathEscaped}'`
+    );
+    assert.match(block, /mask: url\("data:image\/svg\+xml,/);
+    assert.match(block, /-webkit-mask: url\("data:image\/svg\+xml,/);
+    assert.match(block, maskRegex);
+    assert.match(block, /center \/ 100% 100% no-repeat;/);
+    // Dezenter Knick-Schatten an beiden äußeren Kanten (deutet die im
+    // Referenzbild sichtbaren dunklen Rollen-Kernenden an) -- klein +
+    // wenig deckend, eine erste größere/deckendere Version wirkte wie
+    // zwei "Augen" statt wie ein Schatten (per Screenshot verworfen).
+    assert.match(block, /radial-gradient\(ellipse 9px 24px at 0% 58%, rgba\(10, 5, 2, 0\.65\), transparent 75%\),/);
+    assert.match(block, /radial-gradient\(ellipse 9px 24px at 100% 58%, rgba\(10, 5, 2, 0\.65\), transparent 75%\),/);
+    // Ring-Wicklungslinien + Zylinder-Rundungsverlauf (aus V2 übernommen).
+    assert.match(block, /repeating-linear-gradient\(\s*\n\s*180deg,\s*\n\s*rgba\(0, 0, 0, 0\.20\) 0px,\s*\n\s*rgba\(0, 0, 0, 0\.20\) 1px,\s*\n\s*transparent 1px,\s*\n\s*transparent 4px\s*\n\s*\),/);
+    assert.match(block, /linear-gradient\(\s*\n\s*180deg,\s*\n\s*#1a0f06 0%,\s*\n\s*#3d2a14 10%,\s*\n\s*#6b4a24 25%,\s*\n\s*#caa268 40%,\s*\n\s*#f4e2b8 48%,\s*\n\s*#e8d3a3 55%,\s*\n\s*#b8935c 68%,\s*\n\s*#6b4a24 82%,\s*\n\s*#3d2a14 94%,\s*\n\s*#1a0f06 100%\s*\n\s*\);/);
+    assert.match(block, /box-shadow: 0 5px 12px rgba\(0, 0, 0, 0\.65\);/);
   }
   assert.match(beforeBlock, /top: 0;/);
   // KEIN bottom:0 fuer ::after: Render-Bug in diesem fixed +
@@ -347,11 +364,10 @@ test('Papierheft-Retro: Nav-Leiste hat aufgerollte Schriftrollen-Enden oben (::b
   // statt unteren Rand gemalt, trotz korrektem getComputedStyle). Fix:
   // top: calc(100% - <Hoehe>) statt bottom:0, siehe CSS-Kommentar.
   assert.doesNotMatch(afterBlock, /bottom: 0;/);
-  assert.match(afterBlock, /top: calc\(100% - 38px\);/);
-  // Naht-Schatten + harte Trennlinie zeigen jeweils vom Rollen-Ende weg
-  // zur flachen Fläche, damit der Übergang Rolle -> Seite klar sichtbar ist.
-  assert.match(beforeBlock, /box-shadow: 0 5px 12px rgba\(0, 0, 0, 0\.65\);/);
-  assert.match(beforeBlock, /border-bottom: 1px solid rgba\(0, 0, 0, 0\.55\);/);
-  assert.match(afterBlock, /box-shadow: 0 -5px 12px rgba\(0, 0, 0, 0\.65\);/);
-  assert.match(afterBlock, /border-top: 1px solid rgba\(0, 0, 0, 0\.55\);/);
+  assert.match(afterBlock, /top: calc\(100% - 58px\);/);
+  // ::after ist dieselbe Maske wie ::before, gespiegelt via
+  // transform:scaleY(-1) statt eines eigenen SVG-Pfads -- spart einen
+  // zweiten Pfad und garantiert exakte Symmetrie. Der Transform kippt
+  // auch box-shadow mit, "0 5px 12px" wird visuell zu "0 -5px 12px".
+  assert.match(afterBlock, /transform: scaleY\(-1\);/);
 });
