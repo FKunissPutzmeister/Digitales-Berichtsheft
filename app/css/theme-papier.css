@@ -1097,6 +1097,35 @@ html[data-theme="papier"] * {
               opacity calc(var(--pgm-speed) * .3) var(--pgm-ease) 0ms;
 }
 
+/* ── Kopf-/Fußinhalt aus der Rollen-Zone heraus rücken ──
+   Nutzer-Feedback nach erstem Live-Blick: Logo/Name/Toggle lagen ÜBER
+   dem oberen Zylinder statt darunter, Profilbild/Name lagen UNTER dem
+   unteren Zylinder statt darüber -- der Rollen-Effekt sollte "durch-
+   scheinen", nicht von echtem Inhalt überdeckt werden. Genau das Problem
+   löst schon das Mockup selbst (`.roll__inner { padding: calc(var(--cap-h)
+   + 14px) ... }`), nur wanderte diese Regel beim Einbau nicht mit: die
+   App hat kein einzelnes `.roll__inner`, sondern getrennte
+   `.sidebar__header`/`.sidebar__footer` mit ihren eigenen Basis-
+   Innenabständen (glass.css:1102/1257, 18px oben / 14px unten) -- die
+   kennen die Zylinderhöhe naturgemäß nicht. Hier nachgeholt: zusätzlicher
+   Innenabstand in Höhe von --pgm-cap-h + der ursprünglichen Basis-Lücke,
+   damit Kopf-/Fußinhalt exakt dort beginnt, wo die Zylinder enden.
+   Eingeklappt hat .sidebar__footer einen ANDEREN Basiswert (12px statt
+   14px unten, glass.css:1348 -- eigene Spalten-Anordnung) -- deshalb ein
+   eigener Override statt denselben Puffer draufzurechnen. .sidebar__header
+   ändert im eingeklappten Zustand nur justify-content, nicht den
+   Innenabstand (glass.css:1365) -- ein Override reicht für beide
+   Zustände. */
+[data-theme="papier"] .sidebar__header {
+  padding-top: calc(var(--pgm-cap-h) + 14px);
+}
+[data-theme="papier"] .sidebar__footer {
+  padding-bottom: calc(var(--pgm-cap-h) + 14px);
+}
+[data-theme="papier"] .sidebar.collapsed .sidebar__footer {
+  padding-bottom: calc(var(--pgm-cap-h) + 12px);
+}
+
 /* ── Tooltip im eingeklappten Zustand: Pergament-Fähnchen statt Glas ──
    Kein neues Element (siehe Sektions-Kopf oben) – nur eine
    Pergament-Optik für das bereits vorhandene .sidebar-tooltip

@@ -479,6 +479,23 @@ test('Papierheft-Retro: Toggle-Button wird zum Wachssiegel (bestehendes Element,
   assert.match(collapsed, /radial-gradient\(circle at 50% 55%, #9B4030 0%, var\(--color-error-mid\) 55%, #4E1A11 100%\);/);
 });
 
+test('Papierheft-Retro: Kopf-/Fußinhalt rueckt aus der Rollen-Zone heraus (liegt unter/ueber den Zylindern)', () => {
+  // Nutzer-Feedback nach erstem Live-Blick: Logo/Name/Toggle lagen ueber
+  // dem oberen Zylinder statt darunter, Profilbild/Name unter dem
+  // unteren Zylinder statt darueber. Zusaetzlicher Innenabstand in Hoehe
+  // von --pgm-cap-h + urspruengliche Basis-Luecke (18px oben/14px unten,
+  // glass.css:1102/1257) schiebt den Inhalt aus der Rollen-Zone heraus --
+  // dieselbe Idee wie im Mockup selbst (.roll__inner { padding:
+  // calc(var(--cap-h) + 14px) ... }), nur auf die getrennten
+  // .sidebar__header/.sidebar__footer der App uebertragen.
+  const css = readCss();
+  assert.match(css, /\[data-theme="papier"\] \.sidebar__header \{\s*\n\s*padding-top: calc\(var\(--pgm-cap-h\) \+ 14px\);\s*\n\}/);
+  assert.match(css, /\[data-theme="papier"\] \.sidebar__footer \{\s*\n\s*padding-bottom: calc\(var\(--pgm-cap-h\) \+ 14px\);\s*\n\}/);
+  // Eingeklappt hat .sidebar__footer einen anderen Basiswert (12px statt
+  // 14px unten, glass.css:1348) -- eigener Override statt derselbe Puffer.
+  assert.match(css, /\[data-theme="papier"\] \.sidebar\.collapsed \.sidebar__footer \{\s*\n\s*padding-bottom: calc\(var\(--pgm-cap-h\) \+ 12px\);\s*\n\}/);
+});
+
 test('Papierheft-Retro: Sidebar-Links -- Tinte statt heller Schrift, aktiver Link mit Wachs-Punkt', () => {
   // Seit der Schriftrollen-Navigation ist der Sidebar-Grund helles
   // Pergament, nicht mehr dunkel getoentes Glas -- die alten hellen
