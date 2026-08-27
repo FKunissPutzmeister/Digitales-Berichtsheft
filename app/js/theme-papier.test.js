@@ -494,6 +494,29 @@ test('Papierheft-Retro: Toggle-Button wird zum Wachssiegel (bestehendes Element,
   assert.match(collapsed, /radial-gradient\(circle at 50% 55%, #9B4030 0%, var\(--color-error-mid\) 55%, #4E1A11 100%\);/);
 });
 
+test('Papierheft-Retro: Profil-Avatar in der Sidebar wird zum Wachssiegel mit eingepraegtem Kuerzel', () => {
+  // Nutzer-Wunsch (mit Referenzbild eines echten Wachssiegels): der
+  // Sidebar-Fuss-Avatar (Initialen des Nutzers) wird zum Siegel. Nur
+  // .sidebar__user-link .avatar, NICHT alle .avatar-Vorkommen app-weit --
+  // Nutzer sagte explizit "in der Nav-Leiste".
+  const css = readCss();
+  const avatar = css.match(/\[data-theme="papier"\] \.sidebar__user-link \.avatar \{[\s\S]*?\n\}/)[0];
+  // Dieselbe Wachs-Palette wie der Toggle (Material-Konsistenz).
+  assert.match(avatar, /radial-gradient\(circle at 50% 55%, #9B4030 0%, var\(--color-error-mid\) 55%, #4E1A11 100%\);/);
+  // Zusaetzliche Rille bei ~70% Radius trennt erhabenen Rand von
+  // flacherer Mitte (im Toggle bewusst weggelassen, dort zu klein fuer
+  // den Effekt).
+  assert.match(avatar, /radial-gradient\(circle at 50% 50%, transparent 0%, transparent 66%, rgba\(0, 0, 0, \.28\) 70%, transparent 75%\),/);
+  // "Eingepraegtes" statt gedrucktes Kuerzel.
+  assert.match(avatar, /text-shadow: 1px 1px 0 rgba\(0, 0, 0, \.40\), -1px -1px 0 rgba\(255, 255, 255, \.12\);/);
+  assert.match(avatar, /color: #F2E2C8;/);
+  // Echtfoto (components.css:341-349, Entra-Sync) wuerde das Siegel-
+  // Konzept unterlaufen -- fuer den Sidebar-Avatar in papier immer
+  // ausgeblendet, das Kuerzel-Siegel zeigt sich garantiert.
+  const img = css.match(/\[data-theme="papier"\] \.sidebar__user-link \.avatar img \{[\s\S]*?\n\}/)[0];
+  assert.match(img, /display: none;/);
+});
+
 test('Papierheft-Retro: Wortmarke -- "Berichtsheft" gross oben, "PUTZMEISTER" als gesperrte Unterzeile', () => {
   // NEUFASSUNG V2 (Nutzer-Wunsch nach V1 "nur Berichtsheft"): "Berichtsheft"
   // etwas groesser, darunter "PUTZMEISTER" im Stil der Sidebar-Rubriken-
@@ -513,6 +536,13 @@ test('Papierheft-Retro: Wortmarke -- "Berichtsheft" gross oben, "PUTZMEISTER" al
   const container = css.match(/\[data-theme="papier"\] \.sidebar__logo-text \{[\s\S]*?\n\}/)[0];
   assert.match(container, /display: flex;/);
   assert.match(container, /flex-direction: column;/);
+  // Nutzer-Feedback danach ("beides noch etwas nach unten setzen"): nur
+  // der Text-Block wandert, das Logo-Mark bleibt an Ort und Stelle.
+  // margin-top statt transform:translateY (erster Versuch, live
+  // verworfen -- ueberlappte sichtbar mit "UEBERSICHT" darunter, weil
+  // reines transform keinen echten Platz reserviert).
+  assert.match(container, /margin-top: 6px;/);
+  assert.doesNotMatch(container, /transform: translateY/);
   const sub = css.match(/\[data-theme="papier"\] \.sidebar__logo-sub \{[\s\S]*?\n\}/)[0];
   assert.match(sub, /order: 1;/);
   assert.match(sub, /font-family: var\(--font-heading\);/);

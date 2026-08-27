@@ -1088,6 +1088,42 @@ html[data-theme="papier"] * {
   color: #F2E2C8;
 }
 
+/* ── Profil-Avatar: Wachssiegel mit Kürzel statt Foto/Farbkreis ──
+   Nutzer-Wunsch (mit Referenzbild eines echten Wachssiegels): der
+   Sidebar-Fuß-Avatar wird zum Siegel, die Initialen erscheinen darin
+   wie eingeprägt. Nur der Sidebar-Avatar (.sidebar__user-link .avatar) –
+   NICHT alle .avatar-Vorkommen app-weit (Nutzer sagte explizit "in der
+   Nav-Leiste"), andere Seiten (Profil, Azubi-Listen etc.) behalten ihre
+   normalen Avatare.
+   Dieselbe Wachs-Palette wie der Toggle oben (--color-error-mid/#9B4030/
+   #4E1A11) für Material-Konsistenz – zwei Ergänzungen zum Referenzbild:
+     1. Eine zusätzliche Radial-Rille bei ~70% Radius trennt einen
+        "erhabenen Rand" von einer flacheren Mitte – im Referenzbild
+        deutlich als Steg zwischen Rand und Stempelfläche sichtbar, beim
+        Toggle (kleiner, nebensächlicher) bewusst weggelassen.
+     2. text-shadow simuliert ein "eingeprägtes" statt gedrucktes Kürzel
+        (dunkler Schatten unten-rechts, heller Grat oben-links).
+   Eigener, leicht abweichender Blob-border-radius statt exakt derselbe
+   Wert wie beim Toggle – zwei Siegel aus demselben Wachs sehen in der
+   Realität auch nie identisch geprägt aus.
+   `.avatar img` (Echtfoto-Layer, components.css:341-349) wird
+   ausgeblendet: ein Foto würde das Siegel-Konzept komplett unterlaufen,
+   die Papier-Ansicht zeigt hier bewusst IMMER das Kürzel-Siegel. */
+[data-theme="papier"] .sidebar__user-link .avatar {
+  border-radius: 46% 54% 52% 48% / 51% 45% 55% 49%;
+  background:
+    radial-gradient(circle at 50% 50%, transparent 0%, transparent 66%, rgba(0, 0, 0, .28) 70%, transparent 75%),
+    radial-gradient(circle at 34% 28%, rgba(255, 220, 200, .38), transparent 46%),
+    radial-gradient(circle at 50% 55%, #9B4030 0%, var(--color-error-mid) 55%, #4E1A11 100%);
+  box-shadow: 0 3px 8px rgba(0, 0, 0, .55), inset 0 -2px 4px rgba(0, 0, 0, .45),
+              inset 0 2px 3px rgba(255, 190, 160, .20);
+  color: #F2E2C8;
+  text-shadow: 1px 1px 0 rgba(0, 0, 0, .40), -1px -1px 0 rgba(255, 255, 255, .12);
+}
+[data-theme="papier"] .sidebar__user-link .avatar img {
+  display: none;
+}
+
 /* ── Label-Ausblenden: asymmetrische Verzögerung (Einbau-Dokument 6.2) ──
    Aufklappen: Text kommt SPÄT zurück (Verzögerung ~55% der Laufzeit) –
    erst wenn die overflow-Kante ihn nicht mehr anschneidet. Einklappen:
@@ -1113,9 +1149,22 @@ html[data-theme="papier"] * {
   /* display:flex/flex-direction: siehe Wortmarken-Kommentar weiter
      unten -- hier mitgesetzt, damit .sidebar__logo-text nicht zweimal
      im Selektor auftaucht (zwei Regeln fuer denselben Selektor lassen
-     sich leicht uebersehen, wenn man nur an einer Stelle sucht). */
+     sich leicht uebersehen, wenn man nur an einer Stelle sucht).
+     margin-top (Nutzer-Wunsch: "beides noch etwas nach unten setzen",
+     bezogen auf "Berichtsheft" + "PUTZMEISTER"): nur der Text-Block
+     wandert, das Logo-Mark (Elefant) bleibt an Ort und Stelle.
+     BEWUSST margin-top statt transform:translateY (erster Versuch,
+     live verworfen): der zweizeilige Text füllt die Kopfzeile schon
+     fast vollständig aus (Berichtsheft 19px + PUTZMEISTER 10px ≈ Höhe
+     des 36px-Logo-Marks) -- ein reines transform verschiebt nur die
+     Darstellung, reserviert aber keinen Platz, und "PUTZMEISTER" schob
+     sich sichtbar in den ersten Rubriken-Titel ("ÜBERSICHT") der
+     Navigation darunter. margin-top vergrößert die Kopfzeile dagegen
+     tatsächlich (echter Boxmodell-Platz), der Rest der Sidebar rutscht
+     entsprechend mit nach unten -- kein Überlapp mehr. */
   display: flex;
   flex-direction: column;
+  margin-top: 6px;
 }
 [data-theme="papier"] .sidebar.collapsed .sidebar__logo-text {
   transition: max-width var(--pgm-speed) var(--pgm-ease),
