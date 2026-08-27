@@ -310,3 +310,35 @@ test('Papierheft-Retro: Dashboard-Karten rotieren zyklisch (3 Varianten) und ble
   // (im Live-Test gefunden, siehe theme-papier.css Kommentar an dieser Stelle).
   assert.match(css, /\[data-theme="papier"\] \.bento \.b-tile:nth-child\(3n\+1\):hover \{[\s\S]*?transform: rotate\(-1\.2deg\) translateY\(-2px\) !important;/);
 });
+
+test('Papierheft-Retro: Nav-Leiste hat aufgerollte Schriftrollen-Enden oben (::before) und unten (::after)', () => {
+  // Nutzer-Wunsch (mit Referenzbild einer aufgerollten Testament-
+  // Schriftrolle): der Rand der Sidebar soll wie eine aufgerollte
+  // Pergamentrolle wirken, oben UND unten, angepasst auf die tatsächliche
+  // Breite der Nav-Leiste (nicht so breit wie im Referenzbild).
+  const css = fs.readFileSync(CSS_PATH, 'utf8');
+  const beforeBlock = css.match(/\[data-theme="papier"\] \.sidebar::before \{[\s\S]*?\n\}/)[0];
+  const afterBlock = css.match(/\[data-theme="papier"\] \.sidebar::after \{[\s\S]*?\n\}/)[0];
+  // left:0; right:0 statt fester Breite -> folgt automatisch der
+  // tatsächlichen Sidebar-Breite in beiden Zuständen (aus-/eingeklappt).
+  for (const block of [beforeBlock, afterBlock]) {
+    assert.match(block, /left: 0;/);
+    assert.match(block, /right: 0;/);
+    assert.doesNotMatch(block, /width:/);
+    assert.match(block, /pointer-events: none;/);
+    assert.match(block, /z-index: 0;/);
+    // Gebänderter Verlauf aus den bestehenden Sidebar-Tinte-Tokens (keine
+    // neuen Farbwerte) simuliert die Rundung eines Rollstabs. --pm-grey-300
+    // (statt der ersten, zu schwachen --pm-grey-500/-400) als Lichtkante:
+    // die Sidebar ist eine transluzente Glass-Pille (glass.css:1046,
+    // background:var(--lg-sidebar) mit Alpha + backdrop-filter) – der
+    // erste, schwächere Kontrast ging dort optisch unter, siehe Kommentar
+    // in Abschnitt 11 der CSS-Datei.
+    assert.match(block, /linear-gradient\(\s*\n\s*180deg,\s*\n\s*var\(--inverse-surface\) 0%,\s*\n\s*var\(--inverse-surface-mid\) 18%,\s*\n\s*var\(--pm-grey-300\) 50%,\s*\n\s*var\(--inverse-surface-mid\) 82%,\s*\n\s*var\(--inverse-surface\) 100%\s*\n\s*\);/);
+  }
+  assert.match(beforeBlock, /top: 0;/);
+  assert.match(afterBlock, /bottom: 0;/);
+  // Naht-Schatten zeigt jeweils vom Rollen-Ende weg zur flachen Fläche.
+  assert.match(beforeBlock, /box-shadow: 0 3px 7px rgba\(0, 0, 0, 0\.45\);/);
+  assert.match(afterBlock, /box-shadow: 0 -3px 7px rgba\(0, 0, 0, 0\.45\);/);
+});

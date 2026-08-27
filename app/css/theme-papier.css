@@ -747,3 +747,98 @@ html[data-theme="papier"] * {
 /* Kein prefers-reduced-motion-Block nötig: die Drehung ist eine
    statische Deklaration, keine Animation/Transition – es gibt hier
    nichts zu reduzieren (bewusst geprüft, nicht vergessen). */
+
+/* ===================================================================
+   11 · NAV-LEISTE – aufgerollte Schriftrollen-Enden oben + unten
+   -------------------------------------------------------------------
+   Nutzer-Wunsch (mit Referenzbild einer aufgerollten Testament-Schrift-
+   rolle): der Rand der Sidebar soll wie eine aufgerollte Pergamentrolle
+   wirken – oben UND unten, auf die tatsächliche Breite der Nav-Leiste
+   angepasst (nicht so breit wie im Referenzbild).
+
+   TECHNIK: dieselbe gebänderte-Verlauf-Technik wie schon bei der
+   Schriftrollen-Kante der Wochen-Kachel (Abschnitt 10, dort links über
+   die volle Höhe) – hier gedreht (horizontal statt vertikal) und an den
+   beiden Enden der Sidebar statt an einer Seitenkante. `::before`
+   (oben) und `::after` (unten) sind KEINE neuen Pseudo-Elemente,
+   sondern überschreiben für dieses Theme die glass.css-Basisregeln
+   (Glas-Lichtreflex-Textur bzw. rechte Kanten-Schattenlinie,
+   glass.css:271-294) – beide passen ohnehin nicht zur Papier-Optik.
+   `.sidebar > * { position: relative; z-index: 1; }` (glass.css:295)
+   bleibt unverändert bestehen: Logo/Nav/Footer-Inhalt liegt über den
+   Bändern (z-index 0), die Bänder scheinen also HINTER dem Inhalt
+   durch – Kopf- und Fußbereich haben keinen eigenen Hintergrund (siehe
+   .sidebar__header/.sidebar__footer in layout.css, keine
+   background-Deklaration), lassen die Bänder also sichtbar durchscheinen,
+   genau wie bei der Wochen-Kachel-Rolle.
+
+   `left:0; right:0` (nicht `width:100%`) statt fester Breite – folgt
+   damit automatisch der tatsächlichen Sidebar-Breite in BEIDEN
+   Zuständen (ausgeklappt --sidebar-w, eingeklappt --sidebar-icon-w,
+   layout.css:434), erfüllt also direkt die Vorgabe "angepasst auf die
+   Breite der Nav-Leiste".
+
+   Höhe 30px bewusst kleiner als der Logo-Mark (36px, glass.css:1110)
+   UND als der Footer-Innenabstand (--sp-4=16px, layout.css:256) – das
+   Band bleibt ein klar abgesetztes "Ende der Rolle" am äußersten Rand,
+   statt mittig durch Logo oder Avatar zu laufen. Farbverlauf aus den
+   bereits vorhandenen Sidebar-Tinte-Tokens (--inverse-surface/-mid,
+   Abschnitt 1) + --pm-grey-300 als Lichtkante – simuliert die Rundung
+   eines hölzernen Rollstabs, keine neuen Farbwerte nötig.
+   ERSTER KONTRAST (--pm-grey-500, 26px) ZU SCHWACH: die tatsächlich
+   aktive Sidebar-Regel ist NICHT layout.css:19 (volle Höhe, opak),
+   sondern die spätere "Floating Glass Pill" in glass.css ab Zeile 1034
+   (`background: var(--lg-sidebar)` – für Papier
+   `rgba(61, 44, 20, 0.88)`, PLUS `backdrop-filter: blur(...)`) – eine
+   transluzente Pille, die das unscharfe Foto dahinter durchscheinen
+   lässt. Vor diesem bereits unruhigen, leicht durchscheinenden
+   Hintergrund ging die erste, dezente Bande unten optisch unter (oben,
+   direkt hinter dem satt gefüllten Logo, war sie noch erkennbar) – live
+   an Edge mit Größenvergleichs-Screenshots von oben und unten
+   bestätigt. Jetzt 30px/--pm-grey-300 sowie kräftigerer Naht-Schatten
+   (7px/0.45 statt 6px/0.35). z-index bleibt 0 (hinter dem eigentlichen
+   Inhalt, `.sidebar > * { z-index: 1 }`, glass.css:295) – NICHT höher
+   gesetzt, sonst würde das Band Logo bzw. Avatar überdecken.
+   `.sidebar { overflow: hidden; }` (sowohl layout.css:33 als auch die
+   aktive Pillen-Regel glass.css:1055) bleibt unangetastet – die Bänder
+   liegen komplett INNERHALB der (bei der Pille: abgerundeten)
+   Sidebar-Box, kein Überstand nach links/rechts wie bei über den Rand
+   hinausragenden Walzen. */
+[data-theme="papier"] .sidebar::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 30px;
+  z-index: 0;
+  pointer-events: none;
+  background: linear-gradient(
+    180deg,
+    var(--inverse-surface) 0%,
+    var(--inverse-surface-mid) 18%,
+    var(--pm-grey-300) 50%,
+    var(--inverse-surface-mid) 82%,
+    var(--inverse-surface) 100%
+  );
+  box-shadow: 0 3px 7px rgba(0, 0, 0, 0.45);
+}
+[data-theme="papier"] .sidebar::after {
+  content: "";
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 30px;
+  z-index: 0;
+  pointer-events: none;
+  background: linear-gradient(
+    180deg,
+    var(--inverse-surface) 0%,
+    var(--inverse-surface-mid) 18%,
+    var(--pm-grey-300) 50%,
+    var(--inverse-surface-mid) 82%,
+    var(--inverse-surface) 100%
+  );
+  box-shadow: 0 -3px 7px rgba(0, 0, 0, 0.45);
+}
