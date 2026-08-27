@@ -509,80 +509,71 @@ html[data-theme="papier"] * {
    oben in wochenansicht.css, siehe deren eigener Kommentar "wird von
    KEINEM aktuellen Template mehr erzeugt").
 
-   NEUFASSUNG #2 (Nutzer-Feedback mit neuem Referenzbild einer Schatzkarte):
-   der vorherige gleichmäßig-briefmarkenartige Rand (mask-image, siehe
-   Git-Historie) traf nicht die Vorlage – das neue Referenzbild zeigt einen
-   UNREGELMÄSSIG zerrissenen Rand ("etwas kaputt an den Seiten") UND eine
-   eingerollte obere linke Ecke. Beides jetzt umgesetzt:
+   NEUFASSUNG #3 (Nutzer-Feedback: Vergilbung war nicht sichtbar, die
+   Scheren-Einschnitte kamen nicht rüber – "orientiere dich an der
+   Login-Kachel des Halloween-Themes, dort ist es gut umgesetzt", siehe
+   theme-halloween.css, Abschnitt "Login-Karte 'von einem Monster
+   zerkratzt'"). Architektur-Wechsel entlang genau diesem Vorbild:
 
-   1) ZERRISSENER RAND: `clip-path: polygon(...)` mit 45 handgesetzten
-      Punkten, ungleichmäßige Biss-Tiefe 1–8px (keine Wiederholung wie
-      beim vorherigen mask-Muster). Gemischte Einheiten (% entlang der
-      langen Achse, feste px für die Biss-Tiefe) – das WEICHE Problem aus
-      der Git-Historie: bei reinen %-Werten verzerren sich Kerben auf
-      dieser extrem breiten Kachel (~1250×300px) zu langen Diagonalschnitten
-      statt kleiner Kerben. Erzeugt via Skript
-      (siehe scratchpad gen-torn-corner-polygon-v2.js), nicht von Hand
-      getippt – 45 Punkte sind fehleranfällig für Tippfehler.
+   VORHER: `clip-path` direkt auf .wochen-kachel – die sichtbare Fläche
+   UND der interaktive Inhalt (Editor, schwebendes Tabellenmenü) saßen
+   im selben geclippten Element. Das erzwang eine 8px-Sicherheitsgrenze
+   für jede Kerbe (siehe Git-Historie) und ließ "echte" tiefe Schnitte
+   gar nicht zu.
 
-   1b) SCHEREN-SCHNITTE (Nutzer-Feedback: "ein paar Einrisstellen, als
-      hätte man mit der Schere reingeschnitten"): drei einzelne, schmale
-      V-Kerben (14px tief statt der sonstigen 1–8px), je eine an linker
-      Kante, rechter Kante und unterer Kante – bewusst deutlich schärfer/
-      tiefer als die übrige Rissstruktur, damit sie als eigenständige
-      "Schnitte" auffallen statt in der allgemeinen Rauheit unterzugehen.
-      14px bleibt knapp UNTER dem Editor-Innenabstand (--sp-4 = 16px,
-      quill-editor.css:371), ragt also nur "ganz leicht" – wie gewünscht
-      – in den Rand des Textfelds, ohne echten Fließtext zu treffen.
+   JETZT (wie die Halloween-Login-Karte): die sichtbare Papierfläche
+   wandert auf ein `::before`-Backing (z-index:-1, position:absolute,
+   inset:0), das per `mask` (SVG-Pfad, evenodd) sowohl die Außenkontur
+   ALS AUCH echte Loch-Schlitze zeichnet. .wochen-kachel SELBST bleibt
+   unmaskiert/rechteckig (background:transparent) – der Editor-Inhalt
+   und das schwebende quill-table-better-Zellenmenü liegen unverändert
+   darüber und werden von KEINEM clip-path/mask mehr berührt. Die
+   bisherige 8px/14px-Sicherheitsrechnung entfällt dadurch komplett.
 
-   2) EINGEROLLTE ECKE OBEN LINKS: der Polygon-Pfad schneidet die Ecke
-      selbst diagonal ab (26px), statt sie wie die übrigen drei Ecken nur
-      leicht anzureißen. ::after füllt genau diese fehlende Dreiecksfläche
-      mit einer hellen Papier-Rückseite (Verlauf) + Schlagschatten – der
-      klassische "Eselsohr"-Trick, hier aber als echte Aussparung in der
-      tatsächlichen Kachelform (nicht nur als Overlay obendrauf).
-      26px ist bewusst DEUTLICH tiefer als die 8px-Sicherheitsgrenze der
-      übrigen Kanten (siehe Punkt 3) – sicher, weil dieser Eckbereich
-      IMMER vom Kachel-Header (.wochen-kachel__header, wochenansicht.css:705,
-      eigener grauer Hintergrund + padding) belegt ist, niemals vom Editor.
+   1) SVG-MASK (::before): EIN Pfad, fill-rule="evenodd", viewBox
+      "0 0 1200 300" (≈ reales Kachel-Seitenverhältnis, damit
+      `mask-size:100% 100%` kaum sichtbar verzerrt – dieselbe Technik
+      wie bei der Halloween-Karte). Enthält die Außenkontur: unregel-
+      mäßiger Riss (1-8 Einheiten Biss-Tiefe, identisches Muster wie
+      zuvor, nur jetzt in absoluten SVG-Einheiten statt %/px-Mix) inkl.
+      der 38-Einheiten-Diagonale für die eingerollte Ecke oben links
+      (siehe Punkt 2) PLUS drei deutlich TIEFERE, schmale V-Kerben
+      (55 Einheiten statt 1-8) an linker/rechter/unterer Kante – die
+      Scheren-Schnitte.
+      ERSTER ANSATZ VERWORFEN: echte Loch-Teilpfade (M…Z, separat von
+      der Außenkontur, wie die Krallenrisse der Halloween-Karte) zeigten
+      im Live-Test statt eines erkennbaren Schnitts einen irritierenden
+      FLACHEN HELLEN FLECK – der Foto-Hintergrund der Seite ist an den
+      betroffenen Stellen ungefähr gleichmäßig hell und ohne den
+      dramatischen Kontrast, den Halloweens Gruselszene liefert, wirkte
+      das Loch dadurch wie ein Grafikfehler statt wie ein Riss. Jetzt
+      stattdessen als TEIL der Außenkontur (dieselbe Fläche/Farbe/
+      Vergilbung/Tinten-Kontur wie der Rest des Rands, nur viel tiefer
+      eingeschnitten) – eindeutig als Schnitt erkennbar, unabhängig vom
+      Seiten-Hintergrund. Sicher beliebig tief, weil die Maske nur im
+      ::before-Backing existiert, nicht in .wochen-kachel selbst (s.o.).
+      Erzeugt via Skript (scratchpad gen-svg-mask-v3.js), nicht von Hand
+      getippt.
 
-   3) TINTEN-KONTUR + SCHATTEN ÜBER `filter: drop-shadow(...)` statt
-      box-shadow/zweiter Mask-Ebene: drop-shadow zeichnet exakt entlang der
-      tatsächlich gerenderten (bereits geclippten) Silhouette und wird
-      selbst NICHT vom eigenen clip-path abgeschnitten (im Gegensatz zu
-      box-shadow, das als Teil der geclippten Box gilt). Zwei dünne
-      dunkle drop-shadows (Tinten-Kontur) + ein weicher warmer
-      drop-shadow (Abheben von der Seite) – ersetzt die vorherige
-      zweite ::before-Mask-Ebene, die für ein UNREGELMÄSSIGES Polygon
-      ohnehin nur mit fehleranfälliger Normalenvektor-Berechnung pro
-      Punkt nachgebildet werden könnte.
+   2) EINGEROLLTE ECKE OBEN LINKS: unverändert – der Mask-Pfad schneidet
+      die Ecke diagonal ab, `::after` (z-index:2, ÜBER dem Inhalt) füllt
+      die Aussparung mit heller Papier-Rückseite + Schlagschatten.
 
-   4) VERGILBUNG AM RAND (Nutzer-Feedback: "etwas Vergilbung einbauen"):
-      zwei INSET-box-shadows (warmes Braun-Gelb, weich, kein Blur-Radius
-      am eigentlichen Rand). Anders als der äußere Schatten unter Punkt 3
-      MUSS die Vergilbung als box-shadow (nicht filter) umgesetzt werden –
-      box-shadow:inset wird vom eigenen clip-path exakt mitgeschnitten und
-      folgt dadurch von selbst der zerrissenen Silhouette samt Schnitten
-      und Ecke, statt als rechteckiger Verlauf über den Riss hinwegzulaufen.
+   3) TINTEN-KONTUR + SCHATTEN + VERGILBUNG (::before): `filter:
+      drop-shadow(...)` zeichnet die Tinten-Kontur entlang der
+      tatsächlichen Mask-Silhouette. Die Vergilbung ist jetzt Teil des
+      `background` selbst (radialer warmer Verlauf zur Mitte hin klar,
+      zu den Rändern hin bräunlich) statt eines schwachen
+      `box-shadow:inset` – dadurch garantiert sichtbar, unabhängig von
+      clip-path/mask-Feinheiten, und wird von derselben Mask
+      automatisch mitgeschnitten (folgt also der Rissform, kein
+      Rechteck über den Riss hinweg).
 
-   SICHERHEIT (unverändert aus der Git-Historie, PLUS die neuen
-   Scheren-Schnitte aus Punkt 1b): `clip-path` erzeugt einen eigenen
-   Stacking-Context und schneidet damit auch das schwebende
-   quill-table-better-Zellenmenü mit, das als DOM-Kind in .wochen-kachel
-   hängt (nicht in document.body) und wegen `contain: layout`
-   (wochenansicht.css:670) diese Kachel als Containing Block hat. Entlang
-   der allgemeinen Rissstruktur (NICHT der eingerollten Ecke, siehe
-   Punkt 2, UND NICHT der drei Scheren-Schnitte, siehe Punkt 1b) bleibt
-   die Biss-Tiefe bei maximal 8px. Die drei Scheren-Schnitte gehen bewusst
-   tiefer (14px, s.o.), bleiben aber unter dem Editor-Innenabstand (16px)
-   – live an Edge mit eingefügter Tabelle an mehreren Positionen (auch
-   nahe der Schnitte) + ausgelöstem Zellenmenü geprüft, bleibt
-   unbeschnitten. `filter` selbst clippt nichts (nur `clip-path`/`mask`
-   tun das) und ändert daran nichts.
-
-   Drehung (≤1.4°, wie bei den Dashboard-Karten in Abschnitt 9) bleibt wie
-   zuvor das einzige Unterscheidungsmerkmal zwischen den drei zyklischen
-   Varianten – die Rissform selbst ist überall gleich.
+   Drehung (≤1.4°, wie bei den Dashboard-Karten in Abschnitt 9) bleibt
+   das einzige Unterscheidungsmerkmal zwischen den drei zyklischen
+   Varianten – Rissform, Schnitte und Vergilbung sind überall gleich.
+   Sitzt weiterhin auf .wochen-kachel selbst (rotiert damit automatisch
+   auch ::before/::after als optisch EINE Einheit).
    !important auf transform aus demselben Grund wie Abschnitt 9: jede
    .wochen-kachel trägt `animation: fadeIn … both` (base.css) UND wird
    – siehe wochenansicht.css:1715 – während des KW-Wechsels per
@@ -593,61 +584,29 @@ html[data-theme="papier"] * {
    =================================================================== */
 [data-theme="papier"] .wochen-kachel {
   position: relative;
-  clip-path: polygon(
-    38px 0px,
-    8% 3px,
-    15% 7px,
-    22% 1px,
-    30% 8px,
-    38% 2px,
-    46% 5px,
-    55% 8px,
-    63% 3px,
-    71% 6px,
-    80% 1px,
-    88% 7px,
-    95% 4px,
-    calc(100% - 4px) 8%,
-    calc(100% - 8px) 20%,
-    calc(100% - 14px) 33%,
-    calc(100% - 2px) 35%,
-    calc(100% - 6px) 44%,
-    calc(100% - 3px) 56%,
-    calc(100% - 7px) 68%,
-    calc(100% - 1px) 80%,
-    calc(100% - 5px) 92%,
-    95% calc(100% - 5px),
-    88% calc(100% - 2px),
-    80% calc(100% - 7px),
-    71% calc(100% - 3px),
-    63% calc(100% - 8px),
-    55% calc(100% - 4px),
-    46% calc(100% - 6px),
-    40% calc(100% - 2px),
-    38% calc(100% - 14px),
-    30% calc(100% - 1px),
-    22% calc(100% - 7px),
-    15% calc(100% - 3px),
-    8% calc(100% - 8px),
-    2px 92%,
-    8px 80%,
-    4px 68%,
-    2px 60%,
-    14px 58%,
-    7px 44%,
-    1px 32%,
-    5px 20%,
-    4px 16%,
-    0px 38px
-  );
+  isolation: isolate;
+  overflow: visible;
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  transform: rotate(-0.9deg) !important;
+}
+[data-theme="papier"] .wochen-kachel::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  border-radius: inherit;
+  background:
+    radial-gradient(ellipse 68% 62% at 50% 50%, transparent 52%, rgba(150, 108, 45, 0.4) 100%),
+    var(--pm-white);
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1200 300' preserveAspectRatio='none'%3E%3Cpath fill='white' fill-rule='evenodd' d='M38 0 L96 3 L180 7 L264 1 L360 8 L456 2 L552 5 L660 8 L756 3 L852 6 L960 1 L1056 7 L1140 4 L1196 24 L1192 60 L1145 102 L1197 108 L1194 132 L1197 168 L1193 204 L1199 240 L1195 276 L1140 295 L1056 298 L960 293 L852 297 L756 292 L660 296 L552 294 L480 297 L456 245 L360 299 L264 293 L180 297 L96 292 L2 276 L8 240 L4 204 L3 183 L55 177 L7 132 L1 96 L5 60 L4 48 L0 38 Z'/%3E%3C/svg%3E") center / 100% 100% no-repeat;
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1200 300' preserveAspectRatio='none'%3E%3Cpath fill='white' fill-rule='evenodd' d='M38 0 L96 3 L180 7 L264 1 L360 8 L456 2 L552 5 L660 8 L756 3 L852 6 L960 1 L1056 7 L1140 4 L1196 24 L1192 60 L1145 102 L1197 108 L1194 132 L1197 168 L1193 204 L1199 240 L1195 276 L1140 295 L1056 298 L960 293 L852 297 L756 292 L660 296 L552 294 L480 297 L456 245 L360 299 L264 293 L180 297 L96 292 L2 276 L8 240 L4 204 L3 183 L55 177 L7 132 L1 96 L5 60 L4 48 L0 38 Z'/%3E%3C/svg%3E") center / 100% 100% no-repeat;
   filter:
     drop-shadow(0 0 1px rgba(43, 28, 13, 0.85))
     drop-shadow(0 0 1.5px rgba(43, 28, 13, 0.5))
     drop-shadow(3px 5px 8px rgba(90, 60, 20, 0.22));
-  box-shadow:
-    inset 0 0 16px 0 rgba(139, 98, 39, 0.32),
-    inset 0 0 38px 0 rgba(101, 72, 32, 0.16);
-  transform: rotate(-0.9deg) !important;
 }
 [data-theme="papier"] .wochen-kachel::after {
   content: "";

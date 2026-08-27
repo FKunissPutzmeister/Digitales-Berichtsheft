@@ -161,76 +161,84 @@ test('Papierheft-Retro: Foto-Hintergrund ersetzt den alten Verlauf (über die ge
   assert.doesNotMatch(css, /\[data-theme="papier"\]\s+body:not\(\.login-page\)\s*\{/);
 });
 
-test('Papierheft-Retro: Wochen-Kacheln (Schreib-Flächen) haben einen unregelmäßig zerrissenen Rand', () => {
+test('Papierheft-Retro: Wochen-Kacheln bleiben selbst unmaskiert – die sichtbare Papierfläche liegt auf ::before (Halloween-Login-Karten-Technik)', () => {
   // .wochen-kachel ist die tatsächlich gerenderte Schreib-Kachel
   // (wochenansicht.js:1973) — NICHT die toten .day-card-Regeln, die laut
   // eigenem Kommentar in wochenansicht.css von keinem Template mehr erzeugt
   // werden.
-  // Nach Live-Feedback mit einem NEUEN Referenzbild (unregelmäßig zerrissener
-  // Rand statt gleichmäßiger Briefmarken-Kerben) von mask-image zurück auf
-  // clip-path mit 45 handgesetzten, unregelmäßigen Punkten umgestellt (siehe
-  // Kommentar in Abschnitt 10 der CSS-Datei).
+  // Nach Live-Feedback ("Vergilbung nicht sichtbar, Scheren-Einschnitte kamen
+  // nicht rüber – orientiere dich an der Login-Kachel des Halloween-Themes")
+  // Architektur-Wechsel: clip-path direkt auf .wochen-kachel (siehe
+  // Git-Historie) ersetzt durch dieselbe Technik wie
+  // theme-halloween.css .login-card – die sichtbare Fläche liegt auf einem
+  // ::before-Backing, .wochen-kachel selbst bleibt unmaskiertes Rechteck.
   const css = fs.readFileSync(CSS_PATH, 'utf8');
   const baseBlock = css.match(/\[data-theme="papier"\] \.wochen-kachel \{[\s\S]*?\n\}/)[0];
-  assert.match(baseBlock, /clip-path: polygon\(/);
+  assert.doesNotMatch(baseBlock, /clip-path/);
+  assert.doesNotMatch(baseBlock, /mask:/);
+  assert.match(baseBlock, /background: transparent;/);
+  assert.match(baseBlock, /border: none;/);
+  assert.match(baseBlock, /isolation: isolate;/);
   assert.match(baseBlock, /transform: rotate\(-0\.9deg\) !important;/);
-  // drop-shadow statt box-shadow für die Tinten-Kontur: folgt der geclippten
-  // Silhouette exakt und wird selbst nicht vom eigenen clip-path mit
-  // abgeschnitten.
-  assert.match(baseBlock, /filter:\s*\n\s*drop-shadow\(0 0 1px rgba\(43, 28, 13, 0\.85\)\)\s*\n\s*drop-shadow\(0 0 1\.5px rgba\(43, 28, 13, 0\.5\)\)\s*\n\s*drop-shadow\(3px 5px 8px rgba\(90, 60, 20, 0\.22\)\);/);
-  // Vergilbung am Rand: box-shadow:inset MUSS hier (nicht als filter) stehen,
-  // damit sie vom eigenen clip-path mitgeschnitten wird und der zerrissenen
-  // Silhouette folgt statt als Rechteck über den Riss zu laufen.
-  assert.match(baseBlock, /box-shadow:\s*\n\s*inset 0 0 16px 0 rgba\(139, 98, 39, 0\.32\),\s*\n\s*inset 0 0 38px 0 rgba\(101, 72, 32, 0\.16\);/);
   // Drei zyklische Varianten, wie bei den Dashboard-Karten (Abschnitt 9) —
   // nur die Drehung unterscheidet sie, die Rissform ist überall gleich.
   assert.match(css, /\[data-theme="papier"\] \.wochen-kachel:nth-child\(3n\+2\) \{\s*\n\s*transform: rotate\(0\.7deg\) !important;/);
   assert.match(css, /\[data-theme="papier"\] \.wochen-kachel:nth-child\(3n\+3\) \{\s*\n\s*transform: rotate\(-0\.5deg\) !important;/);
 });
 
-test('Papierheft-Retro: Biss-Tiefe entlang der Kanten bleibt sicher innerhalb des kleinsten Innenabstands (kein Zellenmenü-Clipping)', () => {
-  // clip-path erzeugt einen eigenen Stacking-Context und würde das schwebende
-  // quill-table-better-Zellenmenü mit-clippen, wenn ein Kanten-Biss zu tief
-  // wird (siehe Kommentar in Abschnitt 10). Sicherheits-Obergrenze: 8px,
-  // sicher unter der schmalsten Innenabstand-Stelle im Baum (12px, --sp-3).
-  // Der 38px-Eckschnitt oben links UND die drei 14px-Scheren-Schnitte sind
-  // davon ausgenommen (siehe eigene Tests) — die Ecke liegt immer im
-  // Kachel-Header, die Schnitte bleiben unter dem Editor-Innenabstand.
+test('Papierheft-Retro: ::before trägt die SVG-Mask (Riss + Scheren-Schnitte), Tinten-Kontur und sichtbare Vergilbung', () => {
+  // Ein evenodd-SVG-Pfad zeichnet sowohl die Außenkontur (Riss + eingerollte
+  // Ecke) als auch drei echte Loch-Schlitze (Scheren-Schnitte) — wie die
+  // Krallenrisse der Halloween-Login-Karte. z-index:-1 hält das Backing
+  // HINTER dem echten Kachel-Inhalt, pointer-events:none macht es
+  // garantiert nicht-interaktiv.
   const css = fs.readFileSync(CSS_PATH, 'utf8');
-  const baseBlock = css.match(/\[data-theme="papier"\] \.wochen-kachel \{[\s\S]*?\n\}/)[0];
-  const polygonBlock = baseBlock.match(/clip-path: polygon\(([\s\S]*?)\);/)[1];
-  const pxDepths = [...polygonBlock.matchAll(/(?:^|[\s(])(\d+)px/gm)]
-    .map(m => Number(m[1]))
-    .filter(n => n !== 38 && n !== 0 && n !== 14); // Ecke + Scheren-Schnitte ausgenommen
-  assert.ok(pxDepths.length > 0, 'keine Kanten-Biss-Tiefen im Polygon gefunden');
-  assert.ok(pxDepths.every(d => d <= 8), `Kanten-Biss über 8px gefunden: ${pxDepths.filter(d => d > 8)}`);
+  const beforeBlock = css.match(/\[data-theme="papier"\] \.wochen-kachel::before \{[\s\S]*?\n\}/)[0];
+  assert.match(beforeBlock, /z-index: -1;/);
+  assert.match(beforeBlock, /pointer-events: none;/);
+  assert.match(beforeBlock, /mask: url\("data:image\/svg\+xml,/);
+  assert.match(beforeBlock, /-webkit-mask: url\("data:image\/svg\+xml,/);
+  assert.match(beforeBlock, /fill-rule='evenodd'/);
+  // Vergilbung: sichtbarer radialer Verlauf direkt im background (nicht als
+  // schwaches box-shadow:inset, das beim vorigen Versuch nicht auffiel).
+  assert.match(beforeBlock, /radial-gradient\(ellipse 68% 62% at 50% 50%, transparent 52%, rgba\(150, 108, 45, 0\.4\) 100%\)/);
+  // Tinten-Kontur + Abheben von der Seite, wie zuvor über drop-shadow.
+  assert.match(beforeBlock, /filter:\s*\n\s*drop-shadow\(0 0 1px rgba\(43, 28, 13, 0\.85\)\)\s*\n\s*drop-shadow\(0 0 1\.5px rgba\(43, 28, 13, 0\.5\)\)\s*\n\s*drop-shadow\(3px 5px 8px rgba\(90, 60, 20, 0\.22\)\);/);
 });
 
-test('Papierheft-Retro: drei Scheren-Schnitte ragen nur ganz leicht in den Editor-Innenabstand hinein', () => {
+test('Papierheft-Retro: SVG-Mask-Pfad enthält die eingerollte Ecke UND genau drei tiefe Scheren-Schnitt-Kerben', () => {
   // Nutzer-Feedback: "ein paar Einrisstellen, als hätte man mit der Schere
-  // reingeschnitten", "nur ganz leicht in das Textfeld reinragen". 14px
-  // Tiefe an drei Stellen (linke/rechte/untere Kante), erkennbar schärfer
-  // als die 1-8px-Grundrauheit, aber unter dem Editor-Innenabstand
-  // (--sp-4 = 16px, quill-editor.css:371) — trifft also nur den
-  // Innenabstand-Rand, nicht echten Fließtext.
+  // reingeschnitten". Erster Ansatz (echte Loch-Teilpfade wie bei den
+  // Halloween-Krallenrissen) verworfen — zeigte im Live-Test nur einen
+  // irritierenden flachen hellen Fleck statt eines erkennbaren Schnitts
+  // (siehe Kommentar in Abschnitt 10 der CSS-Datei). Jetzt: drei einzelne,
+  // deutlich tiefere Punkte (55 Einheiten) DIREKT in der Außenkontur,
+  // klar abgesetzt von der 1-8-Einheiten-Grundrauheit.
   const css = fs.readFileSync(CSS_PATH, 'utf8');
-  const baseBlock = css.match(/\[data-theme="papier"\] \.wochen-kachel \{[\s\S]*?\n\}/)[0];
-  const polygonBlock = baseBlock.match(/clip-path: polygon\(([\s\S]*?)\);/)[1];
-  const accentDepths = [...polygonBlock.matchAll(/(?:^|[\s(])14px/gm)];
-  assert.equal(accentDepths.length, 3, `Erwarte genau 3 Scheren-Schnitte à 14px, gefunden: ${accentDepths.length}`);
-  const EDITOR_PADDING = 16;
-  assert.ok(14 < EDITOR_PADDING, 'Scheren-Schnitt-Tiefe muss unter dem Editor-Innenabstand bleiben');
+  const beforeBlock = css.match(/\[data-theme="papier"\] \.wochen-kachel::before \{[\s\S]*?\n\}/)[0];
+  const maskUrl = beforeBlock.match(/mask: url\("([^"]+)"\)/)[1];
+  const dAttr = decodeURIComponent(maskUrl).match(/d='([^']+)'/)[1];
+  // Eingerollte Ecke: die Außenkontur beginnt bei "M38 0" und endet vor
+  // ihrem eigenen Schluss bei "L0 38 Z" (38-Einheiten-Diagonale).
+  assert.match(dAttr, /^M38 0 /);
+  assert.match(dAttr, /L0 38 Z/);
+  // Kein separater Loch-Teilpfad mehr (keine zweite "M" mitten im Pfad).
+  const subpathStarts = (dAttr.match(/ M/g) || []).length;
+  assert.equal(subpathStarts, 0, 'Erwarte EINEN durchgehenden Pfad, keine separaten Loch-Teilpfade mehr');
+  // Drei Scheren-Schnitte: Koordinatenpaare, die 55 Einheiten von der
+  // jeweiligen Kante (0 bzw. 1200/300) entfernt liegen.
+  const points = dAttr.slice(1, -2).split(' L').map(p => p.split(' ').map(Number));
+  const cutPoints = points.filter(([x, y]) =>
+    x === 1145 || y === 245 || x === 55);
+  assert.equal(cutPoints.length, 3, `Erwarte genau 3 Scheren-Schnitt-Punkte (55 Einheiten tief), gefunden: ${cutPoints.length}`);
 });
 
 test('Papierheft-Retro: eingerollte Ecke oben links füllt die abgeschnittene Dreiecksfläche', () => {
-  // Der Polygon-Pfad schneidet die Ecke selbst per Diagonale ab (38px);
-  // ::after füllt exakt diese Fläche mit einer hellen Papier-Rückseite +
-  // Schlagschatten – das "Eselsohr" liegt damit in der tatsächlichen
-  // Kachelform, nicht nur als Overlay obendrauf.
+  // ::after (z-index:2, ÜBER dem Kachel-Inhalt) füllt die vom Mask-Pfad
+  // ausgesparte Ecke mit heller Papier-Rückseite + Schlagschatten – das
+  // "Eselsohr" liegt in der tatsächlichen Kachelform, nicht nur als
+  // Overlay obendrauf.
   const css = fs.readFileSync(CSS_PATH, 'utf8');
-  const baseBlock = css.match(/\[data-theme="papier"\] \.wochen-kachel \{[\s\S]*?\n\}/)[0];
-  assert.match(baseBlock, /38px 0px,/);
-  assert.match(baseBlock, /0px 38px\s*\);/);
   const afterBlock = css.match(/\[data-theme="papier"\] \.wochen-kachel::after \{[\s\S]*?\n\}/)[0];
   assert.match(afterBlock, /top: 0;/);
   assert.match(afterBlock, /left: 0;/);
