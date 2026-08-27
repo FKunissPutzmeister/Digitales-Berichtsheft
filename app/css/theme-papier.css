@@ -826,7 +826,24 @@ html[data-theme="papier"] * {
    Sidebar-Box, kein Überstand nach links/rechts wie bei über den Rand
    hinausragenden Walzen. `left:0; right:0` (nicht feste Breite) bleibt
    unverändert – folgt automatisch der tatsächlichen Sidebar-Breite in
-   beiden Zuständen (ausgeklappt/eingeklappt). */
+   beiden Zuständen (ausgeklappt/eingeklappt).
+
+   RENDER-BUG `bottom: 0` (per Playwright entdeckt, NICHT im Inspector
+   sichtbar): `::after` mit `position:absolute; bottom:0;` innerhalb
+   dieser Sidebar (`position:fixed` + `backdrop-filter:blur(...)` +
+   `isolation:isolate` + `overflow:hidden`, glass.css ab Zeile 1034) wird
+   von Edge/Chromium fehlerhaft gemalt: `getComputedStyle` meldet
+   korrekt `bottom: 0px`, sichtbar erscheint das Band aber deckend AM
+   OBEREN Rand (verdeckt dort ::before komplett) – am unteren Rand bleibt
+   nichts übrig. Per Testfarben (::before blau, ::after rot) + DOM-weitem
+   Farb-Scan zweifelsfrei bestätigt: kein anderes Element ist rot, nur
+   `.sidebar::after` – trotzdem malt es oben. Fix: `top:
+   calc(100% - <Höhe>)` statt `bottom: 0` – berechnet dieselbe Position
+   über `top`, was in diesem Container nachweislich korrekt rendert
+   (siehe `::before` oben, das von Anfang an `top: 0` nutzt und nie
+   betroffen war). Bei einer Anpassung der Bandhöhe MUSS der
+   `calc()`-Wert hier manuell mitgeführt werden (keine automatische
+   Kopplung an `height`). */
 [data-theme="papier"] .sidebar::before {
   content: "";
   position: absolute;
@@ -862,7 +879,8 @@ html[data-theme="papier"] * {
 [data-theme="papier"] .sidebar::after {
   content: "";
   position: absolute;
-  bottom: 0;
+  /* NICHT bottom:0 -- Render-Bug, siehe Kommentar oberhalb von ::before. */
+  top: calc(100% - 38px);
   left: 0;
   right: 0;
   height: 38px;

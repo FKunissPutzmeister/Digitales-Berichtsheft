@@ -340,7 +340,14 @@ test('Papierheft-Retro: Nav-Leiste hat aufgerollte Schriftrollen-Enden oben (::b
     assert.match(block, /linear-gradient\(\s*\n\s*180deg,\s*\n\s*#1a0f06 0%,\s*\n\s*#3d2a14 12%,\s*\n\s*#6b4a24 28%,\s*\n\s*#caa268 42%,\s*\n\s*#f4e2b8 48%,\s*\n\s*#caa268 54%,\s*\n\s*#6b4a24 68%,\s*\n\s*#3d2a14 84%,\s*\n\s*#1a0f06 100%\s*\n\s*\);/);
   }
   assert.match(beforeBlock, /top: 0;/);
-  assert.match(afterBlock, /bottom: 0;/);
+  // KEIN bottom:0 fuer ::after: Render-Bug in diesem fixed +
+  // backdrop-filter + isolation:isolate + overflow:hidden-Container
+  // (per Playwright mit Testfarben + DOM-weitem Farb-Scan zweifelsfrei
+  // nachgewiesen -- bottom:0 wurde von Edge/Chromium sichtbar am OBEREN
+  // statt unteren Rand gemalt, trotz korrektem getComputedStyle). Fix:
+  // top: calc(100% - <Hoehe>) statt bottom:0, siehe CSS-Kommentar.
+  assert.doesNotMatch(afterBlock, /bottom: 0;/);
+  assert.match(afterBlock, /top: calc\(100% - 38px\);/);
   // Naht-Schatten + harte Trennlinie zeigen jeweils vom Rollen-Ende weg
   // zur flachen Fläche, damit der Übergang Rolle -> Seite klar sichtbar ist.
   assert.match(beforeBlock, /box-shadow: 0 5px 12px rgba\(0, 0, 0, 0\.65\);/);
