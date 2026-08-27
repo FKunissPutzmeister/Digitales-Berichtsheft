@@ -515,15 +515,25 @@ html[data-theme="papier"] * {
    UNREGELMÄSSIG zerrissenen Rand ("etwas kaputt an den Seiten") UND eine
    eingerollte obere linke Ecke. Beides jetzt umgesetzt:
 
-   1) ZERRISSENER RAND: `clip-path: polygon(...)` mit 42 handgesetzten
+   1) ZERRISSENER RAND: `clip-path: polygon(...)` mit 45 handgesetzten
       Punkten, ungleichmäßige Biss-Tiefe 1–8px (keine Wiederholung wie
       beim vorherigen mask-Muster). Gemischte Einheiten (% entlang der
       langen Achse, feste px für die Biss-Tiefe) – das WEICHE Problem aus
       der Git-Historie: bei reinen %-Werten verzerren sich Kerben auf
       dieser extrem breiten Kachel (~1250×300px) zu langen Diagonalschnitten
       statt kleiner Kerben. Erzeugt via Skript
-      (siehe scratchpad gen-torn-corner-polygon.js), nicht von Hand
-      getippt – 42 Punkte sind fehleranfällig für Tippfehler.
+      (siehe scratchpad gen-torn-corner-polygon-v2.js), nicht von Hand
+      getippt – 45 Punkte sind fehleranfällig für Tippfehler.
+
+   1b) SCHEREN-SCHNITTE (Nutzer-Feedback: "ein paar Einrisstellen, als
+      hätte man mit der Schere reingeschnitten"): drei einzelne, schmale
+      V-Kerben (14px tief statt der sonstigen 1–8px), je eine an linker
+      Kante, rechter Kante und unterer Kante – bewusst deutlich schärfer/
+      tiefer als die übrige Rissstruktur, damit sie als eigenständige
+      "Schnitte" auffallen statt in der allgemeinen Rauheit unterzugehen.
+      14px bleibt knapp UNTER dem Editor-Innenabstand (--sp-4 = 16px,
+      quill-editor.css:371), ragt also nur "ganz leicht" – wie gewünscht
+      – in den Rand des Textfelds, ohne echten Fließtext zu treffen.
 
    2) EINGEROLLTE ECKE OBEN LINKS: der Polygon-Pfad schneidet die Ecke
       selbst diagonal ab (26px), statt sie wie die übrigen drei Ecken nur
@@ -547,15 +557,26 @@ html[data-theme="papier"] * {
       ohnehin nur mit fehleranfälliger Normalenvektor-Berechnung pro
       Punkt nachgebildet werden könnte.
 
-   SICHERHEIT (unverändert aus der Git-Historie): `clip-path` erzeugt einen
-   eigenen Stacking-Context und schneidet damit auch das schwebende
+   4) VERGILBUNG AM RAND (Nutzer-Feedback: "etwas Vergilbung einbauen"):
+      zwei INSET-box-shadows (warmes Braun-Gelb, weich, kein Blur-Radius
+      am eigentlichen Rand). Anders als der äußere Schatten unter Punkt 3
+      MUSS die Vergilbung als box-shadow (nicht filter) umgesetzt werden –
+      box-shadow:inset wird vom eigenen clip-path exakt mitgeschnitten und
+      folgt dadurch von selbst der zerrissenen Silhouette samt Schnitten
+      und Ecke, statt als rechteckiger Verlauf über den Riss hinwegzulaufen.
+
+   SICHERHEIT (unverändert aus der Git-Historie, PLUS die neuen
+   Scheren-Schnitte aus Punkt 1b): `clip-path` erzeugt einen eigenen
+   Stacking-Context und schneidet damit auch das schwebende
    quill-table-better-Zellenmenü mit, das als DOM-Kind in .wochen-kachel
    hängt (nicht in document.body) und wegen `contain: layout`
    (wochenansicht.css:670) diese Kachel als Containing Block hat. Entlang
-   der vier Kanten (NICHT der eingerollten Ecke, siehe Punkt 2) bleibt die
-   Biss-Tiefe bei maximal 8px, sicher unter der schmalsten
-   Innenabstand-Stelle im Baum (12px, --sp-3, Footer) – live an Edge mit
-   eingefügter Tabelle + ausgelöstem Zellenmenü geprüft, bleibt
+   der allgemeinen Rissstruktur (NICHT der eingerollten Ecke, siehe
+   Punkt 2, UND NICHT der drei Scheren-Schnitte, siehe Punkt 1b) bleibt
+   die Biss-Tiefe bei maximal 8px. Die drei Scheren-Schnitte gehen bewusst
+   tiefer (14px, s.o.), bleiben aber unter dem Editor-Innenabstand (16px)
+   – live an Edge mit eingefügter Tabelle an mehreren Positionen (auch
+   nahe der Schnitte) + ausgelöstem Zellenmenü geprüft, bleibt
    unbeschnitten. `filter` selbst clippt nichts (nur `clip-path`/`mask`
    tun das) und ändert daran nichts.
 
@@ -588,7 +609,8 @@ html[data-theme="papier"] * {
     95% 4px,
     calc(100% - 4px) 8%,
     calc(100% - 8px) 20%,
-    calc(100% - 2px) 32%,
+    calc(100% - 14px) 33%,
+    calc(100% - 2px) 35%,
     calc(100% - 6px) 44%,
     calc(100% - 3px) 56%,
     calc(100% - 7px) 68%,
@@ -601,15 +623,17 @@ html[data-theme="papier"] * {
     63% calc(100% - 8px),
     55% calc(100% - 4px),
     46% calc(100% - 6px),
-    38% calc(100% - 1px),
-    30% calc(100% - 7px),
-    22% calc(100% - 3px),
-    15% calc(100% - 8px),
-    8% calc(100% - 2px),
-    6px 92%,
-    2px 80%,
-    8px 68%,
-    4px 56%,
+    40% calc(100% - 2px),
+    38% calc(100% - 14px),
+    30% calc(100% - 1px),
+    22% calc(100% - 7px),
+    15% calc(100% - 3px),
+    8% calc(100% - 8px),
+    2px 92%,
+    8px 80%,
+    4px 68%,
+    2px 60%,
+    14px 58%,
     7px 44%,
     1px 32%,
     5px 20%,
@@ -620,6 +644,9 @@ html[data-theme="papier"] * {
     drop-shadow(0 0 1px rgba(43, 28, 13, 0.85))
     drop-shadow(0 0 1.5px rgba(43, 28, 13, 0.5))
     drop-shadow(3px 5px 8px rgba(90, 60, 20, 0.22));
+  box-shadow:
+    inset 0 0 16px 0 rgba(139, 98, 39, 0.32),
+    inset 0 0 38px 0 rgba(101, 72, 32, 0.16);
   transform: rotate(-0.9deg) !important;
 }
 [data-theme="papier"] .wochen-kachel::after {

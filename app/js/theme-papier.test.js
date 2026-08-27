@@ -168,15 +168,20 @@ test('Papierheft-Retro: Wochen-Kacheln (Schreib-Flächen) haben einen unregelmä
   // werden.
   // Nach Live-Feedback mit einem NEUEN Referenzbild (unregelmäßig zerrissener
   // Rand statt gleichmäßiger Briefmarken-Kerben) von mask-image zurück auf
-  // clip-path mit 42 handgesetzten, unregelmäßigen Punkten umgestellt (siehe
+  // clip-path mit 45 handgesetzten, unregelmäßigen Punkten umgestellt (siehe
   // Kommentar in Abschnitt 10 der CSS-Datei).
   const css = fs.readFileSync(CSS_PATH, 'utf8');
   const baseBlock = css.match(/\[data-theme="papier"\] \.wochen-kachel \{[\s\S]*?\n\}/)[0];
   assert.match(baseBlock, /clip-path: polygon\(/);
   assert.match(baseBlock, /transform: rotate\(-0\.9deg\) !important;/);
-  // drop-shadow statt box-shadow: folgt der geclippten Silhouette exakt und
-  // wird selbst nicht vom eigenen clip-path mit abgeschnitten.
+  // drop-shadow statt box-shadow für die Tinten-Kontur: folgt der geclippten
+  // Silhouette exakt und wird selbst nicht vom eigenen clip-path mit
+  // abgeschnitten.
   assert.match(baseBlock, /filter:\s*\n\s*drop-shadow\(0 0 1px rgba\(43, 28, 13, 0\.85\)\)\s*\n\s*drop-shadow\(0 0 1\.5px rgba\(43, 28, 13, 0\.5\)\)\s*\n\s*drop-shadow\(3px 5px 8px rgba\(90, 60, 20, 0\.22\)\);/);
+  // Vergilbung am Rand: box-shadow:inset MUSS hier (nicht als filter) stehen,
+  // damit sie vom eigenen clip-path mitgeschnitten wird und der zerrissenen
+  // Silhouette folgt statt als Rechteck über den Riss zu laufen.
+  assert.match(baseBlock, /box-shadow:\s*\n\s*inset 0 0 16px 0 rgba\(139, 98, 39, 0\.32\),\s*\n\s*inset 0 0 38px 0 rgba\(101, 72, 32, 0\.16\);/);
   // Drei zyklische Varianten, wie bei den Dashboard-Karten (Abschnitt 9) —
   // nur die Drehung unterscheidet sie, die Rissform ist überall gleich.
   assert.match(css, /\[data-theme="papier"\] \.wochen-kachel:nth-child\(3n\+2\) \{\s*\n\s*transform: rotate\(0\.7deg\) !important;/);
@@ -188,16 +193,33 @@ test('Papierheft-Retro: Biss-Tiefe entlang der Kanten bleibt sicher innerhalb de
   // quill-table-better-Zellenmenü mit-clippen, wenn ein Kanten-Biss zu tief
   // wird (siehe Kommentar in Abschnitt 10). Sicherheits-Obergrenze: 8px,
   // sicher unter der schmalsten Innenabstand-Stelle im Baum (12px, --sp-3).
-  // Der 38px-Eckschnitt oben links ist davon ausgenommen (siehe eigener Test
-  // unten) — er liegt immer im Kachel-Header, nie im Editor.
+  // Der 38px-Eckschnitt oben links UND die drei 14px-Scheren-Schnitte sind
+  // davon ausgenommen (siehe eigene Tests) — die Ecke liegt immer im
+  // Kachel-Header, die Schnitte bleiben unter dem Editor-Innenabstand.
   const css = fs.readFileSync(CSS_PATH, 'utf8');
   const baseBlock = css.match(/\[data-theme="papier"\] \.wochen-kachel \{[\s\S]*?\n\}/)[0];
   const polygonBlock = baseBlock.match(/clip-path: polygon\(([\s\S]*?)\);/)[1];
   const pxDepths = [...polygonBlock.matchAll(/(?:^|[\s(])(\d+)px/gm)]
     .map(m => Number(m[1]))
-    .filter(n => n !== 38 && n !== 0); // 38px/0px = die eingerollte Ecke, kein Kanten-Biss
+    .filter(n => n !== 38 && n !== 0 && n !== 14); // Ecke + Scheren-Schnitte ausgenommen
   assert.ok(pxDepths.length > 0, 'keine Kanten-Biss-Tiefen im Polygon gefunden');
   assert.ok(pxDepths.every(d => d <= 8), `Kanten-Biss über 8px gefunden: ${pxDepths.filter(d => d > 8)}`);
+});
+
+test('Papierheft-Retro: drei Scheren-Schnitte ragen nur ganz leicht in den Editor-Innenabstand hinein', () => {
+  // Nutzer-Feedback: "ein paar Einrisstellen, als hätte man mit der Schere
+  // reingeschnitten", "nur ganz leicht in das Textfeld reinragen". 14px
+  // Tiefe an drei Stellen (linke/rechte/untere Kante), erkennbar schärfer
+  // als die 1-8px-Grundrauheit, aber unter dem Editor-Innenabstand
+  // (--sp-4 = 16px, quill-editor.css:371) — trifft also nur den
+  // Innenabstand-Rand, nicht echten Fließtext.
+  const css = fs.readFileSync(CSS_PATH, 'utf8');
+  const baseBlock = css.match(/\[data-theme="papier"\] \.wochen-kachel \{[\s\S]*?\n\}/)[0];
+  const polygonBlock = baseBlock.match(/clip-path: polygon\(([\s\S]*?)\);/)[1];
+  const accentDepths = [...polygonBlock.matchAll(/(?:^|[\s(])14px/gm)];
+  assert.equal(accentDepths.length, 3, `Erwarte genau 3 Scheren-Schnitte à 14px, gefunden: ${accentDepths.length}`);
+  const EDITOR_PADDING = 16;
+  assert.ok(14 < EDITOR_PADDING, 'Scheren-Schnitt-Tiefe muss unter dem Editor-Innenabstand bleiben');
 });
 
 test('Papierheft-Retro: eingerollte Ecke oben links füllt die abgeschnittene Dreiecksfläche', () => {
