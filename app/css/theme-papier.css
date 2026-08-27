@@ -520,6 +520,14 @@ html[data-theme="papier"] * {
    oben in wochenansicht.css, siehe deren eigener Kommentar "wird von
    KEINEM aktuellen Template mehr erzeugt").
 
+   NEUFASSUNG #8 (Nutzer-Feedback nach NEUFASSUNG #7: "gerne noch etwas
+   dezenter das abgerissene design"): alle Tiefen nochmal um ca. 40%
+   reduziert (nicht nochmal halbiert, sonst wäre der Effekt fast
+   verschwunden), Positionen unverändert: Grundrauheit 3-8 statt 5-14
+   Einheiten, Scheren-Schnitte 15 statt 28, Ecke oben-rechts ~16 statt
+   ~28, Ecke unten-rechts (weiterhin die auffälligste) ~32 statt ~55
+   Reichweite. Erzeugt via Skript (scratchpad gen-svg-mask-v9.js).
+
    NEUFASSUNG #7 (Nutzer-Feedback nach NEUFASSUNG #6: "jetzt hast dus
    verstanden, allerdings ist das etwas zu viel des Guten – mach das
    zerrissene etwas subtiler"): alle Riss-/Kerben-Tiefen ggü. #6 grob
@@ -670,8 +678,8 @@ html[data-theme="papier"] * {
   background: var(--pm-white);
   border: none;
   box-shadow: none;
-  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1200 300' preserveAspectRatio='none'%3E%3Cpath fill='white' fill-rule='evenodd' d='M9 0 L120 7 L216 13 L312 6 L408 12 L504 8 L600 11 L696 14 L792 7 L888 11 L984 8 L1080 13 L1152 6 L1172 0 L1179.6 2.5 L1177.6 13.7 L1188.2 13.5 L1187.7 23.3 L1196.8 24.5 L1200 31 L1192 78 L1172 102 L1197 108 L1191 138 L1187 174 L1197 249 L1183.4 259.1 L1165.6 259 L1154 273.7 L1135.7 272.7 L1124.1 287.3 L1104.7 283.6 L1091.9 295.5 L1076 300 L852 290 L756 294 L660 288 L552 292 L384 296 L360 272 L240 290 L9 300 L6.1 298.7 L5.8 294.5 L1.6 294.7 L0 292 L3 222 L4 180 L3 138 L4 90 L0 8 Z'/%3E%3C/svg%3E") center / 100% 100% no-repeat;
-  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1200 300' preserveAspectRatio='none'%3E%3Cpath fill='white' fill-rule='evenodd' d='M9 0 L120 7 L216 13 L312 6 L408 12 L504 8 L600 11 L696 14 L792 7 L888 11 L984 8 L1080 13 L1152 6 L1172 0 L1179.6 2.5 L1177.6 13.7 L1188.2 13.5 L1187.7 23.3 L1196.8 24.5 L1200 31 L1192 78 L1172 102 L1197 108 L1191 138 L1187 174 L1197 249 L1183.4 259.1 L1165.6 259 L1154 273.7 L1135.7 272.7 L1124.1 287.3 L1104.7 283.6 L1091.9 295.5 L1076 300 L852 290 L756 294 L660 288 L552 292 L384 296 L360 272 L240 290 L9 300 L6.1 298.7 L5.8 294.5 L1.6 294.7 L0 292 L3 222 L4 180 L3 138 L4 90 L0 8 Z'/%3E%3C/svg%3E") center / 100% 100% no-repeat;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1200 300' preserveAspectRatio='none'%3E%3Cpath fill='white' fill-rule='evenodd' d='M6 0 L120 4 L216 8 L312 3 L408 7 L504 5 L600 6 L696 8 L792 4 L888 6 L984 5 L1080 8 L1152 3 L1184 0 L1188.2 1.7 L1187.1 8 L1193.5 7.7 L1193.2 13.3 L1198.1 14.3 L1200 18 L1195 78 L1185 102 L1198 108 L1195 138 L1193 174 L1197 272 L1190.2 277.3 L1180.9 277.2 L1175.4 285.2 L1166.1 285.1 L1160.5 293.1 L1150.4 291.2 L1144 297.4 L1136 300 L852 295 L756 297 L660 294 L552 296 L384 298 L360 285 L240 295 L6 300 L3.9 299.5 L3.6 296.7 L0.9 297 L0 295 L2 222 L2 180 L2 138 L2 90 L0 5 Z'/%3E%3C/svg%3E") center / 100% 100% no-repeat;
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1200 300' preserveAspectRatio='none'%3E%3Cpath fill='white' fill-rule='evenodd' d='M6 0 L120 4 L216 8 L312 3 L408 7 L504 5 L600 6 L696 8 L792 4 L888 6 L984 5 L1080 8 L1152 3 L1184 0 L1188.2 1.7 L1187.1 8 L1193.5 7.7 L1193.2 13.3 L1198.1 14.3 L1200 18 L1195 78 L1185 102 L1198 108 L1195 138 L1193 174 L1197 272 L1190.2 277.3 L1180.9 277.2 L1175.4 285.2 L1166.1 285.1 L1160.5 293.1 L1150.4 291.2 L1144 297.4 L1136 300 L852 295 L756 297 L660 294 L552 296 L384 298 L360 285 L240 295 L6 300 L3.9 299.5 L3.6 296.7 L0.9 297 L0 295 L2 222 L2 180 L2 138 L2 90 L0 5 Z'/%3E%3C/svg%3E") center / 100% 100% no-repeat;
   filter:
     drop-shadow(0 0 1px rgba(43, 28, 13, 0.85))
     drop-shadow(0 0 1.5px rgba(43, 28, 13, 0.5))

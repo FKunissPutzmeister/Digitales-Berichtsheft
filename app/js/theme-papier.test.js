@@ -212,16 +212,14 @@ test('Papierheft-Retro: ::before ist NUR NOCH die Vergilbung (kein eigenes Mask/
   assert.match(beforeBlock, /linear-gradient\(to top, rgba\(150, 108, 45, 0\.42\), transparent 60px\)/);
 });
 
-test('Papierheft-Retro: SVG-Mask-Pfad ist subtiler (NEUFASSUNG #7) – Risse oben-rechts/unten-rechts erkennbar, aber halbiert; Ecken oben-links/unten-links bleiben sicher flach', () => {
-  // Nutzer-Feedback: erst "wo ist die Verformung??" (→ NEUFASSUNG #6,
-  // dramatische 55-110-Einheiten-Ecken oben-rechts/unten-rechts), dann
-  // "jetzt hast dus verstanden, allerdings ist das etwas zu viel des
-  // Guten – mach das zerrissene etwas subtiler" (→ NEUFASSUNG #7, alle
-  // Tiefen grob halbiert, Positionen unverändert). Oben-links/unten-links
-  // (Fixtext-Schutz: Titel-Label 16px/36px, Zeichenzähler 20px/12px vom
-  // Rand, live vermessen) bleiben weiterhin sicher flach — waren schon
-  // vor der Subtilisierung die flachste Stelle, jetzt nur noch etwas
-  // flacher (siehe Kommentar in Abschnitt 10 der CSS-Datei).
+test('Papierheft-Retro: SVG-Mask-Pfad ist nochmal dezenter (NEUFASSUNG #8) – Risse oben-rechts/unten-rechts erkennbar, aber weiter reduziert; Ecken oben-links/unten-links bleiben sicher flach', () => {
+  // Nutzer-Feedback-Verlauf: "wo ist die Verformung??" (→ NEUFASSUNG #6,
+  // dramatisch) → "etwas zu viel des Guten, subtiler" (→ NEUFASSUNG #7,
+  // grob halbiert) → "gerne noch etwas dezenter" (→ NEUFASSUNG #8,
+  // nochmal ~40% reduziert, Positionen unverändert). Oben-links/unten-
+  // links (Fixtext-Schutz: Titel-Label 16px/36px, Zeichenzähler
+  // 20px/12px vom Rand, live vermessen) bleiben weiterhin sicher flach
+  // (siehe Kommentar in Abschnitt 10 der CSS-Datei).
   const css = fs.readFileSync(CSS_PATH, 'utf8');
   const SEL = '\\[data-theme="papier"\\] body\\[data-page="wochenansicht"\\] \\.wochen-kachel';
   const beforeBlock = css.match(new RegExp(SEL + ' \\{[\\s\\S]*?\\n\\}'))[0];
@@ -231,34 +229,34 @@ test('Papierheft-Retro: SVG-Mask-Pfad ist subtiler (NEUFASSUNG #7) – Risse obe
   const subpathStarts = (dAttr.match(/ M/g) || []).length;
   assert.equal(subpathStarts, 0, 'Erwarte EINEN durchgehenden Pfad, keine separaten Loch-Teilpfade');
   const points = dAttr.slice(1, -2).split(' L').map(p => p.split(' ').map(Number));
-  // Die auffälligste Ecke unten rechts bleibt am tiefsten, aber halbiert
-  // (~55 statt ~110 Einheiten Reichweite).
-  const tornStart = points.findIndex(([x, y]) => x === 1197 && y === 249);
-  const tornEnd = points.findIndex(([x, y]) => x === 1076 && y === 300);
+  // Die auffälligste Ecke unten rechts bleibt am tiefsten, aber weiter
+  // reduziert (~32 statt ~55 Einheiten Reichweite).
+  const tornStart = points.findIndex(([x, y]) => x === 1197 && y === 272);
+  const tornEnd = points.findIndex(([x, y]) => x === 1136 && y === 300);
   assert.ok(tornStart > -1 && tornEnd > tornStart, 'Abgerissene-Ecke-Diagonale (unten rechts) nicht gefunden');
   const tornPoints = points.slice(tornStart, tornEnd + 1);
   for (const [x, y] of tornPoints) {
-    assert.ok(x <= 1197 && y >= 240, `Punkt liegt zu nah am ursprünglichen Rand: ${x},${y}`);
+    assert.ok(x <= 1197 && y >= 265, `Punkt liegt zu nah am ursprünglichen Rand: ${x},${y}`);
   }
-  // Oben-rechts bleibt erkennbar (>15 Einheiten vom Bildeck entfernt),
-  // aber deutlich weniger als in NEUFASSUNG #6 (dort >=30).
+  // Oben-rechts bleibt erkennbar (>8 Einheiten vom Bildeck entfernt),
+  // aber deutlich weniger als in NEUFASSUNG #7 (dort 15-35).
   const distTR = Math.min(...points.map(([x, y]) => Math.hypot(x - 1200, y - 0)));
-  assert.ok(distTR >= 15 && distTR <= 35, `Ecke "oben rechts" nicht mehr im erwarteten subtileren Bereich (${distTR.toFixed(1)})`);
-  // Oben-links/unten-links bleiben SICHER FLACH (< 15 Einheiten vom
+  assert.ok(distTR >= 8 && distTR <= 22, `Ecke "oben rechts" nicht mehr im erwarteten dezenteren Bereich (${distTR.toFixed(1)})`);
+  // Oben-links/unten-links bleiben SICHER FLACH (< 10 Einheiten vom
   // Bildeck), damit Titel-Label bzw. Zeichenzähler nicht abgeschnitten
   // werden — das ist hier bewusst eine OBERGRENZE, keine Untergrenze.
   const distTL = Math.min(...points.map(([x, y]) => Math.hypot(x - 0, y - 0)));
   const distBL = Math.min(...points.map(([x, y]) => Math.hypot(x - 0, y - 300)));
-  assert.ok(distTL <= 15, `Ecke "oben links" reicht zu tief, riskiert Titel-Label abzuschneiden (${distTL.toFixed(1)} > 15)`);
-  assert.ok(distBL <= 15, `Ecke "unten links" reicht zu tief, riskiert Zeichenzähler abzuschneiden (${distBL.toFixed(1)} > 15)`);
-  // Grundrauheit halbiert (5-14 statt 10-28 Einheiten) — stichprobenartig
+  assert.ok(distTL <= 10, `Ecke "oben links" reicht zu tief, riskiert Titel-Label abzuschneiden (${distTL.toFixed(1)} > 10)`);
+  assert.ok(distBL <= 10, `Ecke "unten links" reicht zu tief, riskiert Zeichenzähler abzuschneiden (${distBL.toFixed(1)} > 10)`);
+  // Grundrauheit weiter reduziert (3-8 statt 5-14 Einheiten) — stichprobenartig
   // die ersten Punkte der oberen Kante prüfen.
   const topEdgeDepths = points.slice(1, 13).map(([, y]) => y);
-  assert.ok(topEdgeDepths.every(d => d >= 4 && d <= 16), `Grundrauheit oben außerhalb des erwarteten subtileren Bereichs: ${topEdgeDepths}`);
-  // Zwei Scheren-Schnitte bleiben (rechte + untere Kante), Tiefe halbiert
-  // (28 statt 55 Einheiten).
-  const cutPoints = points.filter(([x, y]) => (x === 1172 && y === 102) || (x === 360 && y === 272));
-  assert.equal(cutPoints.length, 2, `Erwarte genau 2 Scheren-Schnitt-Punkte (28 Einheiten tief), gefunden: ${cutPoints.length}`);
+  assert.ok(topEdgeDepths.every(d => d >= 2 && d <= 10), `Grundrauheit oben außerhalb des erwarteten dezenteren Bereichs: ${topEdgeDepths}`);
+  // Zwei Scheren-Schnitte bleiben (rechte + untere Kante), Tiefe weiter
+  // reduziert (15 statt 28 Einheiten).
+  const cutPoints = points.filter(([x, y]) => (x === 1185 && y === 102) || (x === 360 && y === 285));
+  assert.equal(cutPoints.length, 2, `Erwarte genau 2 Scheren-Schnitt-Punkte (15 Einheiten tief), gefunden: ${cutPoints.length}`);
 });
 
 test('Papierheft-Retro: Schriftrollen-Kante am linken Rand läuft über die volle Kachelhöhe', () => {
