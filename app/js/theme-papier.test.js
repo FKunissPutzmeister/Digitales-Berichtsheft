@@ -187,9 +187,8 @@ test('Papierheft-Retro: Wochen-Kacheln bleiben selbst unmaskiert – die sichtba
 });
 
 test('Papierheft-Retro: ::before trägt die SVG-Mask (Riss + Scheren-Schnitte), Tinten-Kontur und sichtbare Vergilbung', () => {
-  // Ein evenodd-SVG-Pfad zeichnet sowohl die Außenkontur (Riss + eingerollte
-  // Ecke) als auch drei echte Loch-Schlitze (Scheren-Schnitte) — wie die
-  // Krallenrisse der Halloween-Login-Karte. z-index:-1 hält das Backing
+  // Ein evenodd-SVG-Pfad zeichnet die Außenkontur (Riss + abgerissene Ecke
+  // unten rechts + drei Scheren-Schnitte). z-index:-1 hält das Backing
   // HINTER dem echten Kachel-Inhalt, pointer-events:none macht es
   // garantiert nicht-interaktiv.
   const css = fs.readFileSync(CSS_PATH, 'utf8');
@@ -199,51 +198,67 @@ test('Papierheft-Retro: ::before trägt die SVG-Mask (Riss + Scheren-Schnitte), 
   assert.match(beforeBlock, /mask: url\("data:image\/svg\+xml,/);
   assert.match(beforeBlock, /-webkit-mask: url\("data:image\/svg\+xml,/);
   assert.match(beforeBlock, /fill-rule='evenodd'/);
-  // Vergilbung: sichtbarer radialer Verlauf direkt im background (nicht als
-  // schwaches box-shadow:inset, das beim vorigen Versuch nicht auffiel).
-  assert.match(beforeBlock, /radial-gradient\(ellipse 68% 62% at 50% 50%, transparent 52%, rgba\(150, 108, 45, 0\.4\) 100%\)/);
+  // Vergilbung "vom Rand nach innen": vier Linear-Gradients (einer pro
+  // Kante, feste 60px), statt der vorigen Ellipse, die bei diesem extrem
+  // breiten Seitenverhältnis links/rechts kaum ankam (siehe Kommentar in
+  // Abschnitt 10 der CSS-Datei).
+  assert.match(beforeBlock, /linear-gradient\(to right, rgba\(150, 108, 45, 0\.42\), transparent 60px\)/);
+  assert.match(beforeBlock, /linear-gradient\(to left, rgba\(150, 108, 45, 0\.42\), transparent 60px\)/);
+  assert.match(beforeBlock, /linear-gradient\(to bottom, rgba\(150, 108, 45, 0\.42\), transparent 60px\)/);
+  assert.match(beforeBlock, /linear-gradient\(to top, rgba\(150, 108, 45, 0\.42\), transparent 60px\)/);
   // Tinten-Kontur + Abheben von der Seite, wie zuvor über drop-shadow.
   assert.match(beforeBlock, /filter:\s*\n\s*drop-shadow\(0 0 1px rgba\(43, 28, 13, 0\.85\)\)\s*\n\s*drop-shadow\(0 0 1\.5px rgba\(43, 28, 13, 0\.5\)\)\s*\n\s*drop-shadow\(3px 5px 8px rgba\(90, 60, 20, 0\.22\)\);/);
 });
 
-test('Papierheft-Retro: SVG-Mask-Pfad enthält die eingerollte Ecke UND genau drei tiefe Scheren-Schnitt-Kerben', () => {
-  // Nutzer-Feedback: "ein paar Einrisstellen, als hätte man mit der Schere
-  // reingeschnitten". Erster Ansatz (echte Loch-Teilpfade wie bei den
-  // Halloween-Krallenrissen) verworfen — zeigte im Live-Test nur einen
-  // irritierenden flachen hellen Fleck statt eines erkennbaren Schnitts
-  // (siehe Kommentar in Abschnitt 10 der CSS-Datei). Jetzt: drei einzelne,
-  // deutlich tiefere Punkte (55 Einheiten) DIREKT in der Außenkontur,
-  // klar abgesetzt von der 1-8-Einheiten-Grundrauheit.
+test('Papierheft-Retro: SVG-Mask-Pfad enthält eine abgerissene Ecke unten rechts UND genau drei tiefe Scheren-Schnitt-Kerben', () => {
+  // Nutzer-Feedback (mit Referenzbild einer abgerissenen Kartenecke): eine
+  // Ecke soll aussehen, als wäre ein Stück herausgerissen worden — eine
+  // grobe, franzige Diagonale statt eines glatten Schnitts. Punkte wandern
+  // MONOTON von der rechten zur unteren Kante mit wechselndem Jitter
+  // (kein Sägezahn-Zurückspringen zum alten Rand, siehe Kommentar in
+  // Abschnitt 10 der CSS-Datei).
   const css = fs.readFileSync(CSS_PATH, 'utf8');
   const beforeBlock = css.match(/\[data-theme="papier"\] \.wochen-kachel::before \{[\s\S]*?\n\}/)[0];
   const maskUrl = beforeBlock.match(/mask: url\("([^"]+)"\)/)[1];
   const dAttr = decodeURIComponent(maskUrl).match(/d='([^']+)'/)[1];
-  // Eingerollte Ecke: die Außenkontur beginnt bei "M38 0" und endet vor
-  // ihrem eigenen Schluss bei "L0 38 Z" (38-Einheiten-Diagonale).
-  assert.match(dAttr, /^M38 0 /);
-  assert.match(dAttr, /L0 38 Z/);
-  // Kein separater Loch-Teilpfad mehr (keine zweite "M" mitten im Pfad).
+  // Kein separater Loch-Teilpfad (keine zweite "M" mitten im Pfad).
   const subpathStarts = (dAttr.match(/ M/g) || []).length;
-  assert.equal(subpathStarts, 0, 'Erwarte EINEN durchgehenden Pfad, keine separaten Loch-Teilpfade mehr');
-  // Drei Scheren-Schnitte: Koordinatenpaare, die 55 Einheiten von der
-  // jeweiligen Kante (0 bzw. 1200/300) entfernt liegen.
+  assert.equal(subpathStarts, 0, 'Erwarte EINEN durchgehenden Pfad, keine separaten Loch-Teilpfade');
   const points = dAttr.slice(1, -2).split(' L').map(p => p.split(' ').map(Number));
-  const cutPoints = points.filter(([x, y]) =>
-    x === 1145 || y === 245 || x === 55);
-  assert.equal(cutPoints.length, 3, `Erwarte genau 3 Scheren-Schnitt-Punkte (55 Einheiten tief), gefunden: ${cutPoints.length}`);
+  // Abgerissene Ecke unten rechts: die Punkte müssen monoton weiter nach
+  // unten-links wandern (x fällt, y steigt), keine Rückkehr in Richtung
+  // des ursprünglichen Rands (x=1200/y=0-Bereich).
+  const tornStart = points.findIndex(([x, y]) => x === 1197 && y === 198);
+  const tornEnd = points.findIndex(([x, y]) => x === 955 && y === 300);
+  assert.ok(tornStart > -1 && tornEnd > tornStart, 'Abgerissene-Ecke-Diagonale nicht gefunden');
+  // Der senkrechte Jitter (±4-14 Einheiten) lässt einzelne Punkte lokal
+  // leicht schwanken (das ist die gewollte franzige Optik) — entscheidend
+  // ist, dass KEIN Punkt in die Nähe des ursprünglichen, unbeschädigten
+  // Rands zurückspringt (x nahe 1200 oder y nahe 0).
+  const tornPoints = points.slice(tornStart, tornEnd + 1);
+  for (const [x, y] of tornPoints) {
+    assert.ok(x <= 1197 && y >= 190, `Punkt liegt zu nah am ursprünglichen Rand: ${x},${y}`);
+  }
+  // Drei Scheren-Schnitte: Koordinaten, die 55 Einheiten von der
+  // jeweiligen Kante entfernt liegen (rechts, unten links vom Riss).
+  const cutPoints = points.filter(([x, y]) => x === 1145 || x === 264 && y === 245);
+  assert.ok(cutPoints.length >= 2, `Erwarte mindestens 2 Scheren-Schnitt-Punkte (55 Einheiten tief), gefunden: ${cutPoints.length}`);
 });
 
-test('Papierheft-Retro: eingerollte Ecke oben links füllt die abgeschnittene Dreiecksfläche', () => {
-  // ::after (z-index:2, ÜBER dem Kachel-Inhalt) füllt die vom Mask-Pfad
-  // ausgesparte Ecke mit heller Papier-Rückseite + Schlagschatten – das
-  // "Eselsohr" liegt in der tatsächlichen Kachelform, nicht nur als
-  // Overlay obendrauf.
+test('Papierheft-Retro: Schriftrollen-Kante am linken Rand läuft über die volle Kachelhöhe', () => {
+  // Nutzer-Feedback: "am linken Rand dieses eingerollte" — nicht mehr nur
+  // eine gefaltete Ecke oben links (frühere Version), sondern ein
+  // durchgehender Streifen über die GESAMTE linke Kante, mit gebändertem
+  // Verlauf (Andeutung eines aufgerollten Papier-Zylinders) + Schatten
+  // nach rechts.
   const css = fs.readFileSync(CSS_PATH, 'utf8');
   const afterBlock = css.match(/\[data-theme="papier"\] \.wochen-kachel::after \{[\s\S]*?\n\}/)[0];
   assert.match(afterBlock, /top: 0;/);
   assert.match(afterBlock, /left: 0;/);
-  assert.match(afterBlock, /clip-path: polygon\(0 0, 100% 0, 0 100%\);/);
-  assert.match(afterBlock, /box-shadow:/);
+  assert.match(afterBlock, /height: 100%;/);
+  assert.match(afterBlock, /width: 14px;/);
+  assert.match(afterBlock, /background: linear-gradient\(\s*\n\s*90deg,/);
+  assert.match(afterBlock, /box-shadow: 4px 0 8px rgba\(43, 28, 13, 0\.28\);/);
   // Darf keine Klicks abfangen (reines Dekor über der echten Kachelfläche).
   assert.match(afterBlock, /pointer-events: none;/);
 });
