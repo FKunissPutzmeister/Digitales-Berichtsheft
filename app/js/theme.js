@@ -35,16 +35,29 @@
      auf RDP/VM, oder bei abgeschalteter HW-Beschleunigung), rendert der
      Browser ALLES in Software. Das app-weite backdrop-filter-Glas ist
      dann extrem teuer (gemessen: 27 statt 61 FPS, in JEDEM Theme).
-     Erkennen wir das (oder ist prefers-reduced-transparency / der Profil-
-     Schalter 'perfLite' gesetzt), setzen wir html.perf-lite VOR dem ersten
-     Paint; glass.css schaltet darunter alle Blur-Layer auf deckende
-     Flächen. Override: localStorage perfLite='1' erzwingt an, '0' aus.
+     Erkennen wir das (oder ist prefers-reduced-transparency gesetzt), setzen
+     wir html.perf-lite VOR dem ersten Paint; glass.css schaltet darunter alle
+     Blur-Layer auf deckende Flächen.
+     Manuelle Übersteuerung: localStorage perfLite='1' erzwingt die Sparfassung,
+     '0' erzwingt das Glas. Das ist bewusst KEIN Profil-Schalter in der UI (ein
+     früherer Kommentar behauptete das) — es gibt nur diesen localStorage-Wert.
      GPU-Nutzer bekommen die Klasse nie → sehen exakt das bisherige Glas. */
   function detectSoftwareGL() {
     try {
       var cv = document.createElement('canvas');
       var gl = cv.getContext('webgl') || cv.getContext('experimental-webgl');
-      if (!gl) return true;   // kein WebGL → mit hoher Wahrscheinlichkeit Software
+      /* KEIN WebGL heißt NICHT Software-Rendering. Das sind zwei verschiedene
+         Subsysteme: WebGL kann per Unternehmens-Richtlinie oder Treiber-
+         Blockliste abgeschaltet sein, während die GPU völlig normal
+         kompositiert (gemessen: Edge mit --disable-webgl → 61 fps, Glas
+         kostenlos). Hier stand früher `return true`, und damit hat die App auf
+         genau solchen Rechnern JEDES backdrop-filter abgeschaltet — das Glas
+         war app-weit tot, aus Sorge um eine Bildrate, die nie ein Problem war.
+         Umgekehrt gilt: hat ein Rechner wirklich keine GPU, liefert Chromium
+         WebGL über SwiftShader — dann steht es unten im Renderer-Namen und
+         wird erkannt. Ein fehlender Kontext ist also fast immer eine
+         Blockade, kein Leistungsproblem. Im Zweifel NICHT sparen. */
+      if (!gl) return false;
       var dbg = gl.getExtension('WEBGL_debug_renderer_info');
       var r = dbg ? String(gl.getParameter(dbg.UNMASKED_RENDERER_WEBGL)) : '';
       return /SwiftShader|Basic Render|llvmpipe|Software|Microsoft Basic|WARP/i.test(r);
@@ -1253,16 +1266,19 @@
   })();
 
   /* ── Christmas: echtes Liquid Glass (GlassSurface-Skill) aufs Dashboard ──
-     Der Skill (app/{css,js}/vendor/glass-surface.*) braucht backdrop-filter,
-     der die Szene „sieht". Die fixe FX-Szene liegt außerhalb des Backdrop-
-     Roots der Karten → unsichtbar für den Filter. Fix: ein Bild-Layer
-     #pm-xm-glassbg INNERHALB #mainContent (dessen fadeIn-Transform es zum
-     Backdrop-Root macht) → die pro Karte eingehängten GlassSurface-Backings
-     (.pm-xm-glass) refraktieren dieses Bild. Nur in der App (nicht Login),
-     nur wenige Kacheln (Perf: GlassSurface ist count-gebunden). Re-Dekoration
-     bei jedem 'pm-page-rendered' (SPA-Nav ersetzt #mainContent-Inhalt). */
+     Das Material selbst (Frost, Scrim, Glaskante) steht komplett in
+     theme-christmas.css. Dieses Script hängt nur EIN Backing pro Kachel ein
+     und lässt glass-surface.js darauf die Kanten-Brechung rechnen — es gibt
+     also keinen Zustand mehr, in dem die Kachel anders aussieht als am Ende
+     (früher: opaker CSS-Fallback, der beim Seitenwechsel kurz aufblitzte).
+     Ein eigener Bild-Layer ist nicht mehr nötig: seit .sidebar/.main-wrapper
+     kein view-transition-name mehr tragen und fadeIn/vt-in nur noch opacity
+     animieren, liegt zwischen Kachel und Seite kein Backdrop Root — der
+     backdrop-filter sieht die echte FX-Szene.
+     Nur in der App (nicht Login), nur wenige Kacheln (Perf: GlassSurface ist
+     count-gebunden). Re-Dekoration bei jedem 'pm-page-rendered' (SPA-Nav
+     ersetzt #mainContent-Inhalt). */
   var PMChristmasGlass = (function () {
-    var GBID = 'pm-xm-glassbg';
     var SELS = ['.welcome-hero', '.b-hero', '.b-mitteilungen', '.b-recent'];
     var loaded = false, active = false;
 
@@ -1285,61 +1301,59 @@
       js.onerror = function () { cb(); };
       document.head.appendChild(js);
     }
-    function ensureBg() {
-      var mc = document.getElementById('mainContent');
-      if (!mc || document.getElementById(GBID)) return;
-      var bg = document.createElement('div');
-      bg.id = GBID; bg.setAttribute('aria-hidden', 'true');
-      mc.insertBefore(bg, mc.firstChild);
-    }
     function addBacking(card) {
       if (!card || card.__xmGlass) return;
       card.__xmGlass = true;
       card.classList.add('pm-xm-glass-card');
-      // Unteres Backing: lokaler backdrop-filter blur (frostet NUR diese Kachel).
-      // Reines CSS (kein data-glass) — der Blur + der dunkle Kühl-Ton stehen in
-      // theme-christmas.css (.pm-xm-glass-blur). Das ist die Frost-Schicht, die
-      // das GlassSurface-Backing darüber dann bricht.
-      var b = document.createElement('div');
-      b.className = 'pm-xm-glass-blur';
-      b.setAttribute('aria-hidden', 'true');
-      card.insertBefore(b, card.firstChild);
-      // Oberes Backing: GlassSurface-Refraktion, bricht den geblurrten Layer.
+      // Frost auf EIGENER Ebene, ohne data-glass: glass-surface.js fasst sie
+      // nie an. Der Frost darf nicht in der Refraktions-Kette mitfahren:
+      // .glass-surface.is-off nullt die ganze Kette, und ein nicht
+      // aufloesbares url(#filter) macht sie wirkungslos. Begruendung steht
+      // ausfuehrlich in theme-christmas.css bei .pm-xm-frost.
+      var fr = document.createElement('div');
+      fr.className = 'pm-xm-frost';
+      fr.setAttribute('aria-hidden', 'true');
+      card.insertBefore(fr, card.firstChild);
       var g = document.createElement('div');
       g.className = 'pm-xm-glass';
+      g.setAttribute('aria-hidden', 'true');
       g.setAttribute('data-glass', '');
       // data-radius weggelassen → glass-surface.js nimmt border-radius:inherit
-      g.setAttribute('data-distortion', '-90');   // Brechung sichtbar auch über dem bereits weichen (geblurrten)
-                                                  // Backing; UI-Bereich -70…-130 laut Skill, keine Kanten-Seams
-      g.setAttribute('data-blur', '22');          // hoher Map-Blur → weicher Kantenübergang (Gotcha #2)
-      g.setAttribute('data-displace', '0.6');     // leichtes Output-Weichzeichnen der Kante
+      g.setAttribute('data-distortion', '-105');
+      // KANTENBAND statt Flächen-Brechung: schmale Map (border 0.018) + kleiner
+      // Map-Blur (6) = die Brechung sitzt als wenige Pixel breiter Saum auf der
+      // Kante, also da, wo bei echtem Glas die Dicke sichtbar wird. Mit den
+      // Skill-Defaults (0.07 / 22) wird daraus ein ~35 px breites Band, das an
+      // den Rändern dunkel läuft: feDisplacementMap zieht dort Pixel von
+      // AUSSERHALB der Kachel herein, und da ist der Backdrop transparent-
+      // schwarz. Der Effekt ist nicht per Wert abschaltbar, nur schmal zu halten.
+      g.setAttribute('data-border', '0.018');
+      g.setAttribute('data-blur', '6');
+      g.setAttribute('data-displace', '0.3');
+      // KEIN data-frostblur / data-saturation: der Frost liegt in
+      // .pm-xm-frost (reines CSS) und darf nicht doppelt laufen. Diese
+      // Ebene liefert nur Brechung und Kante.
       // Chromatik gedämpft: Default 10/20 erzeugt über dem bunten Foto eine
-      // harte rot/grüne Kantenlinie (Skill-Gotcha #10). Niedrig = dezente
-      // Brechung ohne Regenbogen-Strich; die Brechung selbst bleibt (distortion).
+      // harte rot/grüne Kantenlinie. Niedrig = dezente Brechung ohne
+      // Regenbogen-Strich; die Brechung selbst bleibt (distortion).
       g.setAttribute('data-green', '3');
       g.setAttribute('data-blue', '6');
-      // data-frost 0: der Frost/die Lesbarkeit kommt jetzt aus dem .pm-xm-glass-
-      // blur-Backing (echter Blur + Ton), nicht mehr aus einem Veil auf dem Glas.
+      // data-frost 0: Lesbarkeit kommt aus dem Scrim der Kachel (::before),
+      // nicht aus einem Veil über der ganzen Glasfläche.
       g.setAttribute('data-frost', '0');
-      card.insertBefore(g, b.nextSibling);   // g direkt hinter b → g (z1) über b (z0)
+      // NACH der Frost-Ebene: so bricht das Glas das bereits mattierte Bild,
+      // und die Kante liegt oben.
+      card.insertBefore(g, fr.nextSibling);
       if (window.LiquidGlass) window.LiquidGlass.enhance(g);
     }
     function decorate() {
       if (!active) return;
-      // Ziel-Karten sammeln. Nur wo es welche gibt (Dashboard), den Backdrop-
-      // Layer anlegen — sonst würde #pm-xm-glassbg andere Christmas-Seiten
-      // (Wochenansicht/Profil …) mit einem zweiten Szenenbild überlagern.
       var cards = [];
       for (var i = 0; i < SELS.length; i++) {
         var els = document.querySelectorAll(SELS[i]);
         for (var j = 0; j < els.length; j++) cards.push(els[j]);
       }
-      if (!cards.length) {
-        var old = document.getElementById(GBID);
-        if (old && old.parentNode) old.parentNode.removeChild(old);
-        return;
-      }
-      ensureBg();
+      if (!cards.length) return;
       for (var c = 0; c < cards.length; c++) addBacking(cards[c]);
       // Enhance-Pass: erfasst auch Backings, die vor dem Asset-Load angelegt
       // wurden (enhance ist idempotent via el.__glass).
@@ -1371,21 +1385,19 @@
       active = true;
       startObserver();
       loadAssets(function () { decorate(); });
-      decorate();   // sofort (legt zumindest #pm-xm-glassbg an, falls #mainContent da ist)
+      decorate();   // sofort — das Backing trägt seinen Frost schon per CSS
     }
     function stop() {
       active = false;
       stopObserver();
-      var bg = document.getElementById(GBID);
-      if (bg && bg.parentNode) bg.parentNode.removeChild(bg);
       var cards = document.querySelectorAll('.pm-xm-glass-card');
       for (var i = 0; i < cards.length; i++) {
         cards[i].classList.remove('pm-xm-glass-card');
         cards[i].__xmGlass = false;
         var g = cards[i].querySelector('.pm-xm-glass');
         if (g && g.parentNode) g.parentNode.removeChild(g);
-        var b = cards[i].querySelector('.pm-xm-glass-blur');
-        if (b && b.parentNode) b.parentNode.removeChild(b);
+        var fr = cards[i].querySelector('.pm-xm-frost');
+        if (fr && fr.parentNode) fr.parentNode.removeChild(fr);
       }
     }
     // SPA-Nav ersetzt #mainContent-Inhalt (Backings + Bg weg) → neu dekorieren.
