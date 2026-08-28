@@ -772,10 +772,18 @@ test('Papierheft-Retro: Füllfarbe (Terrakotta) auf Topbar, Anhang-/Reset-Button
   // Anhang-\/Reset-Button: Terrakotta-Fuellung + helle Symbolfarbe, Rahmen bleibt Verdigris.
   assert.match(css, /\[data-theme="papier"\] \.wochen-options__icon-btn \{\s*\n\s*background: var\(--pm-fill-3\);\s*\n\s*border-color: var\(--pm-accent-2\);\s*\n\s*color: var\(--on-fill-3-text\);\s*\n\}/);
 
-  // Betrieb\/Schule- + Anwesenheit-Auswahl: Terrakotta-Fuellung + helle Schrift/Chevron,
-  // Rahmen bleibt Verdigris; Pflichtfeld-Markierung bleibt bewusst Verdigris-auf-Pergament.
-  assert.match(css, /\[data-theme="papier"\] body\[data-page="wochenansicht"\] \.pm-select\.tag-row__select \.pm-select__trigger,\s*\n\[data-theme="papier"\] body\[data-page="wochenansicht"\] \.pm-select\.wochen-options__select \.pm-select__trigger \{\s*\n\s*background: var\(--pm-fill-3\);\s*\n\s*border-color: var\(--pm-accent-2\);\s*\n\s*color: var\(--on-fill-3-text\);\s*\n\}/);
+  // Betrieb\/Schule-Auswahl in der Options-Leiste (die EINE Wochen-Ort-Pille):
+  // Terrakotta-Fuellung + helle Schrift\/Chevron, Rahmen bleibt Verdigris.
+  assert.match(css, /\[data-theme="papier"\] body\[data-page="wochenansicht"\] \.pm-select\.wochen-options__select \.pm-select__trigger \{\s*\n\s*background: var\(--pm-fill-3\);\s*\n\s*border-color: var\(--pm-accent-2\);\s*\n\s*color: var\(--on-fill-3-text\);\s*\n\}/);
+  // Anwesenheit- + Ort-Auswahl JE TAGESZEILE bekommt bewusst KEINE Fuellfarbe --
+  // nur der Verdigris-Rahmen, Hintergrund bleibt Pergament-Creme.
+  assert.match(css, /\[data-theme="papier"\] body\[data-page="wochenansicht"\] \.pm-select\.tag-row__select \.pm-select__trigger \{\s*\n\s*border-color: var\(--pm-accent-2\);\s*\n\}/);
+  assert.doesNotMatch(css, /\[data-theme="papier"\] body\[data-page="wochenansicht"\] \.pm-select\.tag-row__select \.pm-select__trigger \{\s*\n\s*background: var\(--pm-fill-3\)/);
   assert.match(css, /\[data-theme="papier"\] body\[data-page="wochenansicht"\] \.pm-select\.tag-row__select--needs-input \.pm-select__trigger \{\s*\n\s*background: var\(--pm-accent-2-bg\);\s*\n\s*border-color: var\(--pm-accent-2\);\s*\n\}/);
+
+  // Checkboxen ("mit Unterweisung" u.ae.): Kasten traegt schon ungeklickt
+  // die Lehm-Fuellfarbe + Verdigris-Rahmen, angehakt vertieft auf Verdigris.
+  assert.match(css, /\[data-theme="papier"\] \.wochen-checkbox-opt__box,\s*\n\[data-theme="papier"\] \.wochen-options__check-box \{\s*\n\s*background: var\(--pm-fill-3\);\s*\n\s*border-color: var\(--pm-accent-2\);\s*\n\}/);
 });
 
 test('Papierheft-Retro: Farbaufteilung -- Editor-/Tageskacheln bleiben Indigo, ihre Steuerelemente werden Verdigris', () => {

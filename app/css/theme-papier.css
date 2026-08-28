@@ -1435,27 +1435,33 @@ html[data-theme="papier"] * {
   color: var(--on-fill-3-text);
 }
 
-/* Betrieb/Schule- + Anwesenheit-Auswahl (PMSelect-Pillen in der
-   Wochenansicht): voller Verdigris-Rahmen schon im Ruhezustand (vorher
-   transparent), Füllung + Text/Chevron wechseln von Pergament-Creme auf
-   die Terrakotta-Füllfarbe. Fokus/Offen legen zusätzlich einen Ring
-   drüber (Füllung bleibt dabei unverändert). Die Pflichtfeld-Markierung
-   (--needs-input, weiter unten) bleibt bewusst Verdigris-auf-Pergament,
-   damit ihr Signal nicht in der neuen Füllfarbe untergeht. */
-[data-theme="papier"] body[data-page="wochenansicht"] .pm-select.tag-row__select .pm-select__trigger,
+/* Betrieb/Schule-Auswahl in der Options-Leiste (die EINE Wochen-Ort-
+   Pille, .wochen-options__select – nicht die Anwesenheit-/Ort-Auswahl je
+   Tageszeile, siehe unten): Füllung wechselt von Pergament-Creme auf die
+   Lehm-Füllfarbe, Text/Chevron entsprechend hell. Fokus/Offen legen
+   zusätzlich einen Verdigris-Ring drüber (Füllung bleibt unverändert). */
 [data-theme="papier"] body[data-page="wochenansicht"] .pm-select.wochen-options__select .pm-select__trigger {
   background: var(--pm-fill-3);
   border-color: var(--pm-accent-2);
   color: var(--on-fill-3-text);
 }
-[data-theme="papier"] body[data-page="wochenansicht"] .pm-select.tag-row__select .pm-select__trigger:hover:not(:disabled),
 [data-theme="papier"] body[data-page="wochenansicht"] .pm-select.wochen-options__select .pm-select__trigger:hover:not(:disabled) {
   background: var(--pm-fill-3-dark);
 }
-[data-theme="papier"] body[data-page="wochenansicht"] .pm-select.tag-row__select .pm-select__trigger .pm-select__chevron,
 [data-theme="papier"] body[data-page="wochenansicht"] .pm-select.wochen-options__select .pm-select__trigger .pm-select__chevron {
   color: var(--on-fill-3-text);
 }
+
+/* Anwesenheit- + Ort-Auswahl JE TAGESZEILE (.tag-row__select, innerhalb
+   der Tageskacheln): bewusst OHNE Füllfarbe – bleibt bei Pergament-Creme
+   mit vollem Verdigris-Rahmen (vorher transparent), wie in Abschnitt 12
+   ursprünglich entschieden. Auf Nutzer-Wunsch von der Füllfarbe der
+   Options-Leiste getrennt gehalten, damit die Tageskacheln ruhiger
+   bleiben. */
+[data-theme="papier"] body[data-page="wochenansicht"] .pm-select.tag-row__select .pm-select__trigger {
+  border-color: var(--pm-accent-2);
+}
+
 [data-theme="papier"] body[data-page="wochenansicht"] .pm-select.tag-row__select .pm-select__trigger:focus-visible,
 [data-theme="papier"] body[data-page="wochenansicht"] .pm-select.wochen-options__select .pm-select__trigger:focus-visible,
 [data-theme="papier"] body[data-page="wochenansicht"] .pm-select--open.tag-row__select .pm-select__trigger,
@@ -1547,7 +1553,15 @@ html[data-theme="papier"] * {
   border-color: var(--pm-accent-2);
 }
 
-/* Checkboxen ("mit Unterweisung" u.ä.): Häkchen-Fläche + Rahmen. */
+/* Checkboxen ("mit Unterweisung" u.ä.): Kasten trägt schon ungeklickt die
+   Lehm-Füllfarbe + Verdigris-Rahmen (statt des bisher unauffälligen
+   Pergament-Kastens), passend zur Options-Leiste. Angehakt vertieft auf
+   volles Verdigris – deutlich sichtbarer "aktiv"-Zustand. */
+[data-theme="papier"] .wochen-checkbox-opt__box,
+[data-theme="papier"] .wochen-options__check-box {
+  background: var(--pm-fill-3);
+  border-color: var(--pm-accent-2);
+}
 [data-theme="papier"] .wochen-checkbox-opt:has(input:checked) .wochen-checkbox-opt__box,
 [data-theme="papier"] .wochen-options__check:has(input:checked) .wochen-options__check-box {
   background: var(--pm-accent-2);
