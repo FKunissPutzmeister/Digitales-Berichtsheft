@@ -714,3 +714,34 @@ test('Papierheft-Retro: sidebar.js gated die Auftritts-Animation auf Theme "papi
   assert.match(js, /setProperty\('--i', i\)/);
   assert.match(js, /setTimeout\(\(\) => sidebar\.classList\.remove\('is-entering'\), 1700\)/);
 });
+
+test('Papierheft-Retro: eigener Sekundär-Akzent (Verdigris) neben der Indigo-Tinte definiert', () => {
+  const css = readCss();
+  const token = css.match(/\[data-theme="papier"\] \{[\s\S]*?\n\}/)[0];
+  assert.match(token, /--pm-accent-2:\s*#3E6B68;/);
+  assert.match(token, /--pm-accent-2-dark:\s*#2F5350;/);
+  assert.match(token, /--pm-accent-2-light:\s*#5C8B87;/);
+  assert.match(token, /--pm-accent-2-pale:\s*rgba\(62, 107, 104, 0\.22\);/);
+  assert.match(token, /--pm-accent-2-bg:\s*rgba\(62, 107, 104, 0\.12\);/);
+  assert.match(token, /--on-accent-2-text:\s*#EFE6CE;/);
+});
+
+test('Papierheft-Retro: Wochennavigation (Pfeile) bekommt Verdigris-Hover statt neutralem Grau', () => {
+  const css = readCss();
+  assert.match(css, /\[data-theme="papier"\] \.week-kw-block__nav:hover \{\s*\n\s*background: var\(--pm-accent-2-bg\);\s*\n\s*color: var\(--pm-accent-2-dark\);\s*\n\}/);
+});
+
+test('Papierheft-Retro: Betrieb\\/Schule- + Anwesenheit-Auswahl (PMSelect) nutzt Verdigris statt Indigo für Fokus/Offen/Pflichtfeld', () => {
+  const css = readCss();
+  assert.match(css, /\[data-theme="papier"\] body\[data-page="wochenansicht"\] \.pm-select\.tag-row__select \.pm-select__trigger:focus-visible,\s*\n\[data-theme="papier"\] body\[data-page="wochenansicht"\] \.pm-select\.wochen-options__select \.pm-select__trigger:focus-visible,\s*\n\[data-theme="papier"\] body\[data-page="wochenansicht"\] \.pm-select--open\.tag-row__select \.pm-select__trigger,\s*\n\[data-theme="papier"\] body\[data-page="wochenansicht"\] \.pm-select--open\.wochen-options__select \.pm-select__trigger \{\s*\n\s*border-color: var\(--pm-accent-2\);/);
+  assert.match(css, /\[data-theme="papier"\] body\[data-page="wochenansicht"\] \.pm-select\.tag-row__select--needs-input \.pm-select__trigger \{\s*\n\s*background: var\(--pm-accent-2-bg\);\s*\n\s*border-color: var\(--pm-accent-2\);\s*\n\}/);
+  // Fallback fuers native <select> vor PMSelect-Enhancement.
+  assert.match(css, /\[data-theme="papier"\] \.tag-row__select--needs-input:not\(:disabled\) \{\s*\n\s*border-color: var\(--pm-accent-2\);\s*\n\s*background-color: var\(--pm-accent-2-bg\);\s*\n\}/);
+});
+
+test('Papierheft-Retro: Anhang-/Reset-Button + Anhänge-Liste nutzen Verdigris (Löschen-Rot bleibt unverändert)', () => {
+  const css = readCss();
+  assert.match(css, /\[data-theme="papier"\] \.wochen-options__icon-btn:hover \{\s*\n\s*background: var\(--pm-accent-2-bg\);\s*\n\s*border-color: var\(--pm-accent-2\);\s*\n\s*color: var\(--pm-accent-2-dark\);\s*\n\}/);
+  assert.match(css, /\[data-theme="papier"\] \.wochen-anhang__name:hover \{\s*\n\s*color: var\(--pm-accent-2-dark\);\s*\n\}/);
+  assert.match(css, /\[data-theme="papier"\] \.wochen-anhang__delete:hover \{\s*\n\s*background: var\(--pm-accent-2-bg\);\s*\n\}/);
+});

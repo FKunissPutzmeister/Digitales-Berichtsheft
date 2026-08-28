@@ -79,6 +79,18 @@ html[data-theme="papier"] { color-scheme: light; }
   --pm-yellow-bg:       rgba(44, 58, 92, 0.10);
   --on-yellow-text:     #F0E8D2;
 
+  /* Sekundär-Akzent: Verdigris (oxidiertes Kupfer/Bronze-Grün) für
+     "ungefüllte" Bedien-Elemente außerhalb der Nav – Wochennavigation,
+     Betrieb/Schule- + Anwesenheit-Auswahl, Anhänge. Bewusst getrennt von
+     der Indigo-Tinte (Nav + gefüllte/Status-Flächen bleiben unverändert),
+     siehe Abschnitt 12. */
+  --pm-accent-2:        #3E6B68;
+  --pm-accent-2-dark:   #2F5350;
+  --pm-accent-2-light:  #5C8B87;
+  --pm-accent-2-pale:   rgba(62, 107, 104, 0.22);
+  --pm-accent-2-bg:     rgba(62, 107, 104, 0.12);
+  --on-accent-2-text:   #EFE6CE;
+
   /* Status-Streifen "Tag fertig": gedämpftes Waldgrün statt neutralem Grün */
   --color-status-done:  #4E7D4E;
 
@@ -1356,4 +1368,64 @@ html[data-theme="papier"] * {
   [data-theme="papier"] .sidebar.is-entering .sidebar__footer > * {
     animation: none;
   }
+}
+
+/* ===================================================================
+   12 · SEKUNDÄR-AKZENT – Verdigris für "ungefüllte" Bedien-Elemente
+   -------------------------------------------------------------------
+   Die Nav (Sidebar) und tatsächlich gefüllte/Status-Flächen (Ganztag-
+   /Halbtag-Segmente, Checkboxen, Genehmigen-Buttons, "heute"-Markierung)
+   bleiben bei der Indigo-Tinte (--pm-yellow). Alles, wo nichts ausgefüllt
+   wird – Wochennavigation, Betrieb/Schule- + Anwesenheit-Auswahl,
+   Anhänge – bekommt stattdessen --pm-accent-2 (Verdigris), damit die Nav
+   ihre eigene Akzentfarbe behält statt überall dieselbe Tinte zu zeigen.
+   =================================================================== */
+
+/* Wochennavigation (Wochenansicht-"Topbar"): Pfeil-Buttons ‹ › hatten
+   bislang nur einen neutralen Grau-Hover – bekommen jetzt den
+   Sekundär-Akzent als Hover-Feedback. */
+[data-theme="papier"] .week-kw-block__nav:hover {
+  background: var(--pm-accent-2-bg);
+  color: var(--pm-accent-2-dark);
+}
+
+/* Betrieb/Schule- + Anwesenheit-Auswahl (PMSelect-Pillen in der
+   Wochenansicht): Fokus-/Offen-Ring + Pflichtfeld-Hinweis. */
+[data-theme="papier"] body[data-page="wochenansicht"] .pm-select.tag-row__select .pm-select__trigger:focus-visible,
+[data-theme="papier"] body[data-page="wochenansicht"] .pm-select.wochen-options__select .pm-select__trigger:focus-visible,
+[data-theme="papier"] body[data-page="wochenansicht"] .pm-select--open.tag-row__select .pm-select__trigger,
+[data-theme="papier"] body[data-page="wochenansicht"] .pm-select--open.wochen-options__select .pm-select__trigger {
+  border-color: var(--pm-accent-2);
+  box-shadow: 0 0 0 3px var(--pm-accent-2-pale), 0 4px 10px rgba(15, 23, 42, 0.10);
+}
+[data-theme="papier"] body[data-page="wochenansicht"] .pm-select.tag-row__select--needs-input .pm-select__trigger {
+  background: var(--pm-accent-2-bg);
+  border-color: var(--pm-accent-2);
+}
+[data-theme="papier"] body[data-page="wochenansicht"] .pm-select.tag-row__select--needs-input .pm-select__trigger:hover:not(:disabled) {
+  background: var(--pm-accent-2-pale);
+}
+/* Fallback: natives <select> vor PMSelect-Enhancement. */
+[data-theme="papier"] .tag-row__select--needs-input:not(:disabled) {
+  border-color: var(--pm-accent-2);
+  background-color: var(--pm-accent-2-bg);
+}
+[data-theme="papier"] .tag-row__select--needs-input:not(:disabled):hover {
+  background-color: var(--pm-accent-2-pale);
+}
+
+/* Anhang hinzufügen / Zurücksetzen (Icon-Buttons neben der Ort-Pille). */
+[data-theme="papier"] .wochen-options__icon-btn:hover {
+  background: var(--pm-accent-2-bg);
+  border-color: var(--pm-accent-2);
+  color: var(--pm-accent-2-dark);
+}
+
+/* Anhänge-Liste: Dateiname-Hover + Löschen-Wasch-Hintergrund
+   (die Löschen-Farbe selbst bleibt Fehler-Rot – das ist gewollt). */
+[data-theme="papier"] .wochen-anhang__name:hover {
+  color: var(--pm-accent-2-dark);
+}
+[data-theme="papier"] .wochen-anhang__delete:hover {
+  background: var(--pm-accent-2-bg);
 }
