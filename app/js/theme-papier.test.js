@@ -745,3 +745,19 @@ test('Papierheft-Retro: Anhang-/Reset-Button + Anhänge-Liste nutzen Verdigris (
   assert.match(css, /\[data-theme="papier"\] \.wochen-anhang__name:hover \{\s*\n\s*color: var\(--pm-accent-2-dark\);\s*\n\}/);
   assert.match(css, /\[data-theme="papier"\] \.wochen-anhang__delete:hover \{\s*\n\s*background: var\(--pm-accent-2-bg\);\s*\n\}/);
 });
+
+test('Papierheft-Retro: Verdigris ist nicht nur Hover -- betroffene Elemente tragen den Akzent schon im Ruhezustand', () => {
+  const css = readCss();
+  // Wochen-"Topbar": Rahmen + dezente Flaechen-Toenung schon im Ruhezustand.
+  assert.match(css, /\[data-theme="papier"\] body\[data-page="wochenansicht"\] \.week-toolbar \{\s*\n\s*border-color: var\(--pm-accent-2-light\);\s*\n\s*background-image: linear-gradient\(var\(--pm-accent-2-bg\), var\(--pm-accent-2-bg\)\);\s*\n\s*background-color: var\(--pm-white\);\s*\n\}/);
+  // Wochennav-Pfeile: helleres Verdigris schon in Ruhe, volle Kraft im Hover.
+  assert.match(css, /\[data-theme="papier"\] \.week-kw-block__nav \{\s*\n\s*color: var\(--pm-accent-2-light\);\s*\n\}/);
+  // Betrieb\/Schule- + Anwesenheit-Pillen: sichtbarer Rahmen schon in Ruhe
+  // (vorher transparent), Fokus\/Offen bleibt die volle Akzentfarbe.
+  assert.match(css, /\[data-theme="papier"\] body\[data-page="wochenansicht"\] \.pm-select\.tag-row__select \.pm-select__trigger,\s*\n\[data-theme="papier"\] body\[data-page="wochenansicht"\] \.pm-select\.wochen-options__select \.pm-select__trigger \{\s*\n\s*border-color: var\(--pm-accent-2-light\);\s*\n\}/);
+  // Anhang-\/Reset-Button: Rahmen + Symbolfarbe schon in Ruhe.
+  assert.match(css, /\[data-theme="papier"\] \.wochen-options__icon-btn \{\s*\n\s*border-color: var\(--pm-accent-2-light\);\s*\n\s*color: var\(--pm-accent-2-light\);\s*\n\}/);
+  // Anhaenge-Liste: Zeilen-Rahmen + Icon-Farbe schon in Ruhe.
+  assert.match(css, /\[data-theme="papier"\] \.wochen-anhang \{\s*\n\s*border-color: var\(--pm-accent-2-light\);\s*\n\}/);
+  assert.match(css, /\[data-theme="papier"\] \.wochen-anhang__icon \{\s*\n\s*color: var\(--pm-accent-2-dark\);\s*\n\}/);
+});

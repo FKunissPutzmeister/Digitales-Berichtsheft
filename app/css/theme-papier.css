@@ -1379,18 +1379,43 @@ html[data-theme="papier"] * {
    wird – Wochennavigation, Betrieb/Schule- + Anwesenheit-Auswahl,
    Anhänge – bekommt stattdessen --pm-accent-2 (Verdigris), damit die Nav
    ihre eigene Akzentfarbe behält statt überall dieselbe Tinte zu zeigen.
+
+   Die Farbe steckt NICHT nur im Hover: die betroffenen Elemente tragen
+   Verdigris bereits als Ruhezustand (helleres --pm-accent-2-light als
+   Grundton), Hover/Fokus vertiefen auf das volle --pm-accent-2. Die
+   einzige Ausnahme ist die Pflichtfeld-Markierung (--needs-input): die
+   bleibt kräftiger als der neue Normalzustand, sonst ginge ihr
+   "hier fehlt noch was"-Signal unter.
    =================================================================== */
 
-/* Wochennavigation (Wochenansicht-"Topbar"): Pfeil-Buttons ‹ › hatten
-   bislang nur einen neutralen Grau-Hover – bekommen jetzt den
-   Sekundär-Akzent als Hover-Feedback. */
+/* Wochen-"Topbar" (.week-toolbar): Rahmen + sehr dezente Flächen-Tönung
+   in Verdigris statt neutralem Grau. Die Status-Varianten (freigegeben/
+   genehmigt/...) haben höhere Spezifität (Attribut-Selektor) und
+   überschreiben das weiterhin unverändert. */
+[data-theme="papier"] body[data-page="wochenansicht"] .week-toolbar {
+  border-color: var(--pm-accent-2-light);
+  background-image: linear-gradient(var(--pm-accent-2-bg), var(--pm-accent-2-bg));
+  background-color: var(--pm-white);
+}
+
+/* Wochennavigation: Pfeil-Buttons ‹ › tragen die Akzentfarbe jetzt schon
+   im Ruhezustand (vorher neutrales Grau), Hover vertieft auf volle Kraft. */
+[data-theme="papier"] .week-kw-block__nav {
+  color: var(--pm-accent-2-light);
+}
 [data-theme="papier"] .week-kw-block__nav:hover {
   background: var(--pm-accent-2-bg);
   color: var(--pm-accent-2-dark);
 }
 
 /* Betrieb/Schule- + Anwesenheit-Auswahl (PMSelect-Pillen in der
-   Wochenansicht): Fokus-/Offen-Ring + Pflichtfeld-Hinweis. */
+   Wochenansicht): sichtbarer Verdigris-Rahmen schon im Ruhezustand
+   (vorher transparent), Fokus-/Offen-Ring + Pflichtfeld-Hinweis
+   vertiefen auf die volle Akzentfarbe. */
+[data-theme="papier"] body[data-page="wochenansicht"] .pm-select.tag-row__select .pm-select__trigger,
+[data-theme="papier"] body[data-page="wochenansicht"] .pm-select.wochen-options__select .pm-select__trigger {
+  border-color: var(--pm-accent-2-light);
+}
 [data-theme="papier"] body[data-page="wochenansicht"] .pm-select.tag-row__select .pm-select__trigger:focus-visible,
 [data-theme="papier"] body[data-page="wochenansicht"] .pm-select.wochen-options__select .pm-select__trigger:focus-visible,
 [data-theme="papier"] body[data-page="wochenansicht"] .pm-select--open.tag-row__select .pm-select__trigger,
@@ -1405,7 +1430,15 @@ html[data-theme="papier"] * {
 [data-theme="papier"] body[data-page="wochenansicht"] .pm-select.tag-row__select--needs-input .pm-select__trigger:hover:not(:disabled) {
   background: var(--pm-accent-2-pale);
 }
+/* Deaktivierte Pillen bleiben bewusst neutral-grau (Basis-Regel weiter
+   oben in der Datei setzt border-color: var(--pm-grey-200) bei
+   :disabled – höhere Spezifität durch die Pseudoklasse, hier keine
+   eigene Regel nötig). */
+
 /* Fallback: natives <select> vor PMSelect-Enhancement. */
+[data-theme="papier"] .tag-row__select:not(:disabled) {
+  border-color: var(--pm-accent-2-light);
+}
 [data-theme="papier"] .tag-row__select--needs-input:not(:disabled) {
   border-color: var(--pm-accent-2);
   background-color: var(--pm-accent-2-bg);
@@ -1414,15 +1447,28 @@ html[data-theme="papier"] * {
   background-color: var(--pm-accent-2-pale);
 }
 
-/* Anhang hinzufügen / Zurücksetzen (Icon-Buttons neben der Ort-Pille). */
+/* Anhang hinzufügen / Zurücksetzen (Icon-Buttons neben der Ort-Pille):
+   Rahmen + Symbolfarbe schon im Ruhezustand in Verdigris, Hover vertieft
+   auf die volle Akzentfarbe + Flächen-Tönung. */
+[data-theme="papier"] .wochen-options__icon-btn {
+  border-color: var(--pm-accent-2-light);
+  color: var(--pm-accent-2-light);
+}
 [data-theme="papier"] .wochen-options__icon-btn:hover {
   background: var(--pm-accent-2-bg);
   border-color: var(--pm-accent-2);
   color: var(--pm-accent-2-dark);
 }
 
-/* Anhänge-Liste: Dateiname-Hover + Löschen-Wasch-Hintergrund
-   (die Löschen-Farbe selbst bleibt Fehler-Rot – das ist gewollt). */
+/* Anhänge-Liste: Zeilen-Rahmen + Symbolfarbe im Ruhezustand, Dateiname-
+   Hover + Löschen-Wasch-Hintergrund vertiefen (Löschen-Rot selbst bleibt
+   unverändert – das ist gewollt). */
+[data-theme="papier"] .wochen-anhang {
+  border-color: var(--pm-accent-2-light);
+}
+[data-theme="papier"] .wochen-anhang__icon {
+  color: var(--pm-accent-2-dark);
+}
 [data-theme="papier"] .wochen-anhang__name:hover {
   color: var(--pm-accent-2-dark);
 }
