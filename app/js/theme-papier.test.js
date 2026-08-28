@@ -762,3 +762,33 @@ test('Papierheft-Retro: Verdigris ist nicht nur Hover -- betroffene Elemente tra
   assert.match(css, /\[data-theme="papier"\] \.wochen-anhang \{\s*\n\s*border-color: var\(--pm-accent-2\);\s*\n\}/);
   assert.match(css, /\[data-theme="papier"\] \.wochen-anhang__icon \{\s*\n\s*color: var\(--pm-accent-2-dark\);\s*\n\}/);
 });
+
+test('Papierheft-Retro: Farbaufteilung -- Editor-/Tageskacheln bleiben Indigo, ihre Steuerelemente werden Verdigris', () => {
+  const css = readCss();
+  // Anwesenheit-Zeitfeld.
+  assert.match(css, /\[data-theme="papier"\] \.day-card__hours-input:focus \{\s*\n\s*border-color: var\(--pm-accent-2\);\s*\n\}/);
+  // Checkboxen.
+  assert.match(css, /\[data-theme="papier"\] \.wochen-checkbox-opt:has\(input:checked\) \.wochen-checkbox-opt__box,\s*\n\[data-theme="papier"\] \.wochen-options__check:has\(input:checked\) \.wochen-options__check-box \{\s*\n\s*background: var\(--pm-accent-2\);\s*\n\s*border-color: var\(--pm-accent-2\);\s*\n\}/);
+  // Zeit-Spinner.
+  assert.match(css, /\[data-theme="papier"\] \.time-spinner:focus-within \.time-spinner__unit,\s*\n\[data-theme="papier"\] body\[data-page="wochenansicht"\] \.time-spinner__input:focus \{\s*\n\s*border-color: var\(--pm-accent-2\);\s*\n\}/);
+  // Ganztag\/Halbtag-Segment (die tatsaechlich gerenderte .dauer-pill).
+  assert.match(css, /\[data-theme="papier"\] \.dauer-pill\[data-dauer="ganztag"\] \.dauer-pill__opt\[data-dauer-set="ganztag"\],\s*\n\[data-theme="papier"\] \.dauer-pill\[data-dauer="halbtag"\] \.dauer-pill__opt\[data-dauer-set="halbtag"\] \{\s*\n\s*background: var\(--pm-accent-2\);\s*\n\}/);
+  assert.match(css, /\[data-theme="papier"\] \.dauer-split__val \{\s*\n\s*background: var\(--pm-accent-2\);\s*\n\}/);
+  // Qualifikations-Button.
+  assert.match(css, /\[data-theme="papier"\] \.tag-row__qualif-btn \{\s*\n\s*border-color: var\(--pm-accent-2\);\s*\n\s*background: var\(--pm-accent-2-bg\);\s*\n\s*color: var\(--pm-accent-2-dark\);\s*\n\}/);
+  // Pflichtfeld-Hinweis-Banner.
+  assert.match(css, /\[data-theme="papier"\] \.pflichtfeld-hinweis \{\s*\n\s*background: var\(--pm-accent-2-bg\);\s*\n\s*border-color: var\(--pm-accent-2\);\s*\n\}/);
+  assert.match(css, /\[data-theme="papier"\] \.pflichtfeld-hinweis__mark \{\s*\n\s*background: var\(--pm-accent-2\);\s*\n\s*color: var\(--on-accent-2-text\);\s*\n\}/);
+});
+
+test('Papierheft-Retro: Farbaufteilung -- Editor-Kacheln (Schreibflaeche + Kopf) bleiben unangetastet bei Indigo', () => {
+  const css = readCss();
+  // Kein neuer papier-Override fuer editor-area/wochen-kachel/day-section
+  // auf Verdigris -- diese Selektoren duerfen in Abschnitt 12/13 nicht
+  // mit --pm-accent-2 auftauchen (Regressionsschutz gegen versehentliches
+  // Umfaerben der Schreibflaeche).
+  const section12und13 = css.slice(css.indexOf('12 · '));
+  assert.doesNotMatch(section12und13, /\.editor-area[^\n]*\{[^}]*--pm-accent-2/s);
+  assert.doesNotMatch(section12und13, /\.wochen-kachel__title[^\n]*\{[^}]*--pm-accent-2/s);
+  assert.doesNotMatch(section12und13, /\.day-section__(icon|action-add|header|toggle)[^\n]*\{[^}]*--pm-accent-2/s);
+});

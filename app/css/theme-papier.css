@@ -1475,3 +1475,101 @@ html[data-theme="papier"] * {
 [data-theme="papier"] .wochen-anhang__delete:hover {
   background: var(--pm-accent-2-bg);
 }
+
+/* ===================================================================
+   13 · FARBAUFTEILUNG – Zwei gleichwertige Zonen statt eines Akzents
+   -------------------------------------------------------------------
+   Klare Grenze zwischen den beiden Primärfarben:
+
+   INDIGO (--pm-yellow) bleibt exklusiv bei:
+   - Nav (Sidebar, siehe Abschnitt 3)
+   - Editor-Kacheln – der eigentlichen Schreibfläche + ihrem Rahmen/Kopf
+     (.wochen-kachel, .editor-area, .day-section – inkl. Titel, Icon,
+     Auf-/Zuklapp-Toggle: das ist die Kachel-IDENTITÄT, kein Steuerelement)
+   - Tageskacheln (.tag-row) als Rahmen/Kachel-Zustand – "heute"-Markierung,
+     Mehrfachauswahl-Rahmen
+
+   VERDIGRIS (--pm-accent-2) bekommt alles, was innerhalb oder außerhalb
+   dieser Kacheln ein eigenständiges STEUERELEMENT ist: Auswahlfelder,
+   Toggles, Checkboxen, Buttons, Spinner, Hinweis-Banner. Abschnitt 12
+   deckte bereits Topbar/Ort-Auswahl/Anhänge ab – hier folgen die
+   restlichen Steuerelemente (Anwesenheit-Zeitfeld, Ganztag/Halbtag-
+   Segment, Checkboxen, Zeit-Spinner, Qualifikations-Button,
+   Pflichtfeld-Hinweis).
+   =================================================================== */
+
+/* Anwesenheit-Zeitfeld je Tageszeile (Steuerelement in der Tageskachel). */
+[data-theme="papier"] .day-card__hours-input:focus {
+  border-color: var(--pm-accent-2);
+}
+
+/* Checkboxen ("mit Unterweisung" u.ä.): Häkchen-Fläche + Rahmen. */
+[data-theme="papier"] .wochen-checkbox-opt:has(input:checked) .wochen-checkbox-opt__box,
+[data-theme="papier"] .wochen-options__check:has(input:checked) .wochen-options__check-box {
+  background: var(--pm-accent-2);
+  border-color: var(--pm-accent-2);
+}
+
+/* Zeit-Spinner (Arbeitszeit-Eingabe): Rahmen bei Fokus, Tasten-Hover/-Active. */
+[data-theme="papier"] .time-spinner:focus-within .time-spinner__unit,
+[data-theme="papier"] body[data-page="wochenansicht"] .time-spinner__input:focus {
+  border-color: var(--pm-accent-2);
+}
+[data-theme="papier"] .time-spinner__btn:hover:not(:disabled),
+[data-theme="papier"] body[data-page="wochenansicht"] .time-spinner__btn:hover:not(:disabled) {
+  background: var(--pm-accent-2-bg);
+}
+[data-theme="papier"] .time-spinner__btn:active:not(:disabled) {
+  background: var(--pm-accent-2);
+}
+[data-theme="papier"] .time-spinner__input:focus {
+  background: var(--pm-accent-2-bg);
+}
+
+/* Ganztag/Halbtag-Segment (.dauer-pill – die tatsächlich gerenderte
+   Arbeitszeit-Auswahl je Tageszeile) + Doppel-Halbtag-Chips bei
+   Ort = "Betrieb/Schule" (.dauer-split__val, nicht interaktiv, aber
+   dieselbe Farbfamilie wie die Pille). */
+[data-theme="papier"] .dauer-pill[data-dauer="ganztag"] .dauer-pill__opt[data-dauer-set="ganztag"],
+[data-theme="papier"] .dauer-pill[data-dauer="halbtag"] .dauer-pill__opt[data-dauer-set="halbtag"] {
+  background: var(--pm-accent-2);
+}
+[data-theme="papier"] .dauer-split__val {
+  background: var(--pm-accent-2);
+}
+/* Legacy/alternative Rendering desselben Segment-Konzepts (falls
+   an anderer Stelle noch verwendet) – aus Konsistenzgründen mitgezogen. */
+[data-theme="papier"] .erfassung-mode__option--active {
+  background: var(--pm-accent-2);
+}
+
+/* Qualifikations-Button je Tageszeile. */
+[data-theme="papier"] .tag-row__qualif-btn {
+  border-color: var(--pm-accent-2);
+  background: var(--pm-accent-2-bg);
+  color: var(--pm-accent-2-dark);
+}
+[data-theme="papier"] .tag-row__qualif-btn:hover {
+  background: var(--pm-accent-2);
+}
+
+/* "Diese Woche bearbeiten"-Stift: Fokus-Ring. */
+[data-theme="papier"] .week-edit-btn:focus-visible {
+  box-shadow: 0 0 0 3px var(--pm-accent-2-pale);
+}
+
+/* Pflichtfeld-Hinweis-Banner + Zähler-Badge. */
+[data-theme="papier"] .pflichtfeld-hinweis {
+  background: var(--pm-accent-2-bg);
+  border-color: var(--pm-accent-2);
+}
+[data-theme="papier"] .pflichtfeld-hinweis__mark {
+  background: var(--pm-accent-2);
+  color: var(--on-accent-2-text);
+}
+
+/* Natives <select>-Fallback: Fokus-Rahmen ebenfalls Verdigris (Ruhezustand
+   ist bereits in Abschnitt 12 gesetzt). */
+[data-theme="papier"] .tag-row__select:focus-visible {
+  border-color: var(--pm-accent-2);
+}
