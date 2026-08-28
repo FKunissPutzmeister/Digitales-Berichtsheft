@@ -758,9 +758,9 @@ test('Papierheft-Retro: Verdigris ist nicht nur Hover -- betroffene Elemente tra
 test('Papierheft-Retro: Füllfarbe (Terrakotta) auf Topbar, Anhang-/Reset-Button und Ort-/Anwesenheit-Auswahl -- Verdigris-Rahmen bleibt', () => {
   const css = readCss();
   const token = css.match(/\[data-theme="papier"\] \{[\s\S]*?\n\}/)[0];
-  assert.match(token, /--pm-fill-3:\s*#A8826B;/);
-  assert.match(token, /--pm-fill-3-dark:\s*#8C6A54;/);
-  assert.match(token, /--on-fill-3-text:\s*#FBF6EC;/);
+  assert.match(token, /--pm-fill-3:\s*#C9AD8F;/);
+  assert.match(token, /--pm-fill-3-dark:\s*#B3936F;/);
+  assert.match(token, /--on-fill-3-text:\s*#3D2C14;/);
 
   // Topbar: Rahmen bleibt Verdigris, Fuellung wird solide Terrakotta,
   // Textkinder bekommen helle Schrift.

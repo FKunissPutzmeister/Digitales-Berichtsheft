@@ -91,16 +91,18 @@ html[data-theme="papier"] { color-scheme: light; }
   --pm-accent-2-bg:     rgba(62, 107, 104, 0.12);
   --on-accent-2-text:   #EFE6CE;
 
-  /* Füllfarbe (gedämpfter Lehm) für Topbar, Anhang-/Reset-Button und
+  /* Füllfarbe (blasses Sandbeige) für Topbar, Anhang-/Reset-Button und
      Ort-/Anwesenheit-Auswahl: löst dort die bisherige Pergament-Füllung
      ab, der Verdigris-Rahmen bleibt unverändert. Bewusst NICHT auf
      Checkboxen/Zeit-Spinner/Ganztag-Segment/Pflichtfeld-Hinweis
      angewendet – die bleiben bei Verdigris-auf-Pergament.
-     Ursprünglich kräftiges Terrakotta (#B5714A) – auf Nutzer-Wunsch
-     ("zu präsent") entsättigt/aufgehellt zu diesem ruhigeren Lehm-Ton. */
-  --pm-fill-3:          #A8826B;
-  --pm-fill-3-dark:     #8C6A54;
-  --on-fill-3-text:     #FBF6EC;
+     Weg von kräftigem Terrakotta (#B5714A) über gedämpften Lehm
+     (#A8826B) zu diesem sehr blassen, fast Pergament-nahen Sandton –
+     entsprechend jetzt wieder dunkle Tinte statt heller Schrift, da
+     der Fond selbst schon hell genug für Kontrast ist. */
+  --pm-fill-3:          #C9AD8F;
+  --pm-fill-3-dark:     #B3936F;
+  --on-fill-3-text:     #3D2C14;
 
   /* Warmer Gold-Ton für Seitentitel direkt auf dem Holz-Hintergrund
      (kein Karten-Untergrund) – siehe Abschnitt 14. */
