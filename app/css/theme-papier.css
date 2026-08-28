@@ -1659,25 +1659,23 @@ html[data-theme="papier"] * {
 }
 
 /* ===================================================================
-   15 · SPALTEN-/FELD-LABEL – Verdigris statt mattem Gold-Braun
+   15 · SPALTEN-/FELD-LABEL – weiß statt Verdigris/Gold-Braun
    -------------------------------------------------------------------
    "Ort", "Anwesenheit", "ArbZ" (Spaltenköpfe über den Tageszeilen) und
-   "mit Unterweisung" (Checkbox-Beschriftung) nutzen --pm-grey-500/-700 –
-   in dieser warmen Sepia-Palette liest sich das eher wie mattes
-   Gold-Braun als neutrales Grau. Auf Nutzer-Wunsch auf den Sekundär-
-   Akzent (Verdigris) umgestellt, passend zu den Steuerelementen, die
-   diese Label beschriften.
-
-   font-weight steht hier schon auf var(--fw-bold) (700) – wirkt aber
-   trotzdem dünn: EB Garamond ist nur in 400 und 400italic und 600
-   nachgeladen (siehe @font-face oben), 700 wird darum auf die
-   vorhandene 600-Type gemappt statt synthetisch fett. Bei den kleinen
-   Schriftgrößen dieser Label (11–13px) reicht das nicht zum Lesen –
-   -webkit-text-stroke zieht die Glyphen zusätzlich nach, ohne eine
-   weitere Font-Datei laden zu müssen. */
+   "mit Unterweisung" (Checkbox-Beschriftung) sitzen – wie die
+   Seitentitel in Abschnitt 14 – OHNE eigene Karte direkt auf dem
+   dunklen Holz-Hintergrund. --pm-grey-500/-700 (mattes Gold-Braun) UND
+   der erste Versuch mit Verdigris (--pm-accent-2-dark ist selbst recht
+   dunkel) waren beide zu dunkel dafür – dickerer Strich allein löst
+   ein Kontrast-, kein Dickenproblem. Jetzt schlicht Weiß + dezenter
+   dunkler Schlagschatten (gleiche Anker-Technik wie bei den
+   Seitentiteln), damit es unabhängig von der Foto-Maserung lesbar
+   bleibt. font-weight bleibt bold, --webkit-text-stroke bleibt zum
+   Nachziehen der dünnen 600er-Type (siehe Historie oben). */
 [data-theme="papier"] body[data-page="wochenansicht"] .tag-cards__header-label,
 [data-theme="papier"] .wochen-options__field-label,
 [data-theme="papier"] .wochen-options__check {
-  color: var(--pm-accent-2-dark);
-  -webkit-text-stroke: 0.4px var(--pm-accent-2-dark);
+  color: #FFFFFF;
+  -webkit-text-stroke: 0.4px #FFFFFF;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.55), 0 1px 1px rgba(0, 0, 0, 0.35);
 }
