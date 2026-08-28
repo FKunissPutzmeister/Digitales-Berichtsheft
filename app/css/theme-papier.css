@@ -481,6 +481,23 @@ html[data-theme="papier"] * {
    — eigenes, gespiegeltes Keyframe-Set statt animation-direction:reverse
    (eine zeitlich rückwärts abgespielte "leaving"-Animation würde am Ende
    wieder sichtbar statt verschwunden enden, das wäre falsch).
+
+   NEUFASSUNG (Nutzer-Feedback: "die aktuelle Umschlag-Animation gefällt
+   mir nicht", Referenz turn.js/turnjs.com): der bisherige Falz war eine
+   reine GERADE Diagonale zwischen zwei Kantenpunkten (ein Punkt auf der
+   Ober-, einer auf der Rechtskante) – das liest sich wie ein Scheren-
+   schnitt, nicht wie rollendes Papier. Jeder Keyframe hat jetzt 10 feste
+   Polygon-Punkte (nicht mehr wechselnd 4→5→4) mit sechs Zwischenpunkten,
+   die entlang eines sin(π·s)-Profils nach INNEN (zur Seitenmitte, weg
+   von der Ecke) ausbeulen – daraus entsteht eine runde, organische Kerbe
+   statt der geraden Kante. Gleiche Punktzahl in JEDEM Keyframe ist
+   Absicht: nur so interpoliert der Browser die Zwischenschritte weich
+   statt hart zwischen unterschiedlich großen Punktlisten zu springen.
+   Erzeugt via Skript (scratchpad gen-curl-keyframes.js), Bogen-Richtung
+   wurde live verifiziert (erster Versuch beulte fälschlich NACH AUSSEN
+   aus, d.h. über die Box hinaus – dort wird die Kerbe von der eigenen
+   Box-Kante weggeclippt und wirkt dadurch fast unsichtbar; nach innen
+   beulen zeigt die Rundung tatsächlich sichtbar im Bild).
    Timing bewusst an die bestehenden 220ms/260ms-JS-Konstanten in
    wochenansicht.js gebunden (transitionedRender räumt den Klon nach
    260ms hart weg) — NICHT die ~1200ms aus dem ursprünglichen
@@ -492,25 +509,25 @@ html[data-theme="papier"] * {
    stage) rendert Edge/Chromium das komplette Element unsichtbar, obwohl
    alle Computed Styles korrekt sind — real reproduziert und isoliert
    verifiziert (Screenshot mit/ohne filter verglichen). Die Tiefenwirkung
-   kommt stattdessen ausschließlich über die Canvas-Lichtkante.
+   kommt stattdessen ausschließlich über die Canvas-Lichtkante/-Schatten.
    Die "entering"-Pane bleibt bewusst unverändert (Spring-Slide) — sie
    wird nicht abgeschnitten, nur die "leaving"-Seite bekommt den Curl.
-   Kanvas-Lichtkante: siehe PMPaperCurl in js/theme.js, aufgerufen aus
-   wochenansicht.js direkt nach der Klon-Erzeugung.
+   Kanvas-Licht+Schatten: siehe PMPaperCurl in js/theme.js, aufgerufen
+   aus wochenansicht.js direkt nach der Klon-Erzeugung.
    =================================================================== */
 @keyframes papier-week-curl-next {
-  0%   { clip-path: polygon(0% 0%, 100% 0%, 100% 100%, 0% 100%); }
-  20%  { clip-path: polygon(0% 0%, 72% 0%, 100% 20%, 100% 100%, 0% 100%); }
-  45%  { clip-path: polygon(0% 0%, 38% 0%, 100% 55%, 100% 100%, 0% 100%); }
-  70%  { clip-path: polygon(0% 0%, 10% 0%, 100% 85%, 100% 100%, 0% 100%); }
-  100% { clip-path: polygon(0% 100%, 0% 100%, 0% 100%, 0% 100%); }
+  0%   { clip-path: polygon(0% 0%, 0% 100%, 100% 100%, 100% 0%, 100% 0%, 100% 0%, 100% 0%, 100% 0%, 100% 0%, 100% 0%); }
+  20%  { clip-path: polygon(0% 0%, 0% 100%, 100% 100%, 100% 20%, 89.27% 24.06%, 80.53% 26.14%, 75.21% 24.79%, 73.86% 19.47%, 75.94% 10.73%, 80% 0%); }
+  45%  { clip-path: polygon(0% 0%, 0% 100%, 100% 100%, 100% 45%, 82% 48%, 66.8% 48.2%, 56.49% 43.51%, 51.8% 33.2%, 52% 18%, 55% 0%); }
+  70%  { clip-path: polygon(0% 0%, 0% 100%, 100% 100%, 100% 70%, 83% 63.66%, 67.43% 55.9%, 54.34% 45.66%, 44.1% 32.57%, 36.34% 17%, 30% 0%); }
+  100% { clip-path: polygon(0% 0%, 0% 100%, 100% 100%, 100% 100%, 83.33% 83.33%, 66.67% 66.67%, 50% 50%, 33.33% 33.33%, 16.67% 16.67%, 0% 0%); }
 }
 @keyframes papier-week-curl-prev {
-  0%   { clip-path: polygon(0% 0%, 100% 0%, 100% 100%, 0% 100%); }
-  20%  { clip-path: polygon(0% 0%, 100% 0%, 100% 100%, 28% 100%, 0% 80%); }
-  45%  { clip-path: polygon(0% 0%, 100% 0%, 100% 100%, 62% 100%, 0% 45%); }
-  70%  { clip-path: polygon(0% 0%, 100% 0%, 100% 100%, 90% 100%, 0% 15%); }
-  100% { clip-path: polygon(100% 0%, 100% 0%, 100% 0%, 100% 0%); }
+  0%   { clip-path: polygon(100% 100%, 100% 0%, 0% 0%, 0% 100%, 0% 100%, 0% 100%, 0% 100%, 0% 100%, 0% 100%, 0% 100%); }
+  20%  { clip-path: polygon(100% 100%, 100% 0%, 0% 0%, 20% 100%, 24.06% 89.27%, 26.14% 80.53%, 24.79% 75.21%, 19.47% 73.86%, 10.73% 75.94%, 0% 80%); }
+  45%  { clip-path: polygon(100% 100%, 100% 0%, 0% 0%, 45% 100%, 48% 82%, 48.2% 66.8%, 43.51% 56.49%, 33.2% 51.8%, 18% 52%, 0% 55%); }
+  70%  { clip-path: polygon(100% 100%, 100% 0%, 0% 0%, 70% 100%, 63.66% 83%, 55.9% 67.43%, 45.66% 54.34%, 32.57% 44.1%, 17% 36.34%, 0% 30%); }
+  100% { clip-path: polygon(100% 100%, 100% 0%, 0% 0%, 100% 100%, 83.33% 83.33%, 66.67% 66.67%, 50% 50%, 33.33% 33.33%, 16.67% 16.67%, 0% 0%); }
 }
 [data-theme="papier"] .week-pane--leaving[data-dir="next"] {
   animation: papier-week-curl-next 220ms ease-in both;

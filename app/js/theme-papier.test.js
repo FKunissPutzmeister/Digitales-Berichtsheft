@@ -122,6 +122,28 @@ test('Papierheft-Retro: Eck-Curl-Keyframes für beide Wochenwechsel-Richtungen',
   assert.match(css, /\[data-theme="papier"\] \.week-pane--leaving\[data-dir="prev"\] \{[\s\S]*?animation: papier-week-curl-prev 220ms/);
 });
 
+test('Papierheft-Retro: Curl-Falz ist ein runder Bogen (10 Punkte je Keyframe), nicht mehr die gerade Diagonale', () => {
+  const css = readCss();
+  const nextBlock = css.match(/@keyframes papier-week-curl-next \{[\s\S]*?\n\}/)[0];
+  const prevBlock = css.match(/@keyframes papier-week-curl-prev \{[\s\S]*?\n\}/)[0];
+  // Jede Keyframe-Zeile muss exakt 10 Polygon-Punkte haben (gleiche
+  // Punktzahl in JEDEM Step ist Voraussetzung fuer weiches Interpolieren
+  // -- die alte Fassung wechselte zwischen 4/5 Punkten).
+  for (const block of [nextBlock, prevBlock]) {
+    const polygons = [...block.matchAll(/clip-path: polygon\(([^)]*)\);/g)];
+    assert.strictEqual(polygons.length, 5, 'erwartet 5 Keyframe-Steps (0/20/45/70/100%)');
+    for (const p of polygons) {
+      const pointCount = p[1].split(',').length;
+      assert.strictEqual(pointCount, 10, 'jeder Step muss 10 Polygon-Punkte haben');
+    }
+  }
+  // Der 45%-Schritt muss einen echten Bogen zeigen (Zwischenpunkte
+  // spuerbar von der geraden Sehne A-B abgesetzt) -- das war bei der
+  // alten geraden Diagonale nicht der Fall.
+  assert.match(nextBlock, /45%\s*\{ clip-path: polygon\(0% 0%, 0% 100%, 100% 100%, 100% 45%, 82% 48%/);
+  assert.match(prevBlock, /45%\s*\{ clip-path: polygon\(100% 100%, 100% 0%, 0% 0%, 45% 100%, 48% 82%/);
+});
+
 test('Papierheft-Retro: Curl respektiert prefers-reduced-motion', () => {
   const css = readCss();
   assert.match(css, /@media \(prefers-reduced-motion: reduce\) \{[\s\S]*?\[data-theme="papier"\] \.week-pane--leaving\[data-dir="next"\][\s\S]*?animation: none;/);
@@ -131,6 +153,27 @@ test('Papierheft-Retro: PMPaperCurl-Engine + paintWeekCurl-API existieren in the
   const js = fs.readFileSync(THEME_JS_PATH, 'utf8');
   assert.match(js, /var PMPaperCurl = \(function \(\) \{/);
   assert.match(js, /paintWeekCurl: function \(canvas, dir\) \{/);
+});
+
+test('Papierheft-Retro: PMPaperCurl malt zusätzlich einen dunklen Schatten-Fleck (Schlagschatten der abrollenden Ecke)', () => {
+  const js = fs.readFileSync(THEME_JS_PATH, 'utf8');
+  const engine = js.match(/var PMPaperCurl = \(function \(\) \{[\s\S]*?\n  \}\)\(\);/)[0];
+  // Schatten-Versatzrichtung: next -> Seitenmitte unten-links (-1,+1),
+  // prev -> oben-rechts (+1,-1) -- Gegenrichtung zur wegrollenden Ecke.
+  assert.match(engine, /var sdx = dir === 'prev' \? 1 : -1;/);
+  assert.match(engine, /var sdy = dir === 'prev' \? -1 : 1;/);
+  assert.match(engine, /rgba\(30,20,10,/);
+  // Lichtfleck bleibt erhalten (Glanz direkt auf dem Falz-Scheitel).
+  assert.match(engine, /rgba\(255,248,230,/);
+  // Radiale statt lineare Gradienten -- ein linearGradient über die volle
+  // Canvas-Flaeche gezogen erzeugte einen haesslichen, unendlichen
+  // Diagonal-Streifen statt eines lokal begrenzten Flecks (siehe
+  // Kommentar oben der Engine).
+  assert.match(engine, /createRadialGradient/);
+  assert.doesNotMatch(engine, /createLinearGradient/);
+  // Referenzpunkt = echter Bogen-Scheitel (curveApex), nicht mehr die
+  // alte gerade Eck-zu-Eck-Diagonale.
+  assert.match(engine, /function curveApex\(te, w, h, dir\) \{/);
 });
 
 test('Papierheft-Retro: wochenansicht.js erzeugt Curl-Canvas nur für papier-Theme (theme-gated, additiv)', () => {

@@ -805,18 +805,50 @@
     return { start: start, stop: stop };
   })();
 
-  /* ── Papier-FX: Canvas-Lichtkante fürs Eck-Umblättern ─────────────
+  /* ── Papier-FX: Canvas-Schatten+Lichtkante fürs Eck-Umblättern ────
      Kein Dauerloop wie die übrigen FX-Engines (Nebel/Schnee) — läuft nur
      für die Dauer einer einzelnen Wochenwechsel-Animation (~220ms), dann
      endet die Schleife von selbst. Gemalt wird KEIN Seiteninhalt (ein
      Machbarkeits-Spike ergab: DOM-Rasterung über SVG-foreignObject
      scheitert am echten App-Markup, das nie valides XHTML ist), sondern
-     nur ein schmales, diagonal wanderndes Lichtband über dem CSS-
-     clip-path-Falz (theme-papier.css §6), das die Krümmung zusätzlich
-     zum reinen box-shadow verkauft. */
+     zwei weiche, runde Flecken über dem CSS-clip-path-Falz (theme-
+     papier.css §6): ein dunkler Schatten-Fleck etwas zur Seitenmitte hin
+     versetzt (simuliert den Schlagschatten der sich hebenden Ecke auf
+     die darunterliegende Seite — genau das fehlte am alten, rein
+     geraden Falz und war der Haupt-Unterschied zum turn.js-Vorbild,
+     siehe §6-Kommentar) + ein heller Glanzfleck direkt AUF dem Falz.
+
+     Referenzpunkt = tatsächlicher Scheitel der gebogenen Falz-Kurve
+     (Bogenmitte, s=0.5) — dieselbe Formel wie in den §6-Keyframes
+     (Mittelpunkt A↔B + Ausbeulung nach innen), nur in Pixel statt
+     Prozent nachgerechnet. ERSTER VERSUCH nutzte noch den alten
+     Referenzpunkt (Wanderung auf der geraden Eck-zu-Eck-Diagonale) +
+     lineare Verlaufsbänder (createLinearGradient über die volle Canvas-
+     Breite/Höhe gezogen) — im Vorschau-Mockup (scratchpad
+     curl-mockup-fx.html) sichtbar als hässlicher, das ganze Blatt
+     durchquerender dunkler Diagonal-Streifen, der zudem sichtbar von der
+     eigentlichen Kurve abdriftete. Radiale Gradienten um den echten
+     Bogen-Scheitel lösen beides: weich begrenzter Fleck statt
+     unendlicher Streifen, exakt an der sichtbaren Falz-Kontur verankert.
+     `te = t*t` nähert die CSS-`ease-in`-Zeitfunktion an, damit der
+     Referenzpunkt mit dem tatsächlichen Fortschritt der clip-path-
+     Animation mitzieht statt ihr (bei linearem t) vorzueilen. */
   var PMPaperCurl = (function () {
     var reduceMotion = !!(window.matchMedia &&
       window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+
+    // Bogen-Scheitel in Pixelkoordinaten für Fortschritt te (0..1) —
+    // deckungsgleich mit der Kurven-Formel aus scratchpad
+    // gen-curl-keyframes.js (dort in Prozent, hier direkt in Pixel).
+    function curveApex(te, w, h, dir) {
+      var ax = 100 * (1 - te), ay = 0;
+      var bx = 100, by = 100 * te;
+      var bulge = 32 * Math.sin(Math.PI * Math.min(1, te / 0.85)) * (1 - te * 0.15);
+      var mx = (ax + bx) / 2, my = (ay + by) / 2;
+      var px = mx - bulge * 0.7071, py = my + bulge * 0.7071;
+      if (dir === 'prev') { px = 100 - px; py = 100 - py; }
+      return { x: px / 100 * w, y: py / 100 * h };
+    }
 
     function paint(canvas, dir) {
       if (reduceMotion || !canvas) return;
@@ -824,23 +856,45 @@
       var w = canvas.width, h = canvas.height;
       var duration = 220;
       var start = null;
+      // Versatz-Richtung "zur Seitenmitte hin" (weg von der wegrollenden
+      // Ecke) für den Schatten: next rollt oben rechts weg → Seitenmitte
+      // liegt unten links (-1,+1); prev rollt unten links weg → Seiten-
+      // mitte liegt oben rechts (+1,-1).
+      var sdx = dir === 'prev' ? 1 : -1;
+      var sdy = dir === 'prev' ? -1 : 1;
+      var shadowOffset = Math.min(w, h) * 0.06;
+      var radius = Math.min(w, h) * 0.32;
 
       function frame(now) {
         if (start === null) start = now;
         var t = Math.min(1, (now - start) / duration);
         ctx.clearRect(0, 0, w, h);
-        // next: Lichtband wandert oben-rechts (t=0) -> unten-links (t=1),
-        // spiegelbildlich zum Curl. prev: unten-links (t=0) -> oben-rechts
-        // (t=1) - genau umgekehrt, wie der gespiegelte Curl selbst auch.
-        var cx = dir === 'prev' ? t * w : (1 - t) * w;
-        var cy = dir === 'prev' ? (1 - t) * h : t * h;
-        var alpha = 0.45 * Math.sin(Math.PI * t);
-        if (alpha > 0.01) {
-          var grad = ctx.createLinearGradient(cx - 70, cy - 70, cx + 70, cy + 70);
-          grad.addColorStop(0, 'rgba(255,248,230,0)');
-          grad.addColorStop(0.5, 'rgba(255,248,230,' + alpha.toFixed(3) + ')');
-          grad.addColorStop(1, 'rgba(255,248,230,0)');
-          ctx.fillStyle = grad;
+        var te = t * t;
+        var apex = curveApex(te, w, h, dir);
+        var cx = apex.x, cy = apex.y;
+        var envelope = Math.sin(Math.PI * t);
+
+        // Schatten-Fleck: dunkel, etwas zur Seitenmitte versetzt, etwas
+        // größer/weicher als der Glanzfleck (Schlagschatten wirkt
+        // diffuser als ein Glanzlicht).
+        var shadowAlpha = 0.30 * envelope;
+        if (shadowAlpha > 0.01) {
+          var sx = cx + sdx * shadowOffset;
+          var sy = cy + sdy * shadowOffset;
+          var sgrad = ctx.createRadialGradient(sx, sy, 0, sx, sy, radius);
+          sgrad.addColorStop(0, 'rgba(30,20,10,' + shadowAlpha.toFixed(3) + ')');
+          sgrad.addColorStop(1, 'rgba(30,20,10,0)');
+          ctx.fillStyle = sgrad;
+          ctx.fillRect(0, 0, w, h);
+        }
+        // Glanzfleck: hell, direkt auf dem Falz-Scheitel (wie bisher,
+        // jetzt nur korrekt daran verankert statt an der alten Diagonale).
+        var lightAlpha = 0.5 * envelope;
+        if (lightAlpha > 0.01) {
+          var lgrad = ctx.createRadialGradient(cx, cy, 0, cx, cy, radius * 0.75);
+          lgrad.addColorStop(0, 'rgba(255,248,230,' + lightAlpha.toFixed(3) + ')');
+          lgrad.addColorStop(1, 'rgba(255,248,230,0)');
+          ctx.fillStyle = lgrad;
           ctx.fillRect(0, 0, w, h);
         }
         if (t < 1) requestAnimationFrame(frame);
