@@ -565,12 +565,13 @@ test('Papierheft-Retro: Wortmarke -- "Berichtsheft" gross oben, "PUTZMEISTER" al
   const container = css.match(/\[data-theme="papier"\] \.sidebar__logo-text \{[\s\S]*?\n\}/)[0];
   assert.match(container, /display: flex;/);
   assert.match(container, /flex-direction: column;/);
-  // Nutzer-Feedback danach ("beides noch etwas nach unten setzen"): nur
-  // der Text-Block wandert, das Logo-Mark bleibt an Ort und Stelle.
-  // margin-top statt transform:translateY (erster Versuch, live
-  // verworfen -- ueberlappte sichtbar mit "UEBERSICHT" darunter, weil
-  // reines transform keinen echten Platz reserviert).
-  assert.match(container, /margin-top: 6px;/);
+  // Nutzer-Feedback danach ("beides noch etwas nach unten setzen", dann
+  // nochmal "noch etwas nach unten"): nur der Text-Block wandert, das
+  // Logo-Mark bleibt an Ort und Stelle. margin-top statt
+  // transform:translateY (erster Versuch, live verworfen -- ueberlappte
+  // sichtbar mit "UEBERSICHT" darunter, weil reines transform keinen
+  // echten Platz reserviert). 10px (zuvor 6px).
+  assert.match(container, /margin-top: 10px;/);
   assert.doesNotMatch(container, /transform: translateY/);
   const sub = css.match(/\[data-theme="papier"\] \.sidebar__logo-sub \{[\s\S]*?\n\}/)[0];
   assert.match(sub, /order: 1;/);
@@ -603,7 +604,17 @@ test('Papierheft-Retro: Kopf-/Fußinhalt rueckt aus der Rollen-Zone heraus (lieg
   // calc(var(--cap-h) + 14px) ... }), nur auf die getrennten
   // .sidebar__header/.sidebar__footer der App uebertragen.
   const css = readCss();
-  assert.match(css, /\[data-theme="papier"\] \.sidebar__header \{\s*\n\s*padding-top: calc\(var\(--pgm-cap-h\) \+ 14px\);\s*\n\}/);
+  const header = css.match(/\[data-theme="papier"\] \.sidebar__header \{[\s\S]*?\n\}/)[0];
+  assert.match(header, /padding-top: calc\(var\(--pgm-cap-h\) \+ 14px\);/);
+  // height:auto -- .sidebar__header erbt aus layout.css eine FESTE
+  // Hoehe (calc(var(--topbar-h) + ...)), die glass.css nie ueberschreibt
+  // (dort ist "height" gar nicht gesetzt). Ohne diesen Override wuchs
+  // die Box nicht mit dem Innenabstand/Inhalt mit -- Folge: die goldene
+  // Trennlinie (glass.css:377-389, per bottom:0 an der Box-Unterkante
+  // verankert) landete mitten im ueberstehenden Wortmarken-Text statt
+  // darunter (Nutzer-Feedback: "goldene Linie [...] gerade irgendwie
+  // unter Berichtsheft aber ueber Putzmeister gezogen").
+  assert.match(header, /height: auto;/);
   assert.match(css, /\[data-theme="papier"\] \.sidebar__footer \{\s*\n\s*padding-bottom: calc\(var\(--pgm-cap-h\) \+ 14px\);\s*\n\}/);
   // Eingeklappt hat .sidebar__footer einen anderen Basiswert (12px statt
   // 14px unten, glass.css:1348) -- eigener Override statt derselbe Puffer.

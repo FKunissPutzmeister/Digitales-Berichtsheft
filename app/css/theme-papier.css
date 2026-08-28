@@ -1197,20 +1197,25 @@ html[data-theme="papier"] * {
      im Selektor auftaucht (zwei Regeln fuer denselben Selektor lassen
      sich leicht uebersehen, wenn man nur an einer Stelle sucht).
      margin-top (Nutzer-Wunsch: "beides noch etwas nach unten setzen",
-     bezogen auf "Berichtsheft" + "PUTZMEISTER"): nur der Text-Block
-     wandert, das Logo-Mark (Elefant) bleibt an Ort und Stelle.
+     bezogen auf "Berichtsheft" + "PUTZMEISTER", danach nochmal "noch
+     etwas nach unten"): nur der Text-Block wandert, das Logo-Mark
+     (Elefant) bleibt an Ort und Stelle.
      BEWUSST margin-top statt transform:translateY (erster Versuch,
-     live verworfen): der zweizeilige Text füllt die Kopfzeile schon
-     fast vollständig aus (Berichtsheft 19px + PUTZMEISTER 10px ≈ Höhe
-     des 36px-Logo-Marks) -- ein reines transform verschiebt nur die
+     live verworfen): ein reines transform verschiebt nur die
      Darstellung, reserviert aber keinen Platz, und "PUTZMEISTER" schob
      sich sichtbar in den ersten Rubriken-Titel ("ÜBERSICHT") der
      Navigation darunter. margin-top vergrößert die Kopfzeile dagegen
      tatsächlich (echter Boxmodell-Platz), der Rest der Sidebar rutscht
-     entsprechend mit nach unten -- kein Überlapp mehr. */
+     entsprechend mit nach unten -- kein Überlapp mehr.
+     Funktioniert jetzt zuverlässig ÜBER MEHRERE ERHÖHUNGEN HINWEG (10px
+     statt zuvor 6px), weil .sidebar__header selbst auf height:auto
+     steht (Kommentar weiter unten bei "Kopf-/Fußinhalt aus der
+     Rollen-Zone") -- vorher hatte der Header eine aus layout.css
+     geerbte FESTE Höhe, die nicht mitwuchs; margin-top allein half
+     dann nichts gegen das Überlappen mit der goldenen Trennlinie. */
   display: flex;
   flex-direction: column;
-  margin-top: 6px;
+  margin-top: 10px;
 }
 [data-theme="papier"] .sidebar.collapsed .sidebar__logo-text {
   transition: max-width var(--pgm-speed) var(--pgm-ease),
@@ -1273,9 +1278,26 @@ html[data-theme="papier"] * {
    eigener Override statt denselben Puffer draufzurechnen. .sidebar__header
    ändert im eingeklappten Zustand nur justify-content, nicht den
    Innenabstand (glass.css:1365) -- ein Override reicht für beide
-   Zustände. */
+   Zustände.
+
+   `height: auto` (Nutzer-Feedback beim zweizeiligen Wortmark: die
+   goldene Trennlinie unter dem Header, glass.css:377-389
+   `.sidebar__header::after`, saß plötzlich MITTEN in "PUTZMEISTER"
+   statt darunter): .sidebar__header trägt aus layout.css (Zeile 65,
+   ALTE Vor-Pillen-Sidebar, aber niemals von glass.css überschrieben,
+   weil dort kein `height` mehr gesetzt wird) eine feste
+   `height: calc(var(--topbar-h) + env(safe-area-inset-top))` -- diese
+   wächst NICHT mit dem Inhalt mit. Mit zunehmendem Padding-top (s.o.)
+   plus dem jetzt zweizeiligen Berichtsheft/PUTZMEISTER-Text ragte der
+   tatsächliche Inhalt (nur dank overflow:visible überhaupt sichtbar)
+   deutlich über diese fixe Boxhöhe hinaus – die goldene Linie, die sich
+   per `bottom:0` korrekt am UNTEREN RAND DER BOX orientiert, landete
+   dadurch mitten im überstehenden Text. `height:auto` lässt die Box
+   tatsächlich mit Padding + Inhalt mitwachsen, die Linie sitzt danach
+   wieder exakt am echten unteren Rand. */
 [data-theme="papier"] .sidebar__header {
   padding-top: calc(var(--pgm-cap-h) + 14px);
+  height: auto;
 }
 [data-theme="papier"] .sidebar__footer {
   padding-bottom: calc(var(--pgm-cap-h) + 14px);
