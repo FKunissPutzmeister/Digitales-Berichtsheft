@@ -91,14 +91,16 @@ html[data-theme="papier"] { color-scheme: light; }
   --pm-accent-2-bg:     rgba(62, 107, 104, 0.12);
   --on-accent-2-text:   #EFE6CE;
 
-  /* Füllfarbe (Terrakotta) für Topbar, Anhang-/Reset-Button und
+  /* Füllfarbe (gedämpfter Lehm) für Topbar, Anhang-/Reset-Button und
      Ort-/Anwesenheit-Auswahl: löst dort die bisherige Pergament-Füllung
      ab, der Verdigris-Rahmen bleibt unverändert. Bewusst NICHT auf
      Checkboxen/Zeit-Spinner/Ganztag-Segment/Pflichtfeld-Hinweis
-     angewendet – die bleiben bei Verdigris-auf-Pergament. */
-  --pm-fill-3:          #B5714A;
-  --pm-fill-3-dark:     #8F5836;
-  --on-fill-3-text:     #F5E9DB;
+     angewendet – die bleiben bei Verdigris-auf-Pergament.
+     Ursprünglich kräftiges Terrakotta (#B5714A) – auf Nutzer-Wunsch
+     ("zu präsent") entsättigt/aufgehellt zu diesem ruhigeren Lehm-Ton. */
+  --pm-fill-3:          #A8826B;
+  --pm-fill-3-dark:     #8C6A54;
+  --on-fill-3-text:     #FBF6EC;
 
   /* Status-Streifen "Tag fertig": gedämpftes Waldgrün statt neutralem Grün */
   --color-status-done:  #4E7D4E;
