@@ -102,6 +102,10 @@ html[data-theme="papier"] { color-scheme: light; }
   --pm-fill-3-dark:     #8C6A54;
   --on-fill-3-text:     #FBF6EC;
 
+  /* Warmer Gold-Ton für Seitentitel direkt auf dem Holz-Hintergrund
+     (kein Karten-Untergrund) – siehe Abschnitt 14. */
+  --pgm-title-gold:     #E8C97A;
+
   /* Status-Streifen "Tag fertig": gedämpftes Waldgrün statt neutralem Grün */
   --color-status-done:  #4E7D4E;
 
@@ -1630,4 +1634,24 @@ html[data-theme="papier"] * {
    ist bereits in Abschnitt 12 gesetzt). */
 [data-theme="papier"] .tag-row__select:focus-visible {
   border-color: var(--pm-accent-2);
+}
+
+/* ===================================================================
+   14 · SEITENTITEL-KONTRAST – lesbar auf dem dunklen Holz-Hintergrund
+   -------------------------------------------------------------------
+   .page-title/.page-subtitle (layout.css) sitzen auf fast jeder Seite
+   (Profil, Jahresansicht, Fahrgelderstattung, Abteilungsdurchlauf, ...)
+   OHNE eigene Karte direkt auf --app-bg-image. Die Basis-Farbe ist
+   --pm-grey-900 (tiefe Tinte, #3D2C14) – gedacht für helle Pergament-
+   Karten, auf dem dunklen Foto-Hintergrund aber praktisch unlesbar
+   (dunkel auf dunkel). Andere Custom-Themes (hyperspace, cmd, ...)
+   hatten dasselbe Problem nie, weil ihre --pm-grey-900 dort ohnehin
+   schon hell ist – papier ist das einzige Theme mit heller Karten-Tinte
+   UND dunklem Seiten-Hintergrund zugleich, daher bisher kein Override.
+   Fix: warmer Gold-Ton + dunkler Schlagschatten, damit die Schrift auch
+   auf helleren Maserungs-Stellen des Fotos nicht "untergeht". */
+[data-theme="papier"] .page-title,
+[data-theme="papier"] .page-subtitle {
+  color: var(--pgm-title-gold);
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.55), 0 1px 1px rgba(0, 0, 0, 0.35);
 }

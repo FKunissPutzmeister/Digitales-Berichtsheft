@@ -815,3 +815,10 @@ test('Papierheft-Retro: Farbaufteilung -- Editor-Kacheln (Schreibflaeche + Kopf)
   assert.doesNotMatch(section12und13, /\.wochen-kachel__title[^\n]*\{[^}]*--pm-accent-2/s);
   assert.doesNotMatch(section12und13, /\.day-section__(icon|action-add|header|toggle)[^\n]*\{[^}]*--pm-accent-2/s);
 });
+
+test('Papierheft-Retro: Seitentitel (.page-title/.page-subtitle) sind auf dem Holz-Hintergrund lesbar (Gold statt dunkler Tinte)', () => {
+  const css = readCss();
+  const token = css.match(/\[data-theme="papier"\] \{[\s\S]*?\n\}/)[0];
+  assert.match(token, /--pgm-title-gold:\s*#E8C97A;/);
+  assert.match(css, /\[data-theme="papier"\] \.page-title,\s*\n\[data-theme="papier"\] \.page-subtitle \{\s*\n\s*color: var\(--pgm-title-gold\);\s*\n\s*text-shadow: 0 1px 3px rgba\(0, 0, 0, 0\.55\), 0 1px 1px rgba\(0, 0, 0, 0\.35\);\s*\n\}/);
+});
