@@ -1190,3 +1190,13 @@ html[data-theme="halloween"] .card--mitteilungen .activity-item--link:hover {
 
 /* Druck-Ansicht: Steuerelement nicht mitdrucken. */
 @media print { .pm-hw-music { display: none !important; } }
+
+/* ── Berichtsheft-Status „Entwurf" (Jahresansicht) ──────────────────
+   Wie in Silk: Entwurf traegt die Theme-Farbe (hier Kuerbis-Orange) als
+   Schraffur + Zahl; „heute" bleibt das volle Orange. */
+[data-theme="halloween"] {
+  --status-entwurf:        #FFB066;
+  --status-entwurf-mid:    #FF7518;
+  --status-entwurf-bg:     rgba(255, 117, 24, 0.16);
+  --status-entwurf-hatch:  rgba(255, 148, 66, 0.30);
+}

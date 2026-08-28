@@ -1570,3 +1570,14 @@ html[data-theme="christmas"] .bento .b-azubi {
 @media print {
   [data-theme="christmas"] .pm-xm-login-stage { display: none !important; }
 }
+
+/* ── Berichtsheft-Status „Entwurf" (Jahresansicht) ──────────────────
+   Gold: Rot ist hier der Akzent (= heutiger Tag) UND die Farbe der
+   zurueckgewiesenen Wochen, Gruen die genehmigten. Gold passt zum Theme
+   und bleibt von beiden unterscheidbar. */
+[data-theme="christmas"] {
+  --status-entwurf:        #F0C464;
+  --status-entwurf-mid:    #E8B33C;
+  --status-entwurf-bg:     rgba(232, 179, 60, 0.18);
+  --status-entwurf-hatch:  rgba(240, 196, 100, 0.28);
+}

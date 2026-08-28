@@ -977,3 +977,14 @@ html[data-theme="cmd"] .b-recent::before {
   backdrop-filter: none !important;
   -webkit-backdrop-filter: none !important;
 }
+
+/* ── Berichtsheft-Status „Entwurf" (Jahresansicht) ──────────────────
+   Wie in Silk: Entwurf traegt die Theme-Farbe (hier Terminal-Gruen) als
+   Schraffur + Zahl auf ruhiger Flaeche. Vom genehmigten Gruen trennt ihn
+   die Schraffur – genehmigt ist ein voller, deckender Chip. */
+[data-theme="cmd"] {
+  --status-entwurf:        #38FF7E;
+  --status-entwurf-mid:    #00E64D;
+  --status-entwurf-bg:     rgba(0, 230, 77, 0.10);
+  --status-entwurf-hatch:  rgba(56, 255, 126, 0.26);
+}

@@ -596,3 +596,15 @@ html[data-skin="silk"] .b-hero__kw small {
   [data-skin="silk"] .silk-glass,
   [data-skin="silk"] .silk-glow { display: none !important; }
 }
+
+/* ── Berichtsheft-Status „Entwurf" (Jahresansicht) ──────────────────
+   Silk ist einfarbig und die Akzent-Hue ist frei wählbar (8 Silk-Farben),
+   ein fester Farbton würde irgendwann mit dem Akzent kollidieren. Darum
+   hier: neutrale Flaeche wie „offen" + Schraffur und Zahl im Akzent – der
+   Zustand haengt an der Schraffur, nicht an einer zweiten Farbe. */
+[data-skin="silk"] {
+  --status-entwurf:        hsl(var(--silk-hue,252) 100% 82%);
+  --status-entwurf-mid:    hsl(var(--silk-hue,252) 100% 68%);
+  --status-entwurf-bg:     hsl(var(--silk-hue,252) 33% 26% / 0.85);
+  --status-entwurf-hatch:  hsl(var(--silk-hue,252) 100% 74% / 0.30);
+}

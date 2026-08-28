@@ -1188,3 +1188,14 @@ html[data-theme="papier"] * {
     animation: none;
   }
 }
+
+/* ── Berichtsheft-Status „Entwurf" (Jahresansicht) ──────────────────
+   Ocker/Sepia: auf Pergament liest sich der Entwurf als Bleistift-Notiz,
+   waehrend die Tinte (Blau) und das Siegel-Rot die fertigen Zustaende
+   tragen. */
+[data-theme="papier"] {
+  --status-entwurf:        #6B5316;
+  --status-entwurf-mid:    #8A6A1E;
+  --status-entwurf-bg:     rgba(138, 106, 30, 0.24);
+  --status-entwurf-hatch:  rgba(107, 83, 22, 0.34);
+}
