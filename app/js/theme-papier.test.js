@@ -726,9 +726,10 @@ test('Papierheft-Retro: eigener Sekundär-Akzent (Verdigris) neben der Indigo-Ti
   assert.match(token, /--on-accent-2-text:\s*#EFE6CE;/);
 });
 
-test('Papierheft-Retro: Wochennavigation (Pfeile) bekommt Verdigris-Hover statt neutralem Grau', () => {
+test('Papierheft-Retro: Wochennavigation (Pfeile) sitzt auf der Terrakotta-Topbar-Füllung mit heller Schrift', () => {
   const css = readCss();
-  assert.match(css, /\[data-theme="papier"\] \.week-kw-block__nav:hover \{\s*\n\s*background: var\(--pm-accent-2-bg\);\s*\n\s*color: var\(--pm-accent-2-dark\);\s*\n\}/);
+  assert.match(css, /\[data-theme="papier"\] body\[data-page="wochenansicht"\] \.week-kw-block__nav \{\s*\n\s*color: var\(--on-fill-3-text\);\s*\n\}/);
+  assert.match(css, /\[data-theme="papier"\] body\[data-page="wochenansicht"\] \.week-kw-block__nav:hover \{\s*\n\s*background: var\(--pm-fill-3-dark\);\s*\n\s*color: var\(--on-fill-3-text\);\s*\n\}/);
 });
 
 test('Papierheft-Retro: Betrieb\\/Schule- + Anwesenheit-Auswahl (PMSelect) nutzt Verdigris statt Indigo für Fokus/Offen/Pflichtfeld', () => {
@@ -739,28 +740,42 @@ test('Papierheft-Retro: Betrieb\\/Schule- + Anwesenheit-Auswahl (PMSelect) nutzt
   assert.match(css, /\[data-theme="papier"\] \.tag-row__select--needs-input:not\(:disabled\) \{\s*\n\s*border-color: var\(--pm-accent-2\);\s*\n\s*background-color: var\(--pm-accent-2-bg\);\s*\n\}/);
 });
 
-test('Papierheft-Retro: Anhang-/Reset-Button + Anhänge-Liste nutzen Verdigris (Löschen-Rot bleibt unverändert)', () => {
+test('Papierheft-Retro: Anhang-/Reset-Button nutzt Terrakotta-Füllung (Verdigris-Rahmen bleibt), Anhänge-Liste bleibt Verdigris (Löschen-Rot unverändert)', () => {
   const css = readCss();
-  assert.match(css, /\[data-theme="papier"\] \.wochen-options__icon-btn:hover \{\s*\n\s*background: var\(--pm-accent-2-bg\);\s*\n\s*border-color: var\(--pm-accent-2-dark\);\s*\n\s*color: var\(--pm-accent-2-dark\);\s*\n\}/);
+  assert.match(css, /\[data-theme="papier"\] \.wochen-options__icon-btn \{\s*\n\s*background: var\(--pm-fill-3\);\s*\n\s*border-color: var\(--pm-accent-2\);\s*\n\s*color: var\(--on-fill-3-text\);\s*\n\}/);
+  assert.match(css, /\[data-theme="papier"\] \.wochen-options__icon-btn:hover \{\s*\n\s*background: var\(--pm-fill-3-dark\);\s*\n\s*border-color: var\(--pm-accent-2-dark\);\s*\n\s*color: var\(--on-fill-3-text\);\s*\n\}/);
   assert.match(css, /\[data-theme="papier"\] \.wochen-anhang__name:hover \{\s*\n\s*color: var\(--pm-accent-2-dark\);\s*\n\}/);
   assert.match(css, /\[data-theme="papier"\] \.wochen-anhang__delete:hover \{\s*\n\s*background: var\(--pm-accent-2-bg\);\s*\n\}/);
 });
 
-test('Papierheft-Retro: Verdigris ist nicht nur Hover -- betroffene Elemente tragen den Akzent schon im Ruhezustand', () => {
+test('Papierheft-Retro: Verdigris ist nicht nur Hover -- betroffene Elemente tragen den Akzent (Rahmen/Icon) schon im Ruhezustand', () => {
   const css = readCss();
-  // Wochen-"Topbar": Rahmen + dezente Flaechen-Toenung schon im Ruhezustand.
-  assert.match(css, /\[data-theme="papier"\] body\[data-page="wochenansicht"\] \.week-toolbar \{\s*\n\s*border-color: var\(--pm-accent-2\);\s*\n\s*background-image: linear-gradient\(var\(--pm-accent-2-bg\), var\(--pm-accent-2-bg\)\);\s*\n\s*background-color: var\(--pm-white\);\s*\n\}/);
-  // Wochennav-Pfeile: volle Akzentfarbe schon in Ruhe, Hover vertieft auf --dark.
-  assert.match(css, /\[data-theme="papier"\] \.week-kw-block__nav \{\s*\n\s*color: var\(--pm-accent-2\);\s*\n\}/);
-  // Betrieb\/Schule- + Anwesenheit-Pillen: voller Rahmen schon in Ruhe
-  // (vorher transparent).
-  assert.match(css, /\[data-theme="papier"\] body\[data-page="wochenansicht"\] \.pm-select\.tag-row__select \.pm-select__trigger,\s*\n\[data-theme="papier"\] body\[data-page="wochenansicht"\] \.pm-select\.wochen-options__select \.pm-select__trigger \{\s*\n\s*border-color: var\(--pm-accent-2\);\s*\n\}/);
-  // Anhang-\/Reset-Button: volle Rahmen- + Symbolfarbe schon in Ruhe, Hover vertieft auf --dark.
-  assert.match(css, /\[data-theme="papier"\] \.wochen-options__icon-btn \{\s*\n\s*border-color: var\(--pm-accent-2\);\s*\n\s*color: var\(--pm-accent-2\);\s*\n\}/);
-  assert.match(css, /\[data-theme="papier"\] \.wochen-options__icon-btn:hover \{\s*\n\s*background: var\(--pm-accent-2-bg\);\s*\n\s*border-color: var\(--pm-accent-2-dark\);\s*\n\s*color: var\(--pm-accent-2-dark\);\s*\n\}/);
-  // Anhaenge-Liste: Zeilen-Rahmen + Icon-Farbe schon in Ruhe.
+  // Anhaenge-Liste: Zeilen-Rahmen + Icon-Farbe schon in Ruhe (bleibt Verdigris-auf-Pergament).
   assert.match(css, /\[data-theme="papier"\] \.wochen-anhang \{\s*\n\s*border-color: var\(--pm-accent-2\);\s*\n\}/);
   assert.match(css, /\[data-theme="papier"\] \.wochen-anhang__icon \{\s*\n\s*color: var\(--pm-accent-2-dark\);\s*\n\}/);
+});
+
+test('Papierheft-Retro: Füllfarbe (Terrakotta) auf Topbar, Anhang-/Reset-Button und Ort-/Anwesenheit-Auswahl -- Verdigris-Rahmen bleibt', () => {
+  const css = readCss();
+  const token = css.match(/\[data-theme="papier"\] \{[\s\S]*?\n\}/)[0];
+  assert.match(token, /--pm-fill-3:\s*#B5714A;/);
+  assert.match(token, /--pm-fill-3-dark:\s*#8F5836;/);
+  assert.match(token, /--on-fill-3-text:\s*#F5E9DB;/);
+
+  // Topbar: Rahmen bleibt Verdigris, Fuellung wird solide Terrakotta,
+  // Textkinder bekommen helle Schrift.
+  assert.match(css, /\[data-theme="papier"\] body\[data-page="wochenansicht"\] \.week-toolbar \{\s*\n\s*border-color: var\(--pm-accent-2\);\s*\n\s*background: var\(--pm-fill-3\);\s*\n\}/);
+  assert.match(css, /\[data-theme="papier"\] body\[data-page="wochenansicht"\] \.week-toolbar__autosave \{\s*\n\s*color: var\(--on-fill-3-text\);\s*\n\}/);
+  assert.match(css, /\[data-theme="papier"\] body\[data-page="wochenansicht"\] \.week-kw-block__kw \{\s*\n\s*color: var\(--on-fill-3-text\);\s*\n\}/);
+  assert.match(css, /\[data-theme="papier"\] body\[data-page="wochenansicht"\] \.week-kw-block__range \{\s*\n\s*color: var\(--on-fill-3-text\);\s*\n\s*opacity: \.8;\s*\n\}/);
+
+  // Anhang-\/Reset-Button: Terrakotta-Fuellung + helle Symbolfarbe, Rahmen bleibt Verdigris.
+  assert.match(css, /\[data-theme="papier"\] \.wochen-options__icon-btn \{\s*\n\s*background: var\(--pm-fill-3\);\s*\n\s*border-color: var\(--pm-accent-2\);\s*\n\s*color: var\(--on-fill-3-text\);\s*\n\}/);
+
+  // Betrieb\/Schule- + Anwesenheit-Auswahl: Terrakotta-Fuellung + helle Schrift/Chevron,
+  // Rahmen bleibt Verdigris; Pflichtfeld-Markierung bleibt bewusst Verdigris-auf-Pergament.
+  assert.match(css, /\[data-theme="papier"\] body\[data-page="wochenansicht"\] \.pm-select\.tag-row__select \.pm-select__trigger,\s*\n\[data-theme="papier"\] body\[data-page="wochenansicht"\] \.pm-select\.wochen-options__select \.pm-select__trigger \{\s*\n\s*background: var\(--pm-fill-3\);\s*\n\s*border-color: var\(--pm-accent-2\);\s*\n\s*color: var\(--on-fill-3-text\);\s*\n\}/);
+  assert.match(css, /\[data-theme="papier"\] body\[data-page="wochenansicht"\] \.pm-select\.tag-row__select--needs-input \.pm-select__trigger \{\s*\n\s*background: var\(--pm-accent-2-bg\);\s*\n\s*border-color: var\(--pm-accent-2\);\s*\n\}/);
 });
 
 test('Papierheft-Retro: Farbaufteilung -- Editor-/Tageskacheln bleiben Indigo, ihre Steuerelemente werden Verdigris', () => {

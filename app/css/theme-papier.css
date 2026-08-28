@@ -91,6 +91,15 @@ html[data-theme="papier"] { color-scheme: light; }
   --pm-accent-2-bg:     rgba(62, 107, 104, 0.12);
   --on-accent-2-text:   #EFE6CE;
 
+  /* Füllfarbe (Terrakotta) für Topbar, Anhang-/Reset-Button und
+     Ort-/Anwesenheit-Auswahl: löst dort die bisherige Pergament-Füllung
+     ab, der Verdigris-Rahmen bleibt unverändert. Bewusst NICHT auf
+     Checkboxen/Zeit-Spinner/Ganztag-Segment/Pflichtfeld-Hinweis
+     angewendet – die bleiben bei Verdigris-auf-Pergament. */
+  --pm-fill-3:          #B5714A;
+  --pm-fill-3-dark:     #8F5836;
+  --on-fill-3-text:     #F5E9DB;
+
   /* Status-Streifen "Tag fertig": gedämpftes Waldgrün statt neutralem Grün */
   --color-status-done:  #4E7D4E;
 
@@ -1389,32 +1398,61 @@ html[data-theme="papier"] * {
    ginge ihr "hier fehlt noch was"-Signal unter.
    =================================================================== */
 
-/* Wochen-"Topbar" (.week-toolbar): Rahmen + dezente Flächen-Tönung in
-   Verdigris statt neutralem Grau. Die Status-Varianten (freigegeben/
-   genehmigt/...) haben höhere Spezifität (Attribut-Selektor) und
-   überschreiben das weiterhin unverändert. */
+/* Wochen-"Topbar" (.week-toolbar): Verdigris-Rahmen bleibt, die Füllung
+   wechselt von Pergament-Creme auf die Terrakotta-Füllfarbe (Abschnitt 1).
+   Alle Textkinder brauchen deshalb helle Schrift statt der bisherigen
+   Tinte-auf-Creme-Töne. Die Status-Varianten (freigegeben/genehmigt/...)
+   haben höhere Spezifität (Attribut-Selektor) und überschreiben Rahmen +
+   Füllung weiterhin unverändert. */
 [data-theme="papier"] body[data-page="wochenansicht"] .week-toolbar {
   border-color: var(--pm-accent-2);
-  background-image: linear-gradient(var(--pm-accent-2-bg), var(--pm-accent-2-bg));
-  background-color: var(--pm-white);
+  background: var(--pm-fill-3);
+}
+[data-theme="papier"] body[data-page="wochenansicht"] .week-toolbar__autosave {
+  color: var(--on-fill-3-text);
+}
+[data-theme="papier"] body[data-page="wochenansicht"] .week-toolbar__autosave strong {
+  color: var(--on-fill-3-text);
+}
+[data-theme="papier"] body[data-page="wochenansicht"] .week-kw-block__kw {
+  color: var(--on-fill-3-text);
+}
+[data-theme="papier"] body[data-page="wochenansicht"] .week-kw-block__range {
+  color: var(--on-fill-3-text);
+  opacity: .8;
 }
 
-/* Wochennavigation: Pfeil-Buttons ‹ › tragen die volle Akzentfarbe schon
-   im Ruhezustand (vorher neutrales Grau), Hover vertieft auf --dark. */
-[data-theme="papier"] .week-kw-block__nav {
-  color: var(--pm-accent-2);
+/* Wochennavigation: Pfeil-Buttons ‹ › tragen jetzt die helle Füll-Schrift
+   (vorher Verdigris, das auf der neuen Terrakotta-Füllung zu wenig Kontrast
+   hätte), Hover vertieft die Füllung statt einer separaten Akzent-Fläche. */
+[data-theme="papier"] body[data-page="wochenansicht"] .week-kw-block__nav {
+  color: var(--on-fill-3-text);
 }
-[data-theme="papier"] .week-kw-block__nav:hover {
-  background: var(--pm-accent-2-bg);
-  color: var(--pm-accent-2-dark);
+[data-theme="papier"] body[data-page="wochenansicht"] .week-kw-block__nav:hover {
+  background: var(--pm-fill-3-dark);
+  color: var(--on-fill-3-text);
 }
 
 /* Betrieb/Schule- + Anwesenheit-Auswahl (PMSelect-Pillen in der
    Wochenansicht): voller Verdigris-Rahmen schon im Ruhezustand (vorher
-   transparent), Fokus/Offen legen zusätzlich einen Ring drüber. */
+   transparent), Füllung + Text/Chevron wechseln von Pergament-Creme auf
+   die Terrakotta-Füllfarbe. Fokus/Offen legen zusätzlich einen Ring
+   drüber (Füllung bleibt dabei unverändert). Die Pflichtfeld-Markierung
+   (--needs-input, weiter unten) bleibt bewusst Verdigris-auf-Pergament,
+   damit ihr Signal nicht in der neuen Füllfarbe untergeht. */
 [data-theme="papier"] body[data-page="wochenansicht"] .pm-select.tag-row__select .pm-select__trigger,
 [data-theme="papier"] body[data-page="wochenansicht"] .pm-select.wochen-options__select .pm-select__trigger {
+  background: var(--pm-fill-3);
   border-color: var(--pm-accent-2);
+  color: var(--on-fill-3-text);
+}
+[data-theme="papier"] body[data-page="wochenansicht"] .pm-select.tag-row__select .pm-select__trigger:hover:not(:disabled),
+[data-theme="papier"] body[data-page="wochenansicht"] .pm-select.wochen-options__select .pm-select__trigger:hover:not(:disabled) {
+  background: var(--pm-fill-3-dark);
+}
+[data-theme="papier"] body[data-page="wochenansicht"] .pm-select.tag-row__select .pm-select__trigger .pm-select__chevron,
+[data-theme="papier"] body[data-page="wochenansicht"] .pm-select.wochen-options__select .pm-select__trigger .pm-select__chevron {
+  color: var(--on-fill-3-text);
 }
 [data-theme="papier"] body[data-page="wochenansicht"] .pm-select.tag-row__select .pm-select__trigger:focus-visible,
 [data-theme="papier"] body[data-page="wochenansicht"] .pm-select.wochen-options__select .pm-select__trigger:focus-visible,
@@ -1437,7 +1475,9 @@ html[data-theme="papier"] * {
 
 /* Fallback: natives <select> vor PMSelect-Enhancement. */
 [data-theme="papier"] .tag-row__select:not(:disabled) {
+  background-color: var(--pm-fill-3);
   border-color: var(--pm-accent-2);
+  color: var(--on-fill-3-text);
 }
 [data-theme="papier"] .tag-row__select--needs-input:not(:disabled) {
   border-color: var(--pm-accent-2);
@@ -1448,16 +1488,18 @@ html[data-theme="papier"] * {
 }
 
 /* Anhang hinzufügen / Zurücksetzen (Icon-Buttons neben der Ort-Pille):
-   volle Rahmen- + Symbolfarbe schon im Ruhezustand, Hover vertieft auf
-   --dark + Flächen-Tönung. */
+   Verdigris-Rahmen bleibt, Füllung + Symbolfarbe wechseln auf die
+   Terrakotta-Füllfarbe (statt Pergament-Creme mit Verdigris-Symbol).
+   Hover vertieft die Füllung, der Rahmen wird zusätzlich dunkler. */
 [data-theme="papier"] .wochen-options__icon-btn {
+  background: var(--pm-fill-3);
   border-color: var(--pm-accent-2);
-  color: var(--pm-accent-2);
+  color: var(--on-fill-3-text);
 }
 [data-theme="papier"] .wochen-options__icon-btn:hover {
-  background: var(--pm-accent-2-bg);
+  background: var(--pm-fill-3-dark);
   border-color: var(--pm-accent-2-dark);
-  color: var(--pm-accent-2-dark);
+  color: var(--on-fill-3-text);
 }
 
 /* Anhänge-Liste: Zeilen-Rahmen + Symbolfarbe im Ruhezustand, Dateiname-
