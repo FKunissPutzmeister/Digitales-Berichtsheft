@@ -494,22 +494,51 @@ test('Papierheft-Retro: Toggle-Button wird zum Wachssiegel (bestehendes Element,
   assert.match(collapsed, /radial-gradient\(circle at 50% 55%, #9B4030 0%, var\(--color-error-mid\) 55%, #4E1A11 100%\);/);
 });
 
-test('Papierheft-Retro: Profil-Avatar in der Sidebar wird zum Wachssiegel mit eingepraegtem Kuerzel', () => {
-  // Nutzer-Wunsch (mit Referenzbild eines echten Wachssiegels): der
-  // Sidebar-Fuss-Avatar (Initialen des Nutzers) wird zum Siegel. Nur
-  // .sidebar__user-link .avatar, NICHT alle .avatar-Vorkommen app-weit --
-  // Nutzer sagte explizit "in der Nav-Leiste".
+test('Papierheft-Retro: Profil-Avatar in der Sidebar wird zum Wachssiegel mit unregelmaessiger Kontur', () => {
+  // NEUFASSUNG V2 (Nutzer-Feedback zu V1: "nur ein roter Punkt, soll
+  // wirklich wie ein echter Stempel aussehen, auch dass es ein bisschen
+  // ueber den Rand hinausgeht und wirklich wie eingestampft aussieht").
+  // Per Playwright-Mockup (wax-seal-v1.html, 3 Kandidaten in echter
+  // 32px-Groesse + 3x-Zoom) auf Kandidat C entschieden: echte
+  // unregelmaessige SVG-Blob-Kontur (nicht nur organischer
+  // border-radius wie V1) + Kreuzschraffur + Rand-Rille + invertierte
+  // (tatsaechlich eingepraegte statt erhabene) text-shadow-Konvention.
   const css = readCss();
+  // "Geht ueber den Rand hinaus": overflow:visible an BEIDEN Stellen --
+  // .sidebar__user-link clippt sonst als Pille (glass.css:1271), der
+  // Avatar selbst clippt sonst per Basisregel (components.css:335).
+  const linkBlock = css.match(/\[data-theme="papier"\] \.sidebar__user-link \{\s*\n\s*overflow: visible;\s*\n\}/);
+  assert.ok(linkBlock, '.sidebar__user-link braucht overflow:visible fuer den ueberstehenden Siegel-Rand');
   const avatar = css.match(/\[data-theme="papier"\] \.sidebar__user-link \.avatar \{[\s\S]*?\n\}/)[0];
-  // Dieselbe Wachs-Palette wie der Toggle (Material-Konsistenz).
-  assert.match(avatar, /radial-gradient\(circle at 50% 55%, #9B4030 0%, var\(--color-error-mid\) 55%, #4E1A11 100%\);/);
-  // Zusaetzliche Rille bei ~70% Radius trennt erhabenen Rand von
-  // flacherer Mitte (im Toggle bewusst weggelassen, dort zu klein fuer
-  // den Effekt).
-  assert.match(avatar, /radial-gradient\(circle at 50% 50%, transparent 0%, transparent 66%, rgba\(0, 0, 0, \.28\) 70%, transparent 75%\),/);
-  // "Eingepraegtes" statt gedrucktes Kuerzel.
-  assert.match(avatar, /text-shadow: 1px 1px 0 rgba\(0, 0, 0, \.40\), -1px -1px 0 rgba\(255, 255, 255, \.12\);/);
-  assert.match(avatar, /color: #F2E2C8;/);
+  assert.match(avatar, /overflow: visible;/);
+  // Eingepraegt statt gedruckt: dunkel oben-links, hell unten-rechts --
+  // die UMGEKEHRTE Reihenfolge (V1) waere die Konvention fuer ERHABENEN
+  // Text, nicht fuer eine Vertiefung.
+  assert.match(avatar, /text-shadow: -1px -1px 1px rgba\(0, 0, 0, \.55\), 1px 1px 1px rgba\(255, 220, 190, \.25\);/);
+  assert.match(avatar, /color: #E8C9A0;/);
+
+  const before = css.match(/\[data-theme="papier"\] \.sidebar__user-link \.avatar::before \{[\s\S]*?\n\}/)[0];
+  // Pseudo-Element ist groesser als die Box (140%) und zentriert --
+  // dadurch ragt die unregelmaessige Kontur sichtbar ueber den
+  // urspruenglichen 32px-Kreis hinaus, waehrend das Kuerzel selbst auf
+  // der normalen Box-Groesse bleibt.
+  assert.match(before, /width: 140%;/);
+  assert.match(before, /height: 140%;/);
+  assert.match(before, /transform: translate\(-50%, -50%\);/);
+  // z-index:-1 ist notwendig, nicht kosmetisch: ohne das wuerde das
+  // absolut positionierte Siegel-Blob (z-index:auto) das Kuerzel-Text
+  // ueberdecken statt dahinter zu liegen.
+  assert.match(before, /z-index: -1;/);
+  // Echte unregelmaessige Kontur per SVG-Maske (12-Punkte-Blob), NICHT
+  // nur organischer border-radius wie in V1 -- bei 32px war ein
+  // Ecken-Radius nicht von einem Kreis zu unterscheiden.
+  assert.match(before, /viewBox='0 0 100 100'/);
+  assert.doesNotMatch(avatar, /border-radius: 4[0-9]% 5[0-9]%/);
+  // Kreuzschraffur (gestempelter Stoff-Eindruck) + Rand-Rille (erhabener
+  // Rand vs. flachere Mitte) -- beides in V1 nicht vorhanden.
+  assert.match(before, /repeating-linear-gradient\(45deg, rgba\(0, 0, 0, \.11\) 0 1px, transparent 1px 4px\),/);
+  assert.match(before, /repeating-linear-gradient\(-45deg, rgba\(0, 0, 0, \.07\) 0 1px, transparent 1px 4px\),/);
+  assert.match(before, /radial-gradient\(circle at 50% 50%, transparent 0%, transparent 54%, rgba\(0, 0, 0, \.42\) 59%, rgba\(255, 255, 255, \.08\) 63%, transparent 70%\),/);
   // Echtfoto (components.css:341-349, Entra-Sync) wuerde das Siegel-
   // Konzept unterlaufen -- fuer den Sidebar-Avatar in papier immer
   // ausgeblendet, das Kuerzel-Siegel zeigt sich garantiert.
