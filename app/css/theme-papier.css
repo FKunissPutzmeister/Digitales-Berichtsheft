@@ -1666,9 +1666,18 @@ html[data-theme="papier"] * {
    in dieser warmen Sepia-Palette liest sich das eher wie mattes
    Gold-Braun als neutrales Grau. Auf Nutzer-Wunsch auf den Sekundär-
    Akzent (Verdigris) umgestellt, passend zu den Steuerelementen, die
-   diese Label beschriften. */
+   diese Label beschriften.
+
+   font-weight steht hier schon auf var(--fw-bold) (700) – wirkt aber
+   trotzdem dünn: EB Garamond ist nur in 400 und 400italic und 600
+   nachgeladen (siehe @font-face oben), 700 wird darum auf die
+   vorhandene 600-Type gemappt statt synthetisch fett. Bei den kleinen
+   Schriftgrößen dieser Label (11–13px) reicht das nicht zum Lesen –
+   -webkit-text-stroke zieht die Glyphen zusätzlich nach, ohne eine
+   weitere Font-Datei laden zu müssen. */
 [data-theme="papier"] body[data-page="wochenansicht"] .tag-cards__header-label,
 [data-theme="papier"] .wochen-options__field-label,
 [data-theme="papier"] .wochen-options__check {
   color: var(--pm-accent-2-dark);
+  -webkit-text-stroke: 0.4px var(--pm-accent-2-dark);
 }

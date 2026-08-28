@@ -825,5 +825,5 @@ test('Papierheft-Retro: Seitentitel (.page-title/.page-subtitle) sind auf dem Ho
 
 test('Papierheft-Retro: Spalten-/Feld-Label ("Ort", "Anwesenheit", "ArbZ", "mit Unterweisung") in Verdigris statt mattem Gold-Braun', () => {
   const css = readCss();
-  assert.match(css, /\[data-theme="papier"\] body\[data-page="wochenansicht"\] \.tag-cards__header-label,\s*\n\[data-theme="papier"\] \.wochen-options__field-label,\s*\n\[data-theme="papier"\] \.wochen-options__check \{\s*\n\s*color: var\(--pm-accent-2-dark\);\s*\n\}/);
+  assert.match(css, /\[data-theme="papier"\] body\[data-page="wochenansicht"\] \.tag-cards__header-label,\s*\n\[data-theme="papier"\] \.wochen-options__field-label,\s*\n\[data-theme="papier"\] \.wochen-options__check \{\s*\n\s*color: var\(--pm-accent-2-dark\);\s*\n\s*-webkit-text-stroke: 0\.4px var\(--pm-accent-2-dark\);\s*\n\}/);
 });
