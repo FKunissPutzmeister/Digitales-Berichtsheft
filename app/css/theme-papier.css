@@ -1371,37 +1371,38 @@ html[data-theme="papier"] * {
 }
 
 /* ===================================================================
-   12 · SEKUNDÄR-AKZENT – Verdigris für "ungefüllte" Bedien-Elemente
+   12 · ZWEITE PRIMÄRFARBE – Verdigris für "ungefüllte" Bedien-Elemente
    -------------------------------------------------------------------
-   Die Nav (Sidebar) und tatsächlich gefüllte/Status-Flächen (Ganztag-
-   /Halbtag-Segmente, Checkboxen, Genehmigen-Buttons, "heute"-Markierung)
-   bleiben bei der Indigo-Tinte (--pm-yellow). Alles, wo nichts ausgefüllt
-   wird – Wochennavigation, Betrieb/Schule- + Anwesenheit-Auswahl,
-   Anhänge – bekommt stattdessen --pm-accent-2 (Verdigris), damit die Nav
-   ihre eigene Akzentfarbe behält statt überall dieselbe Tinte zu zeigen.
-
-   Die Farbe steckt NICHT nur im Hover: die betroffenen Elemente tragen
-   Verdigris bereits als Ruhezustand (helleres --pm-accent-2-light als
-   Grundton), Hover/Fokus vertiefen auf das volle --pm-accent-2. Die
-   einzige Ausnahme ist die Pflichtfeld-Markierung (--needs-input): die
-   bleibt kräftiger als der neue Normalzustand, sonst ginge ihr
-   "hier fehlt noch was"-Signal unter.
+   Verdigris ist KEIN gedämpfter Nebenton, sondern eine zweite, gleich-
+   kräftige Primärfarbe: sie steht in ihrem Zuständigkeitsbereich genauso
+   voll da wie die Indigo-Tinte in ihrem. Die Nav (Sidebar) und tatsäch-
+   lich gefüllte/Status-Flächen (Ganztag-/Halbtag-Segmente, Checkboxen,
+   Genehmigen-Buttons, "heute"-Markierung) bleiben bei der Indigo-Tinte
+   (--pm-yellow). Alles, wo nichts ausgefüllt wird – Wochennavigation,
+   Betrieb/Schule- + Anwesenheit-Auswahl, Anhänge – bekommt stattdessen
+   volles --pm-accent-2 (Verdigris), nicht nur im Hover, sondern bereits
+   als Ruhezustand. Hover/Fokus vertiefen auf --pm-accent-2-dark bzw.
+   legen zusätzlich einen Ring/eine Flächen-Tönung drüber – die einzige
+   Ausnahme bleibt die Pflichtfeld-Markierung (--needs-input): die hebt
+   sich über eine zusätzliche Flächen-Füllung ab (nicht über einen
+   kräftigeren Rahmen, der wäre jetzt ohnehin schon Standard), sonst
+   ginge ihr "hier fehlt noch was"-Signal unter.
    =================================================================== */
 
-/* Wochen-"Topbar" (.week-toolbar): Rahmen + sehr dezente Flächen-Tönung
-   in Verdigris statt neutralem Grau. Die Status-Varianten (freigegeben/
+/* Wochen-"Topbar" (.week-toolbar): Rahmen + dezente Flächen-Tönung in
+   Verdigris statt neutralem Grau. Die Status-Varianten (freigegeben/
    genehmigt/...) haben höhere Spezifität (Attribut-Selektor) und
    überschreiben das weiterhin unverändert. */
 [data-theme="papier"] body[data-page="wochenansicht"] .week-toolbar {
-  border-color: var(--pm-accent-2-light);
+  border-color: var(--pm-accent-2);
   background-image: linear-gradient(var(--pm-accent-2-bg), var(--pm-accent-2-bg));
   background-color: var(--pm-white);
 }
 
-/* Wochennavigation: Pfeil-Buttons ‹ › tragen die Akzentfarbe jetzt schon
-   im Ruhezustand (vorher neutrales Grau), Hover vertieft auf volle Kraft. */
+/* Wochennavigation: Pfeil-Buttons ‹ › tragen die volle Akzentfarbe schon
+   im Ruhezustand (vorher neutrales Grau), Hover vertieft auf --dark. */
 [data-theme="papier"] .week-kw-block__nav {
-  color: var(--pm-accent-2-light);
+  color: var(--pm-accent-2);
 }
 [data-theme="papier"] .week-kw-block__nav:hover {
   background: var(--pm-accent-2-bg);
@@ -1409,12 +1410,11 @@ html[data-theme="papier"] * {
 }
 
 /* Betrieb/Schule- + Anwesenheit-Auswahl (PMSelect-Pillen in der
-   Wochenansicht): sichtbarer Verdigris-Rahmen schon im Ruhezustand
-   (vorher transparent), Fokus-/Offen-Ring + Pflichtfeld-Hinweis
-   vertiefen auf die volle Akzentfarbe. */
+   Wochenansicht): voller Verdigris-Rahmen schon im Ruhezustand (vorher
+   transparent), Fokus/Offen legen zusätzlich einen Ring drüber. */
 [data-theme="papier"] body[data-page="wochenansicht"] .pm-select.tag-row__select .pm-select__trigger,
 [data-theme="papier"] body[data-page="wochenansicht"] .pm-select.wochen-options__select .pm-select__trigger {
-  border-color: var(--pm-accent-2-light);
+  border-color: var(--pm-accent-2);
 }
 [data-theme="papier"] body[data-page="wochenansicht"] .pm-select.tag-row__select .pm-select__trigger:focus-visible,
 [data-theme="papier"] body[data-page="wochenansicht"] .pm-select.wochen-options__select .pm-select__trigger:focus-visible,
@@ -1437,7 +1437,7 @@ html[data-theme="papier"] * {
 
 /* Fallback: natives <select> vor PMSelect-Enhancement. */
 [data-theme="papier"] .tag-row__select:not(:disabled) {
-  border-color: var(--pm-accent-2-light);
+  border-color: var(--pm-accent-2);
 }
 [data-theme="papier"] .tag-row__select--needs-input:not(:disabled) {
   border-color: var(--pm-accent-2);
@@ -1448,15 +1448,15 @@ html[data-theme="papier"] * {
 }
 
 /* Anhang hinzufügen / Zurücksetzen (Icon-Buttons neben der Ort-Pille):
-   Rahmen + Symbolfarbe schon im Ruhezustand in Verdigris, Hover vertieft
-   auf die volle Akzentfarbe + Flächen-Tönung. */
+   volle Rahmen- + Symbolfarbe schon im Ruhezustand, Hover vertieft auf
+   --dark + Flächen-Tönung. */
 [data-theme="papier"] .wochen-options__icon-btn {
-  border-color: var(--pm-accent-2-light);
-  color: var(--pm-accent-2-light);
+  border-color: var(--pm-accent-2);
+  color: var(--pm-accent-2);
 }
 [data-theme="papier"] .wochen-options__icon-btn:hover {
   background: var(--pm-accent-2-bg);
-  border-color: var(--pm-accent-2);
+  border-color: var(--pm-accent-2-dark);
   color: var(--pm-accent-2-dark);
 }
 
@@ -1464,7 +1464,7 @@ html[data-theme="papier"] * {
    Hover + Löschen-Wasch-Hintergrund vertiefen (Löschen-Rot selbst bleibt
    unverändert – das ist gewollt). */
 [data-theme="papier"] .wochen-anhang {
-  border-color: var(--pm-accent-2-light);
+  border-color: var(--pm-accent-2);
 }
 [data-theme="papier"] .wochen-anhang__icon {
   color: var(--pm-accent-2-dark);
