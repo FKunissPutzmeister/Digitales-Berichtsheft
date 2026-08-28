@@ -1657,3 +1657,18 @@ html[data-theme="papier"] * {
   color: var(--pgm-title-gold);
   text-shadow: 0 1px 3px rgba(0, 0, 0, 0.55), 0 1px 1px rgba(0, 0, 0, 0.35);
 }
+
+/* ===================================================================
+   15 · SPALTEN-/FELD-LABEL – Verdigris statt mattem Gold-Braun
+   -------------------------------------------------------------------
+   "Ort", "Anwesenheit", "ArbZ" (Spaltenköpfe über den Tageszeilen) und
+   "mit Unterweisung" (Checkbox-Beschriftung) nutzen --pm-grey-500/-700 –
+   in dieser warmen Sepia-Palette liest sich das eher wie mattes
+   Gold-Braun als neutrales Grau. Auf Nutzer-Wunsch auf den Sekundär-
+   Akzent (Verdigris) umgestellt, passend zu den Steuerelementen, die
+   diese Label beschriften. */
+[data-theme="papier"] body[data-page="wochenansicht"] .tag-cards__header-label,
+[data-theme="papier"] .wochen-options__field-label,
+[data-theme="papier"] .wochen-options__check {
+  color: var(--pm-accent-2-dark);
+}
