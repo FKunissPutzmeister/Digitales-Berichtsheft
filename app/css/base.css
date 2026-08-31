@@ -182,9 +182,18 @@ p {
 }
 
 /* ── Animationen ── */
+/* fadeIn animiert bewusst NUR opacity, kein translateY. Grund: die Klasse
+   sitzt auf den Dashboard-Kacheln selbst (.b-hero/.b-recent/.b-mitteilungen)
+   und über animation-fill-mode:both auch auf .main-content. Ein Element mit
+   transform ist ein „Backdrop Root" — jeder backdrop-filter darin sieht dann
+   nur noch die eigene (leere) Fläche statt der Seite. Mit translateY(0) im
+   to-Frame blieb sogar dauerhaft eine matrix(1,0,0,1,0,0) stehen: das Glas
+   war nicht 240 ms, sondern für immer tot. Die 8 px Versatz sind den Preis
+   nicht wert — ein transformfreies to würde das Glas immerhin während der
+   Animation noch kappen (sichtbares Nachpoppen beim Seitenwechsel). */
 @keyframes fadeIn {
-  from { opacity: 0; transform: translateY(8px); }
-  to   { opacity: 1; transform: translateY(0); }
+  from { opacity: 0; }
+  to   { opacity: 1; }
 }
 @keyframes slideInLeft {
   from { opacity: 0; transform: translateX(-16px); }
@@ -260,9 +269,13 @@ p {
   from { opacity: 1; transform: translateY(0); }
   to   { opacity: 0; transform: translateY(-5px); }
 }
+/* Auch hier nur opacity (s. fadeIn): vt-in läuft auf .main-wrapper, also dem
+   Vorfahren JEDES Panels — mit transform wäre bei jeder Navigation 300 ms lang
+   alles Glas der Seite flach und würde danach synchron aufpoppen. Genau das
+   sah beim Wechsel aufs Dashboard wie ein kurz aufblitzender alter Stand aus. */
 @keyframes vt-in {
-  from { opacity: 0; transform: translateY(8px); }
-  to   { opacity: 1; transform: translateY(0); }
+  from { opacity: 0; }
+  to   { opacity: 1; }
 }
 
 [data-page-enter] .main-wrapper {

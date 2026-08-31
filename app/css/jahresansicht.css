@@ -283,6 +283,9 @@
   flex-shrink: 0;
 }
 .week-status-dot--offen         { background: var(--pm-grey-300); }
+/* Entwurf = angefangen, aber noch nicht eingereicht → Brand-Gelb (klar
+   getrennt von Grau „leer", Blau „eingereicht", Grün, Rot). */
+.week-status-dot--entwurf       { background: var(--status-entwurf-mid); }
 .week-status-dot--freigegeben   { background: var(--status-freigegeben); }
 .week-status-dot--erstgenehmigt { background: var(--status-freigegeben); }
 .week-status-dot--genehmigt   { background: var(--color-success-mid); }
@@ -326,6 +329,17 @@
 .day-cell.status-offen        { background: var(--pm-grey-100); color: var(--pm-grey-600); }
 .day-cell.status-freigegeben  { background: var(--status-freigegeben); color: #fff; }
 .day-cell.status-erstgenehmigt { background: var(--status-freigegeben); color: #fff; }
+/* Entwurf: getoente Flaeche + feine Diagonalschraffur – „in Arbeit, noch
+   nicht abgegeben". Die Schraffur macht den Zustand auch ohne Farbvergleich
+   erkennbar (und trennt ihn von den vollflaechigen, fertigen Status). */
+.day-cell.status-entwurf {
+  background:
+    repeating-linear-gradient(45deg,
+      var(--status-entwurf-hatch) 0 3px,
+      transparent 3px 8px),
+    var(--status-entwurf-bg);
+  color: var(--status-entwurf);
+}
 .day-cell.status-teilweise    { background: var(--pm-yellow-pale); color: var(--pm-yellow-darker); }
 .day-cell.status-vollstaendig { background: #D4EDDA; color: var(--color-success); }
 .day-cell.status-genehmigt    { background: var(--color-success); color: #fff; }

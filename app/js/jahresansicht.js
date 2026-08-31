@@ -32,6 +32,44 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   }
 
+  // Berichtsformat des angezeigten Azubis, in render() gesetzt.
+  let berichtTyp = 'täglich';
+  // Quill speichert leere Felder als <p><br></p> – reiner Textrest zählt.
+  const leer = (html) => !html || html.replace(/<[^>]+>/g, '').replace(/&nbsp;/g, '').trim() === '';
+
+  /* „Entwurf" heißt: der Azubi hat wirklich etwas eingetragen. Eine Woche
+     wird beim Öffnen automatisch mit Mo–Fr „anwesend / Betrieb / Ganztag"
+     angelegt – dieses Gerüst ist KEIN Inhalt, sonst wäre jede angesehene
+     Woche ein Entwurf. Als Inhalt zählt nur, was davon abweicht: Halbtag,
+     ein hinzugefügter Wochenendtag, eine Abwesenheit (Urlaub, krank …) –
+     oder ein Eintragstext. */
+  function tagAbweichung(t) {
+    if (!t) return false;
+    if (t.tagdauer === 'halbtag') return true;
+    const dow = new Date(t.datum + 'T00:00:00').getDay();
+    return (dow === 0 || dow === 6)
+      ? !!t.anwesenheit && t.anwesenheit !== 'Wochenende'   // Wochenendtag hinzugefügt
+      : !!t.anwesenheit && t.anwesenheit !== 'anwesend';    // Urlaub / Arbeitsunfähigkeit / …
+  }
+  const tagText   = (t) => !!t && !(leer(t.eintrag) && leer(t.betriebEintrag)
+    && leer(t.schuleEintrag) && leer(t.unterweisungEintrag));
+  const wochenText = (w) => !!w && !(leer(w.betriebEintrag) && leer(w.schuleEintrag)
+    && leer(w.unterweisungEintrag));
+
+  /* Texte zählen nur auf der Ebene, auf der der Azubi in SEINEM Format
+     schreibt: im wöchentlichen Format sind das die Wochen-Editoren – alte
+     Tages-Texte (z. B. aus einem früheren Format oder Import) sind dort
+     unsichtbar und dürfen die Woche nicht zum Entwurf machen. */
+  const tagHatInhalt = (t) => tagAbweichung(t) || (berichtTyp !== 'wöchentlich' && tagText(t));
+  const wocheHatInhalt = (w) => !!w && ((berichtTyp === 'wöchentlich' && wochenText(w))
+    || (w.tage || []).some(tagHatInhalt));
+
+
+  /* Status eines einzelnen Tages. Solange die Woche nicht eingereicht ist,
+     entscheidet der Inhalt – und zwar auf der Ebene, auf der der Azubi
+     schreibt: im wöchentlichen (kaufmännischen) Format gibt es nur EINEN
+     Eintrag pro Woche, also ist entweder die ganze Woche Entwurf oder keine
+     Zelle. Nur im täglichen Format darf ein einzelner Tag Entwurf sein. */
   function getStatusFuerTag(wochen, dateStr) {
     const d = new Date(dateStr + 'T00:00:00');
     const kw = DateUtil.getKW(d);
@@ -42,12 +80,15 @@ document.addEventListener('DOMContentLoaded', async () => {
       if (dow === 0 || dow === 6) return 'frei';
       return 'offen';
     }
-    return woche.status;
+    if (woche.status !== 'offen') return woche.status;
+    if (berichtTyp === 'wöchentlich') return wocheHatInhalt(woche) ? 'entwurf' : 'offen';
+    return tagHatInhalt((woche.tage || []).find(t => t.datum === dateStr)) ? 'entwurf' : 'offen';
   }
 
   async function render() {
     const azubiId = viewAzubiId || user.id;
     const wochen = await DB.getWochenFuerAzubi(azubiId);
+    berichtTyp = (await DB.getUser(azubiId))?.berichtTyp || 'täglich';
     const isAusbilder = ['pruefer', 'admin', 'developer'].includes(user.role);
     const main = document.getElementById('mainContent');
 
@@ -80,6 +121,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
       <div class="year-legend">
         <div class="legend-item"><div class="week-status-dot week-status-dot--offen" style="flex-shrink:0"></div> Noch nicht eingereicht</div>
+        <div class="legend-item"><div class="week-status-dot week-status-dot--entwurf" style="flex-shrink:0"></div> Entwurf</div>
         <div class="legend-item"><div class="week-status-dot week-status-dot--freigegeben" style="flex-shrink:0"></div> Eingereicht</div>
         <div class="legend-item"><div class="week-status-dot week-status-dot--genehmigt" style="flex-shrink:0"></div> Genehmigt</div>
         <div class="legend-item"><div class="week-status-dot week-status-dot--abgelehnt" style="flex-shrink:0"></div> Abgelehnt / Zurückgewiesen</div>
@@ -241,7 +283,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     const isCurrentKW = kw === DateUtil.getKW(now) && kwYear === DateUtil.getKWYear(now) && todayInThisMonth;
 
     const woche = wochen.find(w => w.kw === kw && w.year === kwYear);
-    const weekStatus = woche ? woche.status : 'offen';
+    const weekStatus = !woche ? 'offen'
+      : (woche.status === 'offen' && wocheHatInhalt(woche)) ? 'entwurf'
+      : woche.status;
 
     const cells = week.map(d => {
       const dateStr = DateUtil.toISODate(d);

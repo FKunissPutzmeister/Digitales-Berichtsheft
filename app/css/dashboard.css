@@ -2547,8 +2547,10 @@ html[data-theme="dark"] .b-recent::before {
   position: relative;
   margin: var(--sp-6) 0 16px;   /* unten = Bento-Gap (16px), damit alle Kachel-Abstände gleich sind */
   border-radius: 24px;
+  /* overflow:hidden clippt die Deko-Pseudos. KEIN isolation:isolate dazu —
+     das machte die Kachel zum Backdrop Root, und ein backdrop-filter darin
+     (Glas-Backing) sah dann nur ihre eigene Fläche statt der Seite. */
   overflow: hidden;
-  isolation: isolate;
   display: flex;
   align-items: center;
   justify-content: space-between;

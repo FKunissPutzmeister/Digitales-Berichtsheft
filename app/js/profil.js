@@ -33,6 +33,11 @@ document.addEventListener('DOMContentLoaded', async () => {
   /* Saison-Themes (Halloween/Christmas) sind während der Testphase nur für
      Developer sichtbar; alle übrigen Nutzer sehen sie nicht in der Auswahl. */
   const SEASONAL_DESIGNS = ['halloween', 'christmas'];
+  /* Papierheft ist für produktive Konten gesperrt und bleibt Demo-Konten
+     (E-Mail-Lokalteil endet auf .demo, s. istDemoKonto in backend/services/
+     retention.js) vorbehalten – dasselbe Muster wie dort. */
+  const DEMO_ONLY_DESIGNS = ['papier'];
+  const isDemoAccount = /\.demo@/i.test(user.email || '');
   const THEME_DESIGNS = [
     { id: '',           name: 'Standard',   sub: 'Putzmeister-Design' },
     { id: 'silk',       name: 'Silk',       sub: 'Liquid Glass · futuristisch' },
@@ -41,7 +46,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     { id: 'papier',     name: 'Papierheft', sub: 'Vergilbtes Pergament-Manuskript' },
     { id: 'halloween',  name: 'Halloween',  sub: 'Geisterhaus & Nebel' },
     { id: 'christmas',  name: 'Christmas',  sub: 'Verschneit & festlich' },
-  ].filter(d => isDeveloper || !SEASONAL_DESIGNS.includes(d.id));
+  ].filter(d => (isDeveloper || !SEASONAL_DESIGNS.includes(d.id))
+             && (isDemoAccount || !DEMO_ONLY_DESIGNS.includes(d.id)));
 
   function buildDarstellung() {
     const mode   = window.PMTheme?.getMode?.()   || 'light';

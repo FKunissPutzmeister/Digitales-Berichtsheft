@@ -31,6 +31,18 @@ async function requireAuth() {
   return user;
 }
 
+/* Abteilungsdurchlauf (Dashboard-Kachel + Sidebar-Reiter) ist für genau diese
+   zwei Personen ausgeblendet – kein allgemeines Feature-Gate, sondern ein
+   individueller Wunsch. Matching über E-Mail statt Namen (stabiler, s.
+   [[project-sso-saml-role-groups]]-Konvention firstname.lastname@putzmeister.com). */
+const DURCHLAUF_AUSGEBLENDET_FUER = new Set([
+  'marco.rossi@putzmeister.com',
+  'patrick.veit@putzmeister.com',
+]);
+function istDurchlaufAusgeblendet(user) {
+  return DURCHLAUF_AUSGEBLENDET_FUER.has(String(user && user.email || '').trim().toLowerCase());
+}
+
 /* Spiegelt die Fähigkeiten des Nutzers auf <html data-*> (für CSS-Gating),
    persistiert sie für den Pre-Paint-Read in theme.js (kein Flash beim nächsten
    Load) und blendet die Nav-Items zusätzlich per JS ein/aus (belt-and-suspenders). */
@@ -63,7 +75,7 @@ function applyCapabilities(caps) {
     el.style.display = caps.istAzubi ? '' : 'none';
   });
   document.querySelectorAll('.nav-durchlauf').forEach(el => {
-    el.style.display = (caps.istAzubi || (caps.istAusbilder && !caps.istReinerPruefer)) ? '' : 'none';
+    el.style.display = (!caps.durchlaufAusgeblendet && (caps.istAzubi || (caps.istAusbilder && !caps.istReinerPruefer))) ? '' : 'none';
   });
   document.querySelectorAll('.nav-jahresansicht-only').forEach(el => {
     el.style.display = ((caps.istAzubi || caps.korrektur) && !caps.istReinerPruefer) ? '' : 'none';
@@ -143,6 +155,7 @@ function setupDevViewSwitch(user) {
         korrektur:    !!u.istAusbilder,
         istReinerPruefer: !!u.istReinerPruefer,
         role:         u.role,
+        durchlaufAusgeblendet: istDurchlaufAusgeblendet(u),
       });
       window.location.reload();
     } catch (e) {
@@ -157,6 +170,14 @@ function setupDevViewSwitch(user) {
 async function initLayout(activeNavId) {
   const user = await requireAuth();
   if (!user) return null;
+
+  // Papierheft-Theme ist Demo-Konten vorbehalten (s. THEME_DESIGNS-Filter in
+  // profil.js) – ein produktives Konto, das es vor der Sperre gewählt hatte
+  // oder dessen customTheme per DevTools gesetzt wurde, wird beim nächsten
+  // Seitenaufruf stillschweigend auf den Standard-Modus zurückgesetzt.
+  if (!/\.demo@/i.test(user.email || '') && window.PMTheme && window.PMTheme.getCustom() === 'papier') {
+    window.PMTheme.setCustom(null);
+  }
 
   // DH-Studenten nutzen ausschließlich ihre eigenen schlanken Seiten
   // (abteilungsdurchlauf.html, dh-profil.html) – die haben KEINE Sidebar-Shell
@@ -281,6 +302,7 @@ async function initLayout(activeNavId) {
     korrektur:    istKorrektor,
     istReinerPruefer: !!user.istReinerPruefer,
     role:         user.role,
+    durchlaufAusgeblendet: istDurchlaufAusgeblendet(user),
   });
 
   setupDevViewSwitch(user);

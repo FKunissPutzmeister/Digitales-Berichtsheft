@@ -1600,3 +1600,14 @@ html[data-theme="candy"] .bento .b-mitteilungen::after {
 [data-theme="candy"] .dh-tl__mini {
   box-shadow: inset 0 1px 3px rgba(150, 40, 100, 0.16);
 }
+
+/* ── Berichtsheft-Status „Entwurf" (Jahresansicht) ──────────────────
+   Wie in Silk: Entwurf traegt die Theme-Farbe (hier Candy-Pink) als
+   Schraffur + Zahl. „Heute" bleibt das volle, satte Pink, der Entwurf ist
+   die schraffierte Pastell-Stufe darunter. */
+[data-theme="candy"] {
+  --status-entwurf:        #C42579;
+  --status-entwurf-mid:    #FF6FB5;
+  --status-entwurf-bg:     #FFD9EB;
+  --status-entwurf-hatch:  rgba(196, 37, 121, 0.20);
+}

@@ -738,7 +738,10 @@ async function renderAusbilderDashboard(user) {
   // Gate auf durchlaufAzubis (nicht meineAzubis), damit die Übersicht auch für
   // reine Planer/Admins ohne eigene Azubis erscheint (durchlaufAzubis = alleAzubis);
   // kannPlanen steuert das Link-Label ("Planer öffnen" vs "Zum Abteilungsdurchlauf").
-  const durchlaufHtml = durchlaufAzubis.length > 0 ? renderDurchlaufListe(durchlaufRows, today, !!user.kannPlanen) : '';
+  // istDurchlaufAusgeblendet (app.js): individuelle Ausnahme für zwei Personen,
+  // kein allgemeines Feature-Gate.
+  const durchlaufHtml = (durchlaufAzubis.length > 0 && !istDurchlaufAusgeblendet(user))
+    ? renderDurchlaufListe(durchlaufRows, today, !!user.kannPlanen) : '';
 
   const mitteilungenCardHtml = `
     <div class="card card--mitteilungen animate-fade-in">

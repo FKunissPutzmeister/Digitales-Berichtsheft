@@ -16,8 +16,13 @@
 }
 
 /* ── Sidebar ── */
+/* KEIN view-transition-name hier (und keins auf .main-wrapper). Die App ruft
+   nirgends startViewTransition() — die Namen waren wirkungslos, kosteten aber
+   jedes Glas im Seiteninhalt: ein Element mit view-transition-name != none ist
+   ein „Backdrop Root". Der backdrop-filter eines NACHFAHREN sieht dann nur noch
+   die gemalte Fläche dieses Vorfahren, nicht mehr die Seite darunter — bei einer
+   transparenten Kachel also nichts. Wirkte in allen Themes, quer durch die App. */
 .sidebar {
-  view-transition-name: sidebar;
   position: fixed;
   top: 0;
   left: 0;
@@ -571,8 +576,8 @@ html.sidebar-init-collapsed .main-wrapper         { margin-left: var(--sidebar-i
 .mobile-menu-btn svg { width: 22px; height: 22px; }
 
 /* ── Main Wrapper ── */
+/* view-transition-name absichtlich nicht gesetzt, s. .sidebar oben. */
 .main-wrapper {
-  view-transition-name: main-wrapper;
   flex: 1;
   /* Flex-Item: ohne min-width:0 würde min-width:auto den Wrapper von
      breitem Inhalt (nowrap-Text, breite Tabellen) über den Viewport
