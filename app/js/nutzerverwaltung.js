@@ -82,6 +82,10 @@ document.addEventListener('DOMContentLoaded', async () => {
               <input class="form-control" type="text" id="nvBeruf" name="beruf" readonly placeholder="wird beim Login aus Azure (Position) übernommen">
             </div>
             <div class="form-group">
+              <label class="form-label" for="nvDepartment">Department <span class="form-hint">· aus Azure synchronisiert, bestimmt die Ausbildungsleiter-Zuordnung</span></label>
+              <input class="form-control" type="text" id="nvDepartment" name="department" readonly placeholder="wird beim Entra-Sync übernommen">
+            </div>
+            <div class="form-group">
               <label class="form-label" for="nvBerichtTyp">Berichtstyp</label>
               <select class="form-control" id="nvBerichtTyp" name="berichtTyp">
                 <option value="wöchentlich">Wöchentlich</option>
@@ -206,6 +210,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     editingUser = u;
     setSelectValue('nvRole', u.role || 'azubi');
     document.getElementById('nvBeruf').value        = u.beruf || '';
+    document.getElementById('nvDepartment').value    = u.department || '';
     setSelectValue('nvBerichtTyp', u.berichtTyp || 'wöchentlich');
     /* READ uses ausbildungsBeginn/ausbildungsEnde (with medial 's') */
     document.getElementById('nvAusbildungBeginn').value = u.ausbildungsBeginn || '';
