@@ -7,7 +7,7 @@ const { ladeKorrekturKontext } = require('./zugriffContext');
 const { verantwortlichFuerZuweisung, ymd } = require('./zugriff');
 const { aktiveVertreteneEmails } = require('./vertretungen');
 const unterschriftenSvc = require('./unterschriften');
-const berufeSvc = require('./berufe');
+const departmentSvc = require('./department');
 const { mailBeurteilung } = require('./mail');
 
 const heuteYmd = () => new Date().toISOString().slice(0, 10);
@@ -51,18 +51,18 @@ function darfBeurteilungBearbeiten(user, zuweisung) {
   return !!email && (zuweisung.verantwortlicherEmail || '').toLowerCase() === email;
 }
 
-// Ermittelt den zuständigen Ausbildungsleiter für einen Azubi: dessen Beruf
-// wird über den Berufe-Katalog auf einen Bereich abgebildet, dann wird der
-// (einzige vorgesehene) Nutzer mit IstAusbildungsleiter=1 in diesem Bereich
-// gesucht. null, wenn kein Katalog-Treffer ODER kein passend getaggter
-// Nutzer existiert — beide Fälle werden von den Aufrufern gleich behandelt
-// (dritter Schritt entfällt lautlos, siehe Design-Spec, Abschnitt Randfälle).
+// Ermittelt den zuständigen Ausbildungsleiter für einen Azubi: dessen
+// Department wird auf einen Bereich abgebildet (siehe Design-Spec
+// 2026-09-01 — ersetzt den bisherigen Beruf+Berufe-Katalog-Weg), dann wird
+// der (einzige vorgesehene) Nutzer mit IstAusbildungsleiter=1 in diesem
+// Bereich gesucht. null, wenn kein Department-Treffer ODER kein passend
+// getaggter Nutzer existiert — beide Fälle werden von den Aufrufern gleich
+// behandelt (dritter Schritt entfällt lautlos, siehe Design-Spec, Abschnitt
+// Randfälle).
 async function ermittleAusbildungsleiter(pool, azubiOid) {
   const r = await pool.request().input('oid', sql.NVarChar(36), azubiOid)
-    .query('SELECT Beruf FROM dbo.Users WHERE Oid=@oid');
-  const beruf = r.recordset[0]?.Beruf ?? null;
-  const katalog = await berufeSvc.listBerufe();
-  const bereich = berufeSvc.bereichFuerBeruf(beruf, katalog);
+    .query('SELECT Department FROM dbo.Users WHERE Oid=@oid');
+  const bereich = departmentSvc.bereichAusDepartment(r.recordset[0]?.Department ?? null);
   if (!bereich) return null;
   const leiter = await pool.request().input('bereich', sql.NVarChar(20), bereich)
     .query('SELECT TOP 1 Oid FROM dbo.Users WHERE IstAusbildungsleiter=1 AND AusbildungsleiterBereich=@bereich ORDER BY Oid');

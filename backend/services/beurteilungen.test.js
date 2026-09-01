@@ -3,6 +3,24 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const B = require('./beurteilungen.js');
 
+// Fake-Pool für ermittleAusbildungsleiter: routet den SQL-Text per
+// Substring auf ein vorgegebenes recordset (zwei verschiedene Queries pro
+// Aufruf: erst Department lesen, dann den getaggten Leiter suchen).
+function fakePoolFuer(routen) {
+  return {
+    request() {
+      const api = {
+        input() { return api; },
+        query(text) {
+          const treffer = routen.find(([nadel]) => text.includes(nadel));
+          return Promise.resolve({ recordset: treffer ? treffer[1] : [] });
+        },
+      };
+      return api;
+    },
+  };
+}
+
 test('darfBeurteilungBearbeiten: true fuer admin/developer unabhaengig von der Zuweisung', () => {
   assert.equal(B.darfBeurteilungBearbeiten({ role: 'admin', email: 'x@y.de' }, null), true);
   assert.equal(B.darfBeurteilungBearbeiten({ role: 'developer', email: 'x@y.de' }, { verantwortlicherEmail: 'andere@y.de' }), true);
@@ -39,4 +57,35 @@ test('ermittleModus: Typ=kurz liefert nur bearbeiten/ansicht, nie azubi/ausbildu
   // pool wird im kurz-Kurzschluss nie angefasst -> {} genügt als Fake.
   assert.equal(await B.ermittleModus(pruefer, zuwEditable, bKurz, {}), 'bearbeiten');
   assert.equal(await B.ermittleModus(azubi, zuwEditable, bKurz, {}), 'ansicht');
+});
+
+test('ermittleAusbildungsleiter: Department "Gewerbliche Auszubildende" -> technischer Ausbildungsleiter', async () => {
+  const pool = fakePoolFuer([
+    ['SELECT Department FROM dbo.Users', [{ Department: 'Gewerbliche Auszubildende' }]],
+    ['SELECT TOP 1 Oid FROM dbo.Users WHERE IstAusbildungsleiter=1', [{ Oid: 'rossi-oid' }]],
+  ]);
+  assert.equal(await B.ermittleAusbildungsleiter(pool, 'azubi-oid'), 'rossi-oid');
+});
+
+test('ermittleAusbildungsleiter: DH-Studenten landen bei der kaufmaennischen Ausbildungsleitung', async () => {
+  const pool = fakePoolFuer([
+    ['SELECT Department FROM dbo.Users', [{ Department: 'DH-Studenten' }]],
+    ['SELECT TOP 1 Oid FROM dbo.Users WHERE IstAusbildungsleiter=1', [{ Oid: 'kailer-oid' }]],
+  ]);
+  assert.equal(await B.ermittleAusbildungsleiter(pool, 'dh-oid'), 'kailer-oid');
+});
+
+test('ermittleAusbildungsleiter: null ohne Department-Treffer', async () => {
+  const pool = fakePoolFuer([
+    ['SELECT Department FROM dbo.Users', [{ Department: null }]],
+  ]);
+  assert.equal(await B.ermittleAusbildungsleiter(pool, 'azubi-oid'), null);
+});
+
+test('ermittleAusbildungsleiter: null ohne passend getaggten Nutzer', async () => {
+  const pool = fakePoolFuer([
+    ['SELECT Department FROM dbo.Users', [{ Department: 'Kaufmännische Auszubildende' }]],
+    ['SELECT TOP 1 Oid FROM dbo.Users WHERE IstAusbildungsleiter=1', []],
+  ]);
+  assert.equal(await B.ermittleAusbildungsleiter(pool, 'azubi-oid'), null);
 });
