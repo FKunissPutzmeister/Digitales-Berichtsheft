@@ -210,7 +210,7 @@ async function runSync(env = process.env) {
     const resolved = resolveMembers(groupResults);
     const members = [...resolved.values()];
     for (const u of members) {
-      await upsertUser({ oid: u.oid, name: u.name, email: u.email, role: u.role, beruf: berufAusJobtitle(u.jobTitle), berichtTyp: berichtTypAusDepartment(u.department), letzterLogin: false });
+      await upsertUser({ oid: u.oid, name: u.name, email: u.email, role: u.role, beruf: berufAusJobtitle(u.jobTitle), department: u.department ?? null, berichtTyp: berichtTypAusDepartment(u.department), letzterLogin: false });
     }
     const aktivOids = members.map((u) => u.oid);
     // Manuell deaktivierte Konten (Nutzerverwaltung, Migration 038) NICHT
