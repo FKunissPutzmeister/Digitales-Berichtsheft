@@ -3,6 +3,19 @@
 Hinweise für Claude Code in diesem Repo. Ausgeliefert wird `app/` (Frontend) +
 `backend/` (Express/mssql).
 
+## Codesuche: kein rohes `grep`/`rg` über Bash/PowerShell
+
+Für Volltextsuche im Code immer das dedizierte Grep-Tool benutzen, nicht
+`grep`/`rg`/`findstr` über Bash oder PowerShell aufrufen. Ein Suchmuster, das
+aus dem Code kopiert wird (z.B. `> 0.01)`, `< e.children.length`), enthält oft
+`>`/`<` — beide Shells interpretieren das außerhalb von Anführungszeichen
+immer als Um­leitung, auch mitten im Muster, und legen dafür klaglos eine
+leere Datei mit dem Rest des Musters als Dateinamen an. So sind im Repo
+mehrfach Geister-Dateien wie `0.01)`, `e.children.length` oder
+`b.querySelector('svg')` entstanden (git-untracked, 0 Byte) — zuletzt beim
+Debuggen des Silk-/Eck-Curl-Theme-Codes. Das dedizierte Grep-Tool übergibt das
+Muster sicher, ohne Shell-Auswertung, und hat dieses Problem nicht.
+
 ## Dashboard „Abteilungsdurchlauf" — zwei Layout-Varianten
 
 Für die Durchlauf-Übersicht auf dem Ausbilder-/Prüfer-Dashboard gibt es zwei
