@@ -31,6 +31,16 @@ test('buildReqUser leitet Azubi-Flags + Profilfelder ab', () => {
   assert.equal(u.berichtTyp, 'wöchentlich'); // Default ohne BerichtTyp-Spalte
 });
 
+test('buildReqUser: Department wird durchgereicht', () => {
+  const u = buildReqUser({ Oid: 'g1b', Role: 'azubi', Department: 'Kaufmännische Auszubildende' });
+  assert.equal(u.department, 'Kaufmännische Auszubildende');
+});
+
+test('buildReqUser: fehlendes Department ergibt null', () => {
+  const u = buildReqUser({ Oid: 'g1c', Role: 'azubi' });
+  assert.equal(u.department, null);
+});
+
 test('buildReqUser: pruefer bekommt Korrektur-Zugang automatisch', () => {
   const u = buildReqUser({ Oid: 'g2', Role: 'pruefer', KannPlanen: false, IstAusbilder: false });
   assert.equal(u.istAusbilder, true);
@@ -229,6 +239,15 @@ test('updateUserProfile: ohne aktiv-Feld wird InaktivSeit nicht angefasst', asyn
   assert.ok(!/InaktivSeit/.test(text), 'InaktivSeit darf hier nicht vorkommen');
 });
 
+test('updateUserProfile: Department-Feld wird geschrieben', async () => {
+  const pool = fakePool();
+  await updateUserProfile('g1', { department: 'Gewerbliche Auszubildende' }, pool);
+
+  const { sql: text, inputs } = pool.calls[0];
+  assert.equal(inputs.department, 'Gewerbliche Auszubildende');
+  assert.match(text, /Department = @department/);
+});
+
 // Migration 038: manuelle Deaktivierung muss den Entra-Sync ausbremsen können
 // (siehe entraSync.filterReaktivierung) — dafür braucht es dieses Flag.
 test('updateUserProfile: manuelles Deaktivieren setzt ManuellDeaktiviert', async () => {
@@ -282,6 +301,14 @@ test('updateUserProfile: mehrere Sync-Felder in einem Patch werden beide vorgeme
   assert.match(text, /CHARINDEX\(',Beruf,'/);
 });
 
+test('updateUserProfile: Department-Patch merkt die Spalte in ManuellUeberschriebeneFelder vor', async () => {
+  const pool = fakePool();
+  await updateUserProfile('g1', { department: 'Kaufmännische Auszubildende' }, pool);
+
+  const { sql: text } = pool.calls[0];
+  assert.match(text, /CHARINDEX\(',Department,'/);
+});
+
 test('updateUserProfile: nicht-sync-fähige Felder (istAzubi) landen NICHT in ManuellUeberschriebeneFelder', async () => {
   const pool = fakePool();
   await updateUserProfile('g1', { istAzubi: true }, pool);
@@ -301,13 +328,15 @@ test('updateUserProfile: aktiv-Patch (eigenes Flag ManuellDeaktiviert) landet NI
 
 test('upsertUser: MERGE schützt manuell überschriebene Spalten vor der Azure-Basisrolle', async () => {
   const pool = fakePool();
-  await upsertUser({ oid: 'g1', role: 'azubi', beruf: 'Fachinformatiker', letzterLogin: false }, pool);
+  await upsertUser({ oid: 'g1', role: 'azubi', beruf: 'Fachinformatiker', department: 'Kaufmännische Auszubildende', letzterLogin: false }, pool);
 
   const merge = pool.calls.find((c) => /MERGE dbo\.Users/.test(c.sql));
   assert.ok(merge, 'MERGE-Query nicht gefunden');
   assert.match(merge.sql, /CHARINDEX\(',Role,', ',' \+ t\.ManuellUeberschriebeneFelder \+ ','\) > 0 THEN t\.Role/);
   assert.match(merge.sql, /CHARINDEX\(',Beruf,', ',' \+ t\.ManuellUeberschriebeneFelder \+ ','\) > 0 THEN t\.Beruf/);
+  assert.match(merge.sql, /CHARINDEX\(',Department,', ',' \+ t\.ManuellUeberschriebeneFelder \+ ','\) > 0 THEN t\.Department/);
   assert.equal(merge.inputs.role, 'azubi');
+  assert.equal(merge.inputs.department, 'Kaufmännische Auszubildende');
 });
 
 test('buildReqUser liefert inaktivSeit und loeschsperreBis', () => {

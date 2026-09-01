@@ -68,6 +68,7 @@ function buildReqUser(row) {
     istDhStudent: role === 'dhstudent', // developer NICHT (sonst Zwangs-Redirect)
     // Profilfelder (Azubi-Ansicht + Admin-UI brauchen sie):
     beruf:             row.Beruf ?? null,
+    department:        row.Department ?? null,
     ausbildungsBeginn: toDay(row.AusbildungBeginn),
     ausbildungsEnde:   toDay(row.AusbildungEnde),
     berichtTyp:        row.BerichtTyp || 'wöchentlich',
@@ -102,6 +103,7 @@ const PATCH_COLUMNS = {
   istAusbildungsleiter:     { col: 'IstAusbildungsleiter',     type: () => sql.Bit },
   ausbildungsleiterBereich: { col: 'AusbildungsleiterBereich', type: () => sql.NVarChar(20) },
   beruf:            { col: 'Beruf',            type: () => sql.NVarChar(200) },
+  department:       { col: 'Department',       type: () => sql.NVarChar(200) },
   ausbildungBeginn: { col: 'AusbildungBeginn', type: () => sql.Date },
   ausbildungEnde:   { col: 'AusbildungEnde',   type: () => sql.Date },
   berichtTyp:       { col: 'BerichtTyp',       type: () => sql.NVarChar(20) },
@@ -132,7 +134,7 @@ function validateUserPatch(fields) {
 // Spalten, die upsertUser potenziell schreibt UND die in der Nutzerverwaltung
 // manuell editierbar sind (PATCH_COLUMNS). 'Aktiv' hat sein eigenes Flag
 // (ManuellDeaktiviert, Migration 038) und gehört NICHT hierher.
-const SYNC_PROTECTABLE_COLS = ['Role', 'KannPlanen', 'IstAusbilder', 'Beruf', 'AusbildungBeginn', 'AusbildungEnde', 'BerichtTyp'];
+const SYNC_PROTECTABLE_COLS = ['Role', 'KannPlanen', 'IstAusbilder', 'Beruf', 'Department', 'AusbildungBeginn', 'AusbildungEnde', 'BerichtTyp'];
 
 // SQL-Ausdruck: `fallbackSql`, außer die Spalte `col` steht in
 // t.ManuellUeberschriebeneFelder (Migration 041) — dann bleibt der Alt-Wert.
@@ -189,6 +191,7 @@ async function upsertUser(data, poolOverride) {
   r.input('kannPlanen',   sql.Bit,          data.kannPlanen ?? null);
   r.input('istAusbilder', sql.Bit,          data.istAusbilder ?? null);
   r.input('beruf',        sql.NVarChar(200),data.beruf ?? null);
+  r.input('department',   sql.NVarChar(200),data.department ?? null);
   r.input('beginn',       sql.Date,         data.ausbildungBeginn ?? null);
   r.input('ende',         sql.Date,         data.ausbildungEnde ?? null);
   r.input('berichtTyp',   sql.NVarChar(20), data.berichtTyp ?? null);
@@ -207,6 +210,7 @@ async function upsertUser(data, poolOverride) {
       KannPlanen   = ${protectedExpr('KannPlanen', 'COALESCE(@kannPlanen, t.KannPlanen)')},
       IstAusbilder = ${protectedExpr('IstAusbilder', 'COALESCE(@istAusbilder, t.IstAusbilder)')},
       Beruf            = ${protectedExpr('Beruf', 'COALESCE(@beruf, t.Beruf)')},
+      Department       = ${protectedExpr('Department', 'COALESCE(@department, t.Department)')},
       AusbildungBeginn = ${protectedExpr('AusbildungBeginn', 'COALESCE(@beginn, t.AusbildungBeginn)')},
       AusbildungEnde   = ${protectedExpr('AusbildungEnde', 'COALESCE(@ende, t.AusbildungEnde)')},
       BerichtTyp       = ${protectedExpr('BerichtTyp', 'COALESCE(@berichtTyp, t.BerichtTyp)')},
@@ -217,10 +221,10 @@ async function upsertUser(data, poolOverride) {
                               WHEN @setLogin = 1 THEN SYSUTCDATETIME() ELSE NULL END,
       AktualisiertAm   = SYSUTCDATETIME()
     WHEN NOT MATCHED THEN INSERT
-      (Oid, Name, Email, Role, KannPlanen, IstAusbilder, Beruf, AusbildungBeginn, AusbildungEnde, BerichtTyp, LetzterLogin, ErsteAnmeldung)
+      (Oid, Name, Email, Role, KannPlanen, IstAusbilder, Beruf, Department, AusbildungBeginn, AusbildungEnde, BerichtTyp, LetzterLogin, ErsteAnmeldung)
     VALUES
       (@oid, @name, @email, COALESCE(@role,'azubi'), COALESCE(@kannPlanen,0), COALESCE(@istAusbilder,0),
-       @beruf, @beginn, @ende, COALESCE(@berichtTyp, N'wöchentlich'),
+       @beruf, @department, @beginn, @ende, COALESCE(@berichtTyp, N'wöchentlich'),
        CASE WHEN @setLogin = 1 THEN SYSUTCDATETIME() ELSE NULL END,
        CASE WHEN @setLogin = 1 THEN SYSUTCDATETIME() ELSE NULL END);
   `);
