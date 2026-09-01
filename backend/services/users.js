@@ -83,6 +83,10 @@ function buildReqUser(row) {
     // aus, solange er noch Mitglied seiner Gruppe ist — sonst würde der nächste
     // Lauf Aktiv=1 sofort wieder herstellen. Siehe entraSync.filterReaktivierung.
     manuellDeaktiviert: !!row.ManuellDeaktiviert,
+    // Manuell in der Nutzerverwaltung gesetzte Sync-Felder (Migration 041,
+    // Komma-Liste von Spaltennamen) — upsertUser lässt diese beim nächsten
+    // Login/Entra-Sync unangetastet. Siehe SYNC_PROTECTABLE_COLS unten.
+    manuellUeberschriebeneFelder: String(row.ManuellUeberschriebeneFelder || '').split(',').filter(Boolean),
   };
 }
 
@@ -125,11 +129,39 @@ function validateUserPatch(fields) {
   return { ok: true };
 }
 
+// Spalten, die upsertUser potenziell schreibt UND die in der Nutzerverwaltung
+// manuell editierbar sind (PATCH_COLUMNS). 'Aktiv' hat sein eigenes Flag
+// (ManuellDeaktiviert, Migration 038) und gehört NICHT hierher.
+const SYNC_PROTECTABLE_COLS = ['Role', 'KannPlanen', 'IstAusbilder', 'Beruf', 'AusbildungBeginn', 'AusbildungEnde', 'BerichtTyp'];
+
+// SQL-Ausdruck: `fallbackSql`, außer die Spalte `col` steht in
+// t.ManuellUeberschriebeneFelder (Migration 041) — dann bleibt der Alt-Wert.
+function protectedExpr(col, fallbackSql) {
+  return `CASE WHEN CHARINDEX(',${col},', ',' + t.ManuellUeberschriebeneFelder + ',') > 0 THEN t.${col} ELSE ${fallbackSql} END`;
+}
+
+// Baut einen SQL-Ausdruck, der ManuellUeberschriebeneFelder um `cols` ergänzt
+// (Komma-Liste, keine Duplikate). Arbeitet rein auf dem Alt-Wert der Spalte —
+// unproblematisch innerhalb eines einzelnen UPDATE SET (siehe updateUserProfile).
+function withManuellUeberschrieben(cols, colExpr) {
+  let expr = colExpr;
+  for (const col of cols) {
+    expr = `CASE WHEN CHARINDEX(',${col},', ',' + (${expr}) + ',') > 0 THEN (${expr}) ` +
+           `ELSE (${expr}) + CASE WHEN (${expr}) = '' THEN '' ELSE ',' END + '${col}' END`;
+  }
+  return expr;
+}
+
 // EIN Schreibpfad für Identität/Rolle (Login-JIT, CSV-Import, später Graph).
 // Merge-Regel: Sonderrollen (admin/dhstudent/developer) werden NIE von einer
 // Azure-Basisrolle überschrieben; nur übergebene Felder werden aktualisiert.
-async function upsertUser(data) {
-  const pool = await getPool();
+// Zusätzlich (Migration 041): jede Spalte, die zuletzt manuell in der
+// Nutzerverwaltung gesetzt wurde (t.ManuellUeberschriebeneFelder), bleibt
+// unangetastet — sonst hebelt der nächste Login/Sync-Lauf eine manuelle
+// Korrektur wieder aus (z.B. Rolle zurück auf 'azubi', weil die Person noch
+// in der falschen Entra-Gruppe steht).
+async function upsertUser(data, poolOverride) {
+  const pool = poolOverride || await getPool();
 
   // JIT-Reconciliation per E-Mail: Existiert die E-Mail bereits unter einer
   // ANDEREN OID (z.B. Demo-Seed mit Platzhalter-OID oder ein neu angelegtes
@@ -167,16 +199,17 @@ async function upsertUser(data) {
     WHEN MATCHED THEN UPDATE SET
       Name  = COALESCE(@name, t.Name),
       Email = COALESCE(@email, t.Email),
-      -- Basisrolle nur setzen, wenn aktuelle Rolle azubi/pruefer/dhstudent/leer ist:
-      Role  = CASE WHEN @role IS NULL THEN t.Role
+      -- Basisrolle nur setzen, wenn aktuelle Rolle azubi/pruefer/dhstudent/leer
+      -- ist UND Role nicht manuell überschrieben wurde (Migration 041):
+      Role  = ${protectedExpr('Role', `CASE WHEN @role IS NULL THEN t.Role
                    WHEN t.Role IN ('azubi','pruefer','dhstudent') OR t.Role IS NULL THEN @role
-                   ELSE t.Role END,
-      KannPlanen   = COALESCE(@kannPlanen, t.KannPlanen),
-      IstAusbilder = COALESCE(@istAusbilder, t.IstAusbilder),
-      Beruf            = COALESCE(@beruf, t.Beruf),
-      AusbildungBeginn = COALESCE(@beginn, t.AusbildungBeginn),
-      AusbildungEnde   = COALESCE(@ende, t.AusbildungEnde),
-      BerichtTyp       = COALESCE(@berichtTyp, t.BerichtTyp),
+                   ELSE t.Role END`)},
+      KannPlanen   = ${protectedExpr('KannPlanen', 'COALESCE(@kannPlanen, t.KannPlanen)')},
+      IstAusbilder = ${protectedExpr('IstAusbilder', 'COALESCE(@istAusbilder, t.IstAusbilder)')},
+      Beruf            = ${protectedExpr('Beruf', 'COALESCE(@beruf, t.Beruf)')},
+      AusbildungBeginn = ${protectedExpr('AusbildungBeginn', 'COALESCE(@beginn, t.AusbildungBeginn)')},
+      AusbildungEnde   = ${protectedExpr('AusbildungEnde', 'COALESCE(@ende, t.AusbildungEnde)')},
+      BerichtTyp       = ${protectedExpr('BerichtTyp', 'COALESCE(@berichtTyp, t.BerichtTyp)')},
       LetzterLogin     = CASE WHEN @setLogin = 1 THEN SYSUTCDATETIME() ELSE t.LetzterLogin END,
       -- Einmaliger Zeitstempel des allerersten Logins (nie wieder überschrieben,
       -- im Unterschied zu LetzterLogin) — Grundlage für das IHK-Import-Onboarding.
@@ -234,11 +267,13 @@ async function updateUserProfile(oid, fields, poolOverride) {
   const r = pool.request();
   r.input('oid', sql.NVarChar(36), oid);
   const sets = [];
+  const patchedSyncCols = [];
   for (const [key, val] of Object.entries(fields)) {
     const c = PATCH_COLUMNS[key];
     if (!c) continue;
     r.input(key, c.type(), val);
     sets.push(`${c.col} = @${key}`);
+    if (SYNC_PROTECTABLE_COLS.includes(c.col)) patchedSyncCols.push(c.col);
   }
   if (sets.length === 0) return;
   // Manuelle Deaktivierung in der Nutzerverwaltung muss die Löschfrist genauso
@@ -250,6 +285,12 @@ async function updateUserProfile(oid, fields, poolOverride) {
     // Hand gesetzt, damit der Entra-Sync sie nicht überschreibt (siehe
     // entraSync.filterReaktivierung). Reaktivieren löscht das Flag wieder.
     sets.push('ManuellDeaktiviert = CASE WHEN @aktiv = 0 THEN 1 ELSE 0 END');
+  }
+  if (patchedSyncCols.length) {
+    // ManuellUeberschriebeneFelder (Migration 041): merkt sich, welche
+    // Sync-Felder von Hand gesetzt wurden, damit upsertUser (Login/Entra-Sync)
+    // sie beim nächsten Lauf nicht zurücksetzt (siehe SYNC_PROTECTABLE_COLS).
+    sets.push(`ManuellUeberschriebeneFelder = ${withManuellUeberschrieben(patchedSyncCols, 'ManuellUeberschriebeneFelder')}`);
   }
   sets.push('AktualisiertAm = SYSUTCDATETIME()');
   await r.query(`UPDATE dbo.Users SET ${sets.join(', ')} WHERE Oid = @oid`);

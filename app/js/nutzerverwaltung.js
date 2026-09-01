@@ -290,6 +290,26 @@ document.addEventListener('DOMContentLoaded', async () => {
     editingUser = null;
   }
 
+  // Backend-Feldname → Property am geladenen User-Objekt, wo abweichend
+  // (WRITE ohne 's': ausbildungBeginn/ausbildungEnde; READ mit 's', siehe
+  // openModal). Alles andere ist identisch benannt.
+  const DIFF_KEY_MAP = { ausbildungBeginn: 'ausbildungsBeginn', ausbildungEnde: 'ausbildungsEnde' };
+
+  // Nur tatsächlich geänderte Felder ans Backend schicken (nicht das ganze
+  // Formular) — sonst würde jedes Speichern (auch nur "Ausbildungsleiter"
+  // ankreuzen) automatisch Role/KannPlanen/IstAusbilder/BerichtTyp/Ausbildungs-
+  // zeitraum als "manuell überschrieben" einfrieren (Migration 041) und damit
+  // den Entra-Sync für all diese unveränderten Felder dauerhaft blockieren.
+  function diffFields(fields, orig) {
+    const out = {};
+    for (const [key, val] of Object.entries(fields)) {
+      const origVal = orig[DIFF_KEY_MAP[key] || key] ?? null;
+      const newVal  = val ?? null;
+      if (newVal !== origVal) out[key] = val;
+    }
+    return out;
+  }
+
   async function handleSave() {
     if (!editingUser) return;
     const saveBtn = document.getElementById('nvSaveBtn');
@@ -317,9 +337,15 @@ document.addEventListener('DOMContentLoaded', async () => {
       // wirklich geleert wird (sql.Date verträgt '' nicht).
       loeschsperreBis:  document.getElementById('nvLoeschsperre').value || null,
     };
+    const changed = diffFields(fields, editingUser);
 
     try {
-      const updated = await DB.updateUser(editingUser.oid, fields);
+      // Kein PATCH, wenn sich nichts geändert hat (z.B. nur Ausbilder-
+      // Zuordnung unten angepasst) — ein leerer Patch würde das Backend mit
+      // 400 "Keine Felder angegeben" ablehnen und den Save abbrechen.
+      const updated = Object.keys(changed).length
+        ? await DB.updateUser(editingUser.oid, changed)
+        : editingUser;
       /* Dauerhafte Ausbilder nur schreiben, wenn das Ziel NACH dieser Änderung noch
          Azubi ist. Maßgeblich ist der neue Zustand (fields), nicht das veraltete
          editingUser — sonst würde beim Demoten (azubi→prüfer) ein PUT abgesetzt, den

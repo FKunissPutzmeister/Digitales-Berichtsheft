@@ -2,7 +2,7 @@
 process.env.NODE_ENV = 'test';
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { parseRoleClaim, buildReqUser, validateUserPatch, landingPathForUser, setUsersAktiv, updateUserProfile, listManuellDeaktivierteOids } = require('./users');
+const { parseRoleClaim, buildReqUser, validateUserPatch, landingPathForUser, setUsersAktiv, updateUserProfile, listManuellDeaktivierteOids, upsertUser } = require('./users');
 
 const ROLE_URI = 'http://schemas.microsoft.com/ws/2008/06/identity/claims/role';
 
@@ -251,6 +251,63 @@ test('updateUserProfile: manuelles Reaktivieren löscht ManuellDeaktiviert wiede
 test('validateUserPatch akzeptiert loeschsperreBis', () => {
   assert.equal(validateUserPatch({ loeschsperreBis: '2027-01-01' }).ok, true);
   assert.equal(validateUserPatch({ loeschSperre: '2027-01-01' }).ok, false);
+});
+
+test('buildReqUser: manuellUeberschriebeneFelder wird als Array durchgereicht', () => {
+  assert.deepEqual(buildReqUser({ Oid: 'g11', Role: 'pruefer' }).manuellUeberschriebeneFelder, []);
+  assert.deepEqual(
+    buildReqUser({ Oid: 'g11', Role: 'pruefer', ManuellUeberschriebeneFelder: 'Role,Beruf' }).manuellUeberschriebeneFelder,
+    ['Role', 'Beruf'],
+  );
+});
+
+/* ── Migration 041: manuelle Nutzerverwaltungs-Korrekturen überstehen
+   Login-JIT/Entra-Sync (Marco.Rossi/Patrick.Veit-Fall, 2026-09-01) ── */
+
+test('updateUserProfile: Role-Patch merkt die Spalte in ManuellUeberschriebeneFelder vor', async () => {
+  const pool = fakePool();
+  await updateUserProfile('g1', { role: 'pruefer' }, pool);
+
+  const { sql: text } = pool.calls[0];
+  assert.match(text, /Role = @role/);
+  assert.match(text, /ManuellUeberschriebeneFelder = CASE WHEN CHARINDEX\(',Role,'/);
+});
+
+test('updateUserProfile: mehrere Sync-Felder in einem Patch werden beide vorgemerkt', async () => {
+  const pool = fakePool();
+  await updateUserProfile('g1', { role: 'pruefer', beruf: 'Mechatroniker' }, pool);
+
+  const { sql: text } = pool.calls[0];
+  assert.match(text, /CHARINDEX\(',Role,'/);
+  assert.match(text, /CHARINDEX\(',Beruf,'/);
+});
+
+test('updateUserProfile: nicht-sync-fähige Felder (istAzubi) landen NICHT in ManuellUeberschriebeneFelder', async () => {
+  const pool = fakePool();
+  await updateUserProfile('g1', { istAzubi: true }, pool);
+
+  const { sql: text } = pool.calls[0];
+  assert.match(text, /IstAzubi = @istAzubi/);
+  assert.ok(!/ManuellUeberschriebeneFelder/.test(text));
+});
+
+test('updateUserProfile: aktiv-Patch (eigenes Flag ManuellDeaktiviert) landet NICHT in ManuellUeberschriebeneFelder', async () => {
+  const pool = fakePool();
+  await updateUserProfile('g1', { aktiv: false }, pool);
+
+  const { sql: text } = pool.calls[0];
+  assert.ok(!/ManuellUeberschriebeneFelder/.test(text));
+});
+
+test('upsertUser: MERGE schützt manuell überschriebene Spalten vor der Azure-Basisrolle', async () => {
+  const pool = fakePool();
+  await upsertUser({ oid: 'g1', role: 'azubi', beruf: 'Fachinformatiker', letzterLogin: false }, pool);
+
+  const merge = pool.calls.find((c) => /MERGE dbo\.Users/.test(c.sql));
+  assert.ok(merge, 'MERGE-Query nicht gefunden');
+  assert.match(merge.sql, /CHARINDEX\(',Role,', ',' \+ t\.ManuellUeberschriebeneFelder \+ ','\) > 0 THEN t\.Role/);
+  assert.match(merge.sql, /CHARINDEX\(',Beruf,', ',' \+ t\.ManuellUeberschriebeneFelder \+ ','\) > 0 THEN t\.Beruf/);
+  assert.equal(merge.inputs.role, 'azubi');
 });
 
 test('buildReqUser liefert inaktivSeit und loeschsperreBis', () => {
