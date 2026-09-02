@@ -122,6 +122,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     loeschung_geplant:         { tone: 'warn',    label: 'Löschung',
                                  titel: b => `Konto wird bald gelöscht: ${displayName(b.fromUserName) || 'unbekanntes Konto'}`,
                                  href: () => 'nutzerverwaltung.html' },
+    // Noten & Zeugnisse (Migration 044). FromUserOid ist der Azubi; die
+    // Tabelle hat kein Feld für die Eintrags-Id, deshalb führt der Link auf
+    // seine Noten-Seite statt auf den einzelnen Eintrag.
+    noten_eintrag_neu:         { tone: 'info',    label: 'Noten',
+                                 titel: b => `Neues Zeugnis / Prüfungsergebnis: ${displayName(b.fromUserName) || 'Azubi'}`,
+                                 href: b => `noten.html?azubi=${encodeURIComponent(b.fromUserId || '')}` },
   };
 
   // nurTypen (optional): beschraenkt das Ergebnis auf diese Typen, statt auf
@@ -204,7 +210,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         // (buildReqUser) - ohne diese Ausnahme saehen genau die Empfaenger der
         // Loesch-Vorwarnung (ermittleVorwarnEmpfaenger: KannPlanen ODER
         // Role='developer') sie nie. Alle anderen Verwaltungstypen bleiben gegated.
-        items = [...items, ...await buildVerwaltungItems(['loeschung_geplant'])];
+        // noten_eintrag_neu aus demselben Grund in der Ausnahme: Empfänger
+        // sind gerade die Ausbilder MIT betreuten Azubis (nurVerwaltung=false).
+        items = [...items, ...await buildVerwaltungItems(['loeschung_geplant', 'noten_eintrag_neu'])];
       }
       items.sort((x, y) => y.ts - x.ts);
     }
@@ -220,7 +228,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // Typ-Optionen aus den vorhandenen Items ableiten (stabile Reihenfolge).
   const typeOrder = ['eingereicht', 'zurueckgegeben', 'erstgenehmigt', 'beurteilung',
-    'versetzung', 'vertretung'];
+    'versetzung', 'vertretung', 'noten'];
   const typeLabelByKey = {};
   items.forEach(it => { typeLabelByKey[it.typeKey] = it.typeLabel; });
   const typeKeys = Object.keys(typeLabelByKey).sort((a, b) => {

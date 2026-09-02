@@ -142,6 +142,7 @@ const fahrtgeldRouter      = require('./routes/fahrtgeld');
 const beurteilungenRouter  = require('./routes/beurteilungen');
 const unterschriftRouter   = require('./routes/unterschrift');
 const berufeRouter         = require('./routes/berufe');
+const notenRouter          = require('./routes/noten');
 const ihkImportsRouter     = require('./routes/ihk-imports');
 const syncRouter           = require('./routes/sync');
 const apiKeysRouter        = require('./routes/apiKeys');
@@ -156,6 +157,7 @@ app.use('/api/vertretungen',        devAuth, vertretungenRouter);
 app.use('/api/planer-gruppen',      devAuth, planerGruppenRouter);
 app.use('/api/abteilungen',         devAuth, abteilungenRouter);
 app.use('/api/berufe',              devAuth, berufeRouter);
+app.use('/api/noten',               devAuth, notenRouter);   // Noten & Zeugnisse (Migration 043)
 app.use('/api/wochen',              devAuth, kommentareRouter);   // POST /api/wochen/:id/kommentare
 app.use('/api/wochen',              devAuth, anhaengeRouter);     // /api/wochen/:id/anhaenge, /api/wochen/anhaenge/:id
 app.use('/api/benachrichtigungen',  devAuth, benachrichtigungenRouter);

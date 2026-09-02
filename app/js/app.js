@@ -77,6 +77,15 @@ function applyCapabilities(caps) {
   document.querySelectorAll('.nav-durchlauf').forEach(el => {
     el.style.display = (!caps.durchlaufAusgeblendet && (caps.istAzubi || (caps.istAusbilder && !caps.istReinerPruefer))) ? '' : 'none';
   });
+  // Noten & Zeugnisse: eigene Noten (Azubi) ODER die der betreuten Azubis.
+  // Reine Prüfer sehen nichts (nur befristete Zuweisungen geben hier KEINEN
+  // Zugriff, siehe backend/services/noten.js) — mit einer Ausnahme: die
+  // Ausbildungsleitung hat oft keine dauerhafte Zuordnung und gilt deshalb
+  // als "reiner Prüfer", sieht aber ihren ganzen Bereich.
+  document.querySelectorAll('.nav-noten-only').forEach(el => {
+    const alsBetreuer = caps.istAusbilder && (!caps.istReinerPruefer || caps.istAusbildungsleiter);
+    el.style.display = (caps.istAzubi || alsBetreuer) ? '' : 'none';
+  });
   document.querySelectorAll('.nav-jahresansicht-only').forEach(el => {
     el.style.display = ((caps.istAzubi || caps.korrektur) && !caps.istReinerPruefer) ? '' : 'none';
   });
@@ -154,6 +163,7 @@ function setupDevViewSwitch(user) {
         istDhStudent: !!u.istDhStudent,
         korrektur:    !!u.istAusbilder,
         istReinerPruefer: !!u.istReinerPruefer,
+        istAusbildungsleiter: !!u.istAusbildungsleiter,
         role:         u.role,
         durchlaufAusgeblendet: istDurchlaufAusgeblendet(u),
       });
@@ -301,6 +311,7 @@ async function initLayout(activeNavId) {
     istDhStudent: !!user.istDhStudent,
     korrektur:    istKorrektor,
     istReinerPruefer: !!user.istReinerPruefer,
+    istAusbildungsleiter: !!user.istAusbildungsleiter,
     role:         user.role,
     durchlaufAusgeblendet: istDurchlaufAusgeblendet(user),
   });
@@ -452,6 +463,115 @@ const Modal = {
       });
     }
   }
+};
+
+
+/* ── Bestätigungs-Dialog ── */
+/* Ersetzt window.confirm() durch einen Dialog im App-Design. Rückgabe ist
+   ein Promise<boolean>, damit die Aufrufstellen ihre Form behalten:
+     if (!await Confirm.loeschen({ ... })) return;
+
+   BEWUSST an Modal vorbei gebaut, aus drei konkreten Gründen:
+     * Modal.closeAll() räumt JEDES offene Overlay ab. Eine Rückfrage über
+       einem geöffneten Formular-Dialog würde diesen mitschließen.
+     * data-modal-close darf hier kein Knopf tragen: Modal.init() verdrahtet
+       jedes solche Element mit closeAll.
+     * Modal.init() würde das Overlay zusätzlich per Klick an closeAll
+       hängen — deshalb wird data-modal-bound gleich selbst gesetzt.
+   Der Seiten-Scroll wird gesperrt und auf den VORHERIGEN Wert
+   zurückgestellt, nicht auf '': liegt darunter noch ein Dialog, muss er
+   gesperrt bleiben.
+
+   Der Bestätigen-Knopf bekommt NICHT den Anfangsfokus. Bei einer
+   destruktiven Rückfrage würde ein reflexhaftes Enter sonst genau das
+   auslösen, wovor gefragt wird. */
+const Confirm = {
+  ID: 'appConfirm',
+
+  frage(opts = {}) {
+    return new Promise((fertig) => {
+      const alt = document.getElementById(Confirm.ID);
+      if (alt) alt.remove();
+
+      const gefahr = opts.gefahr !== false;              // Standard: destruktiv
+      const liste = Array.isArray(opts.liste) ? opts.liste.filter(Boolean) : [];
+      const vorherFokus = document.activeElement;
+      const vorherScroll = document.body.style.overflow;
+
+      const ov = document.createElement('div');
+      ov.className = 'modal-overlay confirm-overlay';
+      ov.id = Confirm.ID;
+      ov.dataset.modalBound = '1';                       // Modal.init() nicht dranlassen
+      ov.innerHTML =
+        '<div class="modal confirm" role="alertdialog" aria-modal="true"' +
+        ' aria-labelledby="appConfirmTitel" aria-describedby="appConfirmText">' +
+          '<div class="modal__header">' +
+            '<h2 class="modal__title" id="appConfirmTitel">' + escapeHtml(opts.titel || 'Wirklich löschen?') + '</h2>' +
+          '</div>' +
+          '<div class="modal__body">' +
+            '<div class="confirm__zeile">' +
+              '<span class="confirm__icon' + (gefahr ? ' confirm__icon--gefahr' : '') + '">' +
+                Icon(gefahr ? 'warning' : 'question', { size: 22 }) +
+              '</span>' +
+              '<div class="confirm__inhalt">' +
+                '<p class="confirm__text" id="appConfirmText">' + escapeHtml(opts.text || '') + '</p>' +
+                (liste.length
+                  ? '<ul class="confirm__liste">' +
+                      liste.map(function (z) { return '<li>' + escapeHtml(z) + '</li>'; }).join('') +
+                    '</ul>'
+                  : '') +
+                (opts.hinweis ? '<p class="confirm__hinweis">' + escapeHtml(opts.hinweis) + '</p>' : '') +
+              '</div>' +
+            '</div>' +
+          '</div>' +
+          '<div class="modal__footer">' +
+            '<button type="button" class="btn btn-secondary" data-confirm="0">' +
+              escapeHtml(opts.abbrechen || 'Abbrechen') + '</button>' +
+            '<button type="button" class="btn ' + (gefahr ? 'btn-danger' : 'btn-primary') + '" data-confirm="1">' +
+              escapeHtml(opts.bestaetigen || 'Löschen') + '</button>' +
+          '</div>' +
+        '</div>';
+      document.body.appendChild(ov);
+      document.body.style.overflow = 'hidden';
+
+      const nein = ov.querySelector('[data-confirm="0"]');
+      const ja = ov.querySelector('[data-confirm="1"]');
+
+      function beenden(antwort) {
+        document.removeEventListener('keydown', taste, true);
+        document.body.style.overflow = vorherScroll;
+        ov.remove();
+        if (vorherFokus && vorherFokus.focus) { try { vorherFokus.focus(); } catch (e) {} }
+        fertig(antwort);
+      }
+
+      function taste(e) {
+        if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); beenden(false); return; }
+        // Fokus zwischen den beiden Knöpfen halten — sonst wandert Tab in die
+        // Seite hinter dem Dialog.
+        if (e.key === 'Tab') {
+          e.preventDefault();
+          (document.activeElement === nein ? ja : nein).focus();
+        }
+      }
+
+      // capture:true, damit der globale ESC-Listener von Modal.init() (der
+      // closeAll aufruft) nicht zuerst dran ist.
+      document.addEventListener('keydown', taste, true);
+      nein.addEventListener('click', function () { beenden(false); });
+      ja.addEventListener('click', function () { beenden(true); });
+      ov.addEventListener('click', function (e) { if (e.target === ov) beenden(false); });
+
+      // Sichtbar machen (Übergang wie bei .modal-overlay.open)
+      requestAnimationFrame(function () { ov.classList.add('open'); });
+      nein.focus();
+    });
+  },
+
+  // Kurzform für den Regelfall: destruktiv, Knopf "Löschen".
+  loeschen(opts = {}) {
+    return Confirm.frage(Object.assign({ gefahr: true, bestaetigen: 'Löschen' }, opts));
+  },
 };
 
 /* ── Konstanten ── */

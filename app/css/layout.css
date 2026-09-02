@@ -240,6 +240,15 @@ html:not([data-ist-azubi="1"]):not([data-ist-ausbilder="1"]) .nav-durchlauf,
 html:not([data-ist-azubi="1"])[data-ist-reiner-pruefer="1"] .nav-durchlauf {
   display: none;
 }
+/* Noten & Zeugnisse: eigene Noten (Azubi) ODER die der betreuten Azubis
+   (Ausbilder/Ausbildungsleitung, read-only). Bewusst KEIN eigenes
+   data-Attribut: die Ausbildungsleitung hat Rolle 'pruefer' und damit
+   ohnehin data-ist-ausbilder="1" (buildReqUser) — die feinere
+   Unterscheidung gegenüber reinen Prüfern macht applyCapabilities in
+   app.js, hier genügt das gröbere Pre-Paint-Gate. */
+html:not([data-ist-azubi="1"]):not([data-ist-ausbilder="1"]) .nav-noten-only {
+  display: none;
+}
 /* Jahresansicht: wie Berichtsheft (eigenes Heft ODER korrektur-berechtigt),
    aber reine Prüfer ausgenommen (Wochenansicht bleibt ihnen erhalten,
    Jahresansicht nicht). */
@@ -695,6 +704,8 @@ body[data-page="ausbildungsstand"] .main-content,
 body[data-page="berichtsheftverwaltung"] .main-content,
 body[data-page="nutzerverwaltung"] .main-content,
 body[data-page="abteilungs-planer"] .main-content,
+body[data-page="noten"] .main-content,
+body[data-page="noten-tabelle"] .main-content,
 body[data-page="profil"] .main-content {
   max-width: min(2200px, 100%);
 }

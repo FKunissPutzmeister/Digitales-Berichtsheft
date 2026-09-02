@@ -458,6 +458,66 @@ select.form-control {
 .progress-bar__fill--info    { background: var(--color-info-mid); }
 
 /* ── Modal ── */
+/* ── Bestätigungs-Dialog (Confirm in app.js) ──────────────────────────
+   Liegt eine Stufe ÜBER --z-modal: die Rückfrage erscheint regelmäßig über
+   einem schon geöffneten Formular-Dialog und muss darüber liegen.
+
+   Doppelter Klassen-Selektor (0,2,0), NICHT nur .confirm-overlay: die
+   Regel .modal-overlay weiter unten setzt z-index: var(--z-modal) und hat
+   dieselbe Spezifität — bei Gleichstand gewinnt die spätere Regel, und der
+   z-index blieb bei 200 (gemessen). Mit dem Doppel-Selektor hängt es nicht
+   mehr an der Reihenfolge in der Datei. */
+.modal-overlay.confirm-overlay { z-index: calc(var(--z-modal) + 10); }
+.confirm-overlay .modal { max-width: 30rem; }
+
+.confirm__zeile {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--sp-4);
+}
+.confirm__icon {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: var(--pm-grey-100);
+  color: var(--pm-grey-600);
+}
+/* DECKENDES Rot mit hellem Symbol, nicht die getönte Variante:
+   --color-error-light ist im Dunkelmodus rgba(229,57,53,0.18) und
+   --color-error bleibt dort das dunkle #B71C1C — dunkelrot auf
+   dunkelgetöntem Grund, praktisch unlesbar (gemessen). Das Paar
+   --color-error / --on-inverse-text trägt dagegen in jedem Theme, weil
+   .btn-danger genau darauf beruht. */
+.confirm__icon--gefahr {
+  background: var(--color-error);
+  color: var(--on-inverse-text);
+}
+.confirm__inhalt { min-width: 0; }
+.confirm__text {
+  margin: 0;
+  color: var(--pm-grey-900);
+  /* Ein langer Titel ohne Leerzeichen darf den Dialog nicht sprengen. */
+  overflow-wrap: anywhere;
+}
+/* Was genau mitgelöscht wird — die Zahlen sind der Grund, warum man vor
+   einer Kaskade überhaupt fragt. */
+.confirm__liste {
+  margin: var(--sp-3) 0 0;
+  padding-left: var(--sp-5);
+  font-size: var(--text-sm);
+  color: var(--pm-grey-700);
+}
+.confirm__liste li { margin-bottom: 2px; }
+.confirm__hinweis {
+  margin: var(--sp-3) 0 0;
+  font-size: var(--text-sm);
+  color: var(--pm-grey-500);
+}
+
 .modal-overlay {
   position: fixed;
   inset: 0;

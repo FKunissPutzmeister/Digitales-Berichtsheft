@@ -88,6 +88,10 @@ async function apiFetch(path, options = {}) {
       // Bugs unterscheiden können. Die .message bleibt unverändert.
       const httpErr = new Error(err.error || res.statusText);
       httpErr.status = res.status;
+      // Vollständiger Antwort-Body am Fehler: manche Endpunkte liefern zum
+      // Fehler noch Nutzdaten, die der Aufrufer für die Rückfrage braucht
+      // (z.B. DELETE /noten/ordner/:id → 409 mit { eintraege, belege }).
+      httpErr.daten = err;
       // Wartungsmodus: einmalig erklären statt in Einzelfehlern zu zerfallen.
       // Das Kennzeichen wandert an den Fehler, damit der Fehler-Reporter ihn
       // NICHT in den Posteingang schreibt — es ist kein Bug, sondern ein
@@ -860,6 +864,83 @@ const DB = {
 
   anhangDownloadUrl(id) {
     return `${API_BASE}/wochen/anhaenge/${id}/download`;
+  },
+
+  /* Noten & Zeugnisse (Migrationen 043 + 046, Design-Specs
+     2026-09-01-noten-zeugnisse-design.md und
+     2026-09-02-noten-abschnitte-credits-design.md). Kein normalize* nötig:
+     backend/routes/noten.js liefert bereits camelCase. */
+
+  // Azubi-Liste für die Ausbilder-Ansicht. Bewusst NICHT
+  // getSelectableAzubis(): der enthält befristete Zuweisungs-Azubis
+  // (die hier 403 bekommen) und keine DH-Studenten.
+  async getNotenAzubis({ mitSchnitt = false } = {}) {
+    return apiFetch(`/noten/azubis${mitSchnitt ? '?mitSchnitt=1' : ''}`);
+  },
+
+  /* Ohne azubiOid: die eigenen Noten.
+     -> { azubiOid, darfBearbeiten, abschnitte:[…], ordner:[…] }
+     Abschnitte und Ordner kommen FLACH; gruppiert wird mit
+     Noten.gruppiereOrdnerNachAbschnitt (app/js/noten-core.js), damit die
+     Gruppierung samt Ø und Credit-Summe nur an einer Stelle steht. */
+  async getNoten(azubiOid) {
+    const q = azubiOid ? `?azubiOid=${encodeURIComponent(azubiOid)}` : '';
+    return apiFetch(`/noten${q}`);
+  },
+
+  /* Zeitraum-Ebene (Migration 046). typ: 'ausbildungsjahr' | 'sose' | 'wise',
+     nr: 1..4 beim Ausbildungsjahr, sonst die Jahreszahl. 409 = gibt es schon. */
+  async addNotenAbschnitt({ typ, nr }) {
+    return apiFetch('/noten/abschnitte', { method: 'POST', body: { typ, nr } });
+  },
+
+  // Ohne kaskade antwortet der Server mit 409, wenn Fächer darin liegen –
+  // der Fehler trägt dann ordner/eintraege/belege für die Rückfrage.
+  async deleteNotenAbschnitt(id, { kaskade = false } = {}) {
+    return apiFetch(`/noten/abschnitte/${id}${kaskade ? '?kaskade=1' : ''}`, { method: 'DELETE' });
+  },
+
+  // abschnittId ist Pflicht: ein Fach gehört genau einem Zeitraum.
+  async addNotenOrdner({ name, abschnittId, zaehltInSchnitt }) {
+    return apiFetch('/noten/ordner', { method: 'POST', body: { name, abschnittId, zaehltInSchnitt } });
+  },
+
+  // aenderung darf name, zaehltInSchnitt, sortierung und abschnittId
+  // enthalten – letzteres verschiebt das Fach in einen anderen Zeitraum.
+  async patchNotenOrdner(id, aenderung) {
+    return apiFetch(`/noten/ordner/${id}`, { method: 'PATCH', body: aenderung });
+  },
+
+  // Ohne kaskade antwortet der Server mit 409, wenn der Ordner nicht leer
+  // ist – der Fehler trägt dann eintraege/belege für die Rückfrage.
+  async deleteNotenOrdner(id, { kaskade = false } = {}) {
+    return apiFetch(`/noten/ordner/${id}${kaskade ? '?kaskade=1' : ''}`, { method: 'DELETE' });
+  },
+
+  async addNotenEintrag(ordnerId, eintrag) {
+    return apiFetch(`/noten/ordner/${ordnerId}/eintraege`, { method: 'POST', body: eintrag });
+  },
+
+  async patchNotenEintrag(id, aenderung) {
+    return apiFetch(`/noten/eintraege/${id}`, { method: 'PATCH', body: aenderung });
+  },
+
+  async deleteNotenEintrag(id) {
+    return apiFetch(`/noten/eintraege/${id}`, { method: 'DELETE' });
+  },
+
+  async uploadNotenBeleg(eintragId, file) {
+    const fd = new FormData();
+    fd.append('datei', file);
+    return apiUpload(`/noten/eintraege/${eintragId}/belege`, fd);
+  },
+
+  async deleteNotenBeleg(id) {
+    return apiFetch(`/noten/belege/${id}`, { method: 'DELETE' });
+  },
+
+  notenBelegDownloadUrl(id) {
+    return `${API_BASE}/noten/belege/${id}/download`;
   },
 
   /* Importierte IHK-PDF serverseitig archivieren (Original-Nachweis zur

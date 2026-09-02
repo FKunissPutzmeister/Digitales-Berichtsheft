@@ -99,7 +99,10 @@ function istVorwarnFaellig(user, {
 
    NICHT aufgeführt, weil per ON DELETE CASCADE erledigt:
      Anhaenge (FK auf Wochen), BeurteilungKriterien (FK auf Beurteilungen),
-     UserPhotos (FK auf Users). */
+     UserPhotos (FK auf Users), NotenEintraege (FK auf NotenOrdner),
+     NotenBelege (FK auf NotenEintraege), NotenOrdner MIT AbschnittId
+     (FK auf NotenAbschnitte — Ordner OHNE Abschnitt stehen deshalb
+     zusätzlich in PHASE_A). */
 
 // PHASE A — eigene Daten, hart löschen. Kinder vor Eltern.
 const PHASE_A = [
@@ -128,6 +131,15 @@ const PHASE_A = [
   // Migration und wird von keinem Codepfad gelesen — gefunden über die
   // INFORMATION_SCHEMA-Selbstprüfung. Personenbezogen, also von der Frist erfasst.
   { tabelle: 'EssTag',          bedingung: 'AzubiOid = @oid' },
+  /* Noten & Zeugnisse (Migrationen 043 + 046). ZWEI Zeilen, nicht eine:
+     seit 046 ist der Abschnitt die oberste Ebene und trägt eine eigene
+     AzubiOid. Die Kaskade läuft Abschnitt -> Ordner -> Eintrag -> Beleg,
+     der Abschnitt muss also zuerst weg.
+     Die NotenOrdner-Zeile bleibt trotzdem nötig: Ordner mit
+     AbschnittId = NULL (Auffanggruppe "Ohne Zuordnung") erreicht keine
+     Kaskade. Ohne sie blieben sie samt Einträgen und Belegen stehen. */
+  { tabelle: 'NotenAbschnitte', bedingung: 'AzubiOid = @oid' },
+  { tabelle: 'NotenOrdner',     bedingung: 'AzubiOid = @oid' },
 ];
 
 // PHASE B — Handlungen an FREMDEN Nachweisen: Referenz nullen, Name behalten.

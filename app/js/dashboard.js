@@ -726,7 +726,11 @@ async function renderAusbilderDashboard(user) {
     // Loesch-Vorwarnung (ermittleVorwarnEmpfaenger: KannPlanen ODER
     // Role='developer') sie nie. Alle anderen Verwaltungstypen bleiben gegated.
     : [...buildAusbilderMitteilungen(allWochen, beurteilungen),
-       ...await buildVerwaltungMitteilungen(['loeschung_geplant'])].sort((a, b) => b.ts - a.ts);
+       // noten_eintrag_neu steht aus demselben Grund wie loeschung_geplant in
+       // dieser Ausnahme: Empfänger sind gerade die Ausbilder MIT betreuten
+       // Azubis (nurVerwaltung=false) — ohne die Ausnahme sähen genau sie die
+       // Mitteilung nie.
+       ...await buildVerwaltungMitteilungen(['loeschung_geplant', 'noten_eintrag_neu'])].sort((a, b) => b.ts - a.ts);
   const mittListHtml = mittItems.length
     ? renderActivityRows(mittItems.slice(0, MITT_CAP))
     : '<div class="empty-state" style="padding:var(--sp-8)"><p class="empty-state__text">Noch keine Mitteilungen.</p></div>';
@@ -1544,6 +1548,13 @@ const VERWALTUNG_MT_TYPEN = {
   loeschung_geplant:         { type: 'yellow',
                                titel: b => `Konto wird bald gelöscht: ${displayName(b.fromUserName) || 'unbekanntes Konto'}`,
                                href: () => 'nutzerverwaltung.html' },
+  // Noten & Zeugnisse (Migration 044): ein Azubi hat ein Zeugnis oder ein
+  // Prüfungsergebnis eingetragen. FromUserOid ist der Azubi — die Tabelle
+  // hat kein Feld für die Eintrags-Id, deshalb führt der Link auf seine
+  // Noten-Seite, nicht auf den einzelnen Eintrag.
+  noten_eintrag_neu:         { type: 'info',
+                               titel: b => `Neues Zeugnis / Prüfungsergebnis: ${displayName(b.fromUserName) || 'Azubi'}`,
+                               href: b => `noten.html?azubi=${encodeURIComponent(b.fromUserId || '')}` },
 };
 
 // nurTypen (optional): beschraenkt das Ergebnis auf diese Typen, statt auf

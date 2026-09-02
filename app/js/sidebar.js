@@ -50,6 +50,10 @@ function buildSidebar(activeNavId) {
         <span class="sidebar__link-icon">${Icon('document')}</span>
         <span class="sidebar__link-label">Fahrgelderstattung</span>
       </a>
+      <a href="noten.html" class="sidebar__link nav-noten-only" id="nav-noten">
+        <span class="sidebar__link-icon">${Icon('cap')}</span>
+        <span class="sidebar__link-label">Noten &amp; Zeugnisse</span>
+      </a>
       <a href="abteilungs-planer.html?mein=1" class="sidebar__link nav-durchlauf" id="nav-abteilungsplan">
         <span class="sidebar__link-icon">${Icon('planer')}</span>
         <span class="sidebar__link-label">Abteilungsdurchlauf</span>

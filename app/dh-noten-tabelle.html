@@ -8,15 +8,14 @@
   <link rel="preload" href="../Corporate Design/Fonts/OpenSans-Variable.ttf" as="font" type="font/ttf" crossorigin>
   <link rel="preload" href="js/api.js" as="script">
   <link rel="preload" href="js/app.js?v=20260811-appscroll" as="script">
-  <title>Abteilungsdurchlauf – Putzmeister</title>
+  <title>Notenspiegel – Putzmeister</title>
   <!-- Theme-Init muss VOR den Stylesheets laufen, damit kein Hell/Dunkel-Flash entsteht -->
   <script src="js/theme.js"></script>
   <link rel="stylesheet" href="css/variables.css">
   <link rel="stylesheet" href="css/base.css?v=20260811-bgbase">
   <link rel="stylesheet" href="css/components.css">
   <link rel="stylesheet" href="css/layout.css?v=20260811-safearea">
-  <link rel="stylesheet" href="css/dashboard.css?v=20260812-cockpit">
-  <link rel="stylesheet" href="css/abteilungs-planer.css">
+  <link rel="stylesheet" href="css/noten.css">
   <link rel="stylesheet" href="css/glass.css?v=20260811-safearea">
   <link rel="stylesheet" href="css/mitteilungen.css">
   <link rel="stylesheet" href="css/abteilungsdurchlauf.css">
@@ -38,10 +37,9 @@
     <span class="dh-topbar__brand-text">Putzmeister</span>
   </a>
   <nav class="dh-topbar__nav" aria-label="Hauptnavigation">
-    <a class="dh-topbar__link active" href="abteilungsdurchlauf.html" aria-current="page">
+    <a class="dh-topbar__link" href="abteilungsdurchlauf.html">
       <!-- Gleiches Symbol wie der Sidebar-Eintrag „Abteilungsdurchlauf" der
-           Azubi-Ansicht: Icon('planer') aus js/icons.js, hier inline, weil die
-           Topbar statisches Markup ist. -->
+           Azubi-Ansicht: Icon('planer') aus js/icons.js. -->
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
         <circle cx="9" cy="6" r="4"/>
         <path stroke-linecap="round" d="M15 9a3 3 0 1 0 0-6"/>
@@ -50,9 +48,10 @@
       </svg>
       <span>Abteilungsdurchlauf</span>
     </a>
-    <a class="dh-topbar__link" href="dh-noten.html">
+    <a class="dh-topbar__link active" href="dh-noten.html">
       <!-- Icon('cap') aus js/icons.js — dasselbe Symbol wie der Sidebar-Eintrag
-           „Noten & Zeugnisse" der Azubi-Ansicht. -->
+           „Noten & Zeugnisse" der Azubi-Ansicht. Die Topbar ist statisches
+           Markup, deshalb hier inline. -->
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"
            stroke-linecap="round" aria-hidden="true">
         <path d="M3.092 6.637L9.782 3.5a5.17 5.17 0 0 1 4.435 0l6.692 3.137c1.455.682 1.455 3.044 0 3.726L14.218 13.5a5.17 5.17 0 0 1-4.435 0L5 11.258"/>
@@ -102,11 +101,15 @@
 <script src="js/error-reporter.js"></script>
 <script src="js/icons.js"></script>
 <script src="js/app.js?v=20260811-appscroll"></script>
-<!-- Silk ist ein React-Skin: Hintergrund (LightRays/Silk-Canvas) und die
-     .silk-host-Glasdekoration hängen an diesem Layer. Ohne ihn blieb die
-     DH-Ansicht als einzige Seite der App unter „Silk" komplett ungeskinnt. -->
+<!-- Silk ist ein React-Skin: siehe Kommentar in abteilungsdurchlauf.html. -->
 <script src="js/react-theme-layer.js"></script>
 <script src="js/dh-mitteilungen.js"></script>
-<script src="js/abteilungsdurchlauf.js"></script>
+<!-- beurteilung-core.js liefert den IHK-Punkteschlüssel, den noten-core.js
+     lazy auflöst — muss deshalb VOR noten-core.js stehen. -->
+<script src="js/beurteilung-core.js"></script>
+<script src="js/noten-core.js"></script>
+<script src="js/noten-tabelle-ui.js"></script>
+<script src="js/noten-druck.js"></script>
+<script src="js/dh-noten-tabelle.js"></script>
 </body>
 </html>
