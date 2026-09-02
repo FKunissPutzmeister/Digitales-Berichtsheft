@@ -3,8 +3,8 @@
    Monatliche Fahrgelderstattung als Excel oder PDF erstellen.
 
    Ablauf:
-     1. Erstmalig: „Formular erstellen" → Modal mit Stammdaten (Name kommt
-        aus dem Profil, Kostenstelle vorausgefüllt) ODER bestehendes
+     1. Erstmalig: „Formular erstellen" → Modal mit Stammdaten (der Name
+        kommt aus Entra und wird nicht abgefragt) ODER bestehendes
         Fahrgeld-Dokument (Excel/PDF) hochladen → Daten werden übernommen.
      2. Danach: Monat wählen (Berufsschultage kommen automatisch aus dem
         Berichtsheft = Tage mit Ort „Schule") → Excel/PDF erzeugen.
@@ -19,13 +19,15 @@ document.addEventListener('DOMContentLoaded', async () => {
   const esc = window.escapeHtml;
 
   const FELD_LABELS = {
-    name: 'Name', persNr: 'Personalnummer', kst: 'Kostenstelle',
+    persNr: 'Personalnummer', kst: 'Kostenstelle',
     vonHaltestelle: 'Strecke von', nachHaltestelle: 'Strecke nach', betragProTag: 'Tagessatz',
   };
   // Alle Stammdaten sind Pflicht – das Formular verlangt jedes Feld. Die
   // Kostenstelle ist je Azubi verschieden, also weder fest noch vorbelegt.
-  const PFLICHT = ['name', 'persNr', 'kst', 'vonHaltestelle', 'nachHaltestelle', 'betragProTag'];
+  // Der Name kommt aus Entra (Login) und ist deshalb nicht erfassbar.
+  const PFLICHT = ['persNr', 'kst', 'vonHaltestelle', 'nachHaltestelle', 'betragProTag'];
 
+  const AZUBI_NAME = toNachnameVorname(user.name || '');
   let konfig = null;     // {name, persNr, kst, vonHaltestelle, nachHaltestelle, betragProTag}
   let monateInfo = [];   // [{ monatKey, tage:[{datum}], summe, ueberzaehlig }]
   let selectedMonatKey = null;  // gewählter Monat, überlebt Re-Renders
@@ -209,7 +211,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       </div>`;
     return `
       <div class="fg-strip">
-        ${feld('Name', konfig.name)}
+        ${feld('Name', AZUBI_NAME)}
         ${feld('Pers.-Nr.', konfig.persNr)}
         ${feld('Kostenstelle', konfig.kst)}
         ${feld('Strecke', `${konfig.vonHaltestelle} → ${konfig.nachHaltestelle}`)}
@@ -312,7 +314,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         <div class="fg-sheet__meta">
           <span class="fg-sheet__meta-label">Monat / Jahr:</span><span class="fg-sheet__meta-wert">${esc(monatLabel)}</span>
           <span class="fg-sheet__meta-label">Pers.-Nr.:</span><span class="fg-sheet__meta-wert">${esc(konfig?.persNr || '')}</span>
-          <span class="fg-sheet__meta-label">Name, Vorname:</span><span class="fg-sheet__meta-wert">${esc(konfig?.name || '')}</span>
+          <span class="fg-sheet__meta-label">Name, Vorname:</span><span class="fg-sheet__meta-wert">${esc(AZUBI_NAME)}</span>
           <span class="fg-sheet__meta-label">KST:</span><span class="fg-sheet__meta-wert">${esc(konfig?.kst || '')}</span>
         </div>
         <table class="fg-sheet__tabelle">
@@ -380,7 +382,6 @@ document.addEventListener('DOMContentLoaded', async () => {
   /* ── Modal: Stammdaten anlegen/bearbeiten ────────────────────────── */
   function modalValues() {
     return {
-      name: konfig?.name || toNachnameVorname(user.name || ''),
       persNr: konfig?.persNr || '',
       kst: konfig?.kst || '',
       vonHaltestelle: konfig?.vonHaltestelle || '',
@@ -407,7 +408,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             </button>
           </div>
           <div class="modal__body fg-form">
-            ${grp('fgm-name', 'Name', v.name, 'maxlength="120" placeholder="Nachname, Vorname"')}
             <div class="fg-form__row">
               ${grp('fgm-persNr', 'Personalnummer', v.persNr, 'maxlength="20" inputmode="numeric"')}
               ${grp('fgm-kst', 'Kostenstelle', v.kst, 'maxlength="20" inputmode="numeric"')}
@@ -506,7 +506,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   function oeffneSignatur() {
     SignaturDialog.open({
-      name: konfig?.name || '',
+      name: AZUBI_NAME,
       onSave: async (sig) => {
         try {
           await setSignature(sig);
@@ -534,7 +534,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   async function saveModal() {
     const val = (id) => (document.getElementById(id)?.value || '').trim();
     const neu = {
-      name: val('fgm-name'),
+      name: AZUBI_NAME,
       persNr: val('fgm-persNr'),
       kst: val('fgm-kst'),
       vonHaltestelle: val('fgm-vonHaltestelle'),
@@ -574,7 +574,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       const ab = await file.arrayBuffer();
       const res = await FahrtgeldCore.extrahiereKonstantenAusTemplate(ab);
       if (!res.ok) { Toast.error('Nicht erkannt', res.fehler || 'Dokument konnte nicht gelesen werden.'); return; }
-      konfig = { ...(konfig || {}), ...res.konstanten };
+      konfig = { ...(konfig || {}), ...res.konstanten, name: AZUBI_NAME };
       monateInfo = gruppiereNachMonat(monateInfo.flatMap(m => m.tage));
       let sigHinweis = '';
       if (res.unterschriftAuto) {
@@ -638,7 +638,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         monatKey,
         zeilen,
         schultage: monat ? monat.tage : [],
-        konstanten: konfig || {},
+        konstanten: { ...(konfig || {}), name: AZUBI_NAME },
         unterschriftBytes: sig ? sig.bytes : undefined,
         unterschriftExtension: sig ? sig.ext : undefined,
       });

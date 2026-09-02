@@ -446,8 +446,13 @@ const Modal = {
     // Close on overlay-click
     document.querySelectorAll('.modal-overlay:not([data-modal-bound])').forEach(overlay => {
       overlay.dataset.modalBound = '1';
+      // Nur schließen, wenn Maus-Druck UND Loslassen auf dem Overlay lagen.
+      // Sonst schließt eine Textmarkierung, die in einem Feld beginnt und
+      // außerhalb endet — der Klick zählt dann auf den gemeinsamen Vorfahren.
+      let downAufOverlay = false;
+      overlay.addEventListener('mousedown', (e) => { downAufOverlay = e.target === overlay; });
       overlay.addEventListener('click', (e) => {
-        if (e.target === overlay) Modal.closeAll();
+        if (e.target === overlay && downAufOverlay) Modal.closeAll();
       });
     });
     // Close buttons
