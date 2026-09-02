@@ -901,12 +901,13 @@ const DB = {
   },
 
   // abschnittId ist Pflicht: ein Fach gehört genau einem Zeitraum.
-  async addNotenOrdner({ name, abschnittId, zaehltInSchnitt }) {
-    return apiFetch('/noten/ordner', { method: 'POST', body: { name, abschnittId, zaehltInSchnitt } });
+  async addNotenOrdner({ name, abschnittId, zaehltInSchnitt, farbe }) {
+    return apiFetch('/noten/ordner', { method: 'POST', body: { name, abschnittId, zaehltInSchnitt, farbe } });
   },
 
-  // aenderung darf name, zaehltInSchnitt, sortierung und abschnittId
-  // enthalten – letzteres verschiebt das Fach in einen anderen Zeitraum.
+  // aenderung darf name, zaehltInSchnitt, sortierung, abschnittId und
+  // farbe enthalten – abschnittId verschiebt das Fach in einen anderen
+  // Zeitraum, farbe: null nimmt die Farbe wieder weg.
   async patchNotenOrdner(id, aenderung) {
     return apiFetch(`/noten/ordner/${id}`, { method: 'PATCH', body: aenderung });
   },

@@ -72,6 +72,13 @@
      Tabelle nicht tun. */
   function tabelleHtml(spalten, gruppen) {
     const mitCredits = spalten.some(s => s.id === 'credits');
+    /* Sobald EIN Fach der Tabelle eine Farbe hat, bekommt jede Fach-Zelle
+       den Platz für den Punkt — auch die farblosen. Sonst beginnt der
+       Fachname in einer farblosen Zeile 17 px weiter links als in den
+       anderen, und die Spalte franst links aus (auf dem Bildschirm
+       gesehen: die Zeile "Zeugnisse" stand ausgerückt zwischen den
+       farbigen). Hat kein Fach eine Farbe, entfällt der Platz ganz. */
+    const mitFarben = gruppen.some(g => g.zeilen.some(z => N.istHexFarbe(z.farbe)));
     const kopf = spalten.map(s =>
       `<th class="noten-spiegel__${s.ausricht}">${esc(s.label)}</th>`).join('');
 
@@ -84,7 +91,8 @@
       // data-spalte: erlaubt spaltenweises CSS (das Datum darf nicht
       // umbrechen) und macht die Tabelle in Tests adressierbar.
       const zeilen = g.zeilen.map(z => `<tr${z.zaehltInSchnitt ? '' : ' class="noten-spiegel__aus"'}>${
-        spalten.map(s => `<td class="noten-spiegel__${s.ausricht}" data-spalte="${s.id}">${esc(zellText(s.id, z))}</td>`).join('')
+        spalten.map(s => `<td class="noten-spiegel__${s.ausricht}" data-spalte="${s.id}">${
+          s.id === 'fach' && mitFarben ? farbPunkt(z.farbe) : ''}${esc(zellText(s.id, z))}</td>`).join('')
       }</tr>`).join('');
       return kopfzeile + zeilen;
     }).join('');
@@ -96,6 +104,22 @@
   }
 
   const hatFussnote = (gruppen) => gruppen.some(g => g.zeilen.some(z => !z.zaehltInSchnitt));
+
+  /* Farbe des Fachs als kleiner Punkt vor dem Namen — in einer flachen
+     Tabelle wiederholt sich derselbe Fachname über viele Zeilen, und der
+     Punkt bindet sie sichtbar zusammen.
+
+     BEWUSST hier und nicht in zellText(): das A4-Blatt ruft dieselbe
+     Funktion auf und soll schwarzweiß bleiben. Die Farbe geht in ein
+     style-Attribut, deshalb nur über N.istHexFarbe. */
+  function farbPunkt(farbe) {
+    // Ohne Farbe ein LEERER Punkt: er hält die Spalte in der Reihe,
+    // ohne etwas zu behaupten.
+    if (!N.istHexFarbe(farbe)) {
+      return '<span class="noten-spiegel__punkt noten-spiegel__punkt--leer" aria-hidden="true"></span>';
+    }
+    return `<span class="noten-spiegel__punkt" aria-hidden="true" style="background: ${farbe}"></span>`;
+  }
 
   /* ── Seite ────────────────────────────────────────────────────────
      opts:

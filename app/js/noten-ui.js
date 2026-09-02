@@ -48,6 +48,47 @@
     return Number(anzahl) + ' ' + (Number(anzahl) === 1 ? eins : viele);
   }
 
+  /* Die Farbwahl des Fach-Dialogs: 15 Tupfer plus "keine Farbe".
+      Echte Radio-Buttons, keine Klick-Divs — damit kommen Tastatur
+      (Pfeiltasten innerhalb der Gruppe), Screenreader und das
+      "genau eines"-Verhalten ohne eigenen Code. Das Feld selbst ist
+      visuell versteckt, sichtbar ist der Tupfer daneben.
+
+      Der Wert ist der HEXWERT, nicht die Id: die API speichert Hex, und
+      so muss nichts hin- und herübersetzt werden. Leerer Wert = keine
+      Farbe.
+
+      Vorauswahl über N.normalisiereFarbe: die kennt nur Palettenfarben.
+      Ein gespeicherter Hexwert AUSSERHALB der Palette wird deshalb
+      gezeichnet (dafür genügt istHexFarbe), ist hier aber nicht wählbar —
+      und fällt beim nächsten Speichern weg. Das kann nur eintreten, wenn
+      jemand die Palette ändert oder direkt in die DB schreibt. Wer die
+      Palette ändert, sollte die alten Werte also mitmigrieren, statt sich
+      auf die Anzeige zu verlassen. */
+  function farbwahlHtml(aktuell) {
+    const gewaehlt = (N.normalisiereFarbe(aktuell) || '');
+    const feld = (wert, titel, inhalt, extra) => `<label class="noten-farbwahl__feld${extra || ''}" title="${esc(titel)}">
+        <input type="radio" name="notenOrdnerFarbe" value="${esc(wert)}"${wert === gewaehlt ? ' checked' : ''}>
+        ${inhalt}
+        <span class="sr-only">${esc(titel)}</span>
+      </label>`;
+
+    const keine = feld('', 'Keine Farbe',
+      '<span class="noten-farbwahl__tupfer noten-farbwahl__tupfer--keine" aria-hidden="true"></span>',
+      ' noten-farbwahl__feld--keine');
+    const toene = N.FACH_FARBEN.map(f => feld(f.hex, f.label,
+      `<span class="noten-farbwahl__tupfer" aria-hidden="true" style="background:${f.hex}"></span>`)).join('');
+    return keine + toene;
+  }
+
+  /* Die Farbe geht in ein style-Attribut — deshalb NUR über
+     N.istHexFarbe. Ein gespeicherter Wert, der kein reiner Hexwert ist,
+     könnte dort sonst weitere CSS-Deklarationen einschmuggeln. */
+  function farbStil(farbe) {
+    if (!N.istHexFarbe(farbe)) return '';
+    return ` style="--fach-farbe: ${farbe}; --fach-rgb: ${N.farbeRgb(farbe)}"`;
+  }
+
   function artLabel(id) {
     const a = N.artById(id);
     return a ? a.label : id;
@@ -190,7 +231,11 @@
     const eintraege = o.eintraege.length
       ? `<ul class="noten-liste">${o.eintraege.map(e => eintragHtml(e, darfBearbeiten)).join('')}</ul>`
       : `<p class="noten-ordner__leer">Noch keine Einträge in diesem Fach.</p>`;
-    return `<details class="noten-ordner" data-ordner="${o.id}"${offen ? ' open' : ''}>
+    // Farbe (Migration 047): 4px Kante links und getönte Kopfzeile. Die
+    // Tönung liegt als rgba() ÜBER der Kartenfläche, damit sie in jedem
+    // der zehn Designs aus dessen eigener Fläche entsteht.
+    const farbig = N.istHexFarbe(o.farbe) ? ' noten-ordner--farbig' : '';
+    return `<details class="noten-ordner${farbig}" data-ordner="${o.id}"${offen ? ' open' : ''}${farbStil(o.farbe)}>
       <summary class="noten-ordner__kopf">
         <span class="noten-ordner__name">${esc(o.name)}</span>
         <span class="noten-ordner__schnitt">${schnittText(schnitt, anzahl)}</span>
@@ -665,6 +710,14 @@
           ${ohneZeitraum ? '<p class="form-hint">Dieses Fach ist noch keinem Zeitraum zugeordnet – bitte einen wählen.</p>' : ''}
         </div>
         <div class="form-group">
+          <span class="form-label" id="notenOrdnerFarbeLabel">Farbe (optional)</span>
+          <div class="noten-farbwahl" role="radiogroup" aria-labelledby="notenOrdnerFarbeLabel">
+            ${farbwahlHtml(ist ? ordner.farbe : null)}
+          </div>
+          <p class="form-hint">Nur eine visuelle Hilfe: farbige Fächer lassen sich in der Liste
+            schneller auseinanderhalten. Im Ausdruck erscheint keine Farbe.</p>
+        </div>
+        <div class="form-group">
           <label class="pm-switch-row">
             <span class="pm-switch">
               <input type="checkbox" id="notenOrdnerZaehlt" class="pm-switch__input"
@@ -689,9 +742,13 @@
         const gewaehlt = parseInt(ov.querySelector('#notenOrdnerAbschnitt').value, 10);
         if (isNaN(gewaehlt)) { Toast.error('Fach', 'Bitte einen Zeitraum wählen.'); return; }
         const zaehltInSchnitt = ov.querySelector('#notenOrdnerZaehlt').checked;
+        // Leerer Wert = keine Farbe. Beim PATCH ist das ausdrücklich null
+        // und nicht undefined, sonst liesse sich eine Farbe nie wieder
+        // abwählen (undefined heisst im Backend "Feld nicht geändert").
+        const gewaehlteFarbe = (ov.querySelector('input[name="notenOrdnerFarbe"]:checked') || {}).value || null;
         try {
-          if (ist) await DB.patchNotenOrdner(ordner.id, { name, zaehltInSchnitt, abschnittId: gewaehlt });
-          else await DB.addNotenOrdner({ name, abschnittId: gewaehlt, zaehltInSchnitt });
+          if (ist) await DB.patchNotenOrdner(ordner.id, { name, zaehltInSchnitt, abschnittId: gewaehlt, farbe: gewaehlteFarbe });
+          else await DB.addNotenOrdner({ name, abschnittId: gewaehlt, zaehltInSchnitt, farbe: gewaehlteFarbe });
           Modal.close(MODAL_ORDNER);
           Toast.success('Fach', ist ? 'Fach geändert.' : 'Fach angelegt.');
           await zeigeDetail();
@@ -768,7 +825,18 @@
           </div>
           <div class="form-group">
             <label class="form-label" for="notenDatum">Datum</label>
-            <input class="form-control" id="notenDatum" type="date" value="${eintrag ? esc(eintrag.datum) : ''}">
+            <!-- Neuer Eintrag: heute vorbelegt. Nicht Kosmetik, sondern
+                 Voraussetzung dafür, dass ein Beleg OHNE Zwischenspeichern
+                 angehängt werden kann: der Eintrag entsteht dabei still,
+                 und dafür muss er gültig sein (Titel, Art, Datum). Leer
+                 hieße "Datum fehlt" statt "erst speichern" — derselbe
+                 Stolperstein mit anderem Text. Die Art hat über das
+                 <select> ohnehin einen Wert, der Titel bleibt das Einzige,
+                 was jemand tippen muss.
+                 Über DateUtil.toISODate, weil toISOString() UTC nimmt und
+                 in den frühen Morgenstunden auf gestern zeigen würde. -->
+            <input class="form-control" id="notenDatum" type="date"
+                   value="${eintrag ? esc(eintrag.datum) : DateUtil.toISODate(new Date())}">
           </div>
         </div>
         <!-- Nur für DH-Studenten: "b" wie im DUALIS-Notenspiegel. Es ist kein
@@ -843,23 +911,27 @@
           <input type="file" id="notenBelegInput" hidden multiple accept="${N.ACCEPT_BELEG}">
           <input type="file" id="notenBelegKamera" hidden accept="image/*" capture="environment">
           <div class="noten-beleg-aktionen">
-            <button type="button" class="btn btn-outline btn-sm" id="notenBelegBtn">
-              ${Icon('upload', { size: 18 })} Scan oder Datei wählen</button>
+            <button type="button" class="btn btn-outline btn-icon" id="notenBelegBtn"
+                    aria-label="Scan oder Datei wählen" title="Scan oder Datei wählen">
+              ${Icon('upload', { size: 18 })}</button>
             <!-- icons.js ist auto-generiert und hat keine Kamera; Inline-SVG im
                  gleichen Stil (24er-Raster, 1,5 Strichstärke, currentColor) —
                  dasselbe Vorgehen wie bei den .dh-topbar-Symbolen. -->
-            <button type="button" class="btn btn-outline btn-sm" id="notenBelegKameraBtn" hidden>
+            <button type="button" class="btn btn-outline btn-icon" id="notenBelegKameraBtn" hidden
+                    aria-label="Foto aufnehmen" title="Foto aufnehmen">
               <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor"
                    stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                 <path d="M3 9.5c0-1.2.97-2.17 2.17-2.17h1.4c.7 0 1.35-.36 1.72-.96l.62-1.01c.36-.6 1.01-.96 1.72-.96h2.74c.7 0 1.36.36 1.72.96l.62 1.01c.37.6 1.02.96 1.72.96h1.4c1.2 0 2.17.97 2.17 2.17v7.34c0 1.2-.97 2.16-2.17 2.16H5.17A2.17 2.17 0 0 1 3 16.84z"/>
                 <circle cx="12" cy="13" r="3.2"/>
-              </svg>
-              Foto aufnehmen</button>
+              </svg></button>
           </div>
-          <p class="form-hint" id="notenBelegHinweis">Auf dem iPad öffnet „Scan oder Datei wählen" die
-            Auswahl mit „Dateien durchsuchen" – dort liegt auch ein Dokumentenscan aus der Dateien-App
-            (dort über „…" → „Dokumente scannen"). „Foto aufnehmen" geht direkt auf die Kamera.
-            Max. 10 MB je Datei.</p>
+          <!-- Der Absatz bleibt LEER, wird aber gebraucht: er trägt die
+               Zustandsmeldung "Erst speichern – danach können Belege
+               angehängt werden" (siehe zeigeBelege) und ihr Gegenstück
+               nach dem Anlegen. Nur der erklärende Dauertext ist weg —
+               die Symbole sagen genug, und ihre Bedeutung steht im
+               title/aria-label. -->
+          <p class="form-hint" id="notenBelegHinweis"></p>
         </div>
         </div>`, `
         <button type="button" class="btn btn-secondary" data-modal-close>${eintrag ? 'Abbrechen' : 'Schließen'}</button>
@@ -972,13 +1044,9 @@
           await loescheBeleg(+b.dataset.beleg, { ohneRender: true });
           zeigeBelege();
         }));
-        // Vor dem ersten Speichern gibt es keine Eintrags-Id, an die ein
-        // Beleg hängen könnte — beide Wege müssen gesperrt sein.
-        feld('notenBelegBtn').disabled = !aktuelleId;
-        feld('notenBelegKameraBtn').disabled = !aktuelleId;
-        if (!aktuelleId) {
-          feld('notenBelegHinweis').textContent = 'Erst speichern – danach können Belege angehängt werden.';
-        }
+        // Die Beleg-Knöpfe sind IMMER bedienbar. Dass ein Beleg laut
+        // Datenmodell an einem Eintrag hängen muss (NotenBelege.EintragId
+        // ist NOT NULL), löst legeEintragStillAn() auf — siehe dort.
       }
 
       feld('notenArt').addEventListener('change', aktualisiereArtAbhaengiges);
@@ -1007,13 +1075,89 @@
       const hatFinger = !!(global.matchMedia && global.matchMedia('(pointer: coarse)').matches);
       kameraBtn.hidden = !hatFinger;
 
-      feld('notenBelegBtn').addEventListener('click', () => feld('notenBelegInput').click());
-      kameraBtn.addEventListener('click', () => feld('notenBelegKamera').click());
+      feld('notenBelegBtn').addEventListener('click', () => {
+        if (belegKlickErlaubt()) feld('notenBelegInput').click();
+      });
+      kameraBtn.addEventListener('click', () => {
+        if (belegKlickErlaubt()) feld('notenBelegKamera').click();
+      });
+
+      /* Die Formularwerte an EINER Stelle: sie werden zweimal gebraucht —
+         beim Speichern und beim stillen Anlegen vor dem ersten Beleg. */
+      function formularDaten() {
+        const art = feld('notenArt').value;
+        const zeigtPunkte = !istDh && !!(N.artById(art) && N.artById(art).zeigtPunkte);
+        const nurBest = istDh && bewertung() === 'bestanden';
+        return {
+          titel: feld('notenTitel').value,
+          art,
+          datum: feld('notenDatum').value,
+          note: nurBest || feld('notenNote').value.trim() === '' ? null : feld('notenNote').value.trim(),
+          punkte: (!zeigtPunkte || feld('notenPunkte').value === '') ? null : feld('notenPunkte').value,
+          // Credits und Status nur mitschicken, wenn sie fachlich greifen —
+          // sonst weist core.pruefeEintrag den Eintrag zu Recht ab.
+          credits: istDh && feld('notenCredits').value !== '' ? feld('notenCredits').value : null,
+          status: istDh ? (nurBest ? 'bestanden' : feld('notenStatus').value) : null,
+          bemerkung: feld('notenBemerkung').value.trim() || null,
+        };
+      }
+
+      /* Ein Beleg hängt laut Datenmodell an einem Eintrag
+         (NotenBelege.EintragId ist NOT NULL, Migration 043), und die Route
+         heißt POST /noten/eintraege/:id/belege — vor dem ersten Speichern
+         gibt es diese Id nicht. Früher waren die Knöpfe deshalb gesperrt.
+         Jetzt entsteht der Eintrag STILL, sobald wirklich eine Datei da
+         ist; für den Azubi entfällt der Zwischenschritt.
+
+         Die Reihenfolge ist der Kern und nicht beliebig:
+           Klick   -> nur PRÜFEN (synchron), dann Dateidialog
+           Auswahl -> Eintrag anlegen, dann hochladen
+         Geprüft wird VOR dem Dialog, weil niemand erst ein Foto machen und
+         danach erfahren soll, dass der Titel fehlt. Angelegt wird NACH der
+         Auswahl, weil ein Dateidialog nicht hinter einem await aufgehen
+         darf: er braucht eine frische Nutzeraktion, sonst blockt ihn der
+         Browser stillschweigend. */
+      function belegKlickErlaubt() {
+        if (aktuelleId) return true;
+        const problem = N.pruefeEintrag(formularDaten(), user.role);
+        if (problem) {
+          Toast.error('Beleg', problem + ' Danach lässt sich ein Beleg anhängen.');
+          return false;
+        }
+        return true;
+      }
+
+      async function legeEintragStillAn() {
+        const daten = formularDaten();
+        const problem = N.pruefeEintrag(daten, user.role);
+        if (problem) { Toast.error('Eintrag', problem); return null; }
+        const neu = await DB.addNotenEintrag(ordnerId, daten);
+        aktuelleId = neu.id;
+        // Ab hier bearbeitet der Dialog einen BESTEHENDEN Eintrag: ein Klick
+        // auf Speichern ist ein PATCH, kein zweiter Eintrag. Der Titel sagt
+        // das auch, damit niemand "Schließen" für "verwerfen" hält.
+        const titelEl = ov.querySelector('.modal__title');
+        if (titelEl) titelEl.textContent = 'Eintrag bearbeiten';
+        return aktuelleId;
+      }
 
       // Beide Felder laufen in denselben Ablauf: prüfen, verkleinern, hochladen.
       const nimmDateien = async (e) => {
         const dateien = [...e.target.files];
         e.target.value = ''; // damit dieselbe Datei erneut gewählt werden kann
+        if (!dateien.length) return;
+        // Jetzt gibt es etwas anzuhängen — also jetzt den Eintrag anlegen.
+        if (!aktuelleId) {
+          try {
+            if (!await legeEintragStillAn()) return;
+            await ladeDaten();
+            renderDetail();
+            Toast.success('Eintrag', 'Eintrag angelegt – der Beleg wird angehängt.');
+          } catch (err) {
+            Toast.error('Eintrag', err.message);
+            return;
+          }
+        }
         for (const datei of dateien) {
           if (!N.endungErlaubt(datei.name)) {
             Toast.error('Beleg', `„${datei.name}": Dateityp nicht erlaubt.`);
@@ -1044,21 +1188,7 @@
       feld('notenBelegKamera').addEventListener('change', nimmDateien);
 
       feld('notenEintragSpeichern').addEventListener('click', async () => {
-        const art = feld('notenArt').value;
-        const zeigtPunkte = !istDh && !!(N.artById(art) && N.artById(art).zeigtPunkte);
-        const nurBest = istDh && bewertung() === 'bestanden';
-        const daten2 = {
-          titel: feld('notenTitel').value,
-          art,
-          datum: feld('notenDatum').value,
-          note: nurBest || feld('notenNote').value.trim() === '' ? null : feld('notenNote').value.trim(),
-          punkte: (!zeigtPunkte || feld('notenPunkte').value === '') ? null : feld('notenPunkte').value,
-          // Credits und Status nur mitschicken, wenn sie fachlich greifen —
-          // sonst weist core.pruefeEintrag den Eintrag zu Recht ab.
-          credits: istDh && feld('notenCredits').value !== '' ? feld('notenCredits').value : null,
-          status: istDh ? (nurBest ? 'bestanden' : feld('notenStatus').value) : null,
-          bemerkung: feld('notenBemerkung').value.trim() || null,
-        };
+        const daten2 = formularDaten();
         const problem = N.pruefeEintrag(daten2, user.role);
         if (problem) { Toast.error('Eintrag', problem); return; }
         try {

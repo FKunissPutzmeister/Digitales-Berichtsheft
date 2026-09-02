@@ -387,6 +387,91 @@
 }
 
 
+/* ── Farbe des Fachs (Migration 047) ─────────────────────────────────
+   Rein visuelle Hilfe. Die Farbe kommt als --fach-farbe / --fach-rgb im
+   style-Attribut am <details> an (noten-ui.js, nur geprüfte #rrggbb).
+
+   Die Tönung ist ein rgba() ÜBER der Kartenfläche, kein eigener Farbwert:
+   damit entsteht der Ton in jedem der zehn Designs aus dessen eigener
+   Fläche — hell, dunkel, Silks Glas oder das Papier-Braun. Ein fester
+   Hexwert wäre in mindestens der Hälfte davon falsch. Genau die Lektion
+   aus dem Kommentarblock am Dateiende. */
+.noten-ordner--farbig {
+  border-left: 4px solid var(--fach-farbe);
+}
+.noten-ordner--farbig > .noten-ordner__kopf {
+  background: rgba(var(--fach-rgb), .14);
+}
+
+/* Auswahl im Fach-Dialog: 15 Tupfer plus "keine Farbe". */
+.noten-farbwahl {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+}
+.noten-farbwahl__feld {
+  cursor: pointer;
+  line-height: 0;   /* sonst reisst die Zeilenhoehe die Reihe auseinander */
+}
+/* Das Feld selbst ist unsichtbar, sichtbar ist der Tupfer. Nicht
+   display:none — sonst wäre es aus der Tabulatorfolge und mit der
+   Tastatur nicht mehr wählbar. */
+.noten-farbwahl__feld input {
+  position: absolute;
+  width: 1px; height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+.noten-farbwahl__tupfer {
+  display: block;
+  width: 30px; height: 30px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, .18);
+  transition: transform .12s ease, border-color .12s ease;
+}
+.noten-farbwahl__feld:hover .noten-farbwahl__tupfer { transform: scale(1.12); }
+/* Gewählt: ein Ring in der Textfarbe, mit Abstand zum Ton — auf einem
+   farbigen Tupfer ist ein Häkchen je nach Ton unlesbar. */
+.noten-farbwahl__feld input:checked + .noten-farbwahl__tupfer {
+  border-color: var(--pm-grey-900);
+  box-shadow: inset 0 0 0 2px var(--pm-white), inset 0 0 0 3px rgba(0, 0, 0, .18);
+  transform: scale(1.12);
+}
+.noten-farbwahl__feld input:focus-visible + .noten-farbwahl__tupfer {
+  outline: 2px solid var(--pm-yellow, currentColor);
+  outline-offset: 2px;
+}
+/* "Keine Farbe": durchgestrichener Kreis in der Flaechenfarbe. */
+.noten-farbwahl__tupfer--keine {
+  position: relative;
+  background: var(--pm-white);
+  box-shadow: inset 0 0 0 1px var(--pm-grey-300);
+}
+.noten-farbwahl__tupfer--keine::after {
+  content: '';
+  position: absolute;
+  left: 50%; top: 3px; bottom: 3px;
+  width: 2px;
+  background: var(--pm-grey-500);
+  transform: rotate(45deg);
+  transform-origin: center;
+}
+
+/* Punkt vor dem Fachnamen im Notenspiegel (nur am Bildschirm — das
+   A4-Blatt bleibt schwarzweiß). */
+.noten-spiegel__punkt {
+  display: inline-block;
+  width: 9px; height: 9px;
+  margin-right: var(--sp-2);
+  border-radius: 50%;
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, .18);
+  vertical-align: baseline;
+}
+/* Ohne Farbe bleibt der Platz frei — sonst rückt der Fachname in einer
+   farblosen Zeile aus (siehe Kommentar in noten-tabelle-ui.js). */
+.noten-spiegel__punkt--leer { box-shadow: none; }
+
 /* ── Notenspiegel (app/noten-tabelle.html) ────────────────────────── */
 /* Die Basisregeln (Breite, Zellabstand, Kopfzeile) teilt diese Tabelle
    mit .noten-uebersicht weiter oben — hier stehen nur die Unterschiede.
@@ -545,8 +630,10 @@
     min-width: 44px;
     min-height: 44px;
   }
-  /* Die Beleg-Knöpfe sind auf dem iPad die Haupt-Handlung im Dialog. */
-  .noten-beleg-aktionen .btn { min-height: 44px; }
+  /* Die Beleg-Knöpfe sind auf dem iPad die Haupt-Handlung im Dialog.
+     Seit sie reine Symbole sind (.btn-icon = 40x40), muss auch die BREITE
+     mit — sonst steht dort ein 40 breiter, 44 hoher Knopf. */
+  .noten-beleg-aktionen .btn { min-height: 44px; min-width: 44px; }
   /* Filterleiste des Notenspiegels: Auswahl und Drucken sind dort die
      einzigen Bedienelemente der Seite. */
   /* PmSelect ersetzt das <select> durch einen eigenen Auslöser — DER trägt
@@ -554,6 +641,17 @@
   .noten-spiegel-leiste .btn,
   .noten-spiegel-leiste .pm-select__trigger,
   .noten-spiegel-leiste select.form-control { min-height: 44px; }
+  /* Farbtupfer: 30px trifft man mit dem Finger nicht zuverlässig. Der
+     sichtbare Kreis bleibt gleich groß, die Trefferfläche wächst über
+     das Label darum herum. */
+  .noten-farbwahl { gap: var(--sp-3); }
+  .noten-farbwahl__feld {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 44px;
+    min-height: 44px;
+  }
 }
 
 @media (max-width: 900px) {

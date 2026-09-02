@@ -74,6 +74,8 @@ function mapOrdner(row) {
     name: row.Name,
     abschnittId: row.AbschnittId ?? null,
     zaehltInSchnitt: !!row.ZaehltInSchnitt,
+    // Rein visuelle Hilfe (Migration 047). NULL = keine Farbe.
+    farbe: row.Farbe ?? null,
     sortierung: row.Sortierung,
     erstelltAm: iso(row.ErstelltAm),
     aktualisiertAm: iso(row.AktualisiertAm),
@@ -472,13 +474,21 @@ router.post('/ordner', async (req, res) => {
     const abschnittId = await pruefeAbschnittBesitz(pool, res, req.user, req.body && req.body.abschnittId);
     if (abschnittId === undefined) return;
 
+    // Farbe ist freiwillig; ein Wert außerhalb der Palette wird
+    // abgewiesen statt stillschweigend verworfen, sonst speichert jemand
+    // eine Farbe und sieht sie nie.
+    const farbProblem = core.pruefeOrdnerFarbe(req.body && req.body.farbe);
+    if (farbProblem) return res.status(400).json({ error: farbProblem });
+    const farbe = core.normalisiereFarbe(req.body && req.body.farbe);
+
     const r = await pool.request()
       .input('oid', sql.NVarChar(36), req.user.oid)
       .input('name', sql.NVarChar(100), name)
       .input('abschnittId', sql.Int, abschnittId)
       .input('zaehlt', sql.Bit, req.body.zaehltInSchnitt === false ? 0 : 1)
-      .query(`INSERT INTO dbo.NotenOrdner (AzubiOid, Name, AbschnittId, ZaehltInSchnitt)
-              OUTPUT inserted.* VALUES (@oid, @name, @abschnittId, @zaehlt)`);
+      .input('farbe', sql.NVarChar(7), farbe)
+      .query(`INSERT INTO dbo.NotenOrdner (AzubiOid, Name, AbschnittId, ZaehltInSchnitt, Farbe)
+              OUTPUT inserted.* VALUES (@oid, @name, @abschnittId, @zaehlt, @farbe)`);
     res.status(201).json(mapOrdner(r.recordset[0]));
   } catch (err) {
     if (UNIQUE_FEHLER.includes(err.number)) {
@@ -515,6 +525,13 @@ router.patch('/ordner/:id', async (req, res) => {
       if (abschnittId === undefined) return;
       felder.push('AbschnittId = @abschnittId');
       anfrage.input('abschnittId', sql.Int, abschnittId);
+    }
+    if (body.farbe !== undefined) {
+      // null/'' entfernt die Farbe wieder — das muss gehen.
+      const problem = core.pruefeOrdnerFarbe(body.farbe);
+      if (problem) return res.status(400).json({ error: problem });
+      felder.push('Farbe = @farbe');
+      anfrage.input('farbe', sql.NVarChar(7), core.normalisiereFarbe(body.farbe));
     }
     if (body.sortierung !== undefined) {
       const s = parseInt(body.sortierung, 10);

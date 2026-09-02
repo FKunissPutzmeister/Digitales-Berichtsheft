@@ -967,3 +967,127 @@ test('noteText liefert die drei Zustände der Notenspalte', () => {
   assert.equal(N.noteText({}), '–');
   assert.equal(N.noteText(null), '–');
 });
+
+// ── Fach-Farben ─────────────────────────────────────────────────────
+// Rein visuelle Hilfe (Migration 047), aber in der DB gespeichert, damit
+// sie auf jedem Gerät und für mitlesende Ausbilder dieselbe ist.
+
+// Die Töne des Abteilungsplaners (GANTT_PALETTE in
+// app/js/abteilungs-planer.js). Hier absichtlich ABGESCHRIEBEN und nicht
+// aus der Palette abgeleitet: der Test soll bemerken, wenn eine der
+// beiden Listen wandert.
+const PLANER_TOENE = [
+  '#4F9D9A', '#5B86C2', '#5FAE72', '#D8835A', '#9B7BC4',
+  '#C75C6B', '#C99A3E', '#6B8E4E', '#C77FB2', '#4F8FB8',
+  '#7E70BE', '#B06A52', '#5BA98C', '#6E7E8C', '#A86FA0',
+];
+
+test('FACH_FARBEN ist die Palette des Abteilungsplaners', () => {
+  assert.deepEqual(N.FACH_FARBEN.map(f => f.hex), PLANER_TOENE);
+});
+
+test('jede Farbe hat Id, Namen und ein RGB-Tripel', () => {
+  N.FACH_FARBEN.forEach(f => {
+    assert.match(f.hex, /^#[0-9A-F]{6}$/, f.id + ': Hex in Großbuchstaben');
+    assert.equal(typeof f.id, 'string');
+    assert.ok(f.id.length > 0, 'Id fehlt');
+    assert.ok(typeof f.label === 'string' && f.label.length > 0, f.id + ': Name fehlt');
+    // Das Tripel treibt die CSS-Tönung: rgba(var(--fach-rgb), .12).
+    assert.match(f.rgb, /^\d{1,3},\d{1,3},\d{1,3}$/, f.id + ': RGB-Tripel');
+  });
+  // Ids eindeutig — sie sind der Schlüssel in der Oberfläche.
+  assert.equal(new Set(N.FACH_FARBEN.map(f => f.id)).size, N.FACH_FARBEN.length);
+});
+
+test('das RGB-Tripel passt zum Hexwert', () => {
+  N.FACH_FARBEN.forEach(f => {
+    const erwartet = [1, 3, 5].map(i => parseInt(f.hex.substr(i, 2), 16)).join(',');
+    assert.equal(f.rgb, erwartet, f.id);
+  });
+});
+
+test('farbeRgb rechnet jeden Hexwert um, auch klein geschrieben', () => {
+  assert.equal(N.farbeRgb('#4F9D9A'), '79,157,154');
+  assert.equal(N.farbeRgb('#4f9d9a'), '79,157,154');
+  assert.equal(N.farbeRgb('#000000'), '0,0,0');
+  assert.equal(N.farbeRgb('#FFFFFF'), '255,255,255');
+  // Kein Hexwert → nichts. Der Rückgabewert landet in einem style-Attribut.
+  assert.equal(N.farbeRgb('red'), null);
+  assert.equal(N.farbeRgb('#4F9D9'), null);
+  assert.equal(N.farbeRgb(null), null);
+  assert.equal(N.farbeRgb(''), null);
+});
+
+test('istHexFarbe hält alles ab, was in kein style-Attribut darf', () => {
+  assert.equal(N.istHexFarbe('#4F9D9A'), true);
+  assert.equal(N.istHexFarbe('#4f9d9a'), true);
+  assert.equal(N.istHexFarbe('red'), false);
+  assert.equal(N.istHexFarbe('#4F9D9A;background:url(x)'), false);
+  assert.equal(N.istHexFarbe('#fff" onload="alert(1)'), false);
+  assert.equal(N.istHexFarbe('rgb(1,2,3)'), false);
+  assert.equal(N.istHexFarbe(null), false);
+});
+
+test('keine Farbe ist ein gültiger Zustand', () => {
+  // NULL heißt neutral — so sehen alle bestehenden Fächer aus, es wird
+  // ausdrücklich keine Farbe automatisch vergeben.
+  assert.equal(N.farbeGueltig(null), true);
+  assert.equal(N.farbeGueltig(undefined), true);
+  assert.equal(N.farbeGueltig(''), true);
+  assert.equal(N.pruefeOrdnerFarbe(null), null);
+  assert.equal(N.pruefeOrdnerFarbe(''), null);
+});
+
+test('nur Farben AUS DER PALETTE sind gültig', () => {
+  assert.equal(N.farbeGueltig('#4F9D9A'), true);
+  assert.equal(N.farbeGueltig('#4f9d9a'), true, 'Kleinschreibung muss durchgehen');
+  // Formal ein Hexwert, aber nicht aus der Palette:
+  assert.equal(N.farbeGueltig('#FFFF00'), false);
+  assert.equal(N.farbeGueltig('#123456'), false);
+  assert.equal(N.farbeGueltig('teal'), false);
+  assert.match(String(N.pruefeOrdnerFarbe('#FFFF00')), /Palette/);
+  assert.match(String(N.pruefeOrdnerFarbe('nicht-mal-hex')), /Palette/);
+});
+
+test('normalisiereFarbe speichert einheitlich in Großbuchstaben', () => {
+  // Sonst stünden dieselbe Farbe zweimal unterschiedlich in der DB und
+  // der Vergleich in der Oberfläche (welcher Tupfer ist aktiv?) schlägt fehl.
+  assert.equal(N.normalisiereFarbe('#4f9d9a'), '#4F9D9A');
+  assert.equal(N.normalisiereFarbe('#4F9D9A'), '#4F9D9A');
+  assert.equal(N.normalisiereFarbe('  #4f9d9a  '), '#4F9D9A');
+  assert.equal(N.normalisiereFarbe(null), null);
+  assert.equal(N.normalisiereFarbe(''), null);
+  assert.equal(N.normalisiereFarbe('#FFFF00'), null, 'außerhalb der Palette → keine Farbe');
+});
+
+test('farbeById findet den Eintrag der Palette', () => {
+  const erste = N.FACH_FARBEN[0];
+  assert.equal(N.farbeById(erste.id).hex, erste.hex);
+  assert.equal(N.farbeById('gibtsnicht'), null);
+  assert.equal(N.farbeById(null), null);
+});
+
+test('die Palette deckt genug Fächer ab, ohne sich zu wiederholen', () => {
+  // Ein Ausbildungsjahr hat selten mehr als eine Handvoll Fächer; 15
+  // eindeutige Töne genügen also für jeden Zeitraum, ohne dass zwei
+  // Fächer nebeneinander gleich aussehen.
+  assert.equal(new Set(N.FACH_FARBEN.map(f => f.hex)).size, 15);
+});
+
+test('tabellenZeilen tragen die Farbe ihres Fachs mit', () => {
+  // Der Notenspiegel setzt daraus einen Punkt vor den Fachnamen. Auf dem
+  // A4-Blatt erscheint sie NICHT — dort bleibt es schwarzweiss.
+  const ordner = [
+    { id: 1, abschnittId: 10, name: 'Englisch', zaehltInSchnitt: true, farbe: '#4F9D9A', eintraege: [
+      { id: 1, titel: 'Test', art: 'klassenarbeit', datum: '2026-04-01', note: 2.0 },
+    ] },
+    { id: 2, abschnittId: 10, name: 'Ohne Farbe', zaehltInSchnitt: true, eintraege: [
+      { id: 2, titel: 'Test 2', art: 'klassenarbeit', datum: '2026-04-02', note: 3.0 },
+    ] },
+  ];
+  const g = N.tabellenZeilen(SPIEGEL_ABSCHNITTE, ordner, { abschnittId: 10 });
+  assert.deepEqual(g[0].zeilen.map(z => [z.fach, z.farbe]), [
+    ['Englisch', '#4F9D9A'],
+    ['Ohne Farbe', null],
+  ]);
+});

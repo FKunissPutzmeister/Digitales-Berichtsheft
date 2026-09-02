@@ -114,6 +114,92 @@
      also an der Rolle, nicht am Feld. */
   function NOTE_MAX_FUER_ROLLE(rolle) { return rolle === 'dhstudent' ? 5.0 : NOTE_MAX; }
 
+  /* ── Farben der Fach-Ordner (Migration 047) ───────────────────────
+     Rein visuelle Hilfe: die Fächer eines Zeitraums lassen sich damit
+     schneller auseinanderhalten. NULL = keine Farbe = Darstellung wie
+     bisher; automatisch vergeben wird NICHTS, auch nicht für bestehende
+     Fächer.
+
+     Dieselben 15 Töne, mit denen der Abteilungsplaner seine Abteilungen
+     einfärbt (GANTT_PALETTE in app/js/abteilungs-planer.js, gespiegelt
+     in app/js/abteilungsdurchlauf.js). Bewusst kein freier Farbwähler:
+     die Töne sind untereinander unterscheidbar, halten in allen zehn
+     Designs die Lesbarkeit und Marken-Gelb fehlt absichtlich, damit die
+     Fächer nicht mit den gelben UI-Akzenten konkurrieren.
+
+     ACHTUNG bei Änderungen: die Liste steht damit an DRITTER Stelle im
+     Repo. Sie zusammenzuführen wäre eine eigene Aufräumaufgabe — die
+     Planer-Dateien sind Seiten-Scripts und in Node nicht ladbar, dieses
+     Modul dagegen wird auch vom Backend requirt.
+
+     rgb trägt das Tripel "r,g,b", weil die Tönung in CSS als
+     rgba(var(--fach-rgb), .12) ÜBER der Kartenfläche liegt: so entsteht
+     der Ton in jedem Design aus dessen eigener Fläche. color-mix() wäre
+     kürzer, verlangt aber iPadOS 16.4+ — das hier braucht nichts. */
+  const FACH_FARBEN = [
+    { id: 'teal',      label: 'Petrol',      hex: '#4F9D9A' },
+    { id: 'blau',      label: 'Blau',        hex: '#5B86C2' },
+    { id: 'gruen',     label: 'Grün',        hex: '#5FAE72' },
+    { id: 'orange',    label: 'Orange',      hex: '#D8835A' },
+    { id: 'violett',   label: 'Violett',     hex: '#9B7BC4' },
+    { id: 'rot',       label: 'Rot',         hex: '#C75C6B' },
+    { id: 'gold',      label: 'Gold',        hex: '#C99A3E' },
+    { id: 'oliv',      label: 'Oliv',        hex: '#6B8E4E' },
+    { id: 'pink',      label: 'Altrosa',     hex: '#C77FB2' },
+    { id: 'stahlblau', label: 'Stahlblau',   hex: '#4F8FB8' },
+    { id: 'indigo',    label: 'Indigo',      hex: '#7E70BE' },
+    { id: 'kupfer',    label: 'Kupfer',      hex: '#B06A52' },
+    { id: 'jade',      label: 'Jade',        hex: '#5BA98C' },
+    { id: 'schiefer',  label: 'Schiefer',    hex: '#6E7E8C' },
+    { id: 'mauve',     label: 'Mauve',       hex: '#A86FA0' },
+  ];
+
+  const HEX_MUSTER = /^#[0-9A-Fa-f]{6}$/;
+
+  /* Reine Formatprüfung. Sie ist die letzte Schranke vor dem
+     style-Attribut: dort darf nur #rrggbb landen, sonst könnte ein
+     gespeicherter Wert weitere CSS-Deklarationen einschmuggeln. */
+  function istHexFarbe(wert) {
+    return typeof wert === 'string' && HEX_MUSTER.test(wert.trim());
+  }
+
+  // "#4F9D9A" -> "79,157,154" (für die CSS-Tönung). Kein Hexwert -> null.
+  function farbeRgb(wert) {
+    if (!istHexFarbe(wert)) return null;
+    const h = wert.trim();
+    return [1, 3, 5].map(i => parseInt(h.substr(i, 2), 16)).join(',');
+  }
+
+  // Das Tripel gehört an die Palette, damit die Oberfläche es nicht bei
+  // jedem Rendern neu ausrechnet.
+  FACH_FARBEN.forEach(f => { f.rgb = farbeRgb(f.hex); });
+
+  function farbeById(id) { return FACH_FARBEN.find(f => f.id === id) || null; }
+
+  const istKeineFarbe = (wert) => wert === null || wert === undefined || String(wert).trim() === '';
+
+  /* Gültig sind: keine Farbe (NULL) und die Töne der Palette. Ein
+     beliebiger Hexwert ist ABSICHTLICH ungültig — sonst wandern über die
+     API Farben in die DB, die in einem der Designs unlesbar sind. */
+  function farbeGueltig(wert) {
+    if (istKeineFarbe(wert)) return true;
+    if (!istHexFarbe(wert)) return false;
+    const gesucht = String(wert).trim().toUpperCase();
+    return FACH_FARBEN.some(f => f.hex === gesucht);
+  }
+
+  // Einheitlich in Großbuchstaben speichern, sonst steht dieselbe Farbe
+  // zweimal unterschiedlich in der DB und der Vergleich "welcher Tupfer
+  // ist aktiv?" schlägt fehl.
+  function normalisiereFarbe(wert) {
+    if (!farbeGueltig(wert) || istKeineFarbe(wert)) return null;
+    return String(wert).trim().toUpperCase();
+  }
+
+  function pruefeOrdnerFarbe(wert) {
+    return farbeGueltig(wert) ? null : 'Diese Farbe gehört nicht zur Palette.';
+  }
+
   // ── Note / Punkte ─────────────────────────────────────────────────
   function runde2(n) { return Math.round(n * 100) / 100; }
 
@@ -732,6 +818,11 @@
       id: e.id,
       ordnerId: fach.id,
       fach: fach.name,
+      // Farbe des Fachs (Migration 047) — der Notenspiegel setzt daraus
+      // einen Punkt vor den Namen, weil sich derselbe Fachname in einer
+      // flachen Tabelle über viele Zeilen wiederholt. Auf dem A4-Blatt
+      // erscheint sie NICHT, dort bleibt es schwarzweiß.
+      farbe: wert(fach.farbe),
       // Trägt die Zeile zum Ø bei? Die Tabelle braucht das je ZEILE, weil
       // sie flach ist: die Fußnote hängt an der Zeile, nicht am Fach.
       zaehltInSchnitt: fach.zaehltInSchnitt !== false,
@@ -857,6 +948,8 @@
     gruppiereOrdnerNachAbschnitt,
     TABELLEN_SPALTEN, tabellenZeilen, tabellenSpalten,
     endungVon, endungErlaubt, istBildVorschau, istPdf, formatBytes, verkleinereBild,
+    FACH_FARBEN, farbeById, istHexFarbe, farbeRgb, farbeGueltig,
+    normalisiereFarbe, pruefeOrdnerFarbe,
     normalisiereOrdnerName, pruefeOrdnerName, istIsoDatum, pruefeEintrag,
     zusammenfuehreEintrag, mussNeuBerechnen,
   };
