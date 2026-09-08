@@ -191,6 +191,11 @@ p {
    war nicht 240 ms, sondern für immer tot. Die 8 px Versatz sind den Preis
    nicht wert — ein transformfreies to würde das Glas immerhin während der
    Animation noch kappen (sichtbares Nachpoppen beim Seitenwechsel). */
+/* Und der fill-mode ist "backwards", nicht "both": eine GEFUELLTE Animation
+   bleibt nach ihrem Ende am Element und laesst es Backdrop Root bleiben,
+   selbst wenn der Endwert opacity:1 ist. Mit "both" war das Glas nicht 220 ms
+   tot, sondern dauerhaft. "backwards" haelt nur den Startwert vor dem Lauf
+   (ohne Delay also nichts) — danach raeumt der Browser die Animation weg. */
 @keyframes fadeIn {
   from { opacity: 0; }
   to   { opacity: 1; }
@@ -216,7 +221,7 @@ p {
   to   { opacity: 0; transform: translateX(100%); }
 }
 
-.animate-fade-in { animation: fadeIn var(--t-normal) both; }
+.animate-fade-in { animation: fadeIn var(--t-normal) backwards; }
 .animate-slide-in { animation: slideInLeft var(--t-normal) both; }
 
 /* ── Reveal-on-Scroll (sanft, performant) ── */
@@ -278,8 +283,23 @@ p {
   to   { opacity: 1; }
 }
 
+/* backwards statt both (s. fadeIn): theme.js setzt [data-page-enter] und
+   nimmt es nie wieder weg — mit "both" blieb .main-wrapper nach JEDER
+   Navigation dauerhaft Backdrop Root und das Glas der Seite flach. */
 [data-page-enter] .main-wrapper {
-  animation: vt-in 300ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation: vt-in 300ms cubic-bezier(0.16, 1, 0.3, 1) backwards;
+}
+
+/* … ausser es liegt eine FX-Szene hinter der App. #pmThemeFX ist ein
+   Geschwister der .app-shell, die Blende laeuft auf .main-wrapper bzw.
+   .main-content — also auf einem Vorfahren jedes Panels. Eine laufende
+   opacity-Animation macht diesen Vorfahren zum Backdrop Root; jedes
+   backdrop-filter darunter sieht dann nur seine eigene leere Flaeche. Sichtbar
+   war das als „erst ganz transparente Panels, dann poppt das Glas rein".
+   Gleiche Bedingung in router.js fuer den SPA-Weg. */
+body:has(#pmThemeFX) .main-wrapper,
+body:has(#pmThemeFX) .main-content {
+  animation: none;
 }
 
 /* ── Accessibility: Reduzierte Bewegung ───────────────────────────────

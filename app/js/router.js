@@ -92,7 +92,16 @@
        kein Lade-Overlay mehr, daher hier die normale Wrapper-Fade). */
     const wrapper = document.querySelector('.main-wrapper');
     const noMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
-    if (wrapper && !noMotion) {
+    /* Keine Blende, solange eine FX-Szene hinter der App liegt (#pmThemeFX,
+       Geschwister der .app-shell). Exit wie Enter laufen auf .main-wrapper,
+       also einem Vorfahren JEDES Panels: eine laufende opacity-Animation macht
+       diesen Vorfahren zum Backdrop Root, und die Szene liegt AUSSERHALB
+       davon. Fuer die Dauer der Blende sieht jedes backdrop-filter darunter
+       nur seine eigene leere Flaeche — die Panels stehen erst flach da, und
+       das Glas poppt hinterher hinein. Gleiche Bedingung in base.css fuer den
+       Full-Load-Weg. */
+    const fxSzene = !!document.getElementById('pmThemeFX');
+    if (wrapper && !noMotion && !fxSzene) {
       wrapper.style.transition = 'opacity 110ms ease, transform 110ms ease';
       wrapper.style.opacity    = '0';
       wrapper.style.transform  = 'translateY(-5px)';
@@ -180,7 +189,7 @@
     _currentPage = href;
 
     /* Enter-Animation */
-    if (wrapper && !noMotion) {
+    if (wrapper && !noMotion && !fxSzene) {
       wrapper.style.transition = '';
       wrapper.style.opacity    = '';
       wrapper.style.transform  = '';

@@ -682,7 +682,12 @@ html.sidebar-init-collapsed .main-wrapper         { margin-left: var(--sidebar-i
   padding: var(--sp-6);
   max-width: var(--content-max);
   width: 100%;
-  animation: fadeIn var(--t-normal) both;
+  /* fill-mode backwards, NICHT both: eine gefuellte opacity-Animation bleibt
+     dauerhaft am Element haengen und macht es damit zum Backdrop Root — jedes
+     backdrop-filter darunter (das ganze Panel-Glas) sieht dann nur die eigene
+     leere Flaeche. Gemessen: mit "both" invertiert ein Testelement ab
+     .main-content nicht mehr, mit "backwards" durchgehend. */
+  animation: fadeIn var(--t-normal) backwards;
   overscroll-behavior: none;
 }
 
