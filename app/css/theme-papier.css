@@ -589,11 +589,12 @@ html[data-theme="papier"] * {
    hineinragt. :nth-child(3n+…) zyklisch statt einer festen Rotation für
    ALLE Karten — sonst wirkt es wie ein mechanisch wiederholtes Muster
    statt "zufällig hingelegt".
-   WICHTIG #1: dashboard.css:1654 hat bereits `.bento .b-tile:hover {
-   transform: translateY(-2px); }` — das WÜRDE die Rotation beim Hover
-   ersetzen (nicht kombinieren) und die Karte sichtbar "geradeschnappen"
-   lassen. Die :hover-Overrides hier kombinieren deshalb explizit
-   rotate() + translateY() pro Variante.
+   WICHTIG #1: dashboard.css hatte einen Hover-Hub
+   (`.bento .b-tile:hover { transform: translateY(-2px) }`), der die Rotation
+   beim Hover ersetzt statt kombiniert hätte — dagegen standen hier drei
+   :hover-Overrides mit rotate() + translateY(). Der Hub ist raus (der User
+   wollte das Hüpfen nicht), die Overrides damit auch: ohne Hover-Transform
+   bleibt die Rotation von allein stehen.
    WICHTIG #2 (im Live-Test gefunden): jede .b-tile trägt zusätzlich die
    Klasse .animate-fade-in (base.css) — eine CSS-Animation mit
    animation-fill-mode:both, deren Endzustand transform:translateY(0)
@@ -617,16 +618,6 @@ html[data-theme="papier"] * {
   transform: rotate(-0.5deg) !important;
   box-shadow: 2px 3px 6px rgba(90, 60, 20, 0.20);
 }
-[data-theme="papier"] .bento .b-tile:nth-child(3n+1):hover {
-  transform: rotate(-1.2deg) translateY(-2px) !important;
-}
-[data-theme="papier"] .bento .b-tile:nth-child(3n+2):hover {
-  transform: rotate(0.8deg) translateY(-2px) !important;
-}
-[data-theme="papier"] .bento .b-tile:nth-child(3n+3):hover {
-  transform: rotate(-0.5deg) translateY(-2px) !important;
-}
-
 /* ===================================================================
    10 · WOCHEN-KACHELN – "Schatzkarte": zerrissener Rand, Schriftrollen-
    Kante links, abgerissene Ecke unten rechts
