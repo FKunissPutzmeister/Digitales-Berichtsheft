@@ -1,7 +1,8 @@
 'use strict';
-/* E-Mail-Versand über Microsoft Graph (App-only) — dieselbe App-Registrierung
-   wie der Entra-Sync (GRAPH_*), zusätzlich braucht sie die Anwendungsberechtigung
-   Mail.Send und ein Absender-Postfach in MAIL_FROM.
+/* E-Mail-Versand über Microsoft Graph (App-only) — eigene App-Registrierung in
+   MAIL_TENANT_ID/MAIL_CLIENT_ID/MAIL_CLIENT_SECRET, ersatzweise die des
+   Entra-Syncs (GRAPH_*). Sie braucht die Anwendungsberechtigung Mail.Send
+   (mit Admin-Consent) und ein Absender-Postfach in MAIL_FROM.
 
    Zwei Regeln, die hier nicht verhandelbar sind:
    1) Best-effort — ein Fehler beim Versand darf den auslösenden Vorgang NIE
@@ -23,9 +24,11 @@ function mailConfig(env = process.env) {
   const cfg = {
     from,
     fromName: String(env.MAIL_FROM_NAME || 'Digitales Berichtsheft').trim(),
-    tenantId: env.GRAPH_TENANT_ID,
-    clientId: env.GRAPH_CLIENT_ID,
-    clientSecret: env.GRAPH_CLIENT_SECRET,
+    // Eigene App-Registrierung moeglich (hier: "Email Transmitting"), sonst die
+    // des Entra-Syncs. Getrennt, damit ein Secret-Ablauf nicht beides killt.
+    tenantId: env.MAIL_TENANT_ID || env.GRAPH_TENANT_ID,
+    clientId: env.MAIL_CLIENT_ID || env.GRAPH_CLIENT_ID,
+    clientSecret: env.MAIL_CLIENT_SECRET || env.GRAPH_CLIENT_SECRET,
   };
   cfg.configured = !!(cfg.from && cfg.tenantId && cfg.clientId && cfg.clientSecret);
   return cfg;
