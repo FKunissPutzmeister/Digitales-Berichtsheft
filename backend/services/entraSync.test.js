@@ -8,6 +8,32 @@ const ENV = {
   SYNC_GROUP_PRUEFER: 'gp', SYNC_GROUP_AZUBI: 'ga', SYNC_GROUP_DHSTUDENT: 'gd',
 };
 
+// Regressionsschutz gegen die eigentliche Fehlerquelle: Sync und SAML-Login
+// leiteten aus derselben Mehrfach-Mitgliedschaft verschiedene Rollen ab, weil
+// jeder Pfad seine eigene (bzw. keine) Vorrangregel hatte. Beide teilen jetzt
+// ROLE_PRECEDENCE aus services/users.js — dieser Test schlägt an, sobald
+// irgendwo wieder eine eigene Kopie/Reihenfolge entsteht.
+test('Login und Entra-Sync leiten für Mehrfach-Gruppenmitglieder dieselbe Rolle ab', () => {
+  const ROLE_URI = 'http://schemas.microsoft.com/ws/2008/06/identity/claims/role';
+  const { parseRoleClaim } = require('./users');
+
+  // Eine Person in Prüfer- UND Azubi-Gruppe (z.B. Ausbilder, den sein
+  // Department zusätzlich in "Alle Azubis" zieht).
+  const { groupRoleMap } = S.buildGroupRoleMap(ENV);
+  const syncRolle = S.resolveMembers(
+    groupRoleMap
+      .filter(({ role }) => role === 'pruefer' || role === 'azubi')
+      .map(({ role }) => ({ role, members: [{ oid: 'oid-1' }] }))
+  ).get('oid-1').role;
+
+  assert.equal(syncRolle, 'pruefer');
+  // Azure bestimmt die Reihenfolge der Rollen in der Assertion — keine davon
+  // darf ein anderes Ergebnis liefern als der Sync.
+  for (const claim of [['azubi', 'pruefer'], ['pruefer', 'azubi']]) {
+    assert.equal(parseRoleClaim({ [ROLE_URI]: claim }), syncRolle);
+  }
+});
+
 test('buildGroupRoleMap: nur gesetzte Gruppen, Vorrang pruefer>azubi>dhstudent', () => {
   const { groupRoleMap, managedRoles } = S.buildGroupRoleMap(ENV);
   assert.deepEqual(groupRoleMap, [

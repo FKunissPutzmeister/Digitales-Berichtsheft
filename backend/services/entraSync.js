@@ -2,8 +2,15 @@
 /* Automatischer Entra-Gruppen-Sync (Client-Credentials/App-only).
    Reine Logik (testbar) getrennt von Graph-/DB-I/O. I/O-Teil folgt in Task 3. */
 
-// Vorrang: höchster zuerst. Gruppen-OIDs kommen aus diesen .env-Variablen.
-const ROLE_PRECEDENCE = ['pruefer', 'azubi', 'dhstudent'];
+// Vorrang (höchster zuerst) kommt GETEILT aus services/users.js — dieselbe
+// Liste, die der SAML-Login in parseRoleClaim benutzt. Bewusst keine Kopie:
+// solange beide Pfade eigene Reihenfolgen hatten, leitete der Login für
+// Mehrfach-Gruppenmitglieder eine andere Rolle ab als dieser Sync.
+// Gruppen-OIDs kommen aus diesen .env-Variablen.
+const {
+  ROLE_PRECEDENCE,
+  upsertUser, listUsers, listManagedUsers, setUsersAktiv, listManuellDeaktivierteOids, getUserByOid, buildReqUser,
+} = require('./users');
 const GROUP_ENV = {
   pruefer:   'SYNC_GROUP_PRUEFER',
   azubi:     'SYNC_GROUP_AZUBI',
@@ -66,7 +73,6 @@ function syncConfigured(env = process.env) {
   };
 }
 
-const { upsertUser, listUsers, listManagedUsers, setUsersAktiv, listManuellDeaktivierteOids, getUserByOid, buildReqUser } = require('./users');
 const { upsertPhoto, deletePhoto } = require('./userPhotos');
 const { syncAutoZuordnung } = require('./ausbilderAzubis');
 
