@@ -11,8 +11,19 @@ test('parseRoleClaim liest String-Claim', () => {
   assert.equal(parseRoleClaim({ [ROLE_URI]: 'pruefer' }), 'pruefer');
 });
 
-test('parseRoleClaim nimmt bei Array die erste bekannte Rolle', () => {
+test('parseRoleClaim ignoriert unbekannte Einträge im Array-Claim', () => {
   assert.equal(parseRoleClaim({ [ROLE_URI]: ['pruefer', 'irgendwas'] }), 'pruefer');
+  assert.equal(parseRoleClaim({ [ROLE_URI]: ['irgendwas', 'azubi'] }), 'azubi');
+});
+
+// Wer in MEHREREN Entra-Gruppen steckt (z.B. ein Ausbilder, den sein Department
+// zusätzlich in "Alle Azubis" zieht), bekommt ALLE zugehörigen App-Rollen in die
+// Assertion — in einer Reihenfolge, die Azure bestimmt. Ohne Vorrangregel gewann
+// hier schlicht der erste Eintrag: derselbe Nutzer wurde beim Login zum Azubi und
+// beim 6h-Entra-Sync wieder zum Prüfer.
+test('parseRoleClaim: pruefer gewinnt gegen azubi, egal in welcher Reihenfolge Azure die Rollen sendet', () => {
+  assert.equal(parseRoleClaim({ [ROLE_URI]: ['azubi', 'pruefer'] }), 'pruefer');
+  assert.equal(parseRoleClaim({ [ROLE_URI]: ['pruefer', 'azubi'] }), 'pruefer');
 });
 
 test('parseRoleClaim gibt null ohne/bei unbekanntem Claim', () => {

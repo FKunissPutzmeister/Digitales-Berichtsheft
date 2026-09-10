@@ -8,7 +8,19 @@ const { getPool, sql } = require('../db/connection');
 const { backfillVerantwortlicheByEmail, normalizeEmail } = require('./abteilungen');
 
 const ROLE_CLAIM = 'http://schemas.microsoft.com/ws/2008/06/identity/claims/role';
-const AZURE_ROLES = ['azubi', 'pruefer'];
+
+// Azure-Basisrollen nach VORRANG, höchste zuerst.
+// Eine Person kann in mehreren Entra-Gruppen stecken und bringt dann mehrere
+// Rollen mit — ein Ausbilder z.B., den sein Department ("Gewerbliche
+// Auszubildende") zusätzlich in "Alle Azubis" zieht. Dann muss auf JEDEM
+// Schreibpfad dieselbe Rolle gewinnen, sonst kippt der Datensatz hin und her.
+// Diese Liste ist die EINE Quelle dafür: der Login liest sie unten in
+// parseRoleClaim, der Entra-Sync importiert sie (services/entraSync.js,
+// buildGroupRoleMap/resolveMembers). Vorher hatte der Sync eine eigene Kopie
+// und der Login gar keine Regel — er nahm den ersten Eintrag, den Azure
+// zufällig sendete. Ergebnis: Login machte einen Ausbilder zum Azubi, der
+// nächste Sync-Lauf korrigierte es wieder zurück.
+const ROLE_PRECEDENCE = ['pruefer', 'azubi', 'dhstudent'];
 
 // Nutzer, die ihre Ansicht per Session-Switch auf "developer" heben dürfen
 // (Entwickler-Escape-Hatch). Bewusst als Code-Allowlist statt DB-Flag: betrifft
@@ -24,12 +36,14 @@ function canUseDevView(email) {
 }
 
 // Rollen-Claim aus der Assertion lesen (String ODER Array), auf bekannte
-// Azure-Basisrollen einschränken. Unbekannt/fehlend → null.
+// Azure-Basisrollen einschränken. Bei MEHREREN Rollen gewinnt die mit dem
+// höchsten Vorrang (ROLE_PRECEDENCE) — nicht die, die Azure zuerst sendet.
+// Unbekannt/fehlend → null (dann lässt upsertUser die DB-Rolle unangetastet).
 function parseRoleClaim(profile) {
   const raw = profile && profile[ROLE_CLAIM];
   if (!raw) return null;
-  const list = Array.isArray(raw) ? raw : [raw];
-  return list.find((r) => AZURE_ROLES.includes(r)) || null;
+  const list = (Array.isArray(raw) ? raw : [raw]).map((r) => String(r).trim());
+  return ROLE_PRECEDENCE.find((role) => list.includes(role)) || null;
 }
 
 // Server-seitige Landeseite je effektiver Rolle (Pendant zu landingPageFor im
@@ -345,6 +359,7 @@ async function setUsersAktiv(oids, aktiv, poolOverride) {
 }
 
 module.exports = {
+  ROLE_PRECEDENCE,
   parseRoleClaim, buildReqUser, landingPathForUser, validateUserPatch, canUseDevView,
   upsertUser, getUserByOid, getUserByEmail, listUsers, updateUserProfile,
   listManagedUsers, setUsersAktiv, listManuellDeaktivierteOids,
