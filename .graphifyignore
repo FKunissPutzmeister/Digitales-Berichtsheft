@@ -1,0 +1,52 @@
+# Graphify-Ignore — steuert, was in den Wissensgraphen aufgenommen wird.
+# Syntax wie .gitignore. Git-ignorierte Dateien sind ohnehin ausgeschlossen
+# (node_modules/, backend/data/, backend/sessions/, .claude/ ...), solange
+# nicht --no-gitignore gesetzt wird.
+
+# ---------------------------------------------------------------------------
+# 1. Personenbezogene Daten — NIEMALS indexieren.
+#    Bei semantischer Extraktion (ohne --code-only) werden Dokumente und PDFs
+#    an das konfigurierte LLM geschickt. Diese Ordner enthalten echte
+#    Berichtshefte von Azubis mit Klarnamen.
+# ---------------------------------------------------------------------------
+Berichtsheft exporte/
+IHK Aktuelles Berichtsheft/
+Ausbilder-Ansicht/
+
+# ---------------------------------------------------------------------------
+# 2. Vendored Fremdcode — würde den Graphen dominieren, ohne etwas über
+#    unsere Architektur auszusagen (Quill 2, table-better, pdf.js ...).
+# ---------------------------------------------------------------------------
+app/js/vendor/
+app/css/vendor/
+
+# ---------------------------------------------------------------------------
+# 3. Binärassets — keine Struktur, nur Kosten (Vision-Calls) und Rauschen.
+# ---------------------------------------------------------------------------
+Corporate Design/
+*.png
+*.jpg
+*.jpeg
+*.svg
+*.ttf
+*.woff2
+*.mp3
+*.mp4
+
+# ---------------------------------------------------------------------------
+# 4. Eigener Output + Laufzeitartefakte.
+# ---------------------------------------------------------------------------
+graphify-out/
+ruvector.db
+web.config
+
+# ---------------------------------------------------------------------------
+# 5. Generierte Build-Artefakte.
+#    silk-bundle.js ist das Vite-Build von silk-react/src/ (1,5 MB, gebündelt).
+#    Es liegt in git, weil es ausgeliefert wird — als Graph-Input ist es aber
+#    wertlos: die minifizierten Kurznamen (t, k, o, Dt, vE) dominieren jede
+#    Zentralitätsmetrik und verdrängen den echten Anwendungscode.
+#    Die Quelle silk-react/src/ bleibt bewusst drin.
+# ---------------------------------------------------------------------------
+app/silk/silk-bundle.js
+app/silk/silk-bundle.css
