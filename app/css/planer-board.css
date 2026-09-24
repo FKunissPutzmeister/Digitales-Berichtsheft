@@ -151,11 +151,11 @@
 .pt-grp__ib:hover { background:var(--pm-grey-200); color:var(--pm-grey-900); }
 .pt-grp__ib:focus-visible { opacity:1; outline:2px solid var(--pm-yellow); outline-offset:1px; }
 .pt-grp__leer { position:sticky; left:0; padding:9px var(--sp-4); font-size:var(--text-xs); color:var(--pm-grey-400); }
-/* Der Fehlertext im Gruppen-Dialog hat keine 96px-Labelspalte davor. */
-.pt-grp-dlg__err { margin-left:0; }
-/* „Mitglieder (12 gewählt)" passt nicht in die 96px-Spalte des Druck-Dialogs
-   (dort stehen nur kurze Labels) und brach zweizeilig um. */
-#ptGruppeModal .pp-dlg__lbl { flex:0 0 auto; }
+/* .pt-grp-dlg__err und #ptGruppeModal .pp-dlg__lbl waren Ausgleichsregeln fuer
+   die frueheren 96px-Beschriftungsspalte in .pp-dlg__row (Fehlertext-Einzug
+   bzw. umbrechendes „Mitglieder (12 gewählt)"). Seit die Dialoge auf
+   .pp-dlg__block gestapelt sind (2026-09-09), gibt es diese Spalte nicht mehr
+   und damit auch nichts auszugleichen — Regeln entfernt. */
 /* Altbestand-Hinweis: die Gruppe enthaelt noch ausgeschiedene Personen, die
    nicht mehr waehlbar sind und beim Speichern herausfallen. */
 .pt-grp-dlg__note { margin:0 0 8px; font-size:var(--text-xs); line-height:1.45; color:var(--color-warning-mid); }
@@ -413,14 +413,33 @@ body.pt-dragging { user-select:none; cursor:grabbing; }
 }
 
 /* ── Druck-Dialog ── */
-.pp-dlg__row { display:flex; align-items:center; gap:12px; margin-bottom:10px; }
-.pp-dlg__row--head { margin-top:16px; }
-.pp-dlg__lbl { flex:0 0 96px; font-size:var(--text-sm); color:var(--pm-grey-600); }
+/* .pt-seg lebt sonst in der Toolbar und holt sich Hoehe, Innenabstand und
+   Schriftgroesse aus dem Maßsatz von .pt-toolbar (oben). Im Modal gibt es
+   diesen Vorfahren nicht — dort waren --pt-ctl-h/--pt-seg-pad/--pt-ctl-fs
+   unaufgeloest, und das Segment stand als nackter Text "TafelTabelle" im
+   Dialog (mit dem dritten Knopf "Report" fiel es auf). Hier deshalb ein
+   eigener, fester Maßsatz fuer die Dialog-Instanz — die Toolbar bleibt
+   unberuehrt und skaliert weiter ueber data-scale. */
+#ptPrintModal .pt-seg { --pt-ctl-h:32px; --pt-seg-pad:14px; --pt-ctl-fs:var(--text-sm);
+  align-self:flex-start; }   /* nicht auf Blockbreite ziehen (Block ist stretch) */
+/* Ein Block je Entscheidung, gestapelt: Beschriftung oben, Bedienelemente
+   darunter, alles an derselben linken Kante. Ersetzt die frueheren
+   .pp-dlg__row mit 96px-Beschriftungsspalte (dort umbrach die
+   Azubi-Beschriftung und die Datumszeile brauchte einen leeren Platzhalter,
+   um auszurichten). */
+.pp-dlg__block { display:flex; flex-direction:column; align-items:stretch; gap:8px; margin-bottom:18px; }
+.pp-dlg__block:last-child { margin-bottom:0; }
+.pp-dlg__blockkopf { display:flex; align-items:center; justify-content:space-between; gap:12px; }
+.pp-dlg__lbl { font-size:var(--text-sm); font-weight:600; color:var(--pm-grey-700); }
+/* Die Auswahlhilfen duerfen nicht die Blockhoehe treiben (btn-sm ist hoeher
+   als die Beschriftung) — negative Randkorrektur haelt den Kopf kompakt. */
+.pp-dlg__quick { display:flex; gap:2px; margin:-4px 0; }
 .pp-dlg__presets, .pp-dlg__dates { display:flex; gap:8px; flex-wrap:wrap; }
+.pp-dlg__dates { align-items:center; }
 .pp-dlg__dates label { font-size:var(--text-xs); color:var(--pm-grey-500); display:flex; align-items:center; gap:6px; }
 .pp-dlg__dates input { width:150px; }
-.pp-dlg__err { color:var(--color-error); font-size:var(--text-xs); margin:0 0 10px 108px; }
-.pp-dlg__list { max-height:260px; overflow:auto; border:1px solid var(--pm-grey-200); border-radius:var(--r-md); margin-top:8px; }
+.pp-dlg__err { color:var(--color-error); font-size:var(--text-xs); margin:-8px 0 14px; }
+.pp-dlg__list { max-height:260px; overflow:auto; border:1px solid var(--pm-grey-200); border-radius:var(--r-md); }
 .pp-dlg__item { display:flex; align-items:center; gap:9px; padding:7px 11px; border-bottom:1px solid var(--pm-grey-100); font-size:var(--text-sm); }
 .pp-dlg__item:last-child { border-bottom:none; }
 .pp-dlg__item b { font-weight:600; color:var(--pm-grey-900); }

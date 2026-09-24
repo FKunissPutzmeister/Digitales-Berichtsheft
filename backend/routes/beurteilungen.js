@@ -2,6 +2,8 @@ const router = require('express').Router();
 const { getPool, sql } = require('../db/connection');
 const svc = require('../services/beurteilungen');
 const unterschriftenSvc = require('../services/unterschriften');
+const azubiSicht = require('../services/azubiSicht');
+const reportSvc = require('../services/durchlaufReport');
 const { ladeKorrekturKontext } = require('../services/zugriffContext');
 const { logError } = require('../services/fehlerberichte');
 
@@ -80,6 +82,51 @@ router.get('/meine', async (req, res) => {
     res.json(await svc.listMeineBeurteilbaren(pool, req.user, req.query.azubiOid));
   } catch (err) {
     logError({ quelle: 'backend', nachricht: `[beurteilungen] meine: ${err.message}`, stack: err.stack,
+      kontext: { route: req.path, methode: req.method }, benutzerOid: req.user && req.user.oid, benutzerName: req.user && req.user.name });
+    res.status(500).json({ error: err.message });
+  }
+});
+
+/* ── Durchlauf-Report (Sammel-PDF) ──────────────────────────────────
+   Spec: docs/superpowers/specs/2026-09-09-durchlauf-report-design.md
+   Absichtlich hier statt in einem eigenen Router: der Report ist im Kern
+   eine Bulk-Sicht auf Beurteilungen. Bei /faellig und /meine gruppiert,
+   VOR den /:id-Routen — /report/azubis hat eine andere Segmentzahl als
+   GET /:id/unterschrift/:rolle, ein POST /:id existiert nicht. */
+
+// GET /api/beurteilungen/report/azubis — die Personen, über die der
+// Aufrufer berichten darf. Der Dialog schneidet seine Planer-Liste damit;
+// die eigentliche Absicherung passiert trotzdem noch einmal in ladeReport.
+router.get('/report/azubis', async (req, res) => {
+  try {
+    if (!azubiSicht.istReportBerechtigt(req.user)) return res.status(403).json({ error: 'Kein Zugriff.' });
+    const pool = await getPool();
+    const rows = await azubiSicht.sichtbareAzubis(pool, req.user);
+    res.json(rows.map(r => ({
+      oid: r.Oid, name: r.Name, role: r.Role, department: r.Department, beruf: r.Beruf,
+    })));
+  } catch (err) {
+    logError({ quelle: 'backend', nachricht: `[beurteilungen] report/azubis: ${err.message}`, stack: err.stack,
+      kontext: { route: req.path, methode: req.method }, benutzerOid: req.user && req.user.oid, benutzerName: req.user && req.user.name });
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /api/beurteilungen/report  { azubiOids:[…], von, bis }
+// POST, nicht GET: „Alle" sind schnell 60 GUIDs — als Query-String wäre das
+// eine URL jenseits dessen, worauf sich Proxys verlassen lassen.
+router.post('/report', async (req, res) => {
+  try {
+    if (!azubiSicht.istReportBerechtigt(req.user)) return res.status(403).json({ error: 'Kein Zugriff.' });
+    const anfrage = reportSvc.pruefeAnfrage(req.body);
+    if (!anfrage.ok) return res.status(400).json({ error: anfrage.fehler });
+    const pool = await getPool();
+    res.json(await reportSvc.ladeReport(pool, req.user, anfrage));
+  } catch (err) {
+    if (err.status === 403) {
+      return res.status(403).json({ error: 'Kein Zugriff auf mindestens eine Person.', unzulaessig: err.unzulaessig || [] });
+    }
+    logError({ quelle: 'backend', nachricht: `[beurteilungen] report: ${err.message}`, stack: err.stack,
       kontext: { route: req.path, methode: req.method }, benutzerOid: req.user && req.user.oid, benutzerName: req.user && req.user.name });
     res.status(500).json({ error: err.message });
   }

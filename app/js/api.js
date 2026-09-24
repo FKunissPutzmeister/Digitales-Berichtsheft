@@ -954,6 +954,23 @@ const DB = {
     const q = azubiOid ? `?azubiOid=${encodeURIComponent(azubiOid)}` : '';
     return await apiFetch('/beurteilungen/meine' + q);
   },
+  /* Durchlauf-Report (Sammel-PDF, Spec 2026-09-09).
+     erwartet: [403] – der Report ist auf admin/developer und die
+     Ausbildungsleitung begrenzt. Ein 403 ist hier also ein legitimes
+     Fachergebnis (falsche Rolle, oder eine Person außerhalb des eigenen
+     Bereichs), kein Bug – es gehört nicht in den Fehler-Posteingang
+     (s. error-reporter.js sollStatusMelden). Der Dialog blendet den
+     Report-Modus zwar rollenabhängig aus, aber die Server-Antwort bleibt
+     die Wahrheit. */
+  async getReportAzubis() {
+    return apiFetch('/beurteilungen/report/azubis', { erwartet: [403] });
+  },
+  // POST, nicht GET: „Alle" sind schnell 60 GUIDs (apiFetch serialisiert body).
+  async getDurchlaufReport(azubiOids, von, bis) {
+    return apiFetch('/beurteilungen/report',
+      { method: 'POST', body: { azubiOids, von, bis }, erwartet: [403] });
+  },
+
   async saveBeurteilungEntwurf(payload) {
     const data = await apiFetch('/beurteilungen', { method: 'POST', body: payload });
     return data.id;
