@@ -97,6 +97,12 @@ function buildSidebar(activeNavId) {
         <div class="avatar avatar--sm" id="sidebarUserInitials">?</div>
         <span class="sidebar__user-name" id="sidebarUserName">…</span>
       </a>
+      <div class="sidebar__powered-by">
+        <span class="sidebar__powered-by-mark" role="img" aria-label="Powered by Putzmeister IT">
+          <span class="sidebar__powered-by-layer sidebar__powered-by-layer--by"></span>
+          <span class="sidebar__powered-by-layer sidebar__powered-by-layer--name"></span>
+        </span>
+      </div>
       <button class="sidebar__icon-btn sidebar__theme-toggle" id="sidebarThemeToggle" type="button"
               aria-label="Hell-/Dunkel-Modus umschalten" title="Hell / Dunkel">
         <svg class="sidebar__theme-icon sidebar__theme-icon--sun"

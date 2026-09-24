@@ -345,6 +345,46 @@ html.sidebar-init-collapsed .sidebar__devview { display: none !important; }
 /* Im eingeklappten Zustand nur das Avatar zeigen, Name ausblenden.
    Pendant für den FOUC-Schutz-Marker html.sidebar-init-collapsed
    liegt unten zusammen mit den anderen pre-paint-Regeln. */
+/* "Powered by Putzmeister IT": eigene Zeile unter dem Profil-Link
+   (flex-basis 100% erzwingt den Umbruch im flex-wrap-Footer). Das Logo
+   liegt als zwei Alpha-Masken vor, damit jede Hälfte die Theme-Farbe
+   annimmt: "Powered by" in PM-Gelb, "Putzmeister IT" in exakt der Farbe
+   des Profilnamens (glass.css: --pm-grey-900 bzw. #fff im Dark-Mode;
+   die Custom-Themes biegen --pm-grey-900 selbst um). */
+.sidebar__powered-by {
+  order: 1;
+  flex: 0 0 100%;
+  display: flex;
+  justify-content: center;
+  margin-top: 2px;
+  color: var(--pm-grey-900);
+}
+/* Eigener Kasten statt max-width an der Zeile: eine gedeckelte
+   flex-basis passt sonst neben den Profil-Link und bricht nicht um. */
+.sidebar__powered-by-mark {
+  position: relative;
+  width: 120px;
+  aspect-ratio: 600 / 136;
+  opacity: 0.9;
+}
+[data-theme="dark"] .sidebar__powered-by { color: #fff; }
+.sidebar__powered-by-layer {
+  position: absolute;
+  inset: 0;
+  -webkit-mask: var(--pb-mask) center / contain no-repeat;
+          mask: var(--pb-mask) center / contain no-repeat;
+}
+.sidebar__powered-by-layer--by {
+  --pb-mask: url("../../Corporate Design/Powered by IT/powered-by-mask-by.png");
+  background-color: var(--pm-yellow);
+}
+.sidebar__powered-by-layer--name {
+  --pb-mask: url("../../Corporate Design/Powered by IT/powered-by-mask-name.png");
+  background-color: currentColor;
+}
+.sidebar.collapsed .sidebar__powered-by,
+html.sidebar-init-collapsed .sidebar__powered-by { display: none !important; }
+
 .sidebar.collapsed .sidebar__user-name {
   opacity: 0;
   max-width: 0;
