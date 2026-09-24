@@ -38,6 +38,12 @@ document.addEventListener('DOMContentLoaded', async () => {
      retention.js) vorbehalten – dasselbe Muster wie dort. */
   const DEMO_ONLY_DESIGNS = ['papier'];
   const isDemoAccount = /\.demo@/i.test(user.email || '');
+  /* TEMP: Custom-Design-Auswahl für Demokonten kurzzeitig ausgeblendet.
+     Rückgängig machen: HIDE_CUSTOM_THEMES_FOR_DEMO auf false setzen (oder
+     die Zeile entfernen). Bereits gewählte Custom-Designs bleiben dabei in
+     localStorage stehen und erscheinen nach dem Zurücksetzen automatisch
+     wieder, ohne dass der Nutzer sie neu wählen muss. */
+  const HIDE_CUSTOM_THEMES_FOR_DEMO = true;
   const THEME_DESIGNS = [
     { id: '',           name: 'Standard',   sub: 'Putzmeister-Design' },
     { id: 'silk',       name: 'Silk',       sub: 'Liquid Glass · futuristisch' },
@@ -72,7 +78,8 @@ document.addEventListener('DOMContentLoaded', async () => {
        den Hell/Dunkel-Umschalter: Titel ohne „& Themes", keine Custom-Design-
        Gruppe. (Developer erhalten zusätzlich die Saison-Themes, siehe
        THEME_DESIGNS-Filter oben.) */
-    const showThemes = isAzubi || isDeveloper;
+    const showThemes = (isAzubi || isDeveloper) && !window.PMTheme?.customDesignsLocked
+      && !(HIDE_CUSTOM_THEMES_FOR_DEMO && isDemoAccount);
     const title = showThemes ? 'Darstellung &amp; Themes' : 'Darstellung';
 
     const customGroup = !showThemes ? '' : `

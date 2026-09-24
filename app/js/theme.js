@@ -29,6 +29,18 @@
   var CUSTOM_THEMES = ['hyperspace', 'cmd', 'candy', 'silk', 'halloween', 'christmas', 'papier'];
   var html = document.documentElement;
 
+  /* ── TEMP: Custom-Design-Auswahl auf localhost gesperrt ───────────────
+     Kurzfristige Sperre (Debugging/Test) – wirkt NUR wenn location.hostname
+     === 'localhost' ist, Produktion bleibt also unberührt, selbst wenn
+     dieser Stand versehentlich deployed würde. Ein bereits gewähltes
+     Custom-Design bleibt dabei in localStorage stehen (wird nur ignoriert,
+     nicht gelöscht) – nach dem Zurücksetzen des Flags erscheint es
+     automatisch wieder, ohne dass der Nutzer es neu wählen muss.
+     Rückgängig machen: DISABLE_CUSTOM_THEMES_ON_LOCALHOST auf false setzen. */
+  var DISABLE_CUSTOM_THEMES_ON_LOCALHOST = false;
+  var CUSTOM_THEMES_LOCKED = DISABLE_CUSTOM_THEMES_ON_LOCALHOST &&
+    typeof location !== 'undefined' && location.hostname === 'localhost';
+
   /* ── Perf-Lite: Software-Rendering erkennen ───────────────────────
      Ist kein echter GPU-Treiber aktiv (Windows-WARP „Microsoft Basic
      Render Driver", SwiftShader, llvmpipe – häufig nach Treiber-Crash,
@@ -1713,6 +1725,7 @@
   }
 
   function readStoredCustom() {
+    if (CUSTOM_THEMES_LOCKED) return null;
     try {
       var v = localStorage.getItem(CUSTOM_KEY);
       return (CUSTOM_THEMES.indexOf(v) !== -1) ? v : null;
@@ -1743,6 +1756,11 @@
   window.PMTheme = {
     /** Liste der verfügbaren Custom-Designs (für UI-Aufbau). */
     CUSTOM_THEMES: CUSTOM_THEMES.slice(),
+
+    /** TEMP: true, wenn die Custom-Design-Auswahl gerade gesperrt ist
+        (s. DISABLE_CUSTOM_THEMES_ON_LOCALHOST oben) – Profil-Seite blendet
+        die Custom-Design-Gruppe damit aus. */
+    customDesignsLocked: CUSTOM_THEMES_LOCKED,
 
     /** Aktuell ANGEWENDETES Theme (light|dark|<custom>). */
     get: function () {
@@ -1801,6 +1819,7 @@
         apply(this.getMode());
         return;
       }
+      if (CUSTOM_THEMES_LOCKED) return;
       if (CUSTOM_THEMES.indexOf(name) === -1) return;
       try { localStorage.setItem(CUSTOM_KEY, name); } catch (e) {}
       apply(name);

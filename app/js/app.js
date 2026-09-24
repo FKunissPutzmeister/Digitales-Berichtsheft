@@ -92,6 +92,17 @@ function applyCapabilities(caps) {
   document.querySelectorAll('.nav-developer-only').forEach(el => {
     el.style.display = caps.role === 'developer' ? '' : 'none';
   });
+  /* TEMP: „IHK-Import-Archiv"-Reiter auf localhost für ALLE Nutzer (auch
+     Developer) gesperrt – kurzfristige Sperre, wirkt NUR wenn
+     location.hostname === 'localhost' ist, Produktion bleibt unberührt.
+     Gleiches Muster/gleicher Zweck wie DISABLE_CUSTOM_THEMES_ON_LOCALHOST
+     in theme.js. Rückgängig machen: DISABLE_IHK_ARCHIV_ON_LOCALHOST auf
+     false setzen (oder diesen Block entfernen). */
+  var DISABLE_IHK_ARCHIV_ON_LOCALHOST = true;
+  if (DISABLE_IHK_ARCHIV_ON_LOCALHOST && location.hostname === 'localhost') {
+    const ihkArchivLink = document.getElementById('nav-ihk-archiv');
+    if (ihkArchivLink) ihkArchivLink.style.display = 'none';
+  }
   // DH-Studenten brauchen kein Dashboard – auf der (einzig erreichbaren)
   // Profil-Seite den Dashboard-Link ausblenden.
   if (caps.istDhStudent) {

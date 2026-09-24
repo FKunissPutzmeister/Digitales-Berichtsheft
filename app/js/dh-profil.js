@@ -21,6 +21,10 @@ const THEME_DESIGNS = [
    sind nie Developer → hier faktisch immer ausgeblendet (Gate dennoch konsistent
    zur regulären Profil-Seite). */
 const SEASONAL_DESIGNS = ['halloween', 'christmas'];
+/* TEMP: Custom-Design-Auswahl für Demokonten kurzzeitig ausgeblendet (s.
+   profil.js). Rückgängig machen: HIDE_CUSTOM_THEMES_FOR_DEMO auf false
+   setzen. Bereits gewählte Custom-Designs bleiben in localStorage stehen. */
+const HIDE_CUSTOM_THEMES_FOR_DEMO = true;
 
 document.addEventListener('DOMContentLoaded', async () => {
   const user = await DB.fetchCurrentUser();
@@ -55,7 +59,14 @@ document.addEventListener('DOMContentLoaded', async () => {
     const SUN  = '<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>';
     const MOON = '<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>';
 
-    const customGroup = `
+    /* TEMP: Custom-Design-Auswahl auf localhost gesperrt (s. theme.js,
+       DISABLE_CUSTOM_THEMES_ON_LOCALHOST) – Gruppe dann komplett ausblenden.
+       Zusätzlich für Demokonten ausgeblendet (s. HIDE_CUSTOM_THEMES_FOR_DEMO
+       oben). */
+    const isDemoAccount = /\.demo@/i.test(user.email || '');
+    const themesLocked = window.PMTheme?.customDesignsLocked
+      || (HIDE_CUSTOM_THEMES_FOR_DEMO && isDemoAccount);
+    const customGroup = themesLocked ? '' : `
       <div class="theme-group">
         <div class="theme-group__label">Custom-Design</div>
         <div class="theme-tiles">
@@ -83,7 +94,7 @@ document.addEventListener('DOMContentLoaded', async () => {
           <div class="profil-section__icon">
             <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path d="M12 22a10 10 0 1 1 10-10c0 2.21-1.79 3.5-4 3.5h-2.2c-1.1 0-1.8.9-1.8 2 0 .55.2 1.05.55 1.45.35.4.55.9.55 1.45 0 1.1-.9 1.6-2.1 1.6Z"/><circle cx="7.5" cy="11.5" r="1.2" fill="currentColor" stroke="none"/><circle cx="11" cy="7.5" r="1.2" fill="currentColor" stroke="none"/><circle cx="15.5" cy="9" r="1.2" fill="currentColor" stroke="none"/></svg>
           </div>
-          <div class="profil-section__title">Darstellung &amp; Themes</div>
+          <div class="profil-section__title">Darstellung${themesLocked ? '' : ' &amp; Themes'}</div>
         </div>
         <div class="profil-section__body-wrap"><div class="profil-section__body">
           <div class="theme-group">
