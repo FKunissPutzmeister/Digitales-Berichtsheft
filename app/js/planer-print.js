@@ -544,9 +544,24 @@ const PlanerPrint = (() => {
      DOM). Lebte der Zustand in der Closure von open(), wuerden sie beim
      zweiten Oeffnen weiter das ctx des ERSTEN Aufrufs sehen — nach einem
      Filterwechsel wuerde also die alte Personenliste gedruckt. */
-  let S = null;   // { ctx, gewaehlt:Set, mode, suche }
+  let S = null;   // { ctx, gewaehlt:Set, mode, suche, reportSichtbar }
 
   const byId = id => document.getElementById(id);
+
+  /* Personenliste des AKTUELLEN Modus. Tafel und Tabelle drucken die
+     Planer-Auswahl unveraendert; der Report-Modus schneidet sie mit der
+     Menge, die der Server dem Aufrufer zugesteht (GET /report/azubis).
+     Eine Ausbildungsleitung sieht auf der Tafel die ganze Belegschaft, darf
+     aber nur ueber ihren Bereich berichten — waehlte sie hier fremde
+     Personen, antwortete der Endpunkt mit 403 und der Report scheiterte
+     ganz. Besser: die Namen tauchen im Report-Modus gar nicht auf.
+     S.reportSichtbar === null heisst "noch nicht geladen" (dann ungefiltert,
+     der Server bleibt die letzte Instanz). */
+  function personenFuerModus() {
+    const alle = S.ctx.personen || [];
+    if (S.mode !== 'report' || !S.reportSichtbar) return alle;
+    return alle.filter(p => S.reportSichtbar.has(p.id));
+  }
 
   /* Korrektur ggue. der Erstfassung: ein leeres <input type="date"> liefert
      '' — bei von==='' ist "von && bis" falsy, die urspruengliche Pruefung
@@ -568,9 +583,13 @@ const PlanerPrint = (() => {
     // nannte aber nur Datumsgruende — ein Abteilungsfilter ohne Personen
     // sperrte den Button also ohne jede Begruendung.
     if (S.gewaehlt.size === 0) {
-      gruende.push(S.ctx.personen.length
-        ? 'Bitte mindestens eine Person wählen.'
-        : 'Keine Person im aktuellen Filter — Filter in der Toolbar lockern.');
+      const verfuegbar = personenFuerModus().length;
+      if (verfuegbar) gruende.push('Bitte mindestens eine Person wählen.');
+      else if (S.mode === 'report' && S.ctx.personen.length) {
+        gruende.push('Keine Person deines Bereichs im aktuellen Filter.');
+      } else {
+        gruende.push('Keine Person im aktuellen Filter — Filter in der Toolbar lockern.');
+      }
     }
     const text = gruende.join(' ');
     byId('ppErr').textContent = text;
@@ -580,7 +599,8 @@ const PlanerPrint = (() => {
 
   function dlgZeichnen() {
     const listEl = byId('ppList'), countEl = byId('ppCount');
-    const sichtbar = S.ctx.personen.filter(p => !S.suche
+    const basis = personenFuerModus();
+    const sichtbar = basis.filter(p => !S.suche
       || `${p.name} ${p.beruf || ''}`.toLowerCase().includes(S.suche));
     listEl.innerHTML = sichtbar.map(p => `
       <label class="pp-dlg__item">
@@ -589,13 +609,16 @@ const PlanerPrint = (() => {
       </label>`).join('')
       // Leertext nach Ursache trennen: "Keine Treffer." behauptet eine Suche,
       // die es ohne Sucheingabe gar nicht gab.
-      || `<div class="pp-dlg__item">${S.suche ? 'Keine Treffer.' : 'Keine Personen vorhanden.'}</div>`;
+      || `<div class="pp-dlg__item">${S.suche ? 'Keine Treffer.'
+            : (S.mode === 'report' && S.ctx.personen.length
+                ? 'Keine Person deines Bereichs im aktuellen Filter.'
+                : 'Keine Personen vorhanden.')}</div>`;
     listEl.querySelectorAll('input[data-id]').forEach(cb => cb.addEventListener('change', () => {
       if (cb.checked) S.gewaehlt.add(cb.dataset.id); else S.gewaehlt.delete(cb.dataset.id);
-      countEl.textContent = `(${S.gewaehlt.size} von ${S.ctx.personen.length})`;
+      countEl.textContent = `(${S.gewaehlt.size} von ${basis.length})`;
       dlgPruefen();
     }));
-    countEl.textContent = `(${S.gewaehlt.size} von ${S.ctx.personen.length})`;
+    countEl.textContent = `(${S.gewaehlt.size} von ${basis.length})`;
     dlgPruefen();
   }
 
@@ -604,13 +627,33 @@ const PlanerPrint = (() => {
     if (modal.dataset.ppBound) return;
     modal.dataset.ppBound = '1';
 
-    byId('ppMode').addEventListener('click', e => {
+    byId('ppMode').addEventListener('click', async e => {
       const b = e.target.closest('button[data-mode]'); if (!b) return;
       S.mode = b.dataset.mode;
       byId('ppMode').querySelectorAll('button').forEach(x => x.classList.toggle('is-on', x === b));
+      // Der Report-Modus braucht die serverseitig sichtbare Menge. Einmal
+      // je Dialog-Oeffnung laden; scheitert es, bleibt reportSichtbar null
+      // (ungefiltert) und der Endpunkt weist notfalls mit 403 ab.
+      if (S.mode === 'report' && !S.reportSichtbar) {
+        try {
+          const rows = await DB.getReportAzubis();
+          S.reportSichtbar = new Set((rows || []).map(r => r.oid));
+          // Auswahl bereinigen: eine vorher angehakte, hier unzulaessige
+          // Person wuerde den ganzen Report mit 403 scheitern lassen.
+          for (const id of [...S.gewaehlt]) if (!S.reportSichtbar.has(id)) S.gewaehlt.delete(id);
+        } catch (err) {
+          if (typeof Toast !== 'undefined') {
+            Toast.error('Report nicht verfügbar', err.message || 'Zugriff auf die Personenliste fehlgeschlagen.');
+          }
+        }
+      }
+      // Fehlte bisher komplett: ohne Neuzeichnen behielte die Liste die
+      // Personen des vorigen Modus, und das Aktionslabel bliebe "Drucken".
+      byId('ppGo').textContent = S.mode === 'report' ? 'Report erstellen' : 'Drucken';
+      dlgZeichnen();
     });
     byId('ppSearch').addEventListener('input', e => { S.suche = e.target.value.toLowerCase(); dlgZeichnen(); });
-    byId('ppAll').addEventListener('click', () => { S.ctx.personen.forEach(p => S.gewaehlt.add(p.id)); dlgZeichnen(); });
+    byId('ppAll').addEventListener('click', () => { personenFuerModus().forEach(p => S.gewaehlt.add(p.id)); dlgZeichnen(); });
     byId('ppNone').addEventListener('click', () => { S.gewaehlt.clear(); dlgZeichnen(); });
     byId('ppVon').addEventListener('change', dlgPruefen);
     byId('ppBis').addEventListener('change', dlgPruefen);
@@ -635,8 +678,30 @@ const PlanerPrint = (() => {
     byId('ppGo').addEventListener('click', () => {
       const sel = {
         von: byId('ppVon').value, bis: byId('ppBis').value, stand: S.ctx.stand,
-        personen: S.ctx.personen.filter(p => S.gewaehlt.has(p.id)),
+        personen: personenFuerModus().filter(p => S.gewaehlt.has(p.id)),
       };
+
+      /* Report: eigener Weg. Das Fenster MUSS synchron im Klick aufgehen
+         (sonst greift der Popup-Blocker), befuellt wird es erst nach dem
+         Netzwerk-Roundtrip in DurchlaufReport.erstellen(). */
+      if (S.mode === 'report') {
+        const w = window.open('', '_blank', 'width=1000,height=760');
+        if (!w) {
+          if (typeof Toast !== 'undefined') Toast.error('Popup blockiert', 'Bitte Pop-ups für diese Seite erlauben.');
+          return;
+        }
+        Modal.close('ptPrintModal');
+        DurchlaufReport.erstellen(w, {
+          azubiOids: sel.personen.map(p => p.id),
+          von: sel.von, bis: sel.bis,
+          stand: S.ctx.stand, erstelltVon: S.ctx.erstelltVon,
+        }).catch(e => {
+          try { w.close(); } catch (_) {}
+          if (typeof Toast !== 'undefined') Toast.error('Report fehlgeschlagen', e.message || String(e));
+        });
+        return;
+      }
+
       const html = S.mode === 'tafel' ? renderTafelHtml(sel) : renderTabelleHtml(sel);
       if (!openPrintWindow(html)) {
         if (typeof Toast !== 'undefined') Toast.error('Popup blockiert', 'Bitte Pop-ups für diese Seite erlauben.');
@@ -647,13 +712,20 @@ const PlanerPrint = (() => {
   }
 
   function open(ctx) {
-    S = { ctx, gewaehlt: new Set(ctx.personen.map(p => p.id)), mode: 'tafel', suche: '' };
+    // reportSichtbar: pro Dialog-Oeffnung neu, damit eine zwischenzeitlich
+    // geaenderte Rolle/Zuordnung nicht aus dem alten Zustand bedient wird.
+    S = { ctx, gewaehlt: new Set(ctx.personen.map(p => p.id)), mode: 'tafel', suche: '', reportSichtbar: null };
     byId('ppVon').value = ctx.von;
     byId('ppBis').value = ctx.bis;
     byId('ppSearch').value = '';
     byId('ppPresets').querySelector('[data-preset="aj"]').textContent = ctx.ajLabel;
+    // Report-Modus nur fuer die Rollen, die berichten duerfen (Server prueft
+    // erneut). Der Button steht im Markup dauerhaft auf hidden.
+    const reportBtn = byId('ppMode').querySelector('[data-mode="report"]');
+    if (reportBtn) reportBtn.hidden = !ctx.reportErlaubt;
     // Darstellung bei jedem Oeffnen auf Tafel zuruecksetzen (passt zu S.mode).
     byId('ppMode').querySelectorAll('button').forEach(x => x.classList.toggle('is-on', x.dataset.mode === 'tafel'));
+    byId('ppGo').textContent = 'Drucken';
     dlgBind();
     dlgZeichnen();
     Modal.init();

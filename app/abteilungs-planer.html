@@ -117,13 +117,17 @@
                placeholder="z. B. Lehrjahr 26/27" autocomplete="off" spellcheck="false">
       </div>
       <p class="pp-dlg__err pt-grp-dlg__err" id="ptGrpErr" hidden></p>
-      <div class="pp-dlg__row pp-dlg__row--head">
-        <span class="pp-dlg__lbl">Mitglieder <span id="ptGrpCount"></span></span>
-        <div><button type="button" class="btn btn-outline btn-sm" id="ptGrpNone">Keine</button></div>
+      <div class="pp-dlg__block">
+        <div class="pp-dlg__blockkopf">
+          <span class="pp-dlg__lbl">Mitglieder <span id="ptGrpCount"></span></span>
+          <span class="pp-dlg__quick">
+            <button type="button" class="btn btn-ghost btn-sm" id="ptGrpNone">Keine</button>
+          </span>
+        </div>
+        <p class="pt-grp-dlg__note" id="ptGrpNote" hidden></p>
+        <input type="search" id="ptGrpSearch" class="form-control" placeholder="Person suchen …" aria-label="Person suchen">
+        <div class="pp-dlg__list" id="ptGrpList"></div>
       </div>
-      <p class="pt-grp-dlg__note" id="ptGrpNote" hidden></p>
-      <input type="search" id="ptGrpSearch" class="form-control" placeholder="Person suchen …" aria-label="Person suchen">
-      <div class="pp-dlg__list" id="ptGrpList"></div>
     </div>
     <div class="modal__footer">
       <button class="btn btn-outline" data-modal-close>Abbrechen</button>
@@ -159,24 +163,28 @@
       <button class="modal__close" data-modal-close aria-label="Schließen">&times;</button>
     </div>
     <div class="modal__body">
-      <div class="pp-dlg__row">
+      <!-- Bloecke stehen untereinander (Beschriftung ueber den Bedienelementen)
+           statt in einer schmalen linken Beschriftungsspalte: dort brach
+           die Zaehlzeile auf zwei Zeilen und die Von/Bis-Zeile hing an
+           einem leeren Platzhalter, was die Reihen ausgefranst aussehen liess. -->
+      <div class="pp-dlg__block">
         <span class="pp-dlg__lbl">Darstellung</span>
         <div class="pt-seg" id="ppMode">
           <button type="button" data-mode="tafel" class="is-on">Tafel</button>
           <button type="button" data-mode="tabelle">Tabelle</button>
+          <!-- Dritter Modus (Spec 2026-09-09): Sammel-PDF mit Beurteilungen.
+               Standardmaessig versteckt; planer-print.js blendet ihn je Rolle ein. -->
+          <button type="button" data-mode="report" hidden>Report</button>
         </div>
       </div>
 
-      <div class="pp-dlg__row">
+      <div class="pp-dlg__block">
         <span class="pp-dlg__lbl">Zeitraum</span>
         <div class="pp-dlg__presets" id="ppPresets">
           <button type="button" class="btn btn-outline btn-sm" data-preset="aj">AJ</button>
           <button type="button" class="btn btn-outline btn-sm" data-preset="alles">Ganze Ausbildung</button>
           <button type="button" class="btn btn-outline btn-sm" data-preset="heute">Ab heute</button>
         </div>
-      </div>
-      <div class="pp-dlg__row">
-        <span class="pp-dlg__lbl"></span>
         <div class="pp-dlg__dates">
           <label>Von <input type="date" id="ppVon" class="form-control"></label>
           <label>Bis <input type="date" id="ppBis" class="form-control"></label>
@@ -184,15 +192,22 @@
       </div>
       <p class="pp-dlg__err" id="ppErr" hidden></p>
 
-      <div class="pp-dlg__row pp-dlg__row--head">
-        <span class="pp-dlg__lbl">Azubis <span id="ppCount"></span></span>
-        <div>
-          <button type="button" class="btn btn-outline btn-sm" id="ppAll">Alle</button>
-          <button type="button" class="btn btn-outline btn-sm" id="ppNone">Keine</button>
+      <div class="pp-dlg__block">
+        <div class="pp-dlg__blockkopf">
+          <!-- Ohne Wort davor: die Liste enthaelt Azubis UND DH-Studenten,
+               "Azubis" waere also die halbe Wahrheit. Bleibt nur die Zaehlung
+               "(x von y)", die planer-print.js in #ppCount schreibt. -->
+          <span class="pp-dlg__lbl"><span id="ppCount"></span></span>
+          <!-- btn-ghost: bewusst untergeordnet gegenueber den Zeitraum-Vorgaben
+               und dem Aktionsknopf im Fuss — reine Auswahlhilfen. -->
+          <span class="pp-dlg__quick">
+            <button type="button" class="btn btn-ghost btn-sm" id="ppAll">Alle</button>
+            <button type="button" class="btn btn-ghost btn-sm" id="ppNone">Keine</button>
+          </span>
         </div>
+        <input type="search" id="ppSearch" class="form-control" placeholder="Person suchen …" aria-label="Person suchen">
+        <div class="pp-dlg__list" id="ppList"></div>
       </div>
-      <input type="search" id="ppSearch" class="form-control" placeholder="Person suchen …" aria-label="Person suchen">
-      <div class="pp-dlg__list" id="ppList"></div>
     </div>
     <div class="modal__footer">
       <button class="btn btn-outline" data-modal-close>Abbrechen</button>
@@ -211,6 +226,7 @@
 <script src="js/router.js?v=20260811-appscroll"></script>
 <script src="js/react-theme-layer.js"></script>
 <script src="js/planer-print.js"></script>
+<script src="js/durchlauf-report.js"></script>
 <script src="js/abteilungsplaner-export.js"></script>
 <script src="js/abteilungs-planer.js"></script>
 </body>

@@ -683,23 +683,18 @@ document.addEventListener('DOMContentLoaded', async () => {
   let switchDir = 0;                                   // AJ-Wechselrichtung fuer das Eingangs-Feedback (+1/-1)
 
   // ── Daten einmal laden (Namen kommen per JOIN mit) ──
-  const [azubisRaw, dhRaw, abteilungenKatalog, alleZuweisungen, gruppenRaw, sortierungRaw, berufeKatalog] = await Promise.all([
+  const [azubisRaw, dhRaw, abteilungenKatalog, alleZuweisungen, gruppenRaw, sortierungRaw] = await Promise.all([
     DB.getAzubis(), DB.getDhStudenten(), DB.getAbteilungen(), DB.getAllZuweisungen(),
-    DB.getPlanerGruppen(), DB.getPlanerGruppenSortierung(), DB.getBerufe(),
+    DB.getPlanerGruppen(), DB.getPlanerGruppenSortierung(),
   ]);
-  // Technische Azubis gehören nicht in den Abteilungsplaner – nur kaufmännische
-  // Azubis und DH-Studenten (die bleiben unten unangetastet). Bereich kommt aus
-  // demselben Berufe-Katalog (dbo.Berufe), der auch die Ausbildungsleiter-
-  // Zuordnung im Beurteilungsbogen speist (bereichFuerBeruf, backend/services/
-  // beurteilungen.js) – eine Quelle der Wahrheit statt einer zweiten, im Planer
-  // gepflegten Liste. Ein Beruf ohne Katalog-Eintrag gilt NICHT als kaufmännisch
-  // (sicherer Default: neue/unbekannte Berufe fallen technisch => raus, nicht
-  // versehentlich rein).
-  const kaufmaennischeBerufe = new Set(
-    berufeKatalog.filter(b => b.bereich === 'kaufmaennisch').map(b => b.beruf.trim().toLowerCase())
-  );
-  const istKaufmaennisch = beruf => kaufmaennischeBerufe.has(String(beruf || '').trim().toLowerCase());
-  const azubisGefiltert = azubisRaw.filter(a => istKaufmaennisch(a.beruf));
+  // Auf der Tafel stehen ALLE aktiven Azubis + DH-Studenten. Der frühere
+  // Filter auf kaufmännische Berufe (über dbo.Berufe) ist mit dem
+  // Durchlauf-Report zurückgenommen worden (Spec 2026-09-09): der Report
+  // soll den Durchlauf jeder Person abbilden können, und die technische
+  // Ausbildungsleitung plant auf derselben Tafel. Die Sicht-Begrenzung
+  // passiert jetzt dort, wo sie hingehört — serverseitig je Rolle
+  // (GET /api/beurteilungen/report/azubis), nicht per Berufsliste im
+  // Frontend. Gruppierung und Sortierung unten bleiben unverändert.
   gruppenOrder = Array.isArray(sortierungRaw) ? sortierungRaw : [];
   // Eigene Gruppen (Migration 035): gemeinsam gepflegte, frei benannte Buendel.
   // Nicht im State-Konstanten-Block oben, weil sie nach jeder Aenderung neu
@@ -716,7 +711,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   // zwei Zeilen mit identischem Avatar. (Echte Namensdubletten = verschiedene
   // OIDs = verschiedene Menschen und bleiben bewusst getrennt.)
   const seenOid = new Set();
-  const azubis = [...azubisGefiltert, ...dhRaw]
+  const azubis = [...azubisRaw, ...dhRaw]
     .filter(a => (seenOid.has(a.id) ? false : (seenOid.add(a.id), true)))
     .sort((a, b) => nachnameKey(a.name).localeCompare(nachnameKey(b.name), 'de'))
     .map(a => ({ ...a, name: displayName(a.name), initials: getInitials(a.name) }));
@@ -1157,6 +1152,13 @@ document.addEventListener('DOMContentLoaded', async () => {
         bis: DateUtil.toISODate(win.ajEnd),   // Druck-Preset = AJ, ohne Ausblick
         ajLabel: ajLabel(),
         stand: todayISO,
+        /* Dritter Dialog-Modus „Report" (Spec 2026-09-09) — nur für
+           Verwaltung/Developer und die Ausbildungsleitung. Das ist reine
+           UI-Vorsortierung: der Endpunkt prüft die Rolle selbst noch
+           einmal, und die Personenliste wird im Report-Modus mit der
+           serverseitig sichtbaren Menge geschnitten. */
+        reportErlaubt: user.role === 'admin' || user.role === 'developer' || !!user.istAusbildungsleiter,
+        erstelltVon: displayName(user.name),
       });
     });
     on('ptAdd', 'click', () => openZuwModal(null, selectedAzubiId));

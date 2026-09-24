@@ -35,6 +35,11 @@
 const { sql } = require('../db/connection');
 const departmentSvc = require('./department');
 const vertretungenSvc = require('./vertretungen');
+// Sichtbarkeitsregel (dauerAzubiOids/sichtbareAzubis) liegt seit 2026-09-09 in
+// services/azubiSicht.js — es gibt zwei Konsumenten: die Noten-Ansicht und den
+// Durchlauf-Report. Hier nur noch benutzt und unverändert re-exportiert, damit
+// routes/noten.js unangetastet bleibt.
+const azubiSicht = require('./azubiSicht');
 // Eine Wahrheit für Arten und Validierung, gemeinsam mit dem Frontend
 // (Präzedenz: app/js/beurteilung-core.js wird backendseitig requirt).
 const core = require('../../app/js/noten-core.js');
@@ -68,21 +73,6 @@ function darfNotenBearbeiten(user, azubiOid) {
 
 /* ── UNREIN: Loader ─────────────────────────────────────────────────── */
 
-// Azubi-OIDs, die @user über DAUERHAFTE Zuordnungen sieht: die eigenen
-// (AusbilderAzubis) plus die der Personen, die er aktuell vertritt.
-// Bewusst zwei Schritte statt listDelegierteAzubis (siehe Regel 1).
-async function dauerAzubiOids(pool, user) {
-  if (!user || !user.oid) return [];
-  const vertretene = await vertretungenSvc.aktiveVertreteneOids(pool, user.oid);
-  const oids = [user.oid, ...vertretene];
-  const platzhalter = oids.map((_, i) => `@a${i}`).join(',');
-  const req = pool.request();
-  oids.forEach((o, i) => req.input(`a${i}`, sql.NVarChar(36), o));
-  const r = await req.query(
-    `SELECT DISTINCT AzubiOid FROM dbo.AusbilderAzubis WHERE AusbilderOid IN (${platzhalter})`);
-  return r.recordset.map(x => x.AzubiOid);
-}
-
 async function bereichVonAzubi(pool, azubiOid) {
   const r = await pool.request().input('oid', sql.NVarChar(36), azubiOid)
     .query('SELECT Department FROM dbo.Users WHERE Oid = @oid');
@@ -95,52 +85,12 @@ async function bereichVonAzubi(pool, azubiOid) {
 async function ladeNotenKontext(pool, user, azubiOid) {
   const kontext = { dauerAzubiOids: [], azubiBereich: null };
   if (!user) return kontext;
-  kontext.dauerAzubiOids = await dauerAzubiOids(pool, user);
+  kontext.dauerAzubiOids = await azubiSicht.dauerAzubiOids(pool, user);
   if (azubiOid && user.istAusbildungsleiter && user.ausbildungsleiterBereich) {
     const bereich = await bereichVonAzubi(pool, azubiOid);
     kontext.azubiBereich = bereich === undefined ? null : bereich;
   }
   return kontext;
-}
-
-// Quelle für GET /api/noten/azubis. Bewusst NICHT der /me/azubis-Selektor
-// (routes/users.js): der enthält befristete Zuweisungs-Azubis, die hier 403
-// bekämen, und keine DH-Studenten.
-async function sichtbareAzubis(pool, user) {
-  if (!user) return [];
-  const privilegiert = user.role === 'developer' || user.role === 'admin';
-  if (privilegiert) {
-    const r = await pool.request().query(
-      `SELECT Oid, Name, Email, Role, Department, Beruf FROM dbo.Users
-       WHERE Aktiv = 1 AND Role IN ('azubi','dhstudent') ORDER BY Name`);
-    return r.recordset;
-  }
-
-  const oids = new Set(await dauerAzubiOids(pool, user));
-
-  // Ausbildungsleitung: alle aktiven Azubis/DH-Studenten des eigenen
-  // Bereichs. Die Department-Zuordnung passiert in JS (bereichAusDepartment
-  // ist substring-basiert), nicht in SQL.
-  if (user.istAusbildungsleiter && user.ausbildungsleiterBereich) {
-    const r = await pool.request().query(
-      `SELECT Oid, Department FROM dbo.Users
-       WHERE Aktiv = 1 AND Role IN ('azubi','dhstudent')`);
-    for (const row of r.recordset) {
-      if (departmentSvc.bereichAusDepartment(row.Department) === user.ausbildungsleiterBereich) {
-        oids.add(row.Oid);
-      }
-    }
-  }
-
-  if (!oids.size) return [];
-  const liste = [...oids];
-  const platzhalter = liste.map((_, i) => `@o${i}`).join(',');
-  const req = pool.request();
-  liste.forEach((o, i) => req.input(`o${i}`, sql.NVarChar(36), o));
-  const r = await req.query(
-    `SELECT Oid, Name, Email, Role, Department, Beruf FROM dbo.Users
-     WHERE Aktiv = 1 AND Oid IN (${platzhalter}) ORDER BY Name`);
-  return r.recordset;
 }
 
 // Empfänger der Mitteilung: dauerhaft zugeordnete Ausbilder (um ihre
@@ -167,6 +117,10 @@ async function empfaengerFuerMitteilung(pool, azubiOid) {
 module.exports = {
   ARTEN_MIT_MITTEILUNG, BENACHRICHTIGUNG_TYP,
   darfNotenSehen, darfNotenBearbeiten,
-  ladeNotenKontext, dauerAzubiOids, bereichVonAzubi,
-  sichtbareAzubis, empfaengerFuerMitteilung,
+  ladeNotenKontext, bereichVonAzubi, empfaengerFuerMitteilung,
+  // Re-Exporte aus azubiSicht.js: routes/noten.js ruft weiter
+  // notenSvc.sichtbareAzubis(pool, req.user) auf, die Regel selbst liegt
+  // jetzt aber an einer Stelle für beide Konsumenten (Noten + Report).
+  dauerAzubiOids: azubiSicht.dauerAzubiOids,
+  sichtbareAzubis: azubiSicht.sichtbareAzubis,
 };

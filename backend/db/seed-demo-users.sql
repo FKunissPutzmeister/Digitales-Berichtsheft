@@ -1,23 +1,40 @@
 SET NOCOUNT ON;
+-- Reines DML (MERGE/INSERT), keine DDL: das Dev-DB-Konto darf das Schema nicht
+-- anfassen. Neue Spalten kommen ausschliesslich per db/migrations/NNN.
+--
+-- Department, IstAusbildungsleiter und AusbildungsleiterBereich sind seit dem
+-- Durchlauf-Report (Spec 2026-09-09) Teil des Seeds: die Sichtbarkeit einer
+-- Ausbildungsleitung entsteht aus dem Department der Azubis
+-- (backend/services/department.js -> bereichAusDepartment). Ohne gesetztes
+-- Department sieht die kaufmaennische Leitung NIEMANDEN, und der Report-Pfad
+-- laesst sich nicht ausprobieren.
 MERGE dbo.Users AS t USING (VALUES
-  ('00000000-0000-0000-0000-000000000001', N'Florian Kuniß',     'florian.kuniss.demo@putzmeister.com', 'azubi',     0,0, N'Mechatroniker',                     '2024-09-01','2027-08-31',N'wöchentlich'),
-  ('00000000-0000-0000-0000-000000000002', N'Matthias Lengerer', 'matthias.lengerer.demo@putzmeister.com','pruefer', 0,0, NULL, NULL, NULL, N'wöchentlich'),
-  ('00000000-0000-0000-0000-000000000003', N'Florian Kern',      'florian.kern.demo@putzmeister.com',   'azubi',   0,0, N'Fachinformatiker für Systemintegration','2025-09-01','2028-08-31',N'wöchentlich'),
-  ('00000000-0000-0000-0000-000000000004', N'Admin Verwaltung',  'admin.demo@putzmeister.com',        'admin',     1,0, NULL, NULL, NULL, N'wöchentlich'),
-  ('00000000-0000-0000-0000-000000000005', N'Lena Müller',       'lena.mueller.demo@putzmeister.com', 'azubi',     0,0, N'Industriekauffrau',                 '2024-09-01','2027-08-31',N'wöchentlich'),
-  ('00000000-0000-0000-0000-000000000006', N'Jonas Becker',      'jonas.becker.demo@putzmeister.com', 'azubi',     0,0, N'Mechatroniker',                     '2023-09-01','2026-08-31',N'täglich'),
-  ('00000000-0000-0000-0000-000000000007', N'Jana Hofer',        'jana.hofer.demo@putzmeister.com',   'dhstudent', 0,0, N'DH Maschinenbau',                   '2025-10-01','2028-09-30',N'wöchentlich'),
-  ('00000000-0000-0000-0000-000000000099', N'Developer Demo',    'dev.demo@putzmeister.com',          'developer', 0,0, NULL, NULL, NULL, N'wöchentlich'),
+  ('00000000-0000-0000-0000-000000000001', N'Florian Kuniß',     'florian.kuniss.demo@putzmeister.com', 'azubi',     0,0, N'Mechatroniker',                     '2024-09-01','2027-08-31',N'wöchentlich', NULL,                            0, NULL),
+  ('00000000-0000-0000-0000-000000000002', N'Matthias Lengerer', 'matthias.lengerer.demo@putzmeister.com','pruefer', 0,0, NULL, NULL, NULL, N'wöchentlich',                                                  NULL,                            0, NULL),
+  ('00000000-0000-0000-0000-000000000003', N'Florian Kern',      'florian.kern.demo@putzmeister.com',   'azubi',   0,0, N'Fachinformatiker für Systemintegration','2025-09-01','2028-08-31',N'wöchentlich', NULL,                            0, NULL),
+  ('00000000-0000-0000-0000-000000000004', N'Admin Verwaltung',  'admin.demo@putzmeister.com',        'admin',     1,0, NULL, NULL, NULL, N'wöchentlich',                                                  NULL,                            0, NULL),
+  ('00000000-0000-0000-0000-000000000005', N'Lena Müller',       'lena.mueller.demo@putzmeister.com', 'azubi',     0,0, N'Industriekauffrau',                 '2024-09-01','2027-08-31',N'wöchentlich', N'Kaufmännische Ausbildung',     0, NULL),
+  ('00000000-0000-0000-0000-000000000006', N'Jonas Becker',      'jonas.becker.demo@putzmeister.com', 'azubi',     0,0, N'Mechatroniker',                     '2023-09-01','2026-08-31',N'täglich',     NULL,                            0, NULL),
+  ('00000000-0000-0000-0000-000000000007', N'Jana Hofer',        'jana.hofer.demo@putzmeister.com',   'dhstudent', 0,0, N'DH Maschinenbau',                   '2025-10-01','2028-09-30',N'wöchentlich', N'DH-Student',                   0, NULL),
+  -- Kaufmaennische Ausbildungsleitung: Testkonto fuer den Durchlauf-Report.
+  -- KannPlanen=1, weil der Report im Druckdialog des Abteilungs-Planers sitzt
+  -- (bewusst kein Guard-Umbau am Planer). Sieht Lena Müller (kaufm.) und Jana
+  -- Hofer (DH zaehlt kaufmaennisch), NICHT die technischen Azubis — genau das
+  -- ist der 403-Fall in tools/check-durchlauf-report.mjs.
+  ('00000000-0000-0000-0000-000000000097', N'Ausbildungsleitung Kaufm.', 'ausbildungsleitung.kfm.demo@putzmeister.com', 'pruefer', 1,0, NULL, NULL, NULL, N'wöchentlich', N'Kaufmännische Ausbildung', 1, N'kaufmaennisch'),
+  ('00000000-0000-0000-0000-000000000099', N'Developer Demo',    'dev.demo@putzmeister.com',          'developer', 0,0, NULL, NULL, NULL, N'wöchentlich',                                                  NULL,                            0, NULL),
   -- Temporärer Test-Account, um die normale Prüfer-Sicht (kein Admin/Ausbilder) auszuprobieren.
   -- Manuell wieder entfernen, sobald der Test abgeschlossen ist (siehe Kommentar unten).
-  ('00000000-0000-0000-0000-000000000098', N'Test Prüfer (IT)',  'test.pruefer.demo@putzmeister.com', 'pruefer', 0,0, NULL, NULL, NULL, N'wöchentlich')
-) AS s(Oid,Name,Email,Role,KannPlanen,IstAusbilder,Beruf,AusbildungBeginn,AusbildungEnde,BerichtTyp)
+  ('00000000-0000-0000-0000-000000000098', N'Test Prüfer (IT)',  'test.pruefer.demo@putzmeister.com', 'pruefer', 0,0, NULL, NULL, NULL, N'wöchentlich',                                                    NULL,                            0, NULL)
+) AS s(Oid,Name,Email,Role,KannPlanen,IstAusbilder,Beruf,AusbildungBeginn,AusbildungEnde,BerichtTyp,Department,IstAusbildungsleiter,AusbildungsleiterBereich)
 ON t.Oid = s.Oid
 WHEN MATCHED THEN UPDATE SET Name=s.Name, Email=s.Email, Role=s.Role, KannPlanen=s.KannPlanen,
   IstAusbilder=s.IstAusbilder, Beruf=s.Beruf, AusbildungBeginn=s.AusbildungBeginn,
-  AusbildungEnde=s.AusbildungEnde, BerichtTyp=s.BerichtTyp, Aktiv=1, AktualisiertAm=SYSUTCDATETIME()
-WHEN NOT MATCHED THEN INSERT (Oid,Name,Email,Role,KannPlanen,IstAusbilder,Beruf,AusbildungBeginn,AusbildungEnde,BerichtTyp)
-  VALUES (s.Oid,s.Name,s.Email,s.Role,s.KannPlanen,s.IstAusbilder,s.Beruf,s.AusbildungBeginn,s.AusbildungEnde,s.BerichtTyp);
+  AusbildungEnde=s.AusbildungEnde, BerichtTyp=s.BerichtTyp, Department=s.Department,
+  IstAusbildungsleiter=s.IstAusbildungsleiter, AusbildungsleiterBereich=s.AusbildungsleiterBereich,
+  Aktiv=1, AktualisiertAm=SYSUTCDATETIME()
+WHEN NOT MATCHED THEN INSERT (Oid,Name,Email,Role,KannPlanen,IstAusbilder,Beruf,AusbildungBeginn,AusbildungEnde,BerichtTyp,Department,IstAusbildungsleiter,AusbildungsleiterBereich)
+  VALUES (s.Oid,s.Name,s.Email,s.Role,s.KannPlanen,s.IstAusbilder,s.Beruf,s.AusbildungBeginn,s.AusbildungEnde,s.BerichtTyp,s.Department,s.IstAusbildungsleiter,s.AusbildungsleiterBereich);
 PRINT 'Demo-User geseedet.';
 
 -- Temporäre Verknüpfung des Test-Prüfers mit Abteilung "IT" im Abteilungsplaner.
