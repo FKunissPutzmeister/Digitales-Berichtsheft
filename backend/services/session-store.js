@@ -42,11 +42,52 @@ function retryWrite(store, method, { retries, delayMs, swallow }) {
   };
 }
 
+// Logout-Race: `touch` liest die Session-Datei und schreibt sie danach
+// komplett zurück. Läuft `destroy` (Logout) genau dazwischen, legt der
+// Rückschreib-Vorgang die gelöschte Datei samt Anmeldung wieder an — der
+// Nutzer kommt nicht raus ("sofort wieder angemeldet"). express-session sendet
+// die Antwort, bevor touch fertig ist, und Seiten mit vielen parallelen
+// Requests (Admin-Verwaltung) treffen das Fenster zuverlässig.
+// Abhilfe: zerstörte IDs eine Weile merken und einen danach fertig gewordenen
+// set/touch sofort wieder löschen.
+function guardDestroyed(store, { tombstoneMs }) {
+  if (typeof store.destroy !== 'function') return;
+  const destroyed = new Map();   // sessionId → Ablaufzeitpunkt der Markierung
+  const isDestroyed = (id) => {
+    const bis = destroyed.get(id);
+    if (bis === undefined) return false;
+    if (Date.now() > bis) { destroyed.delete(id); return false; }
+    return true;
+  };
+  const destroy = store.destroy;
+  store.destroy = function (sessionId, callback) {
+    const jetzt = Date.now();
+    for (const [id, bis] of destroyed) if (jetzt > bis) destroyed.delete(id);
+    destroyed.set(sessionId, jetzt + tombstoneMs);
+    destroy.call(store, sessionId, callback);
+  };
+  for (const method of ['set', 'touch']) {
+    const original = store[method];
+    if (typeof original !== 'function') continue;
+    store[method] = function (sessionId, session, callback) {
+      original.call(store, sessionId, session, (err, result) => {
+        if (isDestroyed(sessionId)) {
+          destroy.call(store, sessionId, () => { if (callback) callback(null); });
+          return;
+        }
+        if (callback) callback(err, result);
+      });
+    };
+  }
+}
+
 // Versieht `set` und `touch` des Stores mit Schreib-Retries. `touch` schluckt
-// einen endgültigen Fehler (best effort), `set` reicht ihn durch.
-function hardenWrites(store, { retries = 5, delayMs = 40 } = {}) {
+// einen endgültigen Fehler (best effort), `set` reicht ihn durch. Zusätzlich
+// kann kein set/touch eine per Logout zerstörte Session wiederbeleben.
+function hardenWrites(store, { retries = 5, delayMs = 40, tombstoneMs = 60_000 } = {}) {
   retryWrite(store, 'set',   { retries, delayMs, swallow: false });
   retryWrite(store, 'touch', { retries, delayMs, swallow: true });
+  guardDestroyed(store, { tombstoneMs });
   return store;
 }
 

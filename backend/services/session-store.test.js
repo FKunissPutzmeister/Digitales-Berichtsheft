@@ -57,6 +57,36 @@ test('hardenWrites: nicht-transienter Fehler wird nicht wiederholt', async () =>
   assert.equal(calls.touch, 1, 'EINVAL ist kein Lock-Konflikt → kein Retry');
 });
 
+// Hilfs-Store im Speicher, dessen touch wie session-file-store arbeitet: erst
+// lesen, dann (hier: erst nach `release()`) die gelesenen Daten zurückschreiben.
+function makeRacyStore() {
+  const data = new Map();
+  let release;
+  const gate = new Promise((r) => { release = r; });
+  const store = {
+    set(id, sess, cb) { data.set(id, sess); cb(null); },
+    touch(id, sess, cb) {
+      const original = data.get(id) || {};
+      gate.then(() => { data.set(id, original); cb(null); });
+    },
+    destroy(id, cb) { data.delete(id); cb(null); },
+  };
+  return { store, data, release };
+}
+
+test('hardenWrites: touch, der vor dem Logout gelesen hat, weckt die Session nicht wieder auf', async () => {
+  const { store, data, release } = makeRacyStore();
+  hardenWrites(store, { delayMs: 1 });
+  store.set('sid', { userOid: 'admin' }, () => {});
+
+  const touched = new Promise((res) => store.touch('sid', {}, res)); // liest noch mit Anmeldung
+  await new Promise((res) => store.destroy('sid', res));             // Logout
+  release();                                                         // touch schreibt zurück
+  await touched;
+
+  assert.equal(data.has('sid'), false, 'abgemeldete Session darf nicht wieder auftauchen');
+});
+
 test('hardenWrites: ohne set/touch unverändert', () => {
   const store = { get() {} };
   assert.equal(hardenWrites(store), store);
