@@ -1426,11 +1426,14 @@ function initBulkActions(queue, currentUser) {
     const reasonTrim = reason.trim();
     for (const wocheId of ids) {
       const w = queueById.get(wocheId);
+      // Status zuerst, dann die Begründung (wie wochenansicht.js): erst mit
+      // gespeicherter Begründung verschickt der Server die Mail an den Azubi,
+      // und nur, wenn die Woche dann wirklich zurückgewiesen ist.
+      await DB.setWocheStatus(wocheId, 'abgelehnt');
       await DB.addKommentar(wocheId, {
         userId: currentUser.id, text: reasonTrim,
         datum: new Date().toLocaleDateString('de-DE'), typ: 'abgelehnt',
       });
-      await DB.setWocheStatus(wocheId, 'abgelehnt');
       if (w) await DB.addBenachrichtigung({
         userId: w.azubiId, type: 'abgelehnt',
         wocheId, azubiId: w.azubiId, kw: w.kw, year: w.year,
