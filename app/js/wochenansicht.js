@@ -324,9 +324,11 @@ document.addEventListener('DOMContentLoaded', async () => {
   const todayKW   = currentKW;   // für „Diese Woche"-Button (Seite lädt täglich neu)
   const todayYear = currentYear;
 
-  // Navigation von Jahresansicht oder Ausbilder-Cockpit übernehmen
-  const savedKW      = sessionStorage.getItem('gotoKW');
-  const savedYear    = sessionStorage.getItem('gotoYear');
+  // Navigation von Jahresansicht oder Ausbilder-Cockpit übernehmen — oder aus
+  // dem Link einer Mail (?kw=39&jahr=2026, services/mailVorlage.js).
+  const qs           = new URLSearchParams(location.search);
+  const savedKW      = qs.get('kw')   || sessionStorage.getItem('gotoKW');
+  const savedYear    = qs.get('jahr') || sessionStorage.getItem('gotoYear');
   const savedAzubiId = sessionStorage.getItem('gotoAzubiId');
   if (savedKW && savedYear) {
     currentKW = parseInt(savedKW);

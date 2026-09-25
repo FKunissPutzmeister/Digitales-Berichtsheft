@@ -403,13 +403,10 @@ async function ermittleUndErzeugeFaellige(pool, user) {
       .query(`SELECT TOP 1 Id FROM dbo.Benachrichtigungen
               WHERE UserOid=@userOid AND Typ=@typ AND ZuweisungId=@zid`);
     if (!exists.recordset.length) {
+      // Nur die In-App-Mitteilung, sofort. Die Mail dazu kommt erst 14 Tage
+      // nach Einsatzende aus dem täglichen Job (services/mailErinnerungen.js).
       await erzeugeBenachrichtigung(pool, {
         userOid: user.oid, typ: benachrichtigungTyp, zuweisungId: z.ZuweisungId, fromUserOid: null,
-      });
-      // Genau einmal je (Person, Zuweisung, Typ) — der exists-Check oben ist auch die
-      // Sperre gegen wiederholte Erinnerungs-Mails bei jedem Login.
-      await mailBeurteilung(pool, [user.oid], benachrichtigungTyp, {
-        zuweisungId: z.ZuweisungId, azubiOid: z.AzubiOid, abteilung: z.Abteilung, von: z.Von, bis: z.Bis,
       });
     }
   }

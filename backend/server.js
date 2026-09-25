@@ -330,3 +330,20 @@ function planeRetention() {
 planeRetention();
 console.log(`[retention] aktiv — taeglich ${RETENTION_STUNDE}:00 Uhr, `
   + `Loeschfrist ${LOESCHFRIST_TAGE} Tage, Vorwarnung ${VORWARN_TAGE} Tage vorher.`);
+
+// ── Tägliche Erinnerungsmails ────────────────────────────────────
+// „Keine Einträge" an Azubis, „Beurteilung offen" an Verantwortliche. 07:00,
+// damit die Mail morgens im Postfach liegt. Kein Start-Lauf (node --watch).
+// Ob wirklich gesendet wird, entscheidet MAIL_MODUS (services/mail.js).
+const { runErinnerungen } = require('./services/mailErinnerungen');
+const ERINNERUNG_STUNDE = 7;
+function planeErinnerungen() {
+  setTimeout(() => {
+    runErinnerungen()
+      .then((b) => console.log(`[mail-erinnerungen] ${b.modus}: ${b.offen} offen, ${b.gesendet} gesendet, `
+        + `${b.fehlgeschlagen} fehlgeschlagen${b.abgebrochen ? ', ABGEBROCHEN (Obergrenze)' : ''}.`))
+      .catch((err) => logFehler({ quelle: 'backend', nachricht: `[mail-erinnerungen] Lauf: ${err.message}`, stack: err.stack }))
+      .finally(planeErinnerungen);
+  }, msBisNaechsteUhrzeit(ERINNERUNG_STUNDE));
+}
+planeErinnerungen();

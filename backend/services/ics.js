@@ -73,7 +73,9 @@ function einsatzUid(zuweisungId, host = 'berichtsheft.putzmeister.com') {
 }
 
 /* method: 'REQUEST' (anlegen/ändern) | 'CANCEL' (absagen).
-   von/bis: Kalendertage, bis ist INKLUSIV (DTEND ist exklusiv → bis + 1 Tag). */
+   von/bis: Kalendertage, bis ist INKLUSIV (DTEND ist exklusiv → bis + 1 Tag).
+   attendees: E-Mail-Strings oder { email, optional } — optional wird in
+   Outlook zum „optionalen Teilnehmer" (die planende Person). */
 function buildEinsatzIcs({
   uid, sequence, method = 'REQUEST', summary, beschreibung = '',
   von, bis, organizer, attendees = [], now = new Date(),
@@ -97,7 +99,10 @@ function buildEinsatzIcs({
     `ORGANIZER;CN=${icsEscape(organizer.name)}:mailto:${organizer.email}`,
     // RSVP=FALSE: das Postfach ist unbeaufsichtigt, Antworten würde niemand
     // lesen — der Termin ist eine Information, keine Anfrage.
-    ...attendees.map((e) => `ATTENDEE;CUTYPE=INDIVIDUAL;ROLE=REQ-PARTICIPANT;PARTSTAT=NEEDS-ACTION;RSVP=FALSE:mailto:${e}`),
+    ...attendees.map((a) => {
+      const { email, optional } = typeof a === 'string' ? { email: a, optional: false } : a;
+      return `ATTENDEE;CUTYPE=INDIVIDUAL;ROLE=${optional ? 'OPT' : 'REQ'}-PARTICIPANT;PARTSTAT=NEEDS-ACTION;RSVP=FALSE:mailto:${email}`;
+    }),
     'TRANSP:TRANSPARENT',
     'X-MICROSOFT-CDO-ALLDAYEVENT:TRUE',
     'X-MICROSOFT-CDO-BUSYSTATUS:FREE',

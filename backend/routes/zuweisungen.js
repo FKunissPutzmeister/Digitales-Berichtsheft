@@ -167,9 +167,12 @@ router.post('/', nurPlaner, async (req, res) => {
     const neueId = result.recordset[0].Id;
     const ziele = await benachrichtige(pool, [azubiOid, verantwUser ? verantwUser.oid : null],
       'versetzung_neu', req.user.oid);
-    // Mail + Outlook-Termin an dieselben Empfänger (best-effort, wirft nie).
-    await mailVersetzung(pool, ziele, 'versetzung_neu',
-      { zuweisungId: neueId, azubiOid, abteilung, von, bis });
+    // Mail + Outlook-Termin an dieselben Empfänger, die planende Person als
+    // optionale Teilnehmerin dazu (best-effort, wirft nie).
+    void mailVersetzung(pool, ziele, 'versetzung_neu', {
+      zuweisungId: neueId, azubiOid, verantwOid: verantwUser ? verantwUser.oid : null,
+      planerOid: req.user.oid, abteilung, von, bis,
+    });
     res.json({ id: neueId });
   } catch (err) {
     logError({ quelle: 'backend', nachricht: `[zuweisungen] create: ${err.message}`, stack: err.stack,
@@ -254,8 +257,10 @@ router.patch('/:id', nurPlaner, async (req, res) => {
       'versetzung_geaendert', req.user.oid);
     // Termin-Aktualisierung: gleiche UID, höhere SEQUENCE — Outlook ersetzt den
     // bestehenden Termin statt einen zweiten anzulegen.
-    await mailVersetzung(pool, ziele, 'versetzung_geaendert',
-      { zuweisungId: id, azubiOid: row.AzubiOid, abteilung, von, bis });
+    void mailVersetzung(pool, ziele, 'versetzung_geaendert', {
+      zuweisungId: id, azubiOid: row.AzubiOid, verantwOid: verantwUser ? verantwUser.oid : null,
+      planerOid: req.user.oid, abteilung, von, bis,
+    });
     res.json({ ok: true });
   } catch (err) {
     logError({ quelle: 'backend', nachricht: `[zuweisungen] patch: ${err.message}`, stack: err.stack,
@@ -295,10 +300,12 @@ router.delete('/:id', nurPlaner, async (req, res) => {
     }
     await tx.commit(); tx = null;
     if (row) {
-      const ziele = await benachrichtige(pool, [row.AzubiOid, (await userForEmail(pool, row.VerantwEmail))?.oid ?? null],
-        'versetzung_entfernt', req.user.oid);
-      await mailVersetzung(pool, ziele, 'versetzung_entfernt',
-        { zuweisungId: id, azubiOid: row.AzubiOid, abteilung: row.Abteilung, von: row.Von, bis: row.Bis });
+      const verantwOid = (await userForEmail(pool, row.VerantwEmail))?.oid ?? null;
+      const ziele = await benachrichtige(pool, [row.AzubiOid, verantwOid], 'versetzung_entfernt', req.user.oid);
+      void mailVersetzung(pool, ziele, 'versetzung_entfernt', {
+        zuweisungId: id, azubiOid: row.AzubiOid, verantwOid, planerOid: req.user.oid,
+        abteilung: row.Abteilung, von: row.Von, bis: row.Bis,
+      });
     }
     res.json({ ok: true });
   } catch (err) {

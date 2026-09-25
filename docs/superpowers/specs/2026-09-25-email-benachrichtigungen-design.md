@@ -45,7 +45,7 @@ Ohne Mail bleiben: Einreichung, Erst-/Endgenehmigung, Vertretung, Noten, Löschv
 6. **Sperre gegen Doppelmails:** Migration `db/migrations/048_mail_versand.sql` legt `dbo.MailVersand (Anlass, Schluessel UNIQUE, GesendetAm)` an.
    Vor dem Senden wird ein Eintrag geschrieben; scheitert er an UNIQUE, wird nicht gesendet.
    Schlüssel: `keine_eintraege:{oid}:{letzte KW mit Inhalt | nie}` (neue Aktivität ergibt einen neuen Schlüssel, also wieder genau eine Mail) und `beurteilung_offen:{zuweisungId}:{typ}`.
-7. **Bericht zurückgegeben** in `routes/wochen.js` (Aktion `zurueckgeben`, ~Z. 331): eine Mitteilung `abgelehnt` schreiben und `mailBerichtZurueck` aufrufen. Der Kommentar ist der neueste Kommentar zur Woche.
+7. **Bericht zurückgegeben**: Die Mail geht beim Speichern der Begründung raus (`routes/kommentare.js`, Kommentar-Typ `abgelehnt`, nur wenn die Woche dann wirklich `abgelehnt` ist). Erst dann steht der Text fest. Die Mitteilung `abgelehnt` in der App schreibt das Frontend schon heute. In der Sammel-Zurückgabe (`dashboard.js`) läuft jetzt wie in `wochenansicht.js` zuerst der Statuswechsel und danach die Begründung. `wochenansicht.html` versteht `?kw=&jahr=` für den Mail-Link.
 8. Alle Mails laufen weiter nach dem Prinzip „best effort“: Sie werfen keinen Fehler, sondern landen über `logError` in `dbo.Fehlerberichte`.
    `MAIL_FROM` leer bleibt der Not-Aus. Danach `graphify update .`
 9. Vor dem Umsetzen die Spec nach `docs/superpowers/specs/2026-09-25-email-benachrichtigungen-design.md` schreiben und committen.
@@ -55,7 +55,7 @@ Env `MAIL_MODUS` in `mailConfig()`. Die Weiche sitzt zentral in `sendeMail`, dam
 - `aus`: nichts wird gesendet. Das ist der Standard und gilt auch, solange `MAIL_FROM` leer ist.
 - `test`: **jede** Mail geht nur an `MAIL_TEST_AN` (z. B. florian.kern@…). Im Betreff steht vorn `[TEST → echte@adresse]`, der echte Empfänger zusätzlich im Fuß.
   Im ICS werden die Teilnehmer durch die Testadresse ersetzt, damit keine echte Terminanfrage rausgeht.
-  In `dbo.MailVersand` wird im Testmodus nichts vermerkt, sonst wären die Fälle später im Live-Betrieb „schon erledigt“.
+  In `dbo.MailVersand` bekommt jeder Eintrag im Testmodus das Präfix `test:`. Die echten Fälle bleiben dadurch offen, und die Testmails wiederholen sich trotzdem nicht täglich.
 - `pilot`: echter Versand, aber nur an Adressen in `MAIL_NUR_AN` (Liste). Alle anderen werden verworfen und protokolliert.
 - `live`: normaler Betrieb.
 
