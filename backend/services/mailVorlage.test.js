@@ -26,6 +26,9 @@ test('Datum im deutschen Format, UTC-Kalendertag', () => {
   assert.equal(V.datum('2026-10-06'), '06.10.2026');
   assert.equal(V.datum(new Date(Date.UTC(2026, 9, 31))), '31.10.2026');
   assert.equal(V.datum(null), 'offen');
+  assert.equal(V.zeitraum('2026-09-25', '2026-10-20'), '25.09. – 20.10.2026');
+  assert.equal(V.zeitraum('2026-12-14', '2027-01-08'), '14.12.2026 – 08.01.2027');
+  assert.equal(V.zeitraum('2026-12-14', null), '14.12.2026 – offen');
 });
 
 test('Abteilungsmail: Text je Rolle, Button „Durchlaufplan ansehen", Termintitel ohne „Einsatz"', () => {
