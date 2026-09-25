@@ -91,7 +91,8 @@ function renderMail({ kategorie, titel, anredeText, satz, zeilen = [], kommentar
 
   const kommentarBlock = kommentar && kommentar.text
     ? `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 28px"><tr>`
-      + `<td class="zitat" bgcolor="#FFF8E0" style="background:#FFF8E0;border-left:4px solid ${GELB};border-radius:0 8px 8px 0;padding:16px 20px;font-family:${FONT};font-size:15px;line-height:1.6;color:${TEXT}">`
+      + `<td class="zitat" bgcolor="#FFF8E0" style="background:#FFF8E0;border:1px solid #F2DF9B;border-radius:10px;padding:16px 20px;font-family:${FONT};font-size:15px;line-height:1.6;color:${TEXT}">`
+      + `<div class="leise" style="font-size:11px;letter-spacing:1px;text-transform:uppercase;color:#8A7A3C;margin-bottom:6px">Begründung</div>`
       + `${esc(kommentar.text).replace(/\r?\n/g, '<br>')}`
       + (kommentar.von ? `<div class="leise" style="margin-top:8px;font-size:13px;color:#8A8A85">${esc(kommentar.von)}</div>` : '')
       + '</td></tr></table>'
