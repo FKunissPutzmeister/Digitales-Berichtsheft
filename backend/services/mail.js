@@ -78,12 +78,13 @@ function zustellung(cfg, empfaenger) {
 
 // Basis-URL der Anwendung für die Links in den Mails. Ohne APP_BASE_URL aus der
 // SAML-Callback-URL abgeleitet, damit hier keine zweite Pflicht-Variable entsteht.
-// Eine localhost-Adresse taugt in einer Mail nie (der Empfänger öffnet sie auf seinem Rechner) —
-// dann, und ohne jede Angabe, zeigen die Links auf die echte Anwendung.
+// Eine abgeleitete localhost-Adresse taugt in einer Mail nicht (der Empfänger öffnet sie auf
+// seinem Rechner) — dann, und ohne jede Angabe, zeigen die Links auf die echte Anwendung.
+// Ausdrücklich gesetztes APP_BASE_URL gilt immer, auch localhost (lokaler Linktest).
 const APP_PROD_URL = 'https://berichtsheft.jumbo.net';
 function appUrl(env = process.env) {
-  const base = (env.APP_BASE_URL
-    || String(env.SAML_CALLBACK_URL || '').replace(/\/api\/.*$/, '')).replace(/\/+$/, '');
+  if (env.APP_BASE_URL) return env.APP_BASE_URL.replace(/\/+$/, '');
+  const base = String(env.SAML_CALLBACK_URL || '').replace(/\/api\/.*$/, '').replace(/\/+$/, '');
   return !base || /^https?:\/\/(localhost|127\.0\.0\.1)(:|\/|$)/i.test(base) ? APP_PROD_URL : base;
 }
 
