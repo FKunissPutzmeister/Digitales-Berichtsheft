@@ -3,6 +3,7 @@ const { getPool, sql } = require('../db/connection');
 const { darfWocheKorrigieren } = require('../services/zugriff');
 const { ladeKorrekturKontext, ladeWocheFuerZugriff } = require('../services/zugriffContext');
 const { logError } = require('../services/fehlerberichte');
+const { mailBerichtZurueck } = require('../services/mail');
 
 const ERLAUBTE_TYPEN = ['ausbilder', 'abgelehnt'];
 
@@ -35,6 +36,13 @@ router.post('/:wocheId/kommentare', async (req, res) => {
         OUTPUT inserted.Id
         VALUES (@wocheId, @userOid, @autorName, @text, @datum, @typ, @tagId)
       `);
+    // Die Begründung einer Zurückweisung ist der Moment, in dem der Text der
+    // Mail feststeht. Status-Check: das Frontend setzt den Status VOR der
+    // Begründung — ohne ihn ginge bei gescheitertem Statuswechsel eine Rüge
+    // zu einer Woche raus, die gar nicht zurückgewiesen ist.
+    if (sichererTyp === 'abgelehnt' && woche.status === 'abgelehnt') {
+      void mailBerichtZurueck(pool, Number(req.params.wocheId), text, req.user.name, req.user.oid);
+    }
     res.json({ id: result.recordset[0].Id });
   } catch (err) {
     logError({ quelle: 'backend', nachricht: `[kommentare] create: ${err.message}`, stack: err.stack,

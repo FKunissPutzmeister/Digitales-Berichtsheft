@@ -57,3 +57,9 @@ test('sequenceNow steigt monoton', () => {
   assert.ok(b > a);
   assert.ok(a > 0);
 });
+
+test('Optionale Teilnehmer werden OPT-PARTICIPANT, Strings bleiben Pflicht', () => {
+  const ics = bauen({ attendees: ['a@putzmeister.com', { email: 'planer@putzmeister.com', optional: true }] }).replace(/\r\n /g, '');
+  assert.match(ics, /ROLE=REQ-PARTICIPANT;PARTSTAT=NEEDS-ACTION;RSVP=FALSE:mailto:a@putzmeister\.com/);
+  assert.match(ics, /ROLE=OPT-PARTICIPANT;PARTSTAT=NEEDS-ACTION;RSVP=FALSE:mailto:planer@putzmeister\.com/);
+});
