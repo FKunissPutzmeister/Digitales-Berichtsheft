@@ -14,7 +14,7 @@ const path = require('node:path');
 
 const KNOEPFE = [
   'Durchlaufplan ansehen', 'Bericht öffnen', 'Berichtsheft öffnen',
-  'Beurteilung ansehen', 'Beurteilung schreiben', 'Kurzfeedback ansehen', 'Kurzfeedback schreiben',
+  'Beurteilung ansehen', 'Beurteilung schreiben', 'Feedback ansehen', 'Feedback schreiben',
 ];
 
 const slug = (text) => text.toLowerCase().replace(/ä/g, 'ae').replace(/ö/g, 'oe').replace(/ü/g, 'ue').replace(/ß/g, 'ss')

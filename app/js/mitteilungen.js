@@ -111,9 +111,9 @@ document.addEventListener('DOMContentLoaded', async () => {
                                  href: b => `beurteilung.html?zuw=${encodeURIComponent(b.zuweisungId || '')}` },
     beurteilung_abgeschlossen: { tone: 'ok',      label: 'Beurteilung', titel: 'Beurteilung abgeschlossen',
                                  href: b => `beurteilung.html?zuw=${encodeURIComponent(b.zuweisungId || '')}` },
-    kurzfeedback_faellig:      { tone: 'er',      label: 'Kurzfeedback', titel: 'Kurzfeedback fällig',
+    kurzfeedback_faellig:      { tone: 'er',      label: 'Feedback', titel: 'Feedback fällig',
                                  href: b => `beurteilung.html?zuw=${encodeURIComponent(b.zuweisungId || '')}` },
-    kurzfeedback_abgeschlossen: { tone: 'ok',     label: 'Kurzfeedback', titel: 'Kurzfeedback abgeschlossen',
+    kurzfeedback_abgeschlossen: { tone: 'ok',     label: 'Feedback', titel: 'Feedback abgeschlossen',
                                  href: b => `beurteilung.html?zuw=${encodeURIComponent(b.zuweisungId || '')}` },
     // Spiegelt VERWALTUNG_MT_TYPEN in dashboard.js — fehlt der Typ hier,
     // rendert die Mitteilung auf dieser Seite leer, ohne Fehlermeldung.
@@ -168,9 +168,9 @@ document.addEventListener('DOMContentLoaded', async () => {
           ts: b.timestamp || 0,
           tone: faellig ? 'info' : 'ok',
           typeKey: istKurz ? 'kurzfeedback' : 'beurteilung',
-          typeLabel: istKurz ? 'Kurzfeedback' : 'Beurteilung',
+          typeLabel: istKurz ? 'Feedback' : 'Beurteilung',
           title: istKurz
-            ? (faellig ? 'Kurzfeedback fällig' : 'Neues Kurzfeedback liegt vor')
+            ? (faellig ? 'Feedback fällig' : 'Neues Feedback liegt vor')
             : (faellig ? 'Beurteilung fällig' : 'Neue Beurteilung liegt vor'),
           meta: relTime(b.timestamp),
           notifId: b.id,

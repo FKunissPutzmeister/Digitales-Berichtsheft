@@ -97,7 +97,7 @@ function dlbBeurtBlock(z, b, statusKey, ausbilderMode = false) {
   if (b && b.status === 'abgeschlossen') {
     if (b.typ === 'kurz') {
       return `
-        <div class="dlb-beurt dlb-beurt--done">${DLB_ICO.check} Kurzfeedback abgeschlossen</div>
+        <div class="dlb-beurt dlb-beurt--done">${DLB_ICO.check} Feedback abgeschlossen</div>
         <a class="btn btn-outline btn-sm dlb-beurt-open" href="beurteilung.html?zuw=${z.id}">Öffnen</a>`;
     }
     const note = b.note != null ? b.note.toLocaleString('de-DE', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) : '–';
@@ -255,7 +255,7 @@ function durchlaufBoardHtml(user, zuw, heute, beurtByZuw = {}, opts = {}) {
       </div>
       <div class="dlb-mini-card__foot">
         <span class="dlb-ap"><span class="dlb-avatar" style="background:${colorFor(z.abteilung)};color:#fff">${dlbAvatarHTML(z.verantwName, z.verantwOid)}</span><span class="dlb-ap__name">${escHtml(z.verantwName || '–')}</span></span>
-        ${grade ? '' : (istKurz ? `<span class="dlb-beurt dlb-beurt--done">${DLB_ICO.check}Kurzfeedback</span>` : `<span class="dlb-beurt dlb-beurt--open">${DLB_ICO.circle}offen</span>`)}
+        ${grade ? '' : (istKurz ? `<span class="dlb-beurt dlb-beurt--done">${DLB_ICO.check}Feedback</span>` : `<span class="dlb-beurt dlb-beurt--open">${DLB_ICO.circle}offen</span>`)}
       </div>
     </a>`;
   }

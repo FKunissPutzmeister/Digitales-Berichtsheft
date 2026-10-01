@@ -185,17 +185,17 @@ async function sendeMail({ to, empf, text, termin }) {
   }
 }
 
-// Empfänger (Oid → Name/E-Mail/istAzubi), nur aktive Nutzer.
+// Empfänger (Oid → Name/E-Mail/istAzubi/Beruf), nur aktive Nutzer.
 async function ladeEmpfaenger(pool, oids) {
   const ids = [...new Set((oids || []).filter(Boolean))];
   if (!ids.length) return new Map();
   const req = pool.request();
   const params = ids.map((o, i) => { req.input(`o${i}`, sql.NVarChar(36), o); return `@o${i}`; });
-  const r = await req.query(`SELECT Oid, Name, Email, Role, IstAzubi FROM dbo.Users
+  const r = await req.query(`SELECT Oid, Name, Email, Role, IstAzubi, Beruf FROM dbo.Users
                              WHERE Oid IN (${params.join(',')}) AND Aktiv = 1`);
   // istAzubi wie buildReqUser (services/users.js): Basisrolle ODER Zusatz-Tag.
   return new Map(r.recordset.map((u) => [u.Oid, {
-    name: u.Name, email: u.Email, istAzubi: u.Role === 'azubi' || !!u.IstAzubi,
+    name: u.Name, email: u.Email, istAzubi: u.Role === 'azubi' || !!u.IstAzubi, beruf: u.Beruf,
   }]));
 }
 
@@ -216,12 +216,13 @@ async function mailVersetzung(pool, oids, typ, ctx) {
     if (!empfaenger.length) return false;
 
     const azubiName = users.get(ctx.azubiOid) ? users.get(ctx.azubiOid).name : '';
+    const azubiBeruf = users.get(ctx.azubiOid) ? users.get(ctx.azubiOid).beruf : '';
     const verantwName = users.get(ctx.verantwOid) ? users.get(ctx.verantwOid).name : '';
     const art = V.VERSETZUNG[typ];
     // Termin nur mit festem Ende — ein offener Zeitraum hat kein DTEND.
     const termin = (ctx.von && ctx.bis) ? {
       uid: einsatzUid(ctx.zuweisungId), sequence: sequenceNow(), method: art.method,
-      summary: V.terminTitel(azubiName, ctx.abteilung), beschreibung: `Zeitraum ${V.zeitraum(ctx.von, ctx.bis)}`,
+      summary: V.terminTitel(azubiName, ctx.abteilung, azubiBeruf), beschreibung: `Zeitraum ${V.zeitraum(ctx.von, ctx.bis)}`,
       von: ctx.von, bis: ctx.bis,
       attendees: [
         ...pflicht.filter(mitMail).map((o) => ({ email: users.get(o).email, optional: false })),
@@ -233,7 +234,7 @@ async function mailVersetzung(pool, oids, typ, ctx) {
     for (const oid of empfaenger) {
       const rolle = oid === ctx.azubiOid ? 'azubi' : (optional.includes(oid) ? 'planer' : 'abteilung');
       const text = V.textVersetzung({
-        typ, rolle, azubiName, verantwName, abteilung: ctx.abteilung, von: ctx.von, bis: ctx.bis, basisUrl: appUrl(),
+        typ, rolle, azubiName, azubiBeruf, verantwName, abteilung: ctx.abteilung, von: ctx.von, bis: ctx.bis, basisUrl: appUrl(),
       });
       ok = (await sendeMail({ to: [users.get(oid).email], empf: users.get(oid), text, termin })) || ok;
     }
@@ -251,7 +252,7 @@ async function ladeZuweisungKurz(pool, zuweisungId) {
   return r.recordset[0] || null;
 }
 
-/* „Beurteilung/Kurzfeedback liegt vor" an Azubi (+ Ausbildungsleitung).
+/* „Beurteilung/Feedback liegt vor" an Azubi (+ Ausbildungsleitung).
    typ: 'beurteilung_abgeschlossen' | 'kurzfeedback_abgeschlossen'
    ctx: { zuweisungId, azubiOid } */
 async function mailBeurteilung(pool, oids, typ, ctx = {}) {
@@ -278,7 +279,7 @@ async function mailBeurteilung(pool, oids, typ, ctx = {}) {
   }
 }
 
-/* Erinnerung „Beurteilung/Kurzfeedback offen" (täglicher Job, services/mailErinnerungen.js).
+/* Erinnerung „Beurteilung/Feedback offen" (täglicher Job, services/mailErinnerungen.js).
    ctx: { zuweisungId, azubiOid, abteilung, von, bis, typ: 'gross'|'kurz' } */
 async function mailBeurteilungOffen(pool, verantwOid, ctx) {
   if (!mailConfig().configured) return false;
@@ -354,24 +355,24 @@ if (require.main === module) {
   const heute = new Date().toISOString().slice(0, 10);
   const bis = new Date(Date.now() + 25 * 864e5).toISOString().slice(0, 10);
   const basisUrl = appUrl();
-  const azubi = { name: 'Mustermann, Max', istAzubi: true };
+  const azubi = { name: 'Mustermann, Max', istAzubi: true, beruf: 'Fachinformatiker Systemintegration' };
   const ausbilder = { name: 'Kern, Florian', istAzubi: false };
   const termin = {
     uid: einsatzUid(`test-${Date.now()}`), sequence: 0, method: 'REQUEST',
-    summary: V.terminTitel(azubi.name, 'IT'), von: heute, bis,
+    summary: V.terminTitel(azubi.name, 'IT', azubi.beruf), von: heute, bis,
     attendees: to.map((email) => ({ email, optional: false })),
   };
   const faelle = args.includes('--alle') ? [
-    { empf: azubi, termin, text: V.textVersetzung({ typ: 'versetzung_neu', rolle: 'azubi', azubiName: azubi.name, verantwName: ausbilder.name, abteilung: 'IT', von: heute, bis, basisUrl }) },
-    { empf: ausbilder, termin, text: V.textVersetzung({ typ: 'versetzung_neu', rolle: 'abteilung', azubiName: azubi.name, abteilung: 'IT', von: heute, bis, basisUrl }) },
+    { empf: azubi, termin, text: V.textVersetzung({ typ: 'versetzung_neu', rolle: 'azubi', azubiName: azubi.name, azubiBeruf: azubi.beruf, verantwName: ausbilder.name, abteilung: 'IT', von: heute, bis, basisUrl }) },
+    { empf: ausbilder, termin, text: V.textVersetzung({ typ: 'versetzung_neu', rolle: 'abteilung', azubiName: azubi.name, azubiBeruf: azubi.beruf, abteilung: 'IT', von: heute, bis, basisUrl }) },
     { empf: azubi, text: V.textKeineEintraege({ letzterEintrag: 'KW 35/2026', basisUrl }) },
     { empf: ausbilder, text: V.textBeurteilungOffen({ typ: 'gross', azubiName: azubi.name, abteilung: 'IT', von: heute, bis, zuweisungId: 0, basisUrl }) },
     { empf: azubi, text: V.textBeurteilungLiegtVor({ typ: 'beurteilung_abgeschlossen', fuerAzubi: true, azubiName: azubi.name, abteilung: 'IT', von: heute, bis, zuweisungId: 0, basisUrl }) },
     { empf: azubi, text: V.textBerichtZurueck({ kw: 39, jahr: 2026, kommentar: 'Bitte die Tätigkeiten am Mittwoch genauer beschreiben.', vonName: ausbilder.name, am: new Date(), basisUrl }) },
     // zuletzt: sagt den Testtermin von oben wieder ab (räumt den Kalender auf)
-    { empf: ausbilder, termin: { ...termin, sequence: 1, method: 'CANCEL' }, text: V.textVersetzung({ typ: 'versetzung_entfernt', rolle: 'abteilung', azubiName: azubi.name, abteilung: 'IT', von: heute, bis, basisUrl }) },
+    { empf: ausbilder, termin: { ...termin, sequence: 1, method: 'CANCEL' }, text: V.textVersetzung({ typ: 'versetzung_entfernt', rolle: 'abteilung', azubiName: azubi.name, azubiBeruf: azubi.beruf, abteilung: 'IT', von: heute, bis, basisUrl }) },
   ] : [
-    { empf: azubi, termin: args.includes('--termin') ? termin : null, text: V.textVersetzung({ typ: 'versetzung_neu', rolle: 'azubi', azubiName: azubi.name, verantwName: ausbilder.name, abteilung: 'IT', von: heute, bis, basisUrl }) },
+    { empf: azubi, termin: args.includes('--termin') ? termin : null, text: V.textVersetzung({ typ: 'versetzung_neu', rolle: 'azubi', azubiName: azubi.name, azubiBeruf: azubi.beruf, verantwName: ausbilder.name, abteilung: 'IT', von: heute, bis, basisUrl }) },
   ];
   (async () => {
     let fehler = 0;

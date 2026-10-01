@@ -2,7 +2,8 @@
 /* Tägliche Erinnerungsmails (07:00, geplant in server.js):
      keine_eintraege    Azubi, dessen letzte 3 abgeschlossene KW UND die laufende
                         KW leer sind — einmal; erneut erst, wenn danach wieder
-                        etwas eingetragen wurde (neuer Schlüssel).
+                        etwas eingetragen wurde (neuer Schlüssel). Wer noch nie
+                        etwas eingetragen hat, bekommt keine (hat seine Gründe).
      beurteilung_offen  Verantwortliche/r, 14 Tage nach Einsatzende ohne
                         abgeschlossene Beurteilung — einmal je Zuweisung.
 
@@ -113,11 +114,12 @@ async function faelleKeineEintraege(pool, heute) {
               WHERE w.AzubiOid = @o AND (w.Jahr < @j OR (w.Jahr = @j AND w.KW < @k))
               ORDER BY w.Jahr DESC, w.KW DESC`)).recordset.map(parseWoche);
     const letzte = aeltere.find((w) => hatInhalt(w, a.BerichtTyp));
-    const letzterEintrag = letzte ? `KW ${letzte.KW}/${letzte.Jahr}` : '';
+    if (!letzte) continue;   // noch nie etwas eingetragen → keine Erinnerung
+    const letzterEintrag = `KW ${letzte.KW}/${letzte.Jahr}`;
     faelle.push({
       anlass: 'keine_eintraege',
-      schluessel: `keine_eintraege:${a.Oid}:${letzte ? `${letzte.Jahr}-${letzte.KW}` : 'nie'}`,
-      beschreibung: `${anzeigeName(a.Name)} (letzter Eintrag ${letzterEintrag || 'nie'})`,
+      schluessel: `keine_eintraege:${a.Oid}:${letzte.Jahr}-${letzte.KW}`,
+      beschreibung: `${anzeigeName(a.Name)} (letzter Eintrag ${letzterEintrag})`,
       senden: () => mailKeineEintraege(pool, a.Oid, letzterEintrag),
     });
   }
@@ -138,7 +140,7 @@ async function faelleBeurteilungOffen(pool, heute) {
     return {
       anlass: 'beurteilung_offen',
       schluessel: `beurteilung_offen:${z.Id}:${typ}`,
-      beschreibung: `${anzeigeName(z.VerantwName)} → ${typ === 'kurz' ? 'Kurzfeedback' : 'Beurteilung'} ${anzeigeName(z.AzubiName)}, ${z.Abteilung || '—'}, Ende ${ymd(new Date(z.Bis))}`,
+      beschreibung: `${anzeigeName(z.VerantwName)} → ${typ === 'kurz' ? 'Feedback' : 'Beurteilung'} ${anzeigeName(z.AzubiName)}, ${z.Abteilung || '—'}, Ende ${ymd(new Date(z.Bis))}`,
       senden: () => mailBeurteilungOffen(pool, z.VerantwOid, {
         zuweisungId: z.Id, azubiOid: z.AzubiOid, abteilung: z.Abteilung, von: z.Von, bis: z.Bis, typ,
       }),

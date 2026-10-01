@@ -31,16 +31,16 @@ test('Datum im deutschen Format, UTC-Kalendertag', () => {
   assert.equal(V.zeitraum('2026-12-14', null), '14.12.2026 – offen');
 });
 
-test('Abteilungsmail: Text je Rolle, Button „Durchlaufplan ansehen", Termintitel ohne „Einsatz"', () => {
-  const basis = { typ: 'versetzung_neu', azubiName: 'Mustermann, Max', verantwName: 'Kern, Florian', abteilung: 'IT', von: '2026-10-06', bis: '2026-10-31', basisUrl: 'https://bh' };
+test('Abteilungsmail: Text je Rolle, Button „Durchlaufplan ansehen", Termintitel „Azubi-Einsatz: Name (Beruf) - Abteilung"', () => {
+  const basis = { typ: 'versetzung_neu', azubiName: 'Mustermann, Max', azubiBeruf: 'Fachinformatiker Systemintegration', verantwName: 'Kern, Florian', abteilung: 'IT', von: '2026-10-06', bis: '2026-10-31', basisUrl: 'https://bh' };
   const azubi = V.textVersetzung({ ...basis, rolle: 'azubi' });
   assert.equal(azubi.satz, 'deine nächste Abteilung steht fest:');
   assert.deepEqual(azubi.info, { kreis: 'IT', titel: 'IT', unter: '06.10. – 31.10.2026 · bei Florian Kern' });
   assert.equal(azubi.button.text, 'Durchlaufplan ansehen');
-  assert.equal(azubi.subject, 'Abteilungsdurchlauf | Max Mustermann | IT');
-  assert.doesNotMatch(JSON.stringify(azubi), /Einsatz/);
+  assert.equal(azubi.subject, 'Azubi-Einsatz: Max Mustermann (Fachinformatiker Systemintegration) - IT');
+  assert.equal(V.terminTitel('Mustermann, Max', 'IT', null), 'Azubi-Einsatz: Max Mustermann - IT');
   const abt = V.textVersetzung({ ...basis, rolle: 'abteilung' });
-  assert.equal(abt.satz, 'Verstärkung für Ihr Team:');
+  assert.equal(abt.satz, 'für Ihre Abteilung ist eingeplant:');
   assert.deepEqual(abt.info, { kreis: 'MM', titel: 'Max Mustermann', unter: 'IT · 06.10. – 31.10.2026' });
   assert.match(V.textVersetzung({ ...basis, rolle: 'planer' }).button.url, /abteilungs-planer\.html$/);
   assert.match(V.textVersetzung({ ...basis, typ: 'versetzung_entfernt', rolle: 'azubi' }).subject, /^Abgesagt: /);
