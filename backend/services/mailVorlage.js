@@ -235,25 +235,26 @@ const VERSETZUNG = {
   versetzung_neu: {
     praefix: '', method: 'REQUEST', anlass: 'termin', titel: 'Neue Abteilung',
     azubi: 'deine nächste Abteilung steht fest:',
-    abteilung: 'Verstärkung für Ihr Team:',
-    planer: 'Sie haben eingeplant:',
+    abteilung: 'für Ihre Abteilung ist eingeplant:',
+    planer: 'für die Abteilung ist eingeplant:',
   },
   versetzung_geaendert: {
     praefix: 'Aktualisiert: ', method: 'REQUEST', anlass: 'termin', titel: 'Abteilung geändert',
     azubi: 'bei deiner Abteilung hat sich etwas geändert:',
-    abteilung: 'die Planung für Ihr Team hat sich geändert:',
-    planer: 'Sie haben umgeplant:',
+    abteilung: 'die Planung für Ihre Abteilung hat sich geändert:',
+    planer: 'die Planung für die Abteilung wurde geändert:',
   },
   versetzung_entfernt: {
     praefix: 'Abgesagt: ', method: 'CANCEL', anlass: 'abgesagt', titel: 'Abteilung abgesagt',
     azubi: 'diese Abteilung fällt aus:',
-    abteilung: 'die Planung für Ihr Team fällt aus:',
-    planer: 'Sie haben abgesagt:',
+    abteilung: 'die Planung für Ihre Abteilung fällt aus:',
+    planer: 'die Planung für die Abteilung wurde abgesagt:',
   },
 };
 
-const terminTitel = (azubiName, abteilung) =>
-  ['Abteilungsdurchlauf', anzeigeName(azubiName) || 'Azubi', abteilung].filter(Boolean).join(' | ');
+// "Azubi-Einsatz: Florian Kern (Fachinformatiker Systemintegration) - PEG Berechnung" (Lehrjahr ist nicht bekannt).
+const terminTitel = (azubiName, abteilung, beruf) =>
+  `Azubi-Einsatz: ${anzeigeName(azubiName) || 'Azubi'}${beruf ? ` (${beruf})` : ''}${abteilung ? ` - ${abteilung}` : ''}`;
 
 // Info-Zeile zum Azubi: Kreis mit Kürzel, Name, darunter Abteilung · Zeitraum.
 function personInfo(azubiName, abteilung, von, bis) {
@@ -265,14 +266,14 @@ function personInfo(azubiName, abteilung, von, bis) {
 }
 
 // rolle: 'azubi' | 'abteilung' (Verantwortliche, Vertreter) | 'planer'
-function textVersetzung({ typ, rolle, azubiName, verantwName, abteilung, von, bis, basisUrl }) {
+function textVersetzung({ typ, rolle, azubiName, azubiBeruf, verantwName, abteilung, von, bis, basisUrl }) {
   const art = VERSETZUNG[typ];
   const info = rolle === 'azubi'
     ? { kreis: kuerzel(abteilung), titel: abteilung || '—', unter: [zeitraum(von, bis), verantwName && `bei ${anzeigeName(verantwName)}`].filter(Boolean).join(' · ') }
     : personInfo(azubiName, abteilung, von, bis);
   return {
     anlass: art.anlass, kategorie: 'Abteilungsdurchlauf',
-    subject: `${art.praefix}${terminTitel(azubiName, abteilung)}`,
+    subject: `${art.praefix}${terminTitel(azubiName, abteilung, azubiBeruf)}`,
     titel: art.titel, satz: art[rolle], info,
     button: { text: 'Durchlaufplan ansehen', url: `${basisUrl}/app/${rolle === 'planer' ? 'abteilungs-planer' : 'abteilungsdurchlauf'}.html` },
   };
@@ -281,10 +282,10 @@ function textVersetzung({ typ, rolle, azubiName, verantwName, abteilung, von, bi
 // typ: 'beurteilung_abgeschlossen' | 'kurzfeedback_abgeschlossen'
 function textBeurteilungLiegtVor({ typ, fuerAzubi, azubiName, abteilung, von, bis, zuweisungId, basisUrl }) {
   const kurz = typ === 'kurzfeedback_abgeschlossen';
-  const wort = kurz ? 'Kurzfeedback' : 'Beurteilung';
+  const wort = kurz ? 'Feedback' : 'Beurteilung';
   const satz = fuerAzubi
-    ? (kurz ? 'dein Kurzfeedback ist da:' : 'deine Beurteilung ist da:')
-    : `${kurz ? 'das Kurzfeedback' : 'die Beurteilung'} ist abgeschlossen:`;
+    ? (kurz ? 'dein Feedback ist da:' : 'deine Beurteilung ist da:')
+    : `${kurz ? 'das Feedback' : 'die Beurteilung'} ist abgeschlossen:`;
   return {
     anlass: 'erledigt', kategorie: wort,
     subject: fuerAzubi ? `${wort} liegt vor` : `${wort} liegt vor: ${anzeigeName(azubiName)}`,
@@ -298,26 +299,26 @@ function textBeurteilungLiegtVor({ typ, fuerAzubi, azubiName, abteilung, von, bi
 
 // typ: 'gross' | 'kurz' (ermittleTyp)
 function textBeurteilungOffen({ typ, azubiName, abteilung, von, bis, zuweisungId, basisUrl }) {
-  const wort = typ === 'kurz' ? 'Kurzfeedback' : 'Beurteilung';
+  const wort = typ === 'kurz' ? 'Feedback' : 'Beurteilung';
   return {
     anlass: 'offen', kategorie: wort,
     subject: `${wort} offen: ${anzeigeName(azubiName)}`,
     titel: `${wort} offen`,
-    satz: `${typ === 'kurz' ? 'das Kurzfeedback' : 'die Beurteilung'} ist noch offen:`,
+    satz: `${typ === 'kurz' ? 'das Feedback' : 'die Beurteilung'} ist noch offen:`,
     info: personInfo(azubiName, abteilung, von, bis),
     button: { text: `${wort} schreiben`, url: `${basisUrl}/app/beurteilung.html?zuw=${encodeURIComponent(zuweisungId || '')}` },
   };
 }
 
-// letzterEintrag: z. B. "KW 35/2026", leer = noch nie etwas eingetragen.
+// letzterEintrag: z. B. "KW 35/2026" (wer noch nie etwas eingetragen hat, bekommt die Mail nicht).
 function textKeineEintraege({ letzterEintrag, basisUrl }) {
   const [, kw, jahr] = /^KW (\d+)\/(\d+)$/.exec(letzterEintrag || '') || [];
   return {
     anlass: 'erinnerung', kategorie: 'Berichtsheft',
-    subject: 'Dein Berichtsheft ist leer',
+    subject: 'Seit drei Wochen keine Einträge',
     titel: 'Keine Einträge',
-    satz: letzterEintrag ? 'seit drei Wochen ist dein Berichtsheft leer.' : 'in deinem Berichtsheft steht noch nichts.',
-    info: letzterEintrag ? { titel: letzterEintrag, unter: 'Letzter Eintrag' } : null,
+    satz: 'seit mindestens drei Wochen steht nichts in deinem Berichtsheft.',
+    info: { titel: letzterEintrag, unter: 'Letzter Eintrag' },
     button: { text: 'Berichtsheft öffnen', url: `${basisUrl}/app/wochenansicht.html${kw ? `?kw=${kw}&jahr=${jahr}` : ''}` },
   };
 }

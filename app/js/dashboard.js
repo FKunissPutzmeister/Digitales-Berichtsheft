@@ -304,7 +304,7 @@ async function renderAzubiDashboard(user) {
       const faellig = b.type === 'beurteilung_faellig' || b.type === 'kurzfeedback_faellig';
       const istKurz = b.type.startsWith('kurzfeedback_');
       const btitle = istKurz
-        ? (faellig ? 'Kurzfeedback fällig' : 'Neues Kurzfeedback liegt vor')
+        ? (faellig ? 'Feedback fällig' : 'Neues Feedback liegt vor')
         : (faellig ? 'Beurteilung fällig' : 'Neue Beurteilung liegt vor');
       return `
           <a class="b-mitteilung${mtNeu(b) ? ' b-mitteilung--unread' : ''}" href="beurteilung.html?zuw=${encodeURIComponent(b.zuweisungId || '')}"
@@ -1540,9 +1540,9 @@ const VERWALTUNG_MT_TYPEN = {
                                href: b => `beurteilung.html?zuw=${encodeURIComponent(b.zuweisungId || '')}` },
   beurteilung_abgeschlossen: { type: 'success', titel: 'Beurteilung abgeschlossen',
                                href: b => `beurteilung.html?zuw=${encodeURIComponent(b.zuweisungId || '')}` },
-  kurzfeedback_faellig:       { type: 'error',   titel: 'Kurzfeedback fällig',
+  kurzfeedback_faellig:       { type: 'error',   titel: 'Feedback fällig',
                                href: b => `beurteilung.html?zuw=${encodeURIComponent(b.zuweisungId || '')}` },
-  kurzfeedback_abgeschlossen: { type: 'success', titel: 'Kurzfeedback abgeschlossen',
+  kurzfeedback_abgeschlossen: { type: 'success', titel: 'Feedback abgeschlossen',
                                href: b => `beurteilung.html?zuw=${encodeURIComponent(b.zuweisungId || '')}` },
   // Retention-Job: ein Konto wird in höchstens 30 Tagen endgültig gelöscht.
   // Der Betroffene steht in FromUserOid — sein Konto ist inaktiv und in der

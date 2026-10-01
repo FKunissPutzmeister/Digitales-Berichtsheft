@@ -59,7 +59,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   const typ = beurteilung?.typ || window.Beurteilung.ermittleTyp(zuweisung.von, zuweisung.bis);
   main.innerHTML = `
     <div class="page-header">
-      <h1 class="page-title">${typ === 'kurz' ? 'Kurzfeedback' : 'Beurteilungsbogen'}</h1>
+      <h1 class="page-title">${typ === 'kurz' ? 'Feedback' : 'Beurteilungsbogen'}</h1>
       <span class="badge ${statusBadge}">${statusLabel}</span>
     </div>
     <div id="beurtFormHost"></div>
@@ -150,11 +150,11 @@ function renderActions(ctx) {
           id = await DB.saveBeurteilungEntwurf({ zuweisungId: zuweisung.id, ...st });
           if (abgeschlossen) {
             await DB.patchBeurteilung(id, st);
-            Toast.success('Aktualisiert', 'Kurzfeedback wurde aktualisiert (Azubi und Ausbildungsleitung werden benachrichtigt).');
+            Toast.success('Aktualisiert', 'Feedback wurde aktualisiert (Azubi und Ausbildungsleitung werden benachrichtigt).');
           } else {
             // Kein Signatur-Dialog beim Kurzfeedback (siehe Design-Spec §10, Out of Scope).
             await DB.abschliessenBeurteilung(id, null);
-            Toast.success('Abgeschlossen', 'Kurzfeedback abgeschlossen. Azubi und Ausbildungsleitung wurden benachrichtigt.');
+            Toast.success('Abgeschlossen', 'Feedback abgeschlossen. Azubi und Ausbildungsleitung wurden benachrichtigt.');
           }
           setTimeout(back, 800);
         } catch (e) { Toast.error('Fehler', e.message); }
