@@ -27,6 +27,7 @@ const { getGraphToken } = require('./entraSync');
 const { logError } = require('./fehlerberichte');
 const { buildEinsatzIcs, einsatzUid, sequenceNow } = require('./ics');
 const V = require('./mailVorlage');
+const { getPhoto } = require('./userPhotos');
 
 const MODI = ['aus', 'test', 'pilot', 'live'];
 const liste = (s) => String(s || '').split(/[,;\s]+/).map((e) => e.trim().toLowerCase()).filter(Boolean);
@@ -77,11 +78,13 @@ function zustellung(cfg, empfaenger) {
 
 // Basis-URL der Anwendung für die Links in den Mails. Ohne APP_BASE_URL aus der
 // SAML-Callback-URL abgeleitet, damit hier keine zweite Pflicht-Variable entsteht.
+// Eine localhost-Adresse taugt in einer Mail nie (der Empfänger öffnet sie auf seinem Rechner) —
+// dann, und ohne jede Angabe, zeigen die Links auf die echte Anwendung.
+const APP_PROD_URL = 'https://berichtsheft.jumbo.net';
 function appUrl(env = process.env) {
-  const base = env.APP_BASE_URL
-    || String(env.SAML_CALLBACK_URL || '').replace(/\/api\/.*$/, '')
-    || 'http://localhost:3000';
-  return base.replace(/\/+$/, '');
+  const base = (env.APP_BASE_URL
+    || String(env.SAML_CALLBACK_URL || '').replace(/\/api\/.*$/, '')).replace(/\/+$/, '');
+  return !base || /^https?:\/\/(localhost|127\.0\.0\.1)(:|\/|$)/i.test(base) ? APP_PROD_URL : base;
 }
 
 // RFC 2047 für Betreff/Absendername (Umlaute!).
@@ -115,7 +118,7 @@ function buildMime({ from, fromName, to, subject, html, ics, icsMethod = 'REQUES
       `--${stamm}-r`, ...htmlTeil,
       ...bilder.flatMap((b) => [
         `--${stamm}-r`,
-        `Content-Type: image/png; name="${b.datei}"`,
+        `Content-Type: ${b.typ || 'image/png'}; name="${b.datei}"`,
         'Content-Transfer-Encoding: base64',
         `Content-ID: <${b.cid}>`,
         `Content-Disposition: inline; filename="${b.datei}"`,
@@ -159,7 +162,7 @@ async function sendeMail({ to, empf, text, termin }) {
     }) : null;
     const mime = buildMime({
       from: cfg.from, fromName: cfg.fromName, to: z.an, subject: `${z.betreffPraefix}${text.subject}`,
-      html, ics, icsMethod: termin ? termin.method : undefined, bilder: V.mailBilder(),
+      html, ics, icsMethod: termin ? termin.method : undefined, bilder: [...V.mailBilder(html), ...(text.kommentar && text.kommentar.foto ? [text.kommentar.foto] : [])],
     });
     const token = await getGraphToken(cfg);
     const r = await fetch(`https://graph.microsoft.com/v1.0/users/${encodeURIComponent(cfg.from)}/sendMail`, {
@@ -308,7 +311,8 @@ async function mailKeineEintraege(pool, azubiOid, letzterEintrag) {
 /* „Bericht zurückgegeben" an den Azubi — ausgelöst beim Speichern der
    Begründung (Kommentar Typ 'abgelehnt', routes/kommentare.js), weil erst
    dann der Text feststeht. */
-async function mailBerichtZurueck(pool, wocheId, kommentar, vonName) {
+// vonOid: für das Profilbild neben dem Namen (Entra-Sync, dbo.UserPhotos) — fehlt es, zeigt die Mail das Kürzel.
+async function mailBerichtZurueck(pool, wocheId, kommentar, vonName, vonOid) {
   if (!mailConfig().configured) return false;
   try {
     const w = (await pool.request().input('id', sql.Int, wocheId)
@@ -316,7 +320,8 @@ async function mailBerichtZurueck(pool, wocheId, kommentar, vonName) {
     if (!w) return false;
     const u = (await ladeEmpfaenger(pool, [w.AzubiOid])).get(w.AzubiOid);
     if (!u || !u.email) return false;
-    const text = V.textBerichtZurueck({ kw: w.KW, jahr: w.Jahr, kommentar, vonName, basisUrl: appUrl() });
+    const foto = vonOid ? await getPhoto(vonOid).catch(() => null) : null;
+    const text = V.textBerichtZurueck({ kw: w.KW, jahr: w.Jahr, kommentar, vonName, vonFoto: foto && { inhalt: foto.Content, typ: foto.ContentType }, am: new Date(), basisUrl: appUrl() });
     return await sendeMail({ to: [u.email], empf: u, text });
   } catch (err) {
     logError({ quelle: 'backend', nachricht: `[mail] mailBerichtZurueck: ${err.message}`, stack: err.stack });
@@ -361,7 +366,9 @@ if (require.main === module) {
     { empf: azubi, text: V.textKeineEintraege({ letzterEintrag: 'KW 35/2026', basisUrl }) },
     { empf: ausbilder, text: V.textBeurteilungOffen({ typ: 'gross', azubiName: azubi.name, abteilung: 'IT', von: heute, bis, zuweisungId: 0, basisUrl }) },
     { empf: azubi, text: V.textBeurteilungLiegtVor({ typ: 'beurteilung_abgeschlossen', fuerAzubi: true, azubiName: azubi.name, abteilung: 'IT', von: heute, bis, zuweisungId: 0, basisUrl }) },
-    { empf: azubi, text: V.textBerichtZurueck({ kw: 39, jahr: 2026, kommentar: 'Bitte die Tätigkeiten am Mittwoch genauer beschreiben.', vonName: ausbilder.name, basisUrl }) },
+    { empf: azubi, text: V.textBerichtZurueck({ kw: 39, jahr: 2026, kommentar: 'Bitte die Tätigkeiten am Mittwoch genauer beschreiben.', vonName: ausbilder.name, am: new Date(), basisUrl }) },
+    // zuletzt: sagt den Testtermin von oben wieder ab (räumt den Kalender auf)
+    { empf: ausbilder, termin: { ...termin, sequence: 1, method: 'CANCEL' }, text: V.textVersetzung({ typ: 'versetzung_entfernt', rolle: 'abteilung', azubiName: azubi.name, abteilung: 'IT', von: heute, bis, basisUrl }) },
   ] : [
     { empf: azubi, termin: args.includes('--termin') ? termin : null, text: V.textVersetzung({ typ: 'versetzung_neu', rolle: 'azubi', azubiName: azubi.name, verantwName: ausbilder.name, abteilung: 'IT', von: heute, bis, basisUrl }) },
   ];

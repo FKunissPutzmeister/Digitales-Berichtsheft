@@ -16,7 +16,8 @@ Diese Datei hält nur fest, **wo die Umsetzung steht** und was als Nächstes kom
 ## Offen – hier weitermachen
 
 1. **Darstellung in Outlook abnehmen (Florian).** Am 25.09. gingen 6 Beispielmails an florian.kern@ raus. Zu prüfen in Outlook Desktop, im Outlook im Browser und auf dem iPhone:
-   - Bleibt der Button im Dunkelmodus gelb mit dunkler Schrift? Vorher wurde er braun mit weißer Schrift.
+   - 3. Designrunde (28.09.): Überlapp-Design bleibt, die Karte ist jetzt aus einem Stück (liegt auf einem Streifen in Bandfarbe). Info-Zeile statt Fakten-Tabelle, Button und Kreis dunkel mit gelber Schrift (dunkle Schrift auf Gelb wird im neuen Outlook weiß), Gelb = Logo `#FFCC08`. Hell/dunkel lässt sich in Outlook nicht abfragen, im Dunkelmodus färbt Outlook selbst um (weiß → `#292929`, `#EDEDEA` → `#565654`, gemessen). Durchgehend dunkel wurde verworfen.
+   - 4. Designrunde (28.09., „Papier-Embleme"): Papierschnitt-Lagen um die Karte, je Anlass ein Emblem (Kalender, grauer Kalender, Blatt mit Korrektur, Sanduhr, Siegel) — `anlass` in den `text*`-Funktionen, Grafik in `services/mailGrafik.js`. **Alles als CSS-Verlauf, keine Hintergrundbilder:** Testmail im neuen Outlook zeigte `cid:` als Hintergrund gar nicht und `data:` nur bei kleinen Bildern (die ~160 KB der Bild-Szene fehlten ganz). Weitere gemessene Grenzen: eine Zelle mit ~70 Verlauf-Ebenen verwirft es ganz (18 gehen) → Szene auf verschachtelte Zellen mit ≤ 16 Ebenen verteilt; `border-radius` mit mehreren Werten macht es zu einem Wert; harte Farbstopps werden pixelig → jede Kante ~1 px weich. Der Test „Outlook-Grenzen" in `mailVorlage.test.js` prüft das für alle Anlässe. Die Dunkelmodus-Regel, die Button/Kreis auf Gelb drehte, ist raus (neues Outlook wendete sie an → weiße Schrift auf dunklem Gelb). Nachtrag: Die Wellen unter der Karte sind beruhigt (Creme und Boden je ein flacher Bogen statt Wolken), Siegel-Bögen: „Keine Einträge“ und „Beurteilung offen“ (eigener Anlass `offen`) schlichte Uhr, „liegt vor“ Haken; Fuß liegt in derselben Zelle wie die Szene, die Creme vor dem Kartenende ist Kartenhintergrund statt eigener Zeile (Zellgrenzen in der Cremefläche zeigte Outlook als graue Nähte); gelber Button mit Beschriftung als Bild (`services/mailKnoepfe.js`, Outlook färbt dunkle Schrift sonst weiß — auch mit `[data-ogsc]`); Karte 820 px, Schrift 19 px; Begründung im Teams-Stil (Profilbild aus `dbo.UserPhotos`, sonst Kürzel; Name + Datum über der Blase); Links nie auf localhost (`appUrl` fällt auf https://berichtsheft.jumbo.net zurück); der Kopf bleibt schlicht dunkel (Textur probiert und verworfen).
    - Sind die Logos in den beiden **Terminanfragen** zu sehen? Das ist das bekannte Risiko. Die Rückfallebene wären Terminmails ohne Logos, dafür in `mailVersetzung` `bilder` weglassen.
    - Die neue Box „Begründung“ (`30f8d5c`) ist in diesen 6 Mails **noch nicht** drin. Nachschicken mit dem Befehl `--alle` unten.
 2. **Ende-zu-Ende in der App testen** (bisher nicht gemacht). Dev-Server mit `MAIL_MODUS=test` starten, dann
@@ -63,7 +64,8 @@ Die Vorlage lässt sich ohne Versand ansehen: `renderMail` aus `services/mailVor
 | `backend/routes/zuweisungen.js` | Abteilungsmail, wartet nicht auf den Versand, planende Person als `planerOid` |
 | `backend/routes/kommentare.js` | Mail „Bericht zurückgegeben“ beim Speichern der Begründung (Typ `abgelehnt`) |
 | `app/js/dashboard.js` | Sammel-Zurückweisung: erst der Status, dann die Begründung |
-| `app/js/wochenansicht.js` | `?kw=&jahr=` für den Link in der Mail |
+| `app/js/wochenansicht.js` | `?kw=&jahr=` für den Link in der Mail (auch „Keine Einträge“: Woche des letzten Eintrags) |
+| `app/js/app.js` | `requireAuth` rettet den Direktlink über die Anmeldung (`sessionStorage.nachLogin`), SAML landet sonst auf der Startseite |
 
 ## Bekannte Grenzen (bewusst, nicht vergessen)
 

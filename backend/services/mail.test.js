@@ -88,8 +88,11 @@ test('Ohne MAIL_FROM wird nichts gesendet (kein Netzzugriff)', async () => {
   if (vorher !== undefined) process.env.MAIL_FROM = vorher;
 });
 
-test('appUrl leitet die Basis notfalls aus der SAML-Callback-URL ab', () => {
+test('appUrl leitet die Basis notfalls aus der SAML-Callback-URL ab, nie localhost', () => {
   assert.equal(appUrl({ APP_BASE_URL: 'https://berichtsheft.pm.de/' }), 'https://berichtsheft.pm.de');
-  assert.equal(appUrl({ SAML_CALLBACK_URL: 'http://localhost:3000/api/auth/saml/acs' }), 'http://localhost:3000');
-  assert.equal(appUrl({}), 'http://localhost:3000');
+  assert.equal(appUrl({ SAML_CALLBACK_URL: 'https://berichtsheft.jumbo.net/api/auth/saml/acs' }), 'https://berichtsheft.jumbo.net');
+  // localhost ist in einer Mail wertlos → echte Anwendung
+  assert.equal(appUrl({ SAML_CALLBACK_URL: 'http://localhost:3000/api/auth/saml/acs' }), 'https://berichtsheft.jumbo.net');
+  assert.equal(appUrl({ APP_BASE_URL: 'http://127.0.0.1:3000' }), 'https://berichtsheft.jumbo.net');
+  assert.equal(appUrl({}), 'https://berichtsheft.jumbo.net');
 });
