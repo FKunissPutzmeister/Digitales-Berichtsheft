@@ -12,24 +12,42 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const { anzeigeName } = require('./ics');
+const G = require('./mailGrafik');
+const { KNOEPFE, knopfBild } = require('./mailKnoepfe');
 
-const GELB = '#FFC300';
+const GELB = '#FFCC08'; // = Gelb im Logo (pm-logo.png gemessen), nicht das App-#FFC300
+const DUNKEL = '#1A1A1A';
 const TEXT = '#1A1A1A';
 const FONT = "'Segoe UI',Arial,Helvetica,sans-serif";
 
+/* Anlass = Stimmung der Mail. Je Anlass wechseln nur das Emblem, die Akzentlage
+   (bei „abgesagt" grau) und die Farbe der Rubrik — siehe mailGrafik.js. */
+const ANLAESSE = {
+  termin:     { rubrik: GELB },
+  abgesagt:   { rubrik: '#B9B7AE' },
+  zurueck:    { rubrik: '#F5A04A' },
+  erinnerung: { rubrik: GELB },
+  offen:      { rubrik: GELB },
+  erledigt:   { rubrik: GELB },
+};
+
+const assetPfad = (datei) => path.join(__dirname, '..', 'assets', 'mail', datei);
+
 // Doppelte Auflösung, angezeigt in halber Größe (scharf auf Retina/Handy).
 const BILDER = [
-  { cid: 'pm-logo',    datei: 'pm-logo.png',    alt: 'Putzmeister',               breite: 120, hoehe: 64 },
-  { cid: 'powered-by', datei: 'powered-by.png', alt: 'Powered by Putzmeister IT', breite: 100, hoehe: 23 },
+  { cid: 'pm-logo',    datei: 'pm-logo.png',    alt: 'Putzmeister',               breite: 150, hoehe: 79 },
+  { cid: 'powered-by', datei: 'powered-by.png', alt: 'Powered by Putzmeister IT', breite: 150, hoehe: 35 },
 ];
 let bilderCache = null;
-function mailBilder() {
+// Ohne html: die zwei Logos. Mit html: alle Bilder, auf die die Mail verweist (Logos + Buttonbeschriftung) —
+// nur die hängen an, sonst zeigt Outlook die übrigen als Anhang.
+function mailBilder(html) {
   if (!bilderCache) {
-    bilderCache = BILDER.map((b) => ({
-      ...b, inhalt: fs.readFileSync(path.join(__dirname, '..', 'assets', 'mail', b.datei)),
-    }));
+    bilderCache = BILDER.map((b) => ({ ...b, inhalt: fs.readFileSync(assetPfad(b.datei)) }));
   }
-  return bilderCache;
+  if (!html) return bilderCache;
+  const knopf = KNOEPFE.map(knopfBild).filter((b) => b && html.includes(`cid:${b.cid}"`));
+  return [...bilderCache.filter((b) => html.includes(`cid:${b.cid}"`)), ...knopf];
 }
 const bild = (cid) => BILDER.find((b) => b.cid === cid);
 
@@ -43,7 +61,7 @@ function datum(d) {
   const t = new Date(typeof d === 'string' ? `${d.slice(0, 10)}T00:00:00Z` : d);
   return isNaN(t) ? 'offen' : t.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric', timeZone: 'UTC' });
 }
-// Gleiches Jahr → "25.09. – 20.10.2026" (passt in eine Fakten-Kachel ohne Umbruch).
+// Gleiches Jahr → "25.09. – 20.10.2026" (kurz genug für die Unterzeile der Info-Zeile).
 function zeitraum(von, bis) {
   const a = datum(von);
   const b = datum(bis);
@@ -57,6 +75,14 @@ function vorname(name) {
   return i < 0 ? s.split(/\s+/)[0] : s.slice(i + 1).trim();
 }
 
+// Kürzel für den Kreis: "Max Mustermann" → "MM", "IT" → "IT", "Konstruktion" → "K".
+function kuerzel(name) {
+  const w = String(name || '').split(/[\s&/,-]+/).filter((x) => /^\p{L}/u.test(x));
+  if (!w.length) return '';
+  if (w.length === 1) return /^\p{Lu}{2,3}$/u.test(w[0]) ? w[0] : w[0][0].toUpperCase();
+  return (w[0][0] + w[w.length - 1][0]).toUpperCase();
+}
+
 // Azubis werden geduzt, alle anderen gesiezt. Kein Geschlecht in dbo.Users,
 // deshalb „Guten Tag Vorname Nachname" statt „Herr/Frau".
 function anrede(empf) {
@@ -64,149 +90,190 @@ function anrede(empf) {
   return `Guten Tag ${anzeigeName(empf.name)},`;
 }
 
-/* Aufbau (abgestimmt mit Florian, 2. Runde 2026-09-25):
-     dunkles Band über die GANZE Breite (Verlauf + gelber Schein), darin das
-     Banner-Logo bündig an der gelben Oberkante, Rubrik und großer Titel —
-     die Karte beginnt noch im Band und läuft in den hellen Bereich hinein,
-     Fakten als Kacheln nebeneinander, dunkler Fuß mit Powered-by.
-   Dunkelmodus: Band und Fuß sind ohnehin dunkel (Logos in Weiß). Apple Mail
-   & Co. nehmen die prefers-color-scheme-Regeln; Outlook.com/neues Outlook
-   färbt selbst um — dort hält background-image das Button-Gelb und
-   [data-ogsc] die dunkle Button-Schrift. Outlook Desktop ignoriert Verlauf
-   und Rundungen und zeigt die bgcolor-Flächen. */
-function renderMail({ kategorie, titel, anredeText, satz, zeilen = [], kommentar, button, hinweis }) {
+/* Aufbau (4. Runde 2026-09-28, „Familie 1 – Papier-Embleme", alles als Code):
+     Band über die ganze Breite: Logo bündig an der gelben Oberkante,
+     Rubrik und Titel, rechts das Emblem des Anlasses, darunter die Karte.
+     Die Papierlagen sind Verläufe im Hintergrund (mailGrafik.js), verteilt
+     auf ineinander geschachtelte Zellen (Outlook verwirft zu viele Ebenen
+     in einer Zelle), die innerste trägt Rand und Inhalt. Die Karte
+     steckt zwischen den Lagen: ihre letzte Zeile trägt dieselbe Cremelage wie
+     das Band daneben. Die Fuß-Zelle setzt die Cremelage fort, davor der dunkle
+     Boden. Randlos: 100 % Breite, Body und Hülle dunkel.
+   Dunkelmodus: Outlook.com/neues Outlook färbt helle Flächen dunkel und dunkle
+   Schrift hell, Verläufe lässt es in Ruhe. Deshalb sind Button, Kreis und alle
+   Emblem-Flächen per Verlauf festgenagelt, Button und Kreis dunkel mit gelber
+   Schrift (auf Gelb würde die Schrift weiß). Nur die weiße Karte wird dunkel;
+   die Begründung hat deshalb keine eigene Fläche, nur eine durchscheinende
+   Tönung (Verlauf mit Alpha) — die passt auf heller wie dunkler Karte.
+   Outlook Desktop (Word) kennt keine Verläufe und Rundungen: dunkle
+   bgcolor-Fläche, weiße Karte, Emblem als einfache Farbflächen. */
+// Zellen ineinander (außen = hinten): jede füllt die äußere ganz aus, erst die
+// innerste trägt den Rand (class "rand", auf dem Handy schmaler) und den Inhalt.
+function schichten(zellen, inhalt) {
+  const tab = 'role="presentation" cellpadding="0" cellspacing="0" border="0"';
+  return zellen.reduceRight((innen, z, i) => {
+    const innerste = i === zellen.length - 1;
+    const td = `<td align="center" valign="top"${i === 0 ? ` bgcolor="${DUNKEL}"` : ''} class="${innerste ? 'rand ' : ''}${z.klasse}" style="padding:${innerste ? '0 24px' : '0'};${i === 0 ? `background-color:${DUNKEL};` : ''}${z.style}">${innen}</td>`;
+    return i === 0 ? td : `<table ${tab} width="100%" style="width:100%"><tr>${td}</tr></table>`;
+  }, inhalt);
+}
+
+function renderMail({ anlass = 'termin', kategorie, titel, anredeText, satz, info, kommentar, button, hinweis }) {
+  if (!ANLAESSE[anlass]) anlass = 'termin';
+  const a = ANLAESSE[anlass];
+  const s = G.szene(anlass);
   const logo = bild('pm-logo');
   const powered = bild('powered-by');
   const absatz = (inhalt, abstand) =>
-    `<p class="text" style="margin:0 0 ${abstand}px;font-family:${FONT};font-size:16px;line-height:1.6;color:${TEXT}">${inhalt}</p>`;
+    `<p class="text" style="margin:0 0 ${abstand}px;font-family:${FONT};font-size:19px;line-height:30px;color:${TEXT}">${inhalt}</p>`;
+  // Fläche, die Outlook im Dunkelmodus nicht umfärbt.
+  const fest = (farbe) => `background-color:${farbe};background-image:linear-gradient(${farbe},${farbe})`;
+  const tab = 'role="presentation" cellpadding="0" cellspacing="0" border="0"';
 
-  const fakten = zeilen.filter(Boolean);
-  const faktenBlock = fakten.length
-    ? `<table role="presentation" class="fakten" width="100%" cellpadding="0" cellspacing="0" bgcolor="#F6F6F4" style="background:#F6F6F4;border-radius:10px;margin:0 0 32px"><tr>`
-      + fakten.map(([k, v], i) => `<td class="fakt${i === 0 ? ' fakt-erst' : ''}" valign="top" width="${Math.floor(100 / fakten.length)}%" style="padding:18px 20px;${i ? 'border-left:1px solid #E4E4E0;' : ''}">`
-        + `<div class="leise" style="font-family:${FONT};font-size:11px;letter-spacing:1px;text-transform:uppercase;color:#8A8A85">${esc(k)}</div>`
-        + `<div class="text" style="font-family:${FONT};font-size:16px;font-weight:bold;line-height:1.4;color:${TEXT};margin-top:6px">${esc(v)}</div></td>`).join('')
-      + '</tr></table>'
+  const infoBlock = info && info.titel
+    ? `<table ${tab} style="margin:0 0 32px"><tr>`
+      + (info.kreis ? `<td valign="middle" style="padding:0 16px 0 0"><table ${tab}><tr>`
+        + `<td class="kreis" width="52" height="52" align="center" valign="middle" bgcolor="${DUNKEL}" style="width:52px;height:52px;border-radius:26px;${fest(DUNKEL)};font-family:${FONT};font-size:17px;font-weight:bold;color:${GELB}">${esc(info.kreis)}</td>`
+        + '</tr></table></td>' : '')
+      + `<td valign="middle"><div class="text" style="font-family:${FONT};font-size:22px;font-weight:bold;line-height:28px;color:${TEXT}">${esc(info.titel)}</div>`
+      + (info.unter ? `<div class="leise" style="margin-top:3px;font-family:${FONT};font-size:15px;line-height:22px;color:#6B6B66">${esc(info.unter)}</div>` : '')
+      + '</td></tr></table>'
     : '';
 
+  // Begründung wie eine Teams-Nachricht: Name (+ Datum) über der Blase, bündig mit ihrer linken Kante;
+  // das Profilbild (Entra, sonst Kürzel im dunklen Kreis) links daneben, oben bündig mit der Blase.
+  // Die Blase ist nur eine Alpha-Tönung per Verlauf — Outlook färbt im Dunkelmodus nichts um.
+  const autorBild = kommentar && (kommentar.foto
+    ? `<img src="cid:${kommentar.foto.cid}" width="48" height="48" alt="" style="display:block;width:48px;height:48px;border:0;border-radius:24px">`
+    : `<table ${tab}><tr><td class="kreis" width="48" height="48" align="center" valign="middle" bgcolor="${DUNKEL}" style="width:48px;height:48px;border-radius:24px;${fest(DUNKEL)};font-family:${FONT};font-size:16px;font-weight:bold;color:${GELB}">${esc(kuerzel(kommentar.von || '?'))}</td></tr></table>`);
+  const kommentarKopf = kommentar && (kommentar.von || kommentar.zeit)
+    ? `<tr><td></td><td style="padding:0 0 7px;font-family:${FONT};font-size:14px;line-height:20px">`
+      + (kommentar.von ? `<span class="text" style="font-weight:bold;color:${TEXT}">${esc(kommentar.von)}</span>` : '')
+      + (kommentar.zeit ? `<span class="leise" style="padding-left:10px;color:#6B6B66">${esc(kommentar.zeit)}</span>` : '')
+      + '</td></tr>'
+    : '';
   const kommentarBlock = kommentar && kommentar.text
-    ? `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 28px"><tr>`
-      + `<td class="zitat" bgcolor="#FFF8E0" style="background:#FFF8E0;border:1px solid #F2DF9B;border-radius:10px;padding:16px 20px;font-family:${FONT};font-size:15px;line-height:1.6;color:${TEXT}">`
-      + `<div class="leise" style="font-size:11px;letter-spacing:1px;text-transform:uppercase;color:#8A7A3C;margin-bottom:6px">Begründung</div>`
-      + `${esc(kommentar.text).replace(/\r?\n/g, '<br>')}`
-      + (kommentar.von ? `<div class="leise" style="margin-top:8px;font-size:13px;color:#8A8A85">${esc(kommentar.von)}</div>` : '')
-      + '</td></tr></table>'
+    ? `<table ${tab} width="100%" style="margin:6px 0 36px">${kommentarKopf}<tr>`
+      + `<td valign="top" width="48" style="width:48px;padding:0 14px 0 0">${autorBild}</td>`
+      + `<td valign="top"><table ${tab} width="100%"><tr><td style="padding:14px 20px 15px;border-radius:8px;background-image:linear-gradient(rgba(128,120,104,0.12),rgba(128,120,104,0.12))">`
+      + `<div class="text" style="font-family:${FONT};font-size:19px;line-height:30px;color:${TEXT}">${esc(kommentar.text).replace(/\r?\n/g, '<br>')}</div>`
+      + '</td></tr></table></td></tr></table>'
     : '';
 
-  const knopf = button
-    ? `<table role="presentation" cellpadding="0" cellspacing="0"><tr>`
-      + `<td class="knopf" bgcolor="${GELB}" style="background-color:${GELB};background-image:linear-gradient(${GELB},${GELB});border-radius:8px">`
-      + `<a class="knopf-text" href="${esc(button.url)}" style="display:inline-block;padding:15px 30px;font-family:${FONT};font-size:15px;font-weight:bold;color:${TEXT};text-decoration:none;border-radius:8px">${esc(button.text)}&nbsp;&rarr;</a>`
+  // Gelber Button, Beschriftung als Bild (schwarz bleibt schwarz, siehe mailKnoepfe.js);
+  // für Texte ohne Bild der dunkle Button mit gelber Schrift, den Outlook nicht umfärbt.
+  const kb = button && knopfBild(button.text);
+  const knopf = !button ? '' : kb
+    ? `<table ${tab}><tr><td class="knopf" bgcolor="${GELB}" style="${fest(GELB)};border-radius:6px">`
+      + `<a href="${esc(button.url)}" style="display:block;padding:18px 36px;text-decoration:none"><img src="cid:${kb.cid}" width="${kb.breite}" height="${kb.hoehe}" alt="${esc(kb.alt)}" style="display:block;border:0"></a>`
       + '</td></tr></table>'
-    : '';
+    : `<table ${tab}><tr><td class="knopf" bgcolor="${DUNKEL}" style="${fest(DUNKEL)};border-radius:6px">`
+      + `<a href="${esc(button.url)}" style="display:inline-block;padding:18px 36px;font-family:${FONT};font-size:17px;line-height:22px;font-weight:bold;letter-spacing:0.2px;color:${GELB};text-decoration:none;border-radius:6px">${esc(button.text)}&nbsp;&rarr;</a>`
+      + '</td></tr></table>';
 
   return `<!DOCTYPE html><html lang="de"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="color-scheme" content="light dark"><meta name="supported-color-schemes" content="light dark">
 <title>${esc(titel)}</title>
 <style>
-body{margin:0;padding:0;-webkit-text-size-adjust:100%}
+body{margin:0!important;padding:0!important;-webkit-text-size-adjust:100%}
 @media (max-width:620px){
   .rand{padding-left:12px!important;padding-right:12px!important}
-  .innen{padding-left:24px!important;padding-right:24px!important}
-  .titel{font-size:26px!important}
-  .fakt{display:block!important;width:auto!important;border-left:0!important;border-top:1px solid #E4E4E0!important}
-  .fakt-erst{border-top:0!important}
+  .innen{padding-left:26px!important;padding-right:26px!important}
+  .kopf{padding-top:46px!important;padding-bottom:50px!important}
+  .titel{font-size:28px!important;line-height:32px!important;max-width:205px!important}
+  .rubrik{font-size:12px!important}
+  ${s.handyCss}
+  .emblem{padding-right:0!important}
 }
 @media (prefers-color-scheme:dark){
-  .mitte{background:#121212!important}
-  .karte{background:#1E1E1E!important}
+  .karte{background-color:#1E1E1E!important}
   .text{color:#F2F2F2!important}
   .leise{color:#A5A5A0!important}
-  .fakten{background:#2A2A28!important}
-  .fakt{border-color:#3A3A37!important}
-  .zitat{background:#2E2A1C!important;color:#F2F2F2!important}
 }
-[data-ogsc] .knopf-text{color:${TEXT}!important}
-[data-ogsb] .knopf{background-color:${GELB}!important}
 </style></head>
-<body style="margin:0;padding:0;background:#1A1A1A">
+<body bgcolor="${DUNKEL}" style="margin:0;padding:0;background-color:${DUNKEL}">
+<div style="margin:0;padding:0;background-color:${DUNKEL}">
 <div style="display:none;max-height:0;overflow:hidden;mso-hide:all">${esc(satz)}</div>
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" bgcolor="#1A1A1A" style="background-color:#1A1A1A;background-image:radial-gradient(circle at 88% 0%,rgba(255,195,0,0.30) 0%,rgba(255,195,0,0) 42%),linear-gradient(160deg,#343432 0%,#1A1A1A 65%);border-top:4px solid ${GELB}">
-<tr><td align="center" class="rand" style="padding:0 24px">
-<table role="presentation" width="640" cellpadding="0" cellspacing="0" style="width:100%;max-width:640px">
+<table ${tab} width="100%" bgcolor="${DUNKEL}" style="width:100%;background-color:${DUNKEL};border-top:5px solid ${GELB}">
+<tr>${schichten(s.band, `<table ${tab} width="820" style="width:100%;max-width:820px">
 <tr>
-<td valign="top" style="padding:0;line-height:0;font-size:0"><img src="cid:${logo.cid}" width="${logo.breite}" height="${logo.hoehe}" alt="${logo.alt}" style="display:block;border:0"></td>
-<td align="right" valign="middle" style="font-family:${FONT};font-size:13px;color:#BDBDB8">Digitales Berichtsheft</td>
+<td colspan="2" valign="top" style="padding:0;line-height:0;font-size:0"><img src="cid:${logo.cid}" width="${logo.breite}" height="${logo.hoehe}" alt="${logo.alt}" style="display:block;border:0"></td>
 </tr>
-<tr><td colspan="2" style="padding:44px 0 0">
-${kategorie ? `<div style="font-family:${FONT};font-size:12px;font-weight:bold;letter-spacing:2px;text-transform:uppercase;color:${GELB}">${esc(kategorie)}</div>` : ''}
-<h1 class="titel" style="margin:10px 0 0;font-family:'Libre Franklin',${FONT};font-size:32px;line-height:1.2;font-weight:bold;color:#FFFFFF">${esc(titel)}</h1>
-</td></tr>
-<tr><td colspan="2" style="padding:32px 0 0;line-height:0;font-size:0">
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr><td class="karte" bgcolor="#FFFFFF" height="32" style="background:#FFFFFF;border-radius:14px 14px 0 0;height:32px;line-height:32px;font-size:0">&nbsp;</td></tr></table>
-</td></tr>
-</table>
-</td></tr></table>
-<table role="presentation" class="mitte" width="100%" cellpadding="0" cellspacing="0" bgcolor="#EDEDEA" style="background:#EDEDEA">
-<tr><td align="center" class="rand" style="padding:0 24px 48px">
-<table role="presentation" class="karte" width="640" cellpadding="0" cellspacing="0" bgcolor="#FFFFFF" style="width:100%;max-width:640px;background:#FFFFFF;border-radius:0 0 14px 14px">
-<tr><td class="innen" style="padding:0 44px 44px">
+<tr><td class="kopf" valign="top" style="padding:58px 0 86px">
+${kategorie ? `<div class="rubrik" style="font-family:${FONT};font-size:13px;line-height:18px;font-weight:bold;letter-spacing:2.5px;text-transform:uppercase;color:${a.rubrik}">${esc(kategorie)}</div>` : ''}
+<h1 class="titel" style="margin:10px 0 0;font-family:${FONT};font-size:38px;line-height:42px;font-weight:bold;letter-spacing:-0.5px;color:#FFFFFF">${esc(titel)}</h1>
+</td>
+<td class="emblem" align="right" valign="bottom" style="padding:0 18px 10px 0">${G.emblem(anlass)}</td></tr>
+<tr><td colspan="2" style="padding:0">
+<table ${tab} class="karte" width="100%" bgcolor="#FFFFFF" style="width:100%;background-color:#FFFFFF;border-radius:14px;box-shadow:0 -24px 20px -20px rgba(12,12,10,0.6);${s.karte}">
+<tr><td class="innen" style="padding:50px 54px 92px">
 ${absatz(esc(anredeText), 14)}
-${absatz(esc(satz), 28)}
+${absatz(esc(satz), 26)}
 ${kommentarBlock}
-${faktenBlock}
+${infoBlock}
 ${knopf}
 </td></tr>
 </table>
-</td></tr></table>
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" bgcolor="#1A1A1A" style="background:#1A1A1A">
-<tr><td align="center" style="padding:32px 24px 36px">
+</td></tr>
+<tr><td colspan="2" align="center" style="padding:96px 0 34px">
 <img src="cid:${powered.cid}" width="${powered.breite}" height="${powered.hoehe}" alt="${powered.alt}" style="display:block;border:0;margin:0 auto">
-<div style="margin-top:14px;font-family:${FONT};font-size:12px;line-height:1.5;color:#8F8F8A">Automatisch versendet. Antworten werden nicht gelesen.</div>
-${hinweis ? `<div style="margin-top:8px;font-family:${FONT};font-size:12px;font-weight:bold;color:${GELB}">${esc(hinweis)}</div>` : ''}
-</td></tr></table>
+<div style="margin-top:12px;font-family:${FONT};font-size:12px;line-height:18px;color:#9C9A92">Automatisch versendet. Antworten werden nicht gelesen.</div>
+${hinweis ? `<div style="margin-top:8px;font-family:${FONT};font-size:12px;line-height:18px;font-weight:bold;color:${GELB}">${esc(hinweis)}</div>` : ''}
+</td></tr>
+</table>`)}</tr></table>
+</div>
 </body></html>`;
 }
 
 /* ── Texte je Anlass ──────────────────────────────────────────────────────
-   Jede Funktion liefert { kategorie, subject, titel, satz, zeilen, kommentar?, button }
+   Jede Funktion liefert { anlass, kategorie, subject, titel, satz, info?, kommentar?, button }
+   (info = { kreis?, titel, unter? }, die Zeile unter dem Satz)
    — ohne Anrede, die hängt am Empfänger (mail.js setzt sie pro Person). */
 
 const VERSETZUNG = {
   versetzung_neu: {
-    praefix: '', method: 'REQUEST', titel: 'Neue Abteilung',
-    azubi: 'deine nächste Abteilung steht fest.',
-    abteilung: 'Ihre Abteilung bekommt einen Azubi.',
-    planer: 'Sie haben eine Abteilung eingeplant.',
+    praefix: '', method: 'REQUEST', anlass: 'termin', titel: 'Neue Abteilung',
+    azubi: 'deine nächste Abteilung steht fest:',
+    abteilung: 'Verstärkung für Ihr Team:',
+    planer: 'Sie haben eingeplant:',
   },
   versetzung_geaendert: {
-    praefix: 'Aktualisiert: ', method: 'REQUEST', titel: 'Abteilung geändert',
-    azubi: 'deine Abteilung wurde geändert.',
-    abteilung: 'die Planung für Ihre Abteilung wurde geändert.',
-    planer: 'Sie haben eine Abteilung umgeplant.',
+    praefix: 'Aktualisiert: ', method: 'REQUEST', anlass: 'termin', titel: 'Abteilung geändert',
+    azubi: 'bei deiner Abteilung hat sich etwas geändert:',
+    abteilung: 'die Planung für Ihr Team hat sich geändert:',
+    planer: 'Sie haben umgeplant:',
   },
   versetzung_entfernt: {
-    praefix: 'Abgesagt: ', method: 'CANCEL', titel: 'Abteilung abgesagt',
-    azubi: 'diese Abteilung wurde abgesagt.',
-    abteilung: 'die Planung für Ihre Abteilung wurde abgesagt.',
-    planer: 'Sie haben eine Abteilung abgesagt.',
+    praefix: 'Abgesagt: ', method: 'CANCEL', anlass: 'abgesagt', titel: 'Abteilung abgesagt',
+    azubi: 'diese Abteilung fällt aus:',
+    abteilung: 'die Planung für Ihr Team fällt aus:',
+    planer: 'Sie haben abgesagt:',
   },
 };
 
 const terminTitel = (azubiName, abteilung) =>
   ['Abteilungsdurchlauf', anzeigeName(azubiName) || 'Azubi', abteilung].filter(Boolean).join(' | ');
 
+// Info-Zeile zum Azubi: Kreis mit Kürzel, Name, darunter Abteilung · Zeitraum.
+function personInfo(azubiName, abteilung, von, bis) {
+  const name = anzeigeName(azubiName) || 'Azubi';
+  return {
+    kreis: kuerzel(name), titel: name,
+    unter: [abteilung, (von || bis) ? zeitraum(von, bis) : ''].filter(Boolean).join(' · '),
+  };
+}
+
 // rolle: 'azubi' | 'abteilung' (Verantwortliche, Vertreter) | 'planer'
 function textVersetzung({ typ, rolle, azubiName, verantwName, abteilung, von, bis, basisUrl }) {
   const art = VERSETZUNG[typ];
-  const zeilen = rolle === 'azubi'
-    ? [['Abteilung', abteilung || '—'], ['Zeitraum', zeitraum(von, bis)], verantwName ? ['Verantwortlich', anzeigeName(verantwName)] : null]
-    : [['Azubi', anzeigeName(azubiName) || '—'], ['Abteilung', abteilung || '—'], ['Zeitraum', zeitraum(von, bis)]];
+  const info = rolle === 'azubi'
+    ? { kreis: kuerzel(abteilung), titel: abteilung || '—', unter: [zeitraum(von, bis), verantwName && `bei ${anzeigeName(verantwName)}`].filter(Boolean).join(' · ') }
+    : personInfo(azubiName, abteilung, von, bis);
   return {
-    kategorie: 'Abteilungsdurchlauf',
+    anlass: art.anlass, kategorie: 'Abteilungsdurchlauf',
     subject: `${art.praefix}${terminTitel(azubiName, abteilung)}`,
-    titel: art.titel, satz: art[rolle], zeilen,
+    titel: art.titel, satz: art[rolle], info,
     button: { text: 'Durchlaufplan ansehen', url: `${basisUrl}/app/${rolle === 'planer' ? 'abteilungs-planer' : 'abteilungsdurchlauf'}.html` },
   };
 }
@@ -216,14 +283,15 @@ function textBeurteilungLiegtVor({ typ, fuerAzubi, azubiName, abteilung, von, bi
   const kurz = typ === 'kurzfeedback_abgeschlossen';
   const wort = kurz ? 'Kurzfeedback' : 'Beurteilung';
   const satz = fuerAzubi
-    ? (kurz ? 'dein Kurzfeedback ist da.' : 'deine Beurteilung ist da.')
-    : `${kurz ? 'das Kurzfeedback' : 'die Beurteilung'} für ${anzeigeName(azubiName)} liegt vor.`;
+    ? (kurz ? 'dein Kurzfeedback ist da:' : 'deine Beurteilung ist da:')
+    : `${kurz ? 'das Kurzfeedback' : 'die Beurteilung'} ist abgeschlossen:`;
   return {
-    kategorie: wort,
+    anlass: 'erledigt', kategorie: wort,
     subject: fuerAzubi ? `${wort} liegt vor` : `${wort} liegt vor: ${anzeigeName(azubiName)}`,
     titel: `${wort} liegt vor`, satz,
-    zeilen: [fuerAzubi ? null : ['Azubi', anzeigeName(azubiName)], abteilung ? ['Abteilung', abteilung] : null,
-      (von || bis) ? ['Zeitraum', zeitraum(von, bis)] : null],
+    info: fuerAzubi
+      ? (abteilung ? { kreis: kuerzel(abteilung), titel: abteilung, unter: (von || bis) ? zeitraum(von, bis) : '' } : null)
+      : personInfo(azubiName, abteilung, von, bis),
     button: { text: `${wort} ansehen`, url: `${basisUrl}/app/beurteilung.html?zuw=${encodeURIComponent(zuweisungId || '')}` },
   };
 }
@@ -232,40 +300,46 @@ function textBeurteilungLiegtVor({ typ, fuerAzubi, azubiName, abteilung, von, bi
 function textBeurteilungOffen({ typ, azubiName, abteilung, von, bis, zuweisungId, basisUrl }) {
   const wort = typ === 'kurz' ? 'Kurzfeedback' : 'Beurteilung';
   return {
-    kategorie: wort,
+    anlass: 'offen', kategorie: wort,
     subject: `${wort} offen: ${anzeigeName(azubiName)}`,
     titel: `${wort} offen`,
-    satz: `${typ === 'kurz' ? 'das Kurzfeedback' : 'die Beurteilung'} für ${anzeigeName(azubiName)} ist noch offen.`,
-    zeilen: [['Azubi', anzeigeName(azubiName)], ['Abteilung', abteilung || '—'], ['Zeitraum', zeitraum(von, bis)]],
+    satz: `${typ === 'kurz' ? 'das Kurzfeedback' : 'die Beurteilung'} ist noch offen:`,
+    info: personInfo(azubiName, abteilung, von, bis),
     button: { text: `${wort} schreiben`, url: `${basisUrl}/app/beurteilung.html?zuw=${encodeURIComponent(zuweisungId || '')}` },
   };
 }
 
 // letzterEintrag: z. B. "KW 35/2026", leer = noch nie etwas eingetragen.
 function textKeineEintraege({ letzterEintrag, basisUrl }) {
+  const [, kw, jahr] = /^KW (\d+)\/(\d+)$/.exec(letzterEintrag || '') || [];
   return {
-    kategorie: 'Berichtsheft',
+    anlass: 'erinnerung', kategorie: 'Berichtsheft',
     subject: 'Dein Berichtsheft ist leer',
     titel: 'Keine Einträge',
-    satz: 'seit drei Wochen ist dein Berichtsheft leer.',
-    zeilen: [['Letzter Eintrag', letzterEintrag || 'noch keiner']],
-    button: { text: 'Berichtsheft öffnen', url: `${basisUrl}/app/wochenansicht.html` },
+    satz: letzterEintrag ? 'seit drei Wochen ist dein Berichtsheft leer.' : 'in deinem Berichtsheft steht noch nichts.',
+    info: letzterEintrag ? { titel: letzterEintrag, unter: 'Letzter Eintrag' } : null,
+    button: { text: 'Berichtsheft öffnen', url: `${basisUrl}/app/wochenansicht.html${kw ? `?kw=${kw}&jahr=${jahr}` : ''}` },
   };
 }
 
-function textBerichtZurueck({ kw, jahr, kommentar, vonName, basisUrl }) {
+// vonFoto: { inhalt, typ } aus dbo.UserPhotos (optional) → hängt als Inline-Bild „autor-foto“ an.
+// am: Zeitpunkt der Begründung — das Datum steht wie in Teams neben dem Namen (deutsche Zeit).
+function textBerichtZurueck({ kw, jahr, kommentar, vonName, vonFoto, am, basisUrl }) {
+  const zeit = am ? new Date(am).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric', timeZone: 'Europe/Berlin' }) : '';
+  const foto = vonFoto && vonFoto.inhalt
+    ? { cid: 'autor-foto', datei: /png/.test(vonFoto.typ || '') ? 'autor.png' : 'autor.jpg', typ: vonFoto.typ || 'image/jpeg', inhalt: vonFoto.inhalt }
+    : null;
   return {
-    kategorie: 'Berichtsheft',
+    anlass: 'zurueck', kategorie: 'Berichtsheft',
     subject: `Bericht KW ${kw} zurückgegeben`,
     titel: 'Bericht zurückgegeben',
     satz: `dein Bericht für KW ${kw} braucht eine Korrektur.`,
-    kommentar: kommentar ? { text: kommentar, von: vonName ? anzeigeName(vonName) : '' } : null,
-    zeilen: [],
+    kommentar: kommentar ? { text: kommentar, von: vonName ? anzeigeName(vonName) : '', zeit, foto } : null,
     button: { text: 'Bericht öffnen', url: `${basisUrl}/app/wochenansicht.html?kw=${kw}&jahr=${jahr}` },
   };
 }
 
 module.exports = {
-  mailBilder, renderMail, anrede, vorname, datum, zeitraum, terminTitel, VERSETZUNG,
+  mailBilder, renderMail, anrede, vorname, kuerzel, datum, zeitraum, terminTitel, VERSETZUNG,
   textVersetzung, textBeurteilungLiegtVor, textBeurteilungOffen, textKeineEintraege, textBerichtZurueck,
 };

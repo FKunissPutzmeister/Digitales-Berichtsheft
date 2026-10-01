@@ -41,7 +41,7 @@ router.post('/:wocheId/kommentare', async (req, res) => {
     // Begründung — ohne ihn ginge bei gescheitertem Statuswechsel eine Rüge
     // zu einer Woche raus, die gar nicht zurückgewiesen ist.
     if (sichererTyp === 'abgelehnt' && woche.status === 'abgelehnt') {
-      void mailBerichtZurueck(pool, Number(req.params.wocheId), text, req.user.name);
+      void mailBerichtZurueck(pool, Number(req.params.wocheId), text, req.user.name, req.user.oid);
     }
     res.json({ id: result.recordset[0].Id });
   } catch (err) {
