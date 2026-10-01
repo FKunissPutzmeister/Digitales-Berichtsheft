@@ -24,8 +24,18 @@ function scrollHost() {
 /* ── Auth Guard ── */
 async function requireAuth() {
   const user = await DB.fetchCurrentUser();
+  // Direktlink (z. B. „Bericht öffnen“ in einer Mail mit ?kw=&jahr=) über die
+  // Anmeldung retten: SAML landet immer auf der Startseite der Rolle.
+  const hier = location.pathname + location.search;
   if (!user) {
+    sessionStorage.setItem('nachLogin', hier);
     window.location.href = 'index.html';
+    return null;
+  }
+  const ziel = sessionStorage.getItem('nachLogin');
+  sessionStorage.removeItem('nachLogin');
+  if (ziel && ziel !== hier) {
+    location.replace(ziel);
     return null;
   }
   return user;
