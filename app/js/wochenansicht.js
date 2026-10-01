@@ -330,6 +330,9 @@ document.addEventListener('DOMContentLoaded', async () => {
   const savedKW      = qs.get('kw')   || sessionStorage.getItem('gotoKW');
   const savedYear    = qs.get('jahr') || sessionStorage.getItem('gotoYear');
   const savedAzubiId = sessionStorage.getItem('gotoAzubiId');
+  // Mail-KW nur einmal anwenden: aus der Adresszeile nehmen (ohne Neuladen),
+  // sonst steht nach dem Wochenwechsel noch ?kw=39 da und F5 springt zurück.
+  if (qs.has('kw')) history.replaceState(history.state, '', location.pathname);
   if (savedKW && savedYear) {
     currentKW = parseInt(savedKW);
     currentYear = parseInt(savedYear);
