@@ -431,14 +431,6 @@ html[data-theme="christmas"] .b-recent::before {
     radial-gradient(ellipse 86% 58% at 50% 82%, rgba(4, 8, 18, 0.30), transparent 78%);
 }
 
-/* Fläche + Rand der Wochenkacheln stehen weiter unten im Glas-Block
-   („Inhalts-Flächen: präsent") — hier nur noch die Textfarbe. */
-[data-theme="christmas"] .b-wkcard {
-  color: #fff;
-}
-[data-theme="christmas"] .b-wkcard__kw { color: #fff; }
-[data-theme="christmas"] .b-wkcard:hover { border-color: rgba(255, 255, 255, 0.18); }
-
 [data-theme="christmas"] .b-hero__kw,
 [data-theme="christmas"] .b-recent__head h3,
 [data-theme="christmas"] .b-stats__foot .big {
@@ -489,7 +481,7 @@ html[data-theme="christmas"] .b-recent::before {
 
 /* Die Kachel ist nur noch Träger. Hintergrund, Rand und Blur liegen in
    .pm-xm-glass — dort sitzen sie ÜBER dem Frost. Eine 1px-Kante UNTER
-   blur(2px) verschmiert sonst zu einem hellen Schleier. */
+   blur(3px) verschmiert sonst zu einem hellen Schleier. */
 html[data-theme="christmas"] .bento .b-hero,
 html[data-theme="christmas"] .bento .b-mitteilungen,
 html[data-theme="christmas"] .bento .b-recent,
@@ -508,6 +500,25 @@ html[data-theme="christmas"] .bento .b-recent,
      Doppelrand an den Kachelseiten. */
   border: 0 !important;
   box-shadow: none !important;
+}
+
+
+/* Die Einblendung darf nicht AUF der Kachel laufen. .animate-fade-in (base.css)
+   animiert opacity, und eine laufende opacity-Animation macht die Kachel zum
+   Backdrop Root — das Glas darin sieht dann fuer die Dauer der Blende nur die
+   eigene leere Flaeche und poppt danach herein. Genau das sah beim Wechsel auf
+   das Dashboard buggy aus: erst ganz transparente Panels, dann das Material.
+   Die Kachel selbst ist hier ohnehin unsichtbar (Regel darueber: transparent,
+   kein Rand, kein Schatten), also blendet stattdessen ihr Inhalt ein — die
+   Glasebene eingeschlossen. Deren eigene opacity wird NACH dem
+   backdrop-filter angewendet, blendet also sauber vom rohen Foto aufs Glas
+   ueber, statt das Glas abzuschalten. Nachgemessen: keine der vier Kacheln hat
+   animierte Nachfahren, das > * ueberschreibt also nichts.
+   Gleiche Ursache, andere Ebene: base.css (Blende auf .main-wrapper /
+   .main-content) und router.js (SPA-Blende). */
+[data-theme="christmas"] .pm-xm-glass-card { animation: none; }
+[data-theme="christmas"] .pm-xm-glass-card > * {
+  animation: fadeIn var(--t-normal) backwards;
 }
 
 /* KEIN Scrim-Band auf den Kacheln (Lab-Scrim-Form „Halo"). Ein Band über die
@@ -529,7 +540,7 @@ html[data-theme="christmas"] .bento .b-recent::before,
    Script gesetzten .pm-xm-glass-card hängen), sonst liegt der Scrim vor dem
    ersten Script-Lauf über dem Text. */
 [data-theme="christmas"] :is(.welcome-hero, .bento .b-hero,
-  .bento .b-mitteilungen, .bento .b-recent) > *:not(.pm-xm-glass):not(.pm-xm-frost) {
+  .bento .b-mitteilungen, .bento .b-recent) > *:not(.pm-xm-glass) {
   position: relative;
   z-index: 2;
 }
@@ -543,37 +554,25 @@ html[data-theme="christmas"] .bento .b-recent::before,
   background: none !important;
 }
 
-/* ── Zwei Ebenen, absichtlich ─────────────────────────────────────────
-   Frost und Brechung liegen getrennt, weil der Frost sonst an der
-   Refraktions-Kette hängt und mit ihr stirbt. Zwei Schalter tun genau das:
-     · `.glass-surface.is-off` (glass-surface.css) nullt bei Elementen
-       außerhalb des Viewports den GANZEN `backdrop-filter` — der Frost
-       fährt in derselben Deklaration mit und ist damit auch weg.
-     · lässt sich `url(#glass-filter-N)` beim Zeichnen nicht auflösen,
-       verwirft Chromium die komplette Filterkette, also auch das `blur()`.
-   `.pm-xm-frost` trägt kein `data-glass` und wird von glass-surface.js
-   nie angefasst: reines CSS, kann nicht ausfallen. `.pm-xm-glass` liegt
-   darüber (z 1) und bricht das bereits mattierte Bild.
+/* -- EINE Ebene, EINE Filterkette - 1:1 aus dem Pruefstand ------------
+   Das Material ist Kandidat A aus `mockups/glas-pruefstand.html`, identisch
+   mit der Lab-Stufe "edge":
 
-   Frost 18px, nicht 2px: mit 2px war die Kachel praktisch unsichtbar — die
-   Szene stand scharf durch, und die Kantenbrechung ist bei `data-border
-   0.018` nur `min(w,h)·0.009` breit, auf 832×380 also 3 px. Auf der kleinen
-   Prüfstand-Kachel (591×210) las sich dasselbe Rezept noch als Glas, auf der
-   echten Kachel nicht mehr.
-   Kein dunkler Tint dazu (die Kachel bleibt transparent): 18px über dem
-   hellen Winterfoto ergibt eine helle Scheibe, kein „dark frosted" — das kam
-   von 14px PLUS Tint. saturate(1.15) hält die Farben, sonst wird der Frost
-   grau. ── */
-[data-theme="christmas"] .pm-xm-frost {
-  position: absolute;
-  inset: 0;
-  z-index: 0;
-  border-radius: inherit;
-  pointer-events: none;
-  -webkit-backdrop-filter: blur(18px) saturate(1.15);
-  backdrop-filter: blur(18px) saturate(1.15);
-}
+     backdrop-filter: blur(3px) url(#glass-filter-N)   <- vom Vendor, inline
+     Frost-Blur 2px, kein Tint, kein saturate, Glaskante 0.08
+     Brechung: distortion -105, border 0.018, map-blur 6, displace 0.3
+     Szenen-Dimmung 0.20 (#pmThemeFX::after), Textschutz nur als Halo
 
+   Kein separater 18px-Frost mehr. Der war ein Ersatzmaterial: eine matte
+   Scheibe, die die Kachel sichtbar machte, ohne das Glas zu sein. Dieses
+   Material ist fast klar - sichtbar wird es an der gebrochenen Kante und am
+   2px-Schleier, nicht an einer Milchflaeche.
+
+   Weil Frost und Brechung in DERSELBEN Deklaration stehen, faellt der Frost
+   mit der Brechung aus: `.glass-surface.is-off` (off-screen) nullt die ganze
+   Kette, und ein nicht aufloesbares `url(#glass-filter-N)` verwirft sie
+   ebenfalls. Das ist der Preis dafuer, genau EIN Material zu haben statt
+   zwei - so steht es im Pruefstand, so steht es hier. -- */
 [data-theme="christmas"] .pm-xm-glass {
   position: absolute;
   inset: 0;
@@ -583,12 +582,11 @@ html[data-theme="christmas"] .bento .b-recent::before,
   /* Glaskante: oben Licht-Highlight, rundum feiner Rim, unten Schattenkante,
      außen Tiefe. !important, weil glass-surface.css auf .glass-surface--svg
      einen eigenen (deutlich helleren) Rim setzt. */
-  /* Glaskante 0.14 (Lab-Regler). Die Lab-Formel ist oben 1.9× der Reglerwert,
-     rundum 1× — also 0.266 / 0.14. Vorher 0.08: zusammen mit dem 2px-Frost war
-     die Kachel als Fläche überhaupt nicht auszumachen. */
+  /* Glaskante 0.08 wie im Pruefstand. Lab-Formel: oben 1.9x der
+     Reglerwert (0.152), rundum 1x (0.08). */
   box-shadow:
-    inset 0  1px 0     rgba(255, 255, 255, 0.266),
-    inset 0  0   0 1px rgba(255, 255, 255, 0.14),
+    inset 0  1px 0     rgba(255, 255, 255, 0.152),
+    inset 0  0   0 1px rgba(255, 255, 255, 0.08),
     inset 0 -1px 0     rgba(0, 0, 0, 0.28),
     0 18px 48px -14px  rgba(0, 0, 0, 0.55) !important;
 }
@@ -602,7 +600,7 @@ html[data-theme="christmas"] .bento .b-recent::before,
       mit `!important` — auch den Inline-Style des Glas-Backings.
    2. Browser ohne `backdrop-filter` überhaupt.
    3. `.glass-surface--fallback` (Safari/Firefox: kein SVG im
-      backdrop-filter). Dort bleibt der CSS-Frost, nur die Brechung fehlt —
+      backdrop-filter). Dort bleibt der 2px-Frost, nur die Brechung fehlt —
       deshalb braucht dieser Fall keine Tönung, nur das Abschalten der
       hellen Vendor-Fläche.
    In den Fällen 1 und 2 ist die Kachel ohne Tönung ein unsichtbares Loch:
@@ -635,6 +633,12 @@ html.perf-lite[data-theme="christmas"] {
 [data-theme="christmas"] .pm-xm-glass.glass-surface--fallback {
   background: transparent !important;
   border: 0 !important;
+  /* glass-surface.css gibt dem Fallback blur(12px) saturate(1.8)
+     brightness(1.2) - also wieder Milchglas. Hier steht stattdessen
+     exakt der Pruefstand-Frost; die SVG-Brechung koennen diese
+     Browser im backdrop-filter nicht. */
+  -webkit-backdrop-filter: blur(3px) !important;
+  backdrop-filter: blur(3px) !important;
 }
 
 /* Scrollbar in den Glas-Karten ausblenden: der Christmas-Scrollbar (heller
@@ -658,19 +662,10 @@ html[data-theme="christmas"] .bento .b-azubi {
 }
 
 /* ── Inhalts-Flächen: präsent, nicht durchsichtig ────────────────────
-   Die Kachel ist Glas, ihr Inhalt nicht. Wochenkacheln, Tagesziffern und
-   Mitteilungen bekommen wieder eine eigene Fläche — sonst schwimmt jede
-   Zeile direkt auf der Szene und nichts hat mehr Halt. Der Statusstreifen
-   oben nimmt --sig auf, damit der Zustand ohne Farbtext lesbar bleibt. ── */
-[data-theme="christmas"] .b-wkcard {
-  background:
-    linear-gradient(180deg, color-mix(in srgb, var(--sig, transparent) 26%, transparent) 0%, transparent 56%),
-    linear-gradient(180deg, rgba(17, 28, 47, 0.93) 0%, rgba(10, 18, 32, 0.95) 100%) !important;
-  border-color: color-mix(in srgb, var(--sig, transparent) 34%, rgba(255, 255, 255, 0.14)) !important;
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.10),
-    0 8px 20px -10px rgba(0, 0, 0, 0.60) !important;
-}
+   Die Kachel ist Glas, ihr Inhalt nicht. Tagesziffern und Mitteilungen
+   bekommen wieder eine eigene Fläche — sonst schwimmt jede Zeile direkt auf
+   der Szene und nichts hat mehr Halt. Die Wochenkacheln haben seit dem
+   02.09.2026 ihr eigenes Material (Pfefferkuchen, ganz unten). ── */
 [data-theme="christmas"] .b-mitteilung {
   background: linear-gradient(180deg, rgba(17, 28, 47, 0.90) 0%, rgba(11, 19, 34, 0.93) 100%);
   border-color: rgba(255, 255, 255, 0.12);
@@ -703,13 +698,6 @@ html[data-theme="christmas"] .bento .b-azubi {
    Text auf hellem Foto. Genau die Stelle, an der eine leere Kachel über der
    Baum-Ecke gar nichts mehr hergab. */
 [data-theme="christmas"] .b-mitteilungen__empty  { color: rgba(255, 255, 255, 0.80); }
-[data-theme="christmas"] .b-wkcard__range        { color: rgba(226, 236, 250, 0.72); }
-[data-theme="christmas"] .b-wkcard--ok      .b-wkcard__status { color: #6BD089; }
-[data-theme="christmas"] .b-wkcard--fr      .b-wkcard__status { color: #6FB1F2; }
-[data-theme="christmas"] .b-wkcard--er      .b-wkcard__status { color: #F79188; }
-[data-theme="christmas"] .b-wkcard--draft   .b-wkcard__status,
-[data-theme="christmas"] .b-wkcard--entwurf .b-wkcard__status { color: #69B6F2; }
-[data-theme="christmas"] .b-wkcard--offen   .b-wkcard__status { color: #C9D6E8; }
 
 /* Textschutz = Halo AN der Schrift, 1:1 die Werte der Lab-Scrim-Form „Halo".
    Keine Kontur (zwei Schatten-Ringe) und kein Kachelband: die Kontur maß sich
@@ -1580,4 +1568,549 @@ html[data-theme="christmas"] .bento .b-azubi {
   --status-entwurf-mid:    #E8B33C;
   --status-entwurf-bg:     rgba(232, 179, 60, 0.18);
   --status-entwurf-hatch:  rgba(240, 196, 100, 0.28);
+}
+/* ═══════════════════════════════════════════════════════════════════════
+   WOCHENKACHELN ALS DICK GLASIERTER PFEFFERKUCHEN
+   ---------------------------------------------------------------------
+   Uebernommen aus mockups/lebkuchen-glasur.css (Richtung D, abgestimmt
+   02.09.2026). Das Mockup bleibt als Werkbank liegen, gearbeitet wird ab
+   jetzt hier.
+
+   Idee: Die Kachel IST der Keks. Darauf liegt eine dicke, leicht
+   durchscheinende Zuckerglasur, die fast bis an die Kante laeuft — der
+   gebackene Teig bleibt nur als warmer Saum ringsum stehen. Die Glasur
+   traegt die Statusfarbe, die KW-Zahl ist mit Schokolade obenauf
+   gespritzt.
+
+   Lichtannahme durchgehend: Licht von OBEN LINKS (azimuth 225°). Jede
+   Kante, jeder Schatten und jedes Glanzlicht folgt derselben Quelle.
+
+   KEIN transform im Hover: das machte die Kachel zum Backdrop Root und
+   toetete das Glas der Recent-Kachel darunter (s. Befund 26.08.2026).
+   ═══════════════════════════════════════════════════════════════════════ */
+
+[data-theme="christmas"] {
+  /* ── Teigtöne. Lebkuchen ist rötlicher als Keksbraun, sonst wirkt der
+     Saum auf dem blauen Nachtfoto grau statt warm. ── */
+  --teig-hell:  #ad6b2b;
+  --teig-mitte: #8d4f1c;
+  --teig-tief:  #67350f;
+  --teig-kante: #3d1f06;
+
+  /* ── Schokoschrift. Nie reines Schwarz: Kakao ist warm und bleibt
+     dadurch Teil des Materials statt Fremdkörper. ── */
+  --ink:  #351804;
+  --ink2: #452508;
+
+  /* Warme Schattenfarbe für alles, was auf dem Teig liegt. */
+  --schatten: 56, 25, 4;
+
+  /* Schriftschatten der aufgespritzten Schokoraupe. Wird bei der
+     unglasierten Karte komplett getauscht (helle Schrift). */
+  /* Vorgabe; jede Glasursorte setzt ihre eigene. Greift damit praktisch nur
+     auf dem unglasierten Keks, und dort ist der Grund mit Luminanz 0.21 der
+     hellste Untergrund fuer dunkle Schrift in der Reihe: #2b1204 kam auf
+     4.40 und blieb knapp unter AA, #200d02 auf 4.75. */
+  --kw-ink: #200d02;
+}
+
+/* ═══ Rohstoffe ═══════════════════════════════════════════════════════
+   feTurbulence + feDiffuseLighting statt Bilddatei: das Rauschen wird als
+   Höhenkarte beleuchtet, es entsteht echtes Relief mit Glanz- und
+   Schattenseite. Reines Rauschen (ohne Beleuchtung) sah wie Bildkorn aus,
+   nicht wie Krume — das war der Hauptfehler der ersten Runde. */
+[data-theme="christmas"] {
+  /* feine Krume */
+  --tex-krume: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='120'%3E%3Cfilter id='k' x='0' y='0' width='100%25' height='100%25' color-interpolation-filters='sRGB'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.95' numOctaves='3' seed='3' stitchTiles='stitch' result='t'/%3E%3CfeDiffuseLighting in='t' surfaceScale='2' diffuseConstant='1' lighting-color='%23ffffff' result='l'%3E%3CfeDistantLight azimuth='225' elevation='52'/%3E%3C/feDiffuseLighting%3E%3CfeColorMatrix in='l' type='matrix' values='0.34 0 0 0 0.232 0 0.34 0 0 0.232 0 0 0.34 0 0.232 0 0 0 1 0'/%3E%3C/filter%3E%3Crect width='160' height='120' filter='url(%23k)' opacity='0.95'/%3E%3C/svg%3E");
+  /* grobe Wölbungen: der Teig ist beim Backen ungleichmäßig aufgegangen */
+  --tex-welle: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='140'%3E%3Cfilter id='w' x='0' y='0' width='100%25' height='100%25' color-interpolation-filters='sRGB'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.09' numOctaves='2' seed='8' stitchTiles='stitch' result='t'/%3E%3CfeDiffuseLighting in='t' surfaceScale='3' diffuseConstant='1' lighting-color='%23ffffff' result='l'%3E%3CfeDistantLight azimuth='225' elevation='46'/%3E%3C/feDiffuseLighting%3E%3CfeColorMatrix in='l' type='matrix' values='0.26 0 0 0 0.313 0 0.26 0 0 0.313 0 0 0.26 0 0.313 0 0 0 1 0'/%3E%3C/filter%3E%3Crect width='200' height='140' filter='url(%23w)' opacity='0.9'/%3E%3C/svg%3E");
+  /* dunkle Poren: einzelne Luftlöcher, hart aus dem Rauschen geschnitten
+     (Alpha 30*a-23 lässt nur die Spitzen stehen) */
+  --tex-poren: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='100'%3E%3Cfilter id='p' x='0' y='0' width='100%25' height='100%25' color-interpolation-filters='sRGB'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' seed='14' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0.13 0 0 0 0 0.06 0 0 0 0 0.01 0 0 0 30 -23'/%3E%3C/filter%3E%3Crect width='140' height='100' filter='url(%23p)' opacity='0.45'/%3E%3C/svg%3E");
+  /* Guss-Relief: sehr flache, breite Wellen — gegossener Zuckerguss ist
+     nie plan, aber auch nicht körnig */
+  --tex-guss: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='96'%3E%3Cfilter id='g' x='0' y='0' width='100%25' height='100%25' color-interpolation-filters='sRGB'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.022 0.05' numOctaves='2' seed='6' stitchTiles='stitch' result='t'/%3E%3CfeDiffuseLighting in='t' surfaceScale='2.6' diffuseConstant='1' lighting-color='%23ffffff' result='l'%3E%3CfeDistantLight azimuth='225' elevation='62'/%3E%3C/feDiffuseLighting%3E%3CfeColorMatrix in='l' type='matrix' values='0.5 0 0 0 0.059 0 0.5 0 0 0.059 0 0 0.5 0 0.059 0 0 0 1 0'/%3E%3C/filter%3E%3Crect width='240' height='96' filter='url(%23g)' opacity='0.95'/%3E%3C/svg%3E");
+  /* Nadelstich-Poren: beim Trocknen platzen kleine Luftblasen in der
+     Glasur auf. Ohne sie bleibt jede noch so gut beleuchtete Fläche
+     Kunststoff — das ist das Detail, das Guss zu Guss macht. */
+  --tex-blasen: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='96' height='68'%3E%3Ccircle cx='8' cy='12' r='1.45' fill='none' stroke='%23000000' stroke-opacity='0.13' stroke-width='0.55'/%3E%3Ccircle cx='8.35' cy='12.5' r='1.0' fill='%23ffffff' fill-opacity='0.26'/%3E%3Ccircle cx='27' cy='7' r='1.0' fill='none' stroke='%23000000' stroke-opacity='0.13' stroke-width='0.55'/%3E%3Ccircle cx='27.35' cy='7.5' r='0.55' fill='%23ffffff' fill-opacity='0.26'/%3E%3Ccircle cx='46' cy='20' r='1.0' fill='none' stroke='%23000000' stroke-opacity='0.13' stroke-width='0.55'/%3E%3Ccircle cx='46.35' cy='20.5' r='0.55' fill='%23ffffff' fill-opacity='0.26'/%3E%3Ccircle cx='63' cy='10' r='1.45' fill='none' stroke='%23000000' stroke-opacity='0.13' stroke-width='0.55'/%3E%3Ccircle cx='63.35' cy='10.5' r='1.0' fill='%23ffffff' fill-opacity='0.26'/%3E%3Ccircle cx='82' cy='26' r='1.0' fill='none' stroke='%23000000' stroke-opacity='0.13' stroke-width='0.55'/%3E%3Ccircle cx='82.35' cy='26.5' r='0.55' fill='%23ffffff' fill-opacity='0.26'/%3E%3Ccircle cx='14' cy='38' r='1.0' fill='none' stroke='%23000000' stroke-opacity='0.13' stroke-width='0.55'/%3E%3Ccircle cx='14.35' cy='38.5' r='0.55' fill='%23ffffff' fill-opacity='0.26'/%3E%3Ccircle cx='35' cy='50' r='1.45' fill='none' stroke='%23000000' stroke-opacity='0.13' stroke-width='0.55'/%3E%3Ccircle cx='35.35' cy='50.5' r='1.0' fill='%23ffffff' fill-opacity='0.26'/%3E%3Ccircle cx='58' cy='42' r='1.0' fill='none' stroke='%23000000' stroke-opacity='0.13' stroke-width='0.55'/%3E%3Ccircle cx='58.35' cy='42.5' r='0.55' fill='%23ffffff' fill-opacity='0.26'/%3E%3Ccircle cx='78' cy='55' r='1.0' fill='none' stroke='%23000000' stroke-opacity='0.13' stroke-width='0.55'/%3E%3Ccircle cx='78.35' cy='55.5' r='0.55' fill='%23ffffff' fill-opacity='0.26'/%3E%3Ccircle cx='90' cy='14' r='1.45' fill='none' stroke='%23000000' stroke-opacity='0.13' stroke-width='0.55'/%3E%3Ccircle cx='90.35' cy='14.5' r='1.0' fill='%23ffffff' fill-opacity='0.26'/%3E%3Ccircle cx='22' cy='26' r='1.0' fill='none' stroke='%23000000' stroke-opacity='0.13' stroke-width='0.55'/%3E%3Ccircle cx='22.35' cy='26.5' r='0.55' fill='%23ffffff' fill-opacity='0.26'/%3E%3Ccircle cx='70' cy='33' r='1.0' fill='none' stroke='%23000000' stroke-opacity='0.13' stroke-width='0.55'/%3E%3Ccircle cx='70.35' cy='33.5' r='0.55' fill='%23ffffff' fill-opacity='0.26'/%3E%3Ccircle cx='48' cy='60' r='1.45' fill='none' stroke='%23000000' stroke-opacity='0.13' stroke-width='0.55'/%3E%3Ccircle cx='48.35' cy='60.5' r='1.0' fill='%23ffffff' fill-opacity='0.26'/%3E%3Ccircle cx='6' cy='54' r='1.0' fill='none' stroke='%23000000' stroke-opacity='0.13' stroke-width='0.55'/%3E%3Ccircle cx='6.35' cy='54.5' r='0.55' fill='%23ffffff' fill-opacity='0.26'/%3E%3Ccircle cx='38' cy='16' r='1.0' fill='none' stroke='%23000000' stroke-opacity='0.13' stroke-width='0.55'/%3E%3Ccircle cx='38.35' cy='16.5' r='0.55' fill='%23ffffff' fill-opacity='0.26'/%3E%3Ccircle cx='88' cy='44' r='1.45' fill='none' stroke='%23000000' stroke-opacity='0.13' stroke-width='0.55'/%3E%3Ccircle cx='88.35' cy='44.5' r='1.0' fill='%23ffffff' fill-opacity='0.26'/%3E%3Ccircle cx='52' cy='4' r='1.0' fill='none' stroke='%23000000' stroke-opacity='0.13' stroke-width='0.55'/%3E%3Ccircle cx='52.35' cy='4.5' r='0.55' fill='%23ffffff' fill-opacity='0.26'/%3E%3Ccircle cx='16' cy='62' r='1.0' fill='none' stroke='%23000000' stroke-opacity='0.13' stroke-width='0.55'/%3E%3Ccircle cx='16.35' cy='62.5' r='0.55' fill='%23ffffff' fill-opacity='0.26'/%3E%3C/svg%3E");
+  /* Zuckerkristalle: nur die hellsten Rauschspitzen (44*a-34) bleiben als
+     einzelne funkelnde Körner stehen */
+  --tex-zucker: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='130' height='90'%3E%3Cfilter id='z' x='0' y='0' width='100%25' height='100%25' color-interpolation-filters='sRGB'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='1.25' numOctaves='1' seed='5' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 44 -34'/%3E%3C/filter%3E%3Crect width='130' height='90' filter='url(%23z)' opacity='0.85'/%3E%3C/svg%3E");
+
+  /* Gegossener Guss hat keine gestanzte Kante. Umriss = leicht
+     verrauschter Rundrechteck-Pfad; derselbe Pfad dient einmal als
+     Maske für die Fläche und einmal als aufgespritzte Randraupe
+     (weiche Kehle innen + heller Wulst + schmaler Scheitel). Drei
+     Umrisse im Wechsel, damit nichts gestempelt wirkt. */
+  --guss-form-1: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 224 76' width='224' height='76' preserveAspectRatio='none'%3E%3Cpath d='M13.0 -0.21C15.55 -0.41 18.07 0.15 20.61 0.25C23.15 0.35 25.69 0.4 28.22 0.41C30.76 0.43 33.3 0.37 35.84 0.34C38.37 0.31 40.91 0.24 43.45 0.24C45.99 0.23 48.52 0.23 51.06 0.29C53.6 0.36 56.14 0.47 58.67 0.61C61.21 0.75 63.75 0.96 66.29 1.13C68.82 1.3 71.36 1.51 73.9 1.64C76.44 1.77 78.97 1.89 81.51 1.91C84.05 1.94 86.59 1.9 89.12 1.8C91.66 1.7 94.2 1.51 96.74 1.32C99.27 1.12 101.81 0.86 104.35 0.64C106.89 0.43 109.42 0.19 111.96 0.03C114.5 -0.14 117.04 -0.26 119.57 -0.34C122.11 -0.41 124.65 -0.41 127.19 -0.41C129.72 -0.4 132.26 -0.33 134.8 -0.3C137.34 -0.27 139.87 -0.22 142.41 -0.23C144.95 -0.24 147.49 -0.28 150.02 -0.37C152.56 -0.46 155.1 -0.61 157.63 -0.77C160.17 -0.93 162.71 -1.15 165.25 -1.31C167.78 -1.48 170.32 -1.67 172.86 -1.77C175.4 -1.87 177.93 -1.94 180.47 -1.92C183.01 -1.91 185.55 -1.81 188.08 -1.67C190.62 -1.54 193.16 -1.31 195.7 -1.1C198.23 -0.89 200.77 -0.62 203.31 -0.42C205.85 -0.21 208.45 -0.23 210.92 0.13C213.39 0.48 216.12 0.54 218.12 1.7C220.11 2.87 221.94 4.97 222.88 7.1C223.82 9.23 223.59 11.98 223.74 14.48C223.88 16.98 223.79 19.55 223.75 22.09C223.72 24.63 223.64 27.17 223.52 29.7C223.41 32.24 223.22 34.78 223.05 37.32C222.89 39.85 222.67 42.39 222.51 44.93C222.36 47.47 222.2 50.0 222.14 52.54C222.07 55.08 222.23 57.74 222.12 60.15C222.0 62.56 222.2 64.91 221.45 67.0C220.69 69.1 219.32 71.26 217.58 72.72C215.83 74.18 213.35 75.16 210.98 75.75C208.62 76.34 205.92 76.14 203.39 76.25C200.85 76.36 198.31 76.4 195.78 76.41C193.24 76.43 190.7 76.37 188.16 76.34C185.63 76.31 183.09 76.24 180.55 76.24C178.01 76.23 175.48 76.23 172.94 76.29C170.4 76.36 167.86 76.47 165.33 76.61C162.79 76.75 160.25 76.96 157.71 77.13C155.18 77.3 152.64 77.51 150.1 77.64C147.56 77.77 145.03 77.89 142.49 77.91C139.95 77.94 137.41 77.9 134.88 77.8C132.34 77.7 129.8 77.51 127.26 77.32C124.73 77.12 122.19 76.86 119.65 76.64C117.11 76.43 114.58 76.19 112.04 76.03C109.5 75.86 106.96 75.74 104.43 75.66C101.89 75.59 99.35 75.59 96.81 75.59C94.28 75.6 91.74 75.67 89.2 75.7C86.66 75.73 84.13 75.78 81.59 75.77C79.05 75.76 76.51 75.72 73.98 75.63C71.44 75.54 68.9 75.39 66.37 75.23C63.83 75.07 61.29 74.85 58.75 74.69C56.22 74.52 53.68 74.33 51.14 74.23C48.6 74.13 46.07 74.06 43.53 74.08C40.99 74.09 38.45 74.19 35.92 74.33C33.38 74.46 30.84 74.69 28.3 74.9C25.77 75.11 23.23 75.38 20.69 75.58C18.15 75.79 15.6 76.29 13.08 76.13C10.56 75.96 7.67 75.83 5.58 74.6C3.5 73.36 1.53 70.98 0.56 68.73C-0.42 66.48 -0.13 63.63 -0.26 61.09C-0.4 58.55 -0.21 56.02 -0.25 53.48C-0.28 50.94 -0.36 48.4 -0.48 45.87C-0.59 43.33 -0.78 40.79 -0.95 38.25C-1.11 35.72 -1.33 33.18 -1.49 30.64C-1.64 28.1 -1.8 25.57 -1.86 23.03C-1.93 20.49 -2.13 18.03 -1.88 15.42C-1.63 12.8 -1.57 9.68 -0.37 7.35C0.84 5.02 3.11 2.7 5.33 1.44C7.56 0.18 10.45 -0.01 13.0 -0.21Z' fill='%23fff'/%3E%3C/svg%3E");
+  --guss-raupe-1: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 224 76' width='224' height='76' preserveAspectRatio='none'%3E%3Cdefs%3E%3CclipPath id='c'%3E%3Cpath d='M13.0 -0.21C15.55 -0.41 18.07 0.15 20.61 0.25C23.15 0.35 25.69 0.4 28.22 0.41C30.76 0.43 33.3 0.37 35.84 0.34C38.37 0.31 40.91 0.24 43.45 0.24C45.99 0.23 48.52 0.23 51.06 0.29C53.6 0.36 56.14 0.47 58.67 0.61C61.21 0.75 63.75 0.96 66.29 1.13C68.82 1.3 71.36 1.51 73.9 1.64C76.44 1.77 78.97 1.89 81.51 1.91C84.05 1.94 86.59 1.9 89.12 1.8C91.66 1.7 94.2 1.51 96.74 1.32C99.27 1.12 101.81 0.86 104.35 0.64C106.89 0.43 109.42 0.19 111.96 0.03C114.5 -0.14 117.04 -0.26 119.57 -0.34C122.11 -0.41 124.65 -0.41 127.19 -0.41C129.72 -0.4 132.26 -0.33 134.8 -0.3C137.34 -0.27 139.87 -0.22 142.41 -0.23C144.95 -0.24 147.49 -0.28 150.02 -0.37C152.56 -0.46 155.1 -0.61 157.63 -0.77C160.17 -0.93 162.71 -1.15 165.25 -1.31C167.78 -1.48 170.32 -1.67 172.86 -1.77C175.4 -1.87 177.93 -1.94 180.47 -1.92C183.01 -1.91 185.55 -1.81 188.08 -1.67C190.62 -1.54 193.16 -1.31 195.7 -1.1C198.23 -0.89 200.77 -0.62 203.31 -0.42C205.85 -0.21 208.45 -0.23 210.92 0.13C213.39 0.48 216.12 0.54 218.12 1.7C220.11 2.87 221.94 4.97 222.88 7.1C223.82 9.23 223.59 11.98 223.74 14.48C223.88 16.98 223.79 19.55 223.75 22.09C223.72 24.63 223.64 27.17 223.52 29.7C223.41 32.24 223.22 34.78 223.05 37.32C222.89 39.85 222.67 42.39 222.51 44.93C222.36 47.47 222.2 50.0 222.14 52.54C222.07 55.08 222.23 57.74 222.12 60.15C222.0 62.56 222.2 64.91 221.45 67.0C220.69 69.1 219.32 71.26 217.58 72.72C215.83 74.18 213.35 75.16 210.98 75.75C208.62 76.34 205.92 76.14 203.39 76.25C200.85 76.36 198.31 76.4 195.78 76.41C193.24 76.43 190.7 76.37 188.16 76.34C185.63 76.31 183.09 76.24 180.55 76.24C178.01 76.23 175.48 76.23 172.94 76.29C170.4 76.36 167.86 76.47 165.33 76.61C162.79 76.75 160.25 76.96 157.71 77.13C155.18 77.3 152.64 77.51 150.1 77.64C147.56 77.77 145.03 77.89 142.49 77.91C139.95 77.94 137.41 77.9 134.88 77.8C132.34 77.7 129.8 77.51 127.26 77.32C124.73 77.12 122.19 76.86 119.65 76.64C117.11 76.43 114.58 76.19 112.04 76.03C109.5 75.86 106.96 75.74 104.43 75.66C101.89 75.59 99.35 75.59 96.81 75.59C94.28 75.6 91.74 75.67 89.2 75.7C86.66 75.73 84.13 75.78 81.59 75.77C79.05 75.76 76.51 75.72 73.98 75.63C71.44 75.54 68.9 75.39 66.37 75.23C63.83 75.07 61.29 74.85 58.75 74.69C56.22 74.52 53.68 74.33 51.14 74.23C48.6 74.13 46.07 74.06 43.53 74.08C40.99 74.09 38.45 74.19 35.92 74.33C33.38 74.46 30.84 74.69 28.3 74.9C25.77 75.11 23.23 75.38 20.69 75.58C18.15 75.79 15.6 76.29 13.08 76.13C10.56 75.96 7.67 75.83 5.58 74.6C3.5 73.36 1.53 70.98 0.56 68.73C-0.42 66.48 -0.13 63.63 -0.26 61.09C-0.4 58.55 -0.21 56.02 -0.25 53.48C-0.28 50.94 -0.36 48.4 -0.48 45.87C-0.59 43.33 -0.78 40.79 -0.95 38.25C-1.11 35.72 -1.33 33.18 -1.49 30.64C-1.64 28.1 -1.8 25.57 -1.86 23.03C-1.93 20.49 -2.13 18.03 -1.88 15.42C-1.63 12.8 -1.57 9.68 -0.37 7.35C0.84 5.02 3.11 2.7 5.33 1.44C7.56 0.18 10.45 -0.01 13.0 -0.21Z'/%3E%3C/clipPath%3E%3Cfilter id='b1' x='-20%25' y='-20%25' width='140%25' height='140%25' color-interpolation-filters='sRGB'%3E%3CfeGaussianBlur stdDeviation='1.5'/%3E%3C/filter%3E%3Cfilter id='b2' x='-20%25' y='-20%25' width='140%25' height='140%25' color-interpolation-filters='sRGB'%3E%3CfeGaussianBlur stdDeviation='2.6'/%3E%3C/filter%3E%3C/defs%3E%3Cg clip-path='url(%23c)' fill='none'%3E%3Cpath d='M13.0 -0.21C15.55 -0.41 18.07 0.15 20.61 0.25C23.15 0.35 25.69 0.4 28.22 0.41C30.76 0.43 33.3 0.37 35.84 0.34C38.37 0.31 40.91 0.24 43.45 0.24C45.99 0.23 48.52 0.23 51.06 0.29C53.6 0.36 56.14 0.47 58.67 0.61C61.21 0.75 63.75 0.96 66.29 1.13C68.82 1.3 71.36 1.51 73.9 1.64C76.44 1.77 78.97 1.89 81.51 1.91C84.05 1.94 86.59 1.9 89.12 1.8C91.66 1.7 94.2 1.51 96.74 1.32C99.27 1.12 101.81 0.86 104.35 0.64C106.89 0.43 109.42 0.19 111.96 0.03C114.5 -0.14 117.04 -0.26 119.57 -0.34C122.11 -0.41 124.65 -0.41 127.19 -0.41C129.72 -0.4 132.26 -0.33 134.8 -0.3C137.34 -0.27 139.87 -0.22 142.41 -0.23C144.95 -0.24 147.49 -0.28 150.02 -0.37C152.56 -0.46 155.1 -0.61 157.63 -0.77C160.17 -0.93 162.71 -1.15 165.25 -1.31C167.78 -1.48 170.32 -1.67 172.86 -1.77C175.4 -1.87 177.93 -1.94 180.47 -1.92C183.01 -1.91 185.55 -1.81 188.08 -1.67C190.62 -1.54 193.16 -1.31 195.7 -1.1C198.23 -0.89 200.77 -0.62 203.31 -0.42C205.85 -0.21 208.45 -0.23 210.92 0.13C213.39 0.48 216.12 0.54 218.12 1.7C220.11 2.87 221.94 4.97 222.88 7.1C223.82 9.23 223.59 11.98 223.74 14.48C223.88 16.98 223.79 19.55 223.75 22.09C223.72 24.63 223.64 27.17 223.52 29.7C223.41 32.24 223.22 34.78 223.05 37.32C222.89 39.85 222.67 42.39 222.51 44.93C222.36 47.47 222.2 50.0 222.14 52.54C222.07 55.08 222.23 57.74 222.12 60.15C222.0 62.56 222.2 64.91 221.45 67.0C220.69 69.1 219.32 71.26 217.58 72.72C215.83 74.18 213.35 75.16 210.98 75.75C208.62 76.34 205.92 76.14 203.39 76.25C200.85 76.36 198.31 76.4 195.78 76.41C193.24 76.43 190.7 76.37 188.16 76.34C185.63 76.31 183.09 76.24 180.55 76.24C178.01 76.23 175.48 76.23 172.94 76.29C170.4 76.36 167.86 76.47 165.33 76.61C162.79 76.75 160.25 76.96 157.71 77.13C155.18 77.3 152.64 77.51 150.1 77.64C147.56 77.77 145.03 77.89 142.49 77.91C139.95 77.94 137.41 77.9 134.88 77.8C132.34 77.7 129.8 77.51 127.26 77.32C124.73 77.12 122.19 76.86 119.65 76.64C117.11 76.43 114.58 76.19 112.04 76.03C109.5 75.86 106.96 75.74 104.43 75.66C101.89 75.59 99.35 75.59 96.81 75.59C94.28 75.6 91.74 75.67 89.2 75.7C86.66 75.73 84.13 75.78 81.59 75.77C79.05 75.76 76.51 75.72 73.98 75.63C71.44 75.54 68.9 75.39 66.37 75.23C63.83 75.07 61.29 74.85 58.75 74.69C56.22 74.52 53.68 74.33 51.14 74.23C48.6 74.13 46.07 74.06 43.53 74.08C40.99 74.09 38.45 74.19 35.92 74.33C33.38 74.46 30.84 74.69 28.3 74.9C25.77 75.11 23.23 75.38 20.69 75.58C18.15 75.79 15.6 76.29 13.08 76.13C10.56 75.96 7.67 75.83 5.58 74.6C3.5 73.36 1.53 70.98 0.56 68.73C-0.42 66.48 -0.13 63.63 -0.26 61.09C-0.4 58.55 -0.21 56.02 -0.25 53.48C-0.28 50.94 -0.36 48.4 -0.48 45.87C-0.59 43.33 -0.78 40.79 -0.95 38.25C-1.11 35.72 -1.33 33.18 -1.49 30.64C-1.64 28.1 -1.8 25.57 -1.86 23.03C-1.93 20.49 -2.13 18.03 -1.88 15.42C-1.63 12.8 -1.57 9.68 -0.37 7.35C0.84 5.02 3.11 2.7 5.33 1.44C7.56 0.18 10.45 -0.01 13.0 -0.21Z' stroke='%233a1e08' stroke-opacity='0.30' stroke-width='8.5' filter='url(%23b2)'/%3E%3Cpath d='M13.0 -0.21C15.55 -0.41 18.07 0.15 20.61 0.25C23.15 0.35 25.69 0.4 28.22 0.41C30.76 0.43 33.3 0.37 35.84 0.34C38.37 0.31 40.91 0.24 43.45 0.24C45.99 0.23 48.52 0.23 51.06 0.29C53.6 0.36 56.14 0.47 58.67 0.61C61.21 0.75 63.75 0.96 66.29 1.13C68.82 1.3 71.36 1.51 73.9 1.64C76.44 1.77 78.97 1.89 81.51 1.91C84.05 1.94 86.59 1.9 89.12 1.8C91.66 1.7 94.2 1.51 96.74 1.32C99.27 1.12 101.81 0.86 104.35 0.64C106.89 0.43 109.42 0.19 111.96 0.03C114.5 -0.14 117.04 -0.26 119.57 -0.34C122.11 -0.41 124.65 -0.41 127.19 -0.41C129.72 -0.4 132.26 -0.33 134.8 -0.3C137.34 -0.27 139.87 -0.22 142.41 -0.23C144.95 -0.24 147.49 -0.28 150.02 -0.37C152.56 -0.46 155.1 -0.61 157.63 -0.77C160.17 -0.93 162.71 -1.15 165.25 -1.31C167.78 -1.48 170.32 -1.67 172.86 -1.77C175.4 -1.87 177.93 -1.94 180.47 -1.92C183.01 -1.91 185.55 -1.81 188.08 -1.67C190.62 -1.54 193.16 -1.31 195.7 -1.1C198.23 -0.89 200.77 -0.62 203.31 -0.42C205.85 -0.21 208.45 -0.23 210.92 0.13C213.39 0.48 216.12 0.54 218.12 1.7C220.11 2.87 221.94 4.97 222.88 7.1C223.82 9.23 223.59 11.98 223.74 14.48C223.88 16.98 223.79 19.55 223.75 22.09C223.72 24.63 223.64 27.17 223.52 29.7C223.41 32.24 223.22 34.78 223.05 37.32C222.89 39.85 222.67 42.39 222.51 44.93C222.36 47.47 222.2 50.0 222.14 52.54C222.07 55.08 222.23 57.74 222.12 60.15C222.0 62.56 222.2 64.91 221.45 67.0C220.69 69.1 219.32 71.26 217.58 72.72C215.83 74.18 213.35 75.16 210.98 75.75C208.62 76.34 205.92 76.14 203.39 76.25C200.85 76.36 198.31 76.4 195.78 76.41C193.24 76.43 190.7 76.37 188.16 76.34C185.63 76.31 183.09 76.24 180.55 76.24C178.01 76.23 175.48 76.23 172.94 76.29C170.4 76.36 167.86 76.47 165.33 76.61C162.79 76.75 160.25 76.96 157.71 77.13C155.18 77.3 152.64 77.51 150.1 77.64C147.56 77.77 145.03 77.89 142.49 77.91C139.95 77.94 137.41 77.9 134.88 77.8C132.34 77.7 129.8 77.51 127.26 77.32C124.73 77.12 122.19 76.86 119.65 76.64C117.11 76.43 114.58 76.19 112.04 76.03C109.5 75.86 106.96 75.74 104.43 75.66C101.89 75.59 99.35 75.59 96.81 75.59C94.28 75.6 91.74 75.67 89.2 75.7C86.66 75.73 84.13 75.78 81.59 75.77C79.05 75.76 76.51 75.72 73.98 75.63C71.44 75.54 68.9 75.39 66.37 75.23C63.83 75.07 61.29 74.85 58.75 74.69C56.22 74.52 53.68 74.33 51.14 74.23C48.6 74.13 46.07 74.06 43.53 74.08C40.99 74.09 38.45 74.19 35.92 74.33C33.38 74.46 30.84 74.69 28.3 74.9C25.77 75.11 23.23 75.38 20.69 75.58C18.15 75.79 15.6 76.29 13.08 76.13C10.56 75.96 7.67 75.83 5.58 74.6C3.5 73.36 1.53 70.98 0.56 68.73C-0.42 66.48 -0.13 63.63 -0.26 61.09C-0.4 58.55 -0.21 56.02 -0.25 53.48C-0.28 50.94 -0.36 48.4 -0.48 45.87C-0.59 43.33 -0.78 40.79 -0.95 38.25C-1.11 35.72 -1.33 33.18 -1.49 30.64C-1.64 28.1 -1.8 25.57 -1.86 23.03C-1.93 20.49 -2.13 18.03 -1.88 15.42C-1.63 12.8 -1.57 9.68 -0.37 7.35C0.84 5.02 3.11 2.7 5.33 1.44C7.56 0.18 10.45 -0.01 13.0 -0.21Z' stroke='%23ffffff' stroke-opacity='0.50' stroke-width='4.2' filter='url(%23b1)'/%3E%3Cg transform='translate(0,0.9)'%3E%3Cpath d='M13.0 -0.21C15.55 -0.41 18.07 0.15 20.61 0.25C23.15 0.35 25.69 0.4 28.22 0.41C30.76 0.43 33.3 0.37 35.84 0.34C38.37 0.31 40.91 0.24 43.45 0.24C45.99 0.23 48.52 0.23 51.06 0.29C53.6 0.36 56.14 0.47 58.67 0.61C61.21 0.75 63.75 0.96 66.29 1.13C68.82 1.3 71.36 1.51 73.9 1.64C76.44 1.77 78.97 1.89 81.51 1.91C84.05 1.94 86.59 1.9 89.12 1.8C91.66 1.7 94.2 1.51 96.74 1.32C99.27 1.12 101.81 0.86 104.35 0.64C106.89 0.43 109.42 0.19 111.96 0.03C114.5 -0.14 117.04 -0.26 119.57 -0.34C122.11 -0.41 124.65 -0.41 127.19 -0.41C129.72 -0.4 132.26 -0.33 134.8 -0.3C137.34 -0.27 139.87 -0.22 142.41 -0.23C144.95 -0.24 147.49 -0.28 150.02 -0.37C152.56 -0.46 155.1 -0.61 157.63 -0.77C160.17 -0.93 162.71 -1.15 165.25 -1.31C167.78 -1.48 170.32 -1.67 172.86 -1.77C175.4 -1.87 177.93 -1.94 180.47 -1.92C183.01 -1.91 185.55 -1.81 188.08 -1.67C190.62 -1.54 193.16 -1.31 195.7 -1.1C198.23 -0.89 200.77 -0.62 203.31 -0.42C205.85 -0.21 208.45 -0.23 210.92 0.13C213.39 0.48 216.12 0.54 218.12 1.7C220.11 2.87 221.94 4.97 222.88 7.1C223.82 9.23 223.59 11.98 223.74 14.48C223.88 16.98 223.79 19.55 223.75 22.09C223.72 24.63 223.64 27.17 223.52 29.7C223.41 32.24 223.22 34.78 223.05 37.32C222.89 39.85 222.67 42.39 222.51 44.93C222.36 47.47 222.2 50.0 222.14 52.54C222.07 55.08 222.23 57.74 222.12 60.15C222.0 62.56 222.2 64.91 221.45 67.0C220.69 69.1 219.32 71.26 217.58 72.72C215.83 74.18 213.35 75.16 210.98 75.75C208.62 76.34 205.92 76.14 203.39 76.25C200.85 76.36 198.31 76.4 195.78 76.41C193.24 76.43 190.7 76.37 188.16 76.34C185.63 76.31 183.09 76.24 180.55 76.24C178.01 76.23 175.48 76.23 172.94 76.29C170.4 76.36 167.86 76.47 165.33 76.61C162.79 76.75 160.25 76.96 157.71 77.13C155.18 77.3 152.64 77.51 150.1 77.64C147.56 77.77 145.03 77.89 142.49 77.91C139.95 77.94 137.41 77.9 134.88 77.8C132.34 77.7 129.8 77.51 127.26 77.32C124.73 77.12 122.19 76.86 119.65 76.64C117.11 76.43 114.58 76.19 112.04 76.03C109.5 75.86 106.96 75.74 104.43 75.66C101.89 75.59 99.35 75.59 96.81 75.59C94.28 75.6 91.74 75.67 89.2 75.7C86.66 75.73 84.13 75.78 81.59 75.77C79.05 75.76 76.51 75.72 73.98 75.63C71.44 75.54 68.9 75.39 66.37 75.23C63.83 75.07 61.29 74.85 58.75 74.69C56.22 74.52 53.68 74.33 51.14 74.23C48.6 74.13 46.07 74.06 43.53 74.08C40.99 74.09 38.45 74.19 35.92 74.33C33.38 74.46 30.84 74.69 28.3 74.9C25.77 75.11 23.23 75.38 20.69 75.58C18.15 75.79 15.6 76.29 13.08 76.13C10.56 75.96 7.67 75.83 5.58 74.6C3.5 73.36 1.53 70.98 0.56 68.73C-0.42 66.48 -0.13 63.63 -0.26 61.09C-0.4 58.55 -0.21 56.02 -0.25 53.48C-0.28 50.94 -0.36 48.4 -0.48 45.87C-0.59 43.33 -0.78 40.79 -0.95 38.25C-1.11 35.72 -1.33 33.18 -1.49 30.64C-1.64 28.1 -1.8 25.57 -1.86 23.03C-1.93 20.49 -2.13 18.03 -1.88 15.42C-1.63 12.8 -1.57 9.68 -0.37 7.35C0.84 5.02 3.11 2.7 5.33 1.44C7.56 0.18 10.45 -0.01 13.0 -0.21Z' stroke='%234a2a0e' stroke-opacity='0.26' stroke-width='1.4'/%3E%3C/g%3E%3Cg transform='translate(0,-0.4)'%3E%3Cpath d='M13.0 -0.21C15.55 -0.41 18.07 0.15 20.61 0.25C23.15 0.35 25.69 0.4 28.22 0.41C30.76 0.43 33.3 0.37 35.84 0.34C38.37 0.31 40.91 0.24 43.45 0.24C45.99 0.23 48.52 0.23 51.06 0.29C53.6 0.36 56.14 0.47 58.67 0.61C61.21 0.75 63.75 0.96 66.29 1.13C68.82 1.3 71.36 1.51 73.9 1.64C76.44 1.77 78.97 1.89 81.51 1.91C84.05 1.94 86.59 1.9 89.12 1.8C91.66 1.7 94.2 1.51 96.74 1.32C99.27 1.12 101.81 0.86 104.35 0.64C106.89 0.43 109.42 0.19 111.96 0.03C114.5 -0.14 117.04 -0.26 119.57 -0.34C122.11 -0.41 124.65 -0.41 127.19 -0.41C129.72 -0.4 132.26 -0.33 134.8 -0.3C137.34 -0.27 139.87 -0.22 142.41 -0.23C144.95 -0.24 147.49 -0.28 150.02 -0.37C152.56 -0.46 155.1 -0.61 157.63 -0.77C160.17 -0.93 162.71 -1.15 165.25 -1.31C167.78 -1.48 170.32 -1.67 172.86 -1.77C175.4 -1.87 177.93 -1.94 180.47 -1.92C183.01 -1.91 185.55 -1.81 188.08 -1.67C190.62 -1.54 193.16 -1.31 195.7 -1.1C198.23 -0.89 200.77 -0.62 203.31 -0.42C205.85 -0.21 208.45 -0.23 210.92 0.13C213.39 0.48 216.12 0.54 218.12 1.7C220.11 2.87 221.94 4.97 222.88 7.1C223.82 9.23 223.59 11.98 223.74 14.48C223.88 16.98 223.79 19.55 223.75 22.09C223.72 24.63 223.64 27.17 223.52 29.7C223.41 32.24 223.22 34.78 223.05 37.32C222.89 39.85 222.67 42.39 222.51 44.93C222.36 47.47 222.2 50.0 222.14 52.54C222.07 55.08 222.23 57.74 222.12 60.15C222.0 62.56 222.2 64.91 221.45 67.0C220.69 69.1 219.32 71.26 217.58 72.72C215.83 74.18 213.35 75.16 210.98 75.75C208.62 76.34 205.92 76.14 203.39 76.25C200.85 76.36 198.31 76.4 195.78 76.41C193.24 76.43 190.7 76.37 188.16 76.34C185.63 76.31 183.09 76.24 180.55 76.24C178.01 76.23 175.48 76.23 172.94 76.29C170.4 76.36 167.86 76.47 165.33 76.61C162.79 76.75 160.25 76.96 157.71 77.13C155.18 77.3 152.64 77.51 150.1 77.64C147.56 77.77 145.03 77.89 142.49 77.91C139.95 77.94 137.41 77.9 134.88 77.8C132.34 77.7 129.8 77.51 127.26 77.32C124.73 77.12 122.19 76.86 119.65 76.64C117.11 76.43 114.58 76.19 112.04 76.03C109.5 75.86 106.96 75.74 104.43 75.66C101.89 75.59 99.35 75.59 96.81 75.59C94.28 75.6 91.74 75.67 89.2 75.7C86.66 75.73 84.13 75.78 81.59 75.77C79.05 75.76 76.51 75.72 73.98 75.63C71.44 75.54 68.9 75.39 66.37 75.23C63.83 75.07 61.29 74.85 58.75 74.69C56.22 74.52 53.68 74.33 51.14 74.23C48.6 74.13 46.07 74.06 43.53 74.08C40.99 74.09 38.45 74.19 35.92 74.33C33.38 74.46 30.84 74.69 28.3 74.9C25.77 75.11 23.23 75.38 20.69 75.58C18.15 75.79 15.6 76.29 13.08 76.13C10.56 75.96 7.67 75.83 5.58 74.6C3.5 73.36 1.53 70.98 0.56 68.73C-0.42 66.48 -0.13 63.63 -0.26 61.09C-0.4 58.55 -0.21 56.02 -0.25 53.48C-0.28 50.94 -0.36 48.4 -0.48 45.87C-0.59 43.33 -0.78 40.79 -0.95 38.25C-1.11 35.72 -1.33 33.18 -1.49 30.64C-1.64 28.1 -1.8 25.57 -1.86 23.03C-1.93 20.49 -2.13 18.03 -1.88 15.42C-1.63 12.8 -1.57 9.68 -0.37 7.35C0.84 5.02 3.11 2.7 5.33 1.44C7.56 0.18 10.45 -0.01 13.0 -0.21Z' stroke='%23ffffff' stroke-opacity='0.58' stroke-width='0.9'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+  --guss-form-2: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 224 76' width='224' height='76' preserveAspectRatio='none'%3E%3Cpath d='M11.0 0.63C13.4 0.26 16.07 0.6 18.6 0.57C21.13 0.54 23.67 0.45 26.2 0.46C28.74 0.47 31.27 0.52 33.8 0.63C36.34 0.74 38.87 0.95 41.4 1.12C43.94 1.28 46.47 1.52 49.01 1.63C51.54 1.74 54.07 1.82 56.61 1.76C59.14 1.71 61.67 1.53 64.21 1.3C66.74 1.08 69.27 0.71 71.81 0.42C74.34 0.12 76.88 -0.24 79.41 -0.47C81.94 -0.69 84.48 -0.87 87.01 -0.95C89.54 -1.03 92.08 -0.99 94.61 -0.96C97.15 -0.92 99.68 -0.79 102.21 -0.75C104.75 -0.7 107.28 -0.65 109.81 -0.69C112.35 -0.72 114.88 -0.84 117.41 -0.96C119.95 -1.07 122.48 -1.28 125.02 -1.38C127.55 -1.48 130.08 -1.6 132.62 -1.58C135.15 -1.55 137.68 -1.43 140.22 -1.24C142.75 -1.04 145.29 -0.7 147.82 -0.4C150.35 -0.1 152.89 0.29 155.42 0.56C157.95 0.83 160.49 1.08 163.02 1.2C165.56 1.32 168.09 1.34 170.62 1.31C173.16 1.28 175.69 1.13 178.22 1.04C180.76 0.95 183.29 0.81 185.82 0.77C188.36 0.73 190.89 0.75 193.43 0.8C195.96 0.85 198.49 1.0 201.03 1.08C203.56 1.17 206.21 1.09 208.63 1.3C211.05 1.51 213.43 1.48 215.55 2.35C217.68 3.22 219.87 4.65 221.38 6.5C222.89 8.34 223.93 10.99 224.59 13.42C225.26 15.84 225.2 18.5 225.37 21.04C225.53 23.58 225.6 26.11 225.59 28.64C225.59 31.18 225.44 33.71 225.32 36.24C225.2 38.78 225.0 41.31 224.89 43.84C224.78 46.38 224.68 48.91 224.66 51.45C224.64 53.98 224.77 56.48 224.76 59.05C224.76 61.61 225.36 64.39 224.64 66.84C223.93 69.28 222.39 72.13 220.46 73.7C218.52 75.27 215.53 75.97 213.02 76.25C210.51 76.53 207.94 75.67 205.4 75.38C202.86 75.1 200.33 74.75 197.8 74.55C195.26 74.36 192.73 74.22 190.2 74.2C187.66 74.19 185.13 74.31 182.6 74.44C180.06 74.57 177.53 74.82 174.99 74.99C172.46 75.16 169.93 75.35 167.39 75.44C164.86 75.54 162.33 75.56 159.79 75.56C157.26 75.56 154.73 75.46 152.19 75.44C149.66 75.41 147.12 75.36 144.59 75.42C142.06 75.49 139.52 75.62 136.99 75.82C134.46 76.02 131.92 76.34 129.39 76.61C126.85 76.88 124.32 77.24 121.79 77.45C119.25 77.67 116.72 77.85 114.19 77.9C111.65 77.95 109.12 77.87 106.59 77.74C104.05 77.61 101.52 77.34 98.98 77.13C96.45 76.92 93.92 76.65 91.38 76.48C88.85 76.32 86.32 76.2 83.78 76.14C81.25 76.09 78.71 76.14 76.18 76.15C73.65 76.16 71.11 76.25 68.58 76.22C66.05 76.2 63.51 76.15 60.98 76.01C58.44 75.88 55.91 75.63 53.38 75.4C50.84 75.17 48.31 74.83 45.78 74.61C43.24 74.4 40.71 74.17 38.18 74.09C35.64 74.02 33.11 74.04 30.57 74.16C28.04 74.27 25.51 74.53 22.97 74.76C20.44 75.0 17.87 75.62 15.37 75.56C12.88 75.49 10.18 75.42 8.0 74.39C5.81 73.36 3.61 71.43 2.26 69.39C0.9 67.35 0.29 64.62 -0.12 62.14C-0.53 59.67 -0.12 57.07 -0.2 54.53C-0.28 51.99 -0.43 49.46 -0.6 46.93C-0.78 44.4 -1.07 41.86 -1.27 39.33C-1.47 36.79 -1.71 34.26 -1.81 31.73C-1.91 29.19 -1.94 26.66 -1.85 24.13C-1.77 21.59 -1.57 19.07 -1.3 16.52C-1.03 13.98 -1.14 11.15 -0.22 8.86C0.69 6.56 2.32 4.14 4.19 2.77C6.06 1.4 8.6 1.0 11.0 0.63Z' fill='%23fff'/%3E%3C/svg%3E");
+  --guss-raupe-2: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 224 76' width='224' height='76' preserveAspectRatio='none'%3E%3Cdefs%3E%3CclipPath id='c'%3E%3Cpath d='M11.0 0.63C13.4 0.26 16.07 0.6 18.6 0.57C21.13 0.54 23.67 0.45 26.2 0.46C28.74 0.47 31.27 0.52 33.8 0.63C36.34 0.74 38.87 0.95 41.4 1.12C43.94 1.28 46.47 1.52 49.01 1.63C51.54 1.74 54.07 1.82 56.61 1.76C59.14 1.71 61.67 1.53 64.21 1.3C66.74 1.08 69.27 0.71 71.81 0.42C74.34 0.12 76.88 -0.24 79.41 -0.47C81.94 -0.69 84.48 -0.87 87.01 -0.95C89.54 -1.03 92.08 -0.99 94.61 -0.96C97.15 -0.92 99.68 -0.79 102.21 -0.75C104.75 -0.7 107.28 -0.65 109.81 -0.69C112.35 -0.72 114.88 -0.84 117.41 -0.96C119.95 -1.07 122.48 -1.28 125.02 -1.38C127.55 -1.48 130.08 -1.6 132.62 -1.58C135.15 -1.55 137.68 -1.43 140.22 -1.24C142.75 -1.04 145.29 -0.7 147.82 -0.4C150.35 -0.1 152.89 0.29 155.42 0.56C157.95 0.83 160.49 1.08 163.02 1.2C165.56 1.32 168.09 1.34 170.62 1.31C173.16 1.28 175.69 1.13 178.22 1.04C180.76 0.95 183.29 0.81 185.82 0.77C188.36 0.73 190.89 0.75 193.43 0.8C195.96 0.85 198.49 1.0 201.03 1.08C203.56 1.17 206.21 1.09 208.63 1.3C211.05 1.51 213.43 1.48 215.55 2.35C217.68 3.22 219.87 4.65 221.38 6.5C222.89 8.34 223.93 10.99 224.59 13.42C225.26 15.84 225.2 18.5 225.37 21.04C225.53 23.58 225.6 26.11 225.59 28.64C225.59 31.18 225.44 33.71 225.32 36.24C225.2 38.78 225.0 41.31 224.89 43.84C224.78 46.38 224.68 48.91 224.66 51.45C224.64 53.98 224.77 56.48 224.76 59.05C224.76 61.61 225.36 64.39 224.64 66.84C223.93 69.28 222.39 72.13 220.46 73.7C218.52 75.27 215.53 75.97 213.02 76.25C210.51 76.53 207.94 75.67 205.4 75.38C202.86 75.1 200.33 74.75 197.8 74.55C195.26 74.36 192.73 74.22 190.2 74.2C187.66 74.19 185.13 74.31 182.6 74.44C180.06 74.57 177.53 74.82 174.99 74.99C172.46 75.16 169.93 75.35 167.39 75.44C164.86 75.54 162.33 75.56 159.79 75.56C157.26 75.56 154.73 75.46 152.19 75.44C149.66 75.41 147.12 75.36 144.59 75.42C142.06 75.49 139.52 75.62 136.99 75.82C134.46 76.02 131.92 76.34 129.39 76.61C126.85 76.88 124.32 77.24 121.79 77.45C119.25 77.67 116.72 77.85 114.19 77.9C111.65 77.95 109.12 77.87 106.59 77.74C104.05 77.61 101.52 77.34 98.98 77.13C96.45 76.92 93.92 76.65 91.38 76.48C88.85 76.32 86.32 76.2 83.78 76.14C81.25 76.09 78.71 76.14 76.18 76.15C73.65 76.16 71.11 76.25 68.58 76.22C66.05 76.2 63.51 76.15 60.98 76.01C58.44 75.88 55.91 75.63 53.38 75.4C50.84 75.17 48.31 74.83 45.78 74.61C43.24 74.4 40.71 74.17 38.18 74.09C35.64 74.02 33.11 74.04 30.57 74.16C28.04 74.27 25.51 74.53 22.97 74.76C20.44 75.0 17.87 75.62 15.37 75.56C12.88 75.49 10.18 75.42 8.0 74.39C5.81 73.36 3.61 71.43 2.26 69.39C0.9 67.35 0.29 64.62 -0.12 62.14C-0.53 59.67 -0.12 57.07 -0.2 54.53C-0.28 51.99 -0.43 49.46 -0.6 46.93C-0.78 44.4 -1.07 41.86 -1.27 39.33C-1.47 36.79 -1.71 34.26 -1.81 31.73C-1.91 29.19 -1.94 26.66 -1.85 24.13C-1.77 21.59 -1.57 19.07 -1.3 16.52C-1.03 13.98 -1.14 11.15 -0.22 8.86C0.69 6.56 2.32 4.14 4.19 2.77C6.06 1.4 8.6 1.0 11.0 0.63Z'/%3E%3C/clipPath%3E%3Cfilter id='b1' x='-20%25' y='-20%25' width='140%25' height='140%25' color-interpolation-filters='sRGB'%3E%3CfeGaussianBlur stdDeviation='1.5'/%3E%3C/filter%3E%3Cfilter id='b2' x='-20%25' y='-20%25' width='140%25' height='140%25' color-interpolation-filters='sRGB'%3E%3CfeGaussianBlur stdDeviation='2.6'/%3E%3C/filter%3E%3C/defs%3E%3Cg clip-path='url(%23c)' fill='none'%3E%3Cpath d='M11.0 0.63C13.4 0.26 16.07 0.6 18.6 0.57C21.13 0.54 23.67 0.45 26.2 0.46C28.74 0.47 31.27 0.52 33.8 0.63C36.34 0.74 38.87 0.95 41.4 1.12C43.94 1.28 46.47 1.52 49.01 1.63C51.54 1.74 54.07 1.82 56.61 1.76C59.14 1.71 61.67 1.53 64.21 1.3C66.74 1.08 69.27 0.71 71.81 0.42C74.34 0.12 76.88 -0.24 79.41 -0.47C81.94 -0.69 84.48 -0.87 87.01 -0.95C89.54 -1.03 92.08 -0.99 94.61 -0.96C97.15 -0.92 99.68 -0.79 102.21 -0.75C104.75 -0.7 107.28 -0.65 109.81 -0.69C112.35 -0.72 114.88 -0.84 117.41 -0.96C119.95 -1.07 122.48 -1.28 125.02 -1.38C127.55 -1.48 130.08 -1.6 132.62 -1.58C135.15 -1.55 137.68 -1.43 140.22 -1.24C142.75 -1.04 145.29 -0.7 147.82 -0.4C150.35 -0.1 152.89 0.29 155.42 0.56C157.95 0.83 160.49 1.08 163.02 1.2C165.56 1.32 168.09 1.34 170.62 1.31C173.16 1.28 175.69 1.13 178.22 1.04C180.76 0.95 183.29 0.81 185.82 0.77C188.36 0.73 190.89 0.75 193.43 0.8C195.96 0.85 198.49 1.0 201.03 1.08C203.56 1.17 206.21 1.09 208.63 1.3C211.05 1.51 213.43 1.48 215.55 2.35C217.68 3.22 219.87 4.65 221.38 6.5C222.89 8.34 223.93 10.99 224.59 13.42C225.26 15.84 225.2 18.5 225.37 21.04C225.53 23.58 225.6 26.11 225.59 28.64C225.59 31.18 225.44 33.71 225.32 36.24C225.2 38.78 225.0 41.31 224.89 43.84C224.78 46.38 224.68 48.91 224.66 51.45C224.64 53.98 224.77 56.48 224.76 59.05C224.76 61.61 225.36 64.39 224.64 66.84C223.93 69.28 222.39 72.13 220.46 73.7C218.52 75.27 215.53 75.97 213.02 76.25C210.51 76.53 207.94 75.67 205.4 75.38C202.86 75.1 200.33 74.75 197.8 74.55C195.26 74.36 192.73 74.22 190.2 74.2C187.66 74.19 185.13 74.31 182.6 74.44C180.06 74.57 177.53 74.82 174.99 74.99C172.46 75.16 169.93 75.35 167.39 75.44C164.86 75.54 162.33 75.56 159.79 75.56C157.26 75.56 154.73 75.46 152.19 75.44C149.66 75.41 147.12 75.36 144.59 75.42C142.06 75.49 139.52 75.62 136.99 75.82C134.46 76.02 131.92 76.34 129.39 76.61C126.85 76.88 124.32 77.24 121.79 77.45C119.25 77.67 116.72 77.85 114.19 77.9C111.65 77.95 109.12 77.87 106.59 77.74C104.05 77.61 101.52 77.34 98.98 77.13C96.45 76.92 93.92 76.65 91.38 76.48C88.85 76.32 86.32 76.2 83.78 76.14C81.25 76.09 78.71 76.14 76.18 76.15C73.65 76.16 71.11 76.25 68.58 76.22C66.05 76.2 63.51 76.15 60.98 76.01C58.44 75.88 55.91 75.63 53.38 75.4C50.84 75.17 48.31 74.83 45.78 74.61C43.24 74.4 40.71 74.17 38.18 74.09C35.64 74.02 33.11 74.04 30.57 74.16C28.04 74.27 25.51 74.53 22.97 74.76C20.44 75.0 17.87 75.62 15.37 75.56C12.88 75.49 10.18 75.42 8.0 74.39C5.81 73.36 3.61 71.43 2.26 69.39C0.9 67.35 0.29 64.62 -0.12 62.14C-0.53 59.67 -0.12 57.07 -0.2 54.53C-0.28 51.99 -0.43 49.46 -0.6 46.93C-0.78 44.4 -1.07 41.86 -1.27 39.33C-1.47 36.79 -1.71 34.26 -1.81 31.73C-1.91 29.19 -1.94 26.66 -1.85 24.13C-1.77 21.59 -1.57 19.07 -1.3 16.52C-1.03 13.98 -1.14 11.15 -0.22 8.86C0.69 6.56 2.32 4.14 4.19 2.77C6.06 1.4 8.6 1.0 11.0 0.63Z' stroke='%233a1e08' stroke-opacity='0.30' stroke-width='8.5' filter='url(%23b2)'/%3E%3Cpath d='M11.0 0.63C13.4 0.26 16.07 0.6 18.6 0.57C21.13 0.54 23.67 0.45 26.2 0.46C28.74 0.47 31.27 0.52 33.8 0.63C36.34 0.74 38.87 0.95 41.4 1.12C43.94 1.28 46.47 1.52 49.01 1.63C51.54 1.74 54.07 1.82 56.61 1.76C59.14 1.71 61.67 1.53 64.21 1.3C66.74 1.08 69.27 0.71 71.81 0.42C74.34 0.12 76.88 -0.24 79.41 -0.47C81.94 -0.69 84.48 -0.87 87.01 -0.95C89.54 -1.03 92.08 -0.99 94.61 -0.96C97.15 -0.92 99.68 -0.79 102.21 -0.75C104.75 -0.7 107.28 -0.65 109.81 -0.69C112.35 -0.72 114.88 -0.84 117.41 -0.96C119.95 -1.07 122.48 -1.28 125.02 -1.38C127.55 -1.48 130.08 -1.6 132.62 -1.58C135.15 -1.55 137.68 -1.43 140.22 -1.24C142.75 -1.04 145.29 -0.7 147.82 -0.4C150.35 -0.1 152.89 0.29 155.42 0.56C157.95 0.83 160.49 1.08 163.02 1.2C165.56 1.32 168.09 1.34 170.62 1.31C173.16 1.28 175.69 1.13 178.22 1.04C180.76 0.95 183.29 0.81 185.82 0.77C188.36 0.73 190.89 0.75 193.43 0.8C195.96 0.85 198.49 1.0 201.03 1.08C203.56 1.17 206.21 1.09 208.63 1.3C211.05 1.51 213.43 1.48 215.55 2.35C217.68 3.22 219.87 4.65 221.38 6.5C222.89 8.34 223.93 10.99 224.59 13.42C225.26 15.84 225.2 18.5 225.37 21.04C225.53 23.58 225.6 26.11 225.59 28.64C225.59 31.18 225.44 33.71 225.32 36.24C225.2 38.78 225.0 41.31 224.89 43.84C224.78 46.38 224.68 48.91 224.66 51.45C224.64 53.98 224.77 56.48 224.76 59.05C224.76 61.61 225.36 64.39 224.64 66.84C223.93 69.28 222.39 72.13 220.46 73.7C218.52 75.27 215.53 75.97 213.02 76.25C210.51 76.53 207.94 75.67 205.4 75.38C202.86 75.1 200.33 74.75 197.8 74.55C195.26 74.36 192.73 74.22 190.2 74.2C187.66 74.19 185.13 74.31 182.6 74.44C180.06 74.57 177.53 74.82 174.99 74.99C172.46 75.16 169.93 75.35 167.39 75.44C164.86 75.54 162.33 75.56 159.79 75.56C157.26 75.56 154.73 75.46 152.19 75.44C149.66 75.41 147.12 75.36 144.59 75.42C142.06 75.49 139.52 75.62 136.99 75.82C134.46 76.02 131.92 76.34 129.39 76.61C126.85 76.88 124.32 77.24 121.79 77.45C119.25 77.67 116.72 77.85 114.19 77.9C111.65 77.95 109.12 77.87 106.59 77.74C104.05 77.61 101.52 77.34 98.98 77.13C96.45 76.92 93.92 76.65 91.38 76.48C88.85 76.32 86.32 76.2 83.78 76.14C81.25 76.09 78.71 76.14 76.18 76.15C73.65 76.16 71.11 76.25 68.58 76.22C66.05 76.2 63.51 76.15 60.98 76.01C58.44 75.88 55.91 75.63 53.38 75.4C50.84 75.17 48.31 74.83 45.78 74.61C43.24 74.4 40.71 74.17 38.18 74.09C35.64 74.02 33.11 74.04 30.57 74.16C28.04 74.27 25.51 74.53 22.97 74.76C20.44 75.0 17.87 75.62 15.37 75.56C12.88 75.49 10.18 75.42 8.0 74.39C5.81 73.36 3.61 71.43 2.26 69.39C0.9 67.35 0.29 64.62 -0.12 62.14C-0.53 59.67 -0.12 57.07 -0.2 54.53C-0.28 51.99 -0.43 49.46 -0.6 46.93C-0.78 44.4 -1.07 41.86 -1.27 39.33C-1.47 36.79 -1.71 34.26 -1.81 31.73C-1.91 29.19 -1.94 26.66 -1.85 24.13C-1.77 21.59 -1.57 19.07 -1.3 16.52C-1.03 13.98 -1.14 11.15 -0.22 8.86C0.69 6.56 2.32 4.14 4.19 2.77C6.06 1.4 8.6 1.0 11.0 0.63Z' stroke='%23ffffff' stroke-opacity='0.50' stroke-width='4.2' filter='url(%23b1)'/%3E%3Cg transform='translate(0,0.9)'%3E%3Cpath d='M11.0 0.63C13.4 0.26 16.07 0.6 18.6 0.57C21.13 0.54 23.67 0.45 26.2 0.46C28.74 0.47 31.27 0.52 33.8 0.63C36.34 0.74 38.87 0.95 41.4 1.12C43.94 1.28 46.47 1.52 49.01 1.63C51.54 1.74 54.07 1.82 56.61 1.76C59.14 1.71 61.67 1.53 64.21 1.3C66.74 1.08 69.27 0.71 71.81 0.42C74.34 0.12 76.88 -0.24 79.41 -0.47C81.94 -0.69 84.48 -0.87 87.01 -0.95C89.54 -1.03 92.08 -0.99 94.61 -0.96C97.15 -0.92 99.68 -0.79 102.21 -0.75C104.75 -0.7 107.28 -0.65 109.81 -0.69C112.35 -0.72 114.88 -0.84 117.41 -0.96C119.95 -1.07 122.48 -1.28 125.02 -1.38C127.55 -1.48 130.08 -1.6 132.62 -1.58C135.15 -1.55 137.68 -1.43 140.22 -1.24C142.75 -1.04 145.29 -0.7 147.82 -0.4C150.35 -0.1 152.89 0.29 155.42 0.56C157.95 0.83 160.49 1.08 163.02 1.2C165.56 1.32 168.09 1.34 170.62 1.31C173.16 1.28 175.69 1.13 178.22 1.04C180.76 0.95 183.29 0.81 185.82 0.77C188.36 0.73 190.89 0.75 193.43 0.8C195.96 0.85 198.49 1.0 201.03 1.08C203.56 1.17 206.21 1.09 208.63 1.3C211.05 1.51 213.43 1.48 215.55 2.35C217.68 3.22 219.87 4.65 221.38 6.5C222.89 8.34 223.93 10.99 224.59 13.42C225.26 15.84 225.2 18.5 225.37 21.04C225.53 23.58 225.6 26.11 225.59 28.64C225.59 31.18 225.44 33.71 225.32 36.24C225.2 38.78 225.0 41.31 224.89 43.84C224.78 46.38 224.68 48.91 224.66 51.45C224.64 53.98 224.77 56.48 224.76 59.05C224.76 61.61 225.36 64.39 224.64 66.84C223.93 69.28 222.39 72.13 220.46 73.7C218.52 75.27 215.53 75.97 213.02 76.25C210.51 76.53 207.94 75.67 205.4 75.38C202.86 75.1 200.33 74.75 197.8 74.55C195.26 74.36 192.73 74.22 190.2 74.2C187.66 74.19 185.13 74.31 182.6 74.44C180.06 74.57 177.53 74.82 174.99 74.99C172.46 75.16 169.93 75.35 167.39 75.44C164.86 75.54 162.33 75.56 159.79 75.56C157.26 75.56 154.73 75.46 152.19 75.44C149.66 75.41 147.12 75.36 144.59 75.42C142.06 75.49 139.52 75.62 136.99 75.82C134.46 76.02 131.92 76.34 129.39 76.61C126.85 76.88 124.32 77.24 121.79 77.45C119.25 77.67 116.72 77.85 114.19 77.9C111.65 77.95 109.12 77.87 106.59 77.74C104.05 77.61 101.52 77.34 98.98 77.13C96.45 76.92 93.92 76.65 91.38 76.48C88.85 76.32 86.32 76.2 83.78 76.14C81.25 76.09 78.71 76.14 76.18 76.15C73.65 76.16 71.11 76.25 68.58 76.22C66.05 76.2 63.51 76.15 60.98 76.01C58.44 75.88 55.91 75.63 53.38 75.4C50.84 75.17 48.31 74.83 45.78 74.61C43.24 74.4 40.71 74.17 38.18 74.09C35.64 74.02 33.11 74.04 30.57 74.16C28.04 74.27 25.51 74.53 22.97 74.76C20.44 75.0 17.87 75.62 15.37 75.56C12.88 75.49 10.18 75.42 8.0 74.39C5.81 73.36 3.61 71.43 2.26 69.39C0.9 67.35 0.29 64.62 -0.12 62.14C-0.53 59.67 -0.12 57.07 -0.2 54.53C-0.28 51.99 -0.43 49.46 -0.6 46.93C-0.78 44.4 -1.07 41.86 -1.27 39.33C-1.47 36.79 -1.71 34.26 -1.81 31.73C-1.91 29.19 -1.94 26.66 -1.85 24.13C-1.77 21.59 -1.57 19.07 -1.3 16.52C-1.03 13.98 -1.14 11.15 -0.22 8.86C0.69 6.56 2.32 4.14 4.19 2.77C6.06 1.4 8.6 1.0 11.0 0.63Z' stroke='%234a2a0e' stroke-opacity='0.26' stroke-width='1.4'/%3E%3C/g%3E%3Cg transform='translate(0,-0.4)'%3E%3Cpath d='M11.0 0.63C13.4 0.26 16.07 0.6 18.6 0.57C21.13 0.54 23.67 0.45 26.2 0.46C28.74 0.47 31.27 0.52 33.8 0.63C36.34 0.74 38.87 0.95 41.4 1.12C43.94 1.28 46.47 1.52 49.01 1.63C51.54 1.74 54.07 1.82 56.61 1.76C59.14 1.71 61.67 1.53 64.21 1.3C66.74 1.08 69.27 0.71 71.81 0.42C74.34 0.12 76.88 -0.24 79.41 -0.47C81.94 -0.69 84.48 -0.87 87.01 -0.95C89.54 -1.03 92.08 -0.99 94.61 -0.96C97.15 -0.92 99.68 -0.79 102.21 -0.75C104.75 -0.7 107.28 -0.65 109.81 -0.69C112.35 -0.72 114.88 -0.84 117.41 -0.96C119.95 -1.07 122.48 -1.28 125.02 -1.38C127.55 -1.48 130.08 -1.6 132.62 -1.58C135.15 -1.55 137.68 -1.43 140.22 -1.24C142.75 -1.04 145.29 -0.7 147.82 -0.4C150.35 -0.1 152.89 0.29 155.42 0.56C157.95 0.83 160.49 1.08 163.02 1.2C165.56 1.32 168.09 1.34 170.62 1.31C173.16 1.28 175.69 1.13 178.22 1.04C180.76 0.95 183.29 0.81 185.82 0.77C188.36 0.73 190.89 0.75 193.43 0.8C195.96 0.85 198.49 1.0 201.03 1.08C203.56 1.17 206.21 1.09 208.63 1.3C211.05 1.51 213.43 1.48 215.55 2.35C217.68 3.22 219.87 4.65 221.38 6.5C222.89 8.34 223.93 10.99 224.59 13.42C225.26 15.84 225.2 18.5 225.37 21.04C225.53 23.58 225.6 26.11 225.59 28.64C225.59 31.18 225.44 33.71 225.32 36.24C225.2 38.78 225.0 41.31 224.89 43.84C224.78 46.38 224.68 48.91 224.66 51.45C224.64 53.98 224.77 56.48 224.76 59.05C224.76 61.61 225.36 64.39 224.64 66.84C223.93 69.28 222.39 72.13 220.46 73.7C218.52 75.27 215.53 75.97 213.02 76.25C210.51 76.53 207.94 75.67 205.4 75.38C202.86 75.1 200.33 74.75 197.8 74.55C195.26 74.36 192.73 74.22 190.2 74.2C187.66 74.19 185.13 74.31 182.6 74.44C180.06 74.57 177.53 74.82 174.99 74.99C172.46 75.16 169.93 75.35 167.39 75.44C164.86 75.54 162.33 75.56 159.79 75.56C157.26 75.56 154.73 75.46 152.19 75.44C149.66 75.41 147.12 75.36 144.59 75.42C142.06 75.49 139.52 75.62 136.99 75.82C134.46 76.02 131.92 76.34 129.39 76.61C126.85 76.88 124.32 77.24 121.79 77.45C119.25 77.67 116.72 77.85 114.19 77.9C111.65 77.95 109.12 77.87 106.59 77.74C104.05 77.61 101.52 77.34 98.98 77.13C96.45 76.92 93.92 76.65 91.38 76.48C88.85 76.32 86.32 76.2 83.78 76.14C81.25 76.09 78.71 76.14 76.18 76.15C73.65 76.16 71.11 76.25 68.58 76.22C66.05 76.2 63.51 76.15 60.98 76.01C58.44 75.88 55.91 75.63 53.38 75.4C50.84 75.17 48.31 74.83 45.78 74.61C43.24 74.4 40.71 74.17 38.18 74.09C35.64 74.02 33.11 74.04 30.57 74.16C28.04 74.27 25.51 74.53 22.97 74.76C20.44 75.0 17.87 75.62 15.37 75.56C12.88 75.49 10.18 75.42 8.0 74.39C5.81 73.36 3.61 71.43 2.26 69.39C0.9 67.35 0.29 64.62 -0.12 62.14C-0.53 59.67 -0.12 57.07 -0.2 54.53C-0.28 51.99 -0.43 49.46 -0.6 46.93C-0.78 44.4 -1.07 41.86 -1.27 39.33C-1.47 36.79 -1.71 34.26 -1.81 31.73C-1.91 29.19 -1.94 26.66 -1.85 24.13C-1.77 21.59 -1.57 19.07 -1.3 16.52C-1.03 13.98 -1.14 11.15 -0.22 8.86C0.69 6.56 2.32 4.14 4.19 2.77C6.06 1.4 8.6 1.0 11.0 0.63Z' stroke='%23ffffff' stroke-opacity='0.58' stroke-width='0.9'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+  --guss-form-3: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 224 76' width='224' height='76' preserveAspectRatio='none'%3E%3Cpath d='M15.0 -1.77C17.62 -2.09 20.07 -1.66 22.61 -1.53C25.14 -1.4 27.68 -1.2 30.21 -0.99C32.75 -0.78 35.28 -0.51 37.82 -0.25C40.36 -0.0 42.89 0.29 45.43 0.53C47.96 0.78 50.5 1.03 53.03 1.21C55.57 1.4 58.1 1.56 60.64 1.66C63.18 1.75 65.71 1.79 68.25 1.79C70.78 1.78 73.32 1.71 75.85 1.61C78.39 1.51 80.92 1.36 83.46 1.2C86.0 1.05 88.53 0.85 91.07 0.68C93.6 0.51 96.14 0.33 98.67 0.18C101.21 0.03 103.75 -0.11 106.28 -0.22C108.82 -0.33 111.35 -0.41 113.89 -0.47C116.42 -0.53 118.96 -0.56 121.49 -0.58C124.03 -0.61 126.57 -0.61 129.1 -0.62C131.64 -0.63 134.17 -0.63 136.71 -0.65C139.24 -0.66 141.78 -0.69 144.31 -0.72C146.85 -0.75 149.39 -0.8 151.92 -0.85C154.46 -0.89 156.99 -0.95 159.53 -0.99C162.06 -1.02 164.6 -1.06 167.13 -1.07C169.67 -1.07 172.21 -1.06 174.74 -1.0C177.28 -0.95 179.81 -0.86 182.35 -0.73C184.88 -0.61 187.42 -0.44 189.95 -0.26C192.49 -0.07 195.03 0.15 197.56 0.37C200.1 0.58 202.65 0.83 205.17 1.03C207.69 1.24 210.45 1.07 212.67 1.61C214.89 2.15 216.97 2.93 218.5 4.26C220.02 5.6 221.17 7.53 221.83 9.61C222.49 11.69 222.25 14.29 222.46 16.75C222.67 19.2 222.85 21.82 223.07 24.35C223.3 26.89 223.58 29.42 223.82 31.96C224.07 34.49 224.34 37.03 224.55 39.57C224.77 42.1 224.97 44.64 225.12 47.17C225.27 49.71 225.38 52.24 225.44 54.78C225.5 57.31 225.84 59.79 225.48 62.39C225.12 64.98 224.68 68.12 223.28 70.32C221.87 72.52 219.39 74.55 217.05 75.6C214.71 76.65 211.79 76.51 209.21 76.63C206.64 76.75 204.14 76.42 201.61 76.34C199.07 76.26 196.54 76.2 194.0 76.14C191.47 76.09 188.93 76.06 186.39 76.02C183.86 75.99 181.32 75.96 178.79 75.92C176.25 75.88 173.72 75.84 171.18 75.78C168.65 75.72 166.11 75.65 163.57 75.56C161.04 75.47 158.5 75.36 155.97 75.25C153.43 75.14 150.9 75.01 148.36 74.91C145.83 74.81 143.29 74.7 140.75 74.63C138.22 74.57 135.68 74.52 133.15 74.52C130.61 74.52 128.08 74.56 125.54 74.65C123.01 74.74 120.47 74.89 117.93 75.06C115.4 75.24 112.86 75.47 110.33 75.7C107.79 75.93 105.26 76.21 102.72 76.45C100.18 76.7 97.65 76.96 95.11 77.17C92.58 77.38 90.04 77.57 87.51 77.7C84.97 77.83 82.44 77.91 79.9 77.93C77.36 77.95 74.83 77.91 72.29 77.83C69.76 77.74 67.22 77.58 64.69 77.41C62.15 77.24 59.62 77.01 57.08 76.8C54.54 76.59 52.01 76.34 49.47 76.13C46.94 75.92 44.4 75.71 41.87 75.54C39.33 75.38 36.8 75.23 34.26 75.13C31.72 75.03 29.19 74.97 26.65 74.94C24.12 74.91 21.58 74.92 19.05 74.94C16.51 74.95 13.81 75.35 11.44 75.05C9.07 74.75 6.56 74.4 4.81 73.11C3.07 71.82 1.65 69.53 0.95 67.33C0.25 65.13 0.68 62.4 0.62 59.9C0.56 57.39 0.61 54.83 0.6 52.29C0.58 49.76 0.57 47.22 0.54 44.69C0.5 42.15 0.46 39.61 0.38 37.08C0.31 34.54 0.21 32.01 0.09 29.47C-0.04 26.94 -0.2 24.41 -0.35 21.86C-0.51 19.32 -1.09 16.8 -0.85 14.22C-0.61 11.63 -0.18 8.66 1.11 6.36C2.4 4.06 4.58 1.76 6.89 0.41C9.21 -0.95 12.38 -1.45 15.0 -1.77Z' fill='%23fff'/%3E%3C/svg%3E");
+  --guss-raupe-3: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 224 76' width='224' height='76' preserveAspectRatio='none'%3E%3Cdefs%3E%3CclipPath id='c'%3E%3Cpath d='M15.0 -1.77C17.62 -2.09 20.07 -1.66 22.61 -1.53C25.14 -1.4 27.68 -1.2 30.21 -0.99C32.75 -0.78 35.28 -0.51 37.82 -0.25C40.36 -0.0 42.89 0.29 45.43 0.53C47.96 0.78 50.5 1.03 53.03 1.21C55.57 1.4 58.1 1.56 60.64 1.66C63.18 1.75 65.71 1.79 68.25 1.79C70.78 1.78 73.32 1.71 75.85 1.61C78.39 1.51 80.92 1.36 83.46 1.2C86.0 1.05 88.53 0.85 91.07 0.68C93.6 0.51 96.14 0.33 98.67 0.18C101.21 0.03 103.75 -0.11 106.28 -0.22C108.82 -0.33 111.35 -0.41 113.89 -0.47C116.42 -0.53 118.96 -0.56 121.49 -0.58C124.03 -0.61 126.57 -0.61 129.1 -0.62C131.64 -0.63 134.17 -0.63 136.71 -0.65C139.24 -0.66 141.78 -0.69 144.31 -0.72C146.85 -0.75 149.39 -0.8 151.92 -0.85C154.46 -0.89 156.99 -0.95 159.53 -0.99C162.06 -1.02 164.6 -1.06 167.13 -1.07C169.67 -1.07 172.21 -1.06 174.74 -1.0C177.28 -0.95 179.81 -0.86 182.35 -0.73C184.88 -0.61 187.42 -0.44 189.95 -0.26C192.49 -0.07 195.03 0.15 197.56 0.37C200.1 0.58 202.65 0.83 205.17 1.03C207.69 1.24 210.45 1.07 212.67 1.61C214.89 2.15 216.97 2.93 218.5 4.26C220.02 5.6 221.17 7.53 221.83 9.61C222.49 11.69 222.25 14.29 222.46 16.75C222.67 19.2 222.85 21.82 223.07 24.35C223.3 26.89 223.58 29.42 223.82 31.96C224.07 34.49 224.34 37.03 224.55 39.57C224.77 42.1 224.97 44.64 225.12 47.17C225.27 49.71 225.38 52.24 225.44 54.78C225.5 57.31 225.84 59.79 225.48 62.39C225.12 64.98 224.68 68.12 223.28 70.32C221.87 72.52 219.39 74.55 217.05 75.6C214.71 76.65 211.79 76.51 209.21 76.63C206.64 76.75 204.14 76.42 201.61 76.34C199.07 76.26 196.54 76.2 194.0 76.14C191.47 76.09 188.93 76.06 186.39 76.02C183.86 75.99 181.32 75.96 178.79 75.92C176.25 75.88 173.72 75.84 171.18 75.78C168.65 75.72 166.11 75.65 163.57 75.56C161.04 75.47 158.5 75.36 155.97 75.25C153.43 75.14 150.9 75.01 148.36 74.91C145.83 74.81 143.29 74.7 140.75 74.63C138.22 74.57 135.68 74.52 133.15 74.52C130.61 74.52 128.08 74.56 125.54 74.65C123.01 74.74 120.47 74.89 117.93 75.06C115.4 75.24 112.86 75.47 110.33 75.7C107.79 75.93 105.26 76.21 102.72 76.45C100.18 76.7 97.65 76.96 95.11 77.17C92.58 77.38 90.04 77.57 87.51 77.7C84.97 77.83 82.44 77.91 79.9 77.93C77.36 77.95 74.83 77.91 72.29 77.83C69.76 77.74 67.22 77.58 64.69 77.41C62.15 77.24 59.62 77.01 57.08 76.8C54.54 76.59 52.01 76.34 49.47 76.13C46.94 75.92 44.4 75.71 41.87 75.54C39.33 75.38 36.8 75.23 34.26 75.13C31.72 75.03 29.19 74.97 26.65 74.94C24.12 74.91 21.58 74.92 19.05 74.94C16.51 74.95 13.81 75.35 11.44 75.05C9.07 74.75 6.56 74.4 4.81 73.11C3.07 71.82 1.65 69.53 0.95 67.33C0.25 65.13 0.68 62.4 0.62 59.9C0.56 57.39 0.61 54.83 0.6 52.29C0.58 49.76 0.57 47.22 0.54 44.69C0.5 42.15 0.46 39.61 0.38 37.08C0.31 34.54 0.21 32.01 0.09 29.47C-0.04 26.94 -0.2 24.41 -0.35 21.86C-0.51 19.32 -1.09 16.8 -0.85 14.22C-0.61 11.63 -0.18 8.66 1.11 6.36C2.4 4.06 4.58 1.76 6.89 0.41C9.21 -0.95 12.38 -1.45 15.0 -1.77Z'/%3E%3C/clipPath%3E%3Cfilter id='b1' x='-20%25' y='-20%25' width='140%25' height='140%25' color-interpolation-filters='sRGB'%3E%3CfeGaussianBlur stdDeviation='1.5'/%3E%3C/filter%3E%3Cfilter id='b2' x='-20%25' y='-20%25' width='140%25' height='140%25' color-interpolation-filters='sRGB'%3E%3CfeGaussianBlur stdDeviation='2.6'/%3E%3C/filter%3E%3C/defs%3E%3Cg clip-path='url(%23c)' fill='none'%3E%3Cpath d='M15.0 -1.77C17.62 -2.09 20.07 -1.66 22.61 -1.53C25.14 -1.4 27.68 -1.2 30.21 -0.99C32.75 -0.78 35.28 -0.51 37.82 -0.25C40.36 -0.0 42.89 0.29 45.43 0.53C47.96 0.78 50.5 1.03 53.03 1.21C55.57 1.4 58.1 1.56 60.64 1.66C63.18 1.75 65.71 1.79 68.25 1.79C70.78 1.78 73.32 1.71 75.85 1.61C78.39 1.51 80.92 1.36 83.46 1.2C86.0 1.05 88.53 0.85 91.07 0.68C93.6 0.51 96.14 0.33 98.67 0.18C101.21 0.03 103.75 -0.11 106.28 -0.22C108.82 -0.33 111.35 -0.41 113.89 -0.47C116.42 -0.53 118.96 -0.56 121.49 -0.58C124.03 -0.61 126.57 -0.61 129.1 -0.62C131.64 -0.63 134.17 -0.63 136.71 -0.65C139.24 -0.66 141.78 -0.69 144.31 -0.72C146.85 -0.75 149.39 -0.8 151.92 -0.85C154.46 -0.89 156.99 -0.95 159.53 -0.99C162.06 -1.02 164.6 -1.06 167.13 -1.07C169.67 -1.07 172.21 -1.06 174.74 -1.0C177.28 -0.95 179.81 -0.86 182.35 -0.73C184.88 -0.61 187.42 -0.44 189.95 -0.26C192.49 -0.07 195.03 0.15 197.56 0.37C200.1 0.58 202.65 0.83 205.17 1.03C207.69 1.24 210.45 1.07 212.67 1.61C214.89 2.15 216.97 2.93 218.5 4.26C220.02 5.6 221.17 7.53 221.83 9.61C222.49 11.69 222.25 14.29 222.46 16.75C222.67 19.2 222.85 21.82 223.07 24.35C223.3 26.89 223.58 29.42 223.82 31.96C224.07 34.49 224.34 37.03 224.55 39.57C224.77 42.1 224.97 44.64 225.12 47.17C225.27 49.71 225.38 52.24 225.44 54.78C225.5 57.31 225.84 59.79 225.48 62.39C225.12 64.98 224.68 68.12 223.28 70.32C221.87 72.52 219.39 74.55 217.05 75.6C214.71 76.65 211.79 76.51 209.21 76.63C206.64 76.75 204.14 76.42 201.61 76.34C199.07 76.26 196.54 76.2 194.0 76.14C191.47 76.09 188.93 76.06 186.39 76.02C183.86 75.99 181.32 75.96 178.79 75.92C176.25 75.88 173.72 75.84 171.18 75.78C168.65 75.72 166.11 75.65 163.57 75.56C161.04 75.47 158.5 75.36 155.97 75.25C153.43 75.14 150.9 75.01 148.36 74.91C145.83 74.81 143.29 74.7 140.75 74.63C138.22 74.57 135.68 74.52 133.15 74.52C130.61 74.52 128.08 74.56 125.54 74.65C123.01 74.74 120.47 74.89 117.93 75.06C115.4 75.24 112.86 75.47 110.33 75.7C107.79 75.93 105.26 76.21 102.72 76.45C100.18 76.7 97.65 76.96 95.11 77.17C92.58 77.38 90.04 77.57 87.51 77.7C84.97 77.83 82.44 77.91 79.9 77.93C77.36 77.95 74.83 77.91 72.29 77.83C69.76 77.74 67.22 77.58 64.69 77.41C62.15 77.24 59.62 77.01 57.08 76.8C54.54 76.59 52.01 76.34 49.47 76.13C46.94 75.92 44.4 75.71 41.87 75.54C39.33 75.38 36.8 75.23 34.26 75.13C31.72 75.03 29.19 74.97 26.65 74.94C24.12 74.91 21.58 74.92 19.05 74.94C16.51 74.95 13.81 75.35 11.44 75.05C9.07 74.75 6.56 74.4 4.81 73.11C3.07 71.82 1.65 69.53 0.95 67.33C0.25 65.13 0.68 62.4 0.62 59.9C0.56 57.39 0.61 54.83 0.6 52.29C0.58 49.76 0.57 47.22 0.54 44.69C0.5 42.15 0.46 39.61 0.38 37.08C0.31 34.54 0.21 32.01 0.09 29.47C-0.04 26.94 -0.2 24.41 -0.35 21.86C-0.51 19.32 -1.09 16.8 -0.85 14.22C-0.61 11.63 -0.18 8.66 1.11 6.36C2.4 4.06 4.58 1.76 6.89 0.41C9.21 -0.95 12.38 -1.45 15.0 -1.77Z' stroke='%233a1e08' stroke-opacity='0.30' stroke-width='8.5' filter='url(%23b2)'/%3E%3Cpath d='M15.0 -1.77C17.62 -2.09 20.07 -1.66 22.61 -1.53C25.14 -1.4 27.68 -1.2 30.21 -0.99C32.75 -0.78 35.28 -0.51 37.82 -0.25C40.36 -0.0 42.89 0.29 45.43 0.53C47.96 0.78 50.5 1.03 53.03 1.21C55.57 1.4 58.1 1.56 60.64 1.66C63.18 1.75 65.71 1.79 68.25 1.79C70.78 1.78 73.32 1.71 75.85 1.61C78.39 1.51 80.92 1.36 83.46 1.2C86.0 1.05 88.53 0.85 91.07 0.68C93.6 0.51 96.14 0.33 98.67 0.18C101.21 0.03 103.75 -0.11 106.28 -0.22C108.82 -0.33 111.35 -0.41 113.89 -0.47C116.42 -0.53 118.96 -0.56 121.49 -0.58C124.03 -0.61 126.57 -0.61 129.1 -0.62C131.64 -0.63 134.17 -0.63 136.71 -0.65C139.24 -0.66 141.78 -0.69 144.31 -0.72C146.85 -0.75 149.39 -0.8 151.92 -0.85C154.46 -0.89 156.99 -0.95 159.53 -0.99C162.06 -1.02 164.6 -1.06 167.13 -1.07C169.67 -1.07 172.21 -1.06 174.74 -1.0C177.28 -0.95 179.81 -0.86 182.35 -0.73C184.88 -0.61 187.42 -0.44 189.95 -0.26C192.49 -0.07 195.03 0.15 197.56 0.37C200.1 0.58 202.65 0.83 205.17 1.03C207.69 1.24 210.45 1.07 212.67 1.61C214.89 2.15 216.97 2.93 218.5 4.26C220.02 5.6 221.17 7.53 221.83 9.61C222.49 11.69 222.25 14.29 222.46 16.75C222.67 19.2 222.85 21.82 223.07 24.35C223.3 26.89 223.58 29.42 223.82 31.96C224.07 34.49 224.34 37.03 224.55 39.57C224.77 42.1 224.97 44.64 225.12 47.17C225.27 49.71 225.38 52.24 225.44 54.78C225.5 57.31 225.84 59.79 225.48 62.39C225.12 64.98 224.68 68.12 223.28 70.32C221.87 72.52 219.39 74.55 217.05 75.6C214.71 76.65 211.79 76.51 209.21 76.63C206.64 76.75 204.14 76.42 201.61 76.34C199.07 76.26 196.54 76.2 194.0 76.14C191.47 76.09 188.93 76.06 186.39 76.02C183.86 75.99 181.32 75.96 178.79 75.92C176.25 75.88 173.72 75.84 171.18 75.78C168.65 75.72 166.11 75.65 163.57 75.56C161.04 75.47 158.5 75.36 155.97 75.25C153.43 75.14 150.9 75.01 148.36 74.91C145.83 74.81 143.29 74.7 140.75 74.63C138.22 74.57 135.68 74.52 133.15 74.52C130.61 74.52 128.08 74.56 125.54 74.65C123.01 74.74 120.47 74.89 117.93 75.06C115.4 75.24 112.86 75.47 110.33 75.7C107.79 75.93 105.26 76.21 102.72 76.45C100.18 76.7 97.65 76.96 95.11 77.17C92.58 77.38 90.04 77.57 87.51 77.7C84.97 77.83 82.44 77.91 79.9 77.93C77.36 77.95 74.83 77.91 72.29 77.83C69.76 77.74 67.22 77.58 64.69 77.41C62.15 77.24 59.62 77.01 57.08 76.8C54.54 76.59 52.01 76.34 49.47 76.13C46.94 75.92 44.4 75.71 41.87 75.54C39.33 75.38 36.8 75.23 34.26 75.13C31.72 75.03 29.19 74.97 26.65 74.94C24.12 74.91 21.58 74.92 19.05 74.94C16.51 74.95 13.81 75.35 11.44 75.05C9.07 74.75 6.56 74.4 4.81 73.11C3.07 71.82 1.65 69.53 0.95 67.33C0.25 65.13 0.68 62.4 0.62 59.9C0.56 57.39 0.61 54.83 0.6 52.29C0.58 49.76 0.57 47.22 0.54 44.69C0.5 42.15 0.46 39.61 0.38 37.08C0.31 34.54 0.21 32.01 0.09 29.47C-0.04 26.94 -0.2 24.41 -0.35 21.86C-0.51 19.32 -1.09 16.8 -0.85 14.22C-0.61 11.63 -0.18 8.66 1.11 6.36C2.4 4.06 4.58 1.76 6.89 0.41C9.21 -0.95 12.38 -1.45 15.0 -1.77Z' stroke='%23ffffff' stroke-opacity='0.50' stroke-width='4.2' filter='url(%23b1)'/%3E%3Cg transform='translate(0,0.9)'%3E%3Cpath d='M15.0 -1.77C17.62 -2.09 20.07 -1.66 22.61 -1.53C25.14 -1.4 27.68 -1.2 30.21 -0.99C32.75 -0.78 35.28 -0.51 37.82 -0.25C40.36 -0.0 42.89 0.29 45.43 0.53C47.96 0.78 50.5 1.03 53.03 1.21C55.57 1.4 58.1 1.56 60.64 1.66C63.18 1.75 65.71 1.79 68.25 1.79C70.78 1.78 73.32 1.71 75.85 1.61C78.39 1.51 80.92 1.36 83.46 1.2C86.0 1.05 88.53 0.85 91.07 0.68C93.6 0.51 96.14 0.33 98.67 0.18C101.21 0.03 103.75 -0.11 106.28 -0.22C108.82 -0.33 111.35 -0.41 113.89 -0.47C116.42 -0.53 118.96 -0.56 121.49 -0.58C124.03 -0.61 126.57 -0.61 129.1 -0.62C131.64 -0.63 134.17 -0.63 136.71 -0.65C139.24 -0.66 141.78 -0.69 144.31 -0.72C146.85 -0.75 149.39 -0.8 151.92 -0.85C154.46 -0.89 156.99 -0.95 159.53 -0.99C162.06 -1.02 164.6 -1.06 167.13 -1.07C169.67 -1.07 172.21 -1.06 174.74 -1.0C177.28 -0.95 179.81 -0.86 182.35 -0.73C184.88 -0.61 187.42 -0.44 189.95 -0.26C192.49 -0.07 195.03 0.15 197.56 0.37C200.1 0.58 202.65 0.83 205.17 1.03C207.69 1.24 210.45 1.07 212.67 1.61C214.89 2.15 216.97 2.93 218.5 4.26C220.02 5.6 221.17 7.53 221.83 9.61C222.49 11.69 222.25 14.29 222.46 16.75C222.67 19.2 222.85 21.82 223.07 24.35C223.3 26.89 223.58 29.42 223.82 31.96C224.07 34.49 224.34 37.03 224.55 39.57C224.77 42.1 224.97 44.64 225.12 47.17C225.27 49.71 225.38 52.24 225.44 54.78C225.5 57.31 225.84 59.79 225.48 62.39C225.12 64.98 224.68 68.12 223.28 70.32C221.87 72.52 219.39 74.55 217.05 75.6C214.71 76.65 211.79 76.51 209.21 76.63C206.64 76.75 204.14 76.42 201.61 76.34C199.07 76.26 196.54 76.2 194.0 76.14C191.47 76.09 188.93 76.06 186.39 76.02C183.86 75.99 181.32 75.96 178.79 75.92C176.25 75.88 173.72 75.84 171.18 75.78C168.65 75.72 166.11 75.65 163.57 75.56C161.04 75.47 158.5 75.36 155.97 75.25C153.43 75.14 150.9 75.01 148.36 74.91C145.83 74.81 143.29 74.7 140.75 74.63C138.22 74.57 135.68 74.52 133.15 74.52C130.61 74.52 128.08 74.56 125.54 74.65C123.01 74.74 120.47 74.89 117.93 75.06C115.4 75.24 112.86 75.47 110.33 75.7C107.79 75.93 105.26 76.21 102.72 76.45C100.18 76.7 97.65 76.96 95.11 77.17C92.58 77.38 90.04 77.57 87.51 77.7C84.97 77.83 82.44 77.91 79.9 77.93C77.36 77.95 74.83 77.91 72.29 77.83C69.76 77.74 67.22 77.58 64.69 77.41C62.15 77.24 59.62 77.01 57.08 76.8C54.54 76.59 52.01 76.34 49.47 76.13C46.94 75.92 44.4 75.71 41.87 75.54C39.33 75.38 36.8 75.23 34.26 75.13C31.72 75.03 29.19 74.97 26.65 74.94C24.12 74.91 21.58 74.92 19.05 74.94C16.51 74.95 13.81 75.35 11.44 75.05C9.07 74.75 6.56 74.4 4.81 73.11C3.07 71.82 1.65 69.53 0.95 67.33C0.25 65.13 0.68 62.4 0.62 59.9C0.56 57.39 0.61 54.83 0.6 52.29C0.58 49.76 0.57 47.22 0.54 44.69C0.5 42.15 0.46 39.61 0.38 37.08C0.31 34.54 0.21 32.01 0.09 29.47C-0.04 26.94 -0.2 24.41 -0.35 21.86C-0.51 19.32 -1.09 16.8 -0.85 14.22C-0.61 11.63 -0.18 8.66 1.11 6.36C2.4 4.06 4.58 1.76 6.89 0.41C9.21 -0.95 12.38 -1.45 15.0 -1.77Z' stroke='%234a2a0e' stroke-opacity='0.26' stroke-width='1.4'/%3E%3C/g%3E%3Cg transform='translate(0,-0.4)'%3E%3Cpath d='M15.0 -1.77C17.62 -2.09 20.07 -1.66 22.61 -1.53C25.14 -1.4 27.68 -1.2 30.21 -0.99C32.75 -0.78 35.28 -0.51 37.82 -0.25C40.36 -0.0 42.89 0.29 45.43 0.53C47.96 0.78 50.5 1.03 53.03 1.21C55.57 1.4 58.1 1.56 60.64 1.66C63.18 1.75 65.71 1.79 68.25 1.79C70.78 1.78 73.32 1.71 75.85 1.61C78.39 1.51 80.92 1.36 83.46 1.2C86.0 1.05 88.53 0.85 91.07 0.68C93.6 0.51 96.14 0.33 98.67 0.18C101.21 0.03 103.75 -0.11 106.28 -0.22C108.82 -0.33 111.35 -0.41 113.89 -0.47C116.42 -0.53 118.96 -0.56 121.49 -0.58C124.03 -0.61 126.57 -0.61 129.1 -0.62C131.64 -0.63 134.17 -0.63 136.71 -0.65C139.24 -0.66 141.78 -0.69 144.31 -0.72C146.85 -0.75 149.39 -0.8 151.92 -0.85C154.46 -0.89 156.99 -0.95 159.53 -0.99C162.06 -1.02 164.6 -1.06 167.13 -1.07C169.67 -1.07 172.21 -1.06 174.74 -1.0C177.28 -0.95 179.81 -0.86 182.35 -0.73C184.88 -0.61 187.42 -0.44 189.95 -0.26C192.49 -0.07 195.03 0.15 197.56 0.37C200.1 0.58 202.65 0.83 205.17 1.03C207.69 1.24 210.45 1.07 212.67 1.61C214.89 2.15 216.97 2.93 218.5 4.26C220.02 5.6 221.17 7.53 221.83 9.61C222.49 11.69 222.25 14.29 222.46 16.75C222.67 19.2 222.85 21.82 223.07 24.35C223.3 26.89 223.58 29.42 223.82 31.96C224.07 34.49 224.34 37.03 224.55 39.57C224.77 42.1 224.97 44.64 225.12 47.17C225.27 49.71 225.38 52.24 225.44 54.78C225.5 57.31 225.84 59.79 225.48 62.39C225.12 64.98 224.68 68.12 223.28 70.32C221.87 72.52 219.39 74.55 217.05 75.6C214.71 76.65 211.79 76.51 209.21 76.63C206.64 76.75 204.14 76.42 201.61 76.34C199.07 76.26 196.54 76.2 194.0 76.14C191.47 76.09 188.93 76.06 186.39 76.02C183.86 75.99 181.32 75.96 178.79 75.92C176.25 75.88 173.72 75.84 171.18 75.78C168.65 75.72 166.11 75.65 163.57 75.56C161.04 75.47 158.5 75.36 155.97 75.25C153.43 75.14 150.9 75.01 148.36 74.91C145.83 74.81 143.29 74.7 140.75 74.63C138.22 74.57 135.68 74.52 133.15 74.52C130.61 74.52 128.08 74.56 125.54 74.65C123.01 74.74 120.47 74.89 117.93 75.06C115.4 75.24 112.86 75.47 110.33 75.7C107.79 75.93 105.26 76.21 102.72 76.45C100.18 76.7 97.65 76.96 95.11 77.17C92.58 77.38 90.04 77.57 87.51 77.7C84.97 77.83 82.44 77.91 79.9 77.93C77.36 77.95 74.83 77.91 72.29 77.83C69.76 77.74 67.22 77.58 64.69 77.41C62.15 77.24 59.62 77.01 57.08 76.8C54.54 76.59 52.01 76.34 49.47 76.13C46.94 75.92 44.4 75.71 41.87 75.54C39.33 75.38 36.8 75.23 34.26 75.13C31.72 75.03 29.19 74.97 26.65 74.94C24.12 74.91 21.58 74.92 19.05 74.94C16.51 74.95 13.81 75.35 11.44 75.05C9.07 74.75 6.56 74.4 4.81 73.11C3.07 71.82 1.65 69.53 0.95 67.33C0.25 65.13 0.68 62.4 0.62 59.9C0.56 57.39 0.61 54.83 0.6 52.29C0.58 49.76 0.57 47.22 0.54 44.69C0.5 42.15 0.46 39.61 0.38 37.08C0.31 34.54 0.21 32.01 0.09 29.47C-0.04 26.94 -0.2 24.41 -0.35 21.86C-0.51 19.32 -1.09 16.8 -0.85 14.22C-0.61 11.63 -0.18 8.66 1.11 6.36C2.4 4.06 4.58 1.76 6.89 0.41C9.21 -0.95 12.38 -1.45 15.0 -1.77Z' stroke='%23ffffff' stroke-opacity='0.58' stroke-width='0.9'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+
+  /* Streusel-Häufchen: jedes Korn mit eigenem Schlagschatten (feDropShadow
+     auf die Gruppe) und Glanzstrich — das macht sie zu Objekten statt
+     Farbflecken. Enge Streuung, weil ein Häufchen aufgestreut wirkt und
+     eine gleichmäßige Verteilung wie ein Muster. */
+  /* feiner Puderzucker, der auf den Teigsaum unten gefallen ist. Als
+     Variable, weil die nth-child-Regeln weiter unten die ganze
+     background-image-Liste neu setzen und ihn sonst verlieren. */
+  --zucker-saum: radial-gradient(58px 11px at 26% 100%, rgba(255, 255, 255, 0.18), transparent 72%);
+  --tex-streusel: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='78' height='44'%3E%3Cfilter id='s' x='-25%25' y='-25%25' width='170%25' height='170%25' color-interpolation-filters='sRGB'%3E%3CfeDropShadow dx='0.7' dy='1.3' stdDeviation='0.75' flood-color='%232e1201' flood-opacity='0.6'/%3E%3C/filter%3E%3Cg filter='url(%23s)'%3E%3Crect x='6' y='5' width='10' height='3.2' rx='1.6' fill='%23d9463c' transform='rotate(-24 11 6.6)'/%3E%3Crect x='7.4' y='5.7' width='7' height='1' rx='0.5' fill='%23ffffff' opacity='0.5' transform='rotate(-24 11 6.6)'/%3E%3Crect x='22' y='11' width='10' height='3.2' rx='1.6' fill='%232f9e57' transform='rotate(38 27 12.6)'/%3E%3Crect x='23.4' y='11.7' width='7' height='1' rx='0.5' fill='%23ffffff' opacity='0.45' transform='rotate(38 27 12.6)'/%3E%3Crect x='36' y='3' width='10' height='3.2' rx='1.6' fill='%23f2b32e' transform='rotate(9 41 4.6)'/%3E%3Crect x='37.4' y='3.7' width='7' height='1' rx='0.5' fill='%23ffffff' opacity='0.55' transform='rotate(9 41 4.6)'/%3E%3Crect x='48' y='13' width='10' height='3.2' rx='1.6' fill='%23fff6e8' transform='rotate(-44 53 14.6)'/%3E%3Crect x='60' y='4' width='10' height='3.2' rx='1.6' fill='%23ef8fb4' transform='rotate(22 65 5.6)'/%3E%3Crect x='61.4' y='4.7' width='7' height='1' rx='0.5' fill='%23ffffff' opacity='0.5' transform='rotate(22 65 5.6)'/%3E%3Crect x='12' y='21' width='10' height='3.2' rx='1.6' fill='%23f2b32e' transform='rotate(50 17 22.6)'/%3E%3Crect x='33' y='22' width='10' height='3.2' rx='1.6' fill='%23d9463c' transform='rotate(-30 38 23.6)'/%3E%3Crect x='34.4' y='22.7' width='7' height='1' rx='0.5' fill='%23ffffff' opacity='0.45' transform='rotate(-30 38 23.6)'/%3E%3Crect x='52' y='26' width='10' height='3.2' rx='1.6' fill='%234d8fd6' transform='rotate(16 57 27.6)'/%3E%3Crect x='63' y='19' width='10' height='3.2' rx='1.6' fill='%232f9e57' transform='rotate(-56 68 20.6)'/%3E%3Crect x='22' y='33' width='10' height='3.2' rx='1.6' fill='%23fff6e8' transform='rotate(28 27 34.6)'/%3E%3Ccircle cx='19' cy='3' r='1.9' fill='%23fff6e8'/%3E%3Ccircle cx='33' cy='17' r='1.9' fill='%23d9463c'/%3E%3Ccircle cx='55' cy='2' r='1.9' fill='%234d8fd6'/%3E%3Ccircle cx='68' cy='30' r='1.9' fill='%23f2b32e'/%3E%3Ccircle cx='9' cy='31' r='1.9' fill='%23ef8fb4'/%3E%3Ccircle cx='45' cy='34' r='1.9' fill='%232f9e57'/%3E%3Ccircle cx='7' cy='14' r='1.9' fill='%23fff6e8'/%3E%3C/g%3E%3C/svg%3E");
+  /* Drei weitere Anordnungen. Sechs Karten mit derselben
+     Streuselgruppe lesen sich als kopierte Grafik — hier wechselt sie
+     alle vier Karten, waehrend die Position alle drei wechselt
+     (s. unten). Kleinstes gemeinsames Vielfaches 12, in einer
+     Sechser-Reihe also durchweg unterschiedlich. */
+  --tex-streusel-2: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='78' height='44'%3E%3Cfilter id='s' x='-25%25' y='-25%25' width='170%25' height='170%25' color-interpolation-filters='sRGB'%3E%3CfeDropShadow dx='0.7' dy='1.3' stdDeviation='0.75' flood-color='%232e1201' flood-opacity='0.6'/%3E%3C/filter%3E%3Cg filter='url(%23s)'%3E%3Crect x='8' y='8' width='10' height='3.2' rx='1.6' fill='%234d8fd6' transform='rotate(-14 13 9.6)'/%3E%3Crect x='9.4' y='8.7' width='7' height='1' rx='0.5' fill='%23ffffff' opacity='0.5' transform='rotate(-14 13 9.6)'/%3E%3Crect x='24' y='4' width='10' height='3.2' rx='1.6' fill='%23fff6e8' transform='rotate(31 29 5.6)'/%3E%3Crect x='25.4' y='4.7' width='7' height='1' rx='0.5' fill='%23ffffff' opacity='0.5' transform='rotate(31 29 5.6)'/%3E%3Crect x='39' y='12' width='10' height='3.2' rx='1.6' fill='%23d9463c' transform='rotate(-38 44 13.6)'/%3E%3Crect x='40.4' y='12.7' width='7' height='1' rx='0.5' fill='%23ffffff' opacity='0.5' transform='rotate(-38 44 13.6)'/%3E%3Crect x='54' y='6' width='10' height='3.2' rx='1.6' fill='%232f9e57' transform='rotate(12 59 7.6)'/%3E%3Crect x='55.4' y='6.7' width='7' height='1' rx='0.5' fill='%23ffffff' opacity='0.5' transform='rotate(12 59 7.6)'/%3E%3Crect x='66' y='14' width='10' height='3.2' rx='1.6' fill='%23f2b32e' transform='rotate(-27 71 15.6)'/%3E%3Crect x='67.4' y='14.7' width='7' height='1' rx='0.5' fill='%23ffffff' opacity='0.5' transform='rotate(-27 71 15.6)'/%3E%3Crect x='16' y='24' width='10' height='3.2' rx='1.6' fill='%23ef8fb4' transform='rotate(44 21 25.6)'/%3E%3Crect x='17.4' y='24.7' width='7' height='1' rx='0.5' fill='%23ffffff' opacity='0.5' transform='rotate(44 21 25.6)'/%3E%3Crect x='44' y='28' width='10' height='3.2' rx='1.6' fill='%234d8fd6' transform='rotate(-8 49 29.6)'/%3E%3Crect x='45.4' y='28.7' width='7' height='1' rx='0.5' fill='%23ffffff' opacity='0.5' transform='rotate(-8 49 29.6)'/%3E%3Crect x='60' y='30' width='10' height='3.2' rx='1.6' fill='%23fff6e8' transform='rotate(22 65 31.6)'/%3E%3Crect x='61.4' y='30.7' width='7' height='1' rx='0.5' fill='%23ffffff' opacity='0.5' transform='rotate(22 65 31.6)'/%3E%3Ccircle cx='13' cy='17' r='1.9' fill='%23f2b32e'/%3E%3Ccircle cx='32' cy='22' r='1.9' fill='%232f9e57'/%3E%3Ccircle cx='50' cy='19' r='1.9' fill='%23ef8fb4'/%3E%3Ccircle cx='70' cy='5' r='1.9' fill='%23d9463c'/%3E%3Ccircle cx='27' cy='34' r='1.9' fill='%234d8fd6'/%3E%3Ccircle cx='57' cy='37' r='1.9' fill='%23fff6e8'/%3E%3C/g%3E%3C/svg%3E");
+  --tex-streusel-3: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='78' height='44'%3E%3Cfilter id='s' x='-25%25' y='-25%25' width='170%25' height='170%25' color-interpolation-filters='sRGB'%3E%3CfeDropShadow dx='0.7' dy='1.3' stdDeviation='0.75' flood-color='%232e1201' flood-opacity='0.6'/%3E%3C/filter%3E%3Cg filter='url(%23s)'%3E%3Crect x='30' y='6' width='10' height='3.2' rx='1.6' fill='%23f2b32e' transform='rotate(18 35 7.6)'/%3E%3Crect x='31.4' y='6.7' width='7' height='1' rx='0.5' fill='%23ffffff' opacity='0.5' transform='rotate(18 35 7.6)'/%3E%3Crect x='44' y='3' width='10' height='3.2' rx='1.6' fill='%23d9463c' transform='rotate(-33 49 4.6)'/%3E%3Crect x='45.4' y='3.7' width='7' height='1' rx='0.5' fill='%23ffffff' opacity='0.5' transform='rotate(-33 49 4.6)'/%3E%3Crect x='58' y='9' width='10' height='3.2' rx='1.6' fill='%23fff6e8' transform='rotate(7 63 10.6)'/%3E%3Crect x='59.4' y='9.7' width='7' height='1' rx='0.5' fill='%23ffffff' opacity='0.5' transform='rotate(7 63 10.6)'/%3E%3Crect x='66' y='20' width='10' height='3.2' rx='1.6' fill='%23ef8fb4' transform='rotate(-49 71 21.6)'/%3E%3Crect x='67.4' y='20.7' width='7' height='1' rx='0.5' fill='%23ffffff' opacity='0.5' transform='rotate(-49 71 21.6)'/%3E%3Crect x='36' y='18' width='10' height='3.2' rx='1.6' fill='%232f9e57' transform='rotate(25 41 19.6)'/%3E%3Crect x='37.4' y='18.7' width='7' height='1' rx='0.5' fill='%23ffffff' opacity='0.5' transform='rotate(25 41 19.6)'/%3E%3Crect x='52' y='24' width='10' height='3.2' rx='1.6' fill='%23f2b32e' transform='rotate(-16 57 25.6)'/%3E%3Crect x='53.4' y='24.7' width='7' height='1' rx='0.5' fill='%23ffffff' opacity='0.5' transform='rotate(-16 57 25.6)'/%3E%3Crect x='24' y='30' width='10' height='3.2' rx='1.6' fill='%23d9463c' transform='rotate(38 29 31.6)'/%3E%3Crect x='25.4' y='30.7' width='7' height='1' rx='0.5' fill='%23ffffff' opacity='0.5' transform='rotate(38 29 31.6)'/%3E%3Ccircle cx='63' cy='3' r='1.9' fill='%234d8fd6'/%3E%3Ccircle cx='46' cy='13' r='1.9' fill='%23fff6e8'/%3E%3Ccircle cx='30' cy='23' r='1.9' fill='%23ef8fb4'/%3E%3Ccircle cx='58' cy='33' r='1.9' fill='%232f9e57'/%3E%3Ccircle cx='41' cy='35' r='1.9' fill='%23f2b32e'/%3E%3Ccircle cx='70' cy='29' r='1.9' fill='%23d9463c'/%3E%3C/g%3E%3C/svg%3E");
+  --tex-streusel-4: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='78' height='44'%3E%3Cfilter id='s' x='-25%25' y='-25%25' width='170%25' height='170%25' color-interpolation-filters='sRGB'%3E%3CfeDropShadow dx='0.7' dy='1.3' stdDeviation='0.75' flood-color='%232e1201' flood-opacity='0.6'/%3E%3C/filter%3E%3Cg filter='url(%23s)'%3E%3Crect x='5' y='12' width='10' height='3.2' rx='1.6' fill='%232f9e57' transform='rotate(-20 10 13.6)'/%3E%3Crect x='6.4' y='12.7' width='7' height='1' rx='0.5' fill='%23ffffff' opacity='0.5' transform='rotate(-20 10 13.6)'/%3E%3Crect x='19' y='6' width='10' height='3.2' rx='1.6' fill='%23ef8fb4' transform='rotate(27 24 7.6)'/%3E%3Crect x='20.4' y='6.7' width='7' height='1' rx='0.5' fill='%23ffffff' opacity='0.5' transform='rotate(27 24 7.6)'/%3E%3Crect x='33' y='14' width='10' height='3.2' rx='1.6' fill='%234d8fd6' transform='rotate(-41 38 15.6)'/%3E%3Crect x='34.4' y='14.7' width='7' height='1' rx='0.5' fill='%23ffffff' opacity='0.5' transform='rotate(-41 38 15.6)'/%3E%3Crect x='47' y='7' width='10' height='3.2' rx='1.6' fill='%23f2b32e' transform='rotate(15 52 8.6)'/%3E%3Crect x='48.4' y='7.7' width='7' height='1' rx='0.5' fill='%23ffffff' opacity='0.5' transform='rotate(15 52 8.6)'/%3E%3Crect x='61' y='12' width='10' height='3.2' rx='1.6' fill='%23d9463c' transform='rotate(-30 66 13.6)'/%3E%3Crect x='62.4' y='12.7' width='7' height='1' rx='0.5' fill='%23ffffff' opacity='0.5' transform='rotate(-30 66 13.6)'/%3E%3Crect x='12' y='28' width='10' height='3.2' rx='1.6' fill='%23fff6e8' transform='rotate(36 17 29.6)'/%3E%3Crect x='13.4' y='28.7' width='7' height='1' rx='0.5' fill='%23ffffff' opacity='0.5' transform='rotate(36 17 29.6)'/%3E%3Crect x='40' y='30' width='10' height='3.2' rx='1.6' fill='%232f9e57' transform='rotate(-11 45 31.6)'/%3E%3Crect x='41.4' y='30.7' width='7' height='1' rx='0.5' fill='%23ffffff' opacity='0.5' transform='rotate(-11 45 31.6)'/%3E%3Crect x='66' y='27' width='10' height='3.2' rx='1.6' fill='%234d8fd6' transform='rotate(20 71 28.6)'/%3E%3Crect x='67.4' y='27.7' width='7' height='1' rx='0.5' fill='%23ffffff' opacity='0.5' transform='rotate(20 71 28.6)'/%3E%3Ccircle cx='26' cy='20' r='1.9' fill='%23d9463c'/%3E%3Ccircle cx='54' cy='20' r='1.9' fill='%23fff6e8'/%3E%3Ccircle cx='9' cy='20' r='1.9' fill='%23f2b32e'/%3E%3Ccircle cx='33' cy='3' r='1.9' fill='%232f9e57'/%3E%3Ccircle cx='72' cy='6' r='1.9' fill='%23ef8fb4'/%3E%3Ccircle cx='48' cy='36' r='1.9' fill='%234d8fd6'/%3E%3C/g%3E%3C/svg%3E");
+}
+
+/* ═══ Der Keks ════════════════════════════════════════════════════════ */
+[data-theme="christmas"] .b-wkcard {
+  position: relative;
+  display: block;
+  box-sizing: border-box;
+  padding: 13px 15px 13px;
+  text-decoration: none;
+  cursor: pointer;
+  overflow: hidden;
+  font-family: "Segoe UI", system-ui, sans-serif;
+
+  /* Ausgestochene Kekse sind nie exakt rechteckig — acht verschiedene
+     Radien nehmen dem Umriss das Gestanzte. */
+  border-radius: 17px 15px 18px 16px / 15px 18px 16px 17px;
+
+  background-image:
+    var(--tex-poren),
+    var(--tex-krume),
+    var(--tex-welle),
+    /* Backfarbe: oben links heller (Licht), unten rechts dunkler */
+    radial-gradient(120% 160% at 16% -18%, rgba(255, 206, 148, 0.26), transparent 60%),
+    linear-gradient(168deg, var(--teig-hell) 0%, var(--teig-mitte) 46%, var(--teig-tief) 100%);
+  /* multiply setzt die Poren als echte Löcher, overlay moduliert die
+     Krume in die Backfarbe hinein, soft-light hält die groben Wölbungen
+     dezent — sonst kippt der Teig ins Fleckige. */
+  background-blend-mode: multiply, overlay, overlay, normal, normal;
+  background-size: 140px 100px, 160px 120px, 200px 140px, auto, auto;
+  background-position:
+    var(--px, 0) var(--py, 0),
+    var(--gx, 0) var(--gy, 0),
+    var(--wx, 0) var(--wy, 0),
+    0 0, 0 0;
+
+  box-shadow:
+    /* harte, dunkel gebackene Außenkante */
+    inset 0 0 0 1px rgba(58, 28, 6, 0.85),
+    /* direkt dahinter die aufgegangene, hellere Krume — zwei Ringe
+       ergeben zusammen ein gerundetes Kantenprofil */
+    inset 0 0 0 2.5px rgba(222, 158, 92, 0.40),
+    /* Licht liegt auf der Oberkante, die Unterkante ist angebacken */
+    inset 0 1.5px 0 rgba(255, 226, 178, 0.50),
+    inset 0 -2.5px 2px -1px rgba(44, 18, 2, 0.72),
+    /* kalter Rückwurf der blauen Nachtszene an der Unterkante */
+    inset 0 -1px 0 rgba(158, 196, 245, 0.16),
+    /* Kontaktschatten: der Keks liegt auf dem Glas, er schwebt nicht */
+    0 1px 2px rgba(var(--schatten), 0.55),
+    0 8px 18px -6px rgba(0, 0, 0, 0.66),
+    /* warmer Abstrahl auf die kalte Umgebung */
+    0 0 24px -8px rgba(255, 156, 66, 0.24);
+
+  transition: box-shadow .22s ease, color .22s ease;
+}
+
+/* Backvarianz: drei Teigmischungen im Wechsel, damit sechs Kekse
+   nebeneinander nicht wie sechs Kopien aussehen. */
+[data-theme="christmas"] .b-wkcard:nth-child(3n+2) {
+  --gx: 44px; --gy: 21px; --px: 60px; --py: 33px; --wx: 77px; --wy: 40px;
+  --teig-hell: #c17c37; --teig-mitte: #9e5a22;
+  border-radius: 15px 18px 16px 19px / 18px 15px 19px 16px;
+}
+[data-theme="christmas"] .b-wkcard:nth-child(3n+3) {
+  --gx: 91px; --gy: 57px; --px: 25px; --py: 74px; --wx: 150px; --wy: 88px;
+  --teig-hell: #d08f47; --teig-mitte: #af6a2e;
+  border-radius: 18px 16px 15px 17px / 16px 17px 18px 15px;
+}
+
+/* ═══ Der Guss ════════════════════════════════════════════════════════
+   ::before war der 4px-Statusbalken — jetzt die geflutete Glasurfläche.
+   Sie sitzt bewusst asymmetrisch eingerückt: oben schmaler, unten
+   breiter, so als wäre der Guss nach unten verlaufen. */
+[data-theme="christmas"] .b-wkcard::before {
+  content: "";
+  position: absolute;
+  inset: 5px 8px 11px 8px;
+  z-index: 0;
+
+  /* Der Umriss kommt aus der Maske, nicht aus border-radius — nur so
+     bekommt die Gusskante ihre unregelmäßige, gelaufene Form. */
+  -webkit-mask: var(--guss-form, var(--guss-form-1)) center / 100% 100% no-repeat;
+  mask: var(--guss-form, var(--guss-form-1)) center / 100% 100% no-repeat;
+
+  /* Der Schlagschatten muss der Maskenform folgen, deshalb drop-shadow
+     statt box-shadow (box-shadow kennt nur das Rechteck). Zwei Stufen:
+     harte Kontaktkante = Schichtdicke, weicher Abfall = Streulicht. */
+  filter:
+    drop-shadow(0 1.5px 0 rgba(48, 20, 2, 0.42))
+    drop-shadow(0 3px 3px rgba(var(--schatten), 0.55))
+    drop-shadow(0 6px 7px rgba(var(--schatten), 0.32));
+
+  background-image:
+    var(--tex-zucker),
+    var(--tex-blasen),
+    /* aufgespritzte Randraupe, exakt auf demselben Pfad wie die Maske */
+    var(--guss-raupe, var(--guss-raupe-1)),
+    /* schmaler, harter Glanzstreifen oben = Spiegelung der Lichtquelle.
+       Ohne ihn bleibt jede Glasur matt, egal wie viele weiche Verläufe
+       darunter liegen. */
+    linear-gradient(174deg, rgba(255, 255, 255, 0.60) 0%, rgba(255, 255, 255, 0.34) 9%, rgba(255, 255, 255, 0.06) 17%, transparent 27%),
+    /* breites weiches Glanzlicht, Zentrum bewusst INNERHALB der Fläche */
+    radial-gradient(105% 135% at 30% 6%, rgba(255, 255, 255, 0.42) 0%, rgba(255, 255, 255, 0.09) 38%, transparent 68%),
+    var(--tex-guss),
+    /* Randverdickung: am Rand steht der Guss höher und wirkt dunkler */
+    radial-gradient(115% 240% at 50% 46%, transparent 46%, var(--guss-kehle) 100%),
+    /* der Guss läuft nach unten zusammen und wird dort dicker */
+    linear-gradient(176deg, transparent 42%, var(--guss-schatten) 100%),
+    linear-gradient(176deg, var(--guss-a) 0%, var(--guss-b) 100%);
+  background-blend-mode: screen, normal, normal, normal, normal, overlay, normal, normal, normal;
+  background-size: 130px 90px, 96px 68px, 100% 100%, auto, auto, 240px 96px, auto, auto, auto;
+  background-position:
+    var(--zx, 0) var(--zy, 0),
+    var(--bx, 0) var(--by, 0),
+    0 0, 0 0, 0 0,
+    var(--sx, 0) 0,
+    0 0, 0 0, 0 0;
+
+  transition: filter .22s ease;
+}
+[data-theme="christmas"] .b-wkcard:nth-child(3n+2)::before {
+  --zx: 37px; --zy: 19px; --sx: 70px; --bx: 33px; --by: 21px;
+  --guss-form: var(--guss-form-2); --guss-raupe: var(--guss-raupe-2);
+  inset: 6px 8px 10px 9px;
+}
+[data-theme="christmas"] .b-wkcard:nth-child(3n+3)::before {
+  --zx: 74px; --zy: 44px; --sx: 145px; --bx: 61px; --by: 44px;
+  --guss-form: var(--guss-form-3); --guss-raupe: var(--guss-raupe-3);
+  inset: 5px 9px 11px 8px;
+}
+
+/* ═══ Streusel + Puderzucker ══════════════════════════════════════════
+   Liegen über dem Guss, aber unter der Schrift — Deko darf die KW-Zahl
+   nie überlagern, deshalb sitzt das Häufchen in der freien Ecke rechts. */
+[data-theme="christmas"] .b-wkcard::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  background-image: var(--tex-streusel), var(--zucker-saum);
+  background-repeat: no-repeat, no-repeat;
+  background-position: right 14px top 9px, 0 0;
+  background-size: 78px 44px, auto;
+}
+/* Anordnung wechselt alle vier Karten ... */
+[data-theme="christmas"] .b-wkcard:nth-child(4n+2)::after { background-image: var(--tex-streusel-2), var(--zucker-saum); }
+[data-theme="christmas"] .b-wkcard:nth-child(4n+3)::after { background-image: var(--tex-streusel-3), var(--zucker-saum); }
+[data-theme="christmas"] .b-wkcard:nth-child(4n+4)::after { background-image: var(--tex-streusel-4), var(--zucker-saum); }
+/* ... Lage und Groesse alle drei. Die Groesse variiert bewusst mit, sonst
+   sitzt jede Gruppe gleich weit auseinander und der Wechsel faellt kaum auf. */
+[data-theme="christmas"] .b-wkcard:nth-child(3n+2)::after {
+  background-position: right 9px top 13px, 0 0;
+  background-size: 70px 40px, auto;
+}
+[data-theme="christmas"] .b-wkcard:nth-child(3n+3)::after {
+  background-position: right 18px top 6px, 0 0;
+  background-size: 84px 47px, auto;
+}
+
+/* ═══ Schrift: Schokolade auf Guss ════════════════════════════════════ */
+[data-theme="christmas"] .b-wkcard__kw,
+[data-theme="christmas"] .b-wkcard__range,
+[data-theme="christmas"] .b-wkcard__status { position: relative; z-index: 2; }
+
+[data-theme="christmas"] .b-wkcard__kw {
+  display: block;
+  font-size: 30px;
+  font-weight: 900;
+  line-height: 1;
+  letter-spacing: -0.02em;
+  font-feature-settings: "tnum";
+  margin: 0 0 2px;
+  /* Flache Vollfarbe, pro Glasursorte gewaehlt (--kw-ink). KEIN Verlauf im
+     Glyphen-Clip und KEINE Schattenkette mehr: beides sollte die Zahl wie
+     aufgespritzte Schokolade wirken lassen, liest sich in Originalgroesse
+     aber nur als verwaschene Kante. Nebenbei lag bei background-clip:text
+     der text-shadow UEBER der Fuellung und hellte die Ziffer auf. */
+  color: var(--kw-ink);
+}
+[data-theme="christmas"] .b-wkcard__kw small {
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  margin-left: 5px;
+  vertical-align: 3px;
+  /* "KW" im Ton der Zahl — vorher eine eigene Braunstufe, die neben einer
+     gruenen oder blauen Zahl fremd wirkte.
+     KEINE Deckkraft: 0.72 mischte den Grund in die Glyphe und kostete auf
+     jeder Karte den Kontrast (gemessen 2.34 bis 2.96, 10px brauchen 4.5).
+     Zurueckgenommen wird das Label ueber Groesse und Laufweite, nicht ueber
+     Transparenz — die trifft immer die Lesbarkeit zuerst. */
+  color: var(--kw-ink);
+}
+
+/* Datum wirkt bewusst EINGEPRÄGT (heller Saum unten statt oben) — der
+   Materialkontrast zur aufgelegten Schokoschrift schafft die Hierarchie
+   ohne zusätzliche Farbe. */
+[data-theme="christmas"] .b-wkcard__range {
+  display: block;
+  font-size: 10.5px;
+  font-weight: 600;
+  line-height: 1.35;
+  letter-spacing: 0.01em;
+  font-feature-settings: "tnum";
+  margin: 0 0 6px;
+  color: var(--ink2);
+}
+
+[data-theme="christmas"] .b-wkcard__status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 10.5px;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: 0.02em;
+  color: var(--sig-ink);
+}
+/* ═══ Die Zuckerperle ═════════════════════════════════════════════════
+   .d ist ein leerer span — hier wird er zur echten Kugel: Kernfarbe als
+   versetztes Radial (Terminatorkante), scharfer Spitzlichtpunkt links
+   oben, Kontaktschatten unten. Der Status ist damit auch ohne Farbtext
+   ablesbar. */
+[data-theme="christmas"] .b-wkcard__status .d {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  flex: none;
+  border-radius: 50%;
+  background-image:
+    radial-gradient(circle at 32% 26%, rgba(255, 255, 255, 0.98) 0 10%, rgba(255, 255, 255, 0.32) 24%, transparent 46%),
+    radial-gradient(circle at 68% 78%, var(--perle-b) 0%, var(--perle-a) 68%);
+  box-shadow:
+    inset 0 -1.5px 1.5px rgba(0, 0, 0, 0.32),
+    inset 0 0 0 0.5px rgba(0, 0, 0, 0.18),
+    0 1.5px 2px rgba(var(--schatten), 0.65);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   Statusvarianten = Glasursorten
+   Genehmigt  → Pistaziengrün, fertig dekoriert
+   Eingereicht→ Eisblau (Puderzucker-Blau, klassisch für Schneeflocken)
+   Zurückgew. → Beerenrot
+   Entwurf    → Zuckerweiß, noch ungefärbt = „angefangen"
+   Offen      → gar nicht glasiert, nur Puderzucker
+   ═══════════════════════════════════════════════════════════════════════ */
+
+/* Genehmigt — Pistazie */
+[data-theme="christmas"] .b-wkcard--ok {
+  --sig: #6BD089;
+  --guss-a: rgba(207,231,168,0.955); --guss-b: rgba(150,193,105,0.94);
+  --guss-tief: rgba(52, 92, 28, 0.62);
+  --guss-kehle: rgba(52, 92, 28, 0.30);
+  --guss-schatten: rgba(66, 108, 38, 0.34);
+  --sig-ink: #123f10;   /* dunkles Tannengrün statt Blattgrün, s. oben */
+  --kw-ink: #1c3f12;    /* Zahl im Ton der Glasur, nur sehr dunkel */
+  --perle-a: #1c6e2f; --perle-b: #5cc46f;   /* Perle im Ton der Glasur */
+}
+/* Eingereicht — Eisblau */
+[data-theme="christmas"] .b-wkcard--fr {
+  --sig: #6FB1F2;
+  --guss-a: rgba(216,235,250,0.955); --guss-b: rgba(160,197,229,0.94);
+  --guss-tief: rgba(32, 72, 112, 0.58);
+  --guss-kehle: rgba(32, 72, 112, 0.28);
+  --guss-schatten: rgba(44, 88, 134, 0.32);
+  --sig-ink: #0b2b48;
+  --kw-ink: #102f4d;
+  --perle-a: #17497f; --perle-b: #4b90d0;
+}
+/* Zurückgewiesen — Beerenrot */
+[data-theme="christmas"] .b-wkcard--er {
+  --sig: #F79188;
+  --guss-a: rgba(244,175,164,0.955); --guss-b: rgba(214,110,98,0.94);
+  --guss-tief: rgba(116, 28, 18, 0.60);
+  --guss-kehle: rgba(116, 28, 18, 0.30);
+  --guss-schatten: rgba(136, 38, 26, 0.36);
+  --sig-ink: #340803;   /* Beerenrot ist die dunkelste Glasur, das Wort muss noch tiefer */
+  --kw-ink: #4a1008;
+  --perle-a: #62110a; --perle-b: #b4392c;
+}
+/* Entwurf — Zuckerweiß, noch nicht eingefärbt */
+[data-theme="christmas"] .b-wkcard--draft,
+[data-theme="christmas"] .b-wkcard--entwurf,
+[data-theme="christmas"] .b-wkcard--draft {
+  --sig: #69B6F2;
+  --guss-a: rgba(251,246,236,0.955); --guss-b: rgba(230,216,192,0.94);
+  --guss-tief: rgba(118, 84, 42, 0.44);
+  --guss-kehle: rgba(118, 84, 42, 0.22);
+  --guss-schatten: rgba(138, 100, 54, 0.26);
+  --sig-ink: #452a06;
+  --kw-ink: #3d240a;
+  --perle-a: #17497f; --perle-b: #58a0dd;
+}
+
+/* Offen — der Keks ist noch NICHT glasiert. Nur eine Puderzuckerwolke
+   liegt auf dem Teig. Die Fläche bleibt Krume, damit die Karte auf einen
+   Blick als „noch nichts passiert" lesbar ist.
+
+   Teigton: genau die Werte, die vorher effektiv gerendert wurden. Die
+   Backvarianz .b-wkcard:nth-child(3n+2) hat eine Pseudoklasse mehr als
+   .b-wkcard--offen und hatte --teig-hell/-mitte hier immer ueberschrieben —
+   der Keks sah also je nach POSITION anders aus. Selektor verdoppelt (gleiche
+   Spezifitaet, spaeter in der Datei => gewinnt), Werte auf den gerendert
+   bekannten Stand gesetzt: derselbe Keks, jetzt lageunabhaengig. Dasselbe
+   Problem hatte ::after mit der Streusel-Anordnung (:nth-child(4n+2)) — auf
+   Position 2/3/4 waeren Streusel auf dem unglasierten Keks gelandet. */
+[data-theme="christmas"] .b-wkcard.b-wkcard--offen,
+[data-theme="christmas"] .b-wkcard.b-wkcard--leer {
+  --sig: #C9D6E8;
+  /* Perle neutral grau: offen hat keine Signalfarbe. */
+  --perle-a: #5f5a53; --perle-b: #c6c0b6;
+  --teig-hell: #c17c37; --teig-mitte: #9e5a22; --teig-tief: #451f05;
+  /* Warum die Karte zweistimmig beschriftet ist — gemessen, nicht gewaehlt:
+     der Keks ist oben hell (Luminanz 0.217, da liegt die Zuckerwolke) und
+     unten dunkel (0.127, Backschatten). Oben traegt deshalb Schokolade
+     (4.50 gegen 3.60 mit Weiss), unten traegt Zucker (4.70 gegen 2.85).
+     Beides umgekehrt faellt durch AA. Was die zwei Stimmen zusammenhaelt,
+     ist die WAERME: der Kleintext ist kein kuehles Weiss mehr, sondern
+     Zuckerguss-Creme im selben Gelbstich wie die Schokolade — damit liest
+     sich die Karte als ein Material in zwei Dicken. Die Zahl erbt die
+     Schokolade der Wurzel, deshalb steht hier kein --kw-ink. */
+  --ink:     #fbecd2;
+  --ink2:    #fbecd2;
+  --sig-ink: #fbecd2;
+  /* Die Zahl bleibt bewusst OHNE eigenen Wert: sie erbt die Schokolade
+     (#2b1204) wie jede andere Karte. Klingt falsch — helle Schrift auf
+     dunklem Keks —, ist aber gemessen der beste Wert der Karte. Der Teig
+     liegt bei Luminanz 0.218, also viel naeher an Weiss als an Kakao:
+     Kontrast 4.50 mit Schokolade gegen 3.60 mit dem warmen Weiss. Und die
+     Ziffer ist 30px/900 — in dieser Groesse blendet Weiss, waehrend
+     Schokolade im Material liegt. Alle dunkleren Cremetoene sind schlechter
+     (Puderzucker-Beige 2.80, Honig-Amber 2.19), deshalb war hier vorher
+     erst ein Halo und dann eine Kontur noetig. Kleintext bleibt hell: bei
+     10.5px traegt eine feine Linie nur als Aufhellung. */
+}
+[data-theme="christmas"] .b-wkcard.b-wkcard--offen::before,
+[data-theme="christmas"] .b-wkcard.b-wkcard--leer::before {
+  /* Keine Guss-Fläche, nur Puderzucker. Der komplette Zucker der Karte sitzt
+     bewusst HIER und nicht auf ::after: die Streusel-Variation weiter oben
+     laeuft ueber :nth-child(...)::after und ist damit spezifischer als
+     .b-wkcard--offen::after — sie wuerde jede Groessen- und Lageangabe der
+     Offen-Karte ueberstimmen. Genau so entstand ein helles Rechteckband quer
+     ueber die rechte Kachelhaelfte: die in KACHEL-Prozent gedachten Radialen
+     wurden in die 70x40-Streuselbox gerechnet (gemessen +5.6 Stufen gegen die
+     Zeilen darueber). Auf ::before fasst keine Variationsregel hin. */
+  -webkit-mask: none; mask: none;
+  filter: none;
+  inset: 0;
+  background-image:
+    var(--tex-zucker),
+    radial-gradient(120% 150% at 26% -14%, rgba(255, 252, 245, 0.24) 0%, rgba(255, 246, 232, 0.10) 38%, rgba(255, 244, 228, 0.04) 66%, transparent 82%),
+    radial-gradient(84px 18px at 28% 102%, rgba(255, 255, 255, 0.22), transparent 74%),
+    radial-gradient(40px 30px at 84% 8%, rgba(255, 255, 255, 0.13), transparent 72%);
+  background-blend-mode: screen, normal, normal, normal;
+  /* Zuckerkorn klein kacheln: auf 130x90 gestreckt wurde ein einzelnes Korn
+     zu einem hellen Fleck. */
+  background-size: 44px 31px, auto, auto, auto;
+  background-position: var(--zx, 0) var(--zy, 0), 0 0, 0 0, 0 0;
+  background-repeat: repeat, no-repeat, no-repeat, no-repeat;
+}
+/* Ohne Guss keine Streusel — ein unglasierter Keks trägt nichts. */
+[data-theme="christmas"] .b-wkcard.b-wkcard--offen::after,
+[data-theme="christmas"] .b-wkcard.b-wkcard--leer::after {
+  background-image: none;
+}
+
+/* ═══ Hover ═══════════════════════════════════════════════════════════
+   Kein transform (macht das Element zum Backdrop Root und tötet das Glas
+   darunter). Stattdessen: der Guss bekommt mehr Glanz, der Keks einen
+   tieferen Kontaktschatten — er wirkt angehoben, ohne sich zu bewegen. */
+[data-theme="christmas"] .b-wkcard:hover {
+  box-shadow:
+    inset 0 0 0 1px rgba(58, 28, 6, 0.85),
+    inset 0 0 0 2.5px rgba(238, 176, 108, 0.48),
+    inset 0 1.5px 0 rgba(255, 234, 192, 0.60),
+    inset 0 -2.5px 2px -1px rgba(44, 18, 2, 0.72),
+    inset 0 -1px 0 rgba(158, 196, 245, 0.18),
+    0 2px 3px rgba(var(--schatten), 0.55),
+    0 15px 28px -8px rgba(0, 0, 0, 0.70),
+    0 0 32px -6px rgba(255, 168, 78, 0.36);
+}
+[data-theme="christmas"] .b-wkcard:hover::before {
+  /* Kein transform. Der Guss wirkt angehoben, weil sein Schlagschatten
+     tiefer wird und die Fläche einen Tick mehr Glanz bekommt. */
+  filter:
+    drop-shadow(0 2px 0 rgba(48, 20, 2, 0.48))
+    drop-shadow(0 4px 5px rgba(var(--schatten), 0.60))
+    drop-shadow(0 9px 11px rgba(var(--schatten), 0.38))
+    brightness(1.045) saturate(1.06);
+}
+[data-theme="christmas"] .b-wkcard--offen:hover::before,
+[data-theme="christmas"] .b-wkcard--leer:hover::before { filter: none; }
+
+
+/* ═══ Anpassungen an die App ═══════════════════════════════════════════
+   Alles hier neutralisiert eine Regel aus dashboard.css, die es im Mockup
+   nicht gab. Jede Zeile nennt, wogegen sie steht. */
+
+[data-theme="christmas"] .b-wkcard {
+  /* dashboard.css:2262 border: 1px solid var(--pm-grey-200) — der Keks
+     traegt seine Kante als inset-Ringe, ein zweiter Rahmen macht sie hart. */
+  border: 0;
+  /* dashboard.css:2260 background: <sig-wash>, #fff — die Kurzschreibweise
+     setzt eine weisse background-color, die unter dem Teig liegen bleibt. */
+  background-color: transparent;
+}
+/* dashboard.css:2288 war ::before der 4px-Statusbalken. Zwei Reste davon
+   ueberleben jede Angabe der Glasur-Regel und liessen sie als schmalen
+   Streifen am oberen Rand stehen:
+   - height: 4px gewinnt gegen inset (bei top+bottom+height wird bottom
+     ignoriert, das ist die CSS-Regel fuer ueberbestimmte Boxen),
+   - background: var(--sig) setzt eine background-color, die unter den
+     halbtransparenten Guss-Ebenen als Vollton durchschlaegt. */
+[data-theme="christmas"] .b-wkcard::before {
+  height: auto;
+  width: auto;
+  background-color: transparent;
+}
+/* dashboard.css:2293 transform: translateY(-2px) beim Hover. Ein transform
+   macht das Element zum Backdrop Root und schneidet das Glas der Recent-
+   Kachel darunter weg — genau der Fehler aus dem Befund vom 26.08.2026.
+   Der Keks hebt sich stattdessen ueber seinen Schatten (s. Hover-Block). */
+[data-theme="christmas"] .b-wkcard:hover { transform: none; }
+[data-theme="christmas"] .b-wkcard__kw,
+[data-theme="christmas"] .b-wkcard:hover .b-wkcard__kw {
+  /* dashboard.css:2306/2312: Kontaktschatten + Anheben der Zahl. Die
+     Schokoschrift ist flach (abgestimmt 02.09.2026), beides muss weg. */
+  text-shadow: none;
+  transform: none;
+  /* dashboard.css:2300 font-family: var(--font-heading) — der Keks setzt
+     seine Schrift auf der Karte, die Zahl soll sie erben. */
+  font-family: inherit;
+}
+/* dashboard.css:2346 .b-wkcard__status .d { display: none } — der Punkt war
+   dort redundant. Hier ist er die Zuckerperle und traegt den Status mit. */
+[data-theme="christmas"] .b-wkcard__status .d { display: inline-block; }
+/* Tages-Variante (berichtTyp='taeglich'): im <small> steht der Wochentag,
+   nicht die Einheit „KW" — dashboard.css:2325 macht ihn deshalb groesser.
+   Das bleibt so, nur die Farbe kommt jetzt aus der Glasur. */
+[data-theme="christmas"] .b-wkcard--day .b-wkcard__kw small {
+  font-size: 15px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  margin-left: 6px;
+  opacity: 0.82;
 }

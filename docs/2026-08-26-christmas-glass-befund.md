@@ -1022,3 +1022,509 @@ bei gleichem Look. Wenn nicht, bleibt als Weg zur exakten A-Optik nur, die
 Brechung auf schmale Kanten-Streifen zu verkleinern (Fläche ≈ 157 000 px statt
 984 000 → nach der Kurve ~50 fps) — mit offener Frage, ob ein Streifen dieselbe
 Bandoptik ergibt wie eine ganze Kachel.
+
+---
+
+# Runde 5 (01.09.2026) — der letzte Backdrop Root: der `fill-mode`
+
+Ausgangslage: alles aus Runde 1–4 war umgesetzt und gepusht, das Glas war
+trotzdem tot. Screenshot des Christmas-Dashboards vor dieser Runde: die
+Kacheln zeigen die Szene **messerscharf**, nur ein Haarlinien-Rand verrät
+sie. `html.perf-lite` war aus, `.pm-xm-frost` trug
+`backdrop-filter: blur(18px) saturate(1.15)`, `.pm-xm-glass` trug inline
+`url(#glass-filter-2)` — die Verdrahtung war vollständig und wirkungslos.
+
+## B-15 · Eine GEFÜLLTE Animation ist selbst ein Backdrop Root
+
+Bisektion mit `backdrop-filter: invert(1)` (sechs Testelemente gleichzeitig,
+je eines pro Ebene, ein Screenshot — Bild `BISEKT.png`):
+
+| Wirt | invertiert? |
+|---|---|
+| `body` | ja |
+| `.app-shell` | ja |
+| `.main-wrapper` | ja |
+| `.main-content` | **nein** |
+| `.bento` | nein |
+| `.b-hero` | nein |
+
+`view-transition-name`, `transform`, `filter`, `opacity`, `isolation`,
+`mix-blend-mode`, `mask`, `clip-path`, `contain`, `will-change`,
+`content-visibility`, `container-type`, `perspective` — auf `#mainContent`
+alles auf Default. Die einzige Auffälligkeit im Computed Style:
+
+```
+animationName: "fadeIn"
+```
+
+`layout.css` (damals Z. 676): `.main-content { animation: fadeIn var(--t-normal) both; }`
+
+**Der `fill-mode: both` ist das Problem, nicht das Keyframe.** Runde 1 hat aus
+`fadeIn` und `vt-in` den `transform` entfernt und damit die *eine* Hälfte
+behoben. Die andere Hälfte: eine Animation mit `both` (oder `forwards`) bleibt
+nach ihrem Ende **dauerhaft am Element angewandt** — `getAnimations().length`
+ist 1, nicht 0. Chromium hält das Element deshalb weiter als eigene
+Compositing-Ebene und damit als Backdrop Root, **obwohl der Endwert
+`opacity: 1`** ist. Das Glas war also nicht 220 ms tot, sondern für immer.
+
+Drei Stellen im Glas-Pfad hatten `both`:
+
+| Stelle | Selektor | wirkt auf |
+|---|---|---|
+| `layout.css:676` | `.main-content` | jede Seite, immer |
+| `base.css:219` | `.animate-fade-in` | die Dashboard-Kacheln selbst (`dashboard.js`) |
+| `base.css:281` | `[data-page-enter] .main-wrapper` | nach jeder Navigation; `theme.js:1926` setzt das Attribut und nimmt es nie zurück |
+
+**Jede der ersten beiden killt das Glas allein.** Gegengemessen mit echten
+Dateiänderungen und je einem Ladevorgang (Bilder `X-nur-mainContent-both`,
+`Y-nur-kachel-both`): beide zeigen die scharfe Szene. Es waren also zwei
+unabhängige Roots, nicht einer.
+
+**Behebung:** `both` → `backwards` an allen drei Stellen. `backwards` füllt nur
+die Phase *vor* dem Lauf; ohne `animation-delay` ist die null lang, der
+Ruhewert bleibt `opacity: 1` (Default), und nach dem Lauf räumt der Browser
+die Animation weg (`getAnimations()` = leer). Die Einblendung selbst bleibt
+unverändert. Preis: während der 220 ms bzw. 300 ms ist das Glas flach — die
+Kachel blendet in dieser Zeit ohnehin von `opacity: 0` auf, deshalb sichtbar
+nur als Nachschärfen am Ende. Ein Root während der Animation ist bei einer
+Opacity-Einblendung physikalisch nicht vermeidbar.
+
+### Zwei Messfallen dieser Runde
+
+1. **`fill-mode` zur Laufzeit umschalten reproduziert den Fehler nicht.** Per
+   Stylesheet `animation-fill-mode: both !important` nachträglich zu setzen
+   ergibt zwar `getAnimations().length === 1`, aber das Glas bleibt sichtbar.
+   Die Compositing-Entscheidung fällt beim Laden. Wer diesen Fehler messen
+   will, muss die Datei ändern und neu laden.
+2. **Ein Testelement mit `position: fixed` löst seinen Backdrop anders auf**
+   als der echte, absolut positionierte Frost: es rutscht an einem Root im
+   Vorfahrenpfad vorbei. Umgekehrt meldete ein absolut positioniertes
+   Testelement mit `z-index: 9999` „wirkt", während der Frost bei `z-index: 0`
+   in derselben Kachel tot war. **Ground Truth ist das Bild der Kachel, nicht
+   die Sonde.** Der Wächter unten prüft deshalb per Bildvergleich.
+
+## B-16 · Kosten, erstmals mit wirksamem Glas gemessen
+
+Drei abwechselnde Läufe, je 3 s rAF-Zählung, Christmas-Dashboard,
+1920×1030, Edge headless, Szene animiert (Schnee + Lichterkette):
+
+| Zustand | fps | Mittel |
+|---|---|---|
+| **A** — Frost `blur(18px)` + SVG-Kantenband | 12.5 / 11.9 / 10.8 | **11.7** |
+| **E** — nur Frost, keine Brechung | 99.7 / 99.9 / 99.1 | **99.6** |
+| ohne Glas | 99.8 / 99.7 / 99.7 | 99.7 |
+
+Das bestätigt Runde 4 (dort 16.9 gegen 61) mit größerem Abstand: **der Frost
+ist gratis, die SVG-Brechung kostet den gesamten Puffer.** Der Unterschied
+E ↔ „ohne Glas" liegt im Rauschen.
+
+## B-17 · A gegen E — jetzt zum ersten Mal in der echten App vergleichbar
+
+Verglichen an der linken oberen Ecke von `.b-recent`, 3× Bildskalierung,
+Schnee aus, Lichterkette angehalten (`AE-A-ecke.png`, `AE-E-ecke.png`):
+
+* **A** zieht das warme Hüttenlicht der Szene als gebogenes Band um die
+  Rundung. Die Kante liest sich als Materialstärke — eine Scheibe mit Fase.
+* **E** hat an derselben Stelle eine gleichmäßige Frostfläche plus die
+  1-px-Glaskante. Ruhiger, flacher, kein Bandlicht.
+
+Der Unterschied ist real und liegt genau in den äußeren ~3 px
+(`data-border 0.018` → `min(w,h)·0.009`). Im Kachelinneren sind A und E
+identisch. **Entscheidung liegt beim User** — 11.7 gegen 99.6 fps für ein
+3-px-Band. Der Weg zu A-Optik bei brauchbarer Bildrate bleibt der aus
+Runde 4: die Brechung auf schmale Kanten-*Elemente* verkleinern (nicht
+clippen, das hilft nicht). Das ist keine Parameteränderung, sondern ein
+Umbau der Map-Erzeugung im Vendor.
+
+## Nebenbefund · Doppelfilter im Safari/Firefox-Fallback
+
+`glass-surface.css:39-45` gibt `.glass-surface--fallback` ein eigenes
+`backdrop-filter: blur(12px) saturate(1.8) brightness(1.2)`. Der
+Christmas-Override neutralisierte nur `background` und `border` — der
+Vendor-Blur kam also **zusätzlich** zum 18-px-Frost darunter. In Safari und
+Firefox war die Kachel damit heller und milchiger als gemeint. Jetzt auf
+`backdrop-filter: none !important` gesetzt; der Frost trägt allein, nur die
+Brechung fehlt dort weiterhin (kein SVG im `backdrop-filter`).
+
+## Wächter · `tools/check-glas-backdrop.mjs`
+
+Der Fehler ist im Code-Review unsichtbar (drei Runden Prosa-Kommentare haben
+ihn nicht verhindert) und im Bild eindeutig. Deshalb jetzt ein Check mit drei
+Aussagen:
+
+1. **Verdrahtung** — jede der vier Kacheln hat `.pm-xm-frost` mit `blur(...)`
+   und `.pm-xm-glass` mit `url(...)`.
+2. **Kein Backdrop Root im Vorfahrenpfad** — `filter`, `opacity < 1`,
+   `isolation`, `mix-blend-mode`, `transform`, `mask`, `will-change` **und
+   `getAnimations().length > 0`** (genau das fängt diese Runde).
+3. **Wirkungsnachweis** — dieselbe Kachel zweimal aufgenommen, einmal mit und
+   einmal mit per Stylesheet abgeschaltetem Glas; die mittlere Pixelabweichung
+   muss > 3 sein. Gemessen: **8.97** mit Fix, **0.01** mit zurückgebautem
+   Fehler. Nicht am Inline-Style des Vendors drehen (Messfehler aus Runde 4).
+
+Beide Richtungen geprüft: grün mit dem Fix, rot mit jeder der beiden
+zurückgebauten Stellen.
+
+## Abnahme
+
+* Christmas-Dashboard: echtes Milchglas, Szene weichgezeichnet, Hüttenlicht
+  und Baumfarben scheinen durch, Glaskante sichtbar.
+* Nach interner Navigation (Dashboard → Wochenansicht → Dashboard) ist das
+  Glas weiter aktiv, `[data-page-enter]` hinterlässt keine haftende Animation
+  mehr.
+* Regressions-Sweep über 15 Theme/Seiten-Kombinationen (christmas, silk,
+  light, dark, papier, candy, cmd, halloween × dashboard/wochenansicht/
+  jahresansicht/profil): keine JS-Fehler. Vorher/Nachher-Paare derselben
+  Seiten geprüft — die Flächen-Deckkraft ändert sich nicht, nur die Schärfe
+  dahinter, Lesbarkeit dadurch eher besser. Die Befunde des Sweeps
+  (abgeschnittener vierter Mitteilungs-Eintrag in light/dark/silk/papier,
+  „SEP" auf dunklem Hero, fehlendes Papierheft-Thumbnail, Spaltenköpfe
+  „Anwesenheit/Ort/ArbZ" ohne Träger) stehen in beiden Zuständen gleich und
+  sind **nicht** Folge dieser Änderung.
+
+## Stand
+
+Das Glas ist in der App wirksam — app-weit, in jedem Theme, nicht nur bei
+Christmas. Offen bleibt allein die Wahl **A oder E** (11.7 gegen 99.6 fps).
+
+---
+
+# Runde 6 (01.09.2026) — Material zurück auf den Prüfstand-Stand
+
+Ansage des Users nach Runde 5: **kein Milchglas, kein Ersatzmaterial.** Das
+Glas ist im Prüfstand definiert, die Panels der App sollen genau dieses Glas
+tragen; das Bisherige wird verworfen. Performance ist dabei zunächst
+ausdrücklich irrelevant.
+
+Damit fällt die Sonderfassung, die in Runde 2 aus „mit 2 px ist die Kachel
+unsichtbar" entstanden war: eine eigene CSS-Frost-Ebene mit `blur(18px)
+saturate(1.15)` unter der Brechung. Diese Diagnose ist im Rückblick auch nicht
+haltbar — sie wurde gestellt, als **kein** `backdrop-filter` in der App wirkte
+(B-15). Mit totem Backdrop sieht `blur(2px)` genauso aus wie `blur(18px)`:
+nach nichts.
+
+## Was getauscht wurde
+
+| | vorher (Runde 2–5) | jetzt = Prüfstand Kandidat A |
+|---|---|---|
+| Ebenen pro Kachel | 2 (`.pm-xm-frost` CSS + `.pm-xm-glass` Vendor) | **1** (`.pm-xm-glass`) |
+| Filterkette | `blur(18px) saturate(1.15)` **und** `url(#glass-filter-N)` | **`blur(2px) url(#glass-filter-N)`** — eine Deklaration |
+| `data-frostblur` | nicht gesetzt (Frost lag im CSS) | **2** |
+| `saturate` | 1.15 auf dem Frost | **keins** |
+| Glaskante (Rim) | 0.14 → `0.266 / 0.14` | **0.08** → `0.152 / 0.08` |
+| Tint | keiner | keiner |
+| Brechung | distortion −105, border 0.018, map-blur 6, displace 0.3 | unverändert |
+| Szenen-Dimmung | 0.20 | unverändert |
+| Textschutz | Halo | unverändert |
+| Safari/Firefox-Fallback | `backdrop-filter: none` (Frost kam aus CSS) | **`blur(2px)`** — der Prüfstand-Frost ohne die SVG-Stufe |
+
+Geänderte Dateien: `app/js/theme.js` (`PMChristmasGlass.addBacking` legt keine
+Frost-Ebene mehr an, setzt `data-frostblur="2"`), `app/css/theme-christmas.css`
+(`.pm-xm-frost`-Regel entfernt, Rim auf 0.08, Fallback-Filter, Inhalts-Selektor
+ohne `:not(.pm-xm-frost)`).
+
+## Nachweis: identisch, nicht nur ähnlich
+
+Gemessen an derselben Stelle in beiden Dokumenten:
+
+| | Prüfstand `#glasA` | App `.b-recent .pm-xm-glass` |
+|---|---|---|
+| `backdrop-filter` (inline) | `blur(2px) url("#glass-filter-1")` | `blur(2px) url("#glass-filter-4")` |
+| `box-shadow` | `rgba(255,255,255,.152) 0 1px 0 inset, rgba(255,255,255,.08) 0 0 0 1px inset, rgba(0,0,0,.28) 0 -1px 0 inset, rgba(0,0,0,.55) 0 18px 48px -14px` | identisch |
+
+Eckvergleich bei 3× Bildskalierung (`PS-A-ecke.png` gegen `APP-A-ecke.png`):
+beide zeigen dasselbe Material — das Szenenlicht wird an der Rundung als Band
+mitgezogen, darüber der feine helle Rim, das Kachelinnere praktisch klar.
+Restunterschied ist rein geometrisch: die Bandbreite ist `min(w,h)·0.009`,
+also 1.9 px auf der 591×210-Prüfstandkachel und 2.2–3.4 px auf den echten
+Kacheln.
+
+## Die Kosten sind echt, nicht ein Headless-Artefakt
+
+Runde 5 hatte headless gemessen. Nachgemessen im **echten Browserfenster**
+(Edge, GPU: `ANGLE (Intel, Intel(R) Graphics (0x00007D45) Direct3D11)`), drei
+abwechselnde Läufe à 3 s:
+
+| Zustand | fps | Mittel |
+|---|---|---|
+| A — `blur(2px) url(#…)` | 15.2 / 27.3 / 15.5 | **19.3** |
+| E — nur `blur(2px)` | 97.1 / 98.0 / 99.8 | **98.3** |
+| ohne Glas | 79.1 / 99.7 / 99.7 | 92.8 |
+| A, Schnee ausgeblendet | 24.3 / 14.7 / 15.2 | **18.1** |
+
+Zwei Dinge stehen damit fest: die Bildrate bricht **nicht** wegen der
+animierten Szene ein (A ohne Schnee ist genauso langsam), und headless hat
+nicht gelogen. Der Preis liegt in der SVG-Kette selbst — vier Elemente ×
+(`feImage`-Map + 3× `feDisplacementMap` + 3× `feColorMatrix` + 2× `feBlend` +
+`feGaussianBlur`) über zusammen ~1 Mio. Pixel, neu gerechnet bei jeder
+Backdrop-Invalidierung. Nächster Ansatzpunkt, falls die Bildrate doch stört:
+die Map als vorgerendertes Bitmap statt `feImage` auf eine data-URI-SVG, oder
+die Brechung auf schmale Kanten-Elemente verkleinern (Fläche, nicht Clip).
+
+## Reichweite: die vier Dashboard-Panels
+
+Das Prüfstand-Material sitzt auf `.welcome-hero`, `.b-hero`,
+`.b-mitteilungen`, `.b-recent`. Diese Kacheln sind dafür gebaut: ihr Inhalt
+liegt auf eigenen deckenden Flächen (`.b-wkcard`, `.b-day`, `.b-mitteilung`)
+und die Labels tragen Halos.
+
+**Probe auf die übrigen Panels** (`.card`, `.profil-section`,
+`.verwaltung-panel`, `.week-toolbar`) mit demselben Material, zur Laufzeit
+aufgesetzt (`PROBE-profil.png`, `PROBE-wochenansicht.png`): dort löst das
+klare Glas die Beschriftung auf — „EINGABEHILFEN", „AUSBILDUNGSBEGINN" und die
+Erklärzeilen verschwinden im hellen Bildteil. Diese Seiten behalten deshalb
+vorerst die getönte Fassung (`rgba(20,30,50,0.84)` + `blur(14px)`). Sie auf
+das Prüfstand-Material zu heben ist kein CSS-Tausch, sondern verlangt
+dasselbe Inhalts-Rezept wie das Dashboard: deckende Flächen unter dem Text
+plus Halos. Offene Entscheidung.
+
+Ebenfalls unverändert: `.b-azubi` auf dem Ausbilder-Dashboard bleibt mattes
+Material (eine Karte pro Azubi = N Filter), und die Ausbilder-Panels
+(`.review-inbox`, `.card--mitteilungen`) bleiben deckend.
+
+## Wächter angepasst
+
+`tools/check-glas-backdrop.mjs` prüft jetzt statt „Frost-Ebene + Brechung"
+die eine Kette: `/^blur\(2px\)\s+url\(/` auf `.pm-xm-glass` jeder Kachel.
+Backdrop-Root-Prüfung und Bildvergleich unverändert; grün (Abweichung 6.89).
+
+---
+
+# Runde 7 (01.09.2026) — die Map ist der Preis, nicht die Brechung
+
+Auftrag: das Material aus Runde 6 behalten, die Kosten senken. Ergebnis:
+**14,5 → 48,5 fps** bei unveränderter Optik, durch eine Änderung an einer
+einzigen Stelle im Vendor.
+
+## B-18 · Warum die Kette so teuer ist
+
+Chromium wertet einen `backdrop-filter` **pro gezeichnetem Frame** aus, nicht
+pro Backdrop-Änderung: `skia_renderer.cc` macht ein
+`saveLayer(ScaledBackdropLayer(...))`, das Ergebnis lebt nur zwischen
+`saveLayer` und `restore` — **es gibt keinen persistenten Cache**. Dazu kommt:
+`cc/paint/filter_operations.cc` `HasFilterThatMovesPixels()` liefert für
+REFERENCE-Filter (also jedes `url(#…)`) true, und der Damage-Tracker bläht die
+Damage dann auf den ganzen Pass auf.
+
+Gegengemessen, und es widerlegt die naheliegende Vermutung „die Deko ist
+schuld":
+
+| | fps |
+|---|---|
+| Schnee aus | 14,3 |
+| Laternen + Birnen aus (samt Kindern) | ~13 |
+| Hero-Blink aus | 12,6 |
+| alle drei zusammen aus | 12,8 |
+| **jede Animation der Seite eingefroren** | **99,8** |
+
+Keine einzelne Animation ist der Auslöser. Jeder produzierte Frame kostet den
+vollen Preis, egal wer ihn auslöst — Sidebar-Lichterkette, Geschenk-Avatar,
+Musik-Button, Hover, Scrollen. Das Theme hat 17 Dauer-Animationen, die Seite
+ist also praktisch immer im teuren Zustand.
+
+Der teure Teil der Kette ist die **Verschiebungs-Map**. `feImage` mit einer
+`data:image/svg+xml`-URL ist in Blink ein *Paint-Record*
+(`svg_image.cc` → `PopulatePaintRecordForCurrentFrameForContainer`), keine
+dekodierte Bitmap — die Grafik wird bei jeder Auswertung neu rasterisiert,
+**samt des `filter:blur(6px)`, das in der Map steckt**, und die Kette benutzt
+die Map dreimal.
+
+## B-19 · Es ist die Texturgröße, nicht das Format
+
+Erste Vermutung war „PNG statt SVG". Falsch. Abwechselnd in EINER Seite
+gemessen (siehe B-20), `.b-recent` + drei weitere Kacheln:
+
+| Map | fps |
+|---|---|
+| SVG-data-URI (wie bisher) | 14,8 |
+| Bitmap in voller Auflösung | **15,5 — kein Gewinn** |
+| Bitmap 1/2 | 50,0 |
+| Bitmap 1/4 | 70–99 |
+
+Gegenprobe ohne Canvas: die Map-SVG mit kleiner *Eigengröße*
+(`width`/`height` bei gleichem `viewBox`) bringt nichts — 14,5 / 12,8 / 13,5 /
+13,6 fps für Skalen 1 / ½ / ¼ / ⅛. Blink rastert eine SVG immer in
+Zielauflösung. Eine kleinere Textur bekommt man nur über den Canvas.
+
+**Optik gegen die SVG-Map, im selben Seitenaufbau gemessen** (Kachelinneres
+und 16-px-Randzone getrennt, weil ein Ganz-Kachel-Mittel den schmalen
+Bandfehler um Faktor 12 verdünnt):
+
+| Map | innen | Randzone | Sichtprüfung bei 5× |
+|---|---|---|---|
+| 1/2 | 0,13 (max 23) | 1,47 (max 42) | **nicht zu unterscheiden** |
+| 1/4 | 0,16 (max 35) | 2,80 (max 76) | linkes Kantenband sichtbar weicher |
+
+Gesetzt: **1/2**, als `MAP_SCALE` in `app/js/vendor/glass-surface.js`.
+`{ alpha: false }` am Canvas-Kontext und ein zweistufiges Verkleinern
+(erst voll rastern, dann skalieren) ändern nichts bzw. verschlechtern die
+Randzone — beide geprüft und verworfen.
+
+## B-20 · Messfalle, die drei Zwischenergebnisse ruiniert hat
+
+**fps über getrennte Seitenaufbauten zu vergleichen ist wertlos.** Derselbe
+unveränderte Stand lieferte in einem Lauf 15,3 und zwanzig Minuten später
+74,2 fps. Alle Zwischenergebnisse dieser Runde, die auf solchen Vergleichen
+beruhten, waren falsch — unter anderem die zuerst gemeldeten „51 fps durch
+PNG-Map".
+
+Richtig ist nur: **eine Seite laden, alle Varianten vorbereiten, dann
+abwechselnd das `href` umschalten und je 2,5 s messen.** Damit liegt die
+Streuung bei ±0,2 fps (Endabnahme: alt 14,4/14,5/14,6/14,5/14,5 gegen neu
+48,5/48,3/48,5/48,7/47,9).
+
+Für den Bildvergleich gilt dasselbe: Aufnahmen aus verschiedenen Läufen
+desselben Codes sind zwar byte-identisch (Rauschboden exakt 0, dreimal
+geprüft), aber ein Vergleich *alter Code gegen neuer Code* über getrennte
+Läufe zeigte 2,2/255 im Kachelinneren, während derselbe Vergleich innerhalb
+einer Seite 0,13 ergibt. Im Zweifel: alles in einer Seite.
+
+## Geändert
+
+**`app/js/vendor/glass-surface.js`**
+* `dmapBitmap()` — rastert die Map einmal in ein Canvas (Zielgröße
+  = Kachelgröße × devicePixelRatio × `MAP_SCALE`) und liefert eine
+  PNG-data-URI. Cache über Größe + Parameter, die vier Kacheln teilen sich
+  gleiche Einträge. Fällt der Canvas aus (gesperrt o. ä.), bleibt die SVG-Map
+  stehen.
+* `MAP_SCALE = 0.5` mit den Messwerten im Kommentar.
+* `refresh()` — **Größen-Guard**: gleiche gerundete Größe und gleiches DPR
+  ⇒ kein Neubau. Vorher baute jeder ResizeObserver-Callback die Map neu
+  (Font-Load, Scrollbar, Sidebar-Animation, Subpixel), beim Fenster-Resize
+  einmal pro Frame und Kachel. Fängt nebenbei den Doppelbau beim Start ab und
+  das 0×0-Feuern beim Ausbau (`dmap(0,0)` erzeugte negative Rechteckbreiten).
+* Zweistufiges Setzen: erst die SVG-Map (gilt sofort), dann der Tausch gegen
+  die Bitmap. Ohne den Zwischenschritt rechnet der Filter bis zum Bild-Decode
+  mit einer leeren Map und verschiebt die ganze Fläche um ~52 px.
+* `el.__glassOff()` — Abbau-Haken für ResizeObserver und IntersectionObserver.
+
+**`app/js/theme.js`** — `PMChristmasGlass.stop()` ruft `__glassOff()`, bevor es
+das Backing entfernt. Vorher leakten pro SPA-Navigation und pro Theme-Wechsel
+vier ResizeObserver und vier IntersectionObserver.
+
+## Abnahme
+
+* Endabnahme abwechselnd in einer Seite: **14,5 → 48,5 fps** (Median aus je
+  fünf Messungen, Streuung ±0,2).
+* Optik: Kachelinneres 0,13/255, Randzone 1,47/255, bei 5× Zoom keine
+  Unterschiede in der Bandstruktur an der Kante.
+* Map-Größen zur Kontrolle: DPR 1 → 788×80 … 788×124 (18–27 kB je Kachel),
+  DPR 2 → 1576×160 … 1576×248 (52–84 kB).
+* `tools/check-glas-backdrop.mjs` grün.
+
+## Was geprüft und verworfen wurde
+
+* **Deko-Animationen abschalten** — bringt nichts (siehe B-18).
+* **SVG-Map mit kleiner Eigengröße** — bringt nichts (B-19).
+* **Bitmap in voller Auflösung** — bringt nichts, kostet aber Optik.
+* **Map 1/4** — 70–99 fps, aber das Kantenband wird sichtbar weicher.
+* **`clip-path` / `mask` zur Flächenreduktion** — schon in Runde 4 widerlegt.
+* **`will-change`, `contain: paint`, `translateZ(0)`** — kein Gewinn, und
+  `will-change` auf filter/opacity/mask/mix-blend-mode bei einem Vorfahren
+  verschiebt den Backdrop-Root und tötet das Glas.
+* **Nur das Kantenband brechen** — nicht optikneutral: das Neutralisier-Rechteck
+  der Map hat Alpha 0,93, das Kachelinnere ist also um bis zu ±3,7 px
+  mitverschoben. Zweimal unabhängig nachgemessen (Innenflächen-Abweichung
+  4,44 gegen 0,47).
+
+## Offen
+
+Wenn 48 fps nicht reicht, sind die nächsten Stufen: Chromatik von drei
+Displacement-Pässen auf einen (mit Map-Bitmap zusammen ~95 fps, ändert den
+Farbsaum an der Kante — Entscheidung des Users), oder `filter` auf einer
+Szenen-Kopie statt `backdrop-filter` (~100 fps, friert Schnee und
+Laternen-Flackern hinter dem Glas ein).
+
+
+---
+
+# Runde 8 (01.09.2026) — jede Blende ist ein Backdrop Root
+
+Befund des Users: beim Wechsel von einer anderen Seite aufs Dashboard stehen
+die Panels zuerst ganz transparent da, das Glas poppt erst kurz danach hinein.
+
+Ursache sind DREI unabhaengige Stellen, nicht eine. Alle drei nach demselben
+Muster wie B-14: eine laufende opacity-Animation macht das Element zum Backdrop
+Root, und die Christmas-Szene (`#pmThemeFX`) liegt als Geschwister der
+`.app-shell` AUSSERHALB davon — das Glas darunter sieht dann nur seine eigene
+leere Flaeche.
+
+| # | Stelle | Dauer tot |
+|---|---|---|
+| 1 | `router.js` setzt bei jeder SPA-Navigation `wrapper.style.animation = 'vt-in 300ms … both'` — inline, an `.main-wrapper` | 300 ms |
+| 2 | `.main-content { animation: fadeIn }` und `[data-page-enter] .main-wrapper` — der Full-Load-Weg | 220 / 300 ms |
+| 3 | **die Kachel selbst**: die vier Panels tragen `.animate-fade-in` (`opacity 0 -> 1`, 220 ms) | 220 ms |
+
+Nummer 3 ist die dominante: sie feuert bei JEDEM Render, auch ohne Navigation.
+In Runde 5 war nur die CSS-Seite von 1 und 2 auf `backwards` gestellt worden —
+das hat die DAUERHAFT haftende Animation beseitigt, nicht aber die Zeit, in der
+sie laeuft.
+
+Dazu kam eine vierte, harmlosere Luecke: der MutationObserver in
+`PMChristmasGlass` haengte die Glasebene mit 90 ms Debounce an, der bei jeder
+weiteren Mutation neu startete. Gemessen: Karten bei 3600 ms, Glas erst bei
+3866 ms — **266 ms nackte Panels**.
+
+## Behoben
+
+* **`app/js/router.js`** — `const fxSzene = !!document.getElementById('pmThemeFX')`;
+  Exit- und Enter-Blende laufen nur noch ohne FX-Szene. Betrifft die vier
+  Themes mit Vollbild-Szene (cmd, candy, halloween, christmas); silk und papier
+  haben kein `#pmThemeFX` und behalten die Blende unveraendert (gegengemessen:
+  26 Frames mit laufender Wrapper-Animation im Standard-Theme, 0 in Christmas).
+* **`app/css/base.css`** — `body:has(#pmThemeFX) .main-wrapper, … .main-content
+  { animation: none }` fuer den Full-Load-Weg, gleiche Bedingung.
+* **`app/css/theme-christmas.css`** — die Kachel-Blende wandert vom Panel auf
+  seinen Inhalt: `.pm-xm-glass-card { animation: none }` +
+  `.pm-xm-glass-card > * { animation: fadeIn var(--t-normal) backwards }`.
+  Die Kachel selbst ist unter Christmas ohnehin unsichtbar (transparent, kein
+  Rand, kein Schatten), die Blende sieht also identisch aus — nur laeuft sie
+  jetzt auf der Glasebene MIT, statt sie abzuschalten.
+* **`app/js/theme.js`** — Observer-Debounce 90 ms -> rAF-Vorderflanke. Der
+  Callback laeuft noch vor dem Paint des Frames, in dem die Karten landen.
+
+## Warum die Blende auf der Glasebene selbst funktioniert
+
+Die eigene `opacity` eines Elements wird NACH seinem `backdrop-filter`
+angewendet — sie schaltet ihn nicht ab, sie komponiert das Ergebnis. Gemessen
+an `.b-recent` (mittlere Abweichung gegen dieselbe Kachel ohne Filter):
+
+| Zustand | Beitrag des Glases |
+|---|---|
+| Glas bei `opacity: 1` | 6,92 Stufen |
+| Glas bei `opacity: 0.5` | 3,46 Stufen |
+
+Exakt die Haelfte — also eine echte Ueberblendung vom rohen Foto aufs Glas,
+kein Abschalten. Ein Vorfahr mit `opacity < 1` tut genau das Gegenteil.
+
+## Abnahme
+
+* Zeitstrahl ueber eine echte SPA-Navigation, pro Frame Karte/Glas/Vorfahren-
+  Walk: **0 Frames mit einem Backdrop Root im Vorfahrenpfad** (vorher 14),
+  Glas steht einen Frame nach den Karten (vorher 266 ms).
+* Keine der vier Kacheln hat animierte Nachfahren — das `> *` ueberschreibt
+  also keine fremde Animation (im Browser gegengeprueft).
+* SPA-Navigation in Christmas und im Standard-Theme fehlerfrei, Blende im
+  Standard-Theme unveraendert.
+* `tools/check-glas-backdrop.mjs` gruen.
+
+
+---
+
+# Nachtrag 01.09.2026 — Frost 2 -> 3
+
+Der User: das Foto lenkt durch die Kachel zu stark ab. Im Lab nachgestellt und
+auf **3 px** gesetzt (`data-frostblur` in `app/js/theme.js`, dazu der
+Fallback-Frost in `theme-christmas.css`). Damit weicht das Material erstmals
+vom Pruefstand-Kandidaten A ab; alles andere (Brechung -105, Border 0.018,
+Map-Blur 6, Glaskante 0.08, Szenen-Dimmung 0.20, kein saturate) bleibt.
+
+`tools/check-glas-backdrop.mjs` liest den Sollwert jetzt aus `theme.js`, statt
+ihn zweitzupflegen — er ist schon zweimal gewandert.
+
+**Das Lab dafuer ist neu** (`mockups/christmas-glass-lab.html`, Fassung 2): kein
+DOM-Dump mehr, sondern die echte Seite im iframe plus ein injiziertes
+Stylesheet. Regler fuer Frost, Toenung, Saettigung, Kontrast, Glaskante,
+Szenen-Dimmung und die Foto-Filter; die Reglerwerte laufen ueber `!important`,
+weil der IntersectionObserver im Vendor die inline `backdrop-filter` sonst
+zurueckschreibt.

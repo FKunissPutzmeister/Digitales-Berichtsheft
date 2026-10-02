@@ -1371,15 +1371,13 @@
       if (!card || card.__xmGlass) return;
       card.__xmGlass = true;
       card.classList.add('pm-xm-glass-card');
-      // Frost auf EIGENER Ebene, ohne data-glass: glass-surface.js fasst sie
-      // nie an. Der Frost darf nicht in der Refraktions-Kette mitfahren:
-      // .glass-surface.is-off nullt die ganze Kette, und ein nicht
-      // aufloesbares url(#filter) macht sie wirkungslos. Begruendung steht
-      // ausfuehrlich in theme-christmas.css bei .pm-xm-frost.
-      var fr = document.createElement('div');
-      fr.className = 'pm-xm-frost';
-      fr.setAttribute('aria-hidden', 'true');
-      card.insertBefore(fr, card.firstChild);
+      // EINE Ebene, EINE Filterkette — 1:1 das Material aus dem Pruefstand
+      // (mockups/glas-pruefstand.html, Kandidat A) bzw. der Lab-Stufe "edge":
+      //   backdrop-filter: blur(3px) url(#glass-filter-N)
+      // Frueher lief der Frost auf einer eigenen CSS-Ebene mit blur(18px) —
+      // das war Milchglas und nicht dieses Material. Preis der einen Kette:
+      // faellt sie aus (off-screen .is-off, nicht aufloesbares url(#...),
+      // kein Vendor-Bundle), ist auch der Frost weg. Bewusst so.
       var g = document.createElement('div');
       g.className = 'pm-xm-glass';
       g.setAttribute('aria-hidden', 'true');
@@ -1396,9 +1394,11 @@
       g.setAttribute('data-border', '0.018');
       g.setAttribute('data-blur', '6');
       g.setAttribute('data-displace', '0.3');
-      // KEIN data-frostblur / data-saturation: der Frost liegt in
-      // .pm-xm-frost (reines CSS) und darf nicht doppelt laufen. Diese
-      // Ebene liefert nur Brechung und Kante.
+      // Frost IN derselben Kette. Kein data-saturation: das Lab setzt keins,
+      // saturate() faerbt nur nach. 3 statt der 2 aus dem Pruefstand — im Lab
+      // am 01.09.2026 nachgestellt, weil das Foto durch die Kachel zu stark
+      // ablenkte. Ueber ~5 kippt es sichtbar Richtung Milchglas.
+      g.setAttribute('data-frostblur', '3');
       // Chromatik gedämpft: Default 10/20 erzeugt über dem bunten Foto eine
       // harte rot/grüne Kantenlinie. Niedrig = dezente Brechung ohne
       // Regenbogen-Strich; die Brechung selbst bleibt (distortion).
@@ -1407,9 +1407,7 @@
       // data-frost 0: Lesbarkeit kommt aus dem Scrim der Kachel (::before),
       // nicht aus einem Veil über der ganzen Glasfläche.
       g.setAttribute('data-frost', '0');
-      // NACH der Frost-Ebene: so bricht das Glas das bereits mattierte Bild,
-      // und die Kante liegt oben.
-      card.insertBefore(g, fr.nextSibling);
+      card.insertBefore(g, card.firstChild);
       if (window.LiquidGlass) window.LiquidGlass.enhance(g);
     }
     function decorate() {
@@ -1433,25 +1431,36 @@
     // #mainContent (wie react-theme-layer.js) laufen lassen, der die Dekoration
     // nachzieht, sobald die Karten im DOM sind. Debounced + idempotent → keine
     // Endlosschleife (ein zweiter decorate()-Lauf ändert nichts mehr am DOM).
-    var mo = null;
+    var mo = null, moRaf = 0;
     function startObserver() {
       if (mo) return;
       var mc = document.getElementById('mainContent');
       if (!mc || typeof MutationObserver === 'undefined') return;
-      var t = null;
+      // rAF statt setTimeout(90): der rAF-Callback laeuft noch VOR dem Paint
+      // des Frames, in dem die Karten landen — das Glas sitzt damit im selben
+      // Bild wie die Kachel. Mit dem 90-ms-Debounce (der bei jeder weiteren
+      // Mutation neu startete) standen die Panels gemessen 266 ms nackt da:
+      // Karten bei 3600 ms, Glas erst bei 3866 ms. Vorderflanke, nicht
+      // Rueckflanke — ein zweiter Lauf im selben Frame aendert ohnehin nichts.
       mo = new MutationObserver(function () {
-        clearTimeout(t); t = setTimeout(function () { if (active) decorate(); }, 90);
+        if (moRaf) return;
+        moRaf = requestAnimationFrame(function () {
+          moRaf = 0; if (active) decorate();
+        });
       });
       mo.observe(mc, { childList: true, subtree: true });
     }
-    function stopObserver() { if (mo) { mo.disconnect(); mo = null; } }
+    function stopObserver() {
+      if (moRaf) { cancelAnimationFrame(moRaf); moRaf = 0; }
+      if (mo) { mo.disconnect(); mo = null; }
+    }
 
     function start() {
       if (active) return;
       active = true;
       startObserver();
       loadAssets(function () { decorate(); });
-      decorate();   // sofort — das Backing trägt seinen Frost schon per CSS
+      decorate();   // sofort anlegen; das Glas kommt mit dem Vendor-Bundle
     }
     function stop() {
       active = false;
@@ -1461,9 +1470,10 @@
         cards[i].classList.remove('pm-xm-glass-card');
         cards[i].__xmGlass = false;
         var g = cards[i].querySelector('.pm-xm-glass');
+        // Beobachter des Vendors erst abmelden, dann entfernen (sonst leaken
+        // sie und der ResizeObserver feuert beim Ausbau noch mit 0x0).
+        if (g && g.__glassOff) g.__glassOff();
         if (g && g.parentNode) g.parentNode.removeChild(g);
-        var fr = cards[i].querySelector('.pm-xm-frost');
-        if (fr && fr.parentNode) fr.parentNode.removeChild(fr);
       }
     }
     // SPA-Nav ersetzt #mainContent-Inhalt (Backings + Bg weg) → neu dekorieren.
