@@ -683,9 +683,9 @@ document.addEventListener('DOMContentLoaded', async () => {
   let switchDir = 0;                                   // AJ-Wechselrichtung fuer das Eingangs-Feedback (+1/-1)
 
   // ── Daten einmal laden (Namen kommen per JOIN mit) ──
-  const [azubisRaw, dhRaw, abteilungenKatalog, alleZuweisungen, gruppenRaw, sortierungRaw] = await Promise.all([
+  const [azubisRaw, dhRaw, abteilungenKatalog, alleZuweisungen, gruppenRaw, sortierungRaw, berufeKatalog] = await Promise.all([
     DB.getAzubis(), DB.getDhStudenten(), DB.getAbteilungen(), DB.getAllZuweisungen(),
-    DB.getPlanerGruppen(), DB.getPlanerGruppenSortierung(),
+    DB.getPlanerGruppen(), DB.getPlanerGruppenSortierung(), DB.getBerufe(),
   ]);
   // Auf der Tafel stehen ALLE aktiven Azubis + DH-Studenten. Der frühere
   // Filter auf kaufmännische Berufe (über dbo.Berufe) ist mit dem
@@ -694,7 +694,18 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Ausbildungsleitung plant auf derselben Tafel. Die Sicht-Begrenzung
   // passiert jetzt dort, wo sie hingehört — serverseitig je Rolle
   // (GET /api/beurteilungen/report/azubis), nicht per Berufsliste im
-  // Frontend. Gruppierung und Sortierung unten bleiben unverändert.
+  // Frontend. Automatisch gruppiert wird nach Bereich (siehe gruppeVon), wie
+  // bei der Ausbildungsleitung aus der Entra-Abteilung (Kopie von
+  // bereichAusDepartment, backend/services/department.js: „…kaufm…“ =
+  // kaufmännisch, „…gewerblich…“ = gewerblich); nur ohne passende Abteilung
+  // entscheidet der Berufe-Katalog (dbo.Berufe).
+  const katalogBereich = new Map(berufeKatalog.map(b => [b.beruf.trim().toLowerCase(), b.bereich]));
+  function bereichVon(a) {
+    const d = String(a.department || '').toLowerCase();
+    if (d.includes('gewerblich')) return 'technisch';
+    if (d.includes('kaufm')) return 'kaufmaennisch';
+    return katalogBereich.get(String(a.beruf || '').trim().toLowerCase()) || null;
+  }
   gruppenOrder = Array.isArray(sortierungRaw) ? sortierungRaw : [];
   // Eigene Gruppen (Migration 035): gemeinsam gepflegte, frei benannte Buendel.
   // Nicht im State-Konstanten-Block oben, weil sie nach jeder Aenderung neu
@@ -815,14 +826,15 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
   function ausblickStart() { return new Date(ajStartYear + 1, 8, 1); }   // 1. Sep des Folge-AJ
   function ajLabel(y = ajStartYear) { return `AJ ${y}/${String(y + 1).slice(2)}`; }
-  // Lehrjahr wird aktuell nicht getrackt – daher keine Lehrjahr-Gruppen mehr.
-  // "Ohne Zuordnung" bedeutet hier wörtlich: aktuell keine laufende Zuweisung
-  // (aktuelleZuw === null), nicht "Lehrjahr unbekannt".
+  // Automatische Gruppen nach Bereich (bereichVon). Wer weder über die
+  // Entra-Abteilung noch über den Berufe-Katalog zuzuordnen ist, steht unter
+  // „Ohne Bereich“ – sichtbar statt still einsortiert.
   function gruppeVon(a) {
     if (a.istDhStudent) return 'DH-Studenten';
-    return aktuelleZuw(a.id) ? 'Zugewiesen' : 'Ohne Zuordnung';
+    const b = bereichVon(a);
+    return b === 'kaufmaennisch' ? 'Kaufmännisch' : b === 'technisch' ? 'Gewerblich' : 'Ohne Bereich';
   }
-  const GROUP_ORDER = ['Ohne Zuordnung', 'Zugewiesen', 'DH-Studenten'];
+  const GROUP_ORDER = ['Kaufmännisch', 'Gewerblich', 'DH-Studenten', 'Ohne Bereich'];
 
   function statusOf(z) {
     if (z.bis && z.bis < todayISO) return { key: 'beendet',    label: 'Beendet',    badge: 'badge--grey' };
