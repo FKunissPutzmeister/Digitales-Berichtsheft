@@ -1776,7 +1776,11 @@
   function seasonDefault() {
     try {
       // Gesperrte Custom-Designs (TEMP-Schalter oben) gelten auch für den Standard.
-      if (CUSTOM_THEMES_LOCKED || !seasonOpen() || localStorage.getItem(CHOSEN_KEY) === '1') return null;
+      // typeof, weil nicht jeder Stand den Schalter hat (der Prod-Server nimmt per
+      // Cherry-Pick nur einzelne Commits): eine fehlende Variable würde hier als
+      // ReferenceError im catch landen und den Standard still abschalten.
+      var locked = typeof CUSTOM_THEMES_LOCKED !== 'undefined' && CUSTOM_THEMES_LOCKED;
+      if (locked || !seasonOpen() || localStorage.getItem(CHOSEN_KEY) === '1') return null;
       return localStorage.getItem('themeSeasonOk') === '1' ? SEASON.theme : null;
     } catch (e) { return null; }
   }
