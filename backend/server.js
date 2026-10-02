@@ -148,6 +148,7 @@ const syncRouter           = require('./routes/sync');
 const apiKeysRouter        = require('./routes/apiKeys');
 const mcpRouter            = require('./mcp/server');
 const fehlerRouter         = require('./routes/fehlerberichte');
+const mailProtokollRouter  = require('./routes/mailProtokoll');
 const { logError: logFehler, cleanupAlt: cleanupFehler } = require('./services/fehlerberichte');
 
 app.use('/api/users',               devAuth, usersRouter);
@@ -168,6 +169,7 @@ app.use('/api/ihk-imports',         devAuth, ihkImportsRouter);
 app.use('/api/sync',                devAuth, syncRouter);
 app.use('/api/apikeys',             devAuth, apiKeysRouter);
 app.use('/api',                     devAuth, fehlerRouter);   // /api/errors, /api/dev/errors
+app.use('/api',                     devAuth, mailProtokollRouter);   // /api/dev/mails
 // MCP-Endpunkt: KEIN devAuth (eigene Bearer-API-Key-Auth in mcp/server.js).
 app.use('/mcp',                     mcpRouter);
 

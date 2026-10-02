@@ -22,7 +22,7 @@
      node services/mail.js --termin florian.kern@putzmeister.com   (mit Termin)
      node services/mail.js --alle florian.kern@putzmeister.com     (alle Mailtypen) */
 
-const { sql } = require('../db/connection');
+const { sql, getPool } = require('../db/connection');
 const { getGraphToken } = require('./entraSync');
 const { logError } = require('./fehlerberichte');
 const { buildEinsatzIcs, einsatzUid, sequenceNow } = require('./ics');
@@ -154,6 +154,10 @@ async function sendeMail({ to, empf, text, termin }) {
   const cfg = mailConfig();
   const z = zustellung(cfg, to);
   if (!z) return false;
+  const betreff = `${z.betreffPraefix}${text.subject}`;
+  const protokoll = (erfolg, fehler) => protokolliere({
+    an: z.an.join(', '), empfOid: empf && empf.oid, empfName: empf && empf.name, betreff, anlass: text.titel, modus: cfg.modus, erfolg, fehler,
+  });
   try {
     const html = V.renderMail({ ...text, anredeText: V.anrede(empf || {}), hinweis: z.hinweis });
     const ics = termin ? buildEinsatzIcs({
@@ -162,7 +166,7 @@ async function sendeMail({ to, empf, text, termin }) {
       organizer: { name: cfg.fromName, email: cfg.from },
     }) : null;
     const mime = buildMime({
-      from: cfg.from, fromName: cfg.fromName, to: z.an, subject: `${z.betreffPraefix}${text.subject}`,
+      from: cfg.from, fromName: cfg.fromName, to: z.an, subject: betreff,
       html, ics, icsMethod: termin ? termin.method : undefined, bilder: [...V.mailBilder(html), ...(text.kommentar && text.kommentar.foto ? [text.kommentar.foto] : [])],
     });
     const token = await getGraphToken(cfg);
@@ -176,16 +180,46 @@ async function sendeMail({ to, empf, text, termin }) {
       // Häufigster Fall hier: 403 ErrorAccessDenied — Mail.Send fehlt oder die
       // ApplicationAccessPolicy schließt dieses Postfach aus.
       logError({ quelle: 'backend', nachricht: `[mail] sendMail HTTP ${r.status}: ${body.slice(0, 500)}` });
+      await protokoll(false, `HTTP ${r.status}: ${body.slice(0, 300)}`);
       return false;
     }
+    await protokoll(true);
     return true;
   } catch (err) {
     logError({ quelle: 'backend', nachricht: `[mail] sendMail: ${err.message}`, stack: err.stack });
+    await protokoll(false, err.message);
     return false;
   }
 }
 
-// Empfänger (Oid → Name/E-Mail/istAzubi/Beruf), nur aktive Nutzer.
+/* Versandprotokoll für die Seite „E-Mails" (Migration 049). Best-effort: ohne
+   Tabelle oder bei DB-Fehler bleibt der Versand unberührt. Einträge bleiben dauerhaft. */
+async function protokolliere({ an, empfOid, empfName, betreff, anlass, modus, erfolg, fehler }) {
+  try {
+    const pool = await getPool();
+    await pool.request()
+      .input('an', sql.NVarChar(500), String(an).slice(0, 500))
+      .input('oid', sql.NVarChar(36), empfOid || null)
+      .input('name', sql.NVarChar(200), empfName || null)
+      .input('betreff', sql.NVarChar(400), String(betreff).slice(0, 400))
+      .input('anlass', sql.NVarChar(100), anlass || null)
+      .input('modus', sql.NVarChar(10), modus)
+      .input('erfolg', sql.Bit, erfolg)
+      .input('fehler', sql.NVarChar(500), fehler ? String(fehler).slice(0, 500) : null)
+      .query(`INSERT INTO dbo.MailProtokoll (An, EmpfOid, EmpfName, Betreff, Anlass, Modus, Erfolg, Fehler)
+              VALUES (@an, @oid, @name, @betreff, @anlass, @modus, @erfolg, @fehler)`);
+  } catch (err) {
+    console.error('[mail] Protokoll:', err.message);
+  }
+}
+
+async function listeProtokoll(limit = 500) {
+  const pool = await getPool();
+  return (await pool.request().input('n', sql.Int, Math.min(Number(limit) || 500, 2000))
+    .query('SELECT TOP (@n) * FROM dbo.MailProtokoll ORDER BY Zeitpunkt DESC, Id DESC')).recordset;
+}
+
+// Empfänger (Oid → Oid/Name/E-Mail/istAzubi/Beruf), nur aktive Nutzer.
 async function ladeEmpfaenger(pool, oids) {
   const ids = [...new Set((oids || []).filter(Boolean))];
   if (!ids.length) return new Map();
@@ -195,7 +229,7 @@ async function ladeEmpfaenger(pool, oids) {
                              WHERE Oid IN (${params.join(',')}) AND Aktiv = 1`);
   // istAzubi wie buildReqUser (services/users.js): Basisrolle ODER Zusatz-Tag.
   return new Map(r.recordset.map((u) => [u.Oid, {
-    name: u.Name, email: u.Email, istAzubi: u.Role === 'azubi' || !!u.IstAzubi, beruf: u.Beruf,
+    oid: u.Oid, name: u.Name, email: u.Email, istAzubi: u.Role === 'azubi' || !!u.IstAzubi, beruf: u.Beruf,
   }]));
 }
 
@@ -332,7 +366,7 @@ async function mailBerichtZurueck(pool, wocheId, kommentar, vonName, vonOid) {
 }
 
 module.exports = {
-  mailConfig, zustellung, appUrl, encodeHeader, buildMime, sendeMail,
+  mailConfig, zustellung, appUrl, encodeHeader, buildMime, sendeMail, listeProtokoll,
   mailVersetzung, mailBeurteilung, mailBeurteilungOffen, mailKeineEintraege, mailBerichtZurueck,
 };
 
