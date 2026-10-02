@@ -122,7 +122,9 @@ test('seasonOpen: nur Halloween, nur im Fenster', () => {
   assert.equal(load(azubi(), OUT_AFTER).theme.seasonOpen('halloween'), false);
 });
 
-test('Gesperrte Custom-Designs (TEMP-Schalter an) → auch kein Saison-Standard', () => {
+// Der Schalter kommt aus einem Kollegen-Commit; auf dem Prod-Stand (Cherry-Picks) fehlt er.
+const HAS_LOCK = SRC.includes('DISABLE_CUSTOM_THEMES_ON_LOCALHOST');
+test('Gesperrte Custom-Designs (TEMP-Schalter an) → auch kein Saison-Standard', { skip: !HAS_LOCK && 'Stand ohne TEMP-Schalter' }, () => {
   const locked = SRC.replace('var DISABLE_CUSTOM_THEMES_ON_LOCALHOST = false', 'var DISABLE_CUSTOM_THEMES_ON_LOCALHOST = true');
   assert.notEqual(locked, SRC, 'Schalter nicht gefunden – Test an theme.js anpassen');
   assert.equal(load(azubi(), IN, locked, 'localhost').attr(), 'light');
