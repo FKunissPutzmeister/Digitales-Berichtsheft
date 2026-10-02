@@ -2757,7 +2757,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Freigabe – mit Pflichtfeld-Validierung. Der Freigabe-Button sitzt jetzt
     // nur noch unten in der Bottom-Bar (#releaseBtnBottom); der frühere
     // Hero-Button wurde entfernt.
+    let freigabeLaeuft = false;
     document.getElementById('releaseBtnBottom')?.addEventListener('click', async () => {
+      // Zweiter Klick während die Freigabe läuft: ignorieren (sonst 403, Woche ist
+      // schon freigegeben). Kein disabled-Button: nach Fehler/offline sofort erneut klickbar.
+      if (freigabeLaeuft) return;
+      freigabeLaeuft = true;
+      try {
       // Zeichenlimit-Sperre: überlange Felder blockieren die Abgabe.
       const over = ueberLimitEditoren(monday, berichtTyp);
       if (over.length) {
@@ -2803,6 +2809,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       const frisch = await DB.setWocheStatus(currentWoche.id, 'freigegeben');
       Toast.success('Eingereicht', `KW ${currentKW} wurde eingereicht.`);
       render(frisch, true);
+      } finally { freigabeLaeuft = false; }
     });
 
     bindStatusAktionen();
