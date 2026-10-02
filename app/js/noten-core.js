@@ -120,23 +120,32 @@
      bisher; automatisch vergeben wird NICHTS, auch nicht für bestehende
      Fächer.
 
-     Dieselben 15 Töne, mit denen der Abteilungsplaner seine Abteilungen
-     einfärbt (GANTT_PALETTE in app/js/abteilungs-planer.js, gespiegelt
-     in app/js/abteilungsdurchlauf.js). Bewusst kein freier Farbwähler:
-     die Töne sind untereinander unterscheidbar, halten in allen zehn
-     Designs die Lesbarkeit und Marken-Gelb fehlt absichtlich, damit die
-     Fächer nicht mit den gelben UI-Akzenten konkurrieren.
+     Kräftige Töne, weil die Farbe in der Listenansicht nur noch als
+     kleiner Punkt vor dem Fachnamen erscheint — gedeckte Töne waren dort
+     kaum zu unterscheiden. Bewusst kein freier Farbwähler: über die API
+     sollen nur Töne in die DB, die sich voneinander abheben.
 
-     ACHTUNG bei Änderungen: die Liste steht damit an DRITTER Stelle im
-     Repo. Sie zusammenzuführen wäre eine eigene Aufräumaufgabe — die
-     Planer-Dateien sind Seiten-Scripts und in Node nicht ladbar, dieses
-     Modul dagegen wird auch vom Backend requirt.
+     FACH_FARBEN_ALT ist die frühere, gedeckte Palette (die 15 Töne des
+     Abteilungsplaners). Gespeicherte Fächer können sie noch tragen: sie
+     bleiben GÜLTIG (Anzeige und Speichern, z. B. beim Umbenennen ohne
+     Farbwechsel), werden in der Farbwahl aber nicht mehr angeboten.
 
-     rgb trägt das Tripel "r,g,b", weil die Tönung in CSS als
-     rgba(var(--fach-rgb), .12) ÜBER der Kartenfläche liegt: so entsteht
-     der Ton in jedem Design aus dessen eigener Fläche. color-mix() wäre
-     kürzer, verlangt aber iPadOS 16.4+ — das hier braucht nichts. */
+     rgb trägt das Tripel "r,g,b" für CSS-Tönungen über der Kartenfläche. */
   const FACH_FARBEN = [
+    { id: 'blau',      label: 'Blau',      hex: '#2563EB' },
+    { id: 'pink',      label: 'Pink',      hex: '#E11D74' },
+    { id: 'gruen',     label: 'Grün',      hex: '#16A34A' },
+    { id: 'orange',    label: 'Orange',    hex: '#F97316' },
+    { id: 'violett',   label: 'Violett',   hex: '#7C3AED' },
+    { id: 'cyan',      label: 'Cyan',      hex: '#06B6D4' },
+    { id: 'gelb',      label: 'Gelb',      hex: '#EAB308' },
+    { id: 'rot',       label: 'Rot',       hex: '#DC2626' },
+    { id: 'petrol',    label: 'Petrol',    hex: '#0F766E' },
+    { id: 'braun',     label: 'Braun',     hex: '#A0522D' },
+    { id: 'schiefer',  label: 'Schiefer',  hex: '#64748B' },
+  ];
+
+  const FACH_FARBEN_ALT = [
     { id: 'teal',      label: 'Petrol',      hex: '#4F9D9A' },
     { id: 'blau',      label: 'Blau',        hex: '#5B86C2' },
     { id: 'gruen',     label: 'Grün',        hex: '#5FAE72' },
@@ -173,19 +182,28 @@
   // Das Tripel gehört an die Palette, damit die Oberfläche es nicht bei
   // jedem Rendern neu ausrechnet.
   FACH_FARBEN.forEach(f => { f.rgb = farbeRgb(f.hex); });
+  FACH_FARBEN_ALT.forEach(f => { f.rgb = farbeRgb(f.hex); });
 
   function farbeById(id) { return FACH_FARBEN.find(f => f.id === id) || null; }
 
   const istKeineFarbe = (wert) => wert === null || wert === undefined || String(wert).trim() === '';
 
-  /* Gültig sind: keine Farbe (NULL) und die Töne der Palette. Ein
-     beliebiger Hexwert ist ABSICHTLICH ungültig — sonst wandern über die
-     API Farben in die DB, die in einem der Designs unlesbar sind. */
+  // Ein Ton der früheren Palette — gültig, aber nicht mehr wählbar.
+  function istAlteFarbe(wert) {
+    if (!istHexFarbe(wert)) return false;
+    const gesucht = String(wert).trim().toUpperCase();
+    return FACH_FARBEN_ALT.some(f => f.hex === gesucht);
+  }
+
+  /* Gültig sind: keine Farbe (NULL), die Töne der Palette und die der
+     früheren Palette. Ein beliebiger Hexwert ist ABSICHTLICH ungültig —
+     sonst wandern über die API Farben in die DB, die in einem der Designs
+     unlesbar sind. */
   function farbeGueltig(wert) {
     if (istKeineFarbe(wert)) return true;
     if (!istHexFarbe(wert)) return false;
     const gesucht = String(wert).trim().toUpperCase();
-    return FACH_FARBEN.some(f => f.hex === gesucht);
+    return FACH_FARBEN.some(f => f.hex === gesucht) || istAlteFarbe(gesucht);
   }
 
   // Einheitlich in Großbuchstaben speichern, sonst steht dieselbe Farbe
@@ -606,11 +624,13 @@
     if (!d.art) return 'Art fehlt.';
     if (!artById(d.art)) return 'Art ist unbekannt.';
 
-    if (!d.datum) return 'Datum fehlt.';
-    if (!istIsoDatum(d.datum)) return 'Datum ist ungültig (Format JJJJ-MM-TT).';
-    if (d.datum < DATUM_MIN) return `Datum liegt zu weit zurück (frühestens ${DATUM_MIN}).`;
-    const grenze = new Date(Date.now() + DATUM_ZUKUNFT_TAGE * 86400000).toISOString().slice(0, 10);
-    if (d.datum > grenze) return 'Datum liegt zu weit in der Zukunft.';
+    // Datum ist optional (Migration 050) – wenn es da ist, muss es stimmen.
+    if (d.datum) {
+      if (!istIsoDatum(d.datum)) return 'Datum ist ungültig (Format JJJJ-MM-TT).';
+      if (d.datum < DATUM_MIN) return `Datum liegt zu weit zurück (frühestens ${DATUM_MIN}).`;
+      const grenze = new Date(Date.now() + DATUM_ZUKUNFT_TAGE * 86400000).toISOString().slice(0, 10);
+      if (d.datum > grenze) return 'Datum liegt zu weit in der Zukunft.';
+    }
 
     const noteMax = NOTE_MAX_FUER_ROLLE(rolle);
     if (d.note !== null && d.note !== undefined && d.note !== '') {
@@ -654,6 +674,11 @@
     if (d.bemerkung && String(d.bemerkung).length > BEMERKUNG_MAX) {
       return `Bemerkung darf höchstens ${BEMERKUNG_MAX} Zeichen haben.`;
     }
+    // Pflicht ist eine Note – zuletzt geprüft, damit falsche Werte in anderen
+    // Feldern zuerst gemeldet werden. Gleichwertig: IHK-Punkte (die Note wird
+    // daraus berechnet) und bei DH-Studenten „bestanden" ohne Note (DUALIS-„b").
+    const hatNote = d.note !== null && d.note !== undefined && d.note !== '';
+    if (!hatNote && !(hatPunkte && !istDh) && !(istDh && d.status === 'bestanden')) return 'Note fehlt.';
     return null;
   }
 
@@ -948,7 +973,7 @@
     gruppiereOrdnerNachAbschnitt,
     TABELLEN_SPALTEN, tabellenZeilen, tabellenSpalten,
     endungVon, endungErlaubt, istBildVorschau, istPdf, formatBytes, verkleinereBild,
-    FACH_FARBEN, farbeById, istHexFarbe, farbeRgb, farbeGueltig,
+    FACH_FARBEN, FACH_FARBEN_ALT, istAlteFarbe, farbeById, istHexFarbe, farbeRgb, farbeGueltig,
     normalisiereFarbe, pruefeOrdnerFarbe,
     normalisiereOrdnerName, pruefeOrdnerName, istIsoDatum, pruefeEintrag,
     zusammenfuehreEintrag, mussNeuBerechnen,

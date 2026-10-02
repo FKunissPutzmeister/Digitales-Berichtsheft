@@ -267,8 +267,10 @@ test('pruefeEintrag lässt einen vollständigen Eintrag durch', () => {
     titel: 'Vokabeltest', art: 'klassenarbeit', datum: '2026-03-14',
     note: 2.3, abschnittTyp: 'ausbildungsjahr', abschnittNr: 2,
   }), null);
-  // Note und Punkte sind optional - ein Beleg allein darf reichen.
-  assert.equal(N.pruefeEintrag({ titel: 'Zeugnis', art: 'zeugnis', datum: '2026-07-24' }), null);
+  // Datum ist optional (Migration 050), Titel und Note sind Pflicht.
+  assert.equal(N.pruefeEintrag({ titel: 'Zeugnis', art: 'zeugnis', note: '2,0' }), null);
+  // IHK-Punkte ersetzen die Note (sie wird daraus berechnet).
+  assert.equal(N.pruefeEintrag({ titel: 'ZP', art: 'zwischenpruefung', punkte: 82 }), null);
 });
 
 test('pruefeEintrag meldet fehlende Pflichtfelder im Klartext', () => {
@@ -276,13 +278,16 @@ test('pruefeEintrag meldet fehlende Pflichtfelder im Klartext', () => {
   assert.match(N.pruefeEintrag({ titel: '   ', art: 'zeugnis', datum: '2026-07-24' }), /Titel/);
   assert.match(N.pruefeEintrag({ titel: 'X', datum: '2026-07-24' }), /Art/);
   assert.match(N.pruefeEintrag({ titel: 'X', art: 'quiz', datum: '2026-07-24' }), /Art/);
-  assert.match(N.pruefeEintrag({ titel: 'X', art: 'zeugnis' }), /Datum/);
+  assert.match(N.pruefeEintrag({ titel: 'X', art: 'zeugnis' }), /Note fehlt/);
+  // DH: „bestanden" ohne Note ist eine vollständige Bewertung.
+  assert.equal(N.pruefeEintrag({ titel: 'X', art: 'semesterpruefung', status: 'bestanden' }, 'dhstudent'), null);
+  assert.match(N.pruefeEintrag({ titel: 'X', art: 'semesterpruefung', status: 'offen' }, 'dhstudent'), /Note fehlt/);
 });
 
 test('pruefeEintrag prüft das Datum nur grob auf Plausibilität', () => {
   // Zeugnisse können älter als der Ausbildungsvertrag sein - deshalb keine
   // Kopplung an AusbildungBeginn, nur eine weite Spanne.
-  const gut = { titel: 'X', art: 'zeugnis' };
+  const gut = { titel: 'X', art: 'zeugnis', note: 2 };
   assert.equal(N.pruefeEintrag({ ...gut, datum: '2015-01-01' }), null);
   assert.match(N.pruefeEintrag({ ...gut, datum: '2014-12-31' }), /Datum/);
   assert.match(N.pruefeEintrag({ ...gut, datum: '14.03.2026' }), /Datum/);
@@ -744,7 +749,7 @@ test('Credits über der Obergrenze werden abgewiesen', () => {
 test('pruefeEintrag kennt abschnittTyp/abschnittNr nicht mehr', () => {
   // Der Abschnitt hängt am Ordner. Ein Body, der die alten Felder noch
   // mitschickt, darf daran nicht scheitern — sie werden ignoriert.
-  assert.equal(N.pruefeEintrag({ ...BASIS, art: 'klassenarbeit', abschnittTyp: 'semester', abschnittNr: 3 }, 'azubi'), null);
+  assert.equal(N.pruefeEintrag({ ...BASIS, art: 'klassenarbeit', note: 2, abschnittTyp: 'semester', abschnittNr: 3 }, 'azubi'), null);
 });
 
 test('pruefeAbschnitt prüft Typ, Nummer und Rolle zusammen', () => {
@@ -972,22 +977,46 @@ test('noteText liefert die drei Zustände der Notenspalte', () => {
 // Rein visuelle Hilfe (Migration 047), aber in der DB gespeichert, damit
 // sie auf jedem Gerät und für mitlesende Ausbilder dieselbe ist.
 
-// Die Töne des Abteilungsplaners (GANTT_PALETTE in
-// app/js/abteilungs-planer.js). Hier absichtlich ABGESCHRIEBEN und nicht
-// aus der Palette abgeleitet: der Test soll bemerken, wenn eine der
-// beiden Listen wandert.
+// Die kräftige Palette der Listenansicht. Hier absichtlich ABGESCHRIEBEN
+// und nicht abgeleitet: der Test soll bemerken, wenn die Liste wandert.
+const KRAEFTIGE_TOENE = [
+  '#2563EB', '#E11D74', '#16A34A', '#F97316', '#7C3AED', '#06B6D4',
+  '#EAB308', '#DC2626', '#0F766E', '#A0522D', '#64748B',
+];
+
+// Die frühere, gedeckte Palette (Töne des Abteilungsplaners). Gespeicherte
+// Fächer können sie noch tragen.
 const PLANER_TOENE = [
   '#4F9D9A', '#5B86C2', '#5FAE72', '#D8835A', '#9B7BC4',
   '#C75C6B', '#C99A3E', '#6B8E4E', '#C77FB2', '#4F8FB8',
   '#7E70BE', '#B06A52', '#5BA98C', '#6E7E8C', '#A86FA0',
 ];
 
-test('FACH_FARBEN ist die Palette des Abteilungsplaners', () => {
-  assert.deepEqual(N.FACH_FARBEN.map(f => f.hex), PLANER_TOENE);
+test('FACH_FARBEN ist die kräftige Palette', () => {
+  assert.deepEqual(N.FACH_FARBEN.map(f => f.hex), KRAEFTIGE_TOENE);
+});
+
+test('FACH_FARBEN_ALT hält die frühere Palette', () => {
+  assert.deepEqual(N.FACH_FARBEN_ALT.map(f => f.hex), PLANER_TOENE);
+  // Kein Ton steht in beiden Listen — sonst wäre "alt" nicht eindeutig.
+  const neu = new Set(N.FACH_FARBEN.map(f => f.hex));
+  N.FACH_FARBEN_ALT.forEach(f => assert.equal(neu.has(f.hex), false, f.hex));
+});
+
+test('Töne der früheren Palette bleiben gültig, sind aber "alt"', () => {
+  // Ein Fach mit altem Ton muss sich umbenennen lassen, ohne dass die
+  // Farbe abgewiesen wird oder verloren geht.
+  assert.equal(N.farbeGueltig('#4F9D9A'), true);
+  assert.equal(N.pruefeOrdnerFarbe('#c75c6b'), null);
+  assert.equal(N.normalisiereFarbe('#c75c6b'), '#C75C6B');
+  assert.equal(N.istAlteFarbe('#4f9d9a'), true);
+  assert.equal(N.istAlteFarbe('#2563EB'), false);
+  assert.equal(N.istAlteFarbe(null), false);
+  assert.equal(N.istAlteFarbe('#4F9D9A;x'), false);
 });
 
 test('jede Farbe hat Id, Namen und ein RGB-Tripel', () => {
-  N.FACH_FARBEN.forEach(f => {
+  N.FACH_FARBEN.concat(N.FACH_FARBEN_ALT).forEach(f => {
     assert.match(f.hex, /^#[0-9A-F]{6}$/, f.id + ': Hex in Großbuchstaben');
     assert.equal(typeof f.id, 'string');
     assert.ok(f.id.length > 0, 'Id fehlt');
@@ -1039,8 +1068,9 @@ test('keine Farbe ist ein gültiger Zustand', () => {
 });
 
 test('nur Farben AUS DER PALETTE sind gültig', () => {
-  assert.equal(N.farbeGueltig('#4F9D9A'), true);
-  assert.equal(N.farbeGueltig('#4f9d9a'), true, 'Kleinschreibung muss durchgehen');
+  assert.equal(N.farbeGueltig('#2563EB'), true);
+  assert.equal(N.farbeGueltig('#2563eb'), true, 'Kleinschreibung muss durchgehen');
+  assert.equal(N.farbeGueltig('#4F9D9A'), true, 'frühere Palette bleibt gültig');
   // Formal ein Hexwert, aber nicht aus der Palette:
   assert.equal(N.farbeGueltig('#FFFF00'), false);
   assert.equal(N.farbeGueltig('#123456'), false);
@@ -1052,9 +1082,10 @@ test('nur Farben AUS DER PALETTE sind gültig', () => {
 test('normalisiereFarbe speichert einheitlich in Großbuchstaben', () => {
   // Sonst stünden dieselbe Farbe zweimal unterschiedlich in der DB und
   // der Vergleich in der Oberfläche (welcher Tupfer ist aktiv?) schlägt fehl.
+  assert.equal(N.normalisiereFarbe('#2563eb'), '#2563EB');
+  assert.equal(N.normalisiereFarbe('#2563EB'), '#2563EB');
+  assert.equal(N.normalisiereFarbe('  #2563eb  '), '#2563EB');
   assert.equal(N.normalisiereFarbe('#4f9d9a'), '#4F9D9A');
-  assert.equal(N.normalisiereFarbe('#4F9D9A'), '#4F9D9A');
-  assert.equal(N.normalisiereFarbe('  #4f9d9a  '), '#4F9D9A');
   assert.equal(N.normalisiereFarbe(null), null);
   assert.equal(N.normalisiereFarbe(''), null);
   assert.equal(N.normalisiereFarbe('#FFFF00'), null, 'außerhalb der Palette → keine Farbe');
@@ -1068,10 +1099,9 @@ test('farbeById findet den Eintrag der Palette', () => {
 });
 
 test('die Palette deckt genug Fächer ab, ohne sich zu wiederholen', () => {
-  // Ein Ausbildungsjahr hat selten mehr als eine Handvoll Fächer; 15
-  // eindeutige Töne genügen also für jeden Zeitraum, ohne dass zwei
-  // Fächer nebeneinander gleich aussehen.
-  assert.equal(new Set(N.FACH_FARBEN.map(f => f.hex)).size, 15);
+  // Ein Ausbildungsjahr hat selten mehr als eine Handvoll Fächer; elf
+  // eindeutige Töne genügen also für jeden Zeitraum.
+  assert.equal(new Set(N.FACH_FARBEN.map(f => f.hex)).size, 11);
 });
 
 test('tabellenZeilen tragen die Farbe ihres Fachs mit', () => {

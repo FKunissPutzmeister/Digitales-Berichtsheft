@@ -3,6 +3,8 @@
    Design-Specs:
      docs/superpowers/specs/2026-09-01-noten-zeugnisse-design.md
      docs/superpowers/specs/2026-09-02-noten-abschnitte-credits-design.md
+   Gestaltung: Entwurf B (Liste) — oben die Zeiträume als Schalter,
+   links die Fächer des Zeitraums, rechts die Einträge des Fachs.
 
    Wird von ZWEI Shells benutzt, weil DH-Studenten keine Sidebar haben,
    sondern eine eigene .dh-topbar-Shell (siehe dh-profil.html):
@@ -11,17 +13,20 @@
 
    Drei Ebenen seit Migration 046:
      Abschnitt (Ausbildungsjahr | SoSe/WiSe) → Fach-Ordner → Prüfungen
-   Ø und Credit-Summe fallen JE ABSCHNITT an; einen Durchschnitt über
-   alles gibt es bewusst nicht mehr.
 
-   Nur Browser. Die shell-agnostische RECHENlogik liegt in
-   app/js/noten-core.js (window.Noten) — die requirt auch das Backend,
-   deshalb darf dort kein DOM-Code stehen. Gruppierung, Ø und Credit-Summe
-   kommen von dort (gruppiereOrdnerNachAbschnitt), nicht aus dieser Datei.
+   Diese Seite RECHNET NICHTS: keine Durchschnitte, keine Credit-Summen.
+   Das macht ausschließlich der Notenspiegel (noten-tabelle*.js). Hier
+   stehen nur die Einzelwerte eines Eintrags.
+
+   Einträge öffnen sich IN der Liste (Akkordeon), nicht in einem Panel
+   oder Dialog. Bearbeiten macht aus dem aufgeklappten Bereich ein
+   Formular an Ort und Stelle. Immer nur ein Eintrag ist offen.
 
    Re-entrant: der SPA-Router (app/js/router.js) führt Seiten-Scripts beim
-   zweiten Besuch erneut in new Function() aus. Der komplette Zustand liegt
-   deshalb in start() und nicht auf Modulebene.
+   zweiten Besuch erneut in new Function() aus, #mainContent bleibt dabei
+   DASSELBE Element. Der Zustand liegt deshalb in start(), und alle
+   Listener hängen an einem AbortController, den der nächste start()
+   abbricht — sonst liefen Klicks doppelt.
    =================================================================== */
 (function (global) {
   'use strict';
@@ -30,63 +35,63 @@
   const esc = global.escapeHtml;
   const MODAL_ABSCHNITT = 'notenAbschnittModal';
   const MODAL_ORDNER = 'notenOrdnerModal';
-  const MODAL_EINTRAG = 'notenEintragModal';
+  const KLAPP_MS = 220;
 
-  const fmtDatum = (iso) => (iso ? DateUtil.formatDate(iso, { day: '2-digit', month: '2-digit', year: 'numeric' }) : '–');
+  const fmtKurz = (iso) => (iso ? DateUtil.formatDate(String(iso).slice(0, 10), { year: '2-digit' }) : '–');
+  const fmtLang = (iso) => (iso ? DateUtil.formatDate(String(iso).slice(0, 10), { day: 'numeric', month: 'long' }) : '–');
 
-  // "Ø 2,3 · 7 Noten" — die Anzahl steht bewusst daneben, damit die Zahl
-  // nachprüfbar ist (Einträge ohne Note zählen nirgends mit, auch das "b").
-  function schnittText(schnitt, anzahl) {
-    if (schnitt === null || schnitt === undefined) return 'keine Note';
-    return `Ø ${N.formatNote(schnitt)} · ${anzahl} ${anzahl === 1 ? 'Note' : 'Noten'}`;
-  }
+  // Strich-Symbole im Stil von icons.js (24er-Raster, currentColor).
+  const I = {
+    plus: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>',
+    x: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>',
+    zurueck: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg>',
+    klammer: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="m21 11-8.6 8.6a5.5 5.5 0 0 1-7.8-7.8L13.2 3.2a3.7 3.7 0 0 1 5.2 5.2l-8.6 8.6a1.8 1.8 0 0 1-2.6-2.6L15 6.6"/></svg>',
+    datei: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3.5" y="4.5" width="17" height="15" rx="2"/><circle cx="9" cy="10" r="1.8"/><path d="m20.5 16-5-5-8.5 8.5"/></svg>',
+    stift: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h4L19 9a2.8 2.8 0 0 0-4-4L4 16v4Z"/><path d="m13.5 6.5 4 4"/></svg>',
+    eimer: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12M9 7V4h6v3"/></svg>',
+    spiegel: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><rect x="4" y="3.5" width="16" height="17" rx="2"/><path d="M8 8.5h8M8 12h8M8 15.5h5"/></svg>',
+  };
 
-  /* "1 Fach" / "3 Fächer" statt "3 Fach/Fächer". Die Löschen-Rückfrage ist
-     genau der Ort, an dem jemand die Zahlen liest — dort darf die Sprache
-     nicht nach Formular klingen. */
+  /* "1 Fach" / "3 Fächer" statt "3 Fach/Fächer". */
   function mehrzahl(anzahl, eins, viele) {
     return Number(anzahl) + ' ' + (Number(anzahl) === 1 ? eins : viele);
   }
 
-  /* Die Farbwahl des Fach-Dialogs: 15 Tupfer plus "keine Farbe".
-      Echte Radio-Buttons, keine Klick-Divs — damit kommen Tastatur
-      (Pfeiltasten innerhalb der Gruppe), Screenreader und das
-      "genau eines"-Verhalten ohne eigenen Code. Das Feld selbst ist
-      visuell versteckt, sichtbar ist der Tupfer daneben.
+  /* Die Farbwahl des Fach-Dialogs: die Töne der Palette plus "keine Farbe".
+     Echte Radio-Buttons, keine Klick-Divs — damit kommen Tastatur
+     (Pfeiltasten innerhalb der Gruppe), Screenreader und das
+     "genau eines"-Verhalten ohne eigenen Code.
 
-      Der Wert ist der HEXWERT, nicht die Id: die API speichert Hex, und
-      so muss nichts hin- und herübersetzt werden. Leerer Wert = keine
-      Farbe.
+     Der Wert ist der HEXWERT: die API speichert Hex. Leerer Wert = keine
+     Farbe.
 
-      Vorauswahl über N.normalisiereFarbe: die kennt nur Palettenfarben.
-      Ein gespeicherter Hexwert AUSSERHALB der Palette wird deshalb
-      gezeichnet (dafür genügt istHexFarbe), ist hier aber nicht wählbar —
-      und fällt beim nächsten Speichern weg. Das kann nur eintreten, wenn
-      jemand die Palette ändert oder direkt in die DB schreibt. Wer die
-      Palette ändert, sollte die alten Werte also mitmigrieren, statt sich
-      auf die Anzeige zu verlassen. */
+     Trägt das Fach noch einen Ton der FRÜHEREN Palette, steht genau dieser
+     Ton als erstes, vorausgewähltes Feld da. Er ist sonst nicht mehr
+     wählbar — ohne dieses Feld wäre beim Umbenennen nichts gewählt und die
+     Farbe ginge beim Speichern stillschweigend verloren. */
   function farbwahlHtml(aktuell) {
     const gewaehlt = (N.normalisiereFarbe(aktuell) || '');
-    const feld = (wert, titel, inhalt, extra) => `<label class="noten-farbwahl__feld${extra || ''}" title="${esc(titel)}">
+    const feld = (wert, titel, inhalt) => `<label class="noten-farbwahl__feld" title="${esc(titel)}">
         <input type="radio" name="notenOrdnerFarbe" value="${esc(wert)}"${wert === gewaehlt ? ' checked' : ''}>
         ${inhalt}
         <span class="sr-only">${esc(titel)}</span>
       </label>`;
+    const tupfer = (hex) => `<span class="noten-farbwahl__tupfer" aria-hidden="true" style="background:${hex}"></span>`;
 
     const keine = feld('', 'Keine Farbe',
-      '<span class="noten-farbwahl__tupfer noten-farbwahl__tupfer--keine" aria-hidden="true"></span>',
-      ' noten-farbwahl__feld--keine');
-    const toene = N.FACH_FARBEN.map(f => feld(f.hex, f.label,
-      `<span class="noten-farbwahl__tupfer" aria-hidden="true" style="background:${f.hex}"></span>`)).join('');
-    return keine + toene;
+      '<span class="noten-farbwahl__tupfer noten-farbwahl__tupfer--keine" aria-hidden="true"></span>');
+    const bisher = N.istAlteFarbe(gewaehlt) ? feld(gewaehlt, 'Bisherige Farbe', tupfer(gewaehlt)) : '';
+    const toene = N.FACH_FARBEN.map(f => feld(f.hex, f.label, tupfer(f.hex))).join('');
+    return keine + bisher + toene;
   }
 
-  /* Die Farbe geht in ein style-Attribut — deshalb NUR über
-     N.istHexFarbe. Ein gespeicherter Wert, der kein reiner Hexwert ist,
-     könnte dort sonst weitere CSS-Deklarationen einschmuggeln. */
-  function farbStil(farbe) {
-    if (!N.istHexFarbe(farbe)) return '';
-    return ` style="--fach-farbe: ${farbe}; --fach-rgb: ${N.farbeRgb(farbe)}"`;
+  /* Der Punkt in Fachfarbe. Die Farbe geht in ein style-Attribut —
+     deshalb NUR über N.istHexFarbe, sonst könnte ein gespeicherter Wert
+     weitere CSS-Deklarationen einschmuggeln. Ohne Farbe: neutraler Punkt. */
+  function punkt(farbe) {
+    return N.istHexFarbe(farbe)
+      ? `<span class="nb-dot" style="background:${farbe.trim()}" aria-hidden="true"></span>`
+      : '<span class="nb-dot nb-dot--ohne" aria-hidden="true"></span>';
   }
 
   function artLabel(id) {
@@ -94,223 +99,9 @@
     return a ? a.label : id;
   }
 
-  // Alle Einträge eines Abschnitts (über seine Ordner) — für die Frage, ob
-  // überhaupt Credits eingetragen sind.
-  //
-  // NICHT für die Anzahl hinter dem Ø: die zählt N.abschnittAnzahlNoten,
-  // weil sie dieselbe Filterung braucht wie der Ø selbst. Hier stand
-  // vorher anzahlMitNote(alleEintraege) — das zählte auch die Noten aus
-  // Fächern mit „zählt nicht in den Ø" mit, sodass neben einem Ø aus fünf
-  // Werten die Zahl sieben stehen konnte.
-  function eintraegeVon(ordner) {
-    return (ordner || []).flatMap(o => (o.eintraege || []));
-  }
+  const hat = (wert) => wert !== null && wert !== undefined && wert !== '';
 
-  /* ── Klappzustand ─────────────────────────────────────────────────
-     Zeiträume und Fächer lassen sich zuklappen. Der Zustand MUSS
-     gespeichert werden, weil renderDetail() bei jedem Speichern,
-     Löschen und Beleg-Upload den ganzen Inhalt neu baut — ein
-     zugeklappter Zeitraum würde sonst jedes Mal wieder aufspringen und
-     das Zuklappen wäre praktisch wertlos.
-
-     Gemerkt wird nur, was ZUgeklappt ist: neu angelegte Zeiträume sind
-     damit automatisch offen, ohne dass sie jemand einträgt.
-
-     Ein Schlüssel für alle Personen genügt, weil Ids tabellenweit
-     eindeutig sind; das Präfix trennt Zeitraum ("a") von Fach ("o").
-     localStorage kann werfen (privates Fenster, gesperrte Site-Daten) —
-     deshalb überall try/catch, siehe app/js/theme.js. */
-  const ZUGEKLAPPT_KEY = 'notenZugeklappt';
-
-  function ladeZugeklappt() {
-    try {
-      const roh = JSON.parse(localStorage.getItem(ZUGEKLAPPT_KEY) || '[]');
-      return new Set(Array.isArray(roh) ? roh : []);
-    } catch (e) { return new Set(); }
-  }
-
-  function speichereZugeklappt(menge) {
-    try { localStorage.setItem(ZUGEKLAPPT_KEY, JSON.stringify([...menge])); } catch (e) { /* nicht kritisch */ }
-  }
-
-  const abschnittSchluessel = (id) => 'a' + (id === null || id === undefined ? 'ohne' : id);
-  const ordnerSchluessel = (id) => 'o' + id;
-
-  /* ── Bausteine ──────────────────────────────────────────────────── */
-
-  function belegHtml(b, darfBearbeiten) {
-    const url = DB.notenBelegDownloadUrl(b.id);
-    const vorschau = N.istBildVorschau(b.dateiname);
-    // HEIC/HEIF kann Edge/Chrome nicht dekodieren — statt einer kaputten
-    // Vorschau den Download-Hinweis zeigen.
-    const hinweis = (!vorschau && !N.istPdf(b.dateiname))
-      ? '<span class="noten-beleg__hinweis">Vorschau nicht möglich – zum Ansehen herunterladen</span>' : '';
-    return `<div class="noten-beleg">
-      <a class="noten-beleg__link" href="${url}" target="_blank" rel="noopener" title="${esc(b.dateiname)}">
-        <span class="noten-beleg__icon">${Icon(N.istPdf(b.dateiname) ? 'document' : 'paperclip', { size: 18 })}</span>
-        <span class="noten-beleg__name">${esc(b.dateiname)}</span>
-        <span class="noten-beleg__size">${N.formatBytes(b.groesseBytes)}</span>
-      </a>
-      ${hinweis}
-      ${darfBearbeiten ? `<button type="button" class="btn btn-icon btn-ghost noten-beleg__del"
-          data-beleg="${b.id}" aria-label="Beleg löschen" title="Beleg löschen">${Icon('trash', { size: 16 })}</button>` : ''}
-    </div>`;
-  }
-
-  /* Die Notenspalte eines Eintrags. Drei Zustände wie im DUALIS-Notenspiegel:
-       Zahl        – eine echte Note
-       b           – bestanden OHNE Note (Status bestanden, Note leer)
-       –           – noch nichts eingetragen
-     "b" ist deshalb kein Notenwert, sondern eine Kombination — siehe
-     istBestandenOhneNote() in noten-core.js. */
-  function noteZelle(e) {
-    if (N.istBestandenOhneNote(e)) {
-      return `<div class="noten-eintrag__note noten-eintrag__note--b"
-                   title="bestanden, ohne Note">b</div>`;
-    }
-    return `<div class="noten-eintrag__note">${N.formatNote(e.note)}</div>`;
-  }
-
-  /* Credits mit ihrem Beitrag zur Semestersumme. Ein Modul mit Status
-     "offen" trägt seine Credits sichtbar, aber NICHT in der Summe — ohne
-     diesen Hinweis sieht die Summe unten falsch aus. */
-  function creditsText(e) {
-    if (e.credits === null || e.credits === undefined) return '';
-    const s = N.statusById(e.status);
-    const zaehlt = !!(s && s.zaehltCredits);
-    return `<span class="noten-eintrag__credits${zaehlt ? '' : ' noten-eintrag__credits--aus'}"
-                  title="${zaehlt ? 'zählt in die Credit-Summe' : 'zählt NICHT in die Credit-Summe (nur bestandene Module)'}"
-            >${N.formatCredits(e.credits)} CP${zaehlt ? '' : ' (zählt nicht)'}</span>`;
-  }
-
-  function statusBadge(e) {
-    // "bestanden" ist der Normalfall und braucht kein Etikett.
-    if (!e.status || e.status === 'bestanden') return '';
-    return `<span class="badge badge--grey">${esc(N.statusLabel(e.status))}</span>`;
-  }
-
-  function eintragHtml(e, darfBearbeiten) {
-    // IHK-Punkte gibt es nur noch bei Azubi-Prüfungen (Migration 046).
-    let punkte = '';
-    if (e.punkte !== null && e.punkte !== undefined) {
-      const titel = e.noteAusPunkten ? ' title="Note aus den Punkten berechnet"' : '';
-      punkte = `<span class="noten-eintrag__punkte"${titel}>${N.formatPunkte(e.punkte)} Punkte</span>`;
-    }
-    const geaendert = e.aktualisiertAm
-      ? `<span class="noten-eintrag__stempel" title="Zuletzt geändert">geändert ${fmtDatum(e.aktualisiertAm)}</span>` : '';
-    return `<li class="noten-eintrag" data-eintrag="${e.id}">
-      ${noteZelle(e)}
-      <div class="noten-eintrag__main">
-        <div class="noten-eintrag__kopf">
-          <span class="noten-eintrag__titel">${esc(e.titel)}</span>
-          <span class="badge badge--grey">${esc(artLabel(e.art))}</span>
-          ${statusBadge(e)}
-        </div>
-        <div class="noten-eintrag__meta">
-          <span>${fmtDatum(e.datum)}</span>
-          ${creditsText(e)}
-          ${punkte}
-          ${geaendert}
-        </div>
-        ${e.bemerkung ? `<p class="noten-eintrag__bemerkung">${esc(e.bemerkung)}</p>` : ''}
-        ${e.belege.length ? `<div class="noten-belege">${e.belege.map(b => belegHtml(b, darfBearbeiten)).join('')}</div>` : ''}
-      </div>
-      ${darfBearbeiten ? `<div class="noten-eintrag__aktionen">
-        <button type="button" class="btn btn-icon btn-ghost" data-bearbeiten="${e.id}"
-                aria-label="Eintrag bearbeiten" title="Bearbeiten">${Icon('edit', { size: 18 })}</button>
-        <button type="button" class="btn btn-icon btn-ghost" data-loeschen="${e.id}"
-                aria-label="Eintrag löschen" title="Löschen">${Icon('trash', { size: 18 })}</button>
-      </div>` : ''}
-    </li>`;
-  }
-
-  function ordnerHtml(o, darfBearbeiten, zugeklappt) {
-    const schnitt = N.ordnerSchnitt(o.eintraege);
-    const anzahl = N.anzahlMitNote(o.eintraege);
-    const offen = !zugeklappt.has(ordnerSchluessel(o.id));
-    const eintraege = o.eintraege.length
-      ? `<ul class="noten-liste">${o.eintraege.map(e => eintragHtml(e, darfBearbeiten)).join('')}</ul>`
-      : `<p class="noten-ordner__leer">Noch keine Einträge in diesem Fach.</p>`;
-    // Farbe (Migration 047): 4px Kante links und getönte Kopfzeile. Die
-    // Tönung liegt als rgba() ÜBER der Kartenfläche, damit sie in jedem
-    // der zehn Designs aus dessen eigener Fläche entsteht.
-    const farbig = N.istHexFarbe(o.farbe) ? ' noten-ordner--farbig' : '';
-    return `<details class="noten-ordner${farbig}" data-ordner="${o.id}"${offen ? ' open' : ''}${farbStil(o.farbe)}>
-      <summary class="noten-ordner__kopf">
-        <span class="noten-ordner__name">${esc(o.name)}</span>
-        <span class="noten-ordner__schnitt">${schnittText(schnitt, anzahl)}</span>
-        ${o.zaehltInSchnitt ? '' : '<span class="badge badge--grey" title="Dieses Fach fließt nicht in den Semester-/Jahresdurchschnitt ein">nicht im Ø</span>'}
-        ${darfBearbeiten ? `<span class="noten-ordner__aktionen">
-          <button type="button" class="btn btn-sm btn-outline" data-neuer-eintrag="${o.id}">Eintrag hinzufügen</button>
-          <button type="button" class="btn btn-icon btn-ghost" data-ordner-bearbeiten="${o.id}"
-                  aria-label="Fach bearbeiten" title="Fach bearbeiten">${Icon('edit', { size: 18 })}</button>
-          <button type="button" class="btn btn-icon btn-ghost" data-ordner-loeschen="${o.id}"
-                  aria-label="Fach löschen" title="Fach löschen">${Icon('trash', { size: 18 })}</button>
-        </span>` : ''}
-      </summary>
-      <div class="noten-ordner__body">${eintraege}</div>
-    </details>`;
-  }
-
-  /* Ein Abschnitt = die äußere Karte. Kopfzeile trägt die beiden Kennzahlen
-     dieses Zeitraums: Noten-Ø und Credit-Summe. Die Credit-Summe erscheint
-     nur, wenn überhaupt Credits eingetragen sind — bei Azubis gibt es
-     keine, dort wäre "0,0 CP" nur Rauschen.
-
-     class="card": die Fläche kommt von .card, damit jedes Skin
-     (glass/silk/hyperspace/…) seine Karten-Optik anwendet, statt dass diese
-     Seite eine zweite Wahrheit aufbaut. Siehe Kommentar in noten.css. */
-  function abschnittHtml(g, darfBearbeiten, zugeklappt) {
-    const alleEintraege = eintraegeVon(g.ordner);
-    const hatCredits = alleEintraege.some(e => e.credits !== null && e.credits !== undefined);
-    const inhalt = g.ordner.length
-      ? `<div class="noten-fach-liste">${g.ordner.map(o => ordnerHtml(o, darfBearbeiten, zugeklappt)).join('')}</div>`
-      : `<p class="noten-abschnitt__leer">${darfBearbeiten
-          ? 'Noch keine Fächer in diesem Zeitraum.'
-          : 'Keine Fächer eingetragen.'}</p>`;
-
-    // Die Auffanggruppe (label === null) hat keine Id und lässt sich deshalb
-    // weder löschen noch mit neuen Fächern füllen.
-    const istAuffang = g.id === null;
-    const offen = !zugeklappt.has(abschnittSchluessel(g.id));
-    // Zugeklappt ist die Fächerzahl die einzige Auskunft über den Inhalt.
-    const menge = g.ordner.length === 1 ? '1 Fach' : `${g.ordner.length} Fächer`;
-
-    /* BEWUSST kein <details>/<summary>, obwohl das Auf- und Zuklappen dort
-       gratis käme: bei <details> ist die GESAMTE Kopfzeile das Bedienelement.
-       Umklappen soll aber nur der Pfeil — ein Klick auf „2. Ausbildungsjahr"
-       oder auf die Kennzahlen darf nichts tun. Das gegen <details>
-       durchzusetzen hieße, dessen Standardverhalten bei Maus UND Tastatur
-       abzufangen; ein eigener Knopf mit aria-expanded ist ehrlicher.
-       Sichtbarkeit hängt an data-offen (siehe noten.css) statt am
-       [hidden]-Attribut — das wird von jeder eigenen display-Regel
-       überstimmt und ist hier schon einmal zur Falle geworden. */
-    const koerperId = 'notenAbschnitt' + (istAuffang ? 'Ohne' : g.id);
-    return `<section class="card noten-abschnitt" data-abschnitt="${istAuffang ? 'ohne' : g.id}"
-             data-offen="${offen ? '1' : '0'}">
-      <div class="noten-abschnitt__kopf">
-        <button type="button" class="noten-abschnitt__pfeil"
-                data-klapp="${istAuffang ? 'ohne' : g.id}"
-                aria-expanded="${offen ? 'true' : 'false'}" aria-controls="${koerperId}"
-                aria-label="${offen ? 'Zeitraum zuklappen' : 'Zeitraum aufklappen'}"
-                title="${offen ? 'Zuklappen' : 'Aufklappen'}"></button>
-        <h2 class="noten-abschnitt__label">${g.label === null ? 'Ohne Zuordnung' : esc(g.label)}</h2>
-        <span class="noten-abschnitt__schnitt">${schnittText(g.schnitt, N.abschnittAnzahlNoten(g.ordner))}</span>
-        ${hatCredits ? `<span class="noten-abschnitt__credits" title="Summe der Credits bestandener Module">
-          ${N.formatCredits(g.credits)} CP</span>` : ''}
-        <span class="noten-abschnitt__menge">${menge}</span>
-        ${darfBearbeiten && !istAuffang ? `<span class="noten-abschnitt__aktionen">
-          <button type="button" class="btn btn-sm btn-outline" data-neues-fach="${g.id}">
-            ${Icon('add', { size: 16 })} Fach hinzufügen</button>
-          <button type="button" class="btn btn-icon btn-ghost" data-abschnitt-loeschen="${g.id}"
-                  aria-label="Zeitraum löschen" title="Zeitraum löschen">${Icon('trash', { size: 18 })}</button>
-        </span>` : ''}
-      </div>
-      <div class="noten-abschnitt__body" id="${koerperId}">${inhalt}</div>
-    </section>`;
-  }
-
-  /* ── Modal-Gerüst ───────────────────────────────────────────────── */
+  /* ── Modal-Gerüst (nur noch für Zeitraum und Fach) ─────────────── */
   // Jedes Mal frisch aufbauen: so stimmen die selected-Attribute der
   // <select>-Felder, ohne über _pmInstance.setValue nachsteuern zu müssen
   // (PMSelect verwandelt jedes .form-control-select automatisch).
@@ -320,7 +111,7 @@
     const ov = document.createElement('div');
     ov.className = 'modal-overlay';
     ov.id = id;
-    ov.innerHTML = `<div class="modal modal--lg">
+    ov.innerHTML = `<div class="modal">
       <div class="modal__header">
         <h2 class="modal__title">${esc(titel)}</h2>
         <button class="modal__close" type="button" data-modal-close aria-label="Schließen">×</button>
@@ -334,235 +125,68 @@
     return ov;
   }
 
-  /* Die Auswahlliste konkreter Zeiträume kommt aus noten-core.js
-     (abschnittKandidaten) — EIN Dropdown, wie die Semesterwahl im
-     DUALIS-Notenspiegel ("Semester: SoSe 2026"). Bewusst nicht zwei
-     gekoppelte Selects (Halbjahr + Jahr): dann müsste bei jeder Änderung
-     die Jahresliste neu gebaut und PMSelect neu angewendet werden.
-     Der Wert des <option> ist "typ:nr". */
-
   /* ── Einstiegspunkt ─────────────────────────────────────────────── */
   /**
    * @param {object} opts
    *   user         – der eingeloggte Nutzer (aus initPage/requireAuth)
    *   host         – Container-Element (#mainContent)
    *   mitAzubiWahl – true in der Sidebar-Shell: Ausbilder bekommen die
-   *                  Übersichtsliste und die Azubi-Auswahl. In der
-   *                  DH-Shell false (der DH-Student sieht nur sich).
+   *                  Übersichtsliste. In der DH-Shell false (der
+   *                  DH-Student sieht nur sich).
+   *   spiegelHref  – Ziel des Notenspiegel-Knopfes
    */
   async function start(opts) {
     const { user, host } = opts;
     const mitAzubiWahl = opts.mitAzubiWahl !== false;
-    // Ziel des Notenspiegel-Knopfes. Die DH-Shell hat ihre eigene Seite,
-    // weil sie keine Sidebar lädt (dh-noten-tabelle.html).
     const spiegelHref = opts.spiegelHref || 'noten-tabelle.html';
 
-    // Kann der Nutzer überhaupt fremde Noten sehen? Azubis/DH-Studenten
-    // sehen nur sich; für alle anderen ist die Übersichtsliste der Einstieg.
+    // Ein zweiter start() auf demselben Host (SPA-Router) räumt die
+    // Listener des ersten ab.
+    if (host._notenAbbruch) host._notenAbbruch.abort();
+    const abbruch = new AbortController();
+    host._notenAbbruch = abbruch;
+    const signal = abbruch.signal;
+
+    // Azubis/DH-Studenten sehen nur sich; für alle anderen ist die
+    // Übersichtsliste der Einstieg.
     const nurEigene = !mitAzubiWahl || (!!user.istAzubi && !user.istAusbilder && !user.istAusbildungsleiter);
     // Schreiben darf nur der Eigentümer, also entscheidet SEINE Rolle über
     // die Formularfelder.
     const istDh = user.role === 'dhstudent';
+    const zeitraumWort = istDh ? 'Semester' : 'Ausbildungsjahr';
 
     let azubis = [];
     let viewAzubiId = user.oid;
     let daten = null;
-    const zugeklappt = ladeZugeklappt();
+    let ansicht = 'detail'; // 'detail' | 'uebersicht'
 
-    /* ── Laden ────────────────────────────────────────────────────── */
+    /* Zustand der Ansicht. abschnittId/ordnerId überleben jedes Neuladen
+       der Daten; was es nicht mehr gibt, fällt in waehleGueltige() auf
+       einen sinnvollen Nachbarn zurück. */
+    const ui = {
+      abschnittId: undefined,   // undefined = noch nichts gewählt, null = "Ohne Zuordnung"
+      ordnerId: null,
+      offenId: null,            // aufgeklappter Eintrag
+      modus: null,              // null | 'ansicht' | 'bearbeiten' | 'neu'
+      nav: 'fach',              // nur schmal: 'liste' (Fächer) | 'fach'
+      entwurf: [],              // gewählte Dateien eines NEUEN Eintrags: { id, file, url }
+    };
+    let entwurfZaehler = 0;
+    const schmal = () => !!(global.matchMedia && global.matchMedia('(max-width: 899px)').matches);
+    if (schmal()) ui.nav = 'liste';
+
+    /* ── Daten ────────────────────────────────────────────────────── */
     async function ladeDaten() {
       daten = await DB.getNoten(viewAzubiId === user.oid ? null : viewAzubiId);
     }
 
-    /* ── Rendern ──────────────────────────────────────────────────── */
-    function renderUebersicht() {
-      const zeilen = azubis.map(a => `<tr class="noten-uebersicht__zeile" data-azubi="${esc(a.oid)}" tabindex="0">
-          <td>${esc(displayName(a.name))}</td>
-          <td>${esc(a.role === 'dhstudent' ? 'DH-Student' : 'Azubi')}</td>
-          <td class="noten-uebersicht__zahl">${a.anzahlEintraege}</td>
-          <td class="noten-uebersicht__zahl">${a.anzahlAbschnitte}</td>
-          <td>${a.letzterEintrag ? fmtDatum(a.letzterEintrag) : '–'}</td>
-          <td class="noten-uebersicht__zahl">
-            ${a.schnittAktuell === null || a.schnittAktuell === undefined ? '–' : N.formatNote(a.schnittAktuell)}
-            ${a.abschnittAktuell ? `<span class="noten-uebersicht__sub">${esc(a.abschnittAktuell)}</span>` : ''}
-          </td>
-        </tr>`).join('');
-      host.innerHTML = `
-        <div class="page-header">
-          <div class="page-header__left">
-            <h1 class="page-title">Noten &amp; Zeugnisse</h1>
-            <p class="page-subtitle">Schulnoten und Zeugnisse der von dir betreuten Azubis und DH-Studenten.</p>
-          </div>
-        </div>
-        <div class="card">
-          <div class="card__body">
-            ${azubis.length ? `<div class="noten-tabelle-wrap">
-              <table class="noten-uebersicht">
-                <thead><tr>
-                  <th>Name</th><th>Art</th>
-                  <th class="noten-uebersicht__zahl">Einträge</th>
-                  <th class="noten-uebersicht__zahl">Zeiträume</th>
-                  <th>Letzter Eintrag</th>
-                  <th class="noten-uebersicht__zahl">Ø aktueller Zeitraum</th>
-                </tr></thead>
-                <tbody>${zeilen}</tbody>
-              </table>
-            </div>` : `<div class="empty-state">
-              <div class="empty-state__icon">${Icon('cap', { size: 48 })}</div>
-              <p class="empty-state__title">Keine Azubis zugeordnet</p>
-              <p class="empty-state__text">Hier erscheinen die Azubis und DH-Studenten, für die du dauerhaft
-                zuständig bist. Eine befristete Abteilungs-Zuweisung genügt dafür bewusst nicht.</p>
-            </div>`}
-          </div>
-        </div>`;
-      host.querySelectorAll('[data-azubi]').forEach(tr => {
-        const oeffne = () => { viewAzubiId = tr.dataset.azubi; setPersistedAzubiId(viewAzubiId); zeigeDetail(); };
-        tr.addEventListener('click', oeffne);
-        tr.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); oeffne(); } });
-      });
-    }
-
-    function renderDetail() {
-      const darfBearbeiten = !!daten.darfBearbeiten;
-      // EINE Gruppierung, und die liegt in noten-core.js — samt Ø und
-      // Credit-Summe je Abschnitt. Die Route liefert beides absichtlich flach.
-      const gruppen = N.gruppiereOrdnerNachAbschnitt(daten.abschnitte, daten.ordner);
-      const anlegenLabel = istDh ? 'Semester hinzufügen' : 'Ausbildungsjahr hinzufügen';
-
-      const zurueck = nurEigene ? '' :
-        `<button type="button" class="btn btn-ghost btn-sm" id="notenZurueck">← Alle Azubis</button>`;
-      const wahl = (!nurEigene && azubis.length)
-        ? renderAzubiSelect(azubis.map(a => ({ id: a.oid, name: displayName(a.name) })), viewAzubiId)
-        : '';
-
-      /* Der Notenspiegel ist eine eigene Seite (Voll-Load, kein Router —
-         der fängt nur Klicks in #sidebar ab), deshalb ein echter <a>: so
-         gehen Mittelklick und „in neuem Tab öffnen" wie erwartet.
-         Ohne einen einzigen Zeitraum gäbe es nichts zu zeigen, dann bleibt
-         der Knopf weg statt auf eine leere Tabelle zu führen. Die gewählte
-         Person muss mit, sonst zeigt die Tabelle den falschen Menschen. */
-      const spiegelZiel = (!nurEigene && viewAzubiId !== user.oid)
-        ? `${spiegelHref}?azubi=${encodeURIComponent(viewAzubiId)}`
-        : spiegelHref;
-      const knoepfe = [
-        darfBearbeiten
-          ? `<button type="button" class="btn btn-primary" id="notenNeuerAbschnitt">
-              ${Icon('add', { size: 18 })} ${anlegenLabel}</button>` : '',
-        gruppen.length
-          ? `<a class="btn btn-outline" href="${esc(spiegelZiel)}">
-              ${Icon('clipboard', { size: 18 })} Notenspiegel</a>` : '',
-      ].filter(Boolean).join('');
-      // Leere Leiste = nur der Außenabstand von .noten-kopf-aktionen.
-      const kopfAktionen = knoepfe ? `<div class="noten-kopf-aktionen">${knoepfe}</div>` : '';
-
-      // Die Haupt-Handlung steht links unter dem Titel, am Anfang der
-      // Leserichtung. Eine Gesamt-Ø-Kachel gibt es nicht mehr: gerechnet
-      // wird je Zeitraum, und die Zahl steht in dessen Kopfzeile.
-      // page-header__actions (nicht __right) — nur diese Klasse existiert in
-      // layout.css; ein erfundener Name fällt lautlos auf Block-Layout zurück.
-      host.innerHTML = `
-        <div class="page-header">
-          <div class="page-header__left">
-            ${zurueck}
-            <h1 class="page-title">Noten &amp; Zeugnisse</h1>
-            <p class="page-subtitle">${darfBearbeiten
-              ? (istDh
-                ? 'Lege je Semester deine Fächer an und trage dort Note, Credits und Status ein.'
-                : 'Lege je Ausbildungsjahr deine Fächer an und hänge dort Noten und Belege ein.')
-              : 'Ansicht der eingetragenen Schulnoten – schreibgeschützt.'}</p>
-            ${kopfAktionen}
-          </div>
-        </div>
-        ${wahl}
-        ${gruppen.length
-          ? `<div class="noten-abschnitt-liste">${gruppen.map(g => abschnittHtml(g, darfBearbeiten, zugeklappt)).join('')}</div>`
-          : `<p class="noten-leer">${darfBearbeiten
-              ? (istDh
-                ? 'Noch keine Semester – fange mit dem aktuellen an, zum Beispiel „SoSe 2026".'
-                : 'Noch keine Ausbildungsjahre – fange mit dem aktuellen an.')
-              : 'Hier erscheinen die Noten, sobald sie eingetragen wurden.'}</p>`}`;
-
-      bindeDetail(darfBearbeiten);
-    }
-
-    function bindeDetail(darfBearbeiten) {
-      /* Zeitraum: nur der Pfeil klappt um. Kein Neuzeichnen — der Zustand
-         wird direkt am DOM gesetzt, damit die Seite nicht springt. */
-      host.querySelectorAll('[data-klapp]').forEach(knopf => knopf.addEventListener('click', (e) => {
-        e.preventDefault(); e.stopPropagation();
-        const karte = knopf.closest('.noten-abschnitt');
-        if (!karte) return;
-        const offen = karte.dataset.offen !== '1';
-        karte.dataset.offen = offen ? '1' : '0';
-        knopf.setAttribute('aria-expanded', offen ? 'true' : 'false');
-        knopf.setAttribute('aria-label', offen ? 'Zeitraum zuklappen' : 'Zeitraum aufklappen');
-        knopf.title = offen ? 'Zuklappen' : 'Aufklappen';
-        const schluessel = 'a' + karte.dataset.abschnitt;
-        if (offen) zugeklappt.delete(schluessel); else zugeklappt.add(schluessel);
-        speichereZugeklappt(zugeklappt);
-      }));
-
-      /* Fächer sind weiter <details>: dort klappt die ganze Kopfzeile.
-         Das toggle-Ereignis blubbert NICHT (HTML-Spezifikation), der
-         Vergleich auf e.target bleibt trotzdem drin, damit ein späteres
-         Umbauen der Struktur keine Zustände vermischt. */
-      host.querySelectorAll('.noten-ordner[data-ordner]').forEach(el =>
-        el.addEventListener('toggle', (e) => {
-          if (e.target !== el) return;
-          const schluessel = ordnerSchluessel(el.dataset.ordner);
-          if (el.open) zugeklappt.delete(schluessel); else zugeklappt.add(schluessel);
-          speichereZugeklappt(zugeklappt);
-        }));
-
-      const zurueck = document.getElementById('notenZurueck');
-      if (zurueck) zurueck.addEventListener('click', () => renderUebersicht());
-
-      const select = document.getElementById('azubiSelect');
-      if (select) select.addEventListener('change', async (e) => {
-        viewAzubiId = e.target.value;
-        setPersistedAzubiId(viewAzubiId);
-        await zeigeDetail();
-      });
-
-      if (!darfBearbeiten) return;
-
-      const neu = document.getElementById('notenNeuerAbschnitt');
-      if (neu) neu.addEventListener('click', () => abschnittModal());
-
-      host.querySelectorAll('[data-abschnitt-loeschen]').forEach(b => b.addEventListener('click', (e) => {
-        e.preventDefault(); e.stopPropagation();
-        loescheAbschnitt(findeAbschnitt(+b.dataset.abschnittLoeschen));
-      }));
-      host.querySelectorAll('[data-neues-fach]').forEach(b => b.addEventListener('click', (e) => {
-        e.preventDefault(); e.stopPropagation();
-        ordnerModal(+b.dataset.neuesFach, null);
-      }));
-      host.querySelectorAll('[data-ordner-bearbeiten]').forEach(b => b.addEventListener('click', (e) => {
-        e.preventDefault(); e.stopPropagation();
-        const o = findeOrdner(+b.dataset.ordnerBearbeiten);
-        if (o) ordnerModal(o.abschnittId, o);
-      }));
-      host.querySelectorAll('[data-ordner-loeschen]').forEach(b => b.addEventListener('click', (e) => {
-        e.preventDefault(); e.stopPropagation();
-        loescheOrdner(findeOrdner(+b.dataset.ordnerLoeschen));
-      }));
-      host.querySelectorAll('[data-neuer-eintrag]').forEach(b => b.addEventListener('click', (e) => {
-        e.preventDefault(); e.stopPropagation();
-        eintragModal(+b.dataset.neuerEintrag, null);
-      }));
-      host.querySelectorAll('[data-bearbeiten]').forEach(b => b.addEventListener('click', () => {
-        const gefunden = findeEintrag(+b.dataset.bearbeiten);
-        if (gefunden) eintragModal(gefunden.ordnerId, gefunden);
-      }));
-      host.querySelectorAll('[data-loeschen]').forEach(b => b.addEventListener('click', () => {
-        loescheEintrag(findeEintrag(+b.dataset.loeschen));
-      }));
-      host.querySelectorAll('[data-beleg]').forEach(b => b.addEventListener('click', (e) => {
-        e.preventDefault();
-        loescheBeleg(+b.dataset.beleg);
-      }));
-    }
-
+    const darf = () => !!(daten && daten.darfBearbeiten);
+    // Chronologisch von links nach rechts, die Auffanggruppe ganz hinten.
+    const gruppen = () => {
+      const g = N.gruppiereOrdnerNachAbschnitt(daten.abschnitte, daten.ordner);
+      const echte = g.filter(x => x.id !== null).reverse();
+      return echte.concat(g.filter(x => x.id === null));
+    };
     const findeAbschnitt = (id) => (daten.abschnitte || []).find(a => a.id === id) || null;
     const findeOrdner = (id) => (daten.ordner || []).find(o => o.id === id) || null;
     const findeEintrag = (id) => {
@@ -572,58 +196,702 @@
       }
       return null;
     };
+    const gruppeVon = (liste, id) => liste.find(g => g.id === id) || null;
+
+    function waehleGueltige() {
+      const liste = gruppen();
+      // Standard: der jüngste Zeitraum MIT Einträgen – die Jahre 1–3 gibt es
+      // von Anfang an, und Fächer laufen leer in die Folgejahre mit.
+      let g = ui.abschnittId === undefined ? null : gruppeVon(liste, ui.abschnittId);
+      if (!g) {
+        const echte = liste.filter(x => x.id !== null);
+        const mitEintraegen = echte.filter(x => x.ordner.some(o => (o.eintraege || []).length));
+        g = mitEintraegen[mitEintraegen.length - 1] || echte[0] || liste[0] || null;
+        ui.abschnittId = g ? g.id : undefined;
+      }
+      const ordner = g ? g.ordner : [];
+      if (!ordner.some(o => o.id === ui.ordnerId)) {
+        const mitInhalt = ordner.find(o => (o.eintraege || []).length);
+        ui.ordnerId = (mitInhalt || ordner[0] || {}).id ?? null;
+      }
+      if (ui.offenId && !findeEintrag(ui.offenId)) { ui.offenId = null; if (ui.modus !== 'neu') ui.modus = null; }
+      return { liste, g, ordner };
+    }
+
+    /* ── Bausteine ────────────────────────────────────────────────── */
+    function zeileInnen(e) {
+      const n = (e.belege || []).length;
+      const dok = n ? `<span class="nb-row__dok" title="${mehrzahl(n, 'Beleg', 'Belege')}">${I.klammer}${n > 1 ? n : ''}<span class="sr-only">${mehrzahl(n, 'Beleg', 'Belege')}</span></span>` : '';
+      let neben = '';
+      if (hat(e.punkte)) neben = `<span class="nb-row__neben">${N.formatPunkte(e.punkte)} P.</span>`;
+      else if (hat(e.credits)) neben = `<span class="nb-row__neben">${N.formatCredits(e.credits)} CP</span>`;
+      const status = (e.status && e.status !== 'bestanden') ? N.statusLabel(e.status) : '';
+      const unter = [status, e.bemerkung || ''].filter(Boolean).join(' · ');
+      const b = N.istBestandenOhneNote(e);
+      return `<span class="nb-row__titel"><b>${esc(e.titel)}</b>
+          <span class="nb-row__art-klein">${esc(artLabel(e.art))}</span>
+          ${unter ? `<span class="nb-row__bem">${esc(unter)}</span>` : ''}</span>
+        <span class="nb-row__art nb-col-art">${esc(artLabel(e.art))}</span>
+        <span class="nb-row__datum">${fmtKurz(e.datum)}</span>
+        <span class="nb-row__dokspalte">${dok}</span>
+        <span class="nb-row__note">${neben}<span class="nb-note${b ? ' nb-note--b' : ''}"${b ? ' title="bestanden, ohne Note"' : ''}>${esc(N.noteText(e))}</span></span>`;
+    }
+
+    function docListe(belege, darfLoeschen) {
+      if (!belege.length) return '<p class="nb-docs-leer">Noch kein Dokument.</p>';
+      return `<ul class="nb-docs">${belege.map(b => {
+        const url = DB.notenBelegDownloadUrl(b.id);
+        const typ = (N.endungVon(b.dateiname) || '').toUpperCase().slice(0, 4);
+        const kachel = N.istBildVorschau(b.dateiname)
+          ? `<img src="${esc(url)}" alt="" loading="lazy">` : esc(typ);
+        return `<li class="nb-doc">
+          <span class="nb-doc__kachel">${kachel}</span>
+          <a class="nb-doc__open" href="${esc(url)}" target="_blank" rel="noopener">
+            <span class="nb-doc__name">${esc(b.dateiname)}</span>
+            <span class="nb-doc__meta">${N.istPdf(b.dateiname) ? 'PDF' : esc(typ)} · ${N.formatBytes(b.groesseBytes)}</span></a>
+          ${darfLoeschen ? `<button type="button" class="btn btn-ghost btn-icon nb-icon" data-beleg-weg="${b.id}"
+              aria-label="${esc(b.dateiname)} löschen" title="Löschen">${I.x}</button>` : ''}
+        </li>`;
+      }).join('')}</ul>`;
+    }
+
+    // Gewählte, noch nicht hochgeladene Dateien eines neuen Eintrags.
+    function entwurfListe() {
+      if (!ui.entwurf.length) return '<p class="nb-docs-leer">Noch kein Dokument.</p>';
+      return `<ul class="nb-docs">${ui.entwurf.map(d => {
+        const typ = (N.endungVon(d.file.name) || '').toUpperCase().slice(0, 4);
+        const kachel = d.url ? `<img src="${esc(d.url)}" alt="">` : esc(typ);
+        return `<li class="nb-doc">
+          <span class="nb-doc__kachel">${kachel}</span>
+          <span class="nb-doc__open"><span class="nb-doc__name">${esc(d.file.name)}</span>
+            <span class="nb-doc__meta">${N.istPdf(d.file.name) ? 'PDF' : esc(typ)} · ${N.formatBytes(d.file.size)}</span></span>
+          <button type="button" class="btn btn-ghost btn-icon nb-icon" data-entwurf-weg="${d.id}"
+              aria-label="${esc(d.file.name)} entfernen" title="Entfernen">${I.x}</button>
+        </li>`;
+      }).join('')}</ul>`;
+    }
+
+    /* EIN echtes Datei-Feld, nur optisch versteckt. Auf dem iPad öffnet es das
+       Systemmenü (Foto-Mediathek · Foto aufnehmen · Datei auswählen). Den
+       iPadOS-Dokumentscanner kann eine Webseite nicht starten (WebKit bietet
+       ihn nicht an) – ein Scan aus der Dateien-App kommt über „Datei auswählen".
+       capture bewusst NICHT: das überspringt das Menü und öffnet nur die Kamera. */
+    const docKnoepfe = () => `<div class="nb-doc-add">
+        <label class="btn btn-outline nb-file">${I.datei}<span>Dokument</span>
+          <input type="file" accept="application/pdf,image/*,.heic,.heif" multiple data-upload></label>
+      </div>`;
+
+    function detailHtml(e) {
+      const kann = darf();
+      const zeilen = [['Datum', fmtLang(e.datum)]];
+      if (hat(e.punkte)) zeilen.push(['Punkte', `${N.formatPunkte(e.punkte)} von ${hat(e.maxPunkte) ? N.formatPunkte(e.maxPunkte) : N.PUNKTE_MAX}`]);
+      if (hat(e.credits)) zeilen.push(['Credits', `${N.formatCredits(e.credits)} CP`]);
+      if (e.status) zeilen.push(['Status', esc(N.statusLabel(e.status))]);
+      if (e.aktualisiertAm) zeilen.push(['Geändert', fmtKurz(e.aktualisiertAm)]);
+      return `<div class="nb-detail">
+        <div class="nb-detail__links">
+          <dl class="nb-dl">${zeilen.map(([k, v]) => `<dt>${k}</dt><dd>${v}</dd>`).join('')}</dl>
+          ${e.bemerkung ? `<div class="nb-sektion"><h4 class="nb-label">Bemerkung</h4><p class="nb-bem">${esc(e.bemerkung)}</p></div>` : ''}
+        </div>
+        <div class="nb-sektion nb-detail__rechts"><h4 class="nb-label">Dokumente</h4>
+          <div data-docs>${docListe(e.belege || [], kann)}</div>
+          ${kann ? docKnoepfe() : ''}
+        </div>
+        ${kann ? `<div class="nb-detail__fuss">
+          <button type="button" class="btn btn-ghost nb-leise-rot" data-act="loeschen">${I.eimer}Löschen</button>
+          <span class="nb-spacer"></span>
+          <button type="button" class="btn btn-outline" data-act="bearbeiten">${I.stift}Bearbeiten</button>
+        </div>` : ''}
+      </div>`;
+    }
+
+    function formHtml(e) {
+      const neu = !e;
+      const standardArt = istDh ? 'semesterpruefung' : 'klassenarbeit';
+      const art = e ? e.art : standardArt;
+      const arten = N.ARTEN.map(a => `<option value="${a.id}"${a.id === art ? ' selected' : ''}>${esc(a.label)}</option>`).join('');
+      const stat = e && e.status ? e.status : 'bestanden';
+      const status = N.STATUS_WERTE.map(s => `<option value="${s.id}"${s.id === stat ? ' selected' : ''}>${esc(s.label)}</option>`).join('');
+      const nurB = !!(e && N.istBestandenOhneNote(e));
+      const wert = (v) => (hat(v) ? esc(v) : '');
+      return `<form class="nb-form" novalidate data-form="${neu ? 'neu' : e.id}">
+        <div class="nb-detail">
+          <div class="nb-detail__links nb-felder">
+            <label class="nb-feld nb-feld--breit"><span>Titel<span class="nb-pflicht" aria-hidden="true">*</span></span>
+              <input class="nb-input" name="titel" aria-required="true" maxlength="${N.TITEL_MAX}" autocomplete="off" value="${e ? esc(e.titel) : ''}"></label>
+            <label class="nb-feld"><span>Art</span>
+              <select class="nb-input" name="art" data-pm-skip>${arten}</select></label>
+            <label class="nb-feld"><span>Datum</span>
+              <input class="nb-input" type="date" name="datum" value="${e && e.datum ? esc(e.datum) : ''}"></label>
+            ${istDh ? `<div class="nb-feld nb-feld--breit" role="radiogroup" aria-label="Bewertung"><span>Bewertung</span>
+              <div class="nb-radios">
+                <label class="nb-radio"><input type="radio" name="bewertung" value="note"${nurB ? '' : ' checked'}><span>Note</span></label>
+                <label class="nb-radio"><input type="radio" name="bewertung" value="bestanden"${nurB ? ' checked' : ''}><span>nur bestanden (b)</span></label>
+              </div></div>` : ''}
+            <label class="nb-feld" data-feld="note"${nurB ? ' hidden' : ''}><span>Note<span class="nb-pflicht" aria-hidden="true">*</span></span>
+              <input class="nb-input nb-note-input" name="note" aria-required="true" inputmode="decimal" autocomplete="off"
+                     value="${e && hat(e.note) ? esc(N.formatNote(e.note)) : ''}"></label>
+            ${istDh ? `<label class="nb-feld"><span>Credits</span>
+                <input class="nb-input" type="number" name="credits" min="0" max="${N.CREDITS_MAX}" step="0.5" value="${e ? wert(e.credits) : ''}"></label>
+              <label class="nb-feld"><span>Status</span>
+                <select class="nb-input" name="status" data-pm-skip${nurB ? ' disabled' : ''}>${status}</select></label>`
+            : `<label class="nb-feld" data-feld="punkte"><span>IHK-Punkte</span>
+                <input class="nb-input" type="number" name="punkte" min="0" max="${N.PUNKTE_MAX}" step="0.5" value="${e ? wert(e.punkte) : ''}"></label>`}
+            <label class="nb-feld nb-feld--breit"><span>Bemerkung</span>
+              <textarea class="nb-input" name="bemerkung" rows="2" maxlength="${N.BEMERKUNG_MAX}">${e ? esc(e.bemerkung || '') : ''}</textarea></label>
+          </div>
+          <div class="nb-sektion nb-detail__rechts"><h4 class="nb-label">Dokumente</h4>
+            <div data-docs>${neu ? entwurfListe() : docListe(e.belege || [], true)}</div>
+            ${docKnoepfe()}
+          </div>
+          <p class="nb-fehler" role="alert" hidden></p>
+          <div class="nb-detail__fuss">
+            <span class="nb-spacer"></span>
+            <button type="button" class="btn btn-ghost" data-act="abbrechen">Abbrechen</button>
+            <button type="submit" class="btn btn-primary">Speichern</button>
+          </div>
+        </div>
+      </form>`;
+    }
+
+    function eintragHtml(e, offen) {
+      const inhalt = offen ? (ui.modus === 'bearbeiten' ? formHtml(e) : detailHtml(e)) : '';
+      return `<li class="nb-eintrag" data-eintrag="${e.id}" data-offen="${offen ? '1' : '0'}"${offen && ui.modus === 'bearbeiten' ? ' data-modus="bearbeiten"' : ''}>
+        <button type="button" class="nb-row" data-zeile="${e.id}" aria-expanded="${offen ? 'true' : 'false'}" aria-controls="nbKlapp${e.id}">${zeileInnen(e)}</button>
+        <div class="nb-klapp" id="nbKlapp${e.id}"><div class="nb-klapp__innen">${inhalt}</div></div>
+      </li>`;
+    }
+
+    const neuZeileHtml = (offen) => `<li class="nb-eintrag nb-eintrag--neu" data-eintrag="neu" data-offen="${offen ? '1' : '0'}" data-modus="neu">
+        <div class="nb-klapp"><div class="nb-klapp__innen">
+          <h3 class="nb-label nb-neu-titel">Neuer Eintrag</h3>${formHtml(null)}</div></div>
+      </li>`;
+
+    /* ── Rendern ──────────────────────────────────────────────────── */
+    function renderUebersicht() {
+      ansicht = 'uebersicht';
+      const zeilen = azubis.map(a => `<button type="button" class="nb-row nb-row--azubi" data-azubi="${esc(a.oid)}">
+          <span class="nb-row__titel"><b>${esc(displayName(a.name))}</b></span>
+          <span class="nb-z nb-col-art">${esc(a.role === 'dhstudent' ? 'DH-Student' : 'Azubi')}</span>
+          <span class="nb-z">${esc(a.abschnittAktuell || '–')}</span>
+          <span class="nb-zahl">${a.anzahlEintraege}</span>
+          <span class="nb-z nb-r">${a.letzterEintrag ? fmtKurz(a.letzterEintrag) : '–'}</span>
+        </button>`).join('');
+      host.innerHTML = `<div class="nb">
+        <div class="nb-kopf"><div class="nb-kopf__titel"><h1 class="page-title nb-h1">Noten &amp; Zeugnisse</h1></div></div>
+        <div class="card nb-flaeche nb-azubis">
+          ${azubis.length ? `<div class="nb-rows nb-rows--azubis">
+            <div class="nb-rows__kopf"><span class="nb-label">Name</span><span class="nb-label nb-col-art">Art</span>
+              <span class="nb-label">Aktueller Zeitraum</span><span class="nb-label nb-r">Einträge</span>
+              <span class="nb-label nb-r">Letzter Eintrag</span></div>
+            ${zeilen}</div>`
+          : '<div class="nb-leer"><p>Keine Azubis zugeordnet.</p></div>'}
+        </div>
+      </div>`;
+    }
+
+    function kopfHtml(liste) {
+      const fremd = !nurEigene && viewAzubiId !== user.oid;
+      const person = fremd ? azubis.find(a => a.oid === viewAzubiId) : null;
+      const crumb = nurEigene ? ''
+        : `<button type="button" class="nb-crumb" data-act="uebersicht">${I.zurueck}Alle Azubis</button>`;
+      const titel = person
+        ? `${esc(displayName(person.name))}<span class="nb-sub">Noten &amp; Zeugnisse</span>`
+        : 'Noten &amp; Zeugnisse';
+      const seg = liste.map(g => `<button type="button" role="tab" data-abschnitt="${g.id === null ? 'ohne' : g.id}"
+          aria-selected="${g.id === ui.abschnittId}">${g.label === null ? 'Ohne Zuordnung' : esc(g.label)}</button>`).join('');
+      const spiegelZiel = fremd ? `${spiegelHref}?azubi=${encodeURIComponent(viewAzubiId)}` : spiegelHref;
+      return `<div class="nb-kopf">
+        <div class="nb-kopf__titel">${crumb}<h1 class="page-title nb-h1">${titel}</h1></div>
+        <span class="nb-spacer"></span>
+        <div class="nb-kopf__zeitraum">
+          ${liste.length ? `<div class="nb-seg-scroll"><div class="nb-seg" role="tablist" aria-label="Zeitraum">${seg}</div></div>` : ''}
+          ${darf() && N.abschnittKandidaten(user.role, daten.abschnitte).length ? `<button type="button" class="btn btn-ghost btn-icon nb-icon" data-act="abschnitt-neu"
+              aria-label="${zeitraumWort} hinzufügen" title="${zeitraumWort} hinzufügen">${I.plus}</button>` : ''}
+        </div>
+        ${liste.length ? `<a class="btn btn-outline nb-spiegel" href="${esc(spiegelZiel)}">${I.spiegel}Notenspiegel</a>` : ''}
+      </div>`;
+    }
+
+    function faecherHtml(g, ordner) {
+      const kann = darf() && g && g.id !== null;
+      const items = ordner.map(o => {
+        const n = (o.eintraege || []).length;
+        return `<li><button type="button" class="nb-fach-item" data-ordner="${o.id}" aria-current="${o.id === ui.ordnerId}">
+          ${punkt(o.farbe)}
+          <span class="nb-fach-item__name">${esc(o.name)}</span>
+          <span class="nb-fach-item__n">${n || ''}</span></button></li>`;
+      }).join('');
+      const zeitraum = g ? (g.label === null ? 'Ohne Zuordnung' : g.label) : '';
+      return `<div class="nb-faecher__kopf"><h2 class="nb-label">Fächer</h2>
+          ${kann ? `<button type="button" class="btn btn-ghost btn-icon nb-icon" data-act="fach-neu"
+              aria-label="Fach anlegen" title="Fach anlegen">${I.plus}</button>` : ''}</div>
+        ${ordner.length ? `<ul class="nb-fachlist">${items}</ul>` : ''}
+        ${kann && istDh ? `<div class="nb-faecher__fuss">
+          <button type="button" class="nb-textknopf" data-act="abschnitt-loeschen">${esc(zeitraum)} löschen</button></div>` : ''}`;
+    }
+
+    function fachHtml(g, ordner) {
+      const kann = darf();
+      if (!g) return '';
+      if (!ordner.length) {
+        return `<div class="nb-leer"><p><strong>${esc(g.label === null ? 'Ohne Zuordnung' : g.label)}</strong> hat noch keine Fächer.</p>
+          ${kann && g.id !== null ? `<button type="button" class="btn btn-outline" data-act="fach-neu">${I.plus}Fach anlegen</button>` : ''}</div>`;
+      }
+      const o = findeOrdner(ui.ordnerId);
+      if (!o) return '';
+      const list = o.eintraege || [];
+      const offenId = ui.modus === 'neu' ? null : ui.offenId;
+      const zeilen = list.map(e => eintragHtml(e, e.id === offenId)).join('');
+      const neu = ui.modus === 'neu' ? neuZeileHtml(true) : '';
+      const leer = (!list.length && !neu)
+        ? `<div class="nb-leer"><p><strong>${esc(o.name)}</strong> hat noch keine Einträge.</p>
+            ${kann ? `<button type="button" class="btn btn-outline" data-act="neu">${I.plus}Ersten Eintrag anlegen</button>` : ''}</div>` : '';
+      return `<div class="nb-fach__kopf">
+          <button type="button" class="btn btn-ghost btn-icon nb-icon nb-back" data-act="zurueck" aria-label="Zurück zu den Fächern">${I.zurueck}</button>
+          ${punkt(o.farbe)}
+          <h2 class="nb-fach__name">${esc(o.name)}</h2>
+          <span class="nb-fach__n">${mehrzahl(list.length, 'Eintrag', 'Einträge')}</span>
+          <span class="nb-spacer"></span>
+          ${kann ? `<button type="button" class="btn btn-ghost btn-icon nb-icon" data-act="fach-bearbeiten" aria-label="Fach bearbeiten" title="Fach bearbeiten">${I.stift}</button>
+            <button type="button" class="btn btn-ghost btn-icon nb-icon" data-act="fach-loeschen" aria-label="Fach löschen" title="Fach löschen">${I.eimer}</button>
+            <button type="button" class="btn btn-primary nb-neu" data-act="neu">${I.plus}Eintrag</button>` : ''}
+        </div>
+        ${(list.length || neu) ? `<div class="nb-rows">
+          <div class="nb-rows__kopf" aria-hidden="true"><span class="nb-label">Titel</span><span class="nb-label nb-col-art">Art</span>
+            <span class="nb-label">Datum</span><span></span><span class="nb-label nb-r">Note</span></div>
+          <ul class="nb-liste">${neu}${zeilen}</ul></div>` : leer}`;
+    }
+
+    function renderDetail() {
+      ansicht = 'detail';
+      const { liste, g, ordner } = waehleGueltige();
+      const leer = !liste.length;
+      host.innerHTML = `<div class="nb">
+        ${kopfHtml(liste)}
+        ${leer ? `<div class="card nb-flaeche"><div class="nb-leer">
+            <p>${darf() ? `Noch kein ${zeitraumWort} angelegt.` : 'Hier erscheinen die Noten, sobald sie eingetragen wurden.'}</p>
+            ${darf() ? `<button type="button" class="btn btn-primary" data-act="abschnitt-neu">${I.plus}${zeitraumWort} anlegen</button>` : ''}
+          </div></div>`
+        : `<div class="card nb-flaeche nb-work" data-nav="${ui.nav}">
+            <aside class="nb-col nb-faecher" aria-label="Fächer">${faecherHtml(g, ordner)}</aside>
+            <section class="nb-col nb-fach" aria-label="Einträge">${fachHtml(g, ordner)}</section>
+          </div>`}
+      </div>`;
+      passeHoehe();
+      bindeFormular();
+    }
+
+    /* Die Arbeitsfläche füllt das Fenster bis unten; Fächer und Einträge
+       scrollen in sich, Kopf und Zeitraum-Schalter bleiben stehen. Gemessen
+       statt fest gerechnet, weil die beiden Shells verschieden hohe
+       Kopfzeilen haben. */
+    function passeHoehe() {
+      const w = host.querySelector('.nb-work');
+      if (!w) return;
+      const oben = w.getBoundingClientRect().top + (global.scrollY || 0);
+      const unten = parseFloat(getComputedStyle(host).paddingBottom) || 0;
+      w.style.height = `max(420px, calc(100dvh - ${Math.round(oben + unten)}px))`;
+    }
+
+    function renderFach() {
+      const el = host.querySelector('.nb-fach');
+      if (!el) { renderDetail(); return; }
+      const { g, ordner } = waehleGueltige();
+      el.innerHTML = fachHtml(g, ordner);
+      bindeFormular();
+    }
+
+    function render() {
+      if (ansicht === 'uebersicht') renderUebersicht();
+      else renderDetail();
+    }
 
     // Fehlt eine Migration oder ist der Server nicht erreichbar, darf die
-    // Seite nicht einfach leer bleiben — sonst sieht der Azubi nur weiß.
+    // Seite nicht einfach leer bleiben.
     function renderFehler(err) {
-      host.innerHTML = `
-        <div class="page-header"><div class="page-header__left">
-          <h1 class="page-title">Noten &amp; Zeugnisse</h1>
-        </div></div>
-        <div class="card"><div class="card__body"><div class="empty-state">
-          <div class="empty-state__icon">${Icon('warning', { size: 48 })}</div>
-          <p class="empty-state__title">Die Noten konnten nicht geladen werden</p>
-          <p class="empty-state__text">${esc(err && err.message ? err.message : 'Unbekannter Fehler')}</p>
+      host.innerHTML = `<div class="nb">
+        <div class="nb-kopf"><div class="nb-kopf__titel"><h1 class="page-title nb-h1">Noten &amp; Zeugnisse</h1></div></div>
+        <div class="card nb-flaeche"><div class="nb-leer">
+          <p><strong>Die Noten konnten nicht geladen werden.</strong></p>
+          <p>${esc(err && err.message ? err.message : 'Unbekannter Fehler')}</p>
         </div></div></div>`;
+    }
+
+    /* Azubis haben immer das 1.–3. Ausbildungsjahr; das 4. kommt über „+".
+       ponytail: legt fehlende Jahre beim Öffnen der EIGENEN Noten an (einmalig,
+       409 = gibt es schon). */
+    async function sichereStandardJahre() {
+      if (!darf() || istDh) return false;
+      const da = new Set((daten.abschnitte || []).filter(a => a.typ === 'ausbildungsjahr').map(a => Number(a.nr)));
+      const fehlt = [1, 2, 3].filter(n => !da.has(n));
+      for (const nr of fehlt) {
+        try { await DB.addNotenAbschnitt({ typ: 'ausbildungsjahr', nr }); } catch (e) { if (e.status !== 409) throw e; }
+      }
+      return fehlt.length > 0;
     }
 
     async function zeigeDetail() {
       try {
         await ladeDaten();
-      } catch (err) {
-        renderFehler(err);
-        return;
-      }
+        if (await sichereStandardJahre()) await ladeDaten();
+      } catch (err) { renderFehler(err); return; }
+      ansicht = 'detail';
       renderDetail();
     }
 
-    /* ── Zeitraum anlegen ─────────────────────────────────────────── */
-    // Umbenennen gibt es nicht: ein Zeitraum IST sein (Typ, Nummer).
-    function abschnittModal() {
-      // Das Jahresfenster wandert mit dem Kalender mit — es muss niemand
-      // jährlich Semester nachtragen (Begründung in noten-core.js).
-      const kandidaten = N.abschnittKandidaten(user.role, daten.abschnitte);
-      if (!kandidaten.length) {
-        Toast.error(istDh ? 'Semester' : 'Ausbildungsjahr', 'Es sind schon alle Zeiträume angelegt.');
+    async function neuLaden() {
+      try { await ladeDaten(); } catch (err) { Toast.error('Noten', err.message); return; }
+      render();
+    }
+
+    /* ── Auf- und Zuklappen ───────────────────────────────────────── */
+    const liVon = (id) => host.querySelector(`.nb-eintrag[data-eintrag="${id}"]`);
+
+    function klappZu(li) {
+      if (!li || li.dataset.offen !== '1') return;
+      li.dataset.offen = '0';
+      li.removeAttribute('data-modus');
+      const knopf = li.querySelector('.nb-row');
+      if (knopf) knopf.setAttribute('aria-expanded', 'false');
+      // Neue, leere Zeile: nach dem Zuklappen ganz entfernen.
+      const istNeu = li.dataset.eintrag === 'neu';
+      setTimeout(() => {
+        if (li.dataset.offen === '1') return;
+        if (istNeu) {
+          const ul = li.parentElement;
+          li.remove();
+          if (ul && !ul.children.length) renderFach();
+        } else {
+          const innen = li.querySelector('.nb-klapp__innen');
+          if (innen) innen.innerHTML = '';
+        }
+      }, KLAPP_MS);
+    }
+
+    function klappAuf(li, html) {
+      li.querySelector('.nb-klapp__innen').innerHTML = html;
+      const knopf = li.querySelector('.nb-row');
+      if (knopf) knopf.setAttribute('aria-expanded', 'true');
+      void li.offsetHeight; // Startzustand festschreiben, sonst springt es ohne Übergang auf
+      li.dataset.offen = '1';
+      bindeFormular();
+      setTimeout(() => li.scrollIntoView({ block: 'nearest', behavior: 'smooth' }), KLAPP_MS);
+    }
+
+    function verwirfEntwurf() {
+      ui.entwurf.forEach(d => { if (d.url) URL.revokeObjectURL(d.url); });
+      ui.entwurf = [];
+    }
+
+    function schliesseOffenen() {
+      if (ui.modus === 'neu') { klappZu(liVon('neu')); verwirfEntwurf(); }
+      else if (ui.offenId) klappZu(liVon(ui.offenId));
+      ui.offenId = null;
+      ui.modus = null;
+    }
+
+    function oeffne(id) {
+      if (ui.offenId === id && ui.modus !== 'neu') { schliesseOffenen(); return; }
+      schliesseOffenen();
+      const e = findeEintrag(id);
+      const li = liVon(id);
+      if (!e || !li) return;
+      ui.offenId = id;
+      ui.modus = 'ansicht';
+      klappAuf(li, detailHtml(e));
+    }
+
+    function bearbeiten() {
+      const e = findeEintrag(ui.offenId);
+      const li = liVon(ui.offenId);
+      if (!e || !li) return;
+      ui.modus = 'bearbeiten';
+      li.dataset.modus = 'bearbeiten';
+      li.querySelector('.nb-klapp__innen').innerHTML = formHtml(e);
+      bindeFormular();
+      const t = li.querySelector('[name="titel"]');
+      if (t) t.focus({ preventScroll: true });
+    }
+
+    function zurAnsicht() {
+      const e = findeEintrag(ui.offenId);
+      const li = liVon(ui.offenId);
+      if (!e || !li) return;
+      ui.modus = 'ansicht';
+      li.removeAttribute('data-modus');
+      li.querySelector('.nb-klapp__innen').innerHTML = detailHtml(e);
+      const k = li.querySelector('.nb-row');
+      if (k) k.focus({ preventScroll: true });
+    }
+
+    function neuerEintrag() {
+      if (ui.modus === 'neu') {
+        const t = host.querySelector('.nb-eintrag--neu [name="titel"]');
+        if (t) t.focus();
         return;
       }
-      // Vorausgewählt ist das LAUFENDE Semester bzw. das niedrigste noch
-      // freie Ausbildungsjahr — nicht der Listenkopf, der wäre das
-      // Vorlauf-Semester (Begründung in noten-core.js).
+      schliesseOffenen();
+      ui.modus = 'neu';
+      let ul = host.querySelector('.nb-liste');
+      if (!ul) {
+        // Leeres Fach: die Liste entsteht erst mit der neuen Zeile.
+        renderFach();
+        ul = host.querySelector('.nb-liste');
+        const li = liVon('neu');
+        if (li) { const t = li.querySelector('[name="titel"]'); if (t) t.focus({ preventScroll: true }); }
+        return;
+      }
+      ul.insertAdjacentHTML('afterbegin', neuZeileHtml(false));
+      const li = liVon('neu');
+      void li.offsetHeight;
+      li.dataset.offen = '1';
+      bindeFormular();
+      const t = li.querySelector('[name="titel"]');
+      if (t) t.focus({ preventScroll: true });
+      li.scrollIntoView({ block: 'nearest' });
+    }
+
+    /* ── Formular ─────────────────────────────────────────────────── */
+    /* Punkte → Note LIVE, wie bisher: die Note wird nur überschrieben,
+       wenn sie leer ist oder zuvor selbst aus Punkten gefüllt wurde — eine
+       getippte Note gehört dem Nutzer (dieselbe Regel wie in
+       core.zusammenfuehreEintrag). */
+    let noteAusPunktenLive = false;
+
+    function bindeFormular() {
+      const form = host.querySelector('.nb-form');
+      if (!form) return;
+      const e = form.dataset.form === 'neu' ? null : findeEintrag(Number(form.dataset.form));
+      noteAusPunktenLive = !!(e && e.noteAusPunkten);
+      aktualisiereFelder(form);
+    }
+
+    function aktualisiereFelder(form) {
+      const art = N.artById(form.art.value);
+      const punkteFeld = form.querySelector('[data-feld="punkte"]');
+      if (punkteFeld) punkteFeld.hidden = !(art && art.zeigtPunkte);
+      if (istDh) {
+        const nur = (form.querySelector('input[name="bewertung"]:checked') || {}).value === 'bestanden';
+        form.querySelector('[data-feld="note"]').hidden = nur;
+        if (nur) { form.note.value = ''; form.status.value = 'bestanden'; }
+        form.status.disabled = nur;
+      }
+    }
+
+    function punkteGeaendert(form) {
+      const p = N.parsePunkte(form.punkte.value);
+      if (p === null) return;
+      const abgeleitet = N.noteAusPunkten(p, { dh: false });
+      if (abgeleitet === null) return;
+      if (form.note.value.trim() === '' || noteAusPunktenLive) {
+        form.note.value = N.formatNote(abgeleitet);
+        noteAusPunktenLive = true;
+      }
+    }
+
+    function formularDaten(form) {
+      const art = form.art.value;
+      const zeigtPunkte = !istDh && !!(N.artById(art) && N.artById(art).zeigtPunkte);
+      const nurB = istDh && (form.querySelector('input[name="bewertung"]:checked') || {}).value === 'bestanden';
+      return {
+        titel: form.titel.value,
+        art,
+        datum: form.datum.value,
+        note: nurB || form.note.value.trim() === '' ? null : form.note.value.trim(),
+        punkte: (!zeigtPunkte || !form.punkte || form.punkte.value === '') ? null : form.punkte.value,
+        // Credits und Status nur mitschicken, wenn sie fachlich greifen —
+        // sonst weist core.pruefeEintrag den Eintrag zu Recht ab.
+        credits: istDh && form.credits.value !== '' ? form.credits.value : null,
+        status: istDh ? (nurB ? 'bestanden' : form.status.value) : null,
+        bemerkung: form.bemerkung.value.trim() || null,
+      };
+    }
+
+    function zeigeFehler(form, text) {
+      const p = form.querySelector('.nb-fehler');
+      if (!p) return;
+      p.textContent = text || '';
+      p.hidden = !text;
+    }
+
+    async function speichern(form) {
+      const werte = formularDaten(form);
+      const problem = N.pruefeEintrag(werte, user.role);
+      // Pflichtfelder (Titel, Note): Feld markieren + ein Toast, kein Hinweistext.
+      const fehlt = {
+        titel: !String(werte.titel || '').trim(),
+        note: N.pruefeEintrag(Object.assign({}, werte, { titel: 'x' }), user.role) === 'Note fehlt.',
+      };
+      Object.keys(fehlt).forEach(f => {
+        const feld = form.querySelector(`[name="${f}"]`);
+        if (feld) feld.setAttribute('aria-invalid', String(fehlt[f]));
+      });
+      if (fehlt.titel || fehlt.note) {
+        zeigeFehler(form, '');
+        Toast.error('Eintrag', fehlt.titel && fehlt.note ? 'Titel und Note fehlen.' : fehlt.titel ? 'Titel fehlt.' : 'Note fehlt.');
+        form.querySelector('[aria-invalid="true"]').focus();
+        return;
+      }
+      if (problem) { zeigeFehler(form, problem); return; }
+      zeigeFehler(form, '');
+      const knopf = form.querySelector('button[type="submit"]');
+      if (knopf) knopf.disabled = true;
+      try {
+        if (ui.modus === 'neu') {
+          const neu = await DB.addNotenEintrag(ui.ordnerId, werte);
+          const dateien = ui.entwurf.map(d => d.file);
+          verwirfEntwurf();
+          ui.modus = 'ansicht';
+          ui.offenId = neu.id;
+          if (dateien.length) await ladeHoch(neu.id, dateien);
+          Toast.success('Eintrag', 'Eintrag angelegt.');
+        } else {
+          await DB.patchNotenEintrag(ui.offenId, werte);
+          ui.modus = 'ansicht';
+          Toast.success('Eintrag', 'Eintrag gespeichert.');
+        }
+        await neuLaden();
+        const li = liVon(ui.offenId);
+        if (li) { const k = li.querySelector('.nb-row'); if (k) k.focus({ preventScroll: true }); }
+      } catch (err) {
+        zeigeFehler(form, err.message);
+        if (knopf) knopf.disabled = false;
+      }
+    }
+
+    /* ── Belege ───────────────────────────────────────────────────── */
+    // Prüfen, verkleinern (iPad-Fotos auf 2000 px, JPEG), hochladen.
+    async function ladeHoch(eintragId, dateien) {
+      let ok = 0;
+      for (const datei of dateien) {
+        if (!N.endungErlaubt(datei.name)) {
+          Toast.error('Dokument', `„${datei.name}": Dateityp nicht erlaubt.`);
+          continue;
+        }
+        try {
+          const klein = await N.verkleinereBild(datei);
+          if (klein.size > N.MAX_BELEG_BYTES) {
+            Toast.error('Dokument', `„${datei.name}" ist größer als 10 MB.`);
+            continue;
+          }
+          await DB.uploadNotenBeleg(eintragId, klein);
+          ok++;
+        } catch (err) {
+          Toast.error('Dokument', err.message);
+        }
+      }
+      return ok;
+    }
+
+    /* Nach einem Upload/Löschen nur die Dokumente und die Zeile des offenen
+       Eintrags auffrischen — ein Neuaufbau würde ein offenes Formular samt
+       Eingaben verwerfen. */
+    function frischeEintrag(id) {
+      const e = findeEintrag(id);
+      const li = liVon(id);
+      if (!e || !li) return;
+      const knopf = li.querySelector('.nb-row');
+      if (knopf) knopf.innerHTML = zeileInnen(e);
+      const docs = li.querySelector('[data-docs]');
+      if (docs) docs.innerHTML = docListe(e.belege || [], darf());
+    }
+
+    async function dateienGewaehlt(input) {
+      const dateien = [...(input.files || [])];
+      input.value = ''; // damit dieselbe Datei erneut gewählt werden kann
+      if (!dateien.length) return;
+      if (ui.modus === 'neu') {
+        // Neuer Eintrag: erst merken, nach dem Speichern hochladen.
+        dateien.forEach(file => {
+          if (!N.endungErlaubt(file.name)) { Toast.error('Dokument', `„${file.name}": Dateityp nicht erlaubt.`); return; }
+          ui.entwurf.push({ id: ++entwurfZaehler, file, url: N.istBildVorschau(file.name) ? URL.createObjectURL(file) : null });
+        });
+        const docs = host.querySelector('.nb-eintrag--neu [data-docs]');
+        if (docs) docs.innerHTML = entwurfListe();
+        return;
+      }
+      const id = ui.offenId;
+      if (!id) return;
+      const ok = await ladeHoch(id, dateien);
+      if (ok) Toast.success('Dokument', ok === 1 ? 'Dokument hinzugefügt.' : `${ok} Dokumente hinzugefügt.`);
+      try { await ladeDaten(); } catch (err) { Toast.error('Noten', err.message); return; }
+      frischeEintrag(id);
+    }
+
+    async function loescheBeleg(belegId) {
+      const e = findeEintrag(ui.offenId);
+      const beleg = e && (e.belege || []).find(b => b.id === belegId);
+      const weiter = await Confirm.loeschen({
+        titel: 'Dokument löschen?',
+        text: beleg ? `„${beleg.dateiname}" wird endgültig entfernt.` : 'Das Dokument wird endgültig entfernt.',
+      });
+      if (!weiter) return;
+      try {
+        await DB.deleteNotenBeleg(belegId);
+        await ladeDaten();
+        frischeEintrag(ui.offenId);
+      } catch (err) { Toast.error('Dokument', err.message); }
+    }
+
+    async function loescheEintrag() {
+      const e = findeEintrag(ui.offenId);
+      if (!e) return;
+      const n = (e.belege || []).length;
+      const weiter = await Confirm.loeschen({
+        titel: 'Eintrag löschen?',
+        text: `„${e.titel}" wird endgültig entfernt.`,
+        liste: n ? [n === 1 ? '1 Dokument wird mitgelöscht' : `${n} Dokumente werden mitgelöscht`] : [],
+      });
+      if (!weiter) return;
+      try {
+        await DB.deleteNotenEintrag(e.id);
+        ui.offenId = null;
+        ui.modus = null;
+        Toast.success('Eintrag', 'Eintrag gelöscht.');
+        await neuLaden();
+      } catch (err) { Toast.error('Eintrag', err.message); }
+    }
+
+    /* ── Zeitraum anlegen / löschen ───────────────────────────────── */
+    // Umbenennen gibt es nicht: ein Zeitraum IST sein (Typ, Nummer).
+    async function naechstesJahr() {
+      const frei = N.abschnittKandidaten(user.role, daten.abschnitte).filter(k => k.typ === 'ausbildungsjahr');
+      if (!frei.length) return;
+      const nr = Math.min(...frei.map(k => k.nr));
+      try {
+        const neu = await DB.addNotenAbschnitt({ typ: 'ausbildungsjahr', nr });
+        // Die Fächer des Vorjahrs mitnehmen.
+        const vorjahr = (daten.abschnitte || []).find(a => a.typ === 'ausbildungsjahr' && Number(a.nr) === nr - 1);
+        if (neu && vorjahr) {
+          for (const o of (daten.ordner || []).filter(x => x.abschnittId === vorjahr.id)) {
+            await DB.addNotenOrdner({ name: o.name, abschnittId: neu.id, zaehltInSchnitt: o.zaehltInSchnitt, farbe: o.farbe }).catch(() => {});
+          }
+        }
+        if (neu && neu.id !== undefined) { ui.abschnittId = neu.id; ui.ordnerId = null; }
+        ui.offenId = null; ui.modus = null;
+        await zeigeDetail();
+      } catch (e) { Toast.error(zeitraumWort, e.message); }
+    }
+
+    function abschnittModal() {
+      if (!istDh) { naechstesJahr(); return; }
+      const kandidaten = N.abschnittKandidaten(user.role, daten.abschnitte);
+      if (!kandidaten.length) {
+        Toast.error(zeitraumWort, 'Es sind schon alle Zeiträume angelegt.');
+        return;
+      }
       const vorwahl = N.vorauswahlAbschnitt(user.role, kandidaten);
       const optionen = kandidaten.map((k) => {
         const gewaehlt = !!vorwahl && k.typ === vorwahl.typ && k.nr === vorwahl.nr;
         return `<option value="${k.typ}:${k.nr}"${gewaehlt ? ' selected' : ''}>${esc(N.abschnittLabel(k.typ, k.nr))}</option>`;
       }).join('');
 
-      const ov = baueModal(MODAL_ABSCHNITT, istDh ? 'Semester hinzufügen' : 'Ausbildungsjahr hinzufügen', `
+      const ov = baueModal(MODAL_ABSCHNITT, `${zeitraumWort} hinzufügen`, `
         <div class="noten-form">
         <div class="form-group">
-          <label class="form-label" for="notenAbschnittWahl">${istDh ? 'Semester' : 'Ausbildungsjahr'}</label>
+          <label class="form-label" for="notenAbschnittWahl">${zeitraumWort}</label>
           <select class="form-control" id="notenAbschnittWahl">${optionen}</select>
-          <p class="form-hint">${istDh
-            ? 'Nur die Hochschulsemester – für die Praxisphasen im Betrieb gibt es keine Noten. Bereits angelegte Semester stehen nicht in der Liste.'
-            : 'Bereits angelegte Jahre stehen nicht in der Liste.'}</p>
         </div>
         </div>`, `
         <button type="button" class="btn btn-secondary" data-modal-close>Abbrechen</button>
@@ -636,9 +904,11 @@
         const problem = N.pruefeAbschnitt(typ, nr, user.role);
         if (problem) { Toast.error('Zeitraum', problem); return; }
         try {
-          await DB.addNotenAbschnitt({ typ, nr });
+          const neu = await DB.addNotenAbschnitt({ typ, nr });
           Modal.close(MODAL_ABSCHNITT);
           Toast.success('Zeitraum', `${N.abschnittLabel(typ, nr)} angelegt.`);
+          if (neu && neu.id !== undefined) { ui.abschnittId = neu.id; ui.ordnerId = null; }
+          ui.offenId = null; ui.modus = null;
           await zeigeDetail();
         } catch (e) { Toast.error('Zeitraum', e.message); }
       });
@@ -647,21 +917,24 @@
     async function loescheAbschnitt(abschnitt) {
       if (!abschnitt) return;
       const name = abschnitt.label || N.abschnittLabel(abschnitt.typ, abschnitt.nr) || 'Zeitraum';
+      const fertig = async (text) => {
+        Toast.success('Zeitraum', text);
+        ui.abschnittId = undefined; ui.ordnerId = null; ui.offenId = null; ui.modus = null;
+        await zeigeDetail();
+      };
       try {
         // Erster Versuch ohne Kaskade: der Server antwortet mit 409 und den
         // Zahlen, wenn Fächer darin liegen.
         await DB.deleteNotenAbschnitt(abschnitt.id);
-        Toast.success('Zeitraum', `${name} gelöscht.`);
-        await zeigeDetail();
+        await fertig(`${name} gelöscht.`);
       } catch (e) {
         if (e.status !== 409) { Toast.error('Zeitraum', e.message); return; }
         const info = e.daten || {};
-        // Nur nennen, was der Server tatsächlich gezählt hat — eine erfundene
-        // Null wäre in einer Löschen-Rückfrage die falsche Auskunft.
+        // Nur nennen, was der Server tatsächlich gezählt hat.
         const teile = [];
         if (Number.isFinite(info.ordner)) teile.push(mehrzahl(info.ordner, 'Fach', 'Fächer'));
         if (info.eintraege) teile.push(mehrzahl(info.eintraege, 'Eintrag', 'Einträge'));
-        if (info.belege) teile.push(mehrzahl(info.belege, 'Beleg', 'Belege'));
+        if (info.belege) teile.push(mehrzahl(info.belege, 'Dokument', 'Dokumente'));
         const weiter = await Confirm.loeschen({
           titel: `${name} löschen?`,
           text: 'Dieser Zeitraum ist nicht leer. Mitgelöscht werden:',
@@ -672,106 +945,125 @@
         if (!weiter) return;
         try {
           await DB.deleteNotenAbschnitt(abschnitt.id, { kaskade: true });
-          Toast.success('Zeitraum', `${name} samt Inhalt gelöscht.`);
-          await zeigeDetail();
+          await fertig(`${name} samt Inhalt gelöscht.`);
         } catch (e2) { Toast.error('Zeitraum', e2.message); }
       }
     }
 
     /* ── Fach anlegen / bearbeiten ────────────────────────────────── */
+    // Spätere Ausbildungsjahre (nur Azubis; DH-Semester haben jeweils eigene Module).
+    function folgeJahre(abschnittId) {
+      const a = findeAbschnitt(abschnittId);
+      if (!a || a.typ !== 'ausbildungsjahr') return [];
+      return (daten.abschnitte || []).filter(x => x.typ === 'ausbildungsjahr' && Number(x.nr) > Number(a.nr));
+    }
+    function folgeFaecher(abschnittId, name) {
+      const ids = new Set(folgeJahre(abschnittId).map(a => a.id));
+      const key = N.normalisiereOrdnerName(name).toLowerCase();
+      return (daten.ordner || []).filter(o => ids.has(o.abschnittId) && N.normalisiereOrdnerName(o.name).toLowerCase() === key);
+    }
+
     function ordnerModal(abschnittId, ordner) {
       const ist = !!ordner;
       // Beim Bearbeiten lässt sich das Fach in einen anderen Zeitraum
-      // verschieben — praktisch, wenn man es im falschen angelegt hat.
-      //
-      // Ein Fach OHNE Zeitraum (Auffanggruppe "Ohne Zuordnung", entstanden
-      // aus Altdaten) bekommt einen leeren Platzhalter als Vorauswahl.
-      // Sonst stünde dort stillschweigend der erste Zeitraum und ein Klick
-      // auf Speichern würde das Fach ungefragt dorthin verschieben.
+      // verschieben. Ein Fach OHNE Zeitraum (Altdaten) bekommt einen leeren
+      // Platzhalter, damit Speichern es nicht ungefragt verschiebt.
       const ohneZeitraum = abschnittId === null || abschnittId === undefined;
-      const zeitraumOptionen = (ohneZeitraum
-          ? '<option value="" selected>– bitte wählen –</option>' : '')
+      const zeitraumOptionen = (ohneZeitraum ? '<option value="" selected>– bitte wählen –</option>' : '')
         + N.sortiereAbschnitte(daten.abschnitte || []).map(a =>
-        `<option value="${a.id}"${a.id === abschnittId ? ' selected' : ''}>${esc(a.label || N.abschnittLabel(a.typ, a.nr))}</option>`).join('');
+          `<option value="${a.id}"${a.id === abschnittId ? ' selected' : ''}>${esc(a.label || N.abschnittLabel(a.typ, a.nr))}</option>`).join('');
 
-      const ov = baueModal(MODAL_ORDNER, ist ? 'Fach bearbeiten' : 'Fach hinzufügen', `
+      const ov = baueModal(MODAL_ORDNER, ist ? 'Fach bearbeiten' : 'Fach anlegen', `
         <div class="noten-form">
         <div class="form-group">
-          <label class="form-label" for="notenOrdnerName">Name des Fachs oder Moduls</label>
+          <label class="form-label" for="notenOrdnerName">Name</label>
           <input class="form-control" id="notenOrdnerName" type="text" maxlength="${N.ORDNERNAME_MAX}"
-                 placeholder="${istDh ? 'z.B. Maschinendynamik, Studienarbeit II' : 'z.B. Englisch, Software, Zeugnisse'}"
+                 placeholder="${istDh ? 'z.B. Maschinendynamik' : 'z.B. Englisch'}"
                  value="${ist ? esc(ordner.name) : ''}">
-          <p class="form-hint">Ein Fach gehört genau einem Zeitraum – im nächsten legst du es erneut an.
-            So bleibt der Durchschnitt je Zeitraum sauber getrennt.</p>
         </div>
         <div class="form-group">
-          <label class="form-label" for="notenOrdnerAbschnitt">Zeitraum</label>
-          <select class="form-control" id="notenOrdnerAbschnitt">${zeitraumOptionen}</select>
-          ${ohneZeitraum ? '<p class="form-hint">Dieses Fach ist noch keinem Zeitraum zugeordnet – bitte einen wählen.</p>' : ''}
-        </div>
-        <div class="form-group">
-          <span class="form-label" id="notenOrdnerFarbeLabel">Farbe (optional)</span>
+          <span class="form-label" id="notenOrdnerFarbeLabel">Farbe</span>
           <div class="noten-farbwahl" role="radiogroup" aria-labelledby="notenOrdnerFarbeLabel">
             ${farbwahlHtml(ist ? ordner.farbe : null)}
           </div>
-          <p class="form-hint">Nur eine visuelle Hilfe: farbige Fächer lassen sich in der Liste
-            schneller auseinanderhalten. Im Ausdruck erscheint keine Farbe.</p>
+        </div>
+        ${ist ? `<div class="form-group">
+          <label class="form-label" for="notenOrdnerAbschnitt">Zeitraum</label>
+          <select class="form-control" id="notenOrdnerAbschnitt">${zeitraumOptionen}</select>
         </div>
         <div class="form-group">
           <label class="pm-switch-row">
             <span class="pm-switch">
-              <input type="checkbox" id="notenOrdnerZaehlt" class="pm-switch__input"
-                     ${!ist || ordner.zaehltInSchnitt ? 'checked' : ''}>
+              <input type="checkbox" id="notenOrdnerZaehlt" class="pm-switch__input"${ordner.zaehltInSchnitt ? ' checked' : ''}>
               <span class="pm-switch__track" aria-hidden="true"><span class="pm-switch__thumb"></span></span>
             </span>
-            <span>Zählt in den Durchschnitt des Zeitraums</span>
+            <span>Zählt im Notenspiegel zum Durchschnitt</span>
           </label>
-          <p class="form-hint">Für ein Fach wie „Zeugnisse" ausschalten: dessen Noten stehen schon in den
-            Fachordnern und würden den Durchschnitt doppelt gewichten. Der Fach-Ø wird trotzdem angezeigt.</p>
-        </div>
+        </div>` : ''}
         </div>`, `
         <button type="button" class="btn btn-secondary" data-modal-close>Abbrechen</button>
-        <button type="button" class="btn btn-primary" id="notenOrdnerSpeichern">Speichern</button>`);
+        <button type="button" class="btn btn-primary" id="notenOrdnerSpeichern">${ist ? 'Speichern' : 'Anlegen'}</button>`);
 
       Modal.open(MODAL_ORDNER);
-      ov.querySelector('#notenOrdnerName').focus();
-      ov.querySelector('#notenOrdnerSpeichern').addEventListener('click', async () => {
-        const name = ov.querySelector('#notenOrdnerName').value;
+      const nameFeld = ov.querySelector('#notenOrdnerName');
+      nameFeld.focus();
+      const speichere = async () => {
+        const name = nameFeld.value;
         const problem = N.pruefeOrdnerName(name);
         if (problem) { Toast.error('Fach', problem); return; }
-        const gewaehlt = parseInt(ov.querySelector('#notenOrdnerAbschnitt').value, 10);
-        if (isNaN(gewaehlt)) { Toast.error('Fach', 'Bitte einen Zeitraum wählen.'); return; }
-        const zaehltInSchnitt = ov.querySelector('#notenOrdnerZaehlt').checked;
-        // Leerer Wert = keine Farbe. Beim PATCH ist das ausdrücklich null
-        // und nicht undefined, sonst liesse sich eine Farbe nie wieder
-        // abwählen (undefined heisst im Backend "Feld nicht geändert").
-        const gewaehlteFarbe = (ov.querySelector('input[name="notenOrdnerFarbe"]:checked') || {}).value || null;
+        // Leerer Wert = keine Farbe. Beim PATCH ausdrücklich null und nicht
+        // undefined, sonst liesse sich eine Farbe nie wieder abwählen.
+        const farbe = (ov.querySelector('input[name="notenOrdnerFarbe"]:checked') || {}).value || null;
         try {
-          if (ist) await DB.patchNotenOrdner(ordner.id, { name, zaehltInSchnitt, abschnittId: gewaehlt, farbe: gewaehlteFarbe });
-          else await DB.addNotenOrdner({ name, abschnittId: gewaehlt, zaehltInSchnitt, farbe: gewaehlteFarbe });
+          if (ist) {
+            const gewaehlt = parseInt(ov.querySelector('#notenOrdnerAbschnitt').value, 10);
+            if (isNaN(gewaehlt)) { Toast.error('Fach', 'Bitte einen Zeitraum wählen.'); return; }
+            const zaehltInSchnitt = ov.querySelector('#notenOrdnerZaehlt').checked;
+            await DB.patchNotenOrdner(ordner.id, { name, zaehltInSchnitt, abschnittId: gewaehlt, farbe });
+            // Dasselbe Fach in den folgenden Jahren zieht Name und Farbe mit.
+            for (const z of folgeFaecher(ordner.abschnittId, ordner.name)) {
+              await DB.patchNotenOrdner(z.id, { name, farbe }).catch(() => {});
+            }
+            ui.abschnittId = gewaehlt;
+          } else {
+            const neu = await DB.addNotenOrdner({ name, abschnittId, zaehltInSchnitt: true, farbe });
+            if (neu && neu.id !== undefined) ui.ordnerId = neu.id;
+            // Fächer laufen meist weiter: auch in den folgenden Jahren anlegen,
+            // wegfallende löscht man dort einfach (409 = gibt es dort schon).
+            for (const a of folgeJahre(abschnittId)) {
+              await DB.addNotenOrdner({ name, abschnittId: a.id, zaehltInSchnitt: true, farbe }).catch(() => {});
+            }
+            ui.nav = 'fach';
+          }
           Modal.close(MODAL_ORDNER);
           Toast.success('Fach', ist ? 'Fach geändert.' : 'Fach angelegt.');
+          ui.offenId = null; ui.modus = null;
           await zeigeDetail();
         } catch (e) {
           Toast.error('Fach', e.message);
         }
-      });
+      };
+      ov.querySelector('#notenOrdnerSpeichern').addEventListener('click', speichere);
+      nameFeld.addEventListener('keydown', (ev) => { if (ev.key === 'Enter') { ev.preventDefault(); speichere(); } });
     }
 
     async function loescheOrdner(ordner) {
       if (!ordner) return;
+      const fertig = async (text) => {
+        Toast.success('Fach', text);
+        ui.ordnerId = null; ui.offenId = null; ui.modus = null;
+        if (schmal()) ui.nav = 'liste';
+        await zeigeDetail();
+      };
       try {
         await DB.deleteNotenOrdner(ordner.id);
-        Toast.success('Fach', 'Fach gelöscht.');
-        await zeigeDetail();
+        await fertig('Fach gelöscht.');
       } catch (e) {
         if (e.status !== 409) { Toast.error('Fach', e.message); return; }
         const info = e.daten || {};
-        const eintraege = info.eintraege;
-        const belege = info.belege ?? 0;
         const teile = [];
-        if (Number.isFinite(eintraege)) teile.push(mehrzahl(eintraege, 'Eintrag', 'Einträge'));
-        if (belege) teile.push(mehrzahl(belege, 'Beleg', 'Belege'));
+        if (Number.isFinite(info.eintraege)) teile.push(mehrzahl(info.eintraege, 'Eintrag', 'Einträge'));
+        if (info.belege) teile.push(mehrzahl(info.belege, 'Dokument', 'Dokumente'));
         const weiter = await Confirm.loeschen({
           titel: `Fach „${ordner.name}" löschen?`,
           text: 'Dieses Fach ist nicht leer. Mitgelöscht werden:',
@@ -782,480 +1074,122 @@
         if (!weiter) return;
         try {
           await DB.deleteNotenOrdner(ordner.id, { kaskade: true });
-          Toast.success('Fach', 'Fach samt Einträgen gelöscht.');
-          await zeigeDetail();
+          await fertig('Fach samt Einträgen gelöscht.');
         } catch (e2) { Toast.error('Fach', e2.message); }
       }
     }
 
-    /* ── Eintrag anlegen / bearbeiten ─────────────────────────────── */
-    function eintragModal(ordnerId, eintrag) {
-      // Beim Anlegen ist die Eintrags-Id noch unbekannt; Belege lassen sich
-      // erst nach dem Speichern anhängen. Deshalb hält das Modal seinen
-      // eigenen Zustand und schaltet nach dem ersten Speichern um.
-      let aktuelleId = eintrag ? eintrag.id : null;
-      // Merkt sich, ob die Note gerade AUS PUNKTEN gefüllt wurde. Nur dann
-      // darf die Live-Umrechnung sie überschreiben — eine getippte Note
-      // gehört dem Nutzer.
-      let noteAusPunktenLive = !!(eintrag && eintrag.noteAusPunkten);
-      const standardArt = istDh ? 'semesterpruefung' : 'klassenarbeit';
+    /* ── Ereignisse ───────────────────────────────────────────────── */
+    async function waehleAzubi(oid) {
+      viewAzubiId = oid;
+      setPersistedAzubiId(viewAzubiId);
+      Object.assign(ui, { abschnittId: undefined, ordnerId: null, offenId: null, modus: null, nav: schmal() ? 'liste' : 'fach' });
+      verwirfEntwurf();
+      await zeigeDetail();
+    }
 
-      const artOptions = N.ARTEN.map(a => {
-        const gewaehlt = eintrag ? eintrag.art === a.id : a.id === standardArt;
-        return `<option value="${a.id}"${gewaehlt ? ' selected' : ''}>${esc(a.label)}</option>`;
-      }).join('');
-      const statusOptions = N.STATUS_WERTE.map(s => {
-        const gewaehlt = eintrag ? eintrag.status === s.id : s.id === 'bestanden';
-        return `<option value="${s.id}"${gewaehlt ? ' selected' : ''}>${esc(s.label)}</option>`;
-      }).join('');
-      const nurBestanden = !!(eintrag && N.istBestandenOhneNote(eintrag));
-
-      const ov = baueModal(MODAL_EINTRAG, eintrag ? 'Eintrag bearbeiten' : 'Neuer Eintrag', `
-        <div class="noten-form">
-        <div class="form-group">
-          <label class="form-label" for="notenTitel">Titel</label>
-          <input class="form-control" id="notenTitel" type="text" maxlength="${N.TITEL_MAX}"
-                 placeholder="${istDh ? 'z.B. Klausur Maschinendynamik' : 'z.B. Klassenarbeit Textanalyse'}"
-                 value="${eintrag ? esc(eintrag.titel) : ''}">
-        </div>
-        <div class="noten-form-reihe">
-          <div class="form-group">
-            <label class="form-label" for="notenArt">Art</label>
-            <select class="form-control" id="notenArt">${artOptions}</select>
-          </div>
-          <div class="form-group">
-            <label class="form-label" for="notenDatum">Datum</label>
-            <!-- Neuer Eintrag: heute vorbelegt. Nicht Kosmetik, sondern
-                 Voraussetzung dafür, dass ein Beleg OHNE Zwischenspeichern
-                 angehängt werden kann: der Eintrag entsteht dabei still,
-                 und dafür muss er gültig sein (Titel, Art, Datum). Leer
-                 hieße "Datum fehlt" statt "erst speichern" — derselbe
-                 Stolperstein mit anderem Text. Die Art hat über das
-                 <select> ohnehin einen Wert, der Titel bleibt das Einzige,
-                 was jemand tippen muss.
-                 Über DateUtil.toISODate, weil toISOString() UTC nimmt und
-                 in den frühen Morgenstunden auf gestern zeigen würde. -->
-            <input class="form-control" id="notenDatum" type="date"
-                   value="${eintrag ? esc(eintrag.datum) : DateUtil.toISODate(new Date())}">
-          </div>
-        </div>
-        <!-- Nur für DH-Studenten: "b" wie im DUALIS-Notenspiegel. Es ist kein
-             Notenwert, sondern eine leere Note bei Status "bestanden" —
-             deshalb ein Umschalter und kein Sonderzeichen im Notenfeld. -->
-        <div class="form-group" id="notenBewertungGruppe">
-          <label class="form-label">Bewertung</label>
-          <div class="noten-radio-reihe">
-            <label class="noten-radio">
-              <input type="radio" name="notenBewertung" value="note" ${nurBestanden ? '' : 'checked'}>
-              <span>Note eintragen</span>
-            </label>
-            <label class="noten-radio">
-              <input type="radio" name="notenBewertung" value="bestanden" ${nurBestanden ? 'checked' : ''}>
-              <span>nur bestanden (b)</span>
-            </label>
-          </div>
-        </div>
-        <div class="noten-form-reihe">
-          <div class="form-group" id="notenNoteGruppe">
-            <label class="form-label" for="notenNote">Note</label>
-            <input class="form-control" id="notenNote" type="text" inputmode="decimal" placeholder="z.B. 2,3"
-                   value="${eintrag && eintrag.note !== null ? esc(N.formatNote(eintrag.note)) : ''}">
-            <p class="form-hint" id="notenNoteHinweis">Komma oder Punkt, ${N.formatNote(N.NOTE_MIN)}
-              bis ${N.formatNote(N.NOTE_MAX_FUER_ROLLE(user.role))}.</p>
-          </div>
-          <div class="form-group" id="notenPunkteGruppe">
-            <label class="form-label" for="notenPunkte">IHK-Punkte</label>
-            <input class="form-control" id="notenPunkte" type="number" min="0" max="${N.PUNKTE_MAX}" step="0.5"
-                   value="${eintrag && eintrag.punkte !== null && eintrag.punkte !== undefined ? esc(eintrag.punkte) : ''}">
-            <p class="form-hint" id="notenPunkteHinweis"></p>
-          </div>
-        </div>
-        <div class="noten-form-reihe" id="notenDhReihe">
-          <div class="form-group" id="notenCreditsGruppe">
-            <label class="form-label" for="notenCredits">Credits</label>
-            <input class="form-control" id="notenCredits" type="number" min="0" max="${N.CREDITS_MAX}" step="0.5"
-                   value="${eintrag && eintrag.credits !== null && eintrag.credits !== undefined ? esc(eintrag.credits) : ''}">
-            <p class="form-hint" id="notenCreditsHinweis">Zählen in die Semestersumme, sobald der Status
-              „bestanden" ist.</p>
-          </div>
-          <div class="form-group" id="notenStatusGruppe">
-            <label class="form-label" for="notenStatus">Status</label>
-            <select class="form-control" id="notenStatus">${statusOptions}</select>
-          </div>
-        </div>
-        <div class="form-group">
-          <label class="form-label" for="notenBemerkung">Bemerkung <span class="form-label__optional">(optional)</span></label>
-          <textarea class="form-control" id="notenBemerkung" rows="2" maxlength="${N.BEMERKUNG_MAX}">${eintrag ? esc(eintrag.bemerkung || '') : ''}</textarea>
-        </div>
-        <div class="form-group" id="notenBelegGruppe">
-          <label class="form-label">Belege</label>
-          <div id="notenBelegListe" class="noten-belege"></div>
-          <!-- ZWEI Felder, weil sie sich in genau einem Attribut unterscheiden
-               müssen und ein Feld nicht beides kann:
-
-               notenBelegInput  – ohne capture. Auf dem iPad öffnet das das
-                 VOLLE Auswahlfenster (Fotos / Foto aufnehmen / Dateien
-                 durchsuchen). Über "Dateien durchsuchen" kommt auch ein
-                 Dokumentenscan aus der Dateien-App herein, und wo iPadOS
-                 einen Scan-Eintrag im Auswahlfenster anbietet, erscheint er
-                 nur ohne einengendes accept.
-
-               notenBelegKamera – mit capture="environment". Das überspringt
-                 das Auswahlfenster und öffnet die Rückkamera SOFORT. Kein
-                 multiple: eine Aufnahme ist ein Bild.
-
-             Den iPadOS-Dokumentenscanner selbst kann eine Webseite NICHT
-             aufrufen — capture kennt nur "user" und "environment", beides
-             liefert ein Foto. Wer Kantenerkennung und Mehrseiten-PDF
-             braucht, scannt in der Dateien-App und wählt hier aus. -->
-          <input type="file" id="notenBelegInput" hidden multiple accept="${N.ACCEPT_BELEG}">
-          <input type="file" id="notenBelegKamera" hidden accept="image/*" capture="environment">
-          <div class="noten-beleg-aktionen">
-            <button type="button" class="btn btn-outline btn-icon" id="notenBelegBtn"
-                    aria-label="Scan oder Datei wählen" title="Scan oder Datei wählen">
-              ${Icon('upload', { size: 18 })}</button>
-            <!-- icons.js ist auto-generiert und hat keine Kamera; Inline-SVG im
-                 gleichen Stil (24er-Raster, 1,5 Strichstärke, currentColor) —
-                 dasselbe Vorgehen wie bei den .dh-topbar-Symbolen. -->
-            <button type="button" class="btn btn-outline btn-icon" id="notenBelegKameraBtn" hidden
-                    aria-label="Foto aufnehmen" title="Foto aufnehmen">
-              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor"
-                   stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                <path d="M3 9.5c0-1.2.97-2.17 2.17-2.17h1.4c.7 0 1.35-.36 1.72-.96l.62-1.01c.36-.6 1.01-.96 1.72-.96h2.74c.7 0 1.36.36 1.72.96l.62 1.01c.37.6 1.02.96 1.72.96h1.4c1.2 0 2.17.97 2.17 2.17v7.34c0 1.2-.97 2.16-2.17 2.16H5.17A2.17 2.17 0 0 1 3 16.84z"/>
-                <circle cx="12" cy="13" r="3.2"/>
-              </svg></button>
-          </div>
-          <!-- Der Absatz bleibt LEER, wird aber gebraucht: er trägt die
-               Zustandsmeldung "Erst speichern – danach können Belege
-               angehängt werden" (siehe zeigeBelege) und ihr Gegenstück
-               nach dem Anlegen. Nur der erklärende Dauertext ist weg —
-               die Symbole sagen genug, und ihre Bedeutung steht im
-               title/aria-label. -->
-          <p class="form-hint" id="notenBelegHinweis"></p>
-        </div>
-        </div>`, `
-        <button type="button" class="btn btn-secondary" data-modal-close>${eintrag ? 'Abbrechen' : 'Schließen'}</button>
-        <button type="button" class="btn btn-primary" id="notenEintragSpeichern">Speichern</button>`);
-
-      const feld = (id) => ov.querySelector('#' + id);
-      const bewertung = () => {
-        const gewaehlt = ov.querySelector('input[name="notenBewertung"]:checked');
-        return gewaehlt ? gewaehlt.value : 'note';
-      };
-
-      // Rollenabhängige Felder ein Mal fest ausblenden: Credits und Status
-      // sind DH-Sache, IHK-Punkte Azubi-Sache. Beides gleichzeitig weist
-      // schon core.pruefeEintrag ab — hier wird es gar nicht angeboten.
-      feld('notenBewertungGruppe').hidden = !istDh;
-      feld('notenDhReihe').hidden = !istDh;
-
-      /* Punktefeld nur bei Azubi-Prüfungen: Klassenarbeiten haben keine
-         IHK-Punkte, und DH-Studenten seit Migration 046 gar keine mehr. */
-      function aktualisiereArtAbhaengiges() {
-        const art = N.artById(feld('notenArt').value);
-        const zeigtPunkte = !istDh && !!(art && art.zeigtPunkte);
-        feld('notenPunkteGruppe').hidden = !zeigtPunkte;
-        aktualisiereBewertung();
-      }
-
-      /* „nur bestanden (b)" heißt: keine Note, Status zwingend bestanden.
-         Das Statusfeld wird dann gesperrt, statt es widersprüchlich
-         bedienbar zu lassen. */
-      function aktualisiereBewertung() {
-        const nur = istDh && bewertung() === 'bestanden';
-        feld('notenNoteGruppe').hidden = nur;
-        if (nur) {
-          feld('notenNote').value = '';
-          feld('notenStatus').value = 'bestanden';
-          const inst = feld('notenStatus')._pmInstance;
-          if (inst && inst.setValue) inst.setValue('bestanden');
-        }
-        feld('notenStatus').disabled = nur;
-        const wrapper = feld('notenStatus').closest('.pm-select');
-        if (wrapper) wrapper.classList.toggle('pm-select--disabled', nur);
-        aktualisierePunkteHinweis();
-      }
-
-      /* LIVE-Umrechnung Punkte → Note, nicht erst beim Speichern.
-         Sie greift nur noch beim Azubi: DH-Studenten tragen seit Migration
-         046 keine Punkte mehr ein, die DHBW-Tabelle ist stillgelegt.
-
-         Die Note wird nur überschrieben, wenn sie leer ist oder zuvor selbst
-         aus Punkten gefüllt wurde — eine getippte Note gehört dem Nutzer und
-         behält ihren Vorrang (dieselbe Regel wie in
-         core.zusammenfuehreEintrag). */
-      function aktualisierePunkteHinweis() {
-        const hinweis = feld('notenPunkteHinweis');
-        if (feld('notenPunkteGruppe').hidden) { hinweis.textContent = ''; return; }
-        const rohPunkte = feld('notenPunkte').value;
-        const p = N.parsePunkte(rohPunkte);
-        if (p === null) {
-          hinweis.textContent = rohPunkte.trim() === ''
-            ? '' : `Höchstens ${N.PUNKTE_MAX} Punkte, halbe Punkte erlaubt.`;
-          return;
-        }
-        const abgeleitet = N.noteAusPunkten(p, { dh: false });
-        if (abgeleitet === null) { hinweis.textContent = ''; return; }
-        const noteFeld = feld('notenNote');
-        if (noteFeld.value.trim() === '' || noteAusPunktenLive) {
-          noteFeld.value = N.formatNote(abgeleitet);
-          noteAusPunktenLive = true;
-          hinweis.textContent = `Note ${N.formatNote(abgeleitet)} aus den Punkten übernommen – überschreibbar.`;
-        } else {
-          hinweis.textContent = `${p} Punkte entsprechen Note ${N.formatNote(abgeleitet)}.`;
-        }
-      }
-
-      /* Der Umkehrweg Note → Punkte ist NICHT eindeutig: eine Note deckt
-         immer eine Punktespanne ab (Note 1,9 sind 87 bis 88 Punkte). Statt
-         eine Punktzahl zu erfinden, die so nie auf dem Zeugnis stand, wird
-         die Spanne als Hinweis gezeigt. */
-      function aktualisiereNoteHinweis() {
-        const basis = `Komma oder Punkt, ${N.formatNote(N.NOTE_MIN)} bis ${N.formatNote(N.NOTE_MAX_FUER_ROLLE(user.role))}.`;
-        const hinweis = feld('notenNoteHinweis');
-        if (istDh || feld('notenPunkteGruppe').hidden) { hinweis.textContent = basis; return; }
-        const n = N.parseNote(feld('notenNote').value);
-        if (n === null) { hinweis.textContent = basis; return; }
-        const treffer = [];
-        for (let p = 0; p <= N.PUNKTE_MAX; p++) {
-          if (N.noteAusPunkten(p, { dh: false }) === n) treffer.push(p);
-        }
-        hinweis.textContent = treffer.length
-          ? `${basis} Note ${N.formatNote(n)} entspricht ${treffer.length === 1
-              ? `${treffer[0]} Punkten` : `${treffer[0]}–${treffer[treffer.length - 1]} Punkten`}.`
-          : basis;
-      }
-
-      function aktualisiereCreditsHinweis() {
-        if (!istDh) return;
-        const s = N.statusById(feld('notenStatus').value);
-        feld('notenCreditsHinweis').textContent = (s && s.zaehltCredits)
-          ? 'Zählen in die Semestersumme.'
-          : `Zählen NICHT in die Semestersumme – nur bestandene Module werden addiert.`;
-      }
-
-      function zeigeBelege() {
-        const liste = feld('notenBelegListe');
-        const belege = (aktuelleId && findeEintrag(aktuelleId)) ? findeEintrag(aktuelleId).belege : [];
-        liste.innerHTML = belege.length ? belege.map(b => belegHtml(b, true)).join('')
-          : '<p class="form-hint">Noch keine Belege.</p>';
-        liste.querySelectorAll('[data-beleg]').forEach(b => b.addEventListener('click', async (e) => {
-          e.preventDefault();
-          await loescheBeleg(+b.dataset.beleg, { ohneRender: true });
-          zeigeBelege();
-        }));
-        // Die Beleg-Knöpfe sind IMMER bedienbar. Dass ein Beleg laut
-        // Datenmodell an einem Eintrag hängen muss (NotenBelege.EintragId
-        // ist NOT NULL), löst legeEintragStillAn() auf — siehe dort.
-      }
-
-      feld('notenArt').addEventListener('change', aktualisiereArtAbhaengiges);
-      feld('notenPunkte').addEventListener('input', aktualisierePunkteHinweis);
-      feld('notenStatus').addEventListener('change', aktualisiereCreditsHinweis);
-      feld('notenNote').addEventListener('input', () => {
-        // Ab hier ist die Note getippt, nicht berechnet.
-        noteAusPunktenLive = false;
-        aktualisiereNoteHinweis();
-      });
-      ov.querySelectorAll('input[name="notenBewertung"]').forEach(r =>
-        r.addEventListener('change', aktualisiereBewertung));
-
-      aktualisiereArtAbhaengiges();
-      aktualisiereNoteHinweis();
-      aktualisiereCreditsHinweis();
-      zeigeBelege();
-
-      /* Der Kamera-Knopf erscheint nur auf Touchgeräten. Am Desktop öffnet
-         capture bloß denselben Dateidialog — ein Knopf "Foto aufnehmen", der
-         einen Dateidialog aufmacht, verspricht etwas Falsches.
-         (pointer: coarse) statt einer Breitenabfrage: das 11"-iPad liegt bei
-         834/1194 px und rutscht durch jedes px-Raster, siehe
-         docs/ios-touch-verhalten.md.) */
-      const kameraBtn = feld('notenBelegKameraBtn');
-      const hatFinger = !!(global.matchMedia && global.matchMedia('(pointer: coarse)').matches);
-      kameraBtn.hidden = !hatFinger;
-
-      feld('notenBelegBtn').addEventListener('click', () => {
-        if (belegKlickErlaubt()) feld('notenBelegInput').click();
-      });
-      kameraBtn.addEventListener('click', () => {
-        if (belegKlickErlaubt()) feld('notenBelegKamera').click();
-      });
-
-      /* Die Formularwerte an EINER Stelle: sie werden zweimal gebraucht —
-         beim Speichern und beim stillen Anlegen vor dem ersten Beleg. */
-      function formularDaten() {
-        const art = feld('notenArt').value;
-        const zeigtPunkte = !istDh && !!(N.artById(art) && N.artById(art).zeigtPunkte);
-        const nurBest = istDh && bewertung() === 'bestanden';
-        return {
-          titel: feld('notenTitel').value,
-          art,
-          datum: feld('notenDatum').value,
-          note: nurBest || feld('notenNote').value.trim() === '' ? null : feld('notenNote').value.trim(),
-          punkte: (!zeigtPunkte || feld('notenPunkte').value === '') ? null : feld('notenPunkte').value,
-          // Credits und Status nur mitschicken, wenn sie fachlich greifen —
-          // sonst weist core.pruefeEintrag den Eintrag zu Recht ab.
-          credits: istDh && feld('notenCredits').value !== '' ? feld('notenCredits').value : null,
-          status: istDh ? (nurBest ? 'bestanden' : feld('notenStatus').value) : null,
-          bemerkung: feld('notenBemerkung').value.trim() || null,
-        };
-      }
-
-      /* Ein Beleg hängt laut Datenmodell an einem Eintrag
-         (NotenBelege.EintragId ist NOT NULL, Migration 043), und die Route
-         heißt POST /noten/eintraege/:id/belege — vor dem ersten Speichern
-         gibt es diese Id nicht. Früher waren die Knöpfe deshalb gesperrt.
-         Jetzt entsteht der Eintrag STILL, sobald wirklich eine Datei da
-         ist; für den Azubi entfällt der Zwischenschritt.
-
-         Die Reihenfolge ist der Kern und nicht beliebig:
-           Klick   -> nur PRÜFEN (synchron), dann Dateidialog
-           Auswahl -> Eintrag anlegen, dann hochladen
-         Geprüft wird VOR dem Dialog, weil niemand erst ein Foto machen und
-         danach erfahren soll, dass der Titel fehlt. Angelegt wird NACH der
-         Auswahl, weil ein Dateidialog nicht hinter einem await aufgehen
-         darf: er braucht eine frische Nutzeraktion, sonst blockt ihn der
-         Browser stillschweigend. */
-      function belegKlickErlaubt() {
-        if (aktuelleId) return true;
-        const problem = N.pruefeEintrag(formularDaten(), user.role);
-        if (problem) {
-          Toast.error('Beleg', problem + ' Danach lässt sich ein Beleg anhängen.');
-          return false;
-        }
-        return true;
-      }
-
-      async function legeEintragStillAn() {
-        const daten = formularDaten();
-        const problem = N.pruefeEintrag(daten, user.role);
-        if (problem) { Toast.error('Eintrag', problem); return null; }
-        const neu = await DB.addNotenEintrag(ordnerId, daten);
-        aktuelleId = neu.id;
-        // Ab hier bearbeitet der Dialog einen BESTEHENDEN Eintrag: ein Klick
-        // auf Speichern ist ein PATCH, kein zweiter Eintrag. Der Titel sagt
-        // das auch, damit niemand "Schließen" für "verwerfen" hält.
-        const titelEl = ov.querySelector('.modal__title');
-        if (titelEl) titelEl.textContent = 'Eintrag bearbeiten';
-        return aktuelleId;
-      }
-
-      // Beide Felder laufen in denselben Ablauf: prüfen, verkleinern, hochladen.
-      const nimmDateien = async (e) => {
-        const dateien = [...e.target.files];
-        e.target.value = ''; // damit dieselbe Datei erneut gewählt werden kann
-        if (!dateien.length) return;
-        // Jetzt gibt es etwas anzuhängen — also jetzt den Eintrag anlegen.
-        if (!aktuelleId) {
-          try {
-            if (!await legeEintragStillAn()) return;
-            await ladeDaten();
-            renderDetail();
-            Toast.success('Eintrag', 'Eintrag angelegt – der Beleg wird angehängt.');
-          } catch (err) {
-            Toast.error('Eintrag', err.message);
-            return;
-          }
-        }
-        for (const datei of dateien) {
-          if (!N.endungErlaubt(datei.name)) {
-            Toast.error('Beleg', `„${datei.name}": Dateityp nicht erlaubt.`);
-            continue;
-          }
-          try {
-            // iPad-Fotos vor dem Upload verkleinern (2000 px, JPEG) – HEIC
-            // scheitert am Decoder und geht unverändert durch.
-            const klein = await N.verkleinereBild(datei);
-            if (klein.size > N.MAX_BELEG_BYTES) {
-              Toast.error('Beleg', `„${datei.name}" ist größer als 10 MB.`);
-              continue;
-            }
-            await DB.uploadNotenBeleg(aktuelleId, klein);
-            Toast.success('Beleg', `„${datei.name}" hinzugefügt.`);
-          } catch (err) {
-            Toast.error('Beleg', err.message);
-          }
-        }
-        await ladeDaten();
-        zeigeBelege();
-        // Nach einem Beleg-Upload soll die Seite hinter dem Modal stimmen,
-        // ohne das offene Modal zu verlieren (renderDetail baut #mainContent
-        // neu, das Modal hängt am body und bleibt erhalten).
+    host.addEventListener('click', (ev) => {
+      if (!host.querySelector('.nb')) return;
+      const t = ev.target.closest('[data-act],[data-abschnitt],[data-ordner],[data-zeile],[data-azubi],[data-beleg-weg],[data-entwurf-weg]');
+      if (!t || !host.contains(t)) return;
+      const d = t.dataset;
+      if (d.azubi) { waehleAzubi(d.azubi); return; }
+      if (d.abschnitt) {
+        const id = d.abschnitt === 'ohne' ? null : Number(d.abschnitt);
+        if (id === ui.abschnittId) return;
+        verwirfEntwurf();
+        Object.assign(ui, { abschnittId: id, ordnerId: null, offenId: null, modus: null, nav: schmal() ? 'liste' : 'fach' });
         renderDetail();
-      };
-      feld('notenBelegInput').addEventListener('change', nimmDateien);
-      feld('notenBelegKamera').addEventListener('change', nimmDateien);
+        return;
+      }
+      if (d.ordner) {
+        const id = Number(d.ordner);
+        verwirfEntwurf();
+        Object.assign(ui, { ordnerId: id, offenId: null, modus: null, nav: 'fach' });
+        renderDetail();
+        return;
+      }
+      if (d.zeile) { oeffne(Number(d.zeile)); return; }
+      if (d.belegWeg) { loescheBeleg(Number(d.belegWeg)); return; }
+      if (d.entwurfWeg) {
+        const id = Number(d.entwurfWeg);
+        const weg = ui.entwurf.find(x => x.id === id);
+        if (weg && weg.url) URL.revokeObjectURL(weg.url);
+        ui.entwurf = ui.entwurf.filter(x => x.id !== id);
+        const docs = host.querySelector('.nb-eintrag--neu [data-docs]');
+        if (docs) docs.innerHTML = entwurfListe();
+        return;
+      }
+      switch (d.act) {
+        case 'uebersicht': schliesseOffenen(); renderUebersicht(); break;
+        case 'abschnitt-neu': abschnittModal(); break;
+        case 'abschnitt-loeschen': loescheAbschnitt(findeAbschnitt(ui.abschnittId)); break;
+        case 'fach-neu': ordnerModal(ui.abschnittId, null); break;
+        case 'fach-bearbeiten': { const o = findeOrdner(ui.ordnerId); if (o) ordnerModal(o.abschnittId, o); break; }
+        case 'fach-loeschen': loescheOrdner(findeOrdner(ui.ordnerId)); break;
+        case 'zurueck':
+          schliesseOffenen();
+          ui.nav = 'liste';
+          renderDetail();
+          break;
+        case 'neu': neuerEintrag(); break;
+        case 'bearbeiten': bearbeiten(); break;
+        case 'loeschen': loescheEintrag(); break;
+        case 'abbrechen':
+          if (ui.modus === 'bearbeiten') zurAnsicht();
+          else schliesseOffenen();
+          break;
+        default: break;
+      }
+    }, { signal });
 
-      feld('notenEintragSpeichern').addEventListener('click', async () => {
-        const daten2 = formularDaten();
-        const problem = N.pruefeEintrag(daten2, user.role);
-        if (problem) { Toast.error('Eintrag', problem); return; }
-        try {
-          if (aktuelleId) {
-            await DB.patchNotenEintrag(aktuelleId, daten2);
-            Modal.close(MODAL_EINTRAG);
-            Toast.success('Eintrag', 'Eintrag gespeichert.');
-            await zeigeDetail();
-          } else {
-            const neu = await DB.addNotenEintrag(ordnerId, daten2);
-            aktuelleId = neu.id;
-            await ladeDaten();
-            renderDetail();
-            zeigeBelege();
-            // Das Modal bleibt offen, damit direkt Belege angehängt werden
-            // können — dann muss es aber auch sagen, dass es jetzt einen
-            // bestehenden Eintrag bearbeitet. Ein weiterer Klick auf
-            // Speichern ist ab hier ein PATCH, kein zweiter Eintrag.
-            const titelEl = ov.querySelector('.modal__title');
-            if (titelEl) titelEl.textContent = 'Eintrag bearbeiten';
-            feld('notenBelegHinweis').textContent = 'Eintrag gespeichert – jetzt können Belege angehängt werden.';
-            Toast.success('Eintrag', 'Eintrag angelegt. Belege können jetzt angehängt werden.');
-          }
-        } catch (e) {
-          Toast.error('Eintrag', e.message);
-        }
-      });
+    host.addEventListener('submit', (ev) => {
+      const form = ev.target.closest('.nb-form');
+      if (!form) return;
+      ev.preventDefault();
+      speichern(form);
+    }, { signal });
 
-      Modal.open(MODAL_EINTRAG);
-      feld('notenTitel').focus();
-    }
+    host.addEventListener('change', (ev) => {
+      const t = ev.target;
+      if (t.matches('[data-upload]')) { dateienGewaehlt(t); return; }
+      const form = t.closest('.nb-form');
+      if (form && (t.name === 'art' || t.name === 'bewertung')) aktualisiereFelder(form);
+    }, { signal });
 
-    async function loescheEintrag(eintrag) {
-      if (!eintrag) return;
-      const weiter = await Confirm.loeschen({
-        titel: 'Eintrag löschen?',
-        text: `„${eintrag.titel}" wird endgültig entfernt.`,
-        liste: eintrag.belege.length
-          ? [eintrag.belege.length === 1
-              ? '1 Beleg wird mitgelöscht'
-              : mehrzahl(eintrag.belege.length, 'Beleg', 'Belege') + ' werden mitgelöscht']
-          : [],
-      });
-      if (!weiter) return;
-      try {
-        await DB.deleteNotenEintrag(eintrag.id);
-        Toast.success('Eintrag', 'Eintrag gelöscht.');
-        await zeigeDetail();
-      } catch (e) { Toast.error('Eintrag', e.message); }
-    }
+    host.addEventListener('input', (ev) => {
+      const t = ev.target;
+      const form = t.closest('.nb-form');
+      if (!form) return;
+      if (t.name === 'punkte') punkteGeaendert(form);
+      if (t.name === 'note') noteAusPunktenLive = false; // ab hier getippt, nicht berechnet
+      if (t.name === 'titel' || t.name === 'note' || t.name === 'datum') zeigeFehler(form, '');
+      if (t.getAttribute('aria-invalid') === 'true') t.removeAttribute('aria-invalid');
+      if (t.name === 'punkte') { const n = form.querySelector('[name="note"]'); if (n) n.removeAttribute('aria-invalid'); }
+    }, { signal });
 
-    async function loescheBeleg(id, opts2 = {}) {
-      const beleg = (daten.ordner || []).flatMap(o => o.eintraege || [])
-        .flatMap(e => e.belege || []).find(b => b.id === id);
-      const weiter = await Confirm.loeschen({
-        titel: 'Beleg löschen?',
-        text: beleg
-          ? `„${beleg.dateiname}" wird endgültig entfernt.`
-          : 'Der Beleg wird endgültig entfernt.',
-      });
-      if (!weiter) return;
-      try {
-        await DB.deleteNotenBeleg(id);
-        if (opts2.ohneRender) { await ladeDaten(); }
-        else { await zeigeDetail(); }
-      } catch (e) { Toast.error('Beleg', e.message); }
-    }
+    /* Esc: Bearbeiten → zurück zur Ansicht, neuer Eintrag → verwerfen,
+       offener Eintrag → zuklappen. Ein offener Dialog hat Vorrang —
+       deshalb in der Capture-Phase: sonst schließt Modal.init den Dialog
+       zuerst und dieser Handler klappt zusätzlich den Eintrag zu. */
+    document.addEventListener('keydown', (ev) => {
+      if (ev.key !== 'Escape' || !host.querySelector('.nb')) return;
+      if (document.querySelector('.modal-overlay.open')) return;
+      if (ui.modus === 'bearbeiten') { ev.preventDefault(); zurAnsicht(); return; }
+      if (ui.modus) {
+        ev.preventDefault();
+        const zurueck = ui.offenId;
+        schliesseOffenen();
+        const li = zurueck && liVon(zurueck);
+        if (li) { const k = li.querySelector('.nb-row'); if (k) k.focus({ preventScroll: true }); }
+      }
+    }, { signal, capture: true });
+
+    let groesseTimer = null;
+    global.addEventListener('resize', () => {
+      clearTimeout(groesseTimer);
+      groesseTimer = setTimeout(() => { if (host.querySelector('.nb-work')) passeHoehe(); }, 120);
+    }, { signal });
 
     /* ── Start ────────────────────────────────────────────────────── */
     if (!nurEigene) {
@@ -1266,7 +1200,9 @@
       }
       // Direkteinstieg aus einer Mitteilung: noten.html?azubi=<oid>
       const ausUrl = new URLSearchParams(location.search).get('azubi');
-      const gemerkt = ausUrl || getPersistedAzubiId();
+      // Wer selbst Azubi ist, landet auf den EIGENEN Noten (dort darf er
+      // schreiben) – die gemerkte Auswahl anderer Seiten zählt nur für reine Betreuer.
+      const gemerkt = ausUrl || (user.istAzubi ? null : getPersistedAzubiId());
       const treffer = azubis.find(a => a.oid === gemerkt);
       if (treffer) {
         viewAzubiId = treffer.oid;

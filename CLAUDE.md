@@ -44,3 +44,9 @@ Viewport-Einheiten arbeitest: zuerst
 auch, warum `env(safe-area-inset-bottom)`, `svh` und die Hintergrund-Ebene
 `html::before` so gesetzt sind — keine dieser Eigenheiten ist am Desktop
 reproduzierbar, entsprechend leicht baut man sie versehentlich zurück.
+
+**Jede sichtbare UI-Änderung auch als 11″-iPad prüfen:** 1194×834 (quer) und
+834×1194 (hoch), in Playwright mit `isMobile: true, hasTouch: true` — ohne
+Touch-Emulation greift das Scroll-Modell oben nicht, und der Test sagt nichts.
+Kleiner heißt dasselbe Design kleiner, nicht enger gepackt; abschneiden
+(Ellipsis) statt umbrechen nur, wo der volle Text woanders steht.
