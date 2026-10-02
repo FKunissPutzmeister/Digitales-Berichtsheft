@@ -18,8 +18,8 @@ const THEME_DESIGNS = [
   { id: 'christmas',  name: 'Christmas',  sub: 'Verschneit & festlich' },
 ];
 /* Saison-Themes (Halloween/Christmas) nur für Developer sichtbar. DH-Studenten
-   sind nie Developer → hier faktisch immer ausgeblendet (Gate dennoch konsistent
-   zur regulären Profil-Seite). */
+   sind nie Developer → hier ausgeblendet, außer Halloween im Zeitfenster des
+   Saison-Standards (theme.js) und solange es aktiv ist (wie profil.js). */
 const SEASONAL_DESIGNS = ['halloween', 'christmas'];
 /* TEMP: Custom-Design-Auswahl für Demokonten kurzzeitig ausgeblendet (s.
    profil.js). Rückgängig machen: HIDE_CUSTOM_THEMES_FOR_DEMO auf false
@@ -70,7 +70,8 @@ document.addEventListener('DOMContentLoaded', async () => {
       <div class="theme-group">
         <div class="theme-group__label">Custom-Design</div>
         <div class="theme-tiles">
-          ${THEME_DESIGNS.filter(d => user.role === 'developer' || !SEASONAL_DESIGNS.includes(d.id)).map(d => `
+          ${THEME_DESIGNS.filter(d => user.role === 'developer' || !SEASONAL_DESIGNS.includes(d.id)
+              || window.PMTheme?.seasonOpen?.(d.id) || custom === d.id).map(d => `
             <button type="button" class="theme-tile ${custom === d.id ? 'active' : ''}"
                     data-theme-design="${d.id}" aria-pressed="${custom === d.id}">
               <span class="theme-tile__swatch theme-tile__swatch--${d.id || 'standard'}" aria-hidden="true"></span>

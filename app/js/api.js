@@ -424,6 +424,19 @@ function cacheUserRole(role) {
   } catch (e) { /* localStorage kann in Privacy-Modi blockieren */ }
 }
 
+/* Saison-Standard (theme.js): bekommt diese Person Halloween als Standard?
+   Dieselbe Gruppe, die in den Profil-Einstellungen Designs wählen darf
+   (Azubi, DH-Student, Developer). Anders als cacheUserRole() wird der Wert
+   beim Logout NICHT geleert: sonst stünde nach jedem Login erst ein heller
+   Frame, bevor /auth/me antwortet und das Theme umspringt. */
+function cacheSeasonEligibility(user) {
+  try {
+    localStorage.setItem('themeSeasonOk',
+      user.istAzubi || user.istDhStudent || user.role === 'developer' ? '1' : '0');
+  } catch (e) { /* localStorage kann in Privacy-Modi blockieren */ }
+  if (window.PMTheme && window.PMTheme.refresh) window.PMTheme.refresh();
+}
+
 /* ── DateUtil ─────────────────────────────────────────────────── */
 const DateUtil = {
   getKW(date) {
@@ -503,6 +516,7 @@ const DB = {
       const data = await apiFetch('/auth/me');
       _currentUser = normalizeUser(data.user.oid, data.user);
       cacheUserRole(_currentUser.role);
+      cacheSeasonEligibility(_currentUser);
       return _currentUser;
     } catch {
       _currentUser = null;
@@ -518,6 +532,7 @@ const DB = {
     });
     _currentUser = normalizeUser(data.user.oid, data.user);
     cacheUserRole(_currentUser.role);
+    cacheSeasonEligibility(_currentUser);
     return _currentUser;
   },
 

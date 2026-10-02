@@ -160,6 +160,11 @@ Der Parser (`ihk-parser.js`) ist ohne DOM Node-testbar.
 - Design-Tokens (`variables.css`), Liquid-Glass-Effekte, Hell-/Dunkel-Modus
 - Zusätzliche Themes (`theme-silk/cmd/hyperspace/candy/…`) und Saison-Themes
   (Halloween/Christmas). Custom-Themes: Azubi + Developer; Saison-Themes: Developer.
+- **Saison-Standard:** vom 19.–31.10.2026 ist Halloween das Standard-Design für
+  Azubis, DH-Studenten und Developer (nicht Ausbilder/Prüfer/Admins) und dann auch
+  für sie in der Auswahl. Wird nicht gespeichert, sondern aus Datum + Rolle
+  abgeleitet (`SEASON` in `theme.js`). Jede eigene Wahl – auch „Standard“ – bleibt
+  dauerhaft (`localStorage.themeChosen`). Zeitraum ändern: `SEASON.from/to`.
 
 ### Betrieb & Integrationen
 

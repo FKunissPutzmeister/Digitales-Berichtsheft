@@ -13,6 +13,8 @@
      | 'candy'. Ist ein Custom-Design aktiv, überlagert es
      den Standard-Modus (data-theme = Custom-Name). Die Token-Overrides
      dazu liegen in css/themes.css.
+   • SAISON-STANDARD  (Halloween 19.–31.10.2026) – gilt, wenn weder ein
+     Custom-Design gespeichert noch selbst gewählt wurde; siehe unten.
 
    WICHTIG – Verhalten des Sidebar-Hell/Dunkel-Toggles bei aktivem
    Custom-Design: Ein Klick auf den Toggle VERLÄSST das Custom-Design
@@ -26,6 +28,7 @@
 (function () {
   var STORAGE_KEY = 'theme';        // Standard-Modus: 'light' | 'dark'
   var CUSTOM_KEY  = 'customTheme';  // Custom-Design oder nicht gesetzt
+  var CHOSEN_KEY  = 'themeChosen';  // '1' = Nutzer hat Design/Modus selbst gewählt
   var CUSTOM_THEMES = ['hyperspace', 'cmd', 'candy', 'silk', 'halloween', 'christmas', 'papier'];
   var html = document.documentElement;
 
@@ -1749,9 +1752,46 @@
     } catch (e) { return null; }
   }
 
+  /* ── Saison-Standard ──────────────────────────────────────────────
+     Im Zeitfenster ist Halloween das Standard-Design für Azubis,
+     DH-Studenten und Developer (Ausbilder/Prüfer/Admins nicht – sie haben
+     keine Design-Auswahl) – solange der Nutzer nicht selbst gewählt hat.
+     Es wird NICHT gespeichert, sondern bei jedem Laden aus Datum + Rolle
+     abgeleitet: nach dem Fenster fällt es von selbst weg, und wer Halloween
+     ausdrücklich gewählt hat, behält es (steht dann in customTheme).
+     Jede eigene Wahl (setMode/setCustom/set/toggle) setzt CHOSEN_KEY und
+     beendet den Standard für dieses Gerät dauerhaft – auch die Wahl
+     „Standard“ (die sonst von „nie gewählt“ nicht zu unterscheiden wäre).
+     Wer dafür in Frage kommt, schreibt api.js bei jedem /auth/me nach
+     localStorage('themeSeasonOk') und ruft dann refresh() – bewusst auch
+     über den Logout hinweg, damit nach dem Login kein heller Frame vor dem
+     Umspringen steht. Nur auf einem Gerät, das noch nie angemeldet war, fehlt
+     der Wert beim ersten Laden kurz. */
+  var SEASON = { theme: 'halloween', from: '2026-10-19', to: '2026-10-31' };
+  function seasonOpen() {
+    var n = new Date(), p = function (v) { return (v < 10 ? '0' : '') + v; };
+    var today = n.getFullYear() + '-' + p(n.getMonth() + 1) + '-' + p(n.getDate());
+    return today >= SEASON.from && today <= SEASON.to;
+  }
+  function seasonDefault() {
+    try {
+      // Gesperrte Custom-Designs (TEMP-Schalter oben) gelten auch für den Standard.
+      if (CUSTOM_THEMES_LOCKED || !seasonOpen() || localStorage.getItem(CHOSEN_KEY) === '1') return null;
+      return localStorage.getItem('themeSeasonOk') === '1' ? SEASON.theme : null;
+    } catch (e) { return null; }
+  }
+  /* Wirksames Custom-Design: gespeicherte Wahl, sonst Saison-Standard. */
+  function effectiveCustom() { return readStoredCustom() || seasonDefault(); }
+  function markChosen() { try { localStorage.setItem(CHOSEN_KEY, '1'); } catch (e) {} }
+
+  /* Zuletzt angewendetes Theme (für refresh(); data-theme taugt dafür nicht,
+     weil Skins wie silk dort ihren Basismodus tragen). */
+  var applied = null;
+
   /* data-theme setzen + FX-Layer syncen + Event feuern
      (eine zentrale Apply-Stelle) */
   function apply(theme) {
+    applied = theme;
     setThemeAttrs(theme);
     applySilkHue();
     ensureThemeFX(theme);
@@ -1764,7 +1804,8 @@
   // Paint → FOUC-frei): Custom-Design > gespeicherter Modus > System.
   // ensureThemeFX() läuft hier im <head> → verschiebt sich selbst auf
   // DOMContentLoaded, sobald document.body existiert.
-  var theme = readStoredCustom() || readStored() || readSystem();
+  var theme = effectiveCustom() || readStored() || readSystem();
+  applied = theme;
   setThemeAttrs(theme);
   applySilkHue();
   ensureThemeFX(theme);
@@ -1790,9 +1831,23 @@
       return readStored() || readSystem();
     },
 
-    /** Aktives Custom-Design oder null. */
+    /** Aktives Custom-Design (gewählt oder Saison-Standard) oder null. */
     getCustom: function () {
-      return readStoredCustom();
+      return effectiveCustom();
+    },
+
+    /** Ist das Saison-Design gerade im Zeitfenster? (Auswahl in den
+        Profil-Einstellungen zeigt es dann auch Nicht-Developern.) */
+    seasonOpen: function (name) {
+      return name === SEASON.theme && seasonOpen();
+    },
+
+    /** Theme neu auflösen – der Saison-Standard hängt an der Rolle, die
+        erst nach /auth/me (api.js cacheSeasonEligibility) feststeht.
+        No-op, wenn sich nichts geändert hat. */
+    refresh: function () {
+      var t = effectiveCustom() || readStored() || readSystem();
+      if (t !== applied) apply(t);
     },
 
     /** Lichtkanten-Effekt fürs Papierheft-Umblättern (no-op außerhalb
@@ -1822,6 +1877,7 @@
         sofort an. */
     setMode: function (next) {
       if (next !== 'dark' && next !== 'light') return;
+      markChosen();
       try { localStorage.setItem(STORAGE_KEY, next); } catch (e) {}
       try { localStorage.removeItem(CUSTOM_KEY); } catch (e) {}
       apply(next);
@@ -1832,12 +1888,14 @@
         gewählte Standard-Modus. */
     setCustom: function (name) {
       if (!name || name === 'standard') {
+        markChosen();
         try { localStorage.removeItem(CUSTOM_KEY); } catch (e) {}
         apply(this.getMode());
         return;
       }
       if (CUSTOM_THEMES_LOCKED) return;
       if (CUSTOM_THEMES.indexOf(name) === -1) return;
+      markChosen();
       try { localStorage.setItem(CUSTOM_KEY, name); } catch (e) {}
       apply(name);
     },
@@ -1847,18 +1905,20 @@
         IGNORIERT: der Klick verlässt nur das Custom-Design und kehrt
         zum gespeicherten Standard-Modus zurück (Spez-Verhalten). */
     set: function (next) {
-      if (readStoredCustom()) {
+      if (effectiveCustom()) {
+        markChosen();
         try { localStorage.removeItem(CUSTOM_KEY); } catch (e) {}
         apply(this.getMode());
         return;
       }
       if (next !== 'dark' && next !== 'light') return;
+      markChosen();
       try { localStorage.setItem(STORAGE_KEY, next); } catch (e) {}
       apply(next);
     },
 
     toggle: function () {
-      if (readStoredCustom()) {
+      if (effectiveCustom()) {
         // Custom-Design verlassen → zurück zum Standard-Modus
         this.setCustom(null);
         return;
@@ -1879,7 +1939,7 @@
   if (window.matchMedia) {
     var mq = window.matchMedia('(prefers-color-scheme: dark)');
     var mqHandler = function (e) {
-      if (!window.PMTheme.hasUserChoice() && !readStoredCustom()) {
+      if (!window.PMTheme.hasUserChoice() && !effectiveCustom()) {
         /* über apply() statt setAttribute direkt: feuert pm-theme-change,
            damit z.B. die Theme-Karte auf der Profil-Seite mitzieht */
         apply(e.matches ? 'dark' : 'light');
@@ -1892,8 +1952,8 @@
   // Cross-Tab-Sync: wenn ein anderes Tab Modus oder Custom-Design
   // wechselt, hier neu auflösen (Custom > Modus > System).
   window.addEventListener('storage', function (e) {
-    if (e.key !== STORAGE_KEY && e.key !== CUSTOM_KEY) return;
-    var resolved = readStoredCustom() || readStored() || readSystem();
+    if (e.key !== STORAGE_KEY && e.key !== CUSTOM_KEY && e.key !== CHOSEN_KEY) return;
+    var resolved = effectiveCustom() || readStored() || readSystem();
     apply(resolved);
   });
 

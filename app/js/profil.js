@@ -30,8 +30,9 @@ document.addEventListener('DOMContentLoaded', async () => {
      Verhalten: Der Hell/Dunkel-Toggle in der Sidebar verlässt ein
      aktives Custom-Design und kehrt zum gewählten Standard-Modus
      zurück (implementiert in PMTheme.set/toggle, theme.js). */
-  /* Saison-Themes (Halloween/Christmas) sind während der Testphase nur für
-     Developer sichtbar; alle übrigen Nutzer sehen sie nicht in der Auswahl. */
+  /* Saison-Themes (Halloween/Christmas) sind nur für Developer sichtbar;
+     alle übrigen Nutzer sehen sie nicht in der Auswahl – außer Halloween im
+     Zeitfenster des Saison-Standards (theme.js) und solange es aktiv ist. */
   const SEASONAL_DESIGNS = ['halloween', 'christmas'];
   /* Papierheft ist für produktive Konten gesperrt und bleibt Demo-Konten
      (E-Mail-Lokalteil endet auf .demo, s. istDemoKonto in backend/services/
@@ -52,7 +53,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     { id: 'papier',     name: 'Papierheft', sub: 'Vergilbtes Pergament-Manuskript' },
     { id: 'halloween',  name: 'Halloween',  sub: 'Geisterhaus & Nebel' },
     { id: 'christmas',  name: 'Christmas',  sub: 'Verschneit & festlich' },
-  ].filter(d => (isDeveloper || !SEASONAL_DESIGNS.includes(d.id))
+  ].filter(d => (isDeveloper || !SEASONAL_DESIGNS.includes(d.id)
+                 || window.PMTheme?.seasonOpen?.(d.id) || window.PMTheme?.getCustom?.() === d.id)
              && (isDemoAccount || !DEMO_ONLY_DESIGNS.includes(d.id)));
 
   function buildDarstellung() {
