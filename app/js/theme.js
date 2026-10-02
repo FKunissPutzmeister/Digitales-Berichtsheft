@@ -756,7 +756,9 @@
 
     function resize() {
       if (!canvas || !ctx) return;
-      DPR = Math.min(window.devicePixelRatio || 1, 2);
+      // DPR fix 1: Nebel besteht nur aus weichen Radialverläufen, hochauf-
+      // gelöst sieht er identisch aus, kostet aber bis zu 4x die Pixel.
+      DPR = 1;
       W = window.innerWidth; H = window.innerHeight;
       canvas.width = Math.floor(W * DPR);
       canvas.height = Math.floor(H * DPR);
@@ -793,7 +795,11 @@
     function frame(now) {
       if (!running) return;
       if (isPaused()) { last = now; raf = requestAnimationFrame(frame); return; }
-      var dt = Math.min(now - last, 50);
+      // ~20 fps reichen: Drift max. 13 px/s (<1 px je Schritt), Puls träge.
+      // Spart Canvas-Arbeit; die Glas-Kosten bestimmt jeder gezeichnete Frame,
+      // auch der der übrigen Deko (docs/2026-08-26-christmas-glass-befund.md B-18).
+      if (now - last < 48) { raf = requestAnimationFrame(frame); return; }
+      var dt = Math.min(now - last, 100);
       last = now; t += dt;
       for (var i = 0; i < puffs.length; i++) {
         var p = puffs[i];
@@ -1713,6 +1719,7 @@
       var fogCanvas = el.querySelector('.pm-hw-fog');   // im Login-Template nicht vorhanden → null
       if (fogCanvas) PMHalloweenFog.start(fogCanvas);
       if (!isLogin) PMHalloweenMusic.start();   // Musik nur in der App, nicht auf Login
+      if (!isLogin) PMChristmasGlass.start();   // echtes GlassSurface aufs Dashboard (Modul teilt sich christmas + halloween)
     } else if (theme === 'christmas') {
       var snowCanvas = el.querySelector('.pm-xm-snow');
       if (snowCanvas) PMChristmasSnow.start(snowCanvas);

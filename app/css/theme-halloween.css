@@ -191,6 +191,14 @@ html[data-theme="halloween"] { color-scheme: dark; }
     url("../assets/halloween-bg.png");
 }
 
+/* Wochenansicht: Szene zurücknehmen, damit das Bild nicht vom Schreiben
+   ablenkt (wie bei Silk). Nur Helligkeit der statischen Bildebene + die
+   Screen-Glühen — kein Blur, kein zusätzlicher Layer, keine Mehrkosten pro
+   Frame. */
+[data-theme="halloween"] .pm-hw-bg { transition: filter 650ms ease; }
+html[data-theme="halloween"] body[data-page="wochenansicht"] .pm-hw-bg { filter: brightness(0.5); }
+html[data-theme="halloween"] body[data-page="wochenansicht"] :is(.pm-hw-moonglow, .pm-hw-winflicker) { opacity: 0.45; }
+
 /* ── Großes Eck-Spinnennetz oben LINKS (Teil der Hintergrund-Szene) ──
    Liegt im #pmThemeFX-Layer HINTER dem App-Inhalt und ragt bewusst über
    die Sidebar hinaus: es scheint in der Lücke neben der Nav-Leiste und
@@ -840,7 +848,7 @@ html[data-theme="halloween"] .b-recent::before {
 }
 
 [data-theme="halloween"] .b-wkcard {
-  background: rgba(255, 255, 255, 0.04);
+  background: rgba(18, 11, 28, 0.55);
   border-color: rgba(255, 255, 255, 0.08);
   color: #fff;
 }
@@ -869,10 +877,7 @@ html[data-theme="halloween"] .b-recent::before {
    (#pmThemeFX, Geisterhaus) weich durchscheint. Heller Innen-Highlight und
    kürbis-getönte Kante geben den Glas-Look; weißer Text (oben gesetzt)
    bleibt durch den Blur + die ~0.5er Flächendeckung lesbar. */
-html[data-theme="halloween"] .bento .b-hero,
-html[data-theme="halloween"] .bento .b-azubi,
-html[data-theme="halloween"] .bento .b-mitteilungen,
-html[data-theme="halloween"] .bento .b-recent {
+html[data-theme="halloween"] .bento .b-azubi {
   background:
     linear-gradient(180deg, rgba(255, 184, 120, 0.07) 0%, rgba(255, 255, 255, 0) 42%),
     rgba(24, 16, 34, 0.52) !important;
@@ -883,6 +888,122 @@ html[data-theme="halloween"] .bento .b-recent {
     0 12px 34px -10px rgba(0, 0, 0, 0.55);
   -webkit-backdrop-filter: blur(16px) saturate(1.35);
   backdrop-filter: blur(16px) saturate(1.35);
+}
+
+/* ===================================================================
+   ECHTES LIQUID GLASS — Dashboard-Kacheln (wie Christmas)
+   -------------------------------------------------------------------
+   Hero, Mitteilungen, Recent und Welcome-Hero sind nur noch Träger; das
+   Material liegt in .pm-xm-glass (theme.js · PMChristmasGlass, hängt pro
+   Kachel EIN Backing ein): backdrop-filter blur(3px) + SVG-Kantenbrechung
+   in EINER Kette. Das frühere blur(16px) saturate(1.35) auf der Kachel
+   selbst ist weg — es wäre sonst ein zweiter Backdrop-Pass pro Kachel
+   über demselben animierten Hintergrund. .b-azubi bleibt bewusst CSS-Glas
+   (eine Karte pro Azubi, GlassSurface ist count-gebunden).
+   Voraussetzung wie bei Christmas: kein Backdrop Root zwischen Kachel und
+   Szene (kein transform/filter/opacity<1/isolation auf Vorfahren, und die
+   Einblendung läuft auf dem Kachel-INHALT statt auf der Kachel).
+   =================================================================== */
+html[data-theme="halloween"] .bento .b-hero,
+html[data-theme="halloween"] .bento .b-mitteilungen,
+html[data-theme="halloween"] .bento .b-recent,
+[data-theme="halloween"] .welcome-hero {
+  position: relative;
+  background: linear-gradient(180deg,
+    var(--hw-tile-tint-top, transparent) 0%,
+    var(--hw-tile-tint-bot, transparent) 100%) !important;
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+  border: 0 !important;
+  box-shadow: none !important;
+}
+/* Einblendung auf den Inhalt statt auf die Kachel: eine laufende
+   opacity-Animation macht die Kachel zum Backdrop Root, das Glas sähe nur
+   die eigene leere Fläche und poppte danach herein. */
+[data-theme="halloween"] .pm-xm-glass-card { animation: none; }
+[data-theme="halloween"] .pm-xm-glass-card > * {
+  animation: fadeIn var(--t-normal) backwards;
+}
+/* Dekorative Dunkel-Vignetten (dashboard.css/oben) waren für den opaken
+   Kachelgrund gedacht und wären über Glas dunkle Flecken; Kantenfade aus. */
+html[data-theme="halloween"] .bento .b-hero::before,
+html[data-theme="halloween"] .bento .b-mitteilungen::before,
+html[data-theme="halloween"] .bento .b-recent::before,
+[data-theme="halloween"] .welcome-hero::before,
+[data-theme="halloween"] .bento .b-hero::after,
+[data-theme="halloween"] .bento .b-mitteilungen::after,
+[data-theme="halloween"] .bento .b-recent::after {
+  background: none !important;
+}
+[data-theme="halloween"] :is(.welcome-hero, .bento .b-hero,
+  .bento .b-mitteilungen, .bento .b-recent) > *:not(.pm-xm-glass) {
+  position: relative;
+  z-index: 2;
+}
+[data-theme="halloween"] .pm-xm-glass {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  border-radius: inherit;
+  pointer-events: none;
+  /* Glaskante: Licht oben (kürbis-warm), feiner Rim, Schattenkante unten.
+     !important, weil glass-surface.css einen helleren Rim setzt. */
+  box-shadow:
+    inset 0  1px 0     rgba(255, 222, 184, 0.152),
+    inset 0  0   0 1px rgba(255, 255, 255, 0.08),
+    inset 0 -1px 0     rgba(0, 0, 0, 0.28),
+    0 18px 48px -14px  rgba(0, 0, 0, 0.55) !important;
+}
+/* Ohne Blur (html.perf-lite → glass.css nullt jeden backdrop-filter; oder
+   Browser ohne backdrop-filter): Tönung statt unsichtbarem Loch. */
+html.perf-lite[data-theme="halloween"] {
+  --hw-tile-tint-top: rgba(26, 17, 36, 0.66);
+  --hw-tile-tint-bot: rgba(16, 10, 24, 0.74);
+}
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  html[data-theme="halloween"] {
+    --hw-tile-tint-top: rgba(26, 17, 36, 0.66);
+    --hw-tile-tint-bot: rgba(16, 10, 24, 0.74);
+  }
+}
+/* Safari/Firefox: kein SVG im backdrop-filter → nur der 3px-Frost, ohne die
+   helle Vendor-Fläche. */
+[data-theme="halloween"] .pm-xm-glass.glass-surface--fallback {
+  background: transparent !important;
+  border: 0 !important;
+  -webkit-backdrop-filter: blur(3px) !important;
+  backdrop-filter: blur(3px) !important;
+}
+[data-theme="halloween"] .pm-xm-glass-card *::-webkit-scrollbar { width: 0 !important; height: 0 !important; }
+[data-theme="halloween"] .pm-xm-glass-card * { scrollbar-width: none; }
+/* Fußlink/Leerzustand: dashboard.css spiegelt die Hellfarbe nur für dark →
+   unter Halloween stand dunkler Text auf dunklem Glas, mit Halo ein Fleck. */
+[data-theme="halloween"] .b-mitteilungen__more  { color: rgba(255, 255, 255, 0.78); }
+[data-theme="halloween"] .b-mitteilungen__empty { color: rgba(255, 255, 255, 0.80); }
+/* Textschutz als Halo an der Schrift (Kachelfläche ist fast klar). */
+[data-theme="halloween"] .welcome-hero__name,
+[data-theme="halloween"] .welcome-hero__sub,
+[data-theme="halloween"] .b-recent__head h3,
+[data-theme="halloween"] .b-recent__head .sub,
+[data-theme="halloween"] .b-recent__head a,
+[data-theme="halloween"] .b-mitteilungen__more,
+[data-theme="halloween"] .b-mitteilungen__empty,
+[data-theme="halloween"] .b-hero__eyebrow,
+[data-theme="halloween"] .b-hero__kw small {
+  text-shadow:
+    0 1px 1px rgba(6, 3, 12, 0.95),
+    0 0  4px  rgba(6, 3, 12, 0.92),
+    0 0 10px  rgba(6, 3, 12, 0.85),
+    0 0 20px  rgba(6, 3, 12, 0.70),
+    0 0 34px  rgba(6, 3, 12, 0.50);
+}
+[data-theme="halloween"] .b-hero__kw-num,
+[data-theme="halloween"] .welcome-hero__kw-num {
+  text-shadow:
+    0 2px  3px rgba(6, 3, 12, 0.90),
+    0 0   14px rgba(6, 3, 12, 0.85),
+    0 0   34px rgba(6, 3, 12, 0.70),
+    0 0   60px rgba(6, 3, 12, 0.50);
 }
 
 /* ── Ausbilder-/Prüfer-Dashboard: Listen-Pills („Zu prüfen"-Azubi-Zeilen +
@@ -1035,10 +1156,21 @@ html[data-theme="halloween"] .card--mitteilungen .activity-item--link:hover {
 [data-theme="halloween"] .sidebar__user-link .avatar {
   color: transparent;
   border: none;
-  box-shadow: 0 0 10px rgba(255, 140, 30, 0.55),
-              inset 0 0 0 1px rgba(255, 184, 92, 0.4);
-  background: center / cover no-repeat
-    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48'%3E%3Crect width='48' height='48' fill='%23211325'/%3E%3Cpath d='M22.5 12 C21.5 7 24 5.5 26 6.5 C24.5 7.5 24.5 9.5 25.5 12 Z' fill='%233f5a28'/%3E%3Cellipse cx='24' cy='28' rx='19' ry='15.5' fill='%23cf6a0c'/%3E%3Cellipse cx='13.5' cy='28' rx='8.5' ry='13.5' fill='%23e8740f'/%3E%3Cellipse cx='34.5' cy='28' rx='8.5' ry='13.5' fill='%23e8740f'/%3E%3Cellipse cx='19' cy='28' rx='9' ry='15' fill='%23f07e12'/%3E%3Cellipse cx='29' cy='28' rx='9' ry='15' fill='%23f07e12'/%3E%3Cellipse cx='24' cy='28' rx='9.5' ry='15.5' fill='%23fb8d1b'/%3E%3Cg stroke='%23b9550c' stroke-width='1.4' fill='none' opacity='0.55' stroke-linecap='round'%3E%3Cpath d='M16 16.5 C12.5 22 12.5 34 16 39.5'/%3E%3Cpath d='M32 16.5 C35.5 22 35.5 34 32 39.5'/%3E%3C/g%3E%3Cg fill='%23ffd24d'%3E%3Cpolygon points='14.5,23 21,22 17.5,27.5'/%3E%3Cpolygon points='33.5,23 27,22 30.5,27.5'/%3E%3Cpolygon points='24,27 26.5,31 21.5,31'/%3E%3Cpath d='M13.5 33 L17 33 L18.5 35.5 L20.5 33 L24 33 L27.5 33 L29.5 35.5 L31 33 L34.5 33 Q31 42 24 42 Q17 42 13.5 33 Z'/%3E%3C/g%3E%3C/svg%3E");
+  border-radius: 0;
+  /* Kein Kreis dahinter: weder Fläche noch Ring/Glow-Kasten — das Leuchten
+     folgt der Kürbis-Silhouette (drop-shadow). */
+  box-shadow: none;
+  filter: drop-shadow(0 0 5px rgba(255, 140, 30, 0.55));
+  background: center / contain no-repeat
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 3 48 48'%3E%3Cpath d='M22.5 12 C21.5 7 24 5.5 26 6.5 C24.5 7.5 24.5 9.5 25.5 12 Z' fill='%233f5a28'/%3E%3Cellipse cx='24' cy='28' rx='19' ry='15.5' fill='%23cf6a0c'/%3E%3Cellipse cx='13.5' cy='28' rx='8.5' ry='13.5' fill='%23e8740f'/%3E%3Cellipse cx='34.5' cy='28' rx='8.5' ry='13.5' fill='%23e8740f'/%3E%3Cellipse cx='19' cy='28' rx='9' ry='15' fill='%23f07e12'/%3E%3Cellipse cx='29' cy='28' rx='9' ry='15' fill='%23f07e12'/%3E%3Cellipse cx='24' cy='28' rx='9.5' ry='15.5' fill='%23fb8d1b'/%3E%3Cg stroke='%23b9550c' stroke-width='1.4' fill='none' opacity='0.55' stroke-linecap='round'%3E%3Cpath d='M16 16.5 C12.5 22 12.5 34 16 39.5'/%3E%3Cpath d='M32 16.5 C35.5 22 35.5 34 32 39.5'/%3E%3C/g%3E%3Cg fill='%23ffd24d'%3E%3Cpolygon points='14.5,23 21,22 17.5,27.5'/%3E%3Cpolygon points='33.5,23 27,22 30.5,27.5'/%3E%3Cpolygon points='24,27 26.5,31 21.5,31'/%3E%3Cpath d='M13.5 33 L17 33 L18.5 35.5 L20.5 33 L24 33 L27.5 33 L29.5 35.5 L31 33 L34.5 33 Q31 42 24 42 Q17 42 13.5 33 Z'/%3E%3C/g%3E%3C/svg%3E");
+}
+
+/* Hover/aktive Seite: der runde Ring aus layout.css würde den Kreis
+   zurückbringen → stattdessen kräftigeres Silhouetten-Leuchten. */
+[data-theme="halloween"] .sidebar__user-link:hover .avatar,
+[data-theme="halloween"] .sidebar__user-link.active .avatar {
+  box-shadow: none;
+  filter: drop-shadow(0 0 7px rgba(255, 160, 50, 0.85));
 }
 
 /* ===================================================================
