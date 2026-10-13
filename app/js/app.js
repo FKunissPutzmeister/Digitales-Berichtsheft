@@ -1116,16 +1116,43 @@ PMSelect._openInstance = null;
    Einzige Markup-Quelle für die Azubi-Auswahl in Wochen-/Jahresansicht,
    Ausbildungsstand und Abteilungsdurchlauf – ersetzt die früheren Chip-Listen.
    Event-Anbindung beim Aufrufer: change-Listener auf #<id> (Default 'azubiSelect').
+
+   Mischt die Liste Industriemechaniker und Mechatroniker (Ausbilder der
+   technischen Azubis), steht davor ein Beruf-Filter (azubi-beruf.js). Die
+   Azubis brauchen dafür ihr Feld `beruf`; Listen ohne bleiben ungefiltert.
    =================================================================== */
 function renderAzubiSelect(azubis, currentId, opts = {}) {
   const { id = 'azubiSelect', label = 'Azubi:' } = opts;
   const cur = currentId != null ? String(currentId) : '';
-  const options = (azubis || []).map(a =>
-    `<option value="${_pmEscapeHtml(a.id)}"${String(a.id) === cur ? ' selected' : ''}>${_pmEscapeHtml(a.name)}</option>`
-  ).join('');
+  const liste = azubis || [];
+  const optionHtml = (a, extra = '') =>
+    `<option${extra} value="${_pmEscapeHtml(a.id)}"${String(a.id) === cur ? ' selected' : ''}>${_pmEscapeHtml(a.name)}</option>`;
+
+  // Fehlt azubi-beruf.js auf einer Seite, bleibt es beim einfachen Dropdown.
+  const AB = typeof AzubiBeruf !== 'undefined' ? AzubiBeruf : null;
+  const filter = AB ? AB.wirksamerFilter(liste, getPersistedBerufFilter(), currentId) : null;
+  let berufHtml = '';
+  if (filter) {
+    const wahl = AB.filterOptionen(liste).map(o =>
+      `<option value="${o.key}"${o.key === filter ? ' selected' : ''}>${_pmEscapeHtml(o.label)}</option>`
+    ).join('');
+    // Vorrat ALLER Azubis für den Filterwechsel (Listener unten). Der Inhalt
+    // eines <template> ist inert – PMSelect.enhance findet ihn nicht.
+    const vorrat = liste.map(a => optionHtml(a, ` data-beruf-gruppe="${AB.gruppeVon(a.beruf)}"`)).join('');
+    berufHtml = `<span class="azubi-select-row__feld azubi-select-row__feld--beruf">
+        <label class="azubi-select-row__label" for="${id}Beruf">Beruf:</label>
+        <select class="form-control azubi-beruf-select" id="${id}Beruf" data-azubi-beruf-for="${id}" aria-label="Ausbildungsberuf filtern">${wahl}</select>
+      </span>
+      <template data-azubi-vorrat-for="${id}">${vorrat}</template>`;
+  }
+  const options = (filter ? AB.filtere(liste, filter) : liste).map(a => optionHtml(a)).join('');
+  const azubiHtml = `<label class="azubi-select-row__label" for="${id}">${_pmEscapeHtml(label)}</label>
+      <select class="form-control azubi-select" id="${id}" aria-label="Azubi auswählen" data-pm-search="Azubi suchen …">${options}</select>`;
+  // Mit Filter: beide Paare als Block, damit ein Umbruch (iPad, enger
+  // Seitenkopf) nicht ein Label von seinem Dropdown trennt.
   return `<div class="azubi-select-row">
-      <label class="azubi-select-row__label" for="${id}">${_pmEscapeHtml(label)}</label>
-      <select class="form-control azubi-select" id="${id}" aria-label="Azubi auswählen" data-pm-search="Azubi suchen …">${options}</select>
+      ${berufHtml}
+      ${filter ? `<span class="azubi-select-row__feld">${azubiHtml}</span>` : azubiHtml}
     </div>`;
 }
 
@@ -1147,6 +1174,48 @@ function setPersistedAzubiId(id) {
     else localStorage.removeItem(AZUBI_VIEW_STORAGE_KEY);
   } catch (e) { /* Speicher nicht verfügbar → nur für diese Sitzung */ }
 }
+
+/* Beruf-Filter der Azubi-Auswahl: ebenfalls pro Gerät und seitenübergreifend,
+   damit die Wahl einen Wochenwechsel (= Neu-Render) übersteht. */
+const AZUBI_BERUF_STORAGE_KEY = 'berichtsheft.azubiBerufFilter';
+function getPersistedBerufFilter() {
+  try { return localStorage.getItem(AZUBI_BERUF_STORAGE_KEY) || null; }
+  catch (e) { return null; }
+}
+function setPersistedBerufFilter(key) {
+  try {
+    if (key) localStorage.setItem(AZUBI_BERUF_STORAGE_KEY, String(key));
+    else localStorage.removeItem(AZUBI_BERUF_STORAGE_KEY);
+  } catch (e) { /* Speicher nicht verfügbar → nur für diese Sitzung */ }
+}
+
+/* Filterwechsel: Optionen des Azubi-Dropdowns aus dem <template>-Vorrat neu
+   setzen (PMSelect baut sich per Observer selbst um). Delegiert auf document,
+   weil die Seiten die Auswahl bei jedem Render per innerHTML ersetzen.
+   Steht der gezeigte Azubi nicht im gewählten Beruf, wird der erste der
+   Gruppe gewählt und ein change auf dem Azubi-Dropdown ausgelöst – die Seite
+   lädt dann genau wie bei einer Handwahl. */
+document.addEventListener('change', (e) => {
+  const wahl = e.target;
+  if (!wahl || !wahl.matches || !wahl.matches('select[data-azubi-beruf-for]')) return;
+  const zielId = wahl.dataset.azubiBerufFor;
+  const select = document.getElementById(zielId);
+  const vorrat = document.querySelector(`template[data-azubi-vorrat-for="${zielId}"]`);
+  if (!select || !vorrat || typeof AzubiBeruf === 'undefined') return;
+  setPersistedBerufFilter(wahl.value);
+  const passend = Array.from(vorrat.content.querySelectorAll('option'))
+    .filter(o => wahl.value === AzubiBeruf.ALLE || o.dataset.berufGruppe === wahl.value);
+  if (!passend.length) return;
+  const bisher = select.value;
+  const ziel = passend.some(o => o.value === bisher) ? bisher : passend[0].value;
+  select.replaceChildren(...passend.map(o => {
+    const neu = o.cloneNode(true);
+    neu.toggleAttribute('selected', neu.value === ziel);
+    return neu;
+  }));
+  select.value = ziel;
+  if (ziel !== bisher) select.dispatchEvent(new Event('change', { bubbles: true }));
+});
 
 /* „Neu" bei Mitteilungen heißt: seit dem letzten Aufruf dazugekommen.
    Ansehen genügt – wer die Seite neu lädt oder verlässt, hat sie gesehen.

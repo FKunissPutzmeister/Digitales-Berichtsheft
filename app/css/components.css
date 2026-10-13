@@ -1217,6 +1217,29 @@ select.form-control {
   width: min(320px, 100%);
   flex: 0 0 auto;
 }
+/* Beruf-Filter davor (nur Ausbilder mit Industriemechanikern UND
+   Mechatronikern): je Label + Dropdown ein Block, damit ein Umbruch sie
+   nicht auseinanderreißt (iPad, enger Seitenkopf in Ausbildungsstand).
+   Die Breite sitzt am Block, nach demselben Muster wie min(320px, 100%)
+   oben: eine feste width am Dropdown zählt voll in die Min-Content-Breite
+   und sprengt auf dem Handy den Seitenkopf, flex-basis wiederum ignoriert
+   Chrome beim Bemessen des Blocks. Das Dropdown füllt den Rest neben dem
+   Label (≈ 320px bzw. 210px für „Industriemechaniker"). */
+.azubi-select-row__feld {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  width: min(380px, 100%);
+}
+.azubi-select-row__feld--beruf {
+  width: min(270px, 100%);
+}
+/* (0,4,0) überstimmt .pm-select.azubi-select.pm-select--block (0,3,0). */
+.azubi-select-row .azubi-select-row__feld > .pm-select.pm-select--block {
+  flex: 1 1 auto;
+  width: auto;
+  min-width: 0;
+}
 
 /* Karten + interaktive Elemente bekommen im Dark-Mode einen dezenten
    Hauch Border-Light, damit sie sich vom Body abheben. */

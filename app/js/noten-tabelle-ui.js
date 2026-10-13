@@ -214,7 +214,7 @@
         .join('');
 
       const wahl = (!nurEigene && azubis.length)
-        ? renderAzubiSelect(azubis.map(a => ({ id: a.oid, name: displayName(a.name) })), viewAzubiId)
+        ? renderAzubiSelect(azubis.map(a => ({ id: a.oid, name: displayName(a.name), beruf: a.beruf })), viewAzubiId)
         : '';
 
       /* Filterleiste und Tabelle stehen in EINER Karte, und das ist keine
